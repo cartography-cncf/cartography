@@ -20,35 +20,62 @@ from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import to_datetime
 
+SAMPLE_ANALYSIS_JOB = """
+{
+  "name": "sample analysis job",
+  "statements": [
+    {
+      "query": "RETURN 1",
+      "iterative": false
+    }
+  ]
+}
+"""
+
 
 def test_run_analysis_job_default_package(mocker):
-    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_analysis_job("test.json", neo4j_session, {})
+
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.analysis",
         "test.json",
     )
-    run_from_json_mock.assert_called_once()
+    neo4j_session.execute_write.assert_called_once()
 
 
 def test_run_analysis_job_custom_package(mocker):
-    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock(), package="a.b.c")
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_analysis_job("test.json", neo4j_session, {}, package="a.b.c")
+
     read_text_mock.assert_called_once_with("a.b.c", "test.json")
-    run_from_json_mock.assert_called_once()
+    neo4j_session.execute_write.assert_called_once()
 
 
 def test_run_scoped_analysis_job_default_package(mocker):
-    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_scoped_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_scoped_analysis_job("test.json", neo4j_session, {})
+
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.scoped_analysis",
         "test.json",
     )
-    run_from_json_mock.assert_called_once()
+    neo4j_session.execute_write.assert_called_once()
 
 
 @patch(
