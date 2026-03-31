@@ -56,9 +56,20 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[Any]:
 
     for directory_id in directory_ids:
         logger.debug("Fetching groups for directory: %s", directory_id)
-        all_groups.extend(
-            paginated_list(client.directory_sync.list_groups, directory_id=directory_id)
-        )
+        try:
+            all_groups.extend(
+                paginated_list(
+                    client.directory_sync.list_groups,
+                    directory_id=directory_id,
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch groups for directory %s: %s",
+                directory_id,
+                e,
+            )
+            continue
 
     logger.debug("Fetched %d directory groups", len(all_groups))
     return all_groups

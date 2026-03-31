@@ -56,9 +56,20 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[dict[str, Any]]:
 
     for directory_id in directory_ids:
         logger.debug("Fetching users for directory: %s", directory_id)
-        all_users.extend(
-            paginated_list(client.directory_sync.list_users, directory_id=directory_id)
-        )
+        try:
+            all_users.extend(
+                paginated_list(
+                    client.directory_sync.list_users,
+                    directory_id=directory_id,
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch users for directory %s: %s",
+                directory_id,
+                e,
+            )
+            continue
 
     logger.debug("Fetched %d directory users", len(all_users))
     return all_users
