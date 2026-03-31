@@ -35,16 +35,16 @@ DEFAULT_DEPENDENCY_SCAN_JOB_NAMES = (
 
 def _select_dependency_scan_job(
     jobs: list[dict[str, Any]],
-    dependency_scan_job_name: str,
+    dependency_scan_job_name: str | None,
 ) -> dict[str, Any] | None:
     """
     Select the latest dependency scan job from successful jobs.
 
-    If the default job name is configured, this supports all known GitLab
-    dependency scan job names (default + AutoDevOps language-specific names).
-    For any custom job name, only that specific name is matched.
+    If no custom job name is configured, support all known GitLab dependency
+    scan job names (default + AutoDevOps language-specific names). For any
+    custom job name, only that specific name is matched.
     """
-    if dependency_scan_job_name == DEFAULT_DEPENDENCY_SCAN_JOB_NAME:
+    if dependency_scan_job_name is None:
         candidate_names = set(DEFAULT_DEPENDENCY_SCAN_JOB_NAMES)
     else:
         candidate_names = {dependency_scan_job_name}
@@ -61,7 +61,7 @@ def get_dependencies(
     project_id: int,
     dependency_files: list[dict[str, Any]],
     default_branch: str = "main",
-    dependency_scan_job_name: str = DEFAULT_DEPENDENCY_SCAN_JOB_NAME,
+    dependency_scan_job_name: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch dependencies from the latest dependency scanning job artifacts.
@@ -76,10 +76,11 @@ def get_dependencies(
     :param project_id: The numeric project ID.
     :param dependency_files: List of transformed dependency files for mapping.
     :param default_branch: The default branch to fetch artifacts from.
-    :param dependency_scan_job_name: The dependency scanning job name to look for.
-        If left as the default ('gemnasium-dependency_scanning'), Cartography
-        also supports AutoDevOps job names:
-        'gemnasium-python-dependency_scanning' and
+    :param dependency_scan_job_name: Optional custom dependency scanning job
+        name to look for. If not provided, Cartography searches all known
+        GitLab dependency scanning job names:
+        'gemnasium-dependency_scanning',
+        'gemnasium-python-dependency_scanning', and
         'gemnasium-maven-dependency_scanning'.
     :return: List of dependency dictionaries.
     """
@@ -111,14 +112,17 @@ def get_dependencies(
         dep_scan_job = _select_dependency_scan_job(jobs, dependency_scan_job_name)
 
         if not dep_scan_job:
+            configured_job_name = (
+                dependency_scan_job_name or "all known GitLab dependency scan jobs"
+            )
             logger.debug(
                 f"No successful dependency scanning job found for project ID {project_id}. "
-                f"Searched for configured job '{dependency_scan_job_name}'."
+                f"Searched for configured job '{configured_job_name}'."
             )
             return []
 
         job_id = dep_scan_job.get("id")
-        job_name = dep_scan_job.get("name", dependency_scan_job_name)
+        job_name = dep_scan_job.get("name", DEFAULT_DEPENDENCY_SCAN_JOB_NAME)
         logger.debug(
             f"Found dependency scanning job '{job_name}' (ID {job_id}) for project ID {project_id}"
         )

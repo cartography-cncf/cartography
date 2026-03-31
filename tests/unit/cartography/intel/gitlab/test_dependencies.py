@@ -291,7 +291,7 @@ def test_select_dependency_scan_job_supports_autodevops_job_names():
         {"id": 299, "name": DEFAULT_DEPENDENCY_SCAN_JOB_NAME},
     ]
 
-    job = _select_dependency_scan_job(jobs, DEFAULT_DEPENDENCY_SCAN_JOB_NAME)
+    job = _select_dependency_scan_job(jobs, None)
 
     assert job is not None
     assert job["id"] == 300
