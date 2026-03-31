@@ -5,10 +5,10 @@ import pytest
 import cartography.intel.entra.intune.compliance_policies
 import cartography.intel.entra.intune.detected_apps
 import cartography.intel.entra.intune.managed_devices
-from cartography.graph.job import GraphJob
 from cartography.intel.entra.intune.compliance_policies import sync_compliance_policies
 from cartography.intel.entra.intune.detected_apps import sync_detected_apps
 from cartography.intel.entra.intune.managed_devices import sync_managed_devices
+from cartography.util import run_analysis_job
 from tests.data.intune.compliance_policies import MOCK_COMPLIANCE_POLICIES
 from tests.data.intune.compliance_policies import TEST_GROUP_ID
 from tests.data.intune.detected_apps import MOCK_DETECTED_APPS
@@ -229,10 +229,10 @@ async def test_sync_intune(
     }
 
     # Run the analysis job to resolve policy -> device relationships
-    GraphJob.run_from_json_file(
-        "cartography/data/jobs/analysis/intune_compliance_policy_device.json",
+    run_analysis_job(
+        "intune_compliance_policy_device.json",
         neo4j_session,
-        {},
+        common_job_parameters,
     )
 
     # Assert: APPLIES_TO relationships
