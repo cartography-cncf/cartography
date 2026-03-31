@@ -308,6 +308,12 @@ def fetch_all(
             has_next_page = False
             continue
 
+        if resp["data"].get("organization") is None:
+            raise ValueError(
+                f"Didn't get any organization data for '{organization}'. "
+                f"Check that the organization exists and the token has access.",
+            )
+
         resource = resp["data"]["organization"][resource_type]
         if resource_inner_type:
             resource = resp["data"]["organization"][resource_type][resource_inner_type]
