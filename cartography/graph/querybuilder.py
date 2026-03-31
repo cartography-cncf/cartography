@@ -709,7 +709,6 @@ def _build_attach_sub_resource_statement(
 
     sub_resource_attach_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH (j:$SubResourceLabel{$MatchClause})
         WITH i, item, j WHERE j IS NOT NULL
         $RelMergeClause
@@ -804,7 +803,6 @@ def _build_attach_additional_links_statement(
 
     additional_links_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH ($node_var:$AddlLabel)
         WHERE
             $WhereClause
@@ -931,7 +929,7 @@ def _build_attach_relationships_statement(
     query_template = Template(
         """
         WITH i, item
-        CALL {
+        CALL (i, item) {
             $attach_relationships_statement
         }
         """,
@@ -1372,19 +1370,31 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     if node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
             if isinstance(label, str):
-                # Simple string label - create index on id
+                # Simple string label - create index on id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label,
                         TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
                     ),
                 )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="lastupdated",
+                    ),
+                )
             elif isinstance(label, ConditionalNodeLabel):
-                # Conditional label - create index on the conditional label's id
+                # Conditional label - create index on the conditional label's id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label.label,
                         TargetAttribute="id",
+                    ),
+                )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="lastupdated",
                     ),
                 )
                 # Also create indexes on the condition fields for the primary node label

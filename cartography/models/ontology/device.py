@@ -31,6 +31,23 @@ class DeviceToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# Cleanup-only relationship.
+# This relation is created by custom ontology linking queries, not by load(DeviceSchema()).
+# We keep it on the schema so GraphJob cleanup knows to remove stale edges.
+# The PropertyRef intentionally points to a field that does not exist in device load payloads,
+# so standard ingestion will never materialize this relationship.
+# (:User)-[:OWNS]->(:Device)
+@dataclass(frozen=True)
+class DeviceOwnedByUserRel(CartographyRelSchema):
+    target_node_label: str = "User"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OWNS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
 @dataclass(frozen=True)
 class DeviceToJumpCloudSystemRel(CartographyRelSchema):
@@ -115,6 +132,7 @@ class DeviceSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
+            DeviceOwnedByUserRel(),
             DeviceToJumpCloudSystemRel(),
             # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),
