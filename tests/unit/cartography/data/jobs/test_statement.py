@@ -20,7 +20,7 @@ def test_create_from_json():
     assert statement.parent_job_sequence_num == 1
 
 
-@patch("cartography.client.core.tx.execute_write_with_retry")
+@patch("cartography.graph.statement.execute_write_with_retry")
 def test_run_noniterative_uses_retry_wrapper(mock_execute_write_with_retry):
     statement = GraphStatement("RETURN 1")
     session = MagicMock()
@@ -33,7 +33,7 @@ def test_run_noniterative_uses_retry_wrapper(mock_execute_write_with_retry):
     )
 
 
-@patch("cartography.client.core.tx.execute_write_with_retry")
+@patch("cartography.graph.statement.execute_write_with_retry")
 def test_run_iterative_uses_retry_wrapper(mock_execute_write_with_retry):
     statement = GraphStatement("RETURN 1", iterative=True, iterationsize=100)
     session = MagicMock()

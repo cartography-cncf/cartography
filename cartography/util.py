@@ -32,8 +32,6 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
-from cartography.graph.job import GraphJob
-from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
@@ -108,6 +106,9 @@ def run_analysis_job(
         The job file must be a valid JSON file containing GraphJob-compatible
         query definitions.
     """
+    from cartography.graph.job import GraphJob
+    from cartography.graph.statement import get_job_shortname
+
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
@@ -306,6 +307,9 @@ def run_cleanup_job(
         with current cartography patterns and to avoid potential deprecation
         issues in future versions.
     """
+    from cartography.graph.job import GraphJob
+    from cartography.graph.statement import get_job_shortname
+
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
