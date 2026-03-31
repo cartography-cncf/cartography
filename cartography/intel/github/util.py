@@ -27,6 +27,8 @@ _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 # Search API has a stricter rate limit (30 requests/minute for authenticated users)
 _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
+# HTTP status codes that are safe to retry with exponential backoff
+_TRANSIENT_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -502,6 +504,7 @@ def call_github_rest_api(
     token: str,
     api_url: str = "https://api.github.com",
     params: dict[str, Any] | None = None,
+    retries: int = 5,
 ) -> dict[str, Any]:
     """
     Calls the GitHub REST API and returns the JSON response.
@@ -510,8 +513,9 @@ def call_github_rest_api(
     :param token: The OAuth token for authentication
     :param api_url: The GitHub API URL (GraphQL or REST base URL - will be converted as needed)
     :param params: Optional query parameters for the request
+    :param retries: Number of retries to perform on transient errors.
     :return: The JSON response as a dictionary
-    :raises requests.exceptions.HTTPError: If the request fails
+    :raises requests.exceptions.HTTPError: If the request fails with a non-transient error or after all retries
     """
     # Use the helper to get correct REST API base URL (handles GitHub Enterprise correctly)
     base_url = (
@@ -520,47 +524,84 @@ def call_github_rest_api(
         else api_url.rstrip("/")
     )
 
-    headers = {
-        "Authorization": f"Bearer {_resolve_token(token)}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
     url = f"{base_url}{endpoint}"
+    last_exc: Any = None
 
-    try:
-        response = requests.get(url, headers=headers, params=params, timeout=_TIMEOUT)
-    except requests.exceptions.Timeout:
-        logger.warning("GitHub REST API: requests.get('%s') timed out.", url)
-        raise
+    for attempt in range(retries):
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
 
-    # Handle rate limiting for Search API
-    if "X-RateLimit-Remaining" in response.headers:
-        remaining = int(response.headers["X-RateLimit-Remaining"])
-        # Check if this is a search endpoint (stricter limits)
-        is_search = "/search/" in endpoint
-        threshold = (
-            _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
-            if is_search
-            else _REST_RATE_LIMIT_REMAINING_THRESHOLD
+        try:
+            response = requests.get(
+                url, headers=headers, params=params, timeout=_TIMEOUT
+            )
+
+            # Handle rate limiting for Search API
+            if "X-RateLimit-Remaining" in response.headers:
+                remaining = int(response.headers["X-RateLimit-Remaining"])
+                # Check if this is a search endpoint (stricter limits)
+                is_search = "/search/" in endpoint
+                threshold = (
+                    _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
+                    if is_search
+                    else _REST_RATE_LIMIT_REMAINING_THRESHOLD
+                )
+
+                if remaining < threshold:
+                    reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
+                    if reset_timestamp:
+                        reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
+                        now = datetime.now(tz.utc)
+                        sleep_duration = (
+                            reset_at - now + timedelta(seconds=10)
+                        )  # Add buffer
+                        if sleep_duration.total_seconds() > 0:
+                            logger.warning(
+                                f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
+                                f"sleeping until reset at {reset_at} for {sleep_duration}",
+                            )
+                            time.sleep(sleep_duration.total_seconds())
+
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+
+        except requests.exceptions.Timeout as err:
+            last_exc = err
+        except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code not in _TRANSIENT_STATUS_CODES
+            ):
+                raise
+            last_exc = err
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as err:
+            last_exc = err
+
+        logger.warning(
+            "GitHub REST API: transient error for '%s' (attempt %d/%d): %s",
+            url,
+            attempt + 1,
+            retries,
+            last_exc,
         )
+        if attempt < retries - 1:
+            time.sleep(2 ** (attempt + 1))
 
-        if remaining < threshold:
-            reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
-            if reset_timestamp:
-                reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
-                now = datetime.now(tz.utc)
-                sleep_duration = reset_at - now + timedelta(seconds=10)  # Add buffer
-                if sleep_duration.total_seconds() > 0:
-                    logger.warning(
-                        f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
-                        f"sleeping until reset at {reset_at} for {sleep_duration}",
-                    )
-                    time.sleep(sleep_duration.total_seconds())
-
-    response.raise_for_status()
-    result: dict[str, Any] = response.json()
-    return result
+    logger.error(
+        "GitHub REST API: Could not retrieve %s after %d retries. Raising exception.",
+        url,
+        retries,
+        exc_info=True,
+    )
+    raise last_exc
 
 
 def get_file_content(
