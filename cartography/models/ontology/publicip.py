@@ -25,6 +25,22 @@ class PublicIPToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# Cleanup-only relationship definition for custom ontology links.
+# This relation is created by link_ontology_nodes() queries, not by load(PublicIPSchema()).
+# The PropertyRef intentionally uses a field absent from public IP load payloads so
+# normal ingestion will never create this edge, but cleanup can still remove stale ones.
+# (:PublicIP)-[:POINTS_TO]->(:Device)
+@dataclass(frozen=True)
+class PublicIPToDeviceRel(CartographyRelSchema):
+    target_node_label: str = "Device"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_device_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "POINTS_TO"
+    properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
+
+
 # =============================================================================
 # RESERVED_BY relations - Link PublicIP to provider-specific IP resources
 # =============================================================================
@@ -122,6 +138,7 @@ class PublicIPSchema(CartographyNodeSchema):
             PublicIPToScalewayFlexibleIpRel(),
             PublicIPToGCPNicAccessConfigRel(),
             # POINTS_TO - Ontology semantic labels
+            PublicIPToDeviceRel(),
             PublicIPToComputeInstanceRel(),
             PublicIPToLoadBalancerRel(),
         ],

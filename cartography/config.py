@@ -36,7 +36,7 @@ class Config:
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
-    See https://neo4j.com/docs/api/python-driver/4.4/api.html#database. Optional.
+    See https://neo4j.com/docs/api/python-driver/5.26/api.html#database. Optional.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
