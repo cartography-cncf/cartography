@@ -527,7 +527,7 @@ def call_github_rest_api(
     url = f"{base_url}{endpoint}"
     last_exc: Any = None
 
-    for attempt in range(retries):
+    for attempt in range(max(retries, 1)):
         # Resolve token each iteration so AppCredential can refresh expired tokens
         headers = {
             "Authorization": f"Bearer {_resolve_token(token)}",
