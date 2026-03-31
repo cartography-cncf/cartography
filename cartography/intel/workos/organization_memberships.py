@@ -71,7 +71,7 @@ def transform(memberships: list[Any]) -> list[dict[str, Any]]:
     :param memberships: Raw organization membership objects from WorkOS
     :return: Transformed list of organization membership dicts
     """
-    logger.debug(f"Transforming {len(memberships)} WorkOS organization memberships")
+    logger.debug("Transforming %d WorkOS organization memberships", len(memberships))
     result = []
 
     for membership in memberships:
@@ -108,7 +108,8 @@ def load_organization_memberships(
     :return: None
     """
     logger.info(
-        f"Loading {len(data)} WorkOS organization memberships as nodes into Neo4j"
+        "Loading %d WorkOS organization memberships as nodes into Neo4j",
+        len(data),
     )
     load(
         neo4j_session,

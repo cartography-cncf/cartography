@@ -58,7 +58,7 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
             )
             domains.extend(org_domains)
         except Exception as e:
-            logger.warning(f"Failed to fetch domains for organization {org_id}: {e}")
+            logger.warning("Failed to fetch domains for organization %s: %s", org_id, e)
             continue
 
     return domains
@@ -71,7 +71,7 @@ def transform(domains: list[Any]) -> list[dict[str, Any]]:
     :param domains: Raw organization domain objects from WorkOS
     :return: Transformed list of organization domain dicts
     """
-    logger.debug(f"Transforming {len(domains)} WorkOS organization domains")
+    logger.debug("Transforming %d WorkOS organization domains", len(domains))
     result = []
 
     for domain in domains:
@@ -104,7 +104,7 @@ def load_organization_domains(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS organization domains into Neo4j")
+    logger.info("Loading %d WorkOS organization domains into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSOrganizationDomainSchema(),

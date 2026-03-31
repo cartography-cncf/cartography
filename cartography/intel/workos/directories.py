@@ -58,7 +58,7 @@ def transform(directories: list[Any]) -> list[dict[str, Any]]:
     :param directories: Raw directory objects from WorkOS
     :return: Transformed list of directory dicts
     """
-    logger.debug(f"Transforming {len(directories)} WorkOS directories")
+    logger.debug("Transforming %d WorkOS directories", len(directories))
     result = []
 
     for directory in directories:
@@ -93,7 +93,7 @@ def load_directories(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS directories into Neo4j")
+    logger.info("Loading %d WorkOS directories into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectorySchema(),

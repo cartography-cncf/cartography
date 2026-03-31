@@ -33,7 +33,7 @@ def sync(
     client_id = common_job_parameters["WORKOS_CLIENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    roles: dict[str, Role] = {}
+    roles: dict[str, list[Role]] = {}
     for org_id in org_ids:
         roles[org_id] = get(client, org_id)
     transformed_roles = transform(roles)
@@ -53,7 +53,7 @@ def get(client: WorkOSClient, org_id: str) -> list[dict[str, Any]]:
     logger.debug("Fetching WorkOS environment-level roles")
 
     # Fetch organization-level roles for each organization
-    logger.debug(f"Fetching WorkOS roles for organization: {org_id}")
+    logger.debug("Fetching WorkOS roles for organization: %s", org_id)
     return paginated_list(
         client.organizations.list_organization_roles, organization_id=org_id
     )
@@ -102,7 +102,7 @@ def load_roles(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS roles into Neo4j")
+    logger.info("Loading %d WorkOS roles into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSRoleSchema(),

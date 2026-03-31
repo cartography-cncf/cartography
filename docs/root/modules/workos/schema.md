@@ -12,8 +12,10 @@ E -- RESOURCE --> DU(DirectoryUser)
 E -- RESOURCE --> DG(DirectoryGroup)
 E -- RESOURCE --> OD(OrganizationDomain)
 E -- RESOURCE --> AK(APIKey)
+E -- RESOURCE --> APP(Application)
 O -- HAS --> R
 O -- OWNS --> AK
+APP -- BELONGS_TO --> O
 U -- MEMBER_OF --> M
 M -- IN --> O
 M -- WITH_ROLE --> R
@@ -368,8 +370,6 @@ Represents a domain verified for an organization. Domains are used to verify own
 
 Represents an API key used for programmatic access to WorkOS resources.
 
-**Note**: API key sync is currently not enabled in the ingestion module (Work In Progress).
-
 > **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., OpenAIApiKey, ScalewayAPIKey).
 
 | Field | Description |
@@ -401,9 +401,7 @@ Represents an API key used for programmatic access to WorkOS resources.
 
 ### WorkOSApplication
 
-Represents an OAuth/OIDC application integrated with WorkOS. These can be OAuth applications or Machine-to-Machine (M2M) applications.
-
-**Note**: Application sync is currently not enabled in the ingestion module (Work In Progress).
+Represents a Connect application integrated with WorkOS. These can be OAuth applications or Machine-to-Machine (M2M) applications.
 
 > **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for OAuth/SAML applications across different systems (e.g., OktaApplication, KeycloakClient).
 
@@ -433,36 +431,4 @@ Represents an OAuth/OIDC application integrated with WorkOS. These can be OAuth 
 - `Application` belongs to `Organization`
     ```
     (WorkOSApplication)-[:BELONGS_TO]->(WorkOSOrganization)
-    ```
-
-### WorkOSAPIKey
-
-Represents a WorkOS API Key used to authenticate API requests.
-
-**Ontology Labels**: `APIKey`
-
-| Field | Description |
-|-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
-| firstseen| Timestamp of when a sync job first created this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| name | The name of the API key |
-| obfuscated_value | The obfuscated value of the API key |
-| permissions | JSON-encoded list of permissions granted to this key |
-| created_at | The RFC 3339 datetime of when the API key was created |
-| updated_at | The RFC 3339 datetime of when the API key was last updated |
-| last_used_at | The RFC 3339 datetime of when the API key was last used |
-
-#### Relationships
-- `APIKey` belongs to an `Environment`
-    ```
-    (WorkOSEnvironment)-[:RESOURCE]->(WorkOSAPIKey)
-    ```
-- `APIKey` is owned by an `Organization`
-    ```
-    (WorkOSOrganization)-[:OWNS]->(WorkOSAPIKey)
-    ```
-- `APIKey` is owned by a `User`
-    ```
-    (WorkOSUser)-[:OWNS]->(WorkOSAPIKey)
     ```

@@ -17,7 +17,6 @@ class WorkOSOrganizationMembershipNodeProperties(CartographyNodeProperties):
     user_id: PropertyRef = PropertyRef("user_id", extra_index=True)
     organization_id: PropertyRef = PropertyRef("organization_id", extra_index=True)
     status: PropertyRef = PropertyRef("status")
-    role_id: PropertyRef = PropertyRef("role_id")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

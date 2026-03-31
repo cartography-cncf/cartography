@@ -55,7 +55,7 @@ def transform(invitations: list[Any]) -> list[dict[str, Any]]:
     :param invitations: Raw invitation objects from WorkOS
     :return: Transformed list of invitation dicts
     """
-    logger.debug(f"Transforming {len(invitations)} WorkOS invitations")
+    logger.debug("Transforming %d WorkOS invitations", len(invitations))
     result = []
 
     for invitation in invitations:
@@ -94,7 +94,7 @@ def load_invitations(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS invitations into Neo4j")
+    logger.info("Loading %d WorkOS invitations into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSInvitationSchema(),

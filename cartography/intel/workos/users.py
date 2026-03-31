@@ -55,7 +55,7 @@ def transform(users: list[Any]) -> list[dict[str, Any]]:
     :param users: Raw user objects from WorkOS
     :return: Transformed list of user dicts
     """
-    logger.debug(f"Transforming {len(users)} WorkOS users")
+    logger.debug("Transforming %d WorkOS users", len(users))
     result = []
 
     for user in users:
@@ -91,7 +91,7 @@ def load_users(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS users into Neo4j")
+    logger.info("Loading %d WorkOS users into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSUserSchema(),

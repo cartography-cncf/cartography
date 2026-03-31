@@ -61,7 +61,9 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
             )
             api_keys.extend(org_keys)
         except Exception as e:
-            logger.warning(f"Failed to fetch API keys for organization {org_id}: {e}")
+            logger.warning(
+                "Failed to fetch API keys for organization %s: %s", org_id, e
+            )
             continue
 
     return api_keys
@@ -74,7 +76,7 @@ def transform(api_keys: list[Any]) -> list[dict[str, Any]]:
     :param api_keys: Raw API key objects from WorkOS
     :return: Transformed list of API key dicts
     """
-    logger.debug(f"Transforming {len(api_keys)} WorkOS API keys")
+    logger.debug("Transforming %d WorkOS API keys", len(api_keys))
     result = []
 
     for api_key in api_keys:
@@ -118,7 +120,7 @@ def load_api_keys(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS API keys into Neo4j")
+    logger.info("Loading %d WorkOS API keys into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSAPIKeySchema(),

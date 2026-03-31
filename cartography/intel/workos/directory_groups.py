@@ -49,17 +49,18 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[Any]:
     :return: List of directory group objects
     """
     logger.debug(
-        f"Fetching WorkOS directory groups from {len(directory_ids)} directories"
+        "Fetching WorkOS directory groups from %d directories",
+        len(directory_ids),
     )
     all_groups = []
 
     for directory_id in directory_ids:
-        logger.debug(f"Fetching groups for directory: {directory_id}")
+        logger.debug("Fetching groups for directory: %s", directory_id)
         all_groups.extend(
             paginated_list(client.directory_sync.list_groups, directory_id=directory_id)
         )
 
-    logger.debug(f"Fetched {len(all_groups)} directory groups")
+    logger.debug("Fetched %d directory groups", len(all_groups))
     return all_groups
 
 
@@ -70,7 +71,7 @@ def transform(groups: list[Any]) -> list[dict[str, Any]]:
     :param groups: Raw directory group objects from WorkOS
     :return: Transformed list of directory group dicts
     """
-    logger.debug(f"Transforming {len(groups)} WorkOS directory groups")
+    logger.debug("Transforming %d WorkOS directory groups", len(groups))
     result = []
 
     for group in groups:
@@ -108,7 +109,7 @@ def load_directory_groups(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS directory groups into Neo4j")
+    logger.info("Loading %d WorkOS directory groups into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectoryGroupSchema(),

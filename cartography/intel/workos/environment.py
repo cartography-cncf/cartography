@@ -23,7 +23,7 @@ def sync(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) ->
     client_id = common_job_parameters["WORKOS_CLIENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    logger.info(f"Syncing WorkOS Environment: {client_id}")
+    logger.info("Syncing WorkOS Environment: %s", client_id)
 
     load(
         neo4j_session,

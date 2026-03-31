@@ -49,17 +49,18 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[dict[str, Any]]:
     :return: List of directory user dicts
     """
     logger.debug(
-        f"Fetching WorkOS directory users from {len(directory_ids)} directories"
+        "Fetching WorkOS directory users from %d directories",
+        len(directory_ids),
     )
     all_users = []
 
     for directory_id in directory_ids:
-        logger.debug(f"Fetching users for directory: {directory_id}")
+        logger.debug("Fetching users for directory: %s", directory_id)
         all_users.extend(
             paginated_list(client.directory_sync.list_users, directory_id=directory_id)
         )
 
-    logger.debug(f"Fetched {len(all_users)} directory users")
+    logger.debug("Fetched %d directory users", len(all_users))
     return all_users
 
 
@@ -70,7 +71,7 @@ def transform(users: list[Any]) -> list[dict[str, Any]]:
     :param users: Raw directory user objects from WorkOS
     :return: Transformed list of directory user dicts
     """
-    logger.debug(f"Transforming {len(users)} WorkOS directory users")
+    logger.debug("Transforming %d WorkOS directory users", len(users))
     result = []
 
     for user in users:
@@ -116,7 +117,7 @@ def load_directory_users(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS directory users into Neo4j")
+    logger.info("Loading %d WorkOS directory users into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectoryUserSchema(),

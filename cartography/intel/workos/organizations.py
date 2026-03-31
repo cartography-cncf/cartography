@@ -56,7 +56,7 @@ def transform(organizations: list[Any]) -> list[dict[str, Any]]:
     :param organizations: Raw organization objects from WorkOS
     :return: Transformed list of organization dicts
     """
-    logger.debug(f"Transforming {len(organizations)} WorkOS organizations")
+    logger.debug("Transforming %d WorkOS organizations", len(organizations))
     result = []
 
     for org in organizations:
@@ -88,7 +88,7 @@ def load_organizations(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info(f"Loading {len(data)} WorkOS organizations into Neo4j")
+    logger.info("Loading %d WorkOS organizations into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSOrganizationSchema(),
