@@ -132,6 +132,8 @@ def load_ec2_instances(neo4j_session, data, region, current_aws_account_id, upda
     )
 ```
 
+If you still need a handwritten write query during a refactor, do not keep `neo4j_session.run(...)` for that write path. Use `run_write_query()` so the query executes with Cartography's managed transaction and retry behavior.
+
 ### 2c. Replace cleanup_* Functions
 
 Replace handwritten cleanup with data model cleanup:
