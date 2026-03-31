@@ -46,10 +46,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
-      - name: run test_unit
-        run: make test_unit
-      - name: run test_integration
-        run: make test_integration
+      - name: Run combined coverage
+        run: make test_coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: coverage-report-neo4j4
+          path: coverage.xml
+          if-no-files-found: warn
 
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
@@ -69,10 +74,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
-      - name: run test_unit
-        run: make test_unit
-      - name: run test_integration
-        run: make test_integration
+      - name: Run combined coverage
+        run: make test_coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: coverage-report-neo4j5
+          path: coverage.xml
+          if-no-files-found: warn
 
   # Test that the docker image builds successfully on each commit
   build-docker-image:
