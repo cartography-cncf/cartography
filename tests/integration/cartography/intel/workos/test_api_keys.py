@@ -82,10 +82,7 @@ def test_load_workos_api_keys(mock_api, neo4j_session):
         ("api_key_01HXYZ1111111111AAAAAAAA", "Reactor Monitoring Key"),
         ("api_key_02HXYZ2222222222BBBBBBBB", "Squishee Machine Key"),
     }
-    assert (
-        check_nodes(neo4j_session, "WorkOSAPIKey", ["id", "name"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "WorkOSAPIKey", ["id", "name"]) == expected_nodes
 
     # Assert API keys are linked to the environment
     expected_env_rels = {

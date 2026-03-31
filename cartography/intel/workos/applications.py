@@ -69,14 +69,14 @@ def transform(apps: list[Any]) -> list[dict[str, Any]]:
             "description": getattr(app, "description", None),
             "application_type": app.application_type,
             "redirect_uris": (
-                json.dumps([u.uri for u in redirect_uris])
-                if redirect_uris
-                else None
+                json.dumps([u.uri for u in redirect_uris]) if redirect_uris else None
             ),
             "uses_pkce": getattr(app, "uses_pkce", None),
             "is_first_party": getattr(app, "is_first_party", None),
             "was_dynamically_registered": getattr(
-                app, "was_dynamically_registered", None,
+                app,
+                "was_dynamically_registered",
+                None,
             ),
             "organization_id": getattr(app, "organization_id", None),
             "scopes": json.dumps(list(scopes)) if scopes else None,
