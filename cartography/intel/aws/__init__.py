@@ -12,6 +12,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -79,8 +80,11 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
-    aioboto3_session: aioboto3.Session = aioboto3.Session(),
+    aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
+    if aioboto3_session is None:
+        aioboto3_session = aioboto3.Session()
+
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -116,6 +120,8 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
+        # `ecs` creates IS_INSTANCE relationships from ECSContainerInstance to EC2Instance
+        "ecs": ["ec2:instance"],
         "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
@@ -226,7 +232,7 @@ def _autodiscover_accounts(
     logger.info("Trying to autodiscover accounts.")
     try:
         # Fetch all accounts
-        client = boto3_session.client("organizations")
+        client = create_boto3_client(boto3_session, "organizations")
         paginator = client.get_paginator("list_accounts")
         accounts: List[Dict] = []
         for page in paginator.paginate():
@@ -351,6 +357,14 @@ def _perform_aws_analysis(
     """
     requested_syncs_as_set = set(requested_syncs)
 
+    run_analysis_and_ensure_deps(
+        "aws_ip_node_label_migration.json",
+        {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     ec2_asset_exposure_requirements = {
         "ec2:instance",
         "ec2:security_group",
@@ -406,6 +420,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_guardduty_severity_threshold": config.aws_guardduty_severity_threshold,
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
+        "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
     }
     try:
         boto3_session = boto3.Session()

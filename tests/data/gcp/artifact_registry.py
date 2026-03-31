@@ -21,6 +21,24 @@ MOCK_REPOSITORIES = [
         "createTime": "2024-01-02T00:00:00Z",
         "updateTime": "2024-01-16T00:00:00Z",
     },
+    {
+        "name": "projects/test-project/locations/us-east1/repositories/apt-repo",
+        "format": "APT",
+        "mode": "STANDARD_REPOSITORY",
+        "description": "APT packages repository",
+        "sizeBytes": "256000",
+        "createTime": "2024-01-03T00:00:00Z",
+        "updateTime": "2024-01-17T00:00:00Z",
+    },
+    {
+        "name": "projects/test-project/locations/us-east1/repositories/yum-repo",
+        "format": "YUM",
+        "mode": "STANDARD_REPOSITORY",
+        "description": "YUM packages repository",
+        "sizeBytes": "384000",
+        "createTime": "2024-01-04T00:00:00Z",
+        "updateTime": "2024-01-18T00:00:00Z",
+    },
 ]
 
 # Manifest list data for multi-arch images (returned in imageManifests field)
@@ -80,6 +98,24 @@ MOCK_MAVEN_ARTIFACTS = [
         "version": "1.0.0",
         "createTime": "2024-01-05T00:00:00Z",
         "updateTime": "2024-01-05T00:00:00Z",
+    },
+]
+
+MOCK_APT_ARTIFACTS = [
+    {
+        "name": "projects/test-project/locations/us-east1/repositories/apt-repo/packages/curl/versions/7.88.1",
+        "packageName": "curl",
+        "createTime": "2024-01-06T00:00:00Z",
+        "updateTime": "2024-01-06T00:00:00Z",
+    },
+]
+
+MOCK_YUM_ARTIFACTS = [
+    {
+        "name": "projects/test-project/locations/us-east1/repositories/yum-repo/packages/bash/versions/5.2.26",
+        "packageName": "bash",
+        "createTime": "2024-01-07T00:00:00Z",
+        "updateTime": "2024-01-07T00:00:00Z",
     },
 ]
 

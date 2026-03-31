@@ -26,12 +26,15 @@ from tests.integration.cartography.intel.trivy.test_helpers import (
 )
 
 TEST_UPDATE_TAG = 123456789
+TEST_REPOSITORIES = [
+    {"id": 1, "project_id": 1, "location": "registry.gitlab.com/myorg/app"}
+]
 
 
 def _cleanup_trivy_data(neo4j_session):
     """Clean up all Trivy-related nodes before test runs."""
     neo4j_session.run("MATCH (n:TrivyImageFinding) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:Package) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:TrivyPackage) DETACH DELETE n")
     neo4j_session.run("MATCH (n:TrivyFix) DETACH DELETE n")
 
 
@@ -95,7 +98,7 @@ def test_sync_trivy_gitlab(
         "https://gitlab.example.com",
         "fake-token",
         TEST_ORG_URL,
-        [],  # repositories - not used since we're mocking get_container_images
+        TEST_REPOSITORIES,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -181,7 +184,7 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
             "https://gitlab.example.com",
             "fake-token",
             TEST_ORG_URL,
-            [],
+            TEST_REPOSITORIES,
             TEST_UPDATE_TAG,
             common_job_parameters,
         )

@@ -38,6 +38,7 @@ VERTEX_ENDPOINTS_RESPONSE = [
         "createTime": "2024-01-01T00:00:00Z",
         "updateTime": "2024-01-02T00:00:00Z",
         "etag": "test-etag-456",
+        "labels": {"env": "test", "team": "ml"},
         "network": "projects/test-project/global/networks/default",
         "deployedModels": [
             {

@@ -3,10 +3,13 @@ from typing import Any
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.kms.cryptokey import GCPCryptoKeySchema
 from cartography.models.gcp.kms.keyring import GCPKeyRingSchema
 from cartography.util import timeit
@@ -15,30 +18,40 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_kms_locations(client: Resource, project_id: str) -> list[dict]:
+def get_kms_locations(client: Resource, project_id: str) -> list[dict] | None:
     """
     Retrieve KMS locations for a given project.
 
     :param client: The KMS resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve locations from.
-    :return: A list of dictionaries representing KMS locations.
+    :return: A list of dictionaries representing KMS locations, or None if API is disabled.
     """
     parent = f"projects/{project_id}"
-    request = client.projects().locations().list(name=parent)
-
     locations = []
-    while request is not None:
-        response = gcp_api_execute_with_retry(request)
-        locations.extend(response.get("locations", []))
-        request = (
-            client.projects()
-            .locations()
-            .list_next(
-                previous_request=request,
-                previous_response=response,
+    try:
+        request = client.projects().locations().list(name=parent)
+        while request is not None:
+            response = gcp_api_execute_with_retry(request)
+            locations.extend(response.get("locations", []))
+            request = (
+                client.projects()
+                .locations()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
             )
-        )
-    return locations
+        return locations
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve KMS locations on project %s due to permissions "
+                "issues or API not enabled. Skipping sync to preserve existing data. %s",
+                project_id,
+                summarize_gcp_http_error(e),
+            )
+            return None
+        raise
 
 
 @timeit
@@ -205,6 +218,8 @@ def sync(
     logger.info("Syncing GCP KMS for project %s.", project_id)
 
     locations = get_kms_locations(kms_client, project_id)
+    if locations is None:
+        return
     if not locations:
         logger.info("No KMS locations found for project %s.", project_id)
 

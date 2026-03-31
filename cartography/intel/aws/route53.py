@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
 from cartography.models.aws.route53.subzone import AWSDNSZoneSubzoneMatchLink
@@ -508,7 +509,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Syncing Route53 for account '%s'.", current_aws_account_id)
-    client = boto3_session.client("route53")
+    client = create_boto3_client(boto3_session, "route53")
     zones = get_zones(client)
 
     transformed_data = transform_all_dns_data(zones)

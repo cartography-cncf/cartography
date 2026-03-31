@@ -10,6 +10,8 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2Schema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2ToAWSLambdaMatchLink
@@ -25,12 +27,10 @@ from cartography.models.aws.ec2.loadbalancerv2 import (
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
-from .util import get_botocore_config
-
 logger = logging.getLogger(__name__)
 
 
-# TODO: Remove this migration function when releasing v1
+# DEPRECATED: Remove this migration function when releasing v1
 def _migrate_legacy_loadbalancerv2_labels(neo4j_session: neo4j.Session) -> None:
     """One-time migration: relabel LoadBalancerV2 → AWSLoadBalancerV2."""
     check_query = """
@@ -94,7 +94,8 @@ def get_load_balancer_v2_target_groups(
 @timeit
 @aws_handle_regions
 def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "elbv2",
         region_name=region,
         config=get_botocore_config(),

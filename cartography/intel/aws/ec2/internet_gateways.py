@@ -6,11 +6,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.internet_gateways import AWSInternetGatewaySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,8 @@ def get_internet_gateways(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),

@@ -25,6 +25,18 @@ def test_sync_load_balancers(mock_get_lbs, neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
+    # Create prerequisite nodes for cross-module relationships
+    neo4j_session.run(
+        "MERGE (n:AzureNetworkInterface{id: $nic_id}) SET n.lastupdated = $tag",
+        nic_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-test-nic",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (p:AzurePublicIPAddress{id: $pip_id}) SET p.lastupdated = $tag, p.ip_address = '52.1.2.3'",
+        pip_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip",
+        tag=TEST_UPDATE_TAG,
+    )
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
@@ -133,6 +145,30 @@ def test_sync_load_balancers(mock_get_lbs, neo4j_session):
         "id",
         "ROUTES_TO",
     ) == {(rule_id, backend_pool_id)}
+
+    # Test BackendPool -> NIC (ROUTES_TO) relationship
+    nic_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-test-nic"
+    assert check_rels(
+        neo4j_session,
+        "AzureLoadBalancerBackendPool",
+        "id",
+        "AzureNetworkInterface",
+        "id",
+        "ROUTES_TO",
+        rel_direction_right=True,
+    ) == {(backend_pool_id, nic_id)}
+
+    # Test FrontendIP -> PublicIP (ASSOCIATED_WITH) relationship
+    pip_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip"
+    assert check_rels(
+        neo4j_session,
+        "AzureLoadBalancerFrontendIPConfiguration",
+        "id",
+        "AzurePublicIPAddress",
+        "id",
+        "ASSOCIATED_WITH",
+        rel_direction_right=True,
+    ) == {(frontend_ip_id, pip_id)}
 
 
 def test_load_load_balancer_tags(neo4j_session):

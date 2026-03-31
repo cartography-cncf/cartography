@@ -8,7 +8,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cognito.identity_pool import CognitoIdentityPoolSchema
 from cartography.models.aws.cognito.user_pool import CognitoUserPoolSchema
 from cartography.util import aws_handle_regions
@@ -22,8 +23,11 @@ logger = logging.getLogger(__name__)
 def get_identity_pools(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "cognito-identity", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session,
+        "cognito-identity",
+        region_name=region,
+        config=get_botocore_config(),
     )
     paginator = client.get_paginator("list_identity_pools")
 
@@ -40,8 +44,11 @@ def get_identity_pools(
 def get_identity_pool_roles(
     boto3_session: boto3.Session, identity_pools: List[Dict[str, Any]], region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "cognito-identity", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session,
+        "cognito-identity",
+        region_name=region,
+        config=get_botocore_config(),
     )
     all_identity_pool_details = []
     for identity_pool in identity_pools:
@@ -55,8 +62,8 @@ def get_identity_pool_roles(
 @timeit
 @aws_handle_regions
 def get_user_pools(boto3_session: boto3.Session, region: str) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "cognito-idp", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cognito-idp", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("list_user_pools")
     all_user_pools = []

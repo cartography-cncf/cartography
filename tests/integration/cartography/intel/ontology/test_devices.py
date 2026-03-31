@@ -64,6 +64,7 @@ def test_sync_with_empty_source_list(neo4j_session):
         },
         {
             "hostname": "anonymous-pixel",
+            "serial_number": "HACK-PIXEL-01",
             "os": "android",
         },
     ],
@@ -85,7 +86,7 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
         ("donut-mac", "SIMP-MAC-HOMER-01", "Macbook Pro"),
         ("itchy-windows", "SIMP-WIN-MARGE-01", "Dell XPS 15"),
         ("bluemarge-linux", "SIMP-LINUX-MARGE-017", "ThinkPad X1 Carbon Gen 11"),
-        ("anonymous-pixel", None, None),
+        ("anonymous-pixel", "HACK-PIXEL-01", None),
         (
             "homer-iphone",
             "SIMP-IOS-HOMER-01",
@@ -196,4 +197,90 @@ def test_load_ontology_devices_relationships(neo4j_session):
             rel_direction_right=True,
         )
         == expected_rels
+    )
+
+
+@patch.object(
+    cartography.intel.ontology.devices,
+    "get_source_nodes_from_graph",
+    return_value=[
+        {
+            "hostname": "donut-mac",
+            "serial_number": "UNMATCHED-SERIAL-01",
+            "model": "Macbook Pro",
+        },
+    ],
+)
+def test_hostname_matchlink_falls_back_when_serial_match_is_missing(
+    _mock_get_source_nodes,
+    neo4j_session,
+):
+    """Hostname matching should still be considered for serial-capable providers."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    neo4j_session.run(
+        """
+        MERGE (asset:SnipeitAsset {id: 'asset-1'})
+        SET asset.name = 'donut-mac',
+            asset.serial = 'SIMP-MAC-HOMER-01',
+            asset.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.load_devices(
+        neo4j_session,
+        _mock_get_source_nodes.return_value,
+        TEST_UPDATE_TAG,
+    )
+
+    assert cartography.intel.ontology.devices._should_run_hostname_matchlink(
+        neo4j_session,
+        "SnipeitAsset",
+        "name",
+        TEST_UPDATE_TAG,
+    )
+
+
+def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_session):
+    """OWNS derivation should only use Device observations from the current run."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'user-1'})
+        SET u.email = 'hjsimpson@simpson.corp'
+        MERGE (su:SnipeitUser {id: 'snipeit-user-1'})
+        SET su.email = 'hjsimpson@simpson.corp'
+        MERGE (u)-[:HAS_ACCOUNT]->(su)
+
+        MERGE (asset:SnipeitAsset {id: 'asset-1'})
+        SET asset.name = 'donut-mac',
+            asset.serial = 'SIMP-MAC-HOMER-01'
+        MERGE (su)-[:HAS_CHECKED_OUT]->(asset)
+
+        MERGE (d:Device {id: 'device-1'})
+        SET d.serial_number = 'SIMP-MAC-HOMER-01',
+            d.hostname = 'donut-mac',
+            d.lastupdated = $current_tag
+        MERGE (d)-[obs:OBSERVED_AS]->(asset)
+        SET obs.lastupdated = $stale_tag
+        """,
+        current_tag=TEST_UPDATE_TAG,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    cartography.intel.ontology.devices.link_ontology_nodes(
+        neo4j_session,
+        "devices",
+        TEST_UPDATE_TAG,
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:User {id: 'user-1'})-[r:OWNS]->(:Device {id: 'device-1'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
     )

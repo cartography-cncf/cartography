@@ -269,6 +269,23 @@ scaleway_mapping = OntologyMapping(
 )
 
 
+# Sentry
+sentry_mapping = OntologyMapping(
+    module_name="sentry",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentryOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # SentinelOne
 sentinelone_mapping = OntologyMapping(
     module_name="sentinelone",
@@ -326,6 +343,23 @@ slack_mapping = OntologyMapping(
 # Duo
 # DuoApiHost: No field to map in DuoApiHost (minimal properties)
 
+# JumpCloud
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
@@ -347,6 +381,8 @@ workos_tenants_mapping = OntologyMapping(
 )
 
 
+# SubImage: No field to map in SubImageTenant (minimal properties beyond id)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -361,7 +397,9 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
+    "jumpcloud": jumpcloud_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "workos": workos_tenants_mapping,

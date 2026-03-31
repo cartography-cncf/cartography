@@ -1,8 +1,10 @@
 import logging
 import re
+from typing import Optional
 
 import neo4j
 from google.api_core.exceptions import PermissionDenied
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
@@ -11,6 +13,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.labels import sync_labels
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
 
@@ -18,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dict]:
+def get_jobs(
+    client: Resource,
+    project_id: str,
+    location: str = "-",
+    credentials: Optional[GoogleCredentials] = None,
+) -> list[dict]:
     """
     Gets GCP Cloud Run Jobs for a project and location.
     """
@@ -27,7 +35,11 @@ def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dic
         # Determine which locations to query
         if location == "-":
             # Discover all Cloud Run locations for this project
-            locations = discover_cloud_run_locations(client, project_id)
+            locations = discover_cloud_run_locations(
+                client,
+                project_id,
+                credentials=credentials,
+            )
         else:
             # Query specific location
             locations = {f"projects/{project_id}/locations/{location}"}
@@ -102,6 +114,7 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
                 "container_image": container_image,
                 "service_account_email": service_account_email,
                 "project_id": project_id,
+                "labels": job.get("labels", {}),
             },
         )
     return transformed
@@ -146,17 +159,26 @@ def sync_jobs(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    credentials: Optional[GoogleCredentials] = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Jobs for a project.
     """
     logger.info(f"Syncing Cloud Run Jobs for project {project_id}.")
-    jobs_raw = get_jobs(client, project_id)
+    jobs_raw = get_jobs(client, project_id, credentials=credentials)
     if not jobs_raw:
         logger.info(f"No Cloud Run jobs found for project {project_id}.")
 
     jobs = transform_jobs(jobs_raw, project_id)
     load_jobs(neo4j_session, jobs, project_id, update_tag)
+    sync_labels(
+        neo4j_session,
+        jobs,
+        "cloud_run_job",
+        project_id,
+        update_tag,
+        common_job_parameters,
+    )
 
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["project_id"] = project_id

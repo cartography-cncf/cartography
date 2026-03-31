@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.acm.certificate import ACMCertificateSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
@@ -21,7 +22,7 @@ stat_handler = get_stats_client(__name__)
 def get_acm_certificates(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client("acm", region_name=region)
+    client = create_boto3_client(boto3_session, "acm", region_name=region)
     paginator = client.get_paginator("list_certificates")
     summaries: list[dict[str, Any]] = []
     for page in paginator.paginate():

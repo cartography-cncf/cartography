@@ -3,6 +3,9 @@
 from unittest.mock import patch
 
 from cartography.intel.gitlab.container_image_attestations import (
+    AttestationDiscoverySummary,
+)
+from cartography.intel.gitlab.container_image_attestations import (
     sync_container_image_attestations,
 )
 from cartography.intel.gitlab.container_images import sync_container_images
@@ -42,7 +45,14 @@ def _create_test_org(neo4j_session):
 
 @patch(
     "cartography.intel.gitlab.container_image_attestations.get_container_image_attestations",
-    return_value=GET_CONTAINER_IMAGE_ATTESTATIONS_RESPONSE,
+    return_value=(
+        GET_CONTAINER_IMAGE_ATTESTATIONS_RESPONSE,
+        AttestationDiscoverySummary(
+            attempted=2,
+            discovered=len(GET_CONTAINER_IMAGE_ATTESTATIONS_RESPONSE),
+            failed=0,
+        ),
+    ),
 )
 @patch(
     "cartography.intel.gitlab.container_images.get_container_images",

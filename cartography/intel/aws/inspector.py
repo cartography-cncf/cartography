@@ -13,6 +13,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
@@ -66,7 +67,7 @@ def get_member_accounts(
     """
     List all the accounts that have delegated access to the account specified by current_aws_account_id.
     """
-    client = session.client("inspector2", region_name=region)
+    client = create_boto3_client(session, "inspector2", region_name=region)
     members = list(aws_paginate(client, "list_members", "members"))
     accounts = [m["accountId"] for m in members]
     return accounts
@@ -89,7 +90,7 @@ def get_inspector_findings(
     # The decorator would only catch exceptions during function call, not during iteration.
     # Instead, we rely on aws_handle_regions being applied at get_member_accounts level,
     # and the paginate operation itself will raise errors that bubble up naturally.
-    client = session.client("inspector2", region_name=region)
+    client = create_boto3_client(session, "inspector2", region_name=region)
     logger.info(
         f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
     )
@@ -369,6 +370,14 @@ def _sync_findings_for_account(
                     account_id,
                     region,
                 )
+            return
+        elif error_code == "ValidationException":
+            logger.warning(
+                "AWS Inspector returned ValidationException for account %s in region %s. "
+                "Inspector may not be enabled. Skipping.",
+                account_id,
+                region,
+            )
             return
         else:
             raise

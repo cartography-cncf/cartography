@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.user_profile import AWSSageMakerUserProfileSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -22,7 +23,7 @@ def get_user_profiles(
     """
     Get all SageMaker User Profiles in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_user_profiles")
     user_profiles: list[dict[str, Any]] = []
 

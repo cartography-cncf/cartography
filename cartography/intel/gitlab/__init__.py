@@ -75,7 +75,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             logger.error(
                 f"Failed to fetch organization {organization_id} from {gitlab_url}: {e}"
             )
-        return
+        raise
 
     org_url: str = organization["web_url"]
 

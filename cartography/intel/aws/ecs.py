@@ -8,6 +8,10 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.container_arch import ARCH_SOURCE_RUNTIME_API_EXACT
+from cartography.intel.container_arch import ARCH_SOURCE_TASK_DEFINITION_HINT
+from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecs.clusters import ECSClusterSchema
 from cartography.models.aws.ecs.container_definitions import (
     ECSContainerDefinitionSchema,
@@ -29,7 +33,7 @@ def get_ecs_cluster_arns(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[str]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_clusters")
     cluster_arns: List[str] = []
     for page in paginator.paginate():
@@ -44,7 +48,7 @@ def get_ecs_clusters(
     region: str,
     cluster_arns: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     # TODO: also include attachment info, and make relationships between the attachements
     # and the cluster.
     includes = ["SETTINGS", "CONFIGURATIONS"]
@@ -66,7 +70,7 @@ def get_ecs_container_instances(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_container_instances")
     container_instances: List[Dict[str, Any]] = []
     container_instance_arns: List[str] = []
@@ -93,7 +97,7 @@ def get_ecs_services(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_services")
     services: List[Dict[str, Any]] = []
     service_arns: List[str] = []
@@ -116,7 +120,7 @@ def get_ecs_task_definitions(
     region: str,
     tasks: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     task_definitions: List[Dict[str, Any]] = []
     for task in tasks:
         task_definition = client.describe_task_definition(
@@ -146,7 +150,7 @@ def get_ecs_tasks(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_tasks")
     tasks: List[Dict[str, Any]] = []
     task_arns: List[str] = []
@@ -162,10 +166,54 @@ def get_ecs_tasks(
     return tasks
 
 
-def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _get_task_definition_architecture(
+    task_definitions: list[dict[str, Any]],
+) -> dict[str, tuple[str, str]]:
+    task_definition_architecture: dict[str, tuple[str, str]] = {}
+    for task_definition in task_definitions:
+        task_definition_arn = task_definition.get("taskDefinitionArn")
+        runtime_platform = task_definition.get("runtimePlatform") or {}
+        raw_architecture = runtime_platform.get("cpuArchitecture")
+        normalized_architecture = normalize_architecture(raw_architecture)
+        if (
+            task_definition_arn
+            and raw_architecture is not None
+            and normalized_architecture != "unknown"
+        ):
+            task_definition_architecture[task_definition_arn] = (
+                raw_architecture,
+                normalized_architecture,
+            )
+    return task_definition_architecture
+
+
+def _get_containers_from_tasks(
+    tasks: list[dict[str, Any]],
+    task_definition_architecture: dict[str, tuple[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    task_definition_architecture = task_definition_architecture or {}
     containers: list[dict[str, Any]] = []
     for task in tasks:
-        containers.extend(task.get("containers", []))
+        task_architecture = task.get("_normalized_architecture")
+        task_architecture_raw = task.get("_architecture_raw")
+        for container in task.get("containers", []):
+            c = container.copy()
+            if task_architecture_raw is not None:
+                c["architecture"] = task_architecture_raw
+                c["architecture_normalized"] = task_architecture
+                c["architecture_source"] = ARCH_SOURCE_RUNTIME_API_EXACT
+            else:
+                task_definition_arn = task.get("taskDefinitionArn")
+                task_definition_arch = None
+                if isinstance(task_definition_arn, str):
+                    task_definition_arch = task_definition_architecture.get(
+                        task_definition_arn,
+                    )
+                if task_definition_arch:
+                    c["architecture"] = task_definition_arch[0]
+                    c["architecture_normalized"] = task_definition_arch[1]
+                    c["architecture_source"] = ARCH_SOURCE_TASK_DEFINITION_HINT
+            containers.append(c)
     return containers
 
 
@@ -188,6 +236,16 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         task["networkInterfaceId"] = detail.get("value")
                         break
                 break
+
+        # ECS task attributes can contain the runtime cpu architecture.
+        task_arch_raw = None
+        for attribute in task.get("attributes", []):
+            if attribute.get("name") == "ecs.cpu-architecture":
+                task_arch_raw = attribute.get("value")
+                break
+        normalized_architecture = normalize_architecture(task_arch_raw)
+        task["_normalized_architecture"] = normalized_architecture
+        task["_architecture_raw"] = task_arch_raw
     return tasks
 
 
@@ -430,7 +488,13 @@ def _sync_ecs_task_and_container_defns(
         region,
     )
     tasks = transform_ecs_tasks(tasks)
-    containers = _get_containers_from_tasks(tasks)
+    task_definitions = get_ecs_task_definitions(
+        boto3_session,
+        region,
+        tasks,
+    )
+    task_definition_architecture = _get_task_definition_architecture(task_definitions)
+    containers = _get_containers_from_tasks(tasks, task_definition_architecture)
     load_ecs_tasks(
         neo4j_session,
         cluster_arn,
@@ -447,11 +511,6 @@ def _sync_ecs_task_and_container_defns(
         update_tag,
     )
 
-    task_definitions = get_ecs_task_definitions(
-        boto3_session,
-        region,
-        tasks,
-    )
     container_defs = _get_container_defs_from_task_definitions(task_definitions)
     load_ecs_task_definitions(
         neo4j_session,

@@ -9,8 +9,11 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import compute
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_permission_denied_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
@@ -37,25 +40,19 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
         res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
-        reason = compute._get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
-                (
-                    "The project %s is invalid - returned a 400 invalid error."
-                    "Full details: %s"
-                ),
+                "The project %s is invalid - returned a 400 invalid error. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
             )
             return {}
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
-                (
-                    "You do not have storage.bucket.list access to the project %s. "
-                    "Full details: %s"
-                ),
+                "You do not have storage.bucket.list access to the project %s. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
             )
             return {}
         else:
@@ -191,7 +188,16 @@ def sync_gcp_buckets(
     """
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
+    raw_buckets = storage_res.get("items", [])  # for labels
     buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
     load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
+    sync_labels(
+        neo4j_session,
+        raw_buckets,
+        "gcp_bucket",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

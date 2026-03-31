@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
 )
@@ -29,6 +30,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class PermissionSetSyncNotSupported(Exception):
+    """Raised when an Identity Center instance does not support permission set operations."""
+
+
 def _is_permission_set_sync_unsupported_error(
     error: botocore.exceptions.ClientError,
 ) -> bool:
@@ -38,7 +43,10 @@ def _is_permission_set_sync_unsupported_error(
         return False
 
     message = error_info.get("Message", "").lower()
-    return "not supported for this identity center instance" in message
+    return (
+        "not supported for this identity center instance" in message
+        or "not supported for account instances of iam identity center" in message
+    )
 
 
 @timeit
@@ -50,7 +58,7 @@ def get_identity_center_instances(
     """
     Get all AWS IAM Identity Center instances in the current region
     """
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     instances = []
 
     paginator = client.get_paginator("list_instances")
@@ -94,20 +102,27 @@ def get_permission_sets(
     """
     Get all permission sets for a given Identity Center instance
     """
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     permission_sets = []
 
-    paginator = client.get_paginator("list_permission_sets")
-    for page in paginator.paginate(InstanceArn=instance_arn):
-        # Get detailed info for each permission set
-        for arn in page.get("PermissionSets", []):
-            details = client.describe_permission_set(
-                InstanceArn=instance_arn,
-                PermissionSetArn=arn,
-            )
-            permission_set = details.get("PermissionSet", {})
-            if permission_set:
-                permission_sets.append(permission_set)
+    try:
+        paginator = client.get_paginator("list_permission_sets")
+        for page in paginator.paginate(InstanceArn=instance_arn):
+            # Get detailed info for each permission set
+            for arn in page.get("PermissionSets", []):
+                details = client.describe_permission_set(
+                    InstanceArn=instance_arn,
+                    PermissionSetArn=arn,
+                )
+                permission_set = details.get("PermissionSet", {})
+                if permission_set:
+                    permission_sets.append(permission_set)
+    except botocore.exceptions.ClientError as error:
+        if _is_permission_set_sync_unsupported_error(error):
+            raise PermissionSetSyncNotSupported(
+                "The operation is not supported for this Identity Center instance",
+            ) from error
+        raise
 
     return permission_sets
 
@@ -173,7 +188,7 @@ def get_sso_users(
     """
     Get all SSO users for a given Identity Store
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     users = []
 
     paginator = client.get_paginator("list_users")
@@ -195,7 +210,7 @@ def get_sso_groups(
     """
     Get all SSO groups for a given Identity Store
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     groups: list[dict[str, Any]] = []
 
     paginator = client.get_paginator("list_groups")
@@ -355,7 +370,7 @@ def get_user_permissionsets(
     to be assigned to just a subset of those!
     """
     logger.info(f"Getting permissionsets for {len(users)} users")
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     user_permissionsets = []
 
     for user in users:
@@ -390,7 +405,7 @@ def get_group_permissionsets(
     Get permissionsets for SSO groups, taking into account which accounts the group is assigned to.
     """
     logger.info(f"Getting permissionsets for {len(groups)} groups")
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     group_permissionsets: list[dict[str, Any]] = []
 
     for group in groups:
@@ -424,7 +439,7 @@ def get_user_group_memberships(
     """
     Return a mapping of UserId -> [GroupIds] for all group memberships in the identity store.
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     user_groups: dict[str, list[str]] = {}
 
     for group in groups:
@@ -625,17 +640,15 @@ def _sync_permission_sets(
             update_tag,
         )
         return True
-    except botocore.exceptions.ClientError as error:
-        if _is_permission_set_sync_unsupported_error(error):
-            logger.warning(
-                "Skipping permission set sync for Identity Center instance %s in region %s "
-                "because the instance does not support permission sets. "
-                "Will attempt to sync users and groups only.",
-                instance_arn,
-                region,
-            )
-            return False
-        raise
+    except PermissionSetSyncNotSupported:
+        logger.warning(
+            "Skipping permission set sync for Identity Center instance %s in region %s "
+            "because the instance does not support permission sets. "
+            "Will attempt to sync users and groups only.",
+            instance_arn,
+            region,
+        )
+        return False
 
 
 def _sync_groups_and_users(
@@ -731,6 +744,7 @@ def _sync_role_assignments(
     neo4j_session: neo4j.Session,
     user_permissionsets_raw: list[dict[str, Any]],
     group_permissionsets_raw: list[dict[str, Any]],
+    identity_store_id: str,
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
@@ -746,9 +760,13 @@ def _sync_role_assignments(
     the ALLOWED_BY edges.
     """
     user_roles = get_principal_roles(neo4j_session, user_permissionsets_raw)
+    for role in user_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_user_roles(neo4j_session, user_roles, current_aws_account_id, update_tag)
 
     group_roles = get_principal_roles(neo4j_session, group_permissionsets_raw)
+    for role in group_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_group_roles(neo4j_session, group_roles, current_aws_account_id, update_tag)
 
 
@@ -797,6 +815,7 @@ def _sync_instance(
             neo4j_session,
             user_assignments,
             group_assignments,
+            identity_store_id,
             current_aws_account_id,
             update_tag,
         )

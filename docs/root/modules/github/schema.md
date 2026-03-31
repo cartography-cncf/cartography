@@ -118,6 +118,14 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
   - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
+- GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).
+
+    ```
+    (SemgrepSASTFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSCAFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSecretsFinding)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
@@ -168,6 +176,7 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -412,6 +421,10 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+| version | Exact version if pinned (e.g., `"18.2.0"`). `null` for ranges or unpinned dependencies. |
+| type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
+| purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
 #### Relationships
 

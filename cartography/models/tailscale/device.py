@@ -38,6 +38,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     )
     tailnet_lock_error: PropertyRef = PropertyRef("tailnetLockError")
     tailnet_lock_key: PropertyRef = PropertyRef("tailnetLockKey")
+    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
     posture_identity_serial_numbers: PropertyRef = PropertyRef(
         "postureIdentity.serialNumbers"
     )
