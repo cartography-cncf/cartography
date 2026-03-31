@@ -115,7 +115,7 @@ def get_dependencies(
             configured_job_name = (
                 dependency_scan_job_name or "all known GitLab dependency scan jobs"
             )
-            logger.debug(
+            logger.info(
                 f"No successful dependency scanning job found for project ID {project_id}. "
                 f"Searched for configured job '{configured_job_name}'."
             )
@@ -150,7 +150,7 @@ def get_dependencies(
         logger.debug(f"Artifacts download response status: {response.status_code}")
 
         if response.status_code == 404:
-            logger.debug(
+            logger.info(
                 f"No artifacts found for dependency scanning job in project {project_id}"
             )
             return []
