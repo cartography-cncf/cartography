@@ -49,6 +49,10 @@ def test_get_labels_unknown_resource_type():
 
 @patch("cartography.intel.gcp.labels.run_write_query")
 def test_cleanup_uses_retryable_write_query(mock_run_write_query):
+    """
+    This custom cleanup cannot use GraphJob.from_node_schema() because unified
+    GCPLabel cleanup must also scope by resource_type.
+    """
     session = MagicMock()
 
     cleanup(

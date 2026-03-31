@@ -106,6 +106,8 @@ def run_analysis_job(
         The job file must be a valid JSON file containing GraphJob-compatible
         query definitions.
     """
+    # Lazy import avoids a module cycle:
+    # statement -> tx -> util -> graph.job/graph.statement -> statement
     from cartography.graph.job import GraphJob
     from cartography.graph.statement import get_job_shortname
 
@@ -307,6 +309,8 @@ def run_cleanup_job(
         with current cartography patterns and to avoid potential deprecation
         issues in future versions.
     """
+    # Lazy import avoids a module cycle:
+    # statement -> tx -> util -> graph.job/graph.statement -> statement
     from cartography.graph.job import GraphJob
     from cartography.graph.statement import get_job_shortname
 
