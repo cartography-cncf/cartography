@@ -26,10 +26,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-dependency_scanning"
 AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-python-dependency_scanning"
 AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-maven-dependency_scanning"
-DEFAULT_DEPENDENCY_SCAN_JOB_NAMES = (
-    DEFAULT_DEPENDENCY_SCAN_JOB_NAME,
-    AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME,
-    AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME,
+DEFAULT_DEPENDENCY_SCAN_JOB_NAMES = frozenset(
+    (
+        DEFAULT_DEPENDENCY_SCAN_JOB_NAME,
+        AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME,
+        AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME,
+    )
 )
 
 
@@ -44,8 +46,9 @@ def _select_dependency_scan_job(
     scan job names (default + AutoDevOps language-specific names). For any
     custom job name, only that specific name is matched.
     """
+    candidate_names: set[str] | frozenset[str]
     if dependency_scan_job_name is None:
-        candidate_names = set(DEFAULT_DEPENDENCY_SCAN_JOB_NAMES)
+        candidate_names = DEFAULT_DEPENDENCY_SCAN_JOB_NAMES
     else:
         candidate_names = {dependency_scan_job_name}
 
@@ -116,15 +119,20 @@ def get_dependencies(
                 dependency_scan_job_name or "all known GitLab dependency scan jobs"
             )
             logger.info(
-                f"No successful dependency scanning job found for project ID {project_id}. "
-                f"Searched for configured job '{configured_job_name}'."
+                "No successful dependency scanning job found for project ID %s. "
+                "Searched for configured job '%s'.",
+                project_id,
+                configured_job_name,
             )
             return []
 
         job_id = dep_scan_job.get("id")
         job_name = dep_scan_job.get("name", DEFAULT_DEPENDENCY_SCAN_JOB_NAME)
         logger.debug(
-            f"Found dependency scanning job '{job_name}' (ID {job_id}) for project ID {project_id}"
+            "Found dependency scanning job '%s' (ID %s) for project ID %s",
+            job_name,
+            job_id,
+            project_id,
         )
 
     except requests.exceptions.RequestException as e:
@@ -151,7 +159,8 @@ def get_dependencies(
 
         if response.status_code == 404:
             logger.info(
-                f"No artifacts found for dependency scanning job in project {project_id}"
+                "No artifacts found for dependency scanning job in project %s",
+                project_id,
             )
             return []
 
