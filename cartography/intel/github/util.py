@@ -309,9 +309,10 @@ def fetch_all(
             continue
 
         if resp["data"].get("organization") is None:
+            errors = resp.get("errors", [])
+            error_messages = "; ".join(e.get("message", "") for e in errors)
             raise ValueError(
-                f"Didn't get any organization data for '{organization}'. "
-                f"Check that the organization exists and the token has access.",
+                f"Didn't get any organization data for '{organization}': {error_messages}",
             )
 
         resource = resp["data"]["organization"][resource_type]
