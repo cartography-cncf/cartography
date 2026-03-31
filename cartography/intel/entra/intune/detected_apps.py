@@ -47,7 +47,6 @@ async def get_detected_apps(
         ).get()
 
 
-@timeit
 def transform_detected_apps(
     apps: list[DetectedApp],
 ) -> list[dict[str, Any]]:

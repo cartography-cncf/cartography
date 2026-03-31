@@ -54,7 +54,6 @@ async def get_compliance_policies(
         ).get()
 
 
-@timeit
 def transform_compliance_policies(
     policies: list[DeviceCompliancePolicy],
 ) -> list[dict[str, Any]]:

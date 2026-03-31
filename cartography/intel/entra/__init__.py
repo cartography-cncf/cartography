@@ -19,6 +19,7 @@ from cartography.intel.entra.users import get_tenant
 from cartography.intel.entra.users import load_tenant
 from cartography.intel.entra.users import sync_entra_users
 from cartography.intel.entra.users import transform_tenant
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -191,6 +192,13 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             intune_client,
             config.entra_tenant_id,
             config.update_tag,
+            common_job_parameters,
+        )
+
+        # Resolve compliance policy -> device edges after both are loaded
+        run_analysis_job(
+            "intune_compliance_policy_device.json",
+            neo4j_session,
             common_job_parameters,
         )
 

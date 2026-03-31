@@ -404,3 +404,17 @@ Representation of a [Device Compliance Policy](https://learn.microsoft.com/en-us
     ```cypher
     (:IntuneCompliancePolicy)-[:APPLIES_TO]->(:IntuneManagedDevice)
     ```
+
+    The `APPLIES_TO` relationship is not ingested directly from the API — it is computed by the `intune_compliance_policy_device` analysis job using the following logic:
+
+    1. **Group assignment**: If the policy is assigned to an `EntraGroup` via `ASSIGNED_TO`, any `EntraUser` who is a `MEMBER_OF` that group and has `ENROLLED_TO` a managed device receives the policy.
+
+        ```cypher
+        (:IntuneCompliancePolicy)-[:ASSIGNED_TO]->(:EntraGroup)<-[:MEMBER_OF]-(:EntraUser)-[:ENROLLED_TO]->(:IntuneManagedDevice)
+        ```
+
+    2. **All users**: If `policy.applies_to_all_users = true`, the policy applies to every managed device in the tenant that has at least one enrolled user.
+
+    3. **All devices**: If `policy.applies_to_all_devices = true`, the policy applies to every managed device in the tenant regardless of user enrollment.
+
+    Stale `APPLIES_TO` relationships (from devices or users removed since the last sync) are deleted at the end of each run, scoped to the current tenant so that edges belonging to other tenants are not affected.
