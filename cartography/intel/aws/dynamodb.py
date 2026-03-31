@@ -6,7 +6,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.dynamodb.archival import DynamoDBArchivalSummarySchema
 from cartography.models.aws.dynamodb.backups import DynamoDBBackupSchema
 from cartography.models.aws.dynamodb.billing import DynamoDBBillingModeSummarySchema
@@ -30,7 +31,8 @@ def get_dynamodb_tables(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "dynamodb",
         region_name=region,
         config=get_botocore_config(),

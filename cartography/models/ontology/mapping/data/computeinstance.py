@@ -9,9 +9,6 @@ aws_mapping = OntologyMapping(
             node_label="EC2Instance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="instanceid", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -38,9 +35,6 @@ scaleway_mapping = OntologyMapping(
             node_label="ScalewayInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="zone"),
@@ -65,9 +59,6 @@ digitalocean_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="DODroplet",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
@@ -94,9 +85,6 @@ gcp_mapping = OntologyMapping(
             node_label="GCPInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="instancename", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="zone_name"),
@@ -115,9 +103,6 @@ azure_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureVirtualMachine",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
