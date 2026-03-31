@@ -1,6 +1,6 @@
 # Creating Security Rules
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Enriching the Ontology](enrich-ontology.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Enriching the Ontology](enrich-ontology.md)
 
 This guide covers how to create security rules in Cartography to identify attack surfaces, security gaps, and compliance issues across your infrastructure.
 

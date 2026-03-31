@@ -1,6 +1,6 @@
 # Enriching the Ontology
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
 
 This guide covers how to integrate your module with Cartography's Ontology system to enable cross-module querying.
 
@@ -77,7 +77,7 @@ cartography --ontology-devices-source "crowdstrike,kandji,duo"
 ## Available Semantic Labels and Fields
 
 For the complete list of available semantic labels and their fields, see:
-- **Schema documentation**: [Ontology Schema](../root/modules/ontology/schema.md)
+- **Schema documentation**: [Ontology Schema](../modules/ontology/schema.md)
 - **Mapping source code**: `cartography/models/ontology/mapping/data/`
 
 ## Step 1: Add Ontology Mapping Configuration
