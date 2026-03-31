@@ -22,30 +22,33 @@ from cartography.util import to_datetime
 
 
 def test_run_analysis_job_default_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
+    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
     read_text_mock = mocker.patch("cartography.util.read_text")
     util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock())
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.analysis",
         "test.json",
     )
+    run_from_json_mock.assert_called_once()
 
 
 def test_run_analysis_job_custom_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
+    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
     read_text_mock = mocker.patch("cartography.util.read_text")
     util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock(), package="a.b.c")
     read_text_mock.assert_called_once_with("a.b.c", "test.json")
+    run_from_json_mock.assert_called_once()
 
 
 def test_run_scoped_analysis_job_default_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
+    run_from_json_mock = mocker.patch("cartography.graph.job.GraphJob.run_from_json")
     read_text_mock = mocker.patch("cartography.util.read_text")
     util.run_scoped_analysis_job("test.json", mocker.Mock(), mocker.Mock())
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.scoped_analysis",
         "test.json",
     )
+    run_from_json_mock.assert_called_once()
 
 
 @patch(
