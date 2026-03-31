@@ -58,7 +58,8 @@ Represents a WorkOS Environment (root node for a WorkOS account/client). This is
         :WorkOSDirectoryUser,
         :WorkOSDirectoryGroup,
         :WorkOSOrganizationDomain,
-        :WorkOSAPIKey)
+        :WorkOSAPIKey,
+        :WorkOSApplication)
     ```
 
 
