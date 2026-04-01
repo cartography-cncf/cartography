@@ -39,6 +39,7 @@ PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
+PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
@@ -86,6 +87,7 @@ MODULE_PANELS = {
     "kandji": PANEL_KANDJI,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
+    "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
     "lastpass": PANEL_LASTPASS,
@@ -890,6 +892,18 @@ class CLI:
                     help="Environment variable name containing NIST NVD API v2.0 key.",
                     rich_help_panel=PANEL_CVE,
                     hidden=PANEL_CVE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # CVE Metadata Options
+            # =================================================================
+            cve_metadata_src: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--cve-metadata-src",
+                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2285,6 +2299,7 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
+                cve_metadata_src=cve_metadata_src,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,
