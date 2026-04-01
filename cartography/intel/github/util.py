@@ -308,6 +308,13 @@ def fetch_all(
             has_next_page = False
             continue
 
+        if resp["data"].get("organization") is None:
+            errors = resp.get("errors", [])
+            error_messages = "; ".join(e.get("message", "") for e in errors)
+            raise ValueError(
+                f"Didn't get any organization data for '{organization}': {error_messages}",
+            )
+
         resource = resp["data"]["organization"][resource_type]
         if resource_inner_type:
             resource = resp["data"]["organization"][resource_type][resource_inner_type]
