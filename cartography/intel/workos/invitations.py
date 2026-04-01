@@ -65,8 +65,6 @@ def transform(invitations: list[Any]) -> list[dict[str, Any]]:
             "state": invitation.state,
             "organization_id": invitation.organization_id,
             "inviter_user_id": invitation.inviter_user_id,
-            "token": getattr(invitation, "token", None),
-            "accept_invitation_url": getattr(invitation, "accept_invitation_url", None),
             "expires_at": invitation.expires_at,
             "created_at": invitation.created_at,
             "updated_at": invitation.updated_at,

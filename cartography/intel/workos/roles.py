@@ -69,15 +69,19 @@ def transform(roles_by_org: dict[str, list[Role]]) -> list[dict[str, Any]]:
     """
     result = []
 
+    seen_ids = set()
     for org_id, org_roles in roles_by_org.items():
         for role in org_roles:
+            if role.id in seen_ids:
+                continue
+            seen_ids.add(role.id)
             role_dict = {
                 "id": role.id,
                 "slug": role.slug,
                 "name": role.name,
                 "description": role.description,
                 "type": role.type,
-                "organization_id": org_id,
+                "organization_id": org_id if role.type == "organization" else None,
                 "created_at": role.created_at,
                 "updated_at": role.updated_at,
             }

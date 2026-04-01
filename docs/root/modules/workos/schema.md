@@ -205,8 +205,6 @@ Represents an invitation to join an organization. Invitations are sent to users 
 | state | The state of the invitation (e.g., pending, accepted, expired) |
 | organization_id | The ID of the organization the user is invited to |
 | inviter_user_id | The ID of the user who sent the invitation |
-| token | The invitation token |
-| accept_invitation_url | The URL to accept the invitation |
 | expires_at | The RFC 3339 datetime when the invitation expires |
 | created_at | The RFC 3339 datetime of when the invitation was created |
 | updated_at | The RFC 3339 datetime of when the invitation was last updated |

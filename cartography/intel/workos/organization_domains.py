@@ -51,15 +51,11 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
     domains = []
 
     for org_id in organization_ids:
-        try:
-            org_domains = paginated_list(
-                client.organizations.list_organization_domains,
-                organization_id=org_id,
-            )
-            domains.extend(org_domains)
-        except Exception as e:
-            logger.warning("Failed to fetch domains for organization %s: %s", org_id, e)
-            continue
+        org_domains = paginated_list(
+            client.organizations.list_organization_domains,
+            organization_id=org_id,
+        )
+        domains.extend(org_domains)
 
     return domains
 

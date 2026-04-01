@@ -18,8 +18,6 @@ class WorkOSInvitationNodeProperties(CartographyNodeProperties):
     state: PropertyRef = PropertyRef("state")
     organization_id: PropertyRef = PropertyRef("organization_id", extra_index=True)
     inviter_user_id: PropertyRef = PropertyRef("inviter_user_id")
-    token: PropertyRef = PropertyRef("token")
-    accept_invitation_url: PropertyRef = PropertyRef("accept_invitation_url")
     expires_at: PropertyRef = PropertyRef("expires_at")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")

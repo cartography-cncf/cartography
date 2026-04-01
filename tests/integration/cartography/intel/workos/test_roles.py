@@ -82,9 +82,9 @@ def test_load_workos_roles(mock_api, neo4j_session):
         == expected_rels
     )
 
-    # Assert roles are linked to the organization
+    # Assert only org-scoped roles are linked to the organization
+    # (environment roles should NOT have an org relationship)
     expected_rels = {
-        ("role_01HXYZ1234567890ABCDEFGHIJ", "org_01HXYZ1234567890ABCDEFGHIJ"),
         ("role_02HXYZ0987654321ZYXWVUTSRQ", "org_01HXYZ1234567890ABCDEFGHIJ"),
     }
     assert (

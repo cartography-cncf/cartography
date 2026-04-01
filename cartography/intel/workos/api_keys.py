@@ -54,17 +54,11 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
     api_keys = []
 
     for org_id in organization_ids:
-        try:
-            org_keys = paginated_list(
-                client.organizations.list_api_keys,
-                organization_id=org_id,
-            )
-            api_keys.extend(org_keys)
-        except Exception as e:
-            logger.warning(
-                "Failed to fetch API keys for organization %s: %s", org_id, e
-            )
-            continue
+        org_keys = paginated_list(
+            client.organizations.list_api_keys,
+            organization_id=org_id,
+        )
+        api_keys.extend(org_keys)
 
     return api_keys
 
