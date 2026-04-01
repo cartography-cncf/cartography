@@ -187,6 +187,34 @@ googleworkspace_mapping = OntologyMapping(
     ],
 )
 
+sentinelone_mapping = OntologyMapping(
+    module_name="sentinelone",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="S1Agent",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="computer_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="os_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_revision",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 jumpcloud_mapping = OntologyMapping(
     module_name="jumpcloud",
     nodes=[
@@ -222,6 +250,7 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "jumpcloud": jumpcloud_mapping,
     "kandji": kandji_mapping,
+    "sentinelone": sentinelone_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
 }
