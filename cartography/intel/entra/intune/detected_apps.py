@@ -8,7 +8,7 @@ from msgraph.generated.models.detected_app import DetectedApp
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.intune.detected_app import IntuneDetectedAppSchema
+from cartography.models.entra.intune.detected_app import IntuneDetectedAppSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

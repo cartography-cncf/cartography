@@ -3,6 +3,7 @@ import logging
 
 import neo4j
 from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
@@ -171,36 +172,68 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             scopes=["https://graph.microsoft.com/.default"],
         )
 
-        await sync_managed_devices(
-            neo4j_session,
-            intune_client,
-            config.entra_tenant_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+        intune_managed_devices_synced = False
+        try:
+            await sync_managed_devices(
+                neo4j_session,
+                intune_client,
+                config.entra_tenant_id,
+                config.update_tag,
+                common_job_parameters,
+            )
+            intune_managed_devices_synced = True
+        except APIError as e:
+            if e.response_status_code == 403:
+                logger.warning(
+                    "Skipping Intune managed device sync: missing "
+                    "DeviceManagementManagedDevices.Read.All permission (403).",
+                )
+            else:
+                raise
 
-        await sync_detected_apps(
-            neo4j_session,
-            intune_client,
-            config.entra_tenant_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+        try:
+            await sync_detected_apps(
+                neo4j_session,
+                intune_client,
+                config.entra_tenant_id,
+                config.update_tag,
+                common_job_parameters,
+            )
+        except APIError as e:
+            if e.response_status_code == 403:
+                logger.warning(
+                    "Skipping Intune detected app sync: missing "
+                    "DeviceManagementApps.Read.All permission (403).",
+                )
+            else:
+                raise
 
-        await sync_compliance_policies(
-            neo4j_session,
-            intune_client,
-            config.entra_tenant_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+        intune_compliance_policies_synced = False
+        try:
+            await sync_compliance_policies(
+                neo4j_session,
+                intune_client,
+                config.entra_tenant_id,
+                config.update_tag,
+                common_job_parameters,
+            )
+            intune_compliance_policies_synced = True
+        except APIError as e:
+            if e.response_status_code == 403:
+                logger.warning(
+                    "Skipping Intune compliance policy sync: missing "
+                    "DeviceManagementConfiguration.Read.All permission (403).",
+                )
+            else:
+                raise
 
-        # Resolve compliance policy -> device edges after both are loaded
-        run_analysis_job(
-            "intune_compliance_policy_device.json",
-            neo4j_session,
-            common_job_parameters,
-        )
+        # Resolve compliance policy -> device edges only if both sides were synced
+        if intune_managed_devices_synced and intune_compliance_policies_synced:
+            run_analysis_job(
+                "intune_compliance_policy_device.json",
+                neo4j_session,
+                common_job_parameters,
+            )
 
     # Execute syncs in sequence
     asyncio.run(main())

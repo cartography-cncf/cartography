@@ -16,7 +16,7 @@ from msgraph.generated.models.management_agent_type import ManagementAgentType
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.intune.managed_device import IntuneManagedDeviceSchema
+from cartography.models.entra.intune.managed_device import IntuneManagedDeviceSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

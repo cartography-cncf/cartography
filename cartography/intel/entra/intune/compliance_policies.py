@@ -8,7 +8,9 @@ from msgraph.generated.models.device_compliance_policy import DeviceCompliancePo
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.intune.compliance_policy import IntuneCompliancePolicySchema
+from cartography.models.entra.intune.compliance_policy import (
+    IntuneCompliancePolicySchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
