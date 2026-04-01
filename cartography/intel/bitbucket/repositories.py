@@ -96,9 +96,8 @@ def transform_repos(workspace_repos: List[Dict], workspace: str) -> Dict:
 
 def transform_branches(branches: List[Dict], repo_id: str, default_branch: str = None) -> List[Dict]:
     """
-    Transform branch data and filter to include only:
-    - Branches active in the last 90 days
-    - Default branch (always included)
+    Transform branch data and filter to include only branches active in the last 3 months (90 days).
+    The default branch is always included regardless of activity date.
     """
     transformed_branches = []
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
@@ -118,24 +117,19 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
             })
             continue
 
-        # Filter by activity date
+        # Filter by activity date - include branches active in last 3 months
         if date_str:
-            branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            if branch_date >= cutoff_date:
-                transformed_branches.append({
-                    "repo_id": repo_id,
-                    "id": f"{repo_id}:{branch_name}",
-                    "name": branch_name,
-                    "date": date_str,
-                })
-        else:
-            # No date available, include the branch
-            transformed_branches.append({
-                "repo_id": repo_id,
-                "id": f"{repo_id}:{branch_name}",
-                "name": branch_name,
-                "date": date_str,
-            })
+            try:
+                branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                if branch_date >= cutoff_date:
+                    transformed_branches.append({
+                        "repo_id": repo_id,
+                        "id": f"{repo_id}:{branch_name}",
+                        "name": branch_name,
+                        "date": date_str,
+                    })
+            except (ValueError, AttributeError):
+                pass
 
     return transformed_branches
 
@@ -308,7 +302,7 @@ def sync(
     for repo in transformed_data["repos"]:
         repo_slug = repo.get("slug")
         if not repo_slug:
-            next
+            continue
 
         branches = get_branches(bitbucket_access_token, workspace_name, repo_slug)
         default_branch = repo.get("default_branch")
