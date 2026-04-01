@@ -13,7 +13,7 @@ jobs:
     name: Build coverage artifact
     runs-on: ubuntu-latest
     env:
-      NEO4J_DOCKER_IMAGE: neo4j:4.4-community
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
