@@ -14,6 +14,7 @@ from . import cloudwatch
 from . import codebuild
 from . import cognito
 from . import config
+from . import datapipeline
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
@@ -81,6 +82,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # relationships to existing KMSKey nodes using KMSMasterKeyArn.
         "kms": kms.sync,
         "dynamodb": dynamodb.sync,
+        "datapipeline": datapipeline.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
         # `ec2:instance` must be included before `ssm` and `ec2:images`,
