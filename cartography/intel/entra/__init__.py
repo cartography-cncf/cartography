@@ -203,7 +203,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             if e.response_status_code == 403:
                 logger.warning(
                     "Skipping Intune detected app sync: missing "
-                    "DeviceManagementApps.Read.All permission (403).",
+                    "DeviceManagementManagedDevices.Read.All permission (403).",
                 )
             else:
                 raise
