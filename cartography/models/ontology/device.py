@@ -31,6 +31,23 @@ class DeviceToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# Cleanup-only relationship.
+# This relation is created by custom ontology linking queries, not by load(DeviceSchema()).
+# We keep it on the schema so GraphJob cleanup knows to remove stale edges.
+# The PropertyRef intentionally points to a field that does not exist in device load payloads,
+# so standard ingestion will never materialize this relationship.
+# (:User)-[:OWNS]->(:Device)
+@dataclass(frozen=True)
+class DeviceOwnedByUserRel(CartographyRelSchema):
+    target_node_label: str = "User"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OWNS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
 @dataclass(frozen=True)
 class DeviceToJumpCloudSystemRel(CartographyRelSchema):
@@ -107,6 +124,18 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
+@dataclass(frozen=True)
+class DeviceToS1AgentBySerialRel(CartographyRelSchema):
+    target_node_label: str = "S1Agent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
@@ -115,6 +144,7 @@ class DeviceSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
+            DeviceOwnedByUserRel(),
             DeviceToJumpCloudSystemRel(),
             # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),
@@ -122,6 +152,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToSnipeitAssetBySerialRel(),
             DeviceToTailscaleDeviceBySerialRel(),
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
+            DeviceToS1AgentBySerialRel(),
         ],
     )
 
@@ -275,6 +306,22 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
+@dataclass(frozen=True)
+class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "S1Agent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"computer_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
@@ -287,6 +334,7 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         "hostname",
         DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
     ),
+    ("S1Agent", "computer_name", DeviceToS1AgentHostnameMatchLink()),
     ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
     ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
     (

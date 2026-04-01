@@ -284,3 +284,146 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         ).single()["count"]
         == 0
     )
+
+
+def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
+    """Device cleanup should delete stale ontology-derived User-OWNS-Device edges."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    neo4j_session.run(
+        """
+        MERGE (u:User:Ontology {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'hjsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (d:Device:Ontology {id: 'SIMP-MAC-HOMER-01'})
+        SET d.serial_number = 'SIMP-MAC-HOMER-01',
+            d.hostname = 'donut-mac',
+            d.lastupdated = $update_tag
+
+        MERGE (asset:SnipeitAsset {id: 'asset-1'})
+        SET asset.name = 'donut-mac',
+            asset.serial = 'SIMP-MAC-HOMER-01'
+
+        MERGE (u)-[owns:OWNS]->(d)
+        SET owns.lastupdated = $stale_tag
+
+        MERGE (d)-[obs:OBSERVED_AS]->(asset)
+        SET obs.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+    )
+
+    cartography.intel.ontology.devices.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    stale_owns_count = neo4j_session.run(
+        """
+        MATCH (:User {id: 'hjsimpson@simpson.corp'})-[r:OWNS]->(:Device {id: 'SIMP-MAC-HOMER-01'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert stale_owns_count == 0
+
+    fresh_observed_as_count = neo4j_session.run(
+        """
+        MATCH (:Device {id: 'SIMP-MAC-HOMER-01'})-[r:OBSERVED_AS]->(:SnipeitAsset {id: 'asset-1'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert fresh_observed_as_count == 1
+
+
+def test_load_ontology_devices_from_sentinelone(neo4j_session):
+    """SentinelOne agents should produce ontology devices and OBSERVED_AS links."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:S1Agent {
+            id: 's1-agent-1',
+            uuid: 'uuid-1',
+            computer_name: 'sentinel-host-01',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            serial_number: 'SN-S1-001',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "serial_number"],
+    ) == {("sentinel-host-01", "Windows 11", "23H2", "SN-S1-001")}
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "S1Agent",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("SN-S1-001", "SN-S1-001")}
+
+
+@patch.object(
+    cartography.intel.ontology.devices,
+    "get_source_nodes_from_graph",
+    return_value=[
+        {
+            "hostname": "sentinel-host-fallback",
+            "serial_number": "UNMATCHED-SERIAL",
+            "os": "Windows 11",
+        },
+    ],
+)
+def test_load_ontology_devices_from_sentinelone_with_hostname_fallback(
+    _mock_get_source_nodes,
+    neo4j_session,
+):
+    """Hostname matching should link Device to S1Agent when serials do not match."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:S1Agent {
+            id: 's1-agent-fallback',
+            uuid: 'uuid-fallback',
+            computer_name: 'sentinel-host-fallback',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "S1Agent",
+        "computer_name",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("sentinel-host-fallback", "sentinel-host-fallback")}
