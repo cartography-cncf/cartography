@@ -252,3 +252,88 @@ async def test_sync_intune(
         ("policy-002", "device-001"),
         ("policy-002", "device-002"),
     }
+
+
+@patch.object(
+    cartography.intel.entra.intune.managed_devices,
+    "get_managed_devices",
+    side_effect=_mock_get_managed_devices,
+)
+@patch.object(
+    cartography.intel.entra.intune.compliance_policies,
+    "get_compliance_policies",
+    side_effect=_mock_get_compliance_policies,
+)
+@pytest.mark.asyncio
+async def test_policy_device_analysis_cleans_stale_relationships_on_partial_sync(
+    mock_compliance_policies,
+    mock_managed_devices,
+    neo4j_session,
+):
+    old_update_tag = TEST_UPDATE_TAG
+    new_update_tag = TEST_UPDATE_TAG + 1
+    _create_prereq_nodes(neo4j_session)
+
+    old_job_parameters = {
+        "UPDATE_TAG": old_update_tag,
+        "TENANT_ID": TEST_TENANT_ID,
+    }
+    new_job_parameters = {
+        "UPDATE_TAG": new_update_tag,
+        "TENANT_ID": TEST_TENANT_ID,
+    }
+
+    await sync_managed_devices(
+        neo4j_session,
+        None,
+        TEST_TENANT_ID,
+        old_update_tag,
+        old_job_parameters,
+    )
+    await sync_compliance_policies(
+        neo4j_session,
+        None,
+        TEST_TENANT_ID,
+        old_update_tag,
+        old_job_parameters,
+    )
+
+    run_scoped_analysis_job(
+        "intune_compliance_policy_device.json",
+        neo4j_session,
+        old_job_parameters,
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "IntuneCompliancePolicy",
+        "id",
+        "IntuneManagedDevice",
+        "id",
+        "APPLIES_TO",
+    ) == {
+        ("policy-001", "device-001"),
+        ("policy-001", "device-002"),
+        ("policy-002", "device-001"),
+        ("policy-002", "device-002"),
+    }
+
+    # Simulate a subsequent run where Intune entity syncs were skipped due to
+    # missing permissions but the scoped analysis job still executes.
+    run_scoped_analysis_job(
+        "intune_compliance_policy_device.json",
+        neo4j_session,
+        new_job_parameters,
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "IntuneCompliancePolicy",
+            "id",
+            "IntuneManagedDevice",
+            "id",
+            "APPLIES_TO",
+        )
+        == set()
+    )

@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 import neo4j
 from msgraph import GraphServiceClient
 from msgraph.generated.models.detected_app import DetectedApp
+from msgraph.generated.models.managed_device import ManagedDevice
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -23,8 +24,9 @@ async def get_detected_apps(
     https://learn.microsoft.com/en-us/graph/api/intune-devices-detectedapp-list
     Permissions: DeviceManagementManagedDevices.Read.All
 
-    Uses $expand=managedDevices($select=id) to fetch device associations in a
-    single paginated request rather than making a separate call per app.
+    Uses $expand=managedDevices($select=id) as the fast path, but falls back to
+    per-app managedDevices lookups when Graph returns empty managedDevices
+    collections despite a non-zero deviceCount.
     """
     request_config = client.device_management.detected_apps.DetectedAppsRequestBuilderGetRequestConfiguration(
         query_parameters=client.device_management.detected_apps.DetectedAppsRequestBuilderGetQueryParameters(
@@ -38,6 +40,17 @@ async def get_detected_apps(
     while page:
         if page.value:
             for app in page.value:
+                if app.id and (app.device_count or 0) > 0 and not app.managed_devices:
+                    logger.debug(
+                        "Detected app %s returned no expanded managedDevices despite "
+                        "device_count=%s; falling back to per-app lookup.",
+                        app.id,
+                        app.device_count,
+                    )
+                    app.managed_devices = await get_managed_devices_for_detected_app(
+                        client,
+                        app.id,
+                    )
                 yield app
         if not page.odata_next_link:
             break
@@ -45,6 +58,41 @@ async def get_detected_apps(
         page = await client.device_management.detected_apps.with_url(
             page.odata_next_link,
         ).get()
+
+
+@timeit
+async def get_managed_devices_for_detected_app(
+    client: GraphServiceClient,
+    detected_app_id: str,
+) -> list[ManagedDevice]:
+    """
+    Fetch the managed devices for a specific detected app.
+
+    Microsoft Graph documents the managedDevices relationship on detectedApp,
+    but in practice the list endpoint can return empty expanded collections
+    even when deviceCount is non-zero. This fallback keeps HAS_APP edges
+    accurate without requiring per-app lookups in the common case.
+    """
+    managed_devices_builder = client.device_management.detected_apps.by_detected_app_id(
+        detected_app_id,
+    ).managed_devices
+    request_config = managed_devices_builder.ManagedDevicesRequestBuilderGetRequestConfiguration(
+        query_parameters=managed_devices_builder.ManagedDevicesRequestBuilderGetQueryParameters(
+            select=["id"],
+        ),
+    )
+
+    devices: list[ManagedDevice] = []
+    page = await managed_devices_builder.get(request_configuration=request_config)
+    while page:
+        if page.value:
+            devices.extend(page.value)
+        if not page.odata_next_link:
+            break
+
+        page = await managed_devices_builder.with_url(page.odata_next_link).get()
+
+    return devices
 
 
 def transform_detected_apps(

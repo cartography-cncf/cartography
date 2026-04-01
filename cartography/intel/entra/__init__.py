@@ -172,6 +172,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             scopes=["https://graph.microsoft.com/.default"],
         )
 
+        managed_devices_synced = False
         try:
             await sync_managed_devices(
                 neo4j_session,
@@ -180,6 +181,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
+            managed_devices_synced = True
         except APIError as e:
             if e.response_status_code == 403:
                 logger.warning(
@@ -206,6 +208,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             else:
                 raise
 
+        compliance_policies_synced = False
         try:
             await sync_compliance_policies(
                 neo4j_session,
@@ -214,6 +217,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
+            compliance_policies_synced = True
         except APIError as e:
             if e.response_status_code == 403:
                 logger.warning(
@@ -223,14 +227,23 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             else:
                 raise
 
-        # Always run the analysis job so stale APPLIES_TO edges are cleaned up
-        # even on partial syncs. Resolution MERGEs will simply match fewer nodes
-        # if either side was skipped due to missing permissions.
-        run_scoped_analysis_job(
-            "intune_compliance_policy_device.json",
-            neo4j_session,
-            common_job_parameters,
-        )
+        # Only run the analysis job when both sides synced successfully.
+        # If either side was skipped (403), stale nodes remain without
+        # cleanup; running the analysis would refresh APPLIES_TO edges on
+        # those stale nodes, preventing their eventual removal.
+        if managed_devices_synced and compliance_policies_synced:
+            run_scoped_analysis_job(
+                "intune_compliance_policy_device.json",
+                neo4j_session,
+                common_job_parameters,
+            )
+        else:
+            logger.info(
+                "Skipping Intune compliance-policy-to-device analysis: "
+                "managed_devices_synced=%s, compliance_policies_synced=%s.",
+                managed_devices_synced,
+                compliance_policies_synced,
+            )
 
     # Execute syncs in sequence
     asyncio.run(main())

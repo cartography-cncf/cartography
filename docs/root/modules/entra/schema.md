@@ -287,6 +287,8 @@ Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us
 
 Representation of a [Managed Device](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0) enrolled in Intune.
 
+> **Ontology Mapping**: This node participates in the `Device` ontology via the `entra` device mapping, allowing canonical `Device` nodes to be linked to Intune-managed devices by shared identifiers such as serial number.
+
 | Field | Description |
 |-------|-------------|
 | **id** | Unique identifier for the managed device |
@@ -417,4 +419,4 @@ Representation of a [Device Compliance Policy](https://learn.microsoft.com/en-us
 
     3. **All devices**: If `policy.applies_to_all_devices = true`, the policy applies to every managed device in the tenant regardless of user enrollment.
 
-    Stale `APPLIES_TO` relationships (from devices or users removed since the last sync) are deleted at the end of each run, scoped to the current tenant so that edges belonging to other tenants are not affected.
+    Stale `APPLIES_TO` relationships are deleted at the end of each run, scoped to the current tenant so that edges belonging to other tenants are not affected. Resolution only considers policies and devices refreshed in the current sync so partial Intune permission coverage does not preserve stale policy-to-device links.
