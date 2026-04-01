@@ -20,7 +20,7 @@ from cartography.intel.entra.users import get_tenant
 from cartography.intel.entra.users import load_tenant
 from cartography.intel.entra.users import sync_entra_users
 from cartography.intel.entra.users import transform_tenant
-from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -172,7 +172,6 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             scopes=["https://graph.microsoft.com/.default"],
         )
 
-        intune_managed_devices_synced = False
         try:
             await sync_managed_devices(
                 neo4j_session,
@@ -181,7 +180,6 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
-            intune_managed_devices_synced = True
         except APIError as e:
             if e.response_status_code == 403:
                 logger.warning(
@@ -208,7 +206,6 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             else:
                 raise
 
-        intune_compliance_policies_synced = False
         try:
             await sync_compliance_policies(
                 neo4j_session,
@@ -217,7 +214,6 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
-            intune_compliance_policies_synced = True
         except APIError as e:
             if e.response_status_code == 403:
                 logger.warning(
@@ -227,13 +223,14 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             else:
                 raise
 
-        # Resolve compliance policy -> device edges only if both sides were synced
-        if intune_managed_devices_synced and intune_compliance_policies_synced:
-            run_analysis_job(
-                "intune_compliance_policy_device.json",
-                neo4j_session,
-                common_job_parameters,
-            )
+        # Always run the analysis job so stale APPLIES_TO edges are cleaned up
+        # even on partial syncs. Resolution MERGEs will simply match fewer nodes
+        # if either side was skipped due to missing permissions.
+        run_scoped_analysis_job(
+            "intune_compliance_policy_device.json",
+            neo4j_session,
+            common_job_parameters,
+        )
 
     # Execute syncs in sequence
     asyncio.run(main())
