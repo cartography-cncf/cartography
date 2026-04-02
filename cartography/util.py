@@ -7,7 +7,6 @@ from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
 from importlib.resources import read_text
-from itertools import islice
 from string import Template
 from typing import Any
 from typing import Awaitable
@@ -32,6 +31,10 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
+from cartography.graph.job import GraphJob
+from cartography.graph.statement import get_job_shortname
+from cartography.helpers import backoff_handler
+from cartography.helpers import batch as batch  # noqa: F401
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
@@ -56,7 +59,6 @@ def is_service_control_policy_explicit_deny(
 
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
-DEFAULT_BATCH_SIZE = 1000
 DEFAULT_MAX_PAGES = 10000
 
 
@@ -106,11 +108,6 @@ def run_analysis_job(
         The job file must be a valid JSON file containing GraphJob-compatible
         query definitions.
     """
-    # Lazy import avoids a module cycle:
-    # statement -> tx -> util -> graph.job/graph.statement -> statement
-    from cartography.graph.job import GraphJob
-    from cartography.graph.statement import get_job_shortname
-
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
@@ -309,11 +306,6 @@ def run_cleanup_job(
         with current cartography patterns and to avoid potential deprecation
         issues in future versions.
     """
-    # Lazy import avoids a module cycle:
-    # statement -> tx -> util -> graph.job/graph.statement -> statement
-    from cartography.graph.job import GraphJob
-    from cartography.graph.statement import get_job_shortname
-
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
@@ -557,65 +549,6 @@ If not, then the AWS datatype somehow does not have this key.""",
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 # fix for AWS TooManyRequestsException
-# https://github.com/cartography-cncf/cartography/issues/297
-# https://github.com/cartography-cncf/cartography/issues/243
-# https://github.com/cartography-cncf/cartography/issues/65
-# https://github.com/cartography-cncf/cartography/issues/25
-
-
-def backoff_handler(details: Dict) -> None:
-    """
-    Log backoff retry attempts for monitoring and debugging.
-
-    This handler function is called by the backoff decorator when retries
-    are being performed. It provides visibility into retry patterns and
-    helps with debugging API rate limiting or connectivity issues.
-
-    Args:
-        details: Dictionary containing backoff information including:
-                - wait: Number of seconds to wait before retry
-                - tries: Number of attempts made so far
-                - target: The function being retried
-
-    Examples:
-        The function is typically used automatically by backoff decorators:
-        >>> @backoff.on_exception(
-        ...     backoff.expo,
-        ...     Exception,
-        ...     on_backoff=backoff_handler
-        ... )
-        ... def api_call():
-        ...     # Make API call that might fail
-        ...     pass
-
-    Note:
-        This function logs at WARNING level to ensure visibility of retry
-        operations in standard logging configurations. The message includes
-        timing information and function identification for debugging.
-        The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a retry is triggered immediately).
-        Format the message defensively so logging never raises.
-    """
-    wait = details.get("wait")
-    if isinstance(wait, (int, float)):
-        wait_display = f"{wait:0.1f}"
-    elif wait is None:
-        wait_display = "unknown"
-    else:
-        wait_display = str(wait)
-
-    tries = details.get("tries")
-    tries_display = str(tries) if tries is not None else "unknown"
-
-    target = details.get("target", "<unknown>")
-
-    logger.warning(
-        "Backing off %s seconds after %s tries. Calling function %s",
-        wait_display,
-        tries_display,
-        target,
-    )
-
-
 # Error codes that indicate a service is unavailable in a region or blocked by policies
 AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "AccessDenied",
@@ -929,42 +862,6 @@ def camel_to_snake(name: str) -> str:
         The converted snake_case string.
     """
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
-
-
-def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]]:
-    """
-    Split an iterable into batches of specified size.
-
-    This utility function takes any iterable and yields lists of items
-    in batches of the specified size. This is useful for processing
-    large datasets in manageable chunks, especially when working with
-    APIs that have limits on batch operations.
-
-    Args:
-        items: The iterable to split into batches.
-        size: The maximum size of each batch. Defaults to DEFAULT_BATCH_SIZE.
-
-    Yields:
-        Lists containing up to 'size' items from the original iterable.
-        The last batch may contain fewer items if the total count is
-        not evenly divisible by the batch size.
-
-    Examples:
-        Basic batching:
-        >>> list(batch([1, 2, 3, 4, 5, 6, 7, 8], size=3))
-        [[1, 2, 3], [4, 5, 6], [7, 8]]
-
-    Note:
-        The function uses itertools.islice for memory-efficient processing
-        of large iterables. It doesn't load the entire iterable into memory
-        at once, making it suitable for processing very large datasets.
-
-        The DEFAULT_BATCH_SIZE is optimized for typical Neo4j operations
-        but can be adjusted based on specific use cases and constraints.
-    """
-    it = iter(items)
-    while chunk := list(islice(it, size)):
-        yield chunk
 
 
 def is_throttling_exception(exc: Exception) -> bool:

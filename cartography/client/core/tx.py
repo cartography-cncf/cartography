@@ -19,11 +19,11 @@ from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
+from cartography.helpers import backoff_handler
+from cartography.helpers import batch
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.stats import get_stats_client
-from cartography.util import backoff_handler
-from cartography.util import batch
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
