@@ -1,6 +1,6 @@
 # Creating a New Cartography Module
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Add Node Type](add-node-type.md) | [Add Relationship](add-relationship.md) | [Analysis Jobs](analysis-jobs.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Add Node Type](add-node-type.md) | [Add Relationship](add-relationship.md) | [Analysis Jobs](analysis-jobs.md)
 
 This guide walks you through creating a new Cartography intel module from scratch, covering the complete sync pattern, data model definitions, and testing.
 

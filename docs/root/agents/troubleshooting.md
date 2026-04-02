@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
 
 This guide helps you diagnose and fix common issues when developing Cartography intel modules.
 

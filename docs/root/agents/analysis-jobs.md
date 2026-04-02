@@ -1,6 +1,6 @@
 # Adding Analysis Jobs to Cartography Modules
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Troubleshooting](troubleshooting.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Troubleshooting](troubleshooting.md)
 
 Analysis jobs are post-ingestion queries that enrich the graph with computed relationships and properties. They run after data is loaded and perform cross-node analysis that cannot be done during the initial load phase.
 

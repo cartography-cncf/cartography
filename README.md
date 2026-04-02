@@ -129,7 +129,7 @@ See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.
 
 Thank you for considering contributing to Cartography!
 
-All contributors and participants must follow the [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
+All contributors and participants must follow the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 Submit a GitHub issue to report a bug or request a new feature. Larger discussions happen in [GitHub Discussions](https://github.com/cartography-cncf/cartography/discussions).
 

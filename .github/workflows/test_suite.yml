@@ -46,9 +46,9 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
-      - name: run test_unit
+      - name: Run unit tests
         run: make test_unit
-      - name: run test_integration
+      - name: Run integration tests
         run: make test_integration
 
   # Test that the docker image builds successfully on each commit
