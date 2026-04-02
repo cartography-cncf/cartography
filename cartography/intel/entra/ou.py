@@ -11,6 +11,7 @@ from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.ou import EntraOUSchema
 from cartography.util import timeit
 
@@ -29,7 +30,7 @@ async def get_entra_ous(
 
     while current_request:
         try:
-            response = await current_request.get()
+            response = await call_with_retries(current_request.get)
             if response and response.value:
                 for unit in response.value:
                     yield unit

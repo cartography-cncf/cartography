@@ -11,7 +11,9 @@ def test_build_create_index_queries():
         "CREATE INDEX IF NOT EXISTS FOR (n:InterestingAsset) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:InterestingAsset) ON (n.lastupdated);",
         "CREATE INDEX IF NOT EXISTS FOR (n:AnotherNodeLabel) ON (n.id);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:AnotherNodeLabel) ON (n.lastupdated);",
         "CREATE INDEX IF NOT EXISTS FOR (n:YetAnotherNodeLabel) ON (n.id);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:YetAnotherNodeLabel) ON (n.lastupdated);",
         "CREATE INDEX IF NOT EXISTS FOR (n:SubResource) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:HelloAsset) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:WorldAsset) ON (n.id);",
@@ -24,10 +26,17 @@ def test_build_create_index_queries_for_emr():
     creation.
     """
     result = build_create_index_queries(EMRClusterSchema())
-    assert set(result) == {
+    assert {
         "CREATE INDEX IF NOT EXISTS FOR (n:EMRCluster) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:EMRCluster) ON (n.lastupdated);",
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSAccount) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:EMRCluster) ON (n.arn);",
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n.id);",
-    }
+    }.issubset(set(result))
+
+    assert {
+        "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_source);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_name);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_region);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_version);",
+    }.issubset(set(result))

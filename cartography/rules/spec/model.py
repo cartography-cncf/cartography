@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 class Module(str, Enum):
     """Services that can be monitored"""
 
+    AIBOM = "AIBOM"
+    """AI BOM inventory mapped onto container images"""
+
     AIRBYTE = "Airbyte"
     """Airbyte data integration"""
 
@@ -106,6 +109,9 @@ class Module(str, Enum):
     TRIVY = "Trivy"
     """Trivy vulnerability scanner"""
 
+    SUBIMAGE = "SubImage"
+    """SubImage platform"""
+
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -121,6 +127,7 @@ class Maturity(str, Enum):
 
 
 MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AIBOM: "aibom",
     Module.AIRBYTE: "airbyte",
     Module.ANTHROPIC: "anthropic",
     Module.AWS: "aws",
@@ -151,6 +158,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.SPACELIFT: "spacelift",
     Module.TAILSCALE: "tailscale",
     Module.TRIVY: "trivy",
+    Module.SUBIMAGE: "subimage",
 }
 
 

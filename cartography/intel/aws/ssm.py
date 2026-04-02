@@ -11,6 +11,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
@@ -47,7 +48,7 @@ def get_instance_information(
     region: str,
     instance_ids: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ssm", region_name=region)
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
     instance_information: List[Dict[str, Any]] = []
     paginator = client.get_paginator("describe_instance_information")
     for i in range(0, len(instance_ids), 50):
@@ -84,7 +85,7 @@ def get_instance_patches(
     region: str,
     instance_ids: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ssm", region_name=region)
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
     instance_patches: List[Dict[str, Any]] = []
     paginator = client.get_paginator("describe_instance_patches")
     for instance_id in instance_ids:
@@ -114,7 +115,7 @@ def get_ssm_parameters(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ssm", region_name=region)
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
     paginator = client.get_paginator("describe_parameters")
     ssm_parameters_data: List[Dict[str, Any]] = []
     for page in paginator.paginate(PaginationConfig={"PageSize": 50}):

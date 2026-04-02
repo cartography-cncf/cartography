@@ -43,6 +43,8 @@ Represents the Cloudflare Account (aka Tenant)
 
 Represents a user role in Cloudflare
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 | id | Role identifier tag. |
@@ -92,6 +94,8 @@ Represents a membership in a Cloudflare account.
 ### CloudflareZone
 
 Represents a DNS Zone in Cloudflare.
+
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
 
 | Field | Description |
 |-------|-------------|

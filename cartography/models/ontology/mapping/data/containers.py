@@ -8,9 +8,6 @@ aws_ecs_container_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECSContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="arn", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -35,9 +32,6 @@ kubernetes_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KubernetesContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -62,9 +56,6 @@ azure_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureContainerInstance",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 # image: Not exposed as a direct field in AzureContainerInstance node (image info is in nested container properties)
                 # image_digest: Not exposed as a direct field in AzureContainerInstance node

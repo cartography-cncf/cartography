@@ -108,6 +108,15 @@ def test_docker_scout_sync_from_file(neo4j_session):
         "current-bookworm-slim",
     ]
 
+    tags_with_digest = neo4j_session.run(
+        """
+        MATCH (b:DockerScoutPublicImageTag)
+        WHERE b.digest IS NOT NULL
+        RETURN count(b) AS count
+        """,
+    ).single()["count"]
+    assert tags_with_digest == 0
+
     assert check_rels(
         neo4j_session,
         "Image",

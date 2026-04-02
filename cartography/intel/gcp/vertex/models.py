@@ -11,6 +11,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.vertex.model import GCPVertexAIModelSchema
 from cartography.util import timeit
 
@@ -66,20 +68,24 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
         return locations
 
     except HttpError as e:
-        error_reason = e.resp.get("reason", "unknown")
-        if e.resp.status == 403:
+        category = classify_gcp_http_error(e)
+        if category in ("api_disabled", "forbidden"):
             logger.warning(
-                f"Access forbidden when trying to get Vertex AI locations for project {project_id}. "
+                "Access forbidden when trying to get Vertex AI locations for project %s. "
                 "Ensure the Vertex AI API is enabled and you have the necessary permissions.",
+                project_id,
             )
-        elif e.resp.status == 404:
+        elif category == "not_found":
             logger.warning(
-                f"Vertex AI locations not found for project {project_id}. "
+                "Vertex AI locations not found for project %s. "
                 "The Vertex AI API may not be enabled.",
+                project_id,
             )
         else:
             logger.error(
-                f"Error getting Vertex AI locations for project {project_id}: {error_reason}",
+                "Error getting Vertex AI locations for project %s: %s",
+                project_id,
+                summarize_gcp_http_error(e),
                 exc_info=True,
             )
         return []

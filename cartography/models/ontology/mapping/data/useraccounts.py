@@ -423,12 +423,6 @@ slack_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
                 OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
                 OntologyFieldMapping(ontology_field="inactive", node_field="deleted"),
-                OntologyFieldMapping(
-                    ontology_field="system_account",
-                    node_field="is_bot",
-                    extra={"fields": ["is_app_user"]},
-                    special_handling="or_boolean",
-                ),
             ],
         ),
     ],
@@ -453,6 +447,29 @@ spacelift_mapping = OntologyMapping(
         ),
     ],
 )
+sentry_mapping = OntologyMapping(
+    module_name="sentry",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentryUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="has_2fa",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="pending",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 pagerduty_mapping = OntologyMapping(
     module_name="pagerduty",
     nodes=[
@@ -463,6 +480,75 @@ pagerduty_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="firstname"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="mfa_configured",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="lastlogin"
+                ),
+            ],
+        ),
+    ],
+)
+
+workos_useraccounts_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_sign_in_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="WorkOSDirectoryUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="state",
+                    extra={"values": ["active"]},
+                    special_handling="equal_boolean",
+                ),
             ],
         ),
     ],
@@ -527,6 +613,9 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "workos": workos_useraccounts_mapping,
+    "sentry": sentry_mapping,
     "subimage": subimage_mapping,
     "kubernetes": kubernetes_mapping,
+    "jumpcloud": jumpcloud_mapping,
 }

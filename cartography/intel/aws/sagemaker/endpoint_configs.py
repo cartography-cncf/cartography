@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.endpoint_config import (
     AWSSageMakerEndpointConfigSchema,
 )
@@ -24,7 +25,7 @@ def get_endpoint_configs(
     """
     Get all SageMaker Endpoint Configs in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_endpoint_configs")
     endpoint_configs: list[dict[str, Any]] = []
 
