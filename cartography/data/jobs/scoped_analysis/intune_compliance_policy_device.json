@@ -1,0 +1,26 @@
+{
+  "name": "Intune compliance policy to device resolution",
+  "statements": [
+    {
+      "__comment": "Policy assigned to a group: traverse group -> user -> device, scoped to current tenant",
+      "query": "MATCH (:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(policy:IntuneCompliancePolicy)-[:ASSIGNED_TO]->(g:EntraGroup)<-[:MEMBER_OF]-(u:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice) WHERE policy.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG MERGE (policy)-[r:APPLIES_TO]->(device) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Policy applies to all users: match all devices with an enrolled user in the same tenant",
+      "query": "MATCH (policy:IntuneCompliancePolicy)<-[:RESOURCE]-(t:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(device:IntuneManagedDevice) WHERE policy.applies_to_all_users = true AND policy.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG MATCH (u:EntraUser)-[:ENROLLED_TO]->(device) MERGE (policy)-[r:APPLIES_TO]->(device) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Policy applies to all devices: match all managed devices in the same tenant",
+      "query": "MATCH (policy:IntuneCompliancePolicy)<-[:RESOURCE]-(t:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(device:IntuneManagedDevice) WHERE policy.applies_to_all_devices = true AND policy.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG MERGE (policy)-[r:APPLIES_TO]->(device) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Clean up stale APPLIES_TO relationships for the current tenant only",
+      "query": "MATCH (:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(policy:IntuneCompliancePolicy)-[r:APPLIES_TO]->(device:IntuneManagedDevice) WHERE r.lastupdated <> $UPDATE_TAG OR r.lastupdated IS NULL OR policy.lastupdated <> $UPDATE_TAG OR policy.lastupdated IS NULL OR device.lastupdated <> $UPDATE_TAG OR device.lastupdated IS NULL WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

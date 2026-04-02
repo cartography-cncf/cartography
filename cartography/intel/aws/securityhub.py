@@ -7,6 +7,7 @@ import neo4j
 from dateutil import parser
 
 from cartography.client.core.tx import run_write_query
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_hub(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client("securityhub")
+    client = create_boto3_client(boto3_session, "securityhub")
     try:
         return client.describe_hub()
     except client.exceptions.ResourceNotFoundException:
