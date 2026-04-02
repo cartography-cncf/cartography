@@ -282,6 +282,18 @@ set -o history # turn shell history back on
 
 ## Usage
 
+### Framework filtering
+
+You can filter rules by compliance framework short name, optional scope, and optional revision:
+
+```bash
+# List all NIST AI RMF-mapped rules
+cartography-rules list --framework NIST-AI-RMF
+
+# Run all NIST AI RMF-mapped rules
+cartography-rules run all --framework NIST-AI-RMF
+```
+
 ### `list`
 #### See all available rules
 ```bash

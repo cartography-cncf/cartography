@@ -13,6 +13,7 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.kms.aliases import KMSAliasSchema
 from cartography.models.aws.kms.grants import KMSGrantSchema
 from cartography.models.aws.kms.keys import KMSKeySchema
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_kms_key_list(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client("kms", region_name=region)
+    client = create_boto3_client(boto3_session, "kms", region_name=region)
     paginator = client.get_paginator("list_keys")
     key_list: List[Any] = []
     for page in paginator.paginate():
@@ -60,7 +61,7 @@ def get_kms_key_details(
     """
     Iterates over all KMS Keys.
     """
-    client = boto3_session.client("kms", region_name=region)
+    client = create_boto3_client(boto3_session, "kms", region_name=region)
     for key in kms_key_data:
         policy = get_policy(key, client)
         aliases = get_aliases(key, client)
