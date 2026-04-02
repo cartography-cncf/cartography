@@ -12,6 +12,7 @@ from typing import Dict
 from typing import List
 
 import backoff
+from google.api_core.exceptions import ServerError
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,8 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
+    if isinstance(exc, ServerError):
+        return True
     if not isinstance(exc, HttpError):
         return False
     if exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES:
@@ -83,6 +86,8 @@ def gcp_api_backoff_handler(details: Dict) -> None:
     exc_info = ""
     if exc and isinstance(exc, HttpError):
         exc_info = f" HTTP {exc.resp.status}"
+    elif exc and isinstance(exc, ServerError):
+        exc_info = f" HTTP {exc.code}"
 
     logger.warning(
         "GCP API retry: backing off %s seconds after %s tries.%s Calling: %s",
@@ -150,6 +155,15 @@ def gcp_api_giveup_handler(details: Dict) -> None:
             target,
         )
         return
+    if exc and isinstance(exc, ServerError):
+        logger.warning(
+            "GCP API retries exhausted after %s tries. HTTP %s: %s Calling: %s",
+            tries_display,
+            exc.code,
+            exc,
+            target,
+        )
+        return
 
     logger.warning(
         "GCP API retries exhausted after %s tries. Calling: %s",
@@ -160,7 +174,7 @@ def gcp_api_giveup_handler(details: Dict) -> None:
 
 @backoff.on_exception(  # type: ignore[misc]
     backoff.expo,
-    HttpError,
+    (HttpError, ServerError),
     max_tries=GCP_API_MAX_RETRIES,
     giveup=lambda e: not is_retryable_gcp_http_error(e),
     on_backoff=gcp_api_backoff_handler,
