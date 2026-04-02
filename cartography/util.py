@@ -39,10 +39,6 @@ from cartography.stats import ScopedStatsClient
 
 logger = logging.getLogger(__name__)
 
-# Explicit re-exports preserve the long-standing util API after moving these helpers.
-backoff_handler = helpers.backoff_handler
-batch = helpers.batch
-
 
 def is_service_control_policy_explicit_deny(
     error: botocore.exceptions.ClientError,
@@ -63,6 +59,17 @@ def is_service_control_policy_explicit_deny(
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 DEFAULT_MAX_PAGES = 10000
+
+
+def backoff_handler(details: Dict) -> None:
+    """
+    Compatibility wrapper for cartography.helpers.backoff_handler.
+
+    Internal callers should import this helper from cartography.helpers.
+    This wrapper preserves the long-standing cartography.util API for
+    external callers.
+    """
+    helpers.backoff_handler(details)
 
 
 def run_analysis_job(
@@ -865,6 +872,20 @@ def camel_to_snake(name: str) -> str:
         The converted snake_case string.
     """
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def batch(
+    items: Iterable,
+    size: int = helpers.DEFAULT_BATCH_SIZE,
+) -> Iterable[List[Any]]:
+    """
+    Compatibility wrapper for cartography.helpers.batch.
+
+    Internal callers should import this helper from cartography.helpers.
+    This wrapper preserves the long-standing cartography.util API for
+    external callers.
+    """
+    return helpers.batch(items, size)
 
 
 def is_throttling_exception(exc: Exception) -> bool:

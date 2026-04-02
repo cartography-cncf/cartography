@@ -5,7 +5,7 @@ from typing import cast
 import backoff
 import requests
 
-from cartography.util import backoff_handler
+from cartography.helpers import backoff_handler
 
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
