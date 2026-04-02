@@ -1,6 +1,6 @@
 # Refactoring Legacy Code to Data Model
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
 
 **IMPORTANT**: A critical task for AI agents is refactoring legacy Cartography code from handwritten Cypher queries to the modern data model approach. This guide provides a step-by-step procedure to safely perform these refactors.
 

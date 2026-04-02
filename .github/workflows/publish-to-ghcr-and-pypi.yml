@@ -9,6 +9,35 @@ on:
 permissions: {}
 
 jobs:
+  coverage-artifact:
+    name: Build coverage artifact
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
+      - name: Run combined coverage
+        run: make test_coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: coverage-report-release
+          path: coverage.xml
+          if-no-files-found: warn
+
   # 1. Publish to PyPI
   build-and-publish-to-pypi:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
@@ -19,7 +48,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:

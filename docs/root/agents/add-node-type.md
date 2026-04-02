@@ -1,6 +1,6 @@
 # Adding a New Node Type
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Relationship](add-relationship.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Add Relationship](add-relationship.md)
 
 This guide covers advanced node schema properties, including extra labels, scoped cleanup, one-to-many relationships, and common mistakes to avoid.
 

@@ -1,6 +1,6 @@
 # Adding a New Relationship
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
+> **Related docs**: [Main AGENTS.md](../../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
 
 This guide covers how to define relationships in Cartography, including standard relationships, MatchLinks for connecting existing nodes, and patterns for multiple modules modifying the same node type.
 

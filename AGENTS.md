@@ -18,14 +18,14 @@ Detailed procedures are available in separate documents:
 
 | Procedure | Description |
 |-----------|-------------|
-| [Creating a New Module](docs/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
-| [Enriching the Ontology](docs/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
-| [Adding a New Node Type](docs/agents/add-node-type.md) | Advanced node schema properties and configurations |
-| [Adding a New Relationship](docs/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
-| [Adding Analysis Jobs](docs/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
-| [Creating Security Rules](docs/agents/create-rule.md) | Security rules, facts, and compliance conventions |
-| [Refactoring Legacy Code](docs/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
-| [Troubleshooting](docs/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
+| [Creating a New Module](docs/root/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
+| [Enriching the Ontology](docs/root/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
+| [Adding a New Node Type](docs/root/agents/add-node-type.md) | Advanced node schema properties and configurations |
+| [Adding a New Relationship](docs/root/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
+| [Adding Analysis Jobs](docs/root/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
+| [Creating Security Rules](docs/root/agents/create-rule.md) | Security rules, facts, and compliance conventions |
+| [Refactoring Legacy Code](docs/root/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
+| [Troubleshooting](docs/root/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
 
 ## AI Assistant Quick Reference
 
@@ -102,7 +102,7 @@ The fastest way to get started is to copy the structure from an existing module:
 - **Complex module**: `cartography/intel/aws/ec2/instances.py` - Multiple relationships and data types
 - **Reference documentation**: `docs/root/dev/writing-intel-modules.md`
 
-For detailed step-by-step instructions, see [Creating a New Module](docs/agents/create-module.md).
+For detailed step-by-step instructions, see [Creating a New Module](docs/root/agents/create-module.md).
 
 ---
 
