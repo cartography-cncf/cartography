@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class IntuneManagedDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    device_name: PropertyRef = PropertyRef("device_name")
+    device_name: PropertyRef = PropertyRef("device_name", extra_index=True)
     user_id: PropertyRef = PropertyRef("user_id")
     user_principal_name: PropertyRef = PropertyRef("user_principal_name")
     managed_device_owner_type: PropertyRef = PropertyRef("managed_device_owner_type")
@@ -26,7 +26,7 @@ class IntuneManagedDeviceNodeProperties(CartographyNodeProperties):
     management_agent: PropertyRef = PropertyRef("management_agent")
     manufacturer: PropertyRef = PropertyRef("manufacturer")
     model: PropertyRef = PropertyRef("model")
-    serial_number: PropertyRef = PropertyRef("serial_number")
+    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
     imei: PropertyRef = PropertyRef("imei")
     meid: PropertyRef = PropertyRef("meid")
     wifi_mac_address: PropertyRef = PropertyRef("wifi_mac_address")
