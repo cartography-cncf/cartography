@@ -31,14 +31,17 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
+from cartography import helpers
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
-from cartography.helpers import backoff_handler as backoff_handler  # noqa: F401
-from cartography.helpers import batch as batch  # noqa: F401
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
 logger = logging.getLogger(__name__)
+
+# Explicit re-exports preserve the long-standing util API after moving these helpers.
+backoff_handler = helpers.backoff_handler
+batch = helpers.batch
 
 
 def is_service_control_policy_explicit_deny(
