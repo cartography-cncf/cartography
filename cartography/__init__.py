@@ -10,6 +10,6 @@ if sys.version_info < _MIN_PYTHON:
         f"Backward compatibility with Python 3.10-3.12 is not guaranteed. "
         f"Python 3.10 support will be removed in October 2026. "
         "See: https://github.com/cartography-cncf/cartography/issues/2205",
-        FutureWarning,
+        DeprecationWarning,
         stacklevel=2,
     )

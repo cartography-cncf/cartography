@@ -2437,5 +2437,17 @@ def main(argv=None):
         logging.WARNING
     )
 
+    # Show Python version deprecation warning visibly to CLI users.
+    # The library-level DeprecationWarning in __init__.py is hidden by default.
+    from cartography import _MIN_PYTHON, _MIN_PYTHON_STR
+    if sys.version_info < _MIN_PYTHON:
+        logger.warning(
+            "Cartography is tested on Python %s+ only. "
+            "Backward compatibility with Python 3.10-3.12 is not guaranteed. "
+            "Python 3.10 support will be removed in October 2026. "
+            "See: https://github.com/cartography-cncf/cartography/issues/2205",
+            _MIN_PYTHON_STR,
+        )
+
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog="cartography").main(argv))
