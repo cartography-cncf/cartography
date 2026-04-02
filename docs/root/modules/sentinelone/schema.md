@@ -53,6 +53,11 @@ parent account metadata returned by `/web/api/v2.1/sites`.
 
 Represents a SentinelOne agent installed on an endpoint device.
 
+> **Ontology Mapping**: This node participates in the `Device` ontology through
+> serial-number correlation, with hostname fallback when hostnames are unique,
+> allowing cross-platform queries against endpoint devices observed in
+> SentinelOne.
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -87,6 +92,12 @@ Represents a SentinelOne agent installed on an endpoint device.
 
     ```
     (S1Agent)<-[AFFECTS]-(S1AppFinding)
+    ```
+
+- A S1Agent can be observed as an ontology Device.
+
+    ```
+    (Device)-[OBSERVED_AS]->(S1Agent)
     ```
 
 ### S1Application

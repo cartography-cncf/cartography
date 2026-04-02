@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import botocore
 import pytest
+from google.api_core.exceptions import InternalServerError
 from googleapiclient.errors import HttpError
 
 import cartography.util
@@ -553,6 +554,22 @@ def test_gcp_api_execute_with_retry_retries_on_503(mocker):
     ]
 
     # Mock sleep to avoid delays
+    mocker.patch("time.sleep")
+
+    result = gcp_api_execute_with_retry(mock_request)
+
+    assert result == {"items": ["data"]}
+    assert mock_request.execute.call_count == 2
+
+
+def test_gcp_api_execute_with_retry_retries_on_google_api_core_500(mocker):
+    """Test that google-api-core 5xx errors trigger retries."""
+    mock_request = MagicMock()
+    mock_request.execute.side_effect = [
+        InternalServerError("Internal Server Error"),
+        {"items": ["data"]},
+    ]
+
     mocker.patch("time.sleep")
 
     result = gcp_api_execute_with_retry(mock_request)

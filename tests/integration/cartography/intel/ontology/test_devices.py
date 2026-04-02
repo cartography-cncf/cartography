@@ -336,3 +336,185 @@ def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
         """
     ).single()["count"]
     assert fresh_observed_as_count == 1
+
+
+def test_load_ontology_devices_from_sentinelone(neo4j_session):
+    """SentinelOne agents should produce ontology devices and OBSERVED_AS links."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:S1Agent {
+            id: 's1-agent-1',
+            uuid: 'uuid-1',
+            computer_name: 'sentinel-host-01',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            serial_number: 'SN-S1-001',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "serial_number"],
+    ) == {("sentinel-host-01", "Windows 11", "23H2", "SN-S1-001")}
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "S1Agent",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("SN-S1-001", "SN-S1-001")}
+
+
+def test_load_ontology_devices_from_entra_intune(neo4j_session):
+    """Intune managed devices should produce ontology devices and OBSERVED_AS links."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:IntuneManagedDevice {
+            id: 'intune-device-1',
+            device_name: 'entra-laptop-01',
+            operating_system: 'Windows',
+            os_version: '11.0.22631',
+            model: 'Surface Laptop 6',
+            serial_number: 'SN-INTUNE-001',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["entra"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "serial_number"],
+    ) == {("entra-laptop-01", "Windows", "11.0.22631", "SN-INTUNE-001")}
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "IntuneManagedDevice",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("SN-INTUNE-001", "SN-INTUNE-001")}
+
+
+@patch.object(
+    cartography.intel.ontology.devices,
+    "get_source_nodes_from_graph",
+    return_value=[
+        {
+            "hostname": "sentinel-host-fallback",
+            "serial_number": "UNMATCHED-SERIAL",
+            "os": "Windows 11",
+        },
+    ],
+)
+def test_load_ontology_devices_from_sentinelone_with_hostname_fallback(
+    _mock_get_source_nodes,
+    neo4j_session,
+):
+    """Hostname matching should link Device to S1Agent when serials do not match."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:S1Agent {
+            id: 's1-agent-fallback',
+            uuid: 'uuid-fallback',
+            computer_name: 'sentinel-host-fallback',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "S1Agent",
+        "computer_name",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("sentinel-host-fallback", "sentinel-host-fallback")}
+
+
+@patch.object(
+    cartography.intel.ontology.devices,
+    "get_source_nodes_from_graph",
+    return_value=[
+        {
+            "hostname": "entra-host-fallback",
+            "serial_number": "UNMATCHED-INTUNE-SERIAL",
+            "os": "Windows",
+        },
+    ],
+)
+def test_load_ontology_devices_from_entra_intune_with_hostname_fallback(
+    _mock_get_source_nodes,
+    neo4j_session,
+):
+    """Hostname matching should link Device to IntuneManagedDevice when serials do not match."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:IntuneManagedDevice {
+            id: 'intune-device-fallback',
+            device_name: 'entra-host-fallback',
+            operating_system: 'Windows',
+            os_version: '11.0.22631',
+            model: 'Surface Laptop 6',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["entra"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "IntuneManagedDevice",
+        "device_name",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("entra-host-fallback", "entra-host-fallback")}

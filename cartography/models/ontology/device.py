@@ -124,6 +124,30 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
+@dataclass(frozen=True)
+class DeviceToS1AgentBySerialRel(CartographyRelSchema):
+    target_node_label: str = "S1Agent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice) via serial_number
+@dataclass(frozen=True)
+class DeviceToIntuneManagedDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "IntuneManagedDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
@@ -140,6 +164,8 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToSnipeitAssetBySerialRel(),
             DeviceToTailscaleDeviceBySerialRel(),
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
+            DeviceToS1AgentBySerialRel(),
+            DeviceToIntuneManagedDeviceBySerialRel(),
         ],
     )
 
@@ -293,6 +319,38 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
+@dataclass(frozen=True)
+class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "S1Agent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"computer_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice) via hostname
+@dataclass(frozen=True)
+class DeviceToIntuneManagedDeviceHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "IntuneManagedDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"device_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
@@ -305,11 +363,17 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         "hostname",
         DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
     ),
+    ("S1Agent", "computer_name", DeviceToS1AgentHostnameMatchLink()),
     ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
     ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
     (
         "BigfixComputer",
         "computername",
         DeviceToBigfixComputerHostnameMatchLink(),
+    ),
+    (
+        "IntuneManagedDevice",
+        "device_name",
+        DeviceToIntuneManagedDeviceHostnameMatchLink(),
     ),
 ]
