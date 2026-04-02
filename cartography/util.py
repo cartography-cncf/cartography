@@ -33,7 +33,7 @@ from botocore.parsers import ResponseParserError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
-from cartography.helpers import backoff_handler
+from cartography.helpers import backoff_handler as backoff_handler  # noqa: F401
 from cartography.helpers import batch as batch  # noqa: F401
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
