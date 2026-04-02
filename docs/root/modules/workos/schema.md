@@ -288,7 +288,7 @@ Represents a user synced from an external directory. These are different from Wo
 | updated_at | The RFC 3339 datetime of when the directory user was last updated |
 | custom_attributes | Custom attributes from the identity provider |
 | raw_attributes | Raw attributes from the identity provider |
-| role | The role of the user in the directory |
+| roles | JSON list of directory role slugs assigned to the user by the IdP |
 
 #### Relationships
 - `DirectoryUser` belongs to an `Environment`

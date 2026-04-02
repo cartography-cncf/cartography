@@ -26,7 +26,7 @@ class WorkOSDirectoryUserNodeProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef("updated_at")
     custom_attributes: PropertyRef = PropertyRef("custom_attributes")
     raw_attributes: PropertyRef = PropertyRef("raw_attributes")
-    role: PropertyRef = PropertyRef("role")
+    roles: PropertyRef = PropertyRef("roles")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

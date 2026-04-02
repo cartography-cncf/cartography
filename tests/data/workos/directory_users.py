@@ -5,6 +5,13 @@ class MockDirectoryGroup:
         self.id = group_id
 
 
+class MockInlineRole:
+    """Mock WorkOS InlineRole object for testing."""
+
+    def __init__(self, slug: str):
+        self.slug = slug
+
+
 class MockDirectoryUser:
     """Mock WorkOS Directory User object for testing."""
 
@@ -21,7 +28,7 @@ class MockDirectoryUser:
         self.updated_at = data["updated_at"]
         self.custom_attributes = data.get("custom_attributes")
         self.raw_attributes = data.get("raw_attributes")
-        self.role = data.get("role")
+        self.roles = [MockInlineRole(s) for s in data.get("roles", [])]
         # Convert group_ids list to list of MockDirectoryGroup objects
         self.groups = [MockDirectoryGroup(gid) for gid in data.get("group_ids", [])]
 
@@ -41,7 +48,7 @@ WORKOS_DIRECTORY_USERS = [
             "updated_at": "2024-11-01T23:59:27.427722Z",
             "custom_attributes": {},
             "raw_attributes": {},
-            "role": None,
+            "roles": ["member"],
             "group_ids": ["dirgrp_01HXYZ1234567890ABCDEFGHIJ"],
         }
     ),
@@ -59,7 +66,7 @@ WORKOS_DIRECTORY_USERS = [
             "updated_at": "2024-11-01T23:59:27.427722Z",
             "custom_attributes": {},
             "raw_attributes": {},
-            "role": None,
+            "roles": ["admin"],
             "group_ids": ["dirgrp_02HXYZ0987654321ZYXWVUTSRQ"],
         }
     ),

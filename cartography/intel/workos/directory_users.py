@@ -96,7 +96,7 @@ def transform(users: list[Any]) -> list[dict[str, Any]]:
             "raw_attributes": (
                 json.dumps(user.raw_attributes) if user.raw_attributes else None
             ),
-            "role": user.role.slug if user.role else None,
+            "roles": json.dumps([r.slug for r in user.roles]) if user.roles else None,
         }
 
         result.append(user_dict)

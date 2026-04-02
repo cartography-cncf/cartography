@@ -81,7 +81,7 @@ def transform(roles_by_org: dict[str, list[Role]]) -> list[dict[str, Any]]:
                 "name": role.name,
                 "description": role.description,
                 "type": role.type,
-                "organization_id": org_id if role.type == "organization" else None,
+                "organization_id": org_id if role.type == "OrganizationRole" else None,
                 "created_at": role.created_at,
                 "updated_at": role.updated_at,
             }
