@@ -243,10 +243,43 @@ jumpcloud_mapping = OntologyMapping(
     ],
 )
 
+entra_mapping = OntologyMapping(
+    module_name="entra",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="IntuneManagedDevice",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="device_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="operating_system",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="model",
+                    node_field="model",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "duo": duo_mapping,
+    "entra": entra_mapping,
     "googleworkspace": googleworkspace_mapping,
     "jumpcloud": jumpcloud_mapping,
     "kandji": kandji_mapping,
