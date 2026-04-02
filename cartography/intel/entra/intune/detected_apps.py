@@ -3,6 +3,7 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.detected_app import DetectedApp
 from msgraph.generated.models.managed_device import ManagedDevice
@@ -47,10 +48,21 @@ async def get_detected_apps(
                         app.id,
                         app.device_count,
                     )
-                    app.managed_devices = await get_managed_devices_for_detected_app(
-                        client,
-                        app.id,
-                    )
+                    try:
+                        app.managed_devices = (
+                            await get_managed_devices_for_detected_app(
+                                client,
+                                app.id,
+                            )
+                        )
+                    except APIError as e:
+                        logger.warning(
+                            "Failed fallback managed-device lookup for detected app %s "
+                            "(status=%s); continuing without HAS_APP relationships for "
+                            "this app.",
+                            app.id,
+                            e.response_status_code,
+                        )
                 yield app
         if not page.odata_next_link:
             break
