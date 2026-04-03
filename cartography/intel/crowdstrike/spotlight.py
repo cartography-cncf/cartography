@@ -49,7 +49,7 @@ def load_vulnerability_data(
             v.app_product_name_version = vuln.app_product_name_version,
             v.lastupdated = $update_tag,
             v._ont_source = 'crowdstrike',
-            v._ont_title = vuln.cve_id,
+            v._ont_title = coalesce(vuln.cve_id, vuln.id),
             v._ont_status = vuln.status,
             v._ont_first_seen = vuln.created_timestamp
         WITH v

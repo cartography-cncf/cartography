@@ -226,9 +226,11 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
     ORDER BY a.name, i.region
     ```
 
-### GuardDutyFinding::Risk
+### GuardDutyFinding::Risk::Finding
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSASTFinding, TrivyImageFinding).
 
 | Field | Description |
 |-------|-------------|
@@ -274,9 +276,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
-### AWSInspectorFinding
+### AWSInspectorFinding::Risk::Finding
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
+
+> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, TrivyImageFinding).
 
 | Field | Description | Required|
 |-------|-------------|------|

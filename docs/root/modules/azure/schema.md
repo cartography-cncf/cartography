@@ -2521,9 +2521,11 @@ Representation of an Azure Synapse [Managed Private Endpoint](https://learn.micr
     (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
     ```
 
-### AzureSecurityAssessment
+### AzureSecurityAssessment::Finding
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSASTFinding, TrivyImageFinding).
 
 | Field | Description |
 |---|---|
