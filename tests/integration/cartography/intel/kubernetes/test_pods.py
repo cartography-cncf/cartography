@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
@@ -5,12 +7,16 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
+from cartography.intel.kubernetes.pods import transform_pods
+from cartography.intel.kubernetes.rbac import load_service_accounts
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
+from tests.data.kubernetes.pods import KUBERNETES_CLUSTER_2_POD_SERVICE_ACCOUNTS_DATA
 from tests.data.kubernetes.pods import KUBERNETES_CONTAINER_DATA
+from tests.data.kubernetes.pods import KUBERNETES_POD_SERVICE_ACCOUNTS_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -71,6 +77,60 @@ def test_load_pods(neo4j_session, _create_test_cluster):
     # Assert
     expected_nodes = {("my-pod",), ("my-service-pod",)}
     assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == expected_nodes
+    expected_service_account_names = {
+        ("my-pod", "default"),
+        ("my-service-pod", "workload-sa"),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesPod",
+            ["name", "service_account_name"],
+        )
+        == expected_service_account_names
+    )
+
+
+def test_transform_pods_defaults_service_account_name():
+    pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="pod-1",
+            name="default-sa-pod",
+            namespace="my-namespace",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[],
+            volumes=[],
+            node_name="node-a",
+            service_account_name=None,
+        ),
+        status=SimpleNamespace(phase="Running", container_statuses=[]),
+    )
+
+    transformed = transform_pods([pod], KUBERNETES_CLUSTER_NAMES[0])
+
+    assert transformed == [
+        {
+            "uid": "pod-1",
+            "name": "default-sa-pod",
+            "status_phase": "Running",
+            "creation_timestamp": None,
+            "deletion_timestamp": None,
+            "namespace": "my-namespace",
+            "service_account_name": "default",
+            "service_account_id": (
+                f"{KUBERNETES_CLUSTER_NAMES[0]}/my-namespace/default"
+            ),
+            "node": "node-a",
+            "labels": "{}",
+            "containers": [],
+            "secret_volume_ids": [],
+            "secret_env_ids": [],
+        },
+    ]
 
 
 def test_load_pod_relationships(neo4j_session, _create_test_cluster):
@@ -194,6 +254,65 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
         )
         == expected_rels
     )
+
+
+def test_load_pod_to_service_account_relationships(
+    neo4j_session,
+    _create_test_cluster,
+):
+    load_service_accounts(
+        neo4j_session,
+        KUBERNETES_POD_SERVICE_ACCOUNTS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_service_accounts(
+        neo4j_session,
+        KUBERNETES_CLUSTER_2_POD_SERVICE_ACCOUNTS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[1],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[1],
+    )
+
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    expected_rels = {
+        ("my-pod", "default"),
+        ("my-service-pod", "workload-sa"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesServiceAccount",
+            "name",
+            "USES_SERVICE_ACCOUNT",
+        )
+        == expected_rels
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (:KubernetesPod {name: $pod_name, cluster_name: $cluster_name})
+              -[:USES_SERVICE_ACCOUNT]->
+              (sa:KubernetesServiceAccount {name: $service_account_name})
+        RETURN collect(sa.id) AS service_account_ids
+        """,
+        pod_name="my-pod",
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+        service_account_name="default",
+    )
+    assert result.single()["service_account_ids"] == [
+        KUBERNETES_POD_SERVICE_ACCOUNTS_DATA[0]["id"],
+    ]
 
 
 def test_pod_cleanup(neo4j_session, _create_test_cluster):
