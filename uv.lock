@@ -951,7 +951,7 @@ requires-dist = [
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
-    { name = "azure-mgmt-resource", specifier = ">=24.0.0" },
+    { name = "azure-mgmt-resource", specifier = ">=24.0.0,<25" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = ">=3.0.1" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
