@@ -1,24 +1,64 @@
+from types import SimpleNamespace
+
 import pytest
 
+import cartography.intel.kubernetes.pods as pods
+import cartography.intel.kubernetes.rbac as rbac
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
-from cartography.intel.kubernetes.rbac import load_service_accounts
+from cartography.intel.kubernetes.pods import sync_pods
+from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
-from tests.data.kubernetes.pods import KUBERNETES_CLUSTER_2_POD_SERVICE_ACCOUNTS_DATA
 from tests.data.kubernetes.pods import KUBERNETES_CONTAINER_DATA
-from tests.data.kubernetes.pods import KUBERNETES_POD_SERVICE_ACCOUNTS_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+
+
+def _raw_service_account(name: str, namespace: str, uid: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        metadata=SimpleNamespace(
+            name=name,
+            namespace=namespace,
+            uid=uid,
+            creation_timestamp=None,
+            resource_version="1",
+        ),
+    )
+
+
+def _raw_pod(
+    name: str,
+    uid: str,
+    namespace: str,
+    service_account_name: str,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid=uid,
+            name=name,
+            namespace=namespace,
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[],
+            volumes=[],
+            node_name="my-node",
+            service_account_name=service_account_name,
+        ),
+        status=SimpleNamespace(phase="running", container_statuses=[]),
+    )
 
 
 @pytest.fixture
@@ -214,28 +254,69 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
 def test_load_pod_to_service_account_relationships(
     neo4j_session,
     _create_test_cluster,
+    monkeypatch,
 ):
-    load_service_accounts(
-        neo4j_session,
-        KUBERNETES_POD_SERVICE_ACCOUNTS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-    load_service_accounts(
-        neo4j_session,
-        KUBERNETES_CLUSTER_2_POD_SERVICE_ACCOUNTS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[1],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[1],
-    )
+    cluster_1_client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[0])
+    cluster_2_client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[1])
 
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
+    cluster_1_service_accounts = [
+        _raw_service_account("default", "my-namespace", "cluster-1-default"),
+        _raw_service_account("workload-sa", "my-namespace", "cluster-1-workload"),
+    ]
+    cluster_2_service_accounts = [
+        _raw_service_account("default", "my-namespace", "cluster-2-default"),
+    ]
+    raw_pods = [
+        _raw_pod("my-pod", KUBERNETES_PODS_DATA[0]["uid"], "my-namespace", "default"),
+        _raw_pod(
+            "my-service-pod",
+            KUBERNETES_PODS_DATA[1]["uid"],
+            "my-namespace",
+            "workload-sa",
+        ),
+    ]
+
+    monkeypatch.setattr(
+        rbac,
+        "get_service_accounts",
+        lambda client: (
+            cluster_1_service_accounts
+            if client.name == KUBERNETES_CLUSTER_NAMES[0]
+            else cluster_2_service_accounts
+        ),
+    )
+    monkeypatch.setattr(rbac, "get_roles", lambda client: [])
+    monkeypatch.setattr(rbac, "get_role_bindings", lambda client: [])
+    monkeypatch.setattr(rbac, "get_cluster_roles", lambda client: [])
+    monkeypatch.setattr(rbac, "get_cluster_role_bindings", lambda client: [])
+    monkeypatch.setattr(pods, "get_pods", lambda client: raw_pods)
+
+    sync_kubernetes_rbac(
+        session=neo4j_session,
+        client=cluster_1_client,
         update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+        },
+    )
+    sync_kubernetes_rbac(
+        session=neo4j_session,
+        client=cluster_2_client,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[1],
+        },
+    )
+    sync_pods(
+        session=neo4j_session,
+        client=cluster_1_client,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+        },
     )
 
     expected_rels = {
@@ -266,7 +347,7 @@ def test_load_pod_to_service_account_relationships(
         service_account_name="default",
     )
     assert result.single()["service_account_ids"] == [
-        KUBERNETES_POD_SERVICE_ACCOUNTS_DATA[0]["id"],
+        f"{KUBERNETES_CLUSTER_NAMES[0]}/my-namespace/default",
     ]
 
 
