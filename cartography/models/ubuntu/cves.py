@@ -58,7 +58,7 @@ class UbuntuCVEToUbuntuCVEFeedRel(CartographyRelSchema):
 class UbuntuCVESchema(CartographyNodeSchema):
     label: str = "UbuntuCVE"
     properties: UbuntuCVENodeProperties = UbuntuCVENodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE", "Finding"])
     sub_resource_relationship: UbuntuCVEToUbuntuCVEFeedRel = (
         UbuntuCVEToUbuntuCVEFeedRel()
     )
