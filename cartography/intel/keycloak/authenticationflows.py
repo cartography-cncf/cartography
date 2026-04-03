@@ -49,6 +49,7 @@ def get(
     req.raise_for_status()
     return req.json()
 
+
 @timeit
 def load_authenticationflows(
     neo4j_session: neo4j.Session,
