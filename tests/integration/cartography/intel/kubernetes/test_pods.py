@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import pytest
 
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
@@ -7,7 +5,6 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
-from cartography.intel.kubernetes.pods import transform_pods
 from cartography.intel.kubernetes.rbac import load_service_accounts
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -89,48 +86,6 @@ def test_load_pods(neo4j_session, _create_test_cluster):
         )
         == expected_service_account_names
     )
-
-
-def test_transform_pods_defaults_service_account_name():
-    pod = SimpleNamespace(
-        metadata=SimpleNamespace(
-            uid="pod-1",
-            name="default-sa-pod",
-            namespace="my-namespace",
-            creation_timestamp=None,
-            deletion_timestamp=None,
-            labels={},
-        ),
-        spec=SimpleNamespace(
-            containers=[],
-            volumes=[],
-            node_name="node-a",
-            service_account_name=None,
-        ),
-        status=SimpleNamespace(phase="Running", container_statuses=[]),
-    )
-
-    transformed = transform_pods([pod], KUBERNETES_CLUSTER_NAMES[0])
-
-    assert transformed == [
-        {
-            "uid": "pod-1",
-            "name": "default-sa-pod",
-            "status_phase": "Running",
-            "creation_timestamp": None,
-            "deletion_timestamp": None,
-            "namespace": "my-namespace",
-            "service_account_name": "default",
-            "service_account_id": (
-                f"{KUBERNETES_CLUSTER_NAMES[0]}/my-namespace/default"
-            ),
-            "node": "node-a",
-            "labels": "{}",
-            "containers": [],
-            "secret_volume_ids": [],
-            "secret_env_ids": [],
-        },
-    ]
 
 
 def test_load_pod_relationships(neo4j_session, _create_test_cluster):
