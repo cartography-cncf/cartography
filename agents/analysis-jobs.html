@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Adding Analysis Jobs to Cartography Modules - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Creating a New Cartography Module" href="create-module.html" /><link rel="prev" title="Adding a New Relationship" href="add-relationship.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Adding Analysis Jobs to Cartography Modules"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Agent Procedures</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="add-relationship.html">Adding a New Relationship</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-module.html">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="refactor-legacy.html">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#table-of-contents">Table of Contents</a></li>
+<li><a class="reference internal" href="#overview">Overview</a><ul>
+<li><a class="reference internal" href="#when-to-use-analysis-jobs">When to Use Analysis Jobs</a></li>
+<li><a class="reference internal" href="#when-not-to-use-analysis-jobs">When NOT to Use Analysis Jobs</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#types-of-analysis-jobs">Types of Analysis Jobs</a><ul>
+<li><a class="reference internal" href="#global-analysis-jobs">Global Analysis Jobs</a></li>
+<li><a class="reference internal" href="#scoped-analysis-jobs">Scoped Analysis Jobs</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#creating-an-analysis-job">Creating an Analysis Job</a><ul>
+<li><a class="reference internal" href="#json-format">JSON Format</a></li>
+<li><a class="reference internal" href="#query-structure">Query Structure</a></li>
+<li><a class="reference internal" href="#available-parameters">Available Parameters</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#calling-analysis-jobs">Calling Analysis Jobs</a><ul>
+<li><a class="reference internal" href="#in-module-init-py">In Module <code class="docutils literal notranslate">py</span></code></a><ul>
+<li><a class="reference internal" href="#pattern-1-global-analysis-after-all-accounts-projects">Pattern 1: Global Analysis (after all accounts/projects)</a></li>
+<li><a class="reference internal" href="#pattern-2-scoped-analysis-per-account-project">Pattern 2: Scoped Analysis (per account/project)</a></li>
+<li><a class="reference internal" href="#pattern-3-conditional-analysis-with-dependency-checking">Pattern 3: Conditional Analysis (with dependency checking)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reference-examples">Reference Examples</a><ul>
+<li><a class="reference internal" href="#gcp-module-pattern">GCP Module Pattern</a></li>
+<li><a class="reference internal" href="#aws-module-pattern">AWS Module Pattern</a></li>
+<li><a class="reference internal" href="#semgrep-module-pattern">Semgrep Module Pattern</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#audit-status">Audit Status</a><ul>
+<li><a class="reference internal" href="#modules-with-proper-analysis-job-integration">Modules with Proper Analysis Job Integration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#best-practices">Best Practices</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/agents/analysis-jobs.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Agent Procedures</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Adding Analysis Jobs to Cartography Modules</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/analysis-jobs.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/analysis-jobs.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/analysis-jobs.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/analysis-jobs.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/analysis-jobs.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="adding-analysis-jobs-to-cartography-modules">
+<h1>Adding Analysis Jobs to Cartography Modules<a class="headerlink" href="#adding-analysis-jobs-to-cartography-modules" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Related docs</strong>: <span class="xref myst">Main AGENTS.md</span> | <a class="reference internal" href="create-module.html"><span class="std std-doc">Create Module</span></a> | <a class="reference internal" href="troubleshooting.html"><span class="std std-doc">Troubleshooting</span></a></p>
+</div></blockquote>
+<p>Analysis jobs are post-ingestion queries that enrich the graph with computed relationships and properties. They run after data is loaded and perform cross-node analysis that cannot be done during the initial load phase.</p>
+<section id="table-of-contents">
+<h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#overview"><span class="xref myst">Overview</span></a> - What are analysis jobs and when to use them</p></li>
+<li><p><a class="reference internal" href="#types-of-analysis-jobs"><span class="xref myst">Types of Analysis Jobs</span></a> - Global vs scoped analysis</p></li>
+<li><p><a class="reference internal" href="#creating-an-analysis-job"><span class="xref myst">Creating an Analysis Job</span></a> - JSON format and query structure</p></li>
+<li><p><a class="reference internal" href="#calling-analysis-jobs"><span class="xref myst">Calling Analysis Jobs</span></a> - Integration with your module</p></li>
+<li><p><a class="reference internal" href="#reference-examples"><span class="xref myst">Reference Examples</span></a> - Patterns from GCP and AWS modules</p></li>
+<li><p><a class="reference internal" href="#audit-status"><span class="xref myst">Audit Status</span></a> - Current state of analysis jobs in the codebase</p></li>
+</ol>
+</section>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Analysis jobs perform graph enrichment after data ingestion. Common use cases include:</p>
+<ul class="simple">
+<li><p><strong>Internet exposure analysis</strong>: Determining if resources are exposed to the internet based on security group rules, load balancers, and network configurations</p></li>
+<li><p><strong>Permission inheritance</strong>: Computing transitive permissions through role hierarchies</p></li>
+<li><p><strong>Cross-resource linking</strong>: Connecting nodes from different data sources (e.g., linking Human nodes to GSuiteUser nodes)</p></li>
+<li><p><strong>Risk scoring</strong>: Computing risk scores based on multiple factors</p></li>
+</ul>
+<section id="when-to-use-analysis-jobs">
+<h3>When to Use Analysis Jobs<a class="headerlink" href="#when-to-use-analysis-jobs" title="Link to this heading">¶</a></h3>
+<p>Use analysis jobs when you need to:</p>
+<ol class="arabic simple">
+<li><p>Compute properties that depend on multiple nodes/relationships</p></li>
+<li><p>Create relationships that span across different resource types</p></li>
+<li><p>Perform transitive closure computations (e.g., inherited permissions)</p></li>
+<li><p>Enrich data after all resources of a type have been loaded</p></li>
+</ol>
+</section>
+<section id="when-not-to-use-analysis-jobs">
+<h3>When NOT to Use Analysis Jobs<a class="headerlink" href="#when-not-to-use-analysis-jobs" title="Link to this heading">¶</a></h3>
+<p>Don’t use analysis jobs for:</p>
+<ol class="arabic simple">
+<li><p>Simple node-to-node relationships (use the data model instead)</p></li>
+<li><p>Properties that can be computed during transform phase</p></li>
+<li><p>Relationships that are already present in the source data</p></li>
+</ol>
+</section>
+</section>
+<section id="types-of-analysis-jobs">
+<h2>Types of Analysis Jobs<a class="headerlink" href="#types-of-analysis-jobs" title="Link to this heading">¶</a></h2>
+<section id="global-analysis-jobs">
+<h3>Global Analysis Jobs<a class="headerlink" href="#global-analysis-jobs" title="Link to this heading">¶</a></h3>
+<p>Global analysis jobs run once after all accounts/projects are synced. They operate on the entire graph.</p>
+<p><strong>Location</strong>: <code class="docutils literal notranslate"><span class="pre">cartography/data/jobs/analysis/</span></code></p>
+<p><strong>Called with</strong>: <code class="docutils literal notranslate"><span class="pre">run_analysis_job()</span></code> or <code class="docutils literal notranslate"><span class="pre">run_analysis_and_ensure_deps()</span></code></p>
+<p><strong>Example</strong>: Internet exposure analysis that needs to see all security groups across all accounts.</p>
+</section>
+<section id="scoped-analysis-jobs">
+<h3>Scoped Analysis Jobs<a class="headerlink" href="#scoped-analysis-jobs" title="Link to this heading">¶</a></h3>
+<p>Scoped analysis jobs run once per account/project/tenant. They operate on a subset of the graph.</p>
+<p><strong>Location</strong>: <code class="docutils literal notranslate"><span class="pre">cartography/data/jobs/scoped_analysis/</span></code></p>
+<p><strong>Called with</strong>: <code class="docutils literal notranslate"><span class="pre">run_scoped_analysis_job()</span></code></p>
+<p><strong>Example</strong>: IAM instance profile analysis that runs per AWS account.</p>
+</section>
+</section>
+<section id="creating-an-analysis-job">
+<h2>Creating an Analysis Job<a class="headerlink" href="#creating-an-analysis-job" title="Link to this heading">¶</a></h2>
+<p>Analysis jobs are JSON files with an array of Cypher statements.</p>
+<section id="json-format">
+<h3>JSON Format<a class="headerlink" href="#json-format" title="Link to this heading">¶</a></h3>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">{</span>
+</span><span data-line="2"><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Human-readable name for logging&quot;</span><span class="p">,</span>
+</span><span data-line="3"><span class="w">  </span><span class="nt">&quot;statements&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span data-line="4"><span class="w">    </span><span class="p">{</span>
+</span><span data-line="5"><span class="w">      </span><span class="nt">&quot;__comment__&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Optional comment explaining this query&quot;</span><span class="p">,</span>
+</span><span data-line="6"><span class="w">      </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:NodeType) WHERE ... SET n.property = value&quot;</span><span class="p">,</span>
+</span><span data-line="7"><span class="w">      </span><span class="nt">&quot;iterative&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+</span><span data-line="8"><span class="w">    </span><span class="p">},</span>
+</span><span data-line="9"><span class="w">    </span><span class="p">{</span>
+</span><span data-line="10"><span class="w">      </span><span class="nt">&quot;__comment__&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Iterative queries for large datasets&quot;</span><span class="p">,</span>
+</span><span data-line="11"><span class="w">      </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:NodeType) WHERE n.property IS NULL WITH n LIMIT $LIMIT_SIZE SET n.property = value RETURN COUNT(*) AS TotalCompleted&quot;</span><span class="p">,</span>
+</span><span data-line="12"><span class="w">      </span><span class="nt">&quot;iterative&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span data-line="13"><span class="w">      </span><span class="nt">&quot;iterationsize&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span>
+</span><span data-line="14"><span class="w">    </span><span class="p">}</span>
+</span><span data-line="15"><span class="w">  </span><span class="p">]</span>
+</span><span data-line="16"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="query-structure">
+<h3>Query Structure<a class="headerlink" href="#query-structure" title="Link to this heading">¶</a></h3>
+<p><strong>Non-iterative queries</strong>: Run once, best for queries that touch a manageable number of nodes.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">{</span>
+</span><span data-line="2"><span class="w">  </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (instance:GCPInstance) WHERE ... SET instance.exposed_internet = true&quot;</span><span class="p">,</span>
+</span><span data-line="3"><span class="w">  </span><span class="nt">&quot;iterative&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+</span><span data-line="4"><span class="p">}</span>
+</span></pre></div>
+</div>
+<p><strong>Iterative queries</strong>: Run in batches, required for large datasets. Must return <code class="docutils literal notranslate"><span class="pre">TotalCompleted</span></code> count.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">{</span>
+</span><span data-line="2"><span class="w">  </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:Node) WHERE n.stale = true WITH n LIMIT $LIMIT_SIZE DELETE n RETURN COUNT(*) AS TotalCompleted&quot;</span><span class="p">,</span>
+</span><span data-line="3"><span class="w">  </span><span class="nt">&quot;iterative&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span data-line="4"><span class="w">  </span><span class="nt">&quot;iterationsize&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span>
+</span><span data-line="5"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="available-parameters">
+<h3>Available Parameters<a class="headerlink" href="#available-parameters" title="Link to this heading">¶</a></h3>
+<p>Analysis jobs receive <code class="docutils literal notranslate"><span class="pre">common_job_parameters</span></code> which typically includes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">$UPDATE_TAG</span></code>: The current sync timestamp</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">$LIMIT_SIZE</span></code>: Batch size for iterative queries (set automatically)</p></li>
+<li><p>Module-specific parameters (e.g., <code class="docutils literal notranslate"><span class="pre">$AWS_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">$PROJECT_ID</span></code>)</p></li>
+</ul>
+</section>
+</section>
+<section id="calling-analysis-jobs">
+<h2>Calling Analysis Jobs<a class="headerlink" href="#calling-analysis-jobs" title="Link to this heading">¶</a></h2>
+<section id="in-module-init-py">
+<h3>In Module <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code><a class="headerlink" href="#in-module-init-py" title="Link to this heading">¶</a></h3>
+<p>The main module entry point should call analysis jobs after all data is synced.</p>
+<section id="pattern-1-global-analysis-after-all-accounts-projects">
+<h4>Pattern 1: Global Analysis (after all accounts/projects)<a class="headerlink" href="#pattern-1-global-analysis-after-all-accounts-projects" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_analysis_job</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="nd">@timeit</span>
+</span><span data-line="4"><span class="k">def</span><span class="w"> </span><span class="nf">start_your_module_ingestion</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="5">    <span class="n">common_job_parameters</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="6">        <span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="7">    <span class="p">}</span>
+</span><span data-line="8">
+</span><span data-line="9">    <span class="c1"># Sync all accounts/projects</span>
+</span><span data-line="10">    <span class="k">for</span> <span class="n">account</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">:</span>
+</span><span data-line="11">        <span class="n">_sync_one_account</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">account</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="c1"># Run global analysis jobs AFTER all accounts are synced</span>
+</span><span data-line="14">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="15">        <span class="s2">&quot;your_module_exposure_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="16">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="17">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="18">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="pattern-2-scoped-analysis-per-account-project">
+<h4>Pattern 2: Scoped Analysis (per account/project)<a class="headerlink" href="#pattern-2-scoped-analysis-per-account-project" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_scoped_analysis_job</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">_sync_one_account</span><span class="p">(</span>
+</span><span data-line="4">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">account_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">common_job_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+</span><span data-line="8"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="9">    <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;ACCOUNT_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">account_id</span>
+</span><span data-line="10">
+</span><span data-line="11">    <span class="c1"># Sync resources for this account</span>
+</span><span data-line="12">    <span class="n">sync_resources</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">account_id</span><span class="p">,</span> <span class="n">update_tag</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span><span data-line="13">
+</span><span data-line="14">    <span class="c1"># Run scoped analysis for this account</span>
+</span><span data-line="15">    <span class="n">run_scoped_analysis_job</span><span class="p">(</span>
+</span><span data-line="16">        <span class="s2">&quot;your_module_account_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="17">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="18">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="19">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="pattern-3-conditional-analysis-with-dependency-checking">
+<h4>Pattern 3: Conditional Analysis (with dependency checking)<a class="headerlink" href="#pattern-3-conditional-analysis-with-dependency-checking" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_analysis_and_ensure_deps</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">_perform_analysis</span><span class="p">(</span>
+</span><span data-line="4">    <span class="n">requested_syncs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="5">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">common_job_parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+</span><span data-line="7"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="8">    <span class="c1"># Only run if required modules were synced</span>
+</span><span data-line="9">    <span class="n">run_analysis_and_ensure_deps</span><span class="p">(</span>
+</span><span data-line="10">        <span class="s2">&quot;your_module_combined_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="11">        <span class="p">{</span><span class="s2">&quot;ec2:instance&quot;</span><span class="p">,</span> <span class="s2">&quot;ec2:security_group&quot;</span><span class="p">},</span>  <span class="c1"># Required sync modules</span>
+</span><span data-line="12">        <span class="nb">set</span><span class="p">(</span><span class="n">requested_syncs</span><span class="p">),</span>
+</span><span data-line="13">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="14">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="15">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="reference-examples">
+<h2>Reference Examples<a class="headerlink" href="#reference-examples" title="Link to this heading">¶</a></h2>
+<section id="gcp-module-pattern">
+<h3>GCP Module Pattern<a class="headerlink" href="#gcp-module-pattern" title="Link to this heading">¶</a></h3>
+<p>The GCP module runs analysis jobs at the end of <code class="docutils literal notranslate"><span class="pre">start_gcp_ingestion()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># From cartography/intel/gcp/__init__.py</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">start_gcp_ingestion</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="4">    <span class="c1"># ... sync all orgs, folders, projects, and resources ...</span>
+</span><span data-line="5">
+</span><span data-line="6">    <span class="c1"># Run analysis jobs after ALL projects are synced</span>
+</span><span data-line="7">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="8">        <span class="s2">&quot;gcp_compute_asset_inet_exposure.json&quot;</span><span class="p">,</span>
+</span><span data-line="9">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="10">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">)</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="14">        <span class="s2">&quot;gcp_gke_asset_exposure.json&quot;</span><span class="p">,</span>
+</span><span data-line="15">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="16">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="17">    <span class="p">)</span>
+</span><span data-line="18">
+</span><span data-line="19">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="20">        <span class="s2">&quot;gcp_gke_basic_auth.json&quot;</span><span class="p">,</span>
+</span><span data-line="21">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="22">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="23">    <span class="p">)</span>
+</span><span data-line="24">
+</span><span data-line="25">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="26">        <span class="s2">&quot;gcp_compute_instance_vpc_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="27">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="28">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="29">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="aws-module-pattern">
+<h3>AWS Module Pattern<a class="headerlink" href="#aws-module-pattern" title="Link to this heading">¶</a></h3>
+<p>The AWS module uses both scoped (per-account) and global analysis:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># From cartography/intel/aws/__init__.py</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">_sync_one_account</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="4">    <span class="c1"># ... sync resources ...</span>
+</span><span data-line="5">
+</span><span data-line="6">    <span class="c1"># Scoped analysis runs per-account</span>
+</span><span data-line="7">    <span class="n">run_scoped_analysis_job</span><span class="p">(</span>
+</span><span data-line="8">        <span class="s2">&quot;aws_ec2_iaminstanceprofile.json&quot;</span><span class="p">,</span>
+</span><span data-line="9">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="10">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">)</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="14">        <span class="s2">&quot;aws_lambda_ecr.json&quot;</span><span class="p">,</span>
+</span><span data-line="15">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="16">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="17">    <span class="p">)</span>
+</span><span data-line="18">
+</span><span data-line="19">
+</span><span data-line="20"><span class="k">def</span><span class="w"> </span><span class="nf">_perform_aws_analysis</span><span class="p">(</span>
+</span><span data-line="21">    <span class="n">requested_syncs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="22">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="23">    <span class="n">common_job_parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+</span><span data-line="24"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="25">    <span class="c1"># Global analysis with dependency checking</span>
+</span><span data-line="26">    <span class="n">run_analysis_and_ensure_deps</span><span class="p">(</span>
+</span><span data-line="27">        <span class="s2">&quot;aws_ec2_asset_exposure.json&quot;</span><span class="p">,</span>
+</span><span data-line="28">        <span class="p">{</span><span class="s2">&quot;ec2:instance&quot;</span><span class="p">,</span> <span class="s2">&quot;ec2:security_group&quot;</span><span class="p">,</span> <span class="s2">&quot;ec2:load_balancer&quot;</span><span class="p">,</span> <span class="s2">&quot;ec2:load_balancer_v2&quot;</span><span class="p">},</span>
+</span><span data-line="29">        <span class="nb">set</span><span class="p">(</span><span class="n">requested_syncs</span><span class="p">),</span>
+</span><span data-line="30">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="31">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="32">    <span class="p">)</span>
+</span><span data-line="33">
+</span><span data-line="34">    <span class="n">run_analysis_and_ensure_deps</span><span class="p">(</span>
+</span><span data-line="35">        <span class="s2">&quot;aws_eks_asset_exposure.json&quot;</span><span class="p">,</span>
+</span><span data-line="36">        <span class="p">{</span><span class="s2">&quot;eks&quot;</span><span class="p">},</span>
+</span><span data-line="37">        <span class="nb">set</span><span class="p">(</span><span class="n">requested_syncs</span><span class="p">),</span>
+</span><span data-line="38">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="39">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="40">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="semgrep-module-pattern">
+<h3>Semgrep Module Pattern<a class="headerlink" href="#semgrep-module-pattern" title="Link to this heading">¶</a></h3>
+<p>The Semgrep module calls a scoped analysis job within its findings sync:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># From cartography/intel/semgrep/findings.py</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">sync_findings</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="4">    <span class="c1"># ... load findings ...</span>
+</span><span data-line="5">
+</span><span data-line="6">    <span class="n">run_scoped_analysis_job</span><span class="p">(</span>
+</span><span data-line="7">        <span class="s2">&quot;semgrep_sca_risk_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="8">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="9">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="10">    <span class="p">)</span>
+</span><span data-line="11">
+</span><span data-line="12">    <span class="n">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="audit-status">
+<h2>Audit Status<a class="headerlink" href="#audit-status" title="Link to this heading">¶</a></h2>
+<section id="modules-with-proper-analysis-job-integration">
+<h3>Modules with Proper Analysis Job Integration<a class="headerlink" href="#modules-with-proper-analysis-job-integration" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Module</p></th>
+<th class="head"><p>Analysis Jobs</p></th>
+<th class="head"><p>Location</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>AWS</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">aws_ec2_asset_exposure.json</span></code>, <code class="docutils literal notranslate"><span class="pre">aws_ec2_keypair_analysis.json</span></code>, <code class="docutils literal notranslate"><span class="pre">aws_eks_asset_exposure.json</span></code>, <code class="docutils literal notranslate"><span class="pre">aws_foreign_accounts.json</span></code>, <code class="docutils literal notranslate"><span class="pre">aws_lambda_ecr.json</span></code>, <code class="docutils literal notranslate"><span class="pre">aws_ecs_asset_exposure.json</span></code></p></td>
+<td><p>Global (in <code class="docutils literal notranslate"><span class="pre">_perform_aws_analysis</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>AWS</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">aws_ec2_iaminstanceprofile.json</span></code></p></td>
+<td><p>Scoped (per-account in <code class="docutils literal notranslate"><span class="pre">_sync_one_account</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>AWS S3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">aws_s3acl_analysis.json</span></code></p></td>
+<td><p>Scoped (in <code class="docutils literal notranslate"><span class="pre">s3.py</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>GCP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gcp_compute_asset_inet_exposure.json</span></code>, <code class="docutils literal notranslate"><span class="pre">gcp_gke_asset_exposure.json</span></code>, <code class="docutils literal notranslate"><span class="pre">gcp_gke_basic_auth.json</span></code>, <code class="docutils literal notranslate"><span class="pre">gcp_compute_instance_vpc_analysis.json</span></code></p></td>
+<td><p>Global (end of <code class="docutils literal notranslate"><span class="pre">start_gcp_ingestion</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>GSuite</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gsuite_human_link.json</span></code></p></td>
+<td><p>Global (end of <code class="docutils literal notranslate"><span class="pre">start_gsuite_ingestion</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Keycloak</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">keycloak_inheritance.json</span></code></p></td>
+<td><p>Global (end of <code class="docutils literal notranslate"><span class="pre">start_keycloak_ingestion</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Semgrep</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">semgrep_sca_risk_analysis.json</span></code></p></td>
+<td><p>Scoped (in <code class="docutils literal notranslate"><span class="pre">findings.py</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>Note</strong>: <code class="docutils literal notranslate"><span class="pre">aws_ecs_asset_exposure.json</span></code> is marked as deprecated in favor of the ontology <code class="docutils literal notranslate"><span class="pre">LoadBalancer-[:EXPOSE]-&gt;Container</span></code> pattern, but is still called for backward compatibility.</p>
+</div></blockquote>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Call analysis jobs at the right scope</strong>: Global jobs after all accounts, scoped jobs per-account</p></li>
+<li><p><strong>Use dependency checking</strong>: For jobs that require specific modules to have run first</p></li>
+<li><p><strong>Document your analysis jobs</strong>: Explain what each query does with <code class="docutils literal notranslate"><span class="pre">__comment__</span></code></p></li>
+<li><p><strong>Test analysis jobs</strong>: Write integration tests that verify the analysis produces expected results</p></li>
+<li><p><strong>Consider performance</strong>: Use iterative queries for large datasets</p></li>
+<li><p><strong>Clean up stale data</strong>: Analysis jobs that create relationships should also clean up old ones</p></li>
+</ol>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="add-relationship.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Adding a New Relationship</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="create-module.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Creating a New Cartography Module</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

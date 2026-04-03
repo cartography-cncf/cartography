@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Adding a New Relationship - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Adding Analysis Jobs to Cartography Modules" href="analysis-jobs.html" /><link rel="prev" title="Adding a New Node Type" href="add-node-type.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Adding a New Relationship"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Agent Procedures</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Adding a New Relationship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analysis-jobs.html">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-module.html">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="refactor-legacy.html">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#standard-relationships">Standard Relationships</a></li>
+<li><a class="reference internal" href="#relationship-directions">Relationship Directions</a></li>
+<li><a class="reference internal" href="#one-to-many-relationships">One-to-Many Relationships</a><ul>
+<li><a class="reference internal" href="#source-data">Source Data</a></li>
+<li><a class="reference internal" href="#transform-for-one-to-many">Transform for One-to-Many</a></li>
+<li><a class="reference internal" href="#define-one-to-many-relationship">Define One-to-Many Relationship</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#matchlinks-connecting-existing-nodes">MatchLinks: Connecting Existing Nodes</a><ul>
+<li><a class="reference internal" href="#scenario-1-connecting-two-existing-node-types">Scenario 1: Connecting Two Existing Node Types</a></li>
+<li><a class="reference internal" href="#scenario-2-rich-relationship-properties">Scenario 2: Rich Relationship Properties</a></li>
+<li><a class="reference internal" href="#performance-impact">Performance Impact</a></li>
+<li><a class="reference internal" href="#when-not-to-use-matchlinks">When NOT to Use MatchLinks</a></li>
+<li><a class="reference internal" href="#required-matchlink-properties">Required MatchLink Properties</a></li>
+<li><a class="reference internal" href="#matchlink-cleanup">MatchLink Cleanup</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#multiple-intel-modules-modifying-the-same-node-type">Multiple Intel Modules Modifying the Same Node Type</a><ul>
+<li><a class="reference internal" href="#simple-relationship-pattern">Simple Relationship Pattern</a></li>
+<li><a class="reference internal" href="#composite-node-pattern">Composite Node Pattern</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-patterns">Common Patterns</a><ul>
+<li><a class="reference internal" href="#pattern-1-simple-service-with-users-lastpass-style">Pattern 1: Simple Service with Users (LastPass Style)</a></li>
+<li><a class="reference internal" href="#pattern-2-complex-infrastructure-aws-ec2-style">Pattern 2: Complex Infrastructure (AWS EC2 Style)</a></li>
+<li><a class="reference internal" href="#pattern-3-hierarchical-resources-route-tables-style">Pattern 3: Hierarchical Resources (Route Tables Style)</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/agents/add-relationship.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Agent Procedures</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Adding a New Relationship</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/add-relationship.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/add-relationship.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/add-relationship.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/add-relationship.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/add-relationship.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="adding-a-new-relationship">
+<h1>Adding a New Relationship<a class="headerlink" href="#adding-a-new-relationship" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Related docs</strong>: <span class="xref myst">Main AGENTS.md</span> | <a class="reference internal" href="create-module.html"><span class="std std-doc">Create Module</span></a> | <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Add Node Type</span></a></p>
+</div></blockquote>
+<p>This guide covers how to define relationships in Cartography, including standard relationships, MatchLinks for connecting existing nodes, and patterns for multiple modules modifying the same node type.</p>
+<section id="standard-relationships">
+<h2>Standard Relationships<a class="headerlink" href="#standard-relationships" title="Link to this heading">¶</a></h2>
+<p>Define how your nodes connect to other nodes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.relationships</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span data-line="2">    <span class="n">CartographyRelSchema</span><span class="p">,</span> <span class="n">CartographyRelProperties</span><span class="p">,</span> <span class="n">LinkDirection</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">make_target_node_matcher</span><span class="p">,</span> <span class="n">TargetNodeMatcher</span>
+</span><span data-line="4"><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="c1"># Relationship properties (usually just lastupdated)</span>
+</span><span data-line="7"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceTenantToUserRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="9">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="c1"># The relationship itself</span>
+</span><span data-line="12"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="13"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceTenantToUserRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="14">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;YourServiceTenant&quot;</span>                <span class="c1"># What we&#39;re connecting to</span>
+</span><span data-line="15">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="16">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;TENANT_ID&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>     <span class="c1"># Match on tenant.id = TENANT_ID kwarg</span>
+</span><span data-line="17">    <span class="p">})</span>
+</span><span data-line="18">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>            <span class="c1"># Direction of relationship</span>
+</span><span data-line="19">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RESOURCE&quot;</span>                                 <span class="c1"># Relationship label</span>
+</span><span data-line="20">    <span class="n">properties</span><span class="p">:</span> <span class="n">YourServiceTenantToUserRelProperties</span> <span class="o">=</span> <span class="n">YourServiceTenantToUserRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+</section>
+<section id="relationship-directions">
+<h2>Relationship Directions<a class="headerlink" href="#relationship-directions" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LinkDirection.OUTWARD</span></code>: <code class="docutils literal notranslate"><span class="pre">(:YourServiceUser)-[:RESOURCE]-&gt;(:YourServiceTenant)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LinkDirection.INWARD</span></code>: <code class="docutils literal notranslate"><span class="pre">(:YourServiceUser)&lt;-[:RESOURCE]-(:YourServiceTenant)</span></code></p></li>
+</ul>
+</section>
+<section id="one-to-many-relationships">
+<h2>One-to-Many Relationships<a class="headerlink" href="#one-to-many-relationships" title="Link to this heading">¶</a></h2>
+<p>When you need to connect one node to many others:</p>
+<section id="source-data">
+<h3>Source Data<a class="headerlink" href="#source-data" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Route table with multiple subnet associations</span>
+</span><span data-line="2"><span class="p">{</span>
+</span><span data-line="3">    <span class="s2">&quot;RouteTableId&quot;</span><span class="p">:</span> <span class="s2">&quot;rtb-123&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="s2">&quot;Associations&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span data-line="5">        <span class="p">{</span><span class="s2">&quot;SubnetId&quot;</span><span class="p">:</span> <span class="s2">&quot;subnet-abc&quot;</span><span class="p">},</span>
+</span><span data-line="6">        <span class="p">{</span><span class="s2">&quot;SubnetId&quot;</span><span class="p">:</span> <span class="s2">&quot;subnet-def&quot;</span><span class="p">},</span>
+</span><span data-line="7">    <span class="p">]</span>
+</span><span data-line="8"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="transform-for-one-to-many">
+<h3>Transform for One-to-Many<a class="headerlink" href="#transform-for-one-to-many" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">transform_route_tables</span><span class="p">(</span><span class="n">route_tables</span><span class="p">):</span>
+</span><span data-line="2">    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="3">    <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">route_tables</span><span class="p">:</span>
+</span><span data-line="4">        <span class="n">transformed</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="5">            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;RouteTableId&quot;</span><span class="p">],</span>
+</span><span data-line="6">            <span class="c1"># Extract list of subnet IDs</span>
+</span><span data-line="7">            <span class="s2">&quot;subnet_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">assoc</span><span class="p">[</span><span class="s2">&quot;SubnetId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">assoc</span> <span class="ow">in</span> <span class="n">rt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Associations&quot;</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="s2">&quot;SubnetId&quot;</span> <span class="ow">in</span> <span class="n">assoc</span><span class="p">],</span>
+</span><span data-line="8">        <span class="p">}</span>
+</span><span data-line="9">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed</span><span class="p">)</span>
+</span><span data-line="10">    <span class="k">return</span> <span class="n">result</span>
+</span></pre></div>
+</div>
+</section>
+<section id="define-one-to-many-relationship">
+<h3>Define One-to-Many Relationship<a class="headerlink" href="#define-one-to-many-relationship" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">RouteTableToSubnetRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;EC2Subnet&quot;</span>
+</span><span data-line="4">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="5">        <span class="s2">&quot;subnet_id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;subnet_ids&quot;</span><span class="p">,</span> <span class="n">one_to_many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>  <span class="c1"># KEY: one_to_many=True</span>
+</span><span data-line="6">    <span class="p">})</span>
+</span><span data-line="7">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="8">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ASSOCIATED_WITH&quot;</span>
+</span><span data-line="9">    <span class="n">properties</span><span class="p">:</span> <span class="n">RouteTableToSubnetRelProperties</span> <span class="o">=</span> <span class="n">RouteTableToSubnetRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p><strong>The Magic</strong>: <code class="docutils literal notranslate"><span class="pre">one_to_many=True</span></code> tells Cartography to create a relationship to each subnet whose <code class="docutils literal notranslate"><span class="pre">subnet_id</span></code> is in the <code class="docutils literal notranslate"><span class="pre">subnet_ids</span></code> list.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="matchlinks-connecting-existing-nodes">
+<h2>MatchLinks: Connecting Existing Nodes<a class="headerlink" href="#matchlinks-connecting-existing-nodes" title="Link to this heading">¶</a></h2>
+<p><strong>IMPORTANT: Use MatchLinks sparingly due to performance impact!</strong></p>
+<p>MatchLinks are a specialized tool for creating relationships between existing nodes in the graph. They should be used <strong>only</strong> in these two specific scenarios:</p>
+<section id="scenario-1-connecting-two-existing-node-types">
+<h3>Scenario 1: Connecting Two Existing Node Types<a class="headerlink" href="#scenario-1-connecting-two-existing-node-types" title="Link to this heading">¶</a></h3>
+<p>When you need to connect two different types of nodes that already exist in the graph, and the relationship data comes from a separate API call or data source.</p>
+<p><strong>Example</strong>: AWS Identity Center role assignments connecting users to roles:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Data from a separate API call that maps users to roles</span>
+</span><span data-line="2"><span class="n">role_assignments</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="3">    <span class="p">{</span>
+</span><span data-line="4">        <span class="s2">&quot;UserId&quot;</span><span class="p">:</span> <span class="s2">&quot;user-123&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;RoleArn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/AdminRole&quot;</span><span class="p">,</span>
+</span><span data-line="6">        <span class="s2">&quot;AccountId&quot;</span><span class="p">:</span> <span class="s2">&quot;123456789012&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="p">},</span>
+</span><span data-line="8">    <span class="p">{</span>
+</span><span data-line="9">        <span class="s2">&quot;UserId&quot;</span><span class="p">:</span> <span class="s2">&quot;user-456&quot;</span><span class="p">,</span>
+</span><span data-line="10">        <span class="s2">&quot;RoleArn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/ReadOnlyRole&quot;</span><span class="p">,</span>
+</span><span data-line="11">        <span class="s2">&quot;AccountId&quot;</span><span class="p">:</span> <span class="s2">&quot;123456789012&quot;</span><span class="p">,</span>
+</span><span data-line="12">    <span class="p">}</span>
+</span><span data-line="13"><span class="p">]</span>
+</span><span data-line="14">
+</span><span data-line="15"><span class="c1"># MatchLink schema to connect existing AWSSSOUser nodes to existing AWSRole nodes</span>
+</span><span data-line="16"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="17"><span class="k">class</span><span class="w"> </span><span class="nc">RoleAssignmentAllowedByMatchLink</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="18">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSRole&quot;</span>
+</span><span data-line="19">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="20">        <span class="s2">&quot;arn&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;RoleArn&quot;</span><span class="p">),</span>
+</span><span data-line="21">    <span class="p">})</span>
+</span><span data-line="22">    <span class="n">source_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSSSOUser&quot;</span>
+</span><span data-line="23">    <span class="n">source_node_matcher</span><span class="p">:</span> <span class="n">SourceNodeMatcher</span> <span class="o">=</span> <span class="n">make_source_node_matcher</span><span class="p">({</span>
+</span><span data-line="24">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;UserId&quot;</span><span class="p">),</span>
+</span><span data-line="25">    <span class="p">})</span>
+</span><span data-line="26">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="27">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ALLOWED_BY&quot;</span>
+</span><span data-line="28">    <span class="n">properties</span><span class="p">:</span> <span class="n">RoleAssignmentRelProperties</span> <span class="o">=</span> <span class="n">RoleAssignmentRelProperties</span><span class="p">()</span>
+</span><span data-line="29">
+</span><span data-line="30"><span class="c1"># Load the relationships</span>
+</span><span data-line="31"><span class="n">load_matchlinks</span><span class="p">(</span>
+</span><span data-line="32">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="33">    <span class="n">RoleAssignmentAllowedByMatchLink</span><span class="p">(),</span>
+</span><span data-line="34">    <span class="n">role_assignments</span><span class="p">,</span>
+</span><span data-line="35">    <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="36">    <span class="n">_sub_resource_label</span><span class="o">=</span><span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>
+</span><span data-line="37">    <span class="n">_sub_resource_id</span><span class="o">=</span><span class="n">aws_account_id</span><span class="p">,</span>
+</span><span data-line="38"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="scenario-2-rich-relationship-properties">
+<h3>Scenario 2: Rich Relationship Properties<a class="headerlink" href="#scenario-2-rich-relationship-properties" title="Link to this heading">¶</a></h3>
+<p>When you need to store detailed metadata on relationships that doesn’t make sense as separate nodes.</p>
+<p><strong>Example</strong>: AWS Inspector findings connecting to packages with remediation details:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Data with rich relationship properties</span>
+</span><span data-line="2"><span class="n">finding_to_package_data</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="3">    <span class="p">{</span>
+</span><span data-line="4">        <span class="s2">&quot;findingarn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:inspector2:us-east-1:123456789012:finding/abc123&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;packageid&quot;</span><span class="p">:</span> <span class="s2">&quot;openssl|0:1.1.1k-1.el8.x86_64&quot;</span><span class="p">,</span>
+</span><span data-line="6">        <span class="s2">&quot;filePath&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/lib64/libssl.so.1.1&quot;</span><span class="p">,</span>
+</span><span data-line="7">        <span class="s2">&quot;fixedInVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;0:1.1.1l-1.el8&quot;</span><span class="p">,</span>
+</span><span data-line="8">        <span class="s2">&quot;remediation&quot;</span><span class="p">:</span> <span class="s2">&quot;Update OpenSSL to version 1.1.1l or later&quot;</span><span class="p">,</span>
+</span><span data-line="9">    <span class="p">}</span>
+</span><span data-line="10"><span class="p">]</span>
+</span><span data-line="11">
+</span><span data-line="12"><span class="c1"># MatchLink schema with rich properties</span>
+</span><span data-line="13"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="14"><span class="k">class</span><span class="w"> </span><span class="nc">InspectorFindingToPackageMatchLink</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="15">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSInspectorPackage&quot;</span>
+</span><span data-line="16">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="17">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;packageid&quot;</span><span class="p">),</span>
+</span><span data-line="18">    <span class="p">})</span>
+</span><span data-line="19">    <span class="n">source_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSInspectorFinding&quot;</span>
+</span><span data-line="20">    <span class="n">source_node_matcher</span><span class="p">:</span> <span class="n">SourceNodeMatcher</span> <span class="o">=</span> <span class="n">make_source_node_matcher</span><span class="p">({</span>
+</span><span data-line="21">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;findingarn&quot;</span><span class="p">),</span>
+</span><span data-line="22">    <span class="p">})</span>
+</span><span data-line="23">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="24">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;HAS_VULNERABLE_PACKAGE&quot;</span>
+</span><span data-line="25">    <span class="n">properties</span><span class="p">:</span> <span class="n">InspectorFindingToPackageRelProperties</span> <span class="o">=</span> <span class="n">InspectorFindingToPackageRelProperties</span><span class="p">()</span>
+</span><span data-line="26">
+</span><span data-line="27"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="28"><span class="k">class</span><span class="w"> </span><span class="nc">InspectorFindingToPackageRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="29">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="30">    <span class="n">_sub_resource_label</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_label&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="31">    <span class="n">_sub_resource_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_id&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="32">
+</span><span data-line="33">    <span class="c1"># Rich relationship properties</span>
+</span><span data-line="34">    <span class="n">filepath</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;filePath&quot;</span><span class="p">)</span>
+</span><span data-line="35">    <span class="n">fixedinversion</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;fixedInVersion&quot;</span><span class="p">)</span>
+</span><span data-line="36">    <span class="n">remediation</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;remediation&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="performance-impact">
+<h3>Performance Impact<a class="headerlink" href="#performance-impact" title="Link to this heading">¶</a></h3>
+<p>MatchLinks have significant performance overhead because they require:</p>
+<ol class="arabic simple">
+<li><p><strong>API Call A</strong> -&gt; Write Node A to graph</p></li>
+<li><p><strong>API Call B</strong> -&gt; Write Node B to graph</p></li>
+<li><p><strong>Read Node A</strong> from graph</p></li>
+<li><p><strong>Read Node B</strong> from graph</p></li>
+<li><p><strong>Write relationship</strong> between A and B to graph</p></li>
+</ol>
+<p><strong>Prefer standard node schemas + relationship schemas</strong> whenever possible:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DO: Use standard node schema with relationships</span>
+</span><span data-line="2"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">YourNodeSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="4">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;YourNode&quot;</span>
+</span><span data-line="5">    <span class="n">properties</span><span class="p">:</span> <span class="n">YourNodeProperties</span> <span class="o">=</span> <span class="n">YourNodeProperties</span><span class="p">()</span>
+</span><span data-line="6">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">YourNodeToTenantRel</span> <span class="o">=</span> <span class="n">YourNodeToTenantRel</span><span class="p">()</span>
+</span><span data-line="7">    <span class="n">other_relationships</span><span class="p">:</span> <span class="n">OtherRelationships</span> <span class="o">=</span> <span class="n">OtherRelationships</span><span class="p">([</span>
+</span><span data-line="8">        <span class="n">YourNodeToOtherNodeRel</span><span class="p">(),</span>  <span class="c1"># Standard relationship</span>
+</span><span data-line="9">    <span class="p">])</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="c1"># DON&#39;T: Use MatchLinks unless absolutely necessary</span>
+</span><span data-line="12"><span class="c1"># Only use when you can&#39;t define the relationship in the node schema</span>
+</span></pre></div>
+</div>
+</section>
+<section id="when-not-to-use-matchlinks">
+<h3>When NOT to Use MatchLinks<a class="headerlink" href="#when-not-to-use-matchlinks" title="Link to this heading">¶</a></h3>
+<p><strong>Don’t use MatchLinks for:</strong></p>
+<ul class="simple">
+<li><p>Standard parent-child relationships (use <code class="docutils literal notranslate"><span class="pre">other_relationships</span></code> in node schema)</p></li>
+<li><p>Simple one-to-many relationships (use <code class="docutils literal notranslate"><span class="pre">one_to_many=True</span></code> in standard relationships)</p></li>
+<li><p>When you can define the relationship in the node schema</p></li>
+<li><p>Performance-critical scenarios</p></li>
+</ul>
+<p><strong>Use MatchLinks only for:</strong></p>
+<ul class="simple">
+<li><p>Connecting two existing node types from separate data sources</p></li>
+<li><p>Relationships with rich metadata that doesn’t belong in nodes</p></li>
+</ul>
+</section>
+<section id="required-matchlink-properties">
+<h3>Required MatchLink Properties<a class="headerlink" href="#required-matchlink-properties" title="Link to this heading">¶</a></h3>
+<p>All MatchLink relationship properties must include these mandatory fields:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">YourMatchLinkRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="3">    <span class="c1"># Required for all MatchLinks</span>
+</span><span data-line="4">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5">    <span class="n">_sub_resource_label</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_label&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6">    <span class="n">_sub_resource_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_id&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8">    <span class="c1"># Your custom properties here</span>
+</span><span data-line="9">    <span class="n">custom_property</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;custom_property&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="matchlink-cleanup">
+<h3>MatchLink Cleanup<a class="headerlink" href="#matchlink-cleanup" title="Link to this heading">¶</a></h3>
+<p>Always implement cleanup for MatchLinks:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="2">    <span class="c1"># Standard node cleanup</span>
+</span><span data-line="3">    <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_node_schema</span><span class="p">(</span><span class="n">YourNodeSchema</span><span class="p">(),</span> <span class="n">common_job_parameters</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span><span data-line="4">
+</span><span data-line="5">    <span class="c1"># MatchLink cleanup</span>
+</span><span data-line="6">    <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_matchlink</span><span class="p">(</span>
+</span><span data-line="7">        <span class="n">YourMatchLinkSchema</span><span class="p">(),</span>
+</span><span data-line="8">        <span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>  <span class="c1"># _sub_resource_label</span>
+</span><span data-line="9">        <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;AWS_ID&quot;</span><span class="p">],</span>  <span class="c1"># _sub_resource_id</span>
+</span><span data-line="10">        <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">],</span>
+</span><span data-line="11">    <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="multiple-intel-modules-modifying-the-same-node-type">
+<h2>Multiple Intel Modules Modifying the Same Node Type<a class="headerlink" href="#multiple-intel-modules-modifying-the-same-node-type" title="Link to this heading">¶</a></h2>
+<p>It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:</p>
+<section id="simple-relationship-pattern">
+<h3>Simple Relationship Pattern<a class="headerlink" href="#simple-relationship-pattern" title="Link to this heading">¶</a></h3>
+<p>When data type A only refers to data type B by an ID without providing additional properties about B, we can just define a relationship schema. This way when A is loaded, the relationship schema performs a <code class="docutils literal notranslate"><span class="pre">MATCH</span></code> to find and connect to existing nodes of type B.</p>
+<p>For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes, since the RDS API doesn’t provide additional properties about the security groups beyond their IDs.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># RDS Instance refers to Security Groups by ID only</span>
+</span><span data-line="2"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">RDSInstanceToSecurityGroupRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="4">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;EC2SecurityGroup&quot;</span>
+</span><span data-line="5">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="6">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;SecurityGroupId&quot;</span><span class="p">),</span>  <span class="c1"># Just the ID, no additional properties</span>
+</span><span data-line="7">    <span class="p">})</span>
+</span><span data-line="8">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="9">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;MEMBER_OF_EC2_SECURITY_GROUP&quot;</span>
+</span><span data-line="10">    <span class="n">properties</span><span class="p">:</span> <span class="n">RDSInstanceToSecurityGroupRelProperties</span> <span class="o">=</span> <span class="n">RDSInstanceToSecurityGroupRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+</section>
+<section id="composite-node-pattern">
+<h3>Composite Node Pattern<a class="headerlink" href="#composite-node-pattern" title="Link to this heading">¶</a></h3>
+<p>When a data type A refers to another data type B and offers additional fields about B that B doesn’t have itself, we should define a composite node schema. This composite node would be named “<code class="docutils literal notranslate"><span class="pre">BASchema</span></code>” to denote that it’s a “<code class="docutils literal notranslate"><span class="pre">B</span></code>” object as known by an “<code class="docutils literal notranslate"><span class="pre">A</span></code>” object. When loaded, the composite node schema targets the same node label as the primary <code class="docutils literal notranslate"><span class="pre">B</span></code> schema, allowing the loading system to perform a <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> operation that combines properties from both sources.</p>
+<p>For example, in the AWS EC2 module, we have both <code class="docutils literal notranslate"><span class="pre">EBSVolumeSchema</span></code> (from the EBS API) and <code class="docutils literal notranslate"><span class="pre">EBSVolumeInstanceSchema</span></code> (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn’t have, such as <code class="docutils literal notranslate"><span class="pre">deleteontermination</span></code>. Both schemas target the same <code class="docutils literal notranslate"><span class="pre">EBSVolume</span></code> node label, allowing the node to accumulate properties from both sources.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># EC2 Instance provides additional properties about EBS Volumes</span>
+</span><span data-line="2"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">EBSVolumeInstanceProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="4">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;VolumeId&quot;</span><span class="p">)</span>
+</span><span data-line="5">    <span class="n">arn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;Arn&quot;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="7">    <span class="c1"># Additional property that EBS API doesn&#39;t have</span>
+</span><span data-line="8">    <span class="n">deleteontermination</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;DeleteOnTermination&quot;</span><span class="p">)</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="11"><span class="k">class</span><span class="w"> </span><span class="nc">EBSVolumeInstanceSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="12">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;EBSVolume&quot;</span>  <span class="c1"># Same label as EBSVolumeSchema</span>
+</span><span data-line="13">    <span class="n">properties</span><span class="p">:</span> <span class="n">EBSVolumeInstanceProperties</span> <span class="o">=</span> <span class="n">EBSVolumeInstanceProperties</span><span class="p">()</span>
+</span><span data-line="14">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">EBSVolumeToAWSAccountRel</span> <span class="o">=</span> <span class="n">EBSVolumeToAWSAccountRel</span><span class="p">()</span>
+</span><span data-line="15">    <span class="c1"># ... other relationships</span>
+</span></pre></div>
+</div>
+<p>The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="common-patterns">
+<h2>Common Patterns<a class="headerlink" href="#common-patterns" title="Link to this heading">¶</a></h2>
+<section id="pattern-1-simple-service-with-users-lastpass-style">
+<h3>Pattern 1: Simple Service with Users (LastPass Style)<a class="headerlink" href="#pattern-1-simple-service-with-users-lastpass-style" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Data flow</span>
+</span><span data-line="2"><span class="n">API</span> <span class="n">Response</span> <span class="o">-&gt;</span> <span class="n">transform</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">[{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;user@example.com&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">}]</span> <span class="o">-&gt;</span> <span class="n">load</span><span class="p">()</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># Key characteristics:</span>
+</span><span data-line="5"><span class="o">-</span> <span class="n">One</span> <span class="n">main</span> <span class="n">entity</span> <span class="nb">type</span> <span class="p">(</span><span class="n">users</span><span class="p">)</span>
+</span><span data-line="6"><span class="o">-</span> <span class="n">Simple</span> <span class="n">tenant</span> <span class="n">relationship</span>
+</span><span data-line="7"><span class="o">-</span> <span class="n">Standard</span> <span class="n">fields</span> <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">created_at</span><span class="p">,</span> <span class="n">etc</span><span class="o">.</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="pattern-2-complex-infrastructure-aws-ec2-style">
+<h3>Pattern 2: Complex Infrastructure (AWS EC2 Style)<a class="headerlink" href="#pattern-2-complex-infrastructure-aws-ec2-style" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Data flow</span>
+</span><span data-line="2"><span class="n">API</span> <span class="n">Response</span> <span class="o">-&gt;</span> <span class="n">transform</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Multiple</span> <span class="n">lists</span> <span class="o">-&gt;</span> <span class="n">Multiple</span> <span class="n">load</span><span class="p">()</span> <span class="n">calls</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># Key characteristics:</span>
+</span><span data-line="5"><span class="o">-</span> <span class="n">Multiple</span> <span class="n">entity</span> <span class="n">types</span> <span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">security</span> <span class="n">groups</span><span class="p">,</span> <span class="n">subnets</span><span class="p">)</span>
+</span><span data-line="6"><span class="o">-</span> <span class="n">Complex</span> <span class="n">relationships</span> <span class="n">between</span> <span class="n">entities</span>
+</span><span data-line="7"><span class="o">-</span> <span class="n">Regional</span><span class="o">/</span><span class="n">account</span><span class="o">-</span><span class="n">scoped</span> <span class="n">resources</span>
+</span></pre></div>
+</div>
+</section>
+<section id="pattern-3-hierarchical-resources-route-tables-style">
+<h3>Pattern 3: Hierarchical Resources (Route Tables Style)<a class="headerlink" href="#pattern-3-hierarchical-resources-route-tables-style" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># One-to-many transformation</span>
+</span><span data-line="2"><span class="p">{</span>
+</span><span data-line="3">    <span class="s2">&quot;RouteTableId&quot;</span><span class="p">:</span> <span class="s2">&quot;rtb-123&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="s2">&quot;Associations&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;SubnetId&quot;</span><span class="p">:</span> <span class="s2">&quot;subnet-abc&quot;</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;SubnetId&quot;</span><span class="p">:</span> <span class="s2">&quot;subnet-def&quot;</span><span class="p">}]</span>
+</span><span data-line="5"><span class="p">}</span>
+</span><span data-line="6"><span class="o">-&gt;</span>
+</span><span data-line="7"><span class="p">{</span>
+</span><span data-line="8">    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;rtb-123&quot;</span><span class="p">,</span>
+</span><span data-line="9">    <span class="s2">&quot;subnet_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;subnet-abc&quot;</span><span class="p">,</span> <span class="s2">&quot;subnet-def&quot;</span><span class="p">]</span>  <span class="c1"># Flattened for one_to_many</span>
+</span><span data-line="10"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="add-node-type.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Adding a New Node Type</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="analysis-jobs.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Adding Analysis Jobs to Cartography Modules</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>
