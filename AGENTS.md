@@ -54,7 +54,7 @@ from cartography.models.core.relationships import (
     make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
     make_source_node_matcher, SourceNodeMatcher,
 )
-from cartography.client.core.tx import load, load_matchlinks
+from cartography.client.core.tx import load, load_matchlinks, run_write_query
 from cartography.graph.job import GraphJob
 from cartography.util import timeit
 
@@ -77,6 +77,11 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Ensure `__init__.py` files exist in all module directories
 - Look at `tests/integration/cartography/intel/` for similar test patterns
 - Review `cartography/models/` for existing relationship patterns
+
+**Manual Write Queries:**
+- Prefer `load()` / `load_matchlinks()` for normal ingestion and `GraphJob` for cleanup.
+- If you must execute a handwritten write query, use `run_write_query()` instead of `neo4j_session.run()` so the write runs in a managed transaction with Cartography's retry handling.
+- Reserve direct `neo4j_session.run()` for read queries or intentional low-level paths that cannot use the managed write helpers.
 
 ## Git and Pull Request Guidelines
 
@@ -143,6 +148,22 @@ def load_entities(neo4j_session: neo4j.Session, data: list[dict],
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup job for MyResource")
     GraphJob.from_node_schema(YourSchema(), common_job_parameters).run(neo4j_session)
+```
+
+```python
+def cleanup_custom_relationships(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (n:YourNode)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+    )
 ```
 
 ### Required Node Properties

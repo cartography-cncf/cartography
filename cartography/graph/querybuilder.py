@@ -165,8 +165,9 @@ def _build_ontology_field_statement_or_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -214,8 +215,9 @@ def _build_ontology_field_statement_nor_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for nor_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -293,8 +295,12 @@ def _build_ontology_node_properties_statement(
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
-            # This should not occure due to unit test but failing gracefully
-            logger.warning(
+            # This is expected for schemas using the Composite Node Pattern,
+            # where multiple schema classes share the same node label but each
+            # only defines a subset of properties. The ontology mapping is
+            # looked up by label, so fields belonging to other schemas for the
+            # same label will not be present here.
+            logger.debug(
                 "Field '%s' not found in node properties for node schema %s",
                 mapping_field.node_field,
                 node_schema.__class__.__name__,
