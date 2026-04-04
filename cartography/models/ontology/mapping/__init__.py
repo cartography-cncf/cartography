@@ -24,6 +24,7 @@ from cartography.models.ontology.mapping.data.databases import (
 )
 from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.dnszones import DNSZONES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.findings import FINDINGS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.firewalls import (
     FIREWALLS_ONTOLOGY_MAPPING,
 )
@@ -85,6 +86,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
     "dnszones": DNSZONES_ONTOLOGY_MAPPING,
+    "findings": FINDINGS_ONTOLOGY_MAPPING,
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,

@@ -12,11 +12,11 @@ Represents the Ubuntu Security CVE data feed. This is a root node that serves as
 | name | The name of the feed |
 | url | The URL of the Ubuntu Security API |
 
-### UbuntuCVE
+### UbuntuCVE::CVE::Finding
 
 Representation of a CVE from the [Ubuntu Security API](https://ubuntu.com/security/cves).
 
-> **Ontology Mapping**: This node has the extra label `CVE` to enable cross-platform queries for CVEs across different systems (e.g., NVD CVE feed nodes).
+> **Ontology Mapping**: This node has the extra labels `CVE` and `Finding` to enable cross-platform queries for CVEs and cross-scanner queries for security findings across different tools (e.g., NVD CVE feed nodes, AWSInspectorFinding, SemgrepSASTFinding).
 
 | Field | Description |
 |-------|-------------|
