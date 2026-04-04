@@ -20,8 +20,10 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+S3_BUCKET_ARN_RE = re.compile(r"^(arn:[^:]+:s3:::)([^/]+)$", flags=re.IGNORECASE)
 
-def evaluate_clause(clause: str, match: str) -> bool:
+
+def evaluate_clause(clause: str | Pattern, match: str) -> bool:
     """Evaluates the a clause in IAM. Clauses can be AWS [not]actions and [not]resources
 
     Arguments:
@@ -35,6 +37,33 @@ def evaluate_clause(clause: str, match: str) -> bool:
     """
     result = compile_regex(clause).fullmatch(match)
     return result is not None
+
+
+def evaluate_resource_clause(clause: str | Pattern, resource_arn: str) -> bool:
+    if evaluate_clause(clause, resource_arn):
+        return True
+
+    if not S3_BUCKET_ARN_RE.fullmatch(resource_arn):
+        return False
+
+    clause_pattern = (
+        clause.pattern
+        if isinstance(clause, re.Pattern)
+        else compile_regex(clause).pattern
+    )
+    s3_arn_index = clause_pattern.lower().find("s3:::")
+    if s3_arn_index == -1:
+        return False
+
+    object_suffix_index = clause_pattern.find("/", s3_arn_index)
+    if object_suffix_index == -1:
+        return False
+
+    clause_bucket_pattern = clause_pattern[:object_suffix_index]
+    return (
+        re.compile(clause_bucket_pattern, flags=re.IGNORECASE).fullmatch(resource_arn)
+        is not None
+    )
 
 
 def evaluate_notaction_for_permission(statement: Dict, permission: str) -> bool:
@@ -62,7 +91,7 @@ def evaluate_resource_for_permission(statement: Dict, resource_arn: str) -> bool
     if "resource" not in statement:
         return False
     for clause in statement["resource"]:
-        if evaluate_clause(clause, resource_arn):
+        if evaluate_resource_clause(clause, resource_arn):
             return True
     return False
 
@@ -72,7 +101,7 @@ def evaluate_notresource_for_permission(statement: Dict, resource_arn: str) -> b
     if "notresource" not in statement:
         return False
     for clause in statement["notresource"]:
-        if evaluate_clause(clause, resource_arn):
+        if evaluate_resource_clause(clause, resource_arn):
             return True
     return False
 
@@ -173,7 +202,6 @@ def principal_allowed_on_resource(
         )
 
         if explicit_deny:
-
             return False
         if not granted and allowed:
             granted = True
@@ -213,7 +241,7 @@ def calculate_permission_relationships(
     return allowed_mappings
 
 
-def compile_regex(item: str) -> Pattern:
+def compile_regex(item: str | Pattern) -> Pattern:
     r"""Compile a clause into a regex. Clause checking in AWS is case insensitive
     The following regex symbols will be replaced to make AWS * and ? matching a regex
     * -> .* (wildcard)
