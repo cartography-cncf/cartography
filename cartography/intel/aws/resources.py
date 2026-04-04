@@ -127,12 +127,14 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "redshift": redshift.sync,
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
+        # `cloudformation` must run before `permission_relationships` so that CloudFormationStack
+        # nodes exist when CAN_EXEC edges are evaluated.
+        "cloudformation": cloudformation.sync,
         "permission_relationships": permission_relationships.sync,
         "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
         "apigateway": apigateway.sync,
         "apigatewayv2": apigatewayv2.sync,
         "bedrock": bedrock.sync,
-        "cloudformation": cloudformation.sync,
         "cloudfront": cloudfront.sync,
         "secretsmanager": secretsmanager.sync,
         "securityhub": securityhub.sync,
