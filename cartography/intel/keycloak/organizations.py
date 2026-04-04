@@ -99,18 +99,13 @@ def get(
             get_paginated(
                 api_session,
                 members_url,
-                params={"briefRepresentation": True},
             )
         )
         # Get Identity Providers
         idp_url = f"{base_url}/admin/realms/{realm}/organizations/{org['id']}/identity-providers"
-        org["_identity_providers"] = list(
-            get_paginated(
-                api_session,
-                idp_url,
-                params={"briefRepresentation": True},
-            )
-        )
+        req = api_session.get(idp_url, timeout=_TIMEOUT)
+        req.raise_for_status()
+        org["_identity_providers"] = list(req.json())
         result.append(org)
     return result
 

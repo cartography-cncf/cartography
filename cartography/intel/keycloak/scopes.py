@@ -6,7 +6,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.keycloak.util import get_paginated
 from cartography.models.keycloak.scope import KeycloakScopeSchema
 from cartography.util import timeit
 
@@ -44,7 +43,9 @@ def get(
     realm: str,
 ) -> list[dict[str, Any]]:
     url = f"{base_url}/admin/realms/{realm}/client-scopes"
-    return list(get_paginated(api_session, url, params={"briefRepresentation": False}))
+    req = api_session.get(url, timeout=_TIMEOUT)
+    req.raise_for_status()
+    return req.json()
 
 
 @timeit
