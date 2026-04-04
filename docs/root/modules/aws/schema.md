@@ -2347,12 +2347,15 @@ Representation of an AWS [NAT Gateway](https://docs.aws.amazon.com/AWSEC2/latest
 | state | The state of the NAT gateway (e.g., available, deleting) |
 | create_time | The date and time the NAT gateway was created |
 | allocation_id | The Elastic IP allocation ID (public NAT gateways only) |
+| allocation_ids | All Elastic IP allocation IDs associated with the NAT gateway (primary + secondary) |
 | network_interface_id | The network interface ID of the primary address |
 | private_ip | The private IP address of the NAT gateway |
 | public_ip | The public IP address of the NAT gateway |
 | connectivity_type | Whether the gateway is `public` or `private` |
 | region | The AWS region |
 | lastupdated | Timestamp of the last time the node was updated |
+
+Cartography captures multiple Elastic IPs per NAT gateway and creates an `ASSOCIATED_WITH` relationship for each allocation ID present.
 
 
 #### Relationships

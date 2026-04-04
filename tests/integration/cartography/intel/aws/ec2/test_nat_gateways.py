@@ -169,4 +169,5 @@ def test_sync_nat_gateways(
         rel_direction_right=True,
     ) == {
         ("nat-0abc1234567890001", "eipalloc-00000000000000000"),
+        ("nat-0abc1234567890001", "eipalloc-11111111111111111"),
     }

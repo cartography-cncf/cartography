@@ -20,6 +20,7 @@ class AWSNatGatewayNodeProperties(CartographyNodeProperties):
     state: PropertyRef = PropertyRef("State")
     create_time: PropertyRef = PropertyRef("CreateTime")
     allocation_id: PropertyRef = PropertyRef("AllocationId")
+    allocation_ids: PropertyRef = PropertyRef("AllocationIds")
     network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")
     private_ip: PropertyRef = PropertyRef("PrivateIp")
     public_ip: PropertyRef = PropertyRef("PublicIp")
@@ -92,7 +93,7 @@ class AWSNatGatewayToElasticIPRelProperties(CartographyRelProperties):
 class AWSNatGatewayToElasticIPRel(CartographyRelSchema):
     target_node_label: str = "ElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"allocation_id": PropertyRef("AllocationId")},
+        {"allocation_id": PropertyRef("AllocationIds", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"

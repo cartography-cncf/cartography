@@ -93,7 +93,7 @@ class RouteToVPCEndpointRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class RouteToNatGatewayRelRelProperties(CartographyRelProperties):
+class RouteToNatGatewayRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -105,7 +105,7 @@ class RouteToNatGatewayRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ROUTES_TO_NAT_GATEWAY"
-    properties: RouteToNatGatewayRelRelProperties = RouteToNatGatewayRelRelProperties()
+    properties: RouteToNatGatewayRelProperties = RouteToNatGatewayRelProperties()
 
 
 @dataclass(frozen=True)

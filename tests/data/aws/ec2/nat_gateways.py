@@ -9,10 +9,19 @@ TEST_NAT_GATEWAYS = [
         "NatGatewayAddresses": [
             {
                 "AllocationId": "eipalloc-00000000000000000",
+                "IsPrimary": True,
                 "NetworkInterfaceId": "eni-0abc1234567890001",
                 "PrivateIp": "10.1.1.100",
                 "PublicIp": "192.168.1.1",
                 "AssociationId": "eipassoc-00000000000000001",
+            },
+            {
+                "AllocationId": "eipalloc-11111111111111111",
+                "IsPrimary": False,
+                "NetworkInterfaceId": "eni-0abc1234567890001-secondary",
+                "PrivateIp": "10.1.1.101",
+                "PublicIp": "192.168.1.101",
+                "AssociationId": "eipassoc-11111111111111111",
             },
         ],
     },

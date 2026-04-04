@@ -6,11 +6,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.nat_gateways import AWSNatGatewaySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,11 @@ logger = logging.getLogger(__name__)
 def get_nat_gateways(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session,
+        "ec2",
+        region_name=region,
+        config=get_botocore_config(),
     )
     paginator = client.get_paginator("describe_nat_gateways")
     nat_gateways: list[dict[str, Any]] = []
@@ -50,6 +53,9 @@ def transform_nat_gateways(
             (addr for addr in addresses if addr.get("IsPrimary", False)),
             addresses[0] if addresses else {},
         )
+        allocation_ids = [
+            addr.get("AllocationId") for addr in addresses if addr.get("AllocationId")
+        ]
 
         create_time = ngw.get("CreateTime")
         result.append(
@@ -60,6 +66,7 @@ def transform_nat_gateways(
                 "State": ngw.get("State"),
                 "CreateTime": str(create_time) if create_time else None,
                 "AllocationId": primary.get("AllocationId"),
+                "AllocationIds": allocation_ids,
                 "NetworkInterfaceId": primary.get("NetworkInterfaceId"),
                 "PrivateIp": primary.get("PrivateIp"),
                 "PublicIp": primary.get("PublicIp"),

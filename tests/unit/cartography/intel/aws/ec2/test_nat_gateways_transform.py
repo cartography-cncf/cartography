@@ -36,6 +36,7 @@ def test_transform_nat_gateways_public():
     assert r["ConnectivityType"] == "public"
     assert r["Arn"] == "arn:aws:ec2:us-east-1:123456789012:natgateway/nat-0abc"
     assert r["AllocationId"] == "eipalloc-abc"
+    assert r["AllocationIds"] == ["eipalloc-abc"]
     assert r["NetworkInterfaceId"] == "eni-abc"
     assert r["PrivateIp"] == "10.0.0.1"
     assert r["PublicIp"] == "1.2.3.4"
@@ -77,6 +78,7 @@ def test_transform_nat_gateways_isprimary_selection():
     assert len(result) == 1
     r = result[0]
     assert r["AllocationId"] == "eipalloc-primary"
+    assert r["AllocationIds"] == ["eipalloc-secondary", "eipalloc-primary"]
     assert r["NetworkInterfaceId"] == "eni-primary"
     assert r["PrivateIp"] == "10.0.0.1"
     assert r["PublicIp"] == "1.1.1.1"
@@ -105,6 +107,7 @@ def test_transform_nat_gateways_private_no_addresses():
     assert r["NatGatewayId"] == "nat-0prv"
     assert r["Arn"] == "arn:aws:ec2:eu-west-1:123456789012:natgateway/nat-0prv"
     assert r["AllocationId"] is None
+    assert r["AllocationIds"] == []
     assert r["NetworkInterfaceId"] is None
     assert r["PrivateIp"] is None
     assert r["PublicIp"] is None
@@ -152,6 +155,7 @@ def test_transform_nat_gateways_multiple():
     for i, r in enumerate(result):
         assert r["NatGatewayId"] == f"nat-{i:04d}"
         assert r["AllocationId"] == f"eipalloc-{i:04d}"
+        assert r["AllocationIds"] == [f"eipalloc-{i:04d}"]
         assert r["Arn"] == (
             f"arn:aws:ec2:ap-southeast-1:999999999999:natgateway/nat-{i:04d}"
         )
