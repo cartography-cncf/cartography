@@ -2333,6 +2333,59 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     ```
 
 
+### AWSNatGateway
+
+Representation of an AWS [NAT Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NatGateway.html).
+
+| Field | Description |
+|-------|-------------|
+| **id** | NAT Gateway ID |
+| **nat_gateway_id** | NAT Gateway ID (same as id) |
+| **arn** | Amazon Resource Name |
+| subnet_id | The ID of the subnet in which the NAT gateway resides |
+| vpc_id | The ID of the VPC |
+| state | The state of the NAT gateway (e.g., available, deleting) |
+| create_time | The date and time the NAT gateway was created |
+| allocation_id | The Elastic IP allocation ID (public NAT gateways only) |
+| allocation_ids | All Elastic IP allocation IDs associated with the NAT gateway (primary + secondary) |
+| network_interface_id | The network interface ID of the primary address |
+| private_ip | The private IP address of the NAT gateway |
+| public_ip | The public IP address of the NAT gateway |
+| connectivity_type | Whether the gateway is `public` or `private` |
+| region | The AWS region |
+| lastupdated | Timestamp of the last time the node was updated |
+
+Cartography captures multiple Elastic IPs per NAT gateway and creates an `ASSOCIATED_WITH` relationship for each allocation ID present.
+
+
+#### Relationships
+
+- NAT Gateways belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSNatGateway)
+    ```
+
+- NAT Gateways are attached to a VPC.
+    ```
+    (AWSNatGateway)-[ATTACHED_TO]->(AWSVpc)
+    ```
+
+- NAT Gateways reside in a subnet.
+    ```
+    (AWSNatGateway)-[PART_OF_SUBNET]->(EC2Subnet)
+    ```
+
+- NAT Gateways are associated with an Elastic IP Address (public NAT gateways only).
+    ```
+    (AWSNatGateway)-[ASSOCIATED_WITH]->(ElasticIPAddress)
+    ```
+
+- EC2Routes route to a NAT Gateway.
+    ```
+    (EC2Route)-[ROUTES_TO_NAT_GATEWAY]->(AWSNatGateway)
+    ```
+
+
 ### ECRRepository
 
 Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html).
@@ -5697,6 +5750,11 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 - EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
     ```
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+    ```
+
+- EC2Route routes to an AWSNatGateway. Traffic destined for the internet is sent through the NAT gateway.
+    ```
+    (EC2Route)-[ROUTES_TO_NAT_GATEWAY]->(AWSNatGateway)
     ```
 
 ### SecretsManagerSecretVersion
