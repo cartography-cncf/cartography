@@ -13,6 +13,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
@@ -20,7 +21,6 @@ from cartography.models.gitlab.container_image_layers import (
     GitLabContainerImageLayerSchema,
 )
 from cartography.models.gitlab.container_images import GitLabContainerImageSchema
-from cartography.util import batch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

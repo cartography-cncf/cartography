@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 
-from cartography.util import backoff_handler
+from cartography.helpers import backoff_handler
 from cartography.util import retries_with_backoff
 
 logger = logging.getLogger(__name__)

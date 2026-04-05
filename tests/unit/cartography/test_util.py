@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import botocore
 import pytest
+from google.api_core.exceptions import InternalServerError
 from googleapiclient.errors import HttpError
 
 import cartography.util
@@ -20,32 +21,62 @@ from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import to_datetime
 
+SAMPLE_ANALYSIS_JOB = """
+{
+  "name": "sample analysis job",
+  "statements": [
+    {
+      "query": "RETURN 1",
+      "iterative": false
+    }
+  ]
+}
+"""
+
 
 def test_run_analysis_job_default_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_analysis_job("test.json", neo4j_session, {})
+
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.analysis",
         "test.json",
     )
+    neo4j_session.execute_write.assert_called_once()
 
 
 def test_run_analysis_job_custom_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock(), package="a.b.c")
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_analysis_job("test.json", neo4j_session, {}, package="a.b.c")
+
     read_text_mock.assert_called_once_with("a.b.c", "test.json")
+    neo4j_session.execute_write.assert_called_once()
 
 
 def test_run_scoped_analysis_job_default_package(mocker):
-    mocker.patch("cartography.util.GraphJob")
-    read_text_mock = mocker.patch("cartography.util.read_text")
-    util.run_scoped_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock = mocker.patch(
+        "cartography.util.read_text",
+        return_value=SAMPLE_ANALYSIS_JOB,
+    )
+    neo4j_session = mocker.Mock()
+
+    util.run_scoped_analysis_job("test.json", neo4j_session, {})
+
     read_text_mock.assert_called_once_with(
         "cartography.data.jobs.scoped_analysis",
         "test.json",
     )
+    neo4j_session.execute_write.assert_called_once()
 
 
 @patch(
@@ -523,6 +554,22 @@ def test_gcp_api_execute_with_retry_retries_on_503(mocker):
     ]
 
     # Mock sleep to avoid delays
+    mocker.patch("time.sleep")
+
+    result = gcp_api_execute_with_retry(mock_request)
+
+    assert result == {"items": ["data"]}
+    assert mock_request.execute.call_count == 2
+
+
+def test_gcp_api_execute_with_retry_retries_on_google_api_core_500(mocker):
+    """Test that google-api-core 5xx errors trigger retries."""
+    mock_request = MagicMock()
+    mock_request.execute.side_effect = [
+        InternalServerError("Internal Server Error"),
+        {"items": ["data"]},
+    ]
+
     mocker.patch("time.sleep")
 
     result = gcp_api_execute_with_retry(mock_request)

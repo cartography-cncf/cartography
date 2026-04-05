@@ -7,6 +7,7 @@ from cartography.intel.aws.identitycenter import (
 )
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import get_user_permissionsets
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 
 
 def test_get_permission_sets_access_denied():
@@ -37,7 +38,11 @@ def test_get_permission_sets_access_denied():
     assert result == []
 
     # Verify our mocks were called as expected
-    mock_session.client.assert_called_once_with("sso-admin", region_name="us-east-1")
+    mock_session.client.assert_called_once_with(
+        "sso-admin",
+        region_name="us-east-1",
+        config=get_botocore_config(),
+    )
     mock_client.get_paginator.assert_called_once_with("list_permission_sets")
     mock_paginator.paginate.assert_called_once_with(
         InstanceArn="arn:aws:sso:::instance/test",
@@ -75,7 +80,11 @@ def test_get_role_assignments_access_denied():
     assert result == []
 
     # Verify our mocks were called as expected
-    mock_session.client.assert_called_once_with("sso-admin", region_name="us-east-1")
+    mock_session.client.assert_called_once_with(
+        "sso-admin",
+        region_name="us-east-1",
+        config=get_botocore_config(),
+    )
     mock_client.get_paginator.assert_called_once_with(
         "list_account_assignments_for_principal",
     )
