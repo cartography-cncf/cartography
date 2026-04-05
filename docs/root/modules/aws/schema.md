@@ -1997,6 +1997,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | imdsv1enabled | A derived boolean that is `true` when IMDSv1 remains allowed on the instance. |
 | imdsv2required | A derived boolean that is `true` when the instance requires IMDSv2 and disables IMDSv1. |
 | eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
+| ipv6address | The primary IPv6 address assigned to the instance's primary network interface (DeviceIndex=0), if any. |
 
 
 #### Relationships
@@ -2074,6 +2075,39 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - ECS Container Instances can be backed by EC2 Instances
     ```
     (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
+    ```
+
+### EC2Ipv6Address
+
+Representation of an IPv6 address assigned to an EC2 network interface. Each `EC2Ipv6Address` node corresponds to one entry in `NetworkInterfaces[].Ipv6Addresses[]` from the AWS [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html) API.
+
+> **Ontology Mapping**: This node also carries the extra label `Ip` so that existing `AWSDNSRecord` AAAA records can reach it via the `DNS_POINTS_TO` relationship (which targets nodes with the `Ip` label matched by `id`).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as `ipv6_address` — the IPv6 address string |
+| **ipv6_address** | The IPv6 address (e.g. `2001:db8::1`) |
+| network_interface_id | The ID of the network interface this address is assigned to |
+| primary | `true` if this is the primary IPv6 address on the interface (`IsPrimaryIpv6`), `false` otherwise |
+| region | The AWS region |
+
+#### Relationships
+
+- AWS Accounts contain EC2Ipv6Address nodes.
+    ```
+    (AWSAccount)-[RESOURCE]->(EC2Ipv6Address)
+    ```
+
+- NetworkInterfaces have IPv6 addresses.
+    ```
+    (NetworkInterface)<-[IPV6_ADDRESS]-(EC2Ipv6Address)
+    ```
+
+- AWSDNSRecord AAAA records can point to IPv6 addresses (via the shared `Ip` label).
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(EC2Ipv6Address)
     ```
 
 ### EC2KeyPair
@@ -3368,6 +3402,11 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 - EC2PrivateIps are connected to a NetworkInterface.
     ```
     (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
+    ```
+
+- NetworkInterfaces can have IPv6 addresses.
+    ```
+    (NetworkInterface)<-[IPV6_ADDRESS]-(EC2Ipv6Address)
     ```
 
 -  EC2 Network Interfaces can be tagged with AWSTags.
