@@ -19,6 +19,7 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.intel.supply_chain import normalize_vcs_url
@@ -1226,8 +1227,8 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                async with aioboto3_session.client(
-                    "ecr", region_name=region
+                async with create_aioboto3_client(
+                    aioboto3_session, "ecr", region_name=region
                 ) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 

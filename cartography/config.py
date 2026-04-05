@@ -36,7 +36,7 @@ class Config:
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
-    See https://neo4j.com/docs/api/python-driver/4.4/api.html#database. Optional.
+    See https://neo4j.com/docs/api/python-driver/5.26/api.html#database. Optional.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
@@ -267,6 +267,10 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type workos_api_key: str
+    :param workos_api_key: WorkOS API key. Optional.
+    :type workos_client_id: str
+    :param workos_client_id: WorkOS client ID. Optional.
     :type sentry_token: str
     :param sentry_token: Sentry internal integration auth token. Optional.
     :type sentry_org: str
@@ -415,6 +419,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        workos_api_key=None,
+        workos_client_id=None,
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
@@ -566,6 +572,8 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.workos_api_key = workos_api_key
+        self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host

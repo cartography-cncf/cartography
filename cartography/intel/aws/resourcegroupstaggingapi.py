@@ -8,11 +8,12 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.helpers import batch
 from cartography.intel.aws.iam import get_role_tags
 from cartography.intel.aws.iam import get_user_tags
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
-from cartography.util import batch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -209,7 +210,9 @@ def get_tags(
     if not resource_types:
         return resources
 
-    client = boto3_session.client("resourcegroupstaggingapi", region_name=region)
+    client = create_boto3_client(
+        boto3_session, "resourcegroupstaggingapi", region_name=region
+    )
     paginator = client.get_paginator("get_resources")
 
     # Batch resource types into groups of 100

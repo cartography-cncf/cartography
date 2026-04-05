@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.model_package_group import (
     AWSSageMakerModelPackageGroupSchema,
 )
@@ -24,7 +25,7 @@ def get_model_package_groups(
     """
     Get all SageMaker Model Package Groups in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_model_package_groups")
     model_package_groups: list[dict[str, Any]] = []
 

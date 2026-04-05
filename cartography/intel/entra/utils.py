@@ -5,7 +5,7 @@ from typing import Callable
 import backoff
 import httpx
 
-from cartography.util import backoff_handler
+from cartography.helpers import backoff_handler
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,8 @@ from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cloudtrail.trail import CloudTrailTrailSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -54,8 +55,8 @@ def _is_retryable_cloudtrail_error(error: ClientError) -> bool:
 def get_cloudtrail_trails(
     boto3_session: boto3.Session, region: str, current_aws_account_id: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "cloudtrail", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
     )
 
     try:
