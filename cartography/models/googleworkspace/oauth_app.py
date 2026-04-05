@@ -52,6 +52,8 @@ class GoogleWorkspaceUserToOAuthAppRelProperties(CartographyRelProperties):
 
     # Custom property: scopes granted to the app
     scopes: PropertyRef = PropertyRef("scopes")
+    risk_level: PropertyRef = PropertyRef("risk_level")
+    scope_risk_levels: PropertyRef = PropertyRef("scope_risk_levels")
 
 
 @dataclass(frozen=True)
