@@ -182,7 +182,7 @@ def call_sentinelone_api(
     try:
         return wrapped_func()
     except SentinelOnePassthroughRequestException as exc:
-        raise exc.original from exc
+        raise exc.original from None
 
 
 def get_paginated_results(
