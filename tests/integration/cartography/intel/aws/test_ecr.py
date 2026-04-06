@@ -25,6 +25,13 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
     )
 
 
+def _mock_get_repo_images(boto3_session, region, repo_name):
+    return tests.data.aws.ecr.LIST_REPOSITORY_IMAGES.get(
+        f"000000000000.dkr.ecr.us-east-1.amazonaws.com/{repo_name}",
+        [],
+    )
+
+
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repositories",
@@ -33,17 +40,7 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repository_images",
-    side_effect=[
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository"
-        ],
-    ],
+    side_effect=_mock_get_repo_images,
 )
 def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     """
