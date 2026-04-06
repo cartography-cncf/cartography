@@ -96,11 +96,11 @@ def transform_repos(workspace_repos: List[Dict], workspace: str) -> Dict:
 
 def transform_branches(branches: List[Dict], repo_id: str, default_branch: str = None) -> List[Dict]:
     """
-    Transform branch data and filter to include only branches active in the last 3 months (90 days).
+    Transform branch data and filter to include only branches active in the last 6 months (180 days).
     The default branch is always included regardless of activity date.
     """
     transformed_branches = []
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=180)
 
     for branch in branches:
         branch_name = branch["name"]
@@ -117,7 +117,7 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
             })
             continue
 
-        # Filter by activity date - include branches active in last 3 months
+        # Filter by activity date - include branches active in last 6 months
         if date_str:
             try:
                 branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
