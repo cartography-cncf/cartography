@@ -156,6 +156,7 @@ def call_sentinelone_api(
             requests.exceptions.RequestException,
             max_tries=5,  # Maximum number of retry attempts
             on_backoff=backoff_handler,
+            logger=None,
             giveup=lambda exception: not is_retryable_sentinelone_exception(exception),
         )(request_once),
     )
