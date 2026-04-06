@@ -816,6 +816,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[AWS_ACCESS_KEY]->(AccountAccessKey)
     ```
 
+- AWS Users can have Service-Specific Credentials.
+
+    ```cypher
+    (AWSUser)-[SERVICE_SPECIFIC_CREDENTIAL]->(AWSServiceSpecificCredential)
+    ```
+
 - AWS Accounts contain AWS Users.
 
     ```cypher
@@ -1172,6 +1178,38 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 - Account Access Keys are a resource under the AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    ```
+
+### AWSServiceSpecificCredential
+
+Representation of an AWS [Service-Specific Credential](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServiceSpecificCredentialMetadata.html). Service-specific credentials are static credentials tied to a specific AWS service (e.g., Amazon Bedrock, CodeCommit) that IAM users can have associated with their accounts.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., AnthropicApiKey, OpenAIApiKey, ScalewayApiKey).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The service-specific credential ID (same as service\_specific\_credential\_id) |
+| **service\_specific\_credential\_id** | The unique identifier for the service-specific credential |
+| service\_name | The name of the AWS service associated with the credential (e.g., codecommit.amazonaws.com) |
+| service\_user\_name | The generated username for the service-specific credential |
+| status | Active: valid for API calls. Inactive: not valid for API calls |
+| username | The IAM username associated with the credential |
+| createdate | Date when the credential was created |
+| createdate\_dt | DateTime object representing when the credential was created |
+
+#### Relationships
+- Service-Specific Credentials are associated with AWS Users.
+
+    ```cypher
+    (AWSUser)-[SERVICE_SPECIFIC_CREDENTIAL]->(AWSServiceSpecificCredential)
+    ```
+
+- Service-Specific Credentials are a resource under the AWS Account.
+
+    ```cypher
+    (AWSAccount)-[RESOURCE]->(AWSServiceSpecificCredential)
     ```
 
 ### AWSMfaDevice
