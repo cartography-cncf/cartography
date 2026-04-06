@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -86,6 +87,38 @@ def test_call_sentinelone_api_http_error(mock_request, mock_sleep):
     with pytest.raises(requests.exceptions.HTTPError):
         call_sentinelone_api(TEST_API_URL, TEST_ENDPOINT, TEST_API_TOKEN)
 
+    assert mock_request.call_count == 1
+    mock_sleep.assert_not_called()
+
+
+@patch("time.sleep")
+@patch("cartography.intel.sentinelone.api.requests.request")
+def test_call_sentinelone_api_site_scope_http_error_avoids_backoff_giveup_log(
+    mock_request,
+    mock_sleep,
+    caplog,
+):
+    """Expected site-scope 403s should not emit backoff error logs."""
+    mock_response = Mock()
+    mock_response.status_code = 403
+    mock_response.json.return_value = {
+        "errors": [
+            {
+                "code": 4030010,
+                "detail": "Action is not allowed to site users",
+            },
+        ],
+    }
+    http_error = requests.exceptions.HTTPError("HTTP 403 Error", response=mock_response)
+    mock_response.raise_for_status.side_effect = http_error
+    mock_request.return_value = mock_response
+
+    with caplog.at_level(logging.INFO, logger="backoff"):
+        with pytest.raises(requests.exceptions.HTTPError):
+            call_sentinelone_api(TEST_API_URL, TEST_ENDPOINT, TEST_API_TOKEN)
+
+    assert "Giving up request_once" not in caplog.text
+    assert "Backing off request_once" not in caplog.text
     assert mock_request.call_count == 1
     mock_sleep.assert_not_called()
 

@@ -157,6 +157,9 @@ def call_sentinelone_api(
             max_tries=5,  # Maximum number of retry attempts
             on_backoff=backoff_handler,
             giveup=lambda exception: not is_retryable_sentinelone_exception(exception),
+            # Use Cartography's retry handler for logging so expected giveups
+            # (for example site-scoped 403s) do not emit third-party error logs.
+            logger=None,
         )(request_once),
     )
 

@@ -1,3 +1,4 @@
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -41,6 +42,7 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
     mock_application_cleanup,
     mock_finding_cleanup,
     mock_merge_metadata,
+    caplog,
 ):
     mock_sync_accounts.side_effect = _site_scope_http_error()
     mock_sync_site_scoped_accounts.return_value = [
@@ -67,10 +69,15 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
     )
     neo4j_session = MagicMock()
 
-    start_sentinelone_ingestion(neo4j_session, config)
+    with caplog.at_level(logging.WARNING):
+        start_sentinelone_ingestion(neo4j_session, config)
 
     mock_sync_accounts.assert_called_once()
     mock_sync_site_scoped_accounts.assert_called_once()
+    assert (
+        "SentinelOne token cannot enumerate /accounts for a site-scoped user; "
+        "continuing with site-scoped sync fallback"
+    ) in caplog.text
 
     assert mock_agent_sync.call_count == 2
     assert mock_application_sync.call_count == 2
