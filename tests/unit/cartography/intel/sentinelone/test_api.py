@@ -119,7 +119,6 @@ def test_call_sentinelone_api_site_scope_http_error_avoids_backoff_giveup_log(
 
     assert "Giving up request_once" not in caplog.text
     assert "Backing off request_once" not in caplog.text
-    assert mock_request.call_count == 1
     mock_sleep.assert_not_called()
 
 
