@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.intel.sentinelone.api import call_sentinelone_api
+from cartography.intel.sentinelone.api import is_site_scope_http_error
 from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
 
@@ -36,6 +37,7 @@ def get_accounts(
         api_url=api_url,
         endpoint="web/api/v2.1/accounts",
         api_token=api_token,
+        passthrough_exceptions=is_site_scope_http_error,
     )
 
     accounts_data = response["data"]
