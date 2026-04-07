@@ -70,11 +70,11 @@ def transform_projects_data(projects: List[Dict]) -> List[Dict]:
 def transform_branches_data(branches: List[Dict], project_id: int, project_path: str, default_branch: str = None) -> List[Dict]:
     """
     Transform branch data and filter to include only:
-    - Branches active in the last 90 days
+    - Branches active in the last 180 days
     - Default branch (always included)
     """
     transformed_branches = []
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=180)
 
     for branch in branches:
         branch_name = branch["name"]

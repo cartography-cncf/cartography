@@ -71,7 +71,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                                 id
                                 target {
                                     ... on Commit {
-                                        pushedDate
+                                        committedDate
                                     }
                                 }
                             }
@@ -227,20 +227,20 @@ def transform(repos_json: List[Dict]) -> Dict:
 def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Dict]) -> None:
     """
     Transform branch data and filter to include only:
-    - Branches active in the last 90 days
+    - Branches active in the last 180 days
     - Default branch (always included)
     """
     if not repo.get("refs"):
         return
 
     default_branch = repo.get("defaultBranchRef", {}).get("name") if repo.get("defaultBranchRef") else None
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=180)
 
     for edge in (repo["refs"].get("edges") or []):
         node = edge["node"]
         branch_name = node["name"]
         target = node.get("target")
-        pushed_date_str = target.get("pushedDate") if target else None
+        committed_date_str = target.get("committedDate") if target else None
 
         # Always include default branch
         if branch_name == default_branch:
@@ -248,19 +248,19 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
                 "repo_id": repo_url,
                 "branch_id": f"{repo_url}:{node['id']}",
                 "name": branch_name,
-                "last_commit_timestamp": pushed_date_str,
+                "last_commit_timestamp": committed_date_str,
             })
             continue
 
         # Filter by activity date
-        if pushed_date_str:
-            pushed_date = datetime.fromisoformat(pushed_date_str.replace('Z', '+00:00'))
-            if pushed_date >= cutoff_date:
+        if committed_date_str:
+            committed_date = datetime.fromisoformat(committed_date_str.replace('Z', '+00:00'))
+            if committed_date >= cutoff_date:
                 transformed_branches.append({
                     "repo_id": repo_url,
                     "branch_id": f"{repo_url}:{node['id']}",
                     "name": branch_name,
-                    "last_commit_timestamp": pushed_date_str,
+                    "last_commit_timestamp": committed_date_str,
                 })
         else:
             # No date available, include the branch
@@ -268,7 +268,7 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
                 "repo_id": repo_url,
                 "branch_id": f"{repo_url}:{node['id']}",
                 "name": branch_name,
-                "last_commit_timestamp": pushed_date_str,
+                "last_commit_timestamp": committed_date_str,
             })
 
 
