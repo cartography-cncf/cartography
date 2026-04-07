@@ -84,25 +84,25 @@ def transform_elasticbeanstalk_environments(
 
             # These fields are set so that relationships can match on them (e.g. ElasticBeanstalkToInstanceRel)
             environment_record["ASG_NAMES"] = [
-                str(res["Name"]) for res in resources.get("AutoScalingGroups", [])
+                res["Name"] for res in resources.get("AutoScalingGroups", [])
             ]
             environment_record["INSTANCE_IDS"] = [
-                str(res["Id"]) for res in resources.get("Instances", [])
+                res["Id"] for res in resources.get("Instances", [])
             ]
             environment_record["LAUNCHCONFIG_NAMES"] = [
-                str(res["Name"]) for res in resources.get("LaunchConfigurations", [])
+                res["Name"] for res in resources.get("LaunchConfigurations", [])
             ]
             environment_record["LAUNCHTEMPLATE_IDS"] = [
-                str(res["Id"]) for res in resources.get("LaunchTemplates", [])
+                res["Id"] for res in resources.get("LaunchTemplates", [])
             ]
             environment_record["LOADBALANCER_NAMES"] = [
-                str(res["Name"]) for res in resources.get("LoadBalancers", [])
+                res["Name"] for res in resources.get("LoadBalancers", [])
             ]
             environment_record["QUEUE_URLS"] = [
-                str(res["URL"]) for res in resources.get("Queues", [])
+                res["URL"] for res in resources.get("Queues", [])
             ]
             environment_record["TRIGGER_NAMES"] = [
-                str(res["Name"]) for res in resources.get("Triggers", [])
+                res["Name"] for res in resources.get("Triggers", [])
             ]
 
         environment_list.append(environment_record)
