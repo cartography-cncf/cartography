@@ -18,9 +18,6 @@ github_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GitHubRepository",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
                 OntologyFieldMapping(
@@ -47,9 +44,6 @@ gitlab_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GitLabProject",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="fullname", node_field="path_with_namespace"

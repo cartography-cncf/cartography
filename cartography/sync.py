@@ -30,6 +30,7 @@ import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
+import cartography.intel.jumpcloud
 import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
@@ -52,6 +53,7 @@ import cartography.intel.tailscale
 import cartography.intel.trivy
 import cartography.intel.ubuntu
 import cartography.intel.workday
+import cartography.intel.workos
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -83,6 +85,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
+        "jumpcloud": cartography.intel.jumpcloud.start_jumpcloud_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
@@ -102,6 +105,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "workos": cartography.intel.workos.start_workos_ingestion,
         "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
@@ -394,12 +398,24 @@ def run_with_config(sync: Sync, config: Config) -> int:
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    driver_kwargs = {}
+    optional_driver_kwargs = {
+        "max_connection_lifetime": config.neo4j_max_connection_lifetime,
+        "liveness_check_timeout": config.neo4j_liveness_check_timeout,
+        "connection_timeout": config.neo4j_connection_timeout,
+        "keep_alive": config.neo4j_keep_alive,
+        "max_transaction_retry_time": config.neo4j_max_transaction_retry_time,
+        "max_connection_pool_size": config.neo4j_max_connection_pool_size,
+        "connection_acquisition_timeout": config.neo4j_connection_acquisition_timeout,
+    }
+    for key, value in optional_driver_kwargs.items():
+        if value is not None:
+            driver_kwargs[key] = value
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-            liveness_check_timeout=config.neo4j_liveness_check_timeout,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)

@@ -149,6 +149,7 @@ def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]
     for pod in pods:
         containers = _extract_pod_containers(pod)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
+        service_account_name = pod.spec.service_account_name or "default"
         transformed_pods.append(
             {
                 "uid": pod.metadata.uid,
@@ -157,6 +158,10 @@ def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]
                 "creation_timestamp": get_epoch(pod.metadata.creation_timestamp),
                 "deletion_timestamp": get_epoch(pod.metadata.deletion_timestamp),
                 "namespace": pod.metadata.namespace,
+                "service_account_name": service_account_name,
+                "service_account_id": (
+                    f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
+                ),
                 "node": pod.spec.node_name,
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
@@ -175,11 +180,23 @@ def load_pods(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
+    normalized_pods = []
+    for pod in pods:
+        service_account_name = pod.get("service_account_name") or "default"
+        normalized_pods.append(
+            {
+                **pod,
+                "service_account_name": service_account_name,
+                "service_account_id": pod.get("service_account_id")
+                or f"{cluster_name}/{pod['namespace']}/{service_account_name}",
+            },
+        )
+
     logger.info(f"Loading {len(pods)} kubernetes pods.")
     load(
         session,
         KubernetesPodSchema(),
-        pods,
+        normalized_pods,
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,

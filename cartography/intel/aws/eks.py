@@ -16,6 +16,7 @@ from cryptography.x509.oid import ExtensionOID
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.eks.clusters import EKSClusterSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_eks_clusters(boto3_session: boto3.session.Session, region: str) -> List[str]:
-    client = boto3_session.client("eks", region_name=region)
+    client = create_boto3_client(boto3_session, "eks", region_name=region)
     clusters: List[str] = []
     paginator = client.get_paginator("list_clusters")
     for page in paginator.paginate():
@@ -40,7 +41,7 @@ def get_eks_describe_cluster(
     region: str,
     cluster_name: str,
 ) -> Dict:
-    client = boto3_session.client("eks", region_name=region)
+    client = create_boto3_client(boto3_session, "eks", region_name=region)
     response = client.describe_cluster(name=cluster_name)
     return response["cluster"]
 

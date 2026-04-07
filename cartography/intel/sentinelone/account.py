@@ -1,14 +1,22 @@
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.intel.sentinelone.api import call_sentinelone_api
+from cartography.intel.sentinelone.api import is_site_scope_http_error
 from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SentinelOneSyncScope:
+    account_id: str
+    site_id: str | None = None
 
 
 @timeit
@@ -29,14 +37,15 @@ def get_accounts(
         api_url=api_url,
         endpoint="web/api/v2.1/accounts",
         api_token=api_token,
+        passthrough_exceptions=is_site_scope_http_error,
     )
 
-    accounts_data = response.get("data", [])
+    accounts_data = response["data"]
 
     # Filter accounts by ID if specified
     if account_ids:
         accounts_data = [
-            account for account in accounts_data if account.get("id") in account_ids
+            account for account in accounts_data if account["id"] in account_ids
         ]
         logger.info(f"Filtered accounts data to {len(accounts_data)} matching accounts")
 
@@ -74,6 +83,109 @@ def transform_accounts(accounts_data: list[dict[str, Any]]) -> list[dict[str, An
         result.append(transformed_account)
 
     return result
+
+
+@timeit
+def get_sites(
+    api_url: str,
+    api_token: str,
+    site_ids: list[str] | None = None,
+    account_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Get site data for site-scoped SentinelOne users or targeted MSSP syncs.
+    """
+    logger.info("Retrieving SentinelOne site data")
+
+    sites_data: list[dict[str, Any]] = []
+    cursor: str | None = None
+
+    while True:
+        params: dict[str, Any] = {"limit": 1000}
+        if cursor:
+            params["cursor"] = cursor
+
+        response = call_sentinelone_api(
+            api_url=api_url,
+            endpoint="web/api/v2.1/sites",
+            api_token=api_token,
+            params=params,
+        )
+
+        page_sites = response["data"]["sites"]
+        if not page_sites:
+            break
+
+        sites_data.extend(page_sites)
+        cursor = (response.get("pagination") or {}).get("nextCursor")
+        if not cursor:
+            break
+
+    if site_ids:
+        allowed_site_ids = set(site_ids)
+        sites_data = [site for site in sites_data if site["id"] in allowed_site_ids]
+        logger.info(
+            "Filtered SentinelOne sites to %d requested site IDs", len(sites_data)
+        )
+    if account_ids:
+        allowed_account_ids = set(account_ids)
+        sites_data = [
+            site for site in sites_data if site["accountId"] in allowed_account_ids
+        ]
+        logger.info(
+            "Filtered SentinelOne sites to %d matching parent accounts",
+            len(sites_data),
+        )
+
+    if sites_data:
+        logger.info("Retrieved SentinelOne site data: %d sites", len(sites_data))
+    else:
+        logger.warning("No SentinelOne sites retrieved")
+
+    return sites_data
+
+
+def transform_accounts_from_sites(
+    sites_data: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Synthesize account nodes from site metadata when account enumeration is forbidden.
+    """
+    accounts_by_id: dict[str, dict[str, Any]] = {}
+
+    for site in sites_data:
+        account_id = site["accountId"]
+        active_licenses = site.get("activeLicenses")
+        account = accounts_by_id.setdefault(
+            account_id,
+            {
+                "id": account_id,
+                "name": site.get("accountName"),
+                "account_type": None,
+                "active_agents": 0 if active_licenses is not None else None,
+                # SentinelOne site records expose activeLicenses, not activeAgents.
+                "created_at": site.get("createdAt"),
+                "expiration": site.get("expiration"),
+                "number_of_sites": 0,
+                "state": site.get("state"),
+            },
+        )
+
+        account["number_of_sites"] = (account.get("number_of_sites") or 0) + 1
+        if active_licenses is not None:
+            account["active_agents"] = (
+                account.get("active_agents") or 0
+            ) + active_licenses
+        if account.get("name") is None:
+            account["name"] = site.get("accountName")
+        if account.get("created_at") is None:
+            account["created_at"] = site.get("createdAt")
+        if account.get("expiration") is None:
+            account["expiration"] = site.get("expiration")
+        if account.get("state") is None:
+            account["state"] = site.get("state")
+
+    return list(accounts_by_id.values())
 
 
 def load_accounts(
@@ -138,3 +250,39 @@ def sync_accounts(
     synced_account_ids = [account["id"] for account in transformed_accounts]
     logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids
+
+
+@timeit
+def sync_site_scoped_accounts(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    site_ids: list[str] | None = None,
+    account_ids: list[str] | None = None,
+) -> list[SentinelOneSyncScope]:
+    """
+    Sync SentinelOne sites when the token cannot enumerate accounts directly.
+    """
+    sites_raw_data = get_sites(
+        common_job_parameters["API_URL"],
+        common_job_parameters["API_TOKEN"],
+        site_ids=site_ids,
+        account_ids=account_ids,
+    )
+
+    transformed_accounts = transform_accounts_from_sites(sites_raw_data)
+    load_accounts(
+        neo4j_session,
+        transformed_accounts,
+        common_job_parameters["UPDATE_TAG"],
+    )
+
+    scopes = [
+        SentinelOneSyncScope(account_id=site["accountId"], site_id=site["id"])
+        for site in sites_raw_data
+    ]
+    logger.info(
+        "Resolved %d SentinelOne site scopes across %d parent accounts",
+        len(scopes),
+        len(transformed_accounts),
+    )
+    return scopes

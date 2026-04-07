@@ -19,6 +19,7 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
+from cartography.helpers import backoff_handler
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import handle_rate_limit_sleep
@@ -30,7 +31,6 @@ from cartography.models.github.branch_protection_rules import (
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
-from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
 from cartography.util import timeit

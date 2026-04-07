@@ -13,6 +13,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
@@ -40,6 +41,16 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
 }
+
+# Container image registries can produce very large layer/image payloads for a
+# single org. Use conservative load batch sizes so Neo4j transactions stay
+# shorter and retries replay less work when a transient connection issue occurs.
+GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE = 200
+GITLAB_CONTAINER_IMAGE_BATCH_SIZE = 500
+
+# Fetch and write repositories in chunks so long-running org syncs do not spend
+# hours accumulating manifests before issuing the next Neo4j write.
+GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE = 100
 
 
 def _parse_repository_location(location: str) -> tuple[str, str]:
@@ -439,6 +450,7 @@ def load_container_images(
         neo4j_session,
         GitLabContainerImageSchema(),
         images,
+        batch_size=GITLAB_CONTAINER_IMAGE_BATCH_SIZE,
         lastupdated=update_tag,
         org_url=org_url,
     )
@@ -471,6 +483,7 @@ def load_container_image_layers(
         neo4j_session,
         GitLabContainerImageLayerSchema(),
         layers,
+        batch_size=GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,
         org_url=org_url,
     )
@@ -504,20 +517,43 @@ def sync_container_images(
 
     Returns (manifests, manifest_lists) for use by attestations module.
     """
-    raw_manifests, manifest_lists = get_container_images(
-        gitlab_url, token, repositories
-    )
+    all_raw_manifests: list[dict[str, Any]] = []
+    all_manifest_lists: list[dict[str, Any]] = []
+    total_repositories = len(repositories)
+    total_batches = (
+        total_repositories + GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE - 1
+    ) // GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE
 
-    # Transform images and layers
-    images = transform_container_images(raw_manifests)
-    layers = transform_container_image_layers(raw_manifests)
+    for batch_number, repo_batch in enumerate(
+        batch(repositories, size=GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE),
+        start=1,
+    ):
+        logger.info(
+            "Processing GitLab container image batch %d/%d (%d repositories)",
+            batch_number,
+            total_batches,
+            len(repo_batch),
+        )
+        raw_manifests, manifest_lists = get_container_images(
+            gitlab_url,
+            token,
+            repo_batch,
+        )
+        all_raw_manifests.extend(raw_manifests)
+        all_manifest_lists.extend(manifest_lists)
 
-    # Load layers FIRST so they exist when image relationships are created
-    load_container_image_layers(neo4j_session, layers, org_url, update_tag)
+        # Transform and load each repository chunk immediately so large orgs do
+        # not accumulate one all-or-nothing write payload in memory.
+        images = transform_container_images(raw_manifests)
+        layers = transform_container_image_layers(raw_manifests)
+
+        # Load layers FIRST so they exist when image relationships are created.
+        load_container_image_layers(neo4j_session, layers, org_url, update_tag)
+        load_container_images(neo4j_session, images, org_url, update_tag)
+
+    if total_repositories == 0:
+        logger.info("No GitLab container repositories found for %s", org_url)
+
     cleanup_container_image_layers(neo4j_session, common_job_parameters)
-
-    # Load images (creates HAS_LAYER relationships to existing layer nodes)
-    load_container_images(neo4j_session, images, org_url, update_tag)
     cleanup_container_images(neo4j_session, common_job_parameters)
-
-    return raw_manifests, manifest_lists
+    return all_raw_manifests, all_manifest_lists

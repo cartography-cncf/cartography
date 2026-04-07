@@ -14,7 +14,8 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.apigateway.apigateway import APIGatewayRestAPISchema
 from cartography.models.aws.apigateway.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
@@ -42,7 +43,7 @@ def get_apigateway_rest_apis(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client("apigateway", region_name=region)
+    client = create_boto3_client(boto3_session, "apigateway", region_name=region)
     paginator = client.get_paginator("get_rest_apis")
     apis: List[Any] = []
     for page in paginator.paginate():
@@ -69,8 +70,8 @@ def get_rest_api_deployments(
     """
     Retrieves the deployments for each REST API in the provided list.
     """
-    client = boto3_session.client(
-        "apigateway", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "apigateway", region_name=region, config=get_botocore_config()
     )
     deployments: List[Dict[str, Any]] = []
     for api_id in rest_api_ids:
@@ -92,7 +93,7 @@ def get_rest_api_details(
     """
     Iterates over all API Gateway REST APIs.
     """
-    client = boto3_session.client("apigateway", region_name=region)
+    client = create_boto3_client(boto3_session, "apigateway", region_name=region)
     apis = []
     for api in rest_apis:
         stages = get_rest_api_stages(api, client)

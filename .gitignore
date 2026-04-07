@@ -12,6 +12,8 @@
 build/
 .idea/
 .coverage
+coverage.xml
+htmlcov/
 .mypy_cache
 *.vscode
 .compose

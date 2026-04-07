@@ -5280,6 +5280,31 @@ Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sn
     (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
     ```
 
+### SESEmailIdentity
+
+Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SES email identity |
+| arn | The ARN of the SES email identity |
+| identity | The name of the email identity (domain or email address) |
+| identity\_type | The type of the identity, either `EMAIL_ADDRESS` or `DOMAIN` |
+| sending\_enabled | Whether email sending is enabled for this identity |
+| verification\_status | The verification status of the identity (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| dkim\_signing\_enabled | Whether DKIM signing is enabled for this identity |
+| dkim\_status | The DKIM authentication status (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| region | The AWS region where the SES email identity exists |
+
+#### Relationships
+
+- SES Email Identities are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SESEmailIdentity)
+    ```
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 
