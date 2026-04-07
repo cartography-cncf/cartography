@@ -1,46 +1,95 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+import cartography.intel.crowdstrike.endpoints
 import cartography.intel.crowdstrike.spotlight
-import tests.data.crowdstrike.endpoints
-import tests.data.crowdstrike.spotlight
+from tests.data.crowdstrike.endpoints import GET_HOSTS
+from tests.data.crowdstrike.spotlight import GET_SPOTLIGHT_VULNERABILITIES
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_vulnerability_data(neo4j_session, *args):
-    # First load the host data, so we can test relationships
-    host_data = tests.data.crowdstrike.endpoints.GET_HOSTS
-    cartography.intel.crowdstrike.endpoints.load_host_data(
+@patch.object(cartography.intel.crowdstrike.spotlight, "Spotlight_Vulnerabilities")
+@patch.object(
+    cartography.intel.crowdstrike.spotlight,
+    "get_spotlight_vulnerabilities",
+    return_value=GET_SPOTLIGHT_VULNERABILITIES,
+)
+@patch.object(
+    cartography.intel.crowdstrike.spotlight,
+    "get_spotlight_vulnerability_ids",
+    return_value=[["dummy-id"]],
+)
+@patch.object(cartography.intel.crowdstrike.endpoints, "Hosts")
+@patch.object(cartography.intel.crowdstrike.endpoints, "get_hosts", return_value=GET_HOSTS)
+@patch.object(cartography.intel.crowdstrike.endpoints, "get_host_ids", return_value=[["dummy-id"]])
+def test_sync_spotlight_vulnerabilities(
+    mock_host_ids,
+    mock_hosts,
+    mock_hosts_cls,
+    mock_vuln_ids,
+    mock_vulns,
+    mock_spotlight_cls,
+    neo4j_session,
+):
+    """
+    Ensure that syncing hosts then vulnerabilities creates the expected nodes and relationships.
+    """
+    authorization = MagicMock()
+
+    # Sync hosts first (dependency for vulnerability relationships)
+    cartography.intel.crowdstrike.endpoints.sync_hosts(
         neo4j_session,
-        host_data,
         TEST_UPDATE_TAG,
+        authorization,
     )
 
-    vulnerability_data = tests.data.crowdstrike.spotlight.GET_SPOTLIGHT_VULNERABILITIES
-    cartography.intel.crowdstrike.spotlight.load_vulnerability_data(
+    # Sync vulnerabilities
+    cartography.intel.crowdstrike.spotlight.sync_vulnerabilities(
         neo4j_session,
-        vulnerability_data,
         TEST_UPDATE_TAG,
+        authorization,
     )
 
-    expected_nodes = {
+    # Verify CrowdstrikeHost nodes
+    assert check_nodes(neo4j_session, "CrowdstrikeHost", ["id"]) == {
+        ("00000000000000000000000000000000",),
+    }
+
+    # Verify SpotlightVulnerability nodes
+    assert check_nodes(neo4j_session, "SpotlightVulnerability", ["id", "cve_id", "status"]) == {
         (
-            "00000000000000000000000000000000",
             "00000000000000000000000000000000_00000000000000000000000000000000",
             "CVE-2019-5094",
+            "open",
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (h:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(v:SpotlightVulnerability)-[:HAS_CVE]->(c:CVE)
-        RETURN h.id, v.id, c.id
-        """,
-    )
-    actual_nodes = {
-        (
-            n["h.id"],
-            n["v.id"],
-            n["c.id"],
-        )
-        for n in nodes
+    # Verify CVE nodes
+    assert check_nodes(neo4j_session, "CVE", ["id", "base_score"]) == {
+        ("CVE-2019-5094", 6.7),
     }
-    assert actual_nodes == expected_nodes
+
+    # Verify CrowdstrikeHost -[:HAS_VULNERABILITY]-> SpotlightVulnerability
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeHost", "id",
+        "SpotlightVulnerability", "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {
+        ("00000000000000000000000000000000", "00000000000000000000000000000000_00000000000000000000000000000000"),
+    }
+
+    # Verify SpotlightVulnerability -[:HAS_CVE]-> CVE
+    assert check_rels(
+        neo4j_session,
+        "SpotlightVulnerability", "id",
+        "CVE", "id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    ) == {
+        ("00000000000000000000000000000000_00000000000000000000000000000000", "CVE-2019-5094"),
+    }

@@ -1,146 +1,83 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.redshift
-import tests.data.aws.redshift
+from tests.data.aws.redshift import CLUSTERS
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "1111"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_redshift_cluster_data(neo4j_session):
-    _ensure_local_neo4j_has_test_cluster_data(neo4j_session)
+@patch.object(
+    cartography.intel.aws.redshift,
+    "get_redshift_cluster_data",
+    return_value=CLUSTERS,
+)
+def test_sync_redshift_clusters(mock_get_data, neo4j_session):
+    """
+    Ensure that sync() creates RedshiftCluster nodes and all expected relationships.
+    """
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    # Test that the Redshift cluster node was created
-    expected_nodes = {
-        "arn:aws:redshift:us-east-1:1111:cluster:my-cluster",
-    }
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:RedshiftCluster) RETURN n.id;
-        """,
-    )
-    actual_nodes = {n["n.id"] for n in nodes}
-    assert actual_nodes == expected_nodes
-
-
-def test_load_redshift_cluster_and_aws_account(neo4j_session):
-    # Create test AWSAccount
-    neo4j_session.run(
-        """
-        MERGE (aws:AWSAccount{id: $aws_account_id})
-        ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag, aws :Tenant
-        """,
-        aws_account_id=TEST_ACCOUNT_ID,
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
-    _ensure_local_neo4j_has_test_cluster_data(neo4j_session)
-
-    # Test that AWSAccount-to-RedshiftCluster relationships exist
-    expected = {
-        (TEST_ACCOUNT_ID, "arn:aws:redshift:us-east-1:1111:cluster:my-cluster"),
-    }
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:RedshiftCluster) RETURN n1.id, n2.id;
-        """,
-    )
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
-def test_load_redshift_cluster_and_security_group(neo4j_session):
-    # Create test EC2 security group
-    neo4j_session.run(
-        """
-        MERGE (aws:EC2SecurityGroup{id: $GroupId})
-        ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
-        """,
-        GroupId="my-vpc-sg",
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
-    _ensure_local_neo4j_has_test_cluster_data(neo4j_session)
-
-    # Test that RedshiftCluster-to-EC2SecurityGroup relationships exist
-    expected = {
-        ("my-vpc-sg", "arn:aws:redshift:us-east-1:1111:cluster:my-cluster"),
-    }
-    result = neo4j_session.run(
-        """
-        MATCH (n1:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(n2:RedshiftCluster) RETURN n1.id, n2.id;
-        """,
-    )
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
-def test_load_redshift_cluster_and_iam_role(neo4j_session):
-    # Create test IAM role
-    neo4j_session.run(
-        """
-        MERGE (aws:AWSPrincipal:AWSRole{arn: $RoleArn})
-        ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
-        """,
-        RoleArn="arn:aws:iam::1111:role/my-test-role",
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
-    _ensure_local_neo4j_has_test_cluster_data(neo4j_session)
-
-    # Test that RedshiftCluster-to-IAM-role relationships exist
-    expected = {
-        (
-            "arn:aws:iam::1111:role/my-redshift-iam-role",
-            "arn:aws:redshift:us-east-1:1111:cluster:my-cluster",
-        ),
-    }
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSPrincipal)<-[:STS_ASSUMEROLE_ALLOW]-(n2:RedshiftCluster) RETURN n1.arn, n2.id;
-        """,
-    )
-    actual = {(r["n1.arn"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
-def test_load_redshift_cluster_and_vpc(neo4j_session):
-    # Create test VPC
-    neo4j_session.run(
-        """
-        MERGE (aws:AWSVpc{id: $VpcId})
-        ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
-        """,
-        VpcId="my_vpc",
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
-    _ensure_local_neo4j_has_test_cluster_data(neo4j_session)
-
-    # Test that RedshiftCluster-to-VPC relationships exist
-    expected = {
-        ("my_vpc", "arn:aws:redshift:us-east-1:1111:cluster:my-cluster"),
-    }
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSVpc)<-[:MEMBER_OF_AWS_VPC]-(n2:RedshiftCluster) RETURN n1.id, n2.id;
-        """,
-    )
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
-def _ensure_local_neo4j_has_test_cluster_data(neo4j_session):
-    """Pre-load the Neo4j instance with sample Redshift data"""
-    clusters = tests.data.aws.redshift.CLUSTERS
-    cartography.intel.aws.redshift.transform_redshift_cluster_data(
-        clusters,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-    )
-    cartography.intel.aws.redshift.load_redshift_cluster_data(
+    cartography.intel.aws.redshift.sync(
         neo4j_session,
-        clusters,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+
+    # Verify RedshiftCluster node
+    assert check_nodes(neo4j_session, "RedshiftCluster", ["id"]) == {
+        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster",),
+    }
+
+    # Verify AWSAccount -[:RESOURCE]-> RedshiftCluster
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount", "id",
+        "RedshiftCluster", "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "arn:aws:redshift:us-east-1:1111:cluster:my-cluster"),
+    }
+
+    # Verify RedshiftCluster -[:MEMBER_OF_EC2_SECURITY_GROUP]-> EC2SecurityGroup
+    assert check_rels(
+        neo4j_session,
+        "RedshiftCluster", "id",
+        "EC2SecurityGroup", "id",
+        "MEMBER_OF_EC2_SECURITY_GROUP",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster", "my-vpc-sg"),
+    }
+
+    # Verify RedshiftCluster -[:STS_ASSUMEROLE_ALLOW]-> AWSPrincipal
+    assert check_rels(
+        neo4j_session,
+        "RedshiftCluster", "id",
+        "AWSPrincipal", "arn",
+        "STS_ASSUMEROLE_ALLOW",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster", "arn:aws:iam::1111:role/my-redshift-iam-role"),
+    }
+
+    # Verify RedshiftCluster -[:MEMBER_OF_AWS_VPC]-> AWSVpc
+    assert check_rels(
+        neo4j_session,
+        "RedshiftCluster", "id",
+        "AWSVpc", "id",
+        "MEMBER_OF_AWS_VPC",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster", "my_vpc"),
+    }
