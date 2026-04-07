@@ -21,7 +21,7 @@ class ElasticBeanstalkEnvironmentNodeProperties(CartographyNodeProperties):
     solution_stack_name: PropertyRef = PropertyRef("SolutionStackName")
     platform_arn: PropertyRef = PropertyRef("PlatformArn")
     endpoint_url: PropertyRef = PropertyRef("EndpointURL")
-    cname: PropertyRef = PropertyRef("CNAME")
+    cname: PropertyRef = PropertyRef("CNAME", extra_index=True)
     status: PropertyRef = PropertyRef("Status")
     abortable_operation_in_progress: PropertyRef = PropertyRef(
         "AbortableOperationInProgress"
