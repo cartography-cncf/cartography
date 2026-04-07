@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,7 +11,6 @@ from cartography.models.tailscale.device import TailscaleDeviceSchema
 from cartography.models.tailscale.tag import TailscaleTagSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -93,7 +91,6 @@ def load_devices(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Devices to the graph")
     load(
         neo4j_session,
         TailscaleDeviceSchema(),
@@ -110,7 +107,6 @@ def load_tags(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Tags to the graph")
     load(
         neo4j_session,
         TailscaleTagSchema(),

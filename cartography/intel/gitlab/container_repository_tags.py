@@ -132,7 +132,6 @@ def load_container_repository_tags(
     """
     Load GitLab container repository tags into the graph.
     """
-    logger.info(f"Loading {len(tags)} container repository tags for {org_url}")
     load(
         neo4j_session,
         GitLabContainerRepositoryTagSchema(),

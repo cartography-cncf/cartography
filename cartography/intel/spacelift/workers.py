@@ -91,8 +91,6 @@ def load_workers(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(workers_data)} Spacelift workers")
-
 
 @timeit
 def cleanup_workers(
@@ -124,5 +122,3 @@ def sync_workers(
         account_id,
     )
     cleanup_workers(neo4j_session, common_job_parameters)
-
-    logger.info(f"Synced {len(transformed_workers)} Spacelift workers")

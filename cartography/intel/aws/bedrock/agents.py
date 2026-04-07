@@ -188,8 +188,6 @@ def load_agents(
     """
     Load agents into the graph database.
     """
-    logger.info("Loading %d Bedrock agents for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockAgentSchema(),

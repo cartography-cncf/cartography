@@ -192,7 +192,6 @@ def load_pods(
             },
         )
 
-    logger.info(f"Loading {len(pods)} kubernetes pods.")
     load(
         session,
         KubernetesPodSchema(),
@@ -219,7 +218,6 @@ def load_containers(
     cluster_name: str,
     region: str | None = None,
 ) -> None:
-    logger.info(f"Loading {len(containers)} kubernetes containers.")
     load(
         session,
         KubernetesContainerSchema(),

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,7 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.subimage.neo4juser import SubImageNeo4jUserSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 
 
@@ -46,7 +44,6 @@ def load_neo4jusers(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d SubImage Neo4jUsers into Neo4j.", len(data))
     load(
         neo4j_session,
         SubImageNeo4jUserSchema(),

@@ -483,10 +483,6 @@ def load_role_assumptions(
         _sub_resource_id=current_aws_account_id,
     )
 
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} role assumption relationships"
-    )
-
 
 @timeit
 def load_saml_role_assumptions(
@@ -525,10 +521,6 @@ def load_saml_role_assumptions(
         _sub_resource_id=current_aws_account_id,
     )
 
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} SAML role assumption relationships"
-    )
-
 
 @timeit
 def load_web_identity_role_assumptions(
@@ -565,10 +557,6 @@ def load_web_identity_role_assumptions(
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
         _sub_resource_id=current_aws_account_id,
-    )
-
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} WebIdentity role assumption relationships"
     )
 
 

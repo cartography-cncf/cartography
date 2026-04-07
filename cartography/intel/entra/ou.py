@@ -75,7 +75,6 @@ def load_ous(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info(f"Loading {len(units)} Entra OUs")
     load(
         neo4j_session,
         EntraOUSchema(),
