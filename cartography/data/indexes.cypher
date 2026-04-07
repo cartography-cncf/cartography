@@ -1,8 +1,3 @@
-CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGateway) ON (n.arn);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGateway) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGateway) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGatewayAttachment) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGatewayAttachment) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:DBGroup) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:DBGroup) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:DNSRecord) ON (n.id);
