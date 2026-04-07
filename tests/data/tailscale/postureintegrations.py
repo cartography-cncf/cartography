@@ -13,5 +13,20 @@ TAILSCALE_POSTUREINTEGRATIONS = [
             "matchedCount": "11",
             "possibleMatchedCount": "16",
         },
-    }
+    },
+    {
+        "provider": "sentinelone",
+        "cloudId": "us-2",
+        "clientId": "tenant-42",
+        "tenantId": "sentinelone-tenant",
+        "id": "pcBEPQVMpki7S1",
+        "configUpdated": "2024-06-20T13:43:43.239839Z",
+        "status": {
+            "lastSync": "2024-06-20T08:44:33.872282-05:00",
+            "error": "",
+            "providerHostCount": "24",
+            "matchedCount": "12",
+            "possibleMatchedCount": "12",
+        },
+    },
 ]

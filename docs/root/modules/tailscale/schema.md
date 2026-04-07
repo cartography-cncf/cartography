@@ -5,6 +5,8 @@ graph LR
 A(Tailnet) -- RESOURCE --> U(User)
 A -- RESOURCE --> D(Device)
 A -- RESOURCE --> PI(PostureIntegration)
+A -- RESOURCE --> DP(DevicePosture)
+A -- RESOURCE --> DPC(DevicePostureCondition)
 A -- RESOURCE --> G(Group)
 A -- RESOURCE --> T(Tag)
 U -- OWNS --> D
@@ -13,6 +15,10 @@ G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
 D -- TAGGED --> T
+DP -- HAS_CONDITION --> DPC
+DPC -- REQUIRES --> PI
+D -- CONFORMS_TO --> DPC
+D -- CONFORMS_TO --> DP
 ```
 
 ### TailscaleTailnet
@@ -36,12 +42,14 @@ Settings for a tailnet (aka Tenant).
 | posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
-- `User`, `Device`, `PostureIntegration`, `Group`, `Tag` belong to a `Tailnet`.
+- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag` belong to a `Tailnet`.
     ```
     (:TailscaleTailnet)-[:RESOURCE]->(
         :TailscaleUser,
         :TailscaleDevice,
         :TailscalePostureIntegration,
+        :TailscaleDevicePosture,
+        :TailscaleDevicePostureCondition,
         :TailscaleGroup,
         :Tailscale:Tag
     )
@@ -135,6 +143,67 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 - `Devices` are tagged with `Tag`
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
+    ```
+- `Devices` can conform to posture conditions and full postures.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+
+
+### TailscaleDevicePosture
+
+Logical posture policy blocks defined in the ACL.
+
+| Field | Description |
+|-------|-------------|
+| id | Posture ID from the ACL, for example `posture:healthySentinelOneMac`. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | Posture name without the `posture:` prefix. |
+| description | Human-readable description generated from the ACL conditions. |
+
+#### Relationships
+- `DevicePosture` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevicePosture)
+    ```
+- `DevicePosture` is composed of one or more `DevicePostureCondition` nodes.
+    ```
+    (:TailscaleDevicePosture)-[:HAS_CONDITION]->(:TailscaleDevicePostureCondition)
+    ```
+- `Devices` can conform to the full posture.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+
+
+### TailscaleDevicePostureCondition
+
+Atomic posture assertions extracted from ACL posture definitions.
+
+| Field | Description |
+|-------|-------------|
+| id | Stable condition identifier derived from the posture ID and condition index. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | The posture attribute being evaluated, for example `sentinelone_infected` or `node:os`. |
+| provider | The provider/namespace inferred from the attribute, for example `sentinelone` or `node`. |
+| operator | Comparison operator such as `==`, `IN`, or `IS SET`. |
+| value | Expected comparison value serialized as a string. |
+
+#### Relationships
+- `DevicePostureCondition` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevicePostureCondition)
+    ```
+- `DevicePostureCondition` can require a configured posture integration.
+    ```
+    (:TailscaleDevicePostureCondition)-[:REQUIRES]->(:TailscalePostureIntegration)
+    ```
+- `Devices` can conform to individual conditions, enabling partial compliance analysis.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
     ```
 
 

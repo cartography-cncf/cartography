@@ -1,0 +1,209 @@
+import json
+import logging
+import re
+from typing import Any
+
+import neo4j
+
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
+from cartography.models.tailscale.deviceposture import (
+    TailscaleDeviceToPostureConditionMatchLink,
+)
+from cartography.models.tailscale.deviceposture import TailscaleDeviceToPostureMatchLink
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
+
+MATCHLINK_SUB_RESOURCE_LABEL = "TailscaleTailnet"
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    org: str,
+    update_tag: int,
+    postures: list[dict[str, Any]],
+    posture_conditions: list[dict[str, Any]],
+    device_posture_attributes: dict[str, dict[str, Any]],
+) -> None:
+    condition_matches, posture_matches = resolve_posture_compliance(
+        postures,
+        posture_conditions,
+        device_posture_attributes,
+    )
+
+    if condition_matches:
+        load_matchlinks(
+            neo4j_session,
+            TailscaleDeviceToPostureConditionMatchLink(),
+            condition_matches,
+            lastupdated=update_tag,
+            _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
+            _sub_resource_id=org,
+        )
+
+    if posture_matches:
+        load_matchlinks(
+            neo4j_session,
+            TailscaleDeviceToPostureMatchLink(),
+            posture_matches,
+            lastupdated=update_tag,
+            _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
+            _sub_resource_id=org,
+        )
+
+    GraphJob.from_matchlink(
+        TailscaleDeviceToPostureConditionMatchLink(),
+        MATCHLINK_SUB_RESOURCE_LABEL,
+        org,
+        update_tag,
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TailscaleDeviceToPostureMatchLink(),
+        MATCHLINK_SUB_RESOURCE_LABEL,
+        org,
+        update_tag,
+    ).run(neo4j_session)
+
+
+def resolve_posture_compliance(
+    postures: list[dict[str, Any]],
+    posture_conditions: list[dict[str, Any]],
+    device_posture_attributes: dict[str, dict[str, Any]],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    conditions_by_posture: dict[str, list[dict[str, Any]]] = {}
+    for condition in posture_conditions:
+        conditions_by_posture.setdefault(condition["posture_id"], []).append(condition)
+
+    condition_matches: list[dict[str, str]] = []
+    posture_matches: list[dict[str, str]] = []
+
+    for device_id, attributes in device_posture_attributes.items():
+        matched_condition_ids: set[str] = set()
+
+        for condition in posture_conditions:
+            if device_matches_condition(attributes, condition):
+                matched_condition_ids.add(condition["id"])
+                condition_matches.append(
+                    {
+                        "device_id": device_id,
+                        "condition_id": condition["id"],
+                    },
+                )
+
+        for posture in postures:
+            posture_condition_ids = {
+                condition["id"]
+                for condition in conditions_by_posture.get(posture["id"], [])
+            }
+            if posture_condition_ids and posture_condition_ids.issubset(
+                matched_condition_ids,
+            ):
+                posture_matches.append(
+                    {
+                        "device_id": device_id,
+                        "posture_id": posture["id"],
+                    },
+                )
+
+    logger.info(
+        "Resolved %d condition compliance links and %d posture compliance links",
+        len(condition_matches),
+        len(posture_matches),
+    )
+    return condition_matches, posture_matches
+
+
+def device_matches_condition(
+    device_attributes: dict[str, Any],
+    condition: dict[str, Any],
+) -> bool:
+    attribute_name = condition["name"]
+    operator = condition["operator"].upper()
+
+    if operator == "IS SET":
+        return attribute_name in device_attributes and device_attributes[attribute_name] is not None
+
+    if attribute_name not in device_attributes:
+        return False
+
+    actual_value = device_attributes[attribute_name]
+    expected_value = _parse_expected_value(condition["value"])
+
+    if operator == "IN":
+        if not isinstance(expected_value, list):
+            return False
+        return actual_value in expected_value
+    if operator == "NOT IN":
+        if not isinstance(expected_value, list):
+            return False
+        return actual_value not in expected_value
+    if operator == "==":
+        return _compare_values(actual_value, expected_value) == 0
+    if operator == "!=":
+        return _compare_values(actual_value, expected_value) != 0
+    if operator == ">":
+        return _compare_values(actual_value, expected_value) > 0
+    if operator == ">=":
+        return _compare_values(actual_value, expected_value) >= 0
+    if operator == "<":
+        return _compare_values(actual_value, expected_value) < 0
+    if operator == "<=":
+        return _compare_values(actual_value, expected_value) <= 0
+
+    logger.debug("Unsupported Tailscale posture operator %s", operator)
+    return False
+
+
+def _parse_expected_value(value: str) -> Any:
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    if normalized.lower() == "true":
+        return True
+    if normalized.lower() == "false":
+        return False
+
+    if normalized.startswith("["):
+        return json.loads(normalized)
+
+    if re.fullmatch(r"-?\d+", normalized):
+        return int(normalized)
+    if re.fullmatch(r"-?\d+\.\d+", normalized):
+        return float(normalized)
+
+    return normalized
+
+
+def _compare_values(left: Any, right: Any) -> int:
+    left_value, right_value = _normalize_comparison_pair(left, right)
+    if left_value < right_value:
+        return -1
+    if left_value > right_value:
+        return 1
+    return 0
+
+
+def _normalize_comparison_pair(left: Any, right: Any) -> tuple[Any, Any]:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return bool(left), bool(right)
+
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left, right
+
+    left_string = str(left)
+    right_string = str(right)
+    if _looks_like_version(left_string) and _looks_like_version(right_string):
+        return _version_key(left_string), _version_key(right_string)
+
+    return left_string, right_string
+
+
+def _looks_like_version(value: str) -> bool:
+    return bool(re.fullmatch(r"v?\d+(?:\.\d+)+", value))
+
+
+def _version_key(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.lstrip("v").split("."))

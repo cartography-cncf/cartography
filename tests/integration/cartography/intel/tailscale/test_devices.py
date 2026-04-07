@@ -3,6 +3,7 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.tailscale.devices
+import tests.data.tailscale.devicepostureattributes
 import tests.data.tailscale.devices
 from tests.integration.cartography.intel.tailscale.test_tailnets import (
     _ensure_local_neo4j_has_test_tailnets,
@@ -36,7 +37,12 @@ def _ensure_local_neo4j_has_test_devices(neo4j_session):
     "get",
     return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
 )
-def test_load_tailscale_devices(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_load_tailscale_devices(mock_attrs, mock_api, neo4j_session):
     """
     Ensure that devices actually get loaded
     """
@@ -82,6 +88,31 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
     }
     actual = {
         (r["id"], tuple(r["addresses"]) if r["addresses"] else (), r["serial_number"])
+        for r in result
+    }
+    assert actual == expected
+
+    result = neo4j_session.run(
+        """
+        MATCH (n:TailscaleDevice)
+        RETURN
+            n.id AS id,
+            n.posture_node_os AS posture_node_os,
+            n.posture_sentinelone_infected AS posture_sentinelone_infected
+        """,
+    )
+    expected = {
+        ("abcskgfgCN789", "android", True),
+        ("p892kg92CNTRL", "windows", True),
+        ("n2fskgfgCNT89", "macos", False),
+        ("n292kg92CNTRL", "linux", False),
+    }
+    actual = {
+        (
+            r["id"],
+            r["posture_node_os"],
+            r["posture_sentinelone_infected"],
+        )
         for r in result
     }
     assert actual == expected
