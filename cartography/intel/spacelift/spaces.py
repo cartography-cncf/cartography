@@ -106,3 +106,4 @@ def sync_spaces(
         account_id,
     )
     cleanup_spaces(neo4j_session, common_job_parameters)
+    logger.info("Synced Spacelift spaces for account %s", account_id)

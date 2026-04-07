@@ -125,3 +125,4 @@ def sync_worker_pools(
 
     # 4. CLEANUP - Remove stale data
     cleanup_worker_pools(neo4j_session, common_job_parameters)
+    logger.info("Synced Spacelift worker pools for account %s", account_id)

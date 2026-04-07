@@ -122,3 +122,4 @@ def sync_workers(
         account_id,
     )
     cleanup_workers(neo4j_session, common_job_parameters)
+    logger.info("Synced Spacelift workers for account %s", account_id)

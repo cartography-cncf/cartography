@@ -450,3 +450,4 @@ def sync_runs(
     cleanup_users(neo4j_session, common_job_parameters)
     cleanup_commits(neo4j_session, common_job_parameters)
     cleanup_runs(neo4j_session, common_job_parameters)
+    logger.info("Synced Spacelift runs for account %s", account_id)

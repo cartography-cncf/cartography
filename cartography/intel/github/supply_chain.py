@@ -403,6 +403,7 @@ def sync(
         if wf.get("repo_url") and wf.get("path")
     ]
     if workflow_data:
+        logger.info("Matching PACKAGED_BY for %d workflows", len(workflow_data))
         load_matchlinks(
             neo4j_session,
             ImagePackagedByWorkflowMatchLink(),

@@ -113,3 +113,4 @@ def sync_stacks(
         account_id,
     )
     cleanup_stacks(neo4j_session, common_job_parameters)
+    logger.info("Synced Spacelift stacks for account %s", account_id)
