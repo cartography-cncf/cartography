@@ -101,3 +101,11 @@ def test_sync_config(mock_recorders, mock_channels, mock_rules, neo4j_session):
             "us-east-1",
         ),
     }
+
+    # Verify source_details separately — it's a list property which is unhashable inside check_nodes()
+    result = neo4j_session.run("MATCH (n:AWSConfigRule) RETURN n.source_details")
+    records = list(result)
+    assert len(records) == 1
+    assert records[0]["n.source_details"] == [
+        "{'EventSource': 'aws.config', 'MessageType': 'ConfigurationItemChangeNotification'}",
+    ]
