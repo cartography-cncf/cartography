@@ -27,11 +27,51 @@ def sync(
     posture_conditions: list[dict[str, Any]],
     device_posture_attributes: dict[str, dict[str, Any]],
 ) -> None:
-    condition_matches, posture_matches = resolve_posture_compliance(
+    posture_resolution = get(
         postures,
         posture_conditions,
         device_posture_attributes,
     )
+    condition_matches, posture_matches = transform(posture_resolution)
+    load(
+        neo4j_session,
+        org,
+        update_tag,
+        condition_matches,
+        posture_matches,
+    )
+    cleanup(
+        neo4j_session,
+        org,
+        update_tag,
+    )
+
+
+def get(
+    postures: list[dict[str, Any]],
+    posture_conditions: list[dict[str, Any]],
+    device_posture_attributes: dict[str, dict[str, Any]],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    return resolve_posture_compliance(
+        postures,
+        posture_conditions,
+        device_posture_attributes,
+    )
+
+
+def transform(
+    posture_resolution: tuple[list[dict[str, str]], list[dict[str, str]]],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    return posture_resolution
+
+
+def load(
+    neo4j_session: neo4j.Session,
+    org: str,
+    update_tag: int,
+    condition_matches: list[dict[str, str]],
+    posture_matches: list[dict[str, str]],
+) -> None:
 
     if condition_matches:
         load_matchlinks(
@@ -53,6 +93,12 @@ def sync(
             _sub_resource_id=org,
         )
 
+
+def cleanup(
+    neo4j_session: neo4j.Session,
+    org: str,
+    update_tag: int,
+) -> None:
     GraphJob.from_matchlink(
         TailscaleDeviceToPostureConditionMatchLink(),
         MATCHLINK_SUB_RESOURCE_LABEL,
@@ -123,7 +169,10 @@ def device_matches_condition(
     operator = condition["operator"].upper()
 
     if operator == "IS SET":
-        return attribute_name in device_attributes and device_attributes[attribute_name] is not None
+        return (
+            attribute_name in device_attributes
+            and device_attributes[attribute_name] is not None
+        )
 
     if attribute_name not in device_attributes:
         return False
@@ -156,7 +205,10 @@ def device_matches_condition(
     return False
 
 
-def _parse_expected_value(value: str) -> Any:
+def _parse_expected_value(value: Any) -> Any:
+    if value is None:
+        return None
+
     normalized = value.strip()
     if not normalized:
         return None

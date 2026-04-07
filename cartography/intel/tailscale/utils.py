@@ -168,7 +168,10 @@ class ACLParser:
         return postures, conditions
 
     @classmethod
-    def _parse_posture_condition(cls, raw_condition: str) -> Optional[Dict[str, str]]:
+    def _parse_posture_condition(
+        cls,
+        raw_condition: str,
+    ) -> Optional[Dict[str, Any]]:
         condition = raw_condition.strip()
 
         not_in_match = cls.RE_NOT_IN.match(condition)
@@ -202,7 +205,7 @@ class ACLParser:
                 "attribute": attribute,
                 "provider": derive_provider(attribute),
                 "operator": "IS SET",
-                "value": "",
+                "value": None,
             }
 
         binary_match = cls.RE_BINARY.match(condition)
@@ -290,11 +293,11 @@ def _parse_condition_value(raw_value: str) -> Any:
         return value.strip("'\"")
 
 
-def _stringify_condition_value(value: Any) -> str:
+def _stringify_condition_value(value: Any) -> Optional[str]:
     if isinstance(value, bool):
         return str(value).lower()
     if value is None:
-        return ""
+        return None
     if isinstance(value, (list, dict)):
         return json.dumps(value, sort_keys=True)
     return str(value)

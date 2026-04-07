@@ -175,18 +175,12 @@ def get_device_posture_attributes(
                     attribute_data.get("value"),
                 )
                 attributes[attribute_name] = normalized_value
-        except requests.exceptions.HTTPError as exc:
-            logger.debug(
-                "Could not fetch posture attributes for Tailscale device %s: %s",
+        except requests.exceptions.RequestException:
+            logger.exception(
+                "Failed to fetch posture attributes for Tailscale device %s",
                 device_id,
-                exc,
             )
-        except requests.exceptions.RequestException as exc:
-            logger.warning(
-                "Error fetching posture attributes for Tailscale device %s: %s",
-                device_id,
-                exc,
-            )
+            raise
 
         results[device_id] = attributes
 
@@ -273,11 +267,6 @@ def _build_builtin_device_attributes(device: Dict[str, Any]) -> Dict[str, Any]:
 
     if device.get("clientVersion") is not None:
         attributes["node:tsVersion"] = str(device["clientVersion"]).lstrip("v")
-
-    if device.get("updateAvailable") is not None:
-        attributes["node:updateAvailable"] = _normalize_attribute_value(
-            device["updateAvailable"],
-        )
 
     return attributes
 

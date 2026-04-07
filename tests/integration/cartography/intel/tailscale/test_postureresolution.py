@@ -4,8 +4,8 @@ import requests
 
 import cartography.intel.tailscale.acls
 import cartography.intel.tailscale.devices
-import cartography.intel.tailscale.postureresolution
 import cartography.intel.tailscale.postureintegrations
+import cartography.intel.tailscale.postureresolution
 import tests.data.tailscale.acls
 import tests.data.tailscale.devicepostureattributes
 import tests.data.tailscale.devices
@@ -38,7 +38,13 @@ TEST_ORG = "simpson.corp"
     "get_device_posture_attributes",
     return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
 )
+@patch.object(
+    cartography.intel.tailscale.postureintegrations,
+    "get",
+    return_value=tests.data.tailscale.postureintegrations.TAILSCALE_POSTUREINTEGRATIONS,
+)
 def test_resolve_tailscale_device_posture_compliance(
+    mock_integrations,
     mock_attrs,
     mock_devices,
     mock_acls,
@@ -59,11 +65,11 @@ def test_resolve_tailscale_device_posture_compliance(
         common_job_parameters,
         TEST_ORG,
     )
-    cartography.intel.tailscale.postureintegrations.load_postureintegrations(
+    cartography.intel.tailscale.postureintegrations.sync(
         neo4j_session,
-        tests.data.tailscale.postureintegrations.TAILSCALE_POSTUREINTEGRATIONS,
+        api_session,
+        common_job_parameters,
         TEST_ORG,
-        TEST_UPDATE_TAG,
     )
     postures, posture_conditions = cartography.intel.tailscale.acls.sync(
         neo4j_session,

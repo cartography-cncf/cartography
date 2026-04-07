@@ -22,7 +22,12 @@ TEST_ORG = "simpson.corp"
     "get",
     return_value=tests.data.tailscale.acls.TAILSCALE_ACL_FILE,
 )
-def test_load_tailscale_device_postures(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.tailscale.postureintegrations,
+    "get",
+    return_value=tests.data.tailscale.postureintegrations.TAILSCALE_POSTUREINTEGRATIONS,
+)
+def test_load_tailscale_device_postures(mock_integrations, mock_api, neo4j_session):
     api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -30,11 +35,11 @@ def test_load_tailscale_device_postures(mock_api, neo4j_session):
         "org": TEST_ORG,
     }
     _ensure_local_neo4j_has_test_tailnets(neo4j_session)
-    cartography.intel.tailscale.postureintegrations.load_postureintegrations(
+    cartography.intel.tailscale.postureintegrations.sync(
         neo4j_session,
-        tests.data.tailscale.postureintegrations.TAILSCALE_POSTUREINTEGRATIONS,
+        api_session,
+        common_job_parameters,
         TEST_ORG,
-        TEST_UPDATE_TAG,
     )
 
     cartography.intel.tailscale.acls.sync(
@@ -55,9 +60,21 @@ def test_load_tailscale_device_postures(mock_api, neo4j_session):
     )
 
     expected_conditions = {
-        ("posture:healthySentinelOne:0", "sentinelOne:infected", "sentinelone", "==", "false"),
+        (
+            "posture:healthySentinelOne:0",
+            "sentinelOne:infected",
+            "sentinelone",
+            "==",
+            "false",
+        ),
         ("posture:healthySentinelOneMac:0", "node:os", "node", "==", "macos"),
-        ("posture:healthySentinelOneMac:1", "sentinelOne:infected", "sentinelone", "==", "false"),
+        (
+            "posture:healthySentinelOneMac:1",
+            "sentinelOne:infected",
+            "sentinelone",
+            "==",
+            "false",
+        ),
     }
     assert (
         check_nodes(

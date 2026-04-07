@@ -129,6 +129,39 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 | serial_number | The first serial number from posture identity, if available |
 | posture_identity_serial_numbers | Posture identification collection |
 | posture_identity_disabled |  Device posture identification collection enabled |
+| posture_node_os | Device posture value for `node:os`. |
+| posture_node_os_version | Device posture value for `node:osVersion`. |
+| posture_node_ts_auto_update | Device posture value for `node:tsAutoUpdate`. |
+| posture_node_ts_release_track | Device posture value for `node:tsReleaseTrack`. |
+| posture_node_ts_state_encrypted | Device posture value for `node:tsStateEncrypted`. |
+| posture_node_ts_version | Device posture value for `node:tsVersion`. |
+| posture_ip_country | Device posture value for `ip:country`. |
+| posture_falcon_zta_score | Device posture value for `falcon:ztaScore`. |
+| posture_sentinelone_operational_state | Device posture value for `sentinelOne:operationalState`. |
+| posture_sentinelone_active_threats | Device posture value for `sentinelOne:activeThreats`. |
+| posture_sentinelone_agent_version | Device posture value for `sentinelOne:agentVersion`. |
+| posture_sentinelone_encrypted_applications | Device posture value for `sentinelOne:encryptedApplications`. |
+| posture_sentinelone_firewall_enabled | Device posture value for `sentinelOne:firewallEnabled`. |
+| posture_sentinelone_infected | Device posture value for `sentinelOne:infected`. |
+| posture_kolide_auth_state | Device posture value for `kolide:authState`. |
+| posture_fleet_present | Device posture value for `fleet:present`. |
+| posture_fleet_policies | List of `fleetPolicy:*` posture keys present on the device. |
+| posture_huntress_defender_status | Device posture value for `huntress:defenderStatus`. |
+| posture_huntress_defender_policy_status | Device posture value for `huntress:defenderPolicyStatus`. |
+| posture_huntress_firewall_status | Device posture value for `huntress:firewallStatus`. |
+| posture_kandji_mdm_enabled | Device posture value for `kandji:mdmEnabled`. |
+| posture_kandji_agent_installed | Device posture value for `kandji:agentInstalled`. |
+| posture_jamfpro_remote_managed | Device posture value for `jamfPro:remoteManaged`. |
+| posture_jamfpro_supervised | Device posture value for `jamfPro:supervised`. |
+| posture_jamfpro_firewall_enabled | Device posture value for `jamfPro:firewallEnabled`. |
+| posture_jamfpro_file_vault_status | Device posture value for `jamfPro:fileVaultStatus`. |
+| posture_jamfpro_sip_enabled | Device posture value for `jamfPro:SIPEnabled`. |
+| posture_intune_compliance_state | Device posture value for `intune:complianceState`. |
+| posture_intune_azure_ad_registered | Device posture value for `intune:azureADRegistered`. |
+| posture_intune_device_registration_state | Device posture value for `intune:deviceRegistrationState`. |
+| posture_intune_is_supervised | Device posture value for `intune:isSupervised`. |
+| posture_intune_is_encrypted | Device posture value for `intune:isEncrypted`. |
+| posture_intune_managed_device_owner_type | Device posture value for `intune:managedDeviceOwnerType`. |
 
 
 #### Relationships
@@ -187,7 +220,7 @@ Atomic posture assertions extracted from ACL posture definitions.
 | id | Stable condition identifier derived from the posture ID and condition index. |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated | Timestamp of the last time the node was updated |
-| name | The posture attribute being evaluated, for example `sentinelone_infected` or `node:os`. |
+| name | The posture attribute being evaluated, for example `sentinelOne:infected` or `node:os`. |
 | provider | The provider/namespace inferred from the attribute, for example `sentinelone` or `node`. |
 | operator | Comparison operator such as `==`, `IN`, or `IS SET`. |
 | value | Expected comparison value serialized as a string. |
