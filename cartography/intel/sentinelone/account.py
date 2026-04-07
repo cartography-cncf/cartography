@@ -211,8 +211,6 @@ def load_accounts(
         firstseen=update_tag,
     )
 
-    logger.info(f"Loaded {len(accounts_data)} SentinelOne account nodes")
-
 
 @timeit
 def sync_accounts(
@@ -248,7 +246,6 @@ def sync_accounts(
     )
 
     synced_account_ids = [account["id"] for account in transformed_accounts]
-    logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids
 
 

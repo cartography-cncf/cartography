@@ -1290,7 +1290,6 @@ def _sync_s3_notifications(
             )
             continue
 
-    logger.info(f"Loading {len(notifications)} S3 bucket notifications into Neo4j")
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 

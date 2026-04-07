@@ -78,7 +78,6 @@ def load_groups(
     """
     Load GitLab groups into the graph for a specific organization.
     """
-    logger.info(f"Loading {len(groups)} groups for organization {org_url}")
     load(
         neo4j_session,
         GitLabGroupSchema(),

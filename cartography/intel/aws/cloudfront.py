@@ -208,8 +208,6 @@ def load_cloudfront_distributions(
     """
     Load CloudFront distributions into the graph database.
     """
-    logger.info("Loading %d CloudFront distributions into graph", len(data))
-
     load(
         neo4j_session,
         CloudFrontDistributionSchema(),

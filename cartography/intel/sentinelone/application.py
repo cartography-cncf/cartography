@@ -175,7 +175,6 @@ def load_application_data(
     :param update_tag: Update tag to set on the nodes
     :return: None
     """
-    logger.info(f"Loading {len(data)} SentinelOne applications into Neo4j")
     load(
         neo4j_session,
         S1ApplicationSchema(),
@@ -192,7 +191,6 @@ def load_application_versions(
     account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} SentinelOne application versions into Neo4j")
     load(
         neo4j_session,
         S1ApplicationVersionSchema(),

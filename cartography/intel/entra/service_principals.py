@@ -230,5 +230,4 @@ async def sync_service_principals(
         service_principals_batch.clear()
         transformed_service_principals.clear()
 
-    logger.info(f"Completed loading {total_count} service principals")
     cleanup_service_principals(neo4j_session, common_job_parameters)

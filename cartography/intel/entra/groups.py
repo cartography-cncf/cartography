@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import AsyncGenerator
 from typing import Generator
@@ -14,8 +13,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.group import EntraGroupSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -110,7 +107,6 @@ def load_groups(
     update_tag: int,
     tenant_id: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} Entra groups")
     load(
         neo4j_session,
         EntraGroupSchema(),

@@ -79,7 +79,6 @@ def load_internet_gateways(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Internet Gateways in %s.", len(internet_gateways), region)
     load(
         neo4j_session,
         AWSInternetGatewaySchema(),

@@ -330,7 +330,6 @@ def load_service_accounts(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(service_accounts)} KubernetesServiceAccounts")
     load(
         session,
         KubernetesServiceAccountSchema(),
@@ -349,7 +348,6 @@ def load_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(roles)} KubernetesRoles")
     load(
         session,
         KubernetesRoleSchema(),
@@ -368,7 +366,6 @@ def load_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(role_bindings)} KubernetesRoleBindings")
     load(
         session,
         KubernetesRoleBindingSchema(),
@@ -387,7 +384,6 @@ def load_cluster_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_roles)} KubernetesClusterRoles")
     load(
         session,
         KubernetesClusterRoleSchema(),
@@ -406,7 +402,6 @@ def load_cluster_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_role_bindings)} KubernetesClusterRoleBindings")
     load(
         session,
         KubernetesClusterRoleBindingSchema(),
@@ -425,7 +420,6 @@ def load_users(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(users)} KubernetesUsers")
     load(
         session,
         KubernetesUserSchema(),
@@ -444,7 +438,6 @@ def load_groups(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} KubernetesGroups")
     load(
         session,
         KubernetesGroupSchema(),

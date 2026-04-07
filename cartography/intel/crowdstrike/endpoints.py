@@ -35,7 +35,6 @@ def load_host_data(
     """
     Load Crowdstrike host data into Neo4j.
     """
-    logger.info(f"Loading {len(data)} crowdstrike hosts.")
     load(
         neo4j_session,
         CrowdstrikeHostSchema(),

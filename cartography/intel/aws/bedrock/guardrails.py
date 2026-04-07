@@ -79,8 +79,6 @@ def load_guardrails(
     """
     Load guardrails into the graph database.
     """
-    logger.info("Loading %d Bedrock guardrails for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockGuardrailSchema(),
