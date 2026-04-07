@@ -59,8 +59,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:ReplyUri) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:ReplyUri) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:Risk) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:Risk) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:SecurityHub) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:SecurityHub) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.cve_id);
 CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.host_info_local_ip);
