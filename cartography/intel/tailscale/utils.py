@@ -36,10 +36,21 @@ class ACLParser:
     )
     RE_TRAILING_COMMA = re.compile(r",(?=\s*?[\}\]])")
     RE_NOT_IN = re.compile(
-        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+NOT\s+IN\s+(?P<value>\[.*\])$"
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+NOT\s+IN\s+(?P<value>\[.*\])$",
+        flags=re.IGNORECASE,
     )
-    RE_IN = re.compile(r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IN\s+(?P<value>\[.*\])$")
-    RE_IS_SET = re.compile(r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IS\s+SET$")
+    RE_IN = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IN\s+(?P<value>\[.*\])$",
+        flags=re.IGNORECASE,
+    )
+    RE_IS_SET = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IS\s+SET$",
+        flags=re.IGNORECASE,
+    )
+    RE_NOT_SET = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+NOT\s+SET$",
+        flags=re.IGNORECASE,
+    )
     RE_BINARY = re.compile(
         r"^(?P<attribute>[A-Za-z0-9:_-]+)\s*(?P<operator>==|!=|>=|<=|>|<)\s*(?P<value>.+)$",
     )
@@ -205,6 +216,16 @@ class ACLParser:
                 "attribute": attribute,
                 "provider": derive_provider(attribute),
                 "operator": "IS SET",
+                "value": None,
+            }
+
+        not_set_match = cls.RE_NOT_SET.match(condition)
+        if not_set_match:
+            attribute = not_set_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": "NOT SET",
                 "value": None,
             }
 

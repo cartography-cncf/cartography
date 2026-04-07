@@ -1,3 +1,4 @@
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests
@@ -162,3 +163,43 @@ def test_load_tailscale_devices(mock_attrs, mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+
+def test_get_device_posture_attributes_handles_scalar_and_object_values():
+    api_session = Mock()
+    response = Mock()
+    response.json.return_value = {
+        "attributes": {
+            "sentinelOne:infected": "true",
+            "falcon:ztaScore": {"value": "85"},
+            "intune:complianceState": {"value": "compliant"},
+            "fleet:present": True,
+        },
+    }
+    response.raise_for_status.return_value = None
+    api_session.get.return_value = response
+
+    devices = [
+        {
+            "nodeId": "device-1",
+            "os": "linux",
+            "clientVersion": "v1.80.0",
+        },
+    ]
+
+    results = cartography.intel.tailscale.devices.get_device_posture_attributes(
+        api_session,
+        "https://fake.tailscale.com",
+        devices,
+    )
+
+    assert results == {
+        "device-1": {
+            "node:os": "linux",
+            "node:tsVersion": "1.80.0",
+            "sentinelOne:infected": True,
+            "falcon:ztaScore": 85,
+            "intune:complianceState": "compliant",
+            "fleet:present": True,
+        },
+    }

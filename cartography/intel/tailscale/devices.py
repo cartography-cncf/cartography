@@ -171,8 +171,11 @@ def get_device_posture_attributes(
             req.raise_for_status()
             payload = req.json()
             for attribute_name, attribute_data in payload.get("attributes", {}).items():
+                raw_value = attribute_data
+                if isinstance(attribute_data, dict):
+                    raw_value = attribute_data.get("value")
                 normalized_value = _normalize_attribute_value(
-                    attribute_data.get("value"),
+                    raw_value,
                 )
                 attributes[attribute_name] = normalized_value
         except requests.exceptions.RequestException:

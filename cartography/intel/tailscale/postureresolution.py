@@ -16,6 +16,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 MATCHLINK_SUB_RESOURCE_LABEL = "TailscaleTailnet"
+TAILSCALE_VERSION_ATTRIBUTES = {
+    "node:osVersion",
+    "node:tsVersion",
+}
 
 
 @timeit
@@ -47,6 +51,7 @@ def sync(
     )
 
 
+@timeit
 def get(
     postures: list[dict[str, Any]],
     posture_conditions: list[dict[str, Any]],
@@ -173,6 +178,11 @@ def device_matches_condition(
             attribute_name in device_attributes
             and device_attributes[attribute_name] is not None
         )
+    if operator == "NOT SET":
+        return (
+            attribute_name not in device_attributes
+            or device_attributes[attribute_name] is None
+        )
 
     if attribute_name not in device_attributes:
         return False
@@ -189,17 +199,59 @@ def device_matches_condition(
             return False
         return actual_value not in expected_value
     if operator == "==":
-        return _compare_values(actual_value, expected_value) == 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            == 0
+        )
     if operator == "!=":
-        return _compare_values(actual_value, expected_value) != 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            != 0
+        )
     if operator == ">":
-        return _compare_values(actual_value, expected_value) > 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            > 0
+        )
     if operator == ">=":
-        return _compare_values(actual_value, expected_value) >= 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            >= 0
+        )
     if operator == "<":
-        return _compare_values(actual_value, expected_value) < 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            < 0
+        )
     if operator == "<=":
-        return _compare_values(actual_value, expected_value) <= 0
+        return (
+            _compare_values(
+                actual_value,
+                expected_value,
+                attribute_name=attribute_name,
+            )
+            <= 0
+        )
 
     logger.debug("Unsupported Tailscale posture operator %s", operator)
     return False
@@ -229,8 +281,17 @@ def _parse_expected_value(value: Any) -> Any:
     return normalized
 
 
-def _compare_values(left: Any, right: Any) -> int:
-    left_value, right_value = _normalize_comparison_pair(left, right)
+def _compare_values(
+    left: Any,
+    right: Any,
+    *,
+    attribute_name: str | None = None,
+) -> int:
+    left_value, right_value = _normalize_comparison_pair(
+        left,
+        right,
+        attribute_name=attribute_name,
+    )
     if left_value < right_value:
         return -1
     if left_value > right_value:
@@ -238,7 +299,12 @@ def _compare_values(left: Any, right: Any) -> int:
     return 0
 
 
-def _normalize_comparison_pair(left: Any, right: Any) -> tuple[Any, Any]:
+def _normalize_comparison_pair(
+    left: Any,
+    right: Any,
+    *,
+    attribute_name: str | None = None,
+) -> tuple[Any, Any]:
     if isinstance(left, bool) or isinstance(right, bool):
         return bool(left), bool(right)
 
@@ -247,15 +313,37 @@ def _normalize_comparison_pair(left: Any, right: Any) -> tuple[Any, Any]:
 
     left_string = str(left)
     right_string = str(right)
-    if _looks_like_version(left_string) and _looks_like_version(right_string):
+    if (
+        attribute_name in TAILSCALE_VERSION_ATTRIBUTES
+        and isinstance(left, str)
+        and isinstance(right, str)
+    ):
         return _version_key(left_string), _version_key(right_string)
 
     return left_string, right_string
 
 
-def _looks_like_version(value: str) -> bool:
-    return bool(re.fullmatch(r"v?\d+(?:\.\d+)+", value))
+def _version_key(value: str) -> tuple[Any, ...]:
+    version = value.lstrip("v")
+    fields: list[Any] = []
+    remaining = version
+    while remaining:
+        non_numeric, remaining = _split_prefix(remaining, numeric=False)
+        if non_numeric or not fields:
+            fields.append(non_numeric)
+        numeric, remaining = _split_prefix(remaining, numeric=True)
+        if numeric:
+            fields.append(int(numeric))
+        elif not remaining:
+            fields.append(0)
+    if not fields:
+        return ("", 0)
+    return tuple(fields)
 
 
-def _version_key(value: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in value.lstrip("v").split("."))
+def _split_prefix(value: str, *, numeric: bool) -> tuple[str, str]:
+    for index, character in enumerate(value):
+        is_numeric = character.isdigit()
+        if is_numeric != numeric:
+            return value[:index], value[index:]
+    return value, ""
