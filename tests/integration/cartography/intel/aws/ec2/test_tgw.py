@@ -14,10 +14,22 @@ TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(cartography.intel.aws.ec2.tgw, "get_tgw_vpc_attachments", return_value=TGW_VPC_ATTACHMENTS)
-@patch.object(cartography.intel.aws.ec2.tgw, "get_tgw_attachments", return_value=TRANSIT_GATEWAY_ATTACHMENTS)
-@patch.object(cartography.intel.aws.ec2.tgw, "get_transit_gateways", return_value=TRANSIT_GATEWAYS)
-def test_sync_transit_gateways(mock_get_tgws, mock_get_attachments, mock_get_vpc, neo4j_session):
+@patch.object(
+    cartography.intel.aws.ec2.tgw,
+    "get_tgw_vpc_attachments",
+    return_value=TGW_VPC_ATTACHMENTS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.tgw,
+    "get_tgw_attachments",
+    return_value=TRANSIT_GATEWAY_ATTACHMENTS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.tgw, "get_transit_gateways", return_value=TRANSIT_GATEWAYS
+)
+def test_sync_transit_gateways(
+    mock_get_tgws, mock_get_attachments, mock_get_vpc, neo4j_session
+):
     """
     Ensure that sync_transit_gateways() creates AWSTransitGateway and AWSTransitGatewayAttachment nodes
     with proper relationships.
@@ -47,10 +59,15 @@ def test_sync_transit_gateways(mock_get_tgws, mock_get_attachments, mock_get_vpc
     # Verify AWSTransitGatewayAttachment -[:ATTACHED_TO]-> AWSTransitGateway
     assert check_rels(
         neo4j_session,
-        "AWSTransitGatewayAttachment", "id",
-        "AWSTransitGateway", "arn",
+        "AWSTransitGatewayAttachment",
+        "id",
+        "AWSTransitGateway",
+        "arn",
         "ATTACHED_TO",
         rel_direction_right=True,
     ) == {
-        ("tgw-attach-aaaabbbbccccdef01", "arn:aws:ec2:eu-west-1:000000000000:transit-gateway/tgw-0123456789abcdef0"),
+        (
+            "tgw-attach-aaaabbbbccccdef01",
+            "arn:aws:ec2:eu-west-1:000000000000:transit-gateway/tgw-0123456789abcdef0",
+        ),
     }

@@ -23,8 +23,12 @@ TEST_UPDATE_TAG = 123456789
     return_value=[["dummy-id"]],
 )
 @patch.object(cartography.intel.crowdstrike.endpoints, "Hosts")
-@patch.object(cartography.intel.crowdstrike.endpoints, "get_hosts", return_value=GET_HOSTS)
-@patch.object(cartography.intel.crowdstrike.endpoints, "get_host_ids", return_value=[["dummy-id"]])
+@patch.object(
+    cartography.intel.crowdstrike.endpoints, "get_hosts", return_value=GET_HOSTS
+)
+@patch.object(
+    cartography.intel.crowdstrike.endpoints, "get_host_ids", return_value=[["dummy-id"]]
+)
 def test_sync_spotlight_vulnerabilities(
     mock_host_ids,
     mock_hosts,
@@ -59,7 +63,9 @@ def test_sync_spotlight_vulnerabilities(
     }
 
     # Verify SpotlightVulnerability nodes
-    assert check_nodes(neo4j_session, "SpotlightVulnerability", ["id", "cve_id", "status"]) == {
+    assert check_nodes(
+        neo4j_session, "SpotlightVulnerability", ["id", "cve_id", "status"]
+    ) == {
         (
             "00000000000000000000000000000000_00000000000000000000000000000000",
             "CVE-2019-5094",
@@ -75,21 +81,31 @@ def test_sync_spotlight_vulnerabilities(
     # Verify CrowdstrikeHost -[:HAS_VULNERABILITY]-> SpotlightVulnerability
     assert check_rels(
         neo4j_session,
-        "CrowdstrikeHost", "id",
-        "SpotlightVulnerability", "id",
+        "CrowdstrikeHost",
+        "id",
+        "SpotlightVulnerability",
+        "id",
         "HAS_VULNERABILITY",
         rel_direction_right=True,
     ) == {
-        ("00000000000000000000000000000000", "00000000000000000000000000000000_00000000000000000000000000000000"),
+        (
+            "00000000000000000000000000000000",
+            "00000000000000000000000000000000_00000000000000000000000000000000",
+        ),
     }
 
     # Verify SpotlightVulnerability -[:HAS_CVE]-> CVE
     assert check_rels(
         neo4j_session,
-        "SpotlightVulnerability", "id",
-        "CVE", "id",
+        "SpotlightVulnerability",
+        "id",
+        "CVE",
+        "id",
         "HAS_CVE",
         rel_direction_right=True,
     ) == {
-        ("00000000000000000000000000000000_00000000000000000000000000000000", "CVE-2019-5094"),
+        (
+            "00000000000000000000000000000000_00000000000000000000000000000000",
+            "CVE-2019-5094",
+        ),
     }

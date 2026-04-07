@@ -47,8 +47,10 @@ def test_sync_hub(mock_get_hub, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "AWSAccount", "id",
-        "SecurityHub", "id",
+        "AWSAccount",
+        "id",
+        "SecurityHub",
+        "id",
         "RESOURCE",
         rel_direction_right=True,
     ) == {

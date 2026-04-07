@@ -13,9 +13,19 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(cartography.intel.aws.config, "get_config_rules", return_value=LIST_CONFIG_RULES)
-@patch.object(cartography.intel.aws.config, "get_delivery_channels", return_value=LIST_DELIVERY_CHANNELS)
-@patch.object(cartography.intel.aws.config, "get_configuration_recorders", return_value=LIST_CONFIGURATION_RECORDERS)
+@patch.object(
+    cartography.intel.aws.config, "get_config_rules", return_value=LIST_CONFIG_RULES
+)
+@patch.object(
+    cartography.intel.aws.config,
+    "get_delivery_channels",
+    return_value=LIST_DELIVERY_CHANNELS,
+)
+@patch.object(
+    cartography.intel.aws.config,
+    "get_configuration_recorders",
+    return_value=LIST_CONFIGURATION_RECORDERS,
+)
 def test_sync_config(mock_recorders, mock_channels, mock_rules, neo4j_session):
     """
     Ensure that sync() creates AWSConfigurationRecorder, AWSConfigDeliveryChannel, and AWSConfigRule nodes.
@@ -36,7 +46,13 @@ def test_sync_config(mock_recorders, mock_channels, mock_rules, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSConfigurationRecorder",
-        ["id", "name", "recording_group_all_supported", "recording_group_include_global_resource_types", "region"],
+        [
+            "id",
+            "name",
+            "recording_group_all_supported",
+            "recording_group_include_global_resource_types",
+            "region",
+        ],
     ) == {
         (
             "default:000000000000:us-east-1",
@@ -65,7 +81,15 @@ def test_sync_config(mock_recorders, mock_channels, mock_rules, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSConfigRule",
-        ["id", "name", "description", "source_owner", "source_identifier", "created_by", "region"],
+        [
+            "id",
+            "name",
+            "description",
+            "source_owner",
+            "source_identifier",
+            "created_by",
+            "region",
+        ],
     ) == {
         (
             "arn:aws:config:us-east-1:000000000000:config-rule/aws-service-rule/securityhub.amazonaws.com/config-rule-magmce",  # noqa: E501

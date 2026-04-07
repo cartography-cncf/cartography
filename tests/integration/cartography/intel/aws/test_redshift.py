@@ -41,8 +41,10 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
     # Verify AWSAccount -[:RESOURCE]-> RedshiftCluster
     assert check_rels(
         neo4j_session,
-        "AWSAccount", "id",
-        "RedshiftCluster", "id",
+        "AWSAccount",
+        "id",
+        "RedshiftCluster",
+        "id",
         "RESOURCE",
         rel_direction_right=True,
     ) == {
@@ -52,8 +54,10 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
     # Verify RedshiftCluster -[:MEMBER_OF_EC2_SECURITY_GROUP]-> EC2SecurityGroup
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster", "id",
-        "EC2SecurityGroup", "id",
+        "RedshiftCluster",
+        "id",
+        "EC2SecurityGroup",
+        "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
     ) == {
@@ -63,19 +67,26 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
     # Verify RedshiftCluster -[:STS_ASSUMEROLE_ALLOW]-> AWSPrincipal
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster", "id",
-        "AWSPrincipal", "arn",
+        "RedshiftCluster",
+        "id",
+        "AWSPrincipal",
+        "arn",
         "STS_ASSUMEROLE_ALLOW",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster", "arn:aws:iam::1111:role/my-redshift-iam-role"),
+        (
+            "arn:aws:redshift:us-east-1:1111:cluster:my-cluster",
+            "arn:aws:iam::1111:role/my-redshift-iam-role",
+        ),
     }
 
     # Verify RedshiftCluster -[:MEMBER_OF_AWS_VPC]-> AWSVpc
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster", "id",
-        "AWSVpc", "id",
+        "RedshiftCluster",
+        "id",
+        "AWSVpc",
+        "id",
         "MEMBER_OF_AWS_VPC",
         rel_direction_right=True,
     ) == {

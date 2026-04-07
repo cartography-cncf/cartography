@@ -32,8 +32,10 @@ def test_sync_aws_accounts(neo4j_session):
     # Verify AWSAccount -[:RESOURCE]-> AWSRootPrincipal
     assert check_rels(
         neo4j_session,
-        "AWSAccount", "id",
-        "AWSRootPrincipal", "arn",
+        "AWSAccount",
+        "id",
+        "AWSRootPrincipal",
+        "arn",
         "RESOURCE",
         rel_direction_right=True,
     ) == {

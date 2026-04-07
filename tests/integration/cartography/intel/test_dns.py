@@ -27,7 +27,9 @@ def _create_parent_node(neo4j_session):
 
 
 @patch.object(cartography.intel.dns, "get_dns_record_type", return_value="A")
-@patch.object(cartography.intel.dns, "get_dns_resolution_by_fqdn", return_value=RESOLVED_IPS)
+@patch.object(
+    cartography.intel.dns, "get_dns_resolution_by_fqdn", return_value=RESOLVED_IPS
+)
 def test_ingest_dns_record_by_fqdn(mock_resolve, mock_type, neo4j_session):
     """
     Ensure that ingest_dns_record_by_fqdn() creates DNSRecord and Ip nodes with proper relationships.
@@ -57,8 +59,10 @@ def test_ingest_dns_record_by_fqdn(mock_resolve, mock_type, neo4j_session):
     # Verify DNSRecord -[:DNS_POINTS_TO]-> ESDomain
     assert check_rels(
         neo4j_session,
-        "DNSRecord", "id",
-        "ESDomain", "id",
+        "DNSRecord",
+        "id",
+        "ESDomain",
+        "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,
     ) == {
@@ -68,8 +72,10 @@ def test_ingest_dns_record_by_fqdn(mock_resolve, mock_type, neo4j_session):
     # Verify DNSRecord -[:DNS_POINTS_TO]-> Ip
     assert check_rels(
         neo4j_session,
-        "DNSRecord", "id",
-        "Ip", "id",
+        "DNSRecord",
+        "id",
+        "Ip",
+        "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,
     ) == {
