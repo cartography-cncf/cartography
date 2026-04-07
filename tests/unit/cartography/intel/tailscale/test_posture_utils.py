@@ -40,7 +40,7 @@ def test_acl_parser_handles_case_insensitive_set_operators_and_lists() -> None:
             "name": "ip:country",
             "provider": "ip",
             "operator": "IN",
-            "value": "[\"us\"]",
+            "value": '["us"]',
         },
         {
             "id": "posture:test:1",
