@@ -98,20 +98,26 @@ def test_load_tailscale_devices(mock_attrs, mock_api, neo4j_session):
         RETURN
             n.id AS id,
             n.posture_node_os AS posture_node_os,
-            n.posture_sentinelone_infected AS posture_sentinelone_infected
+            n.posture_sentinelone_infected AS posture_sentinelone_infected,
+            n.posture_falcon_zta_score AS posture_falcon_zta_score,
+            n.posture_intune_compliance_state AS posture_intune_compliance_state,
+            n.posture_intune_managed_device_owner_type AS posture_intune_managed_device_owner_type
         """,
     )
     expected = {
-        ("abcskgfgCN789", "android", True),
-        ("p892kg92CNTRL", "windows", True),
-        ("n2fskgfgCNT89", "macos", False),
-        ("n292kg92CNTRL", "linux", False),
+        ("abcskgfgCN789", "android", True, None, None, None),
+        ("p892kg92CNTRL", "windows", True, 85, None, None),
+        ("n2fskgfgCNT89", "macos", False, None, "compliant", "company"),
+        ("n292kg92CNTRL", "linux", False, None, None, None),
     }
     actual = {
         (
             r["id"],
             r["posture_node_os"],
             r["posture_sentinelone_infected"],
+            r["posture_falcon_zta_score"],
+            r["posture_intune_compliance_state"],
+            r["posture_intune_managed_device_owner_type"],
         )
         for r in result
     }
