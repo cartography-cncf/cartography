@@ -106,7 +106,6 @@ def load_roles(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS roles into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSRoleSchema(),

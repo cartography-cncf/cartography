@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -16,8 +15,6 @@ from cartography.models.pagerduty.escalation_policy_rule import (
     PagerDutyEscalationPolicyRuleSchema,
 )
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -83,7 +80,6 @@ def load_escalation_policy_data(
     """
     Transform and load policies information
     """
-    logger.info(f"Loading {len(data)} pagerduty policies.")
     load(
         neo4j_session,
         PagerDutyEscalationPolicySchema(),
@@ -101,7 +97,6 @@ def load_escalation_rule_data(
     """
     Transform and load escalation rules information
     """
-    logger.info(f"Loading {len(data)} pagerduty escalation rules.")
     load(
         neo4j_session,
         PagerDutyEscalationPolicyRuleSchema(),

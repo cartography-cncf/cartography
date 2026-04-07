@@ -193,7 +193,6 @@ def process_repo_commits_batch(
 
         # Load this batch of relationships
         if batch_relationships:
-            logger.info(f"Loading {len(batch_relationships)} relationships for batch")
             load_github_commit_relationships(
                 neo4j_session,
                 batch_relationships,
@@ -315,7 +314,6 @@ def transform_commits_to_user_repo_relationships(
             }
         )
 
-    logger.info(f"Created {len(relationships)} user-repository relationships")
     return relationships
 
 
@@ -337,10 +335,6 @@ def load_github_commit_relationships(
     if not commit_relationships:
         logger.info("No commit relationships to load")
         return
-
-    logger.info(
-        f"Loading {len(commit_relationships)} user-repository commit relationships"
-    )
 
     # Use organization URL as the sub-resource identifier
     org_url = f"https://github.com/{organization}"

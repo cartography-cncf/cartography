@@ -79,7 +79,6 @@ def load_container_repositories(
     """
     Load GitLab container repositories into the graph.
     """
-    logger.debug(f"Loading {len(repositories)} container repositories for {org_url}")
     load(
         neo4j_session,
         GitLabContainerRepositorySchema(),

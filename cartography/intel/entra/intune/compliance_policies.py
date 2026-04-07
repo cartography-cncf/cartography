@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import AsyncGenerator
 
@@ -12,8 +11,6 @@ from cartography.models.entra.intune.compliance_policy import (
     IntuneCompliancePolicySchema,
 )
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 # The @odata.type value tells us the platform since the base class doesn't have it.
 _ODATA_TYPE_TO_PLATFORM = {
@@ -110,7 +107,6 @@ def load_compliance_policies(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(policies)} Intune compliance policy entries")
     load(
         neo4j_session,
         IntuneCompliancePolicySchema(),

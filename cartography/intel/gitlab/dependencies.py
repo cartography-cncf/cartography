@@ -345,7 +345,6 @@ def load_dependencies(
     """
     Load GitLab dependencies into the graph for a specific project.
     """
-    logger.info(f"Loading {len(dependencies)} dependencies for project {project_url}")
     load(
         neo4j_session,
         GitLabDependencySchema(),

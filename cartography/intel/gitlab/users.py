@@ -317,7 +317,6 @@ def load_users(
     relationships when the required PropertyRef fields are missing from the data.
     Here, records contain group_url but not project_url, so only MEMBER_OF is created.
     """
-    logger.info(f"Loading {len(user_records)} user records for organization {org_url}")
     load(
         neo4j_session,
         GitLabUserSchema(),
@@ -341,7 +340,6 @@ def load_commit_activity(
     skips relationships when the required PropertyRef fields are missing from the data.
     Here, records contain project_url but not group_url, so only COMMITTED_TO is created.
     """
-    logger.info(f"Loading {len(activity_records)} commit activity records")
     load(
         neo4j_session,
         GitLabUserSchema(),

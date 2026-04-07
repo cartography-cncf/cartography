@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import AsyncGenerator
 
@@ -18,8 +17,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.entra.intune.managed_device import IntuneManagedDeviceSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -107,7 +104,6 @@ def load_managed_devices(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(devices)} Intune managed devices")
     load(
         neo4j_session,
         IntuneManagedDeviceSchema(),

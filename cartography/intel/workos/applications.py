@@ -104,7 +104,6 @@ def load_applications(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS applications into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSApplicationSchema(),
