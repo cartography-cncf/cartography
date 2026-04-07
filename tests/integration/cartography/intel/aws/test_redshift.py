@@ -23,8 +23,7 @@ def _create_prerequisite_nodes(neo4j_session):
         " ON CREATE SET p.firstseen = timestamp()",
     )
     neo4j_session.run(
-        "MERGE (v:AWSVpc {id: 'my_vpc'})"
-        " ON CREATE SET v.firstseen = timestamp()",
+        "MERGE (v:AWSVpc {id: 'my_vpc'})" " ON CREATE SET v.firstseen = timestamp()",
     )
 
 

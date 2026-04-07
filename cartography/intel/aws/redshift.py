@@ -58,12 +58,10 @@ def transform_redshift_cluster_data(
         cluster["_endpoint_address"] = endpoint.get("Address") if endpoint else None
         cluster["_endpoint_port"] = endpoint.get("Port") if endpoint else None
         cluster["_security_group_ids"] = [
-            sg["VpcSecurityGroupId"]
-            for sg in cluster.get("VpcSecurityGroups", [])
+            sg["VpcSecurityGroupId"] for sg in cluster.get("VpcSecurityGroups", [])
         ]
         cluster["_iam_role_arns"] = [
-            role["IamRoleArn"]
-            for role in cluster.get("IamRoles", [])
+            role["IamRoleArn"] for role in cluster.get("IamRoles", [])
         ]
         result.append(cluster)
     return result

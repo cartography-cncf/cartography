@@ -173,8 +173,12 @@ def cleanup_transit_gateways(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    GraphJob.from_node_schema(AWSTransitGatewaySchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSTransitGatewayAttachmentSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSTransitGatewaySchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(
+        AWSTransitGatewayAttachmentSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 def sync_transit_gateways(
@@ -209,7 +213,8 @@ def sync_transit_gateways(
         tgw_attachments = get_tgw_attachments(boto3_session, region)
         tgw_vpc_attachments = get_tgw_vpc_attachments(boto3_session, region)
         transformed_attachments = transform_tgw_attachments(
-            tgw_attachments, tgw_vpc_attachments,
+            tgw_attachments,
+            tgw_vpc_attachments,
         )
         load_tgw_attachments(
             neo4j_session,

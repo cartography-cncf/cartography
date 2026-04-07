@@ -10,10 +10,10 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # =============================================================================
 # Shared relationship properties
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class TGWRelProperties(CartographyRelProperties):
@@ -23,6 +23,7 @@ class TGWRelProperties(CartographyRelProperties):
 # =============================================================================
 # AWSTransitGateway
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class AWSTransitGatewayNodeProperties(CartographyNodeProperties):
@@ -68,14 +69,17 @@ class AWSTransitGatewaySchema(CartographyNodeSchema):
     sub_resource_relationship: AWSTransitGatewayToAWSAccountRel = (
         AWSTransitGatewayToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        AWSTransitGatewaySharedWithAccountRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewaySharedWithAccountRel(),
+        ]
+    )
 
 
 # =============================================================================
 # AWSTransitGatewayAttachment
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class AWSTransitGatewayAttachmentNodeProperties(CartographyNodeProperties):
@@ -143,8 +147,10 @@ class AWSTransitGatewayAttachmentSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSTransitGatewayAttachmentToAWSAccountRel = (
         AWSTransitGatewayAttachmentToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        AWSTransitGatewayAttachmentToTGWRel(),
-        AWSTransitGatewayAttachmentToVpcRel(),
-        AWSTransitGatewayAttachmentToSubnetRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewayAttachmentToTGWRel(),
+            AWSTransitGatewayAttachmentToVpcRel(),
+            AWSTransitGatewayAttachmentToSubnetRel(),
+        ]
+    )

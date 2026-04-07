@@ -9,10 +9,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # =============================================================================
 # Shared relationship properties
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class AWSConfigToAWSAccountRelProperties(CartographyRelProperties):
@@ -23,17 +23,22 @@ class AWSConfigToAWSAccountRelProperties(CartographyRelProperties):
 # AWSConfigurationRecorder
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AWSConfigurationRecorderNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     role_arn: PropertyRef = PropertyRef("role_arn")
-    recording_group_all_supported: PropertyRef = PropertyRef("recording_group_all_supported")
+    recording_group_all_supported: PropertyRef = PropertyRef(
+        "recording_group_all_supported"
+    )
     recording_group_include_global_resource_types: PropertyRef = PropertyRef(
         "recording_group_include_global_resource_types",
     )
-    recording_group_resource_types: PropertyRef = PropertyRef("recording_group_resource_types")
+    recording_group_resource_types: PropertyRef = PropertyRef(
+        "recording_group_resource_types"
+    )
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
 
 
@@ -46,13 +51,17 @@ class AWSConfigurationRecorderToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSConfigToAWSAccountRelProperties = AWSConfigToAWSAccountRelProperties()
+    properties: AWSConfigToAWSAccountRelProperties = (
+        AWSConfigToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class AWSConfigurationRecorderSchema(CartographyNodeSchema):
     label: str = "AWSConfigurationRecorder"
-    properties: AWSConfigurationRecorderNodeProperties = AWSConfigurationRecorderNodeProperties()
+    properties: AWSConfigurationRecorderNodeProperties = (
+        AWSConfigurationRecorderNodeProperties()
+    )
     sub_resource_relationship: AWSConfigurationRecorderToAWSAccountRel = (
         AWSConfigurationRecorderToAWSAccountRel()
     )
@@ -61,6 +70,7 @@ class AWSConfigurationRecorderSchema(CartographyNodeSchema):
 # =============================================================================
 # AWSConfigDeliveryChannel
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class AWSConfigDeliveryChannelNodeProperties(CartographyNodeProperties):
@@ -86,13 +96,17 @@ class AWSConfigDeliveryChannelToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSConfigToAWSAccountRelProperties = AWSConfigToAWSAccountRelProperties()
+    properties: AWSConfigToAWSAccountRelProperties = (
+        AWSConfigToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class AWSConfigDeliveryChannelSchema(CartographyNodeSchema):
     label: str = "AWSConfigDeliveryChannel"
-    properties: AWSConfigDeliveryChannelNodeProperties = AWSConfigDeliveryChannelNodeProperties()
+    properties: AWSConfigDeliveryChannelNodeProperties = (
+        AWSConfigDeliveryChannelNodeProperties()
+    )
     sub_resource_relationship: AWSConfigDeliveryChannelToAWSAccountRel = (
         AWSConfigDeliveryChannelToAWSAccountRel()
     )
@@ -102,6 +116,7 @@ class AWSConfigDeliveryChannelSchema(CartographyNodeSchema):
 # AWSConfigRule
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AWSConfigRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("ConfigRuleArn")
@@ -110,10 +125,14 @@ class AWSConfigRuleNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     arn: PropertyRef = PropertyRef("ConfigRuleArn")
     rule_id: PropertyRef = PropertyRef("ConfigRuleId")
-    scope_compliance_resource_types: PropertyRef = PropertyRef("scope_compliance_resource_types")
+    scope_compliance_resource_types: PropertyRef = PropertyRef(
+        "scope_compliance_resource_types"
+    )
     scope_tag_key: PropertyRef = PropertyRef("scope_tag_key")
     scope_tag_value: PropertyRef = PropertyRef("scope_tag_value")
-    scope_tag_compliance_resource_id: PropertyRef = PropertyRef("scope_tag_compliance_resource_id")
+    scope_tag_compliance_resource_id: PropertyRef = PropertyRef(
+        "scope_tag_compliance_resource_id"
+    )
     source_owner: PropertyRef = PropertyRef("source_owner")
     source_identifier: PropertyRef = PropertyRef("source_identifier")
     source_details: PropertyRef = PropertyRef("source_details")
@@ -132,7 +151,9 @@ class AWSConfigRuleToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSConfigToAWSAccountRelProperties = AWSConfigToAWSAccountRelProperties()
+    properties: AWSConfigToAWSAccountRelProperties = (
+        AWSConfigToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

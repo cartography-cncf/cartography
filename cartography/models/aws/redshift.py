@@ -116,8 +116,10 @@ class RedshiftClusterSchema(CartographyNodeSchema):
     sub_resource_relationship: RedshiftClusterToAWSAccountRel = (
         RedshiftClusterToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        RedshiftClusterToEC2SecurityGroupRel(),
-        RedshiftClusterToAWSPrincipalRel(),
-        RedshiftClusterToAWSVpcRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            RedshiftClusterToEC2SecurityGroupRel(),
+            RedshiftClusterToAWSPrincipalRel(),
+            RedshiftClusterToAWSVpcRel(),
+        ]
+    )

@@ -63,16 +63,18 @@ def transform_configuration_recorders(
     result: list[dict[str, Any]] = []
     for recorder in recorders:
         recording_group = recorder.get("recordingGroup", {})
-        result.append({
-            "id": f'{recorder["name"]}:{current_aws_account_id}:{region}',
-            "name": recorder["name"],
-            "role_arn": recorder.get("roleARN"),
-            "recording_group_all_supported": recording_group.get("allSupported"),
-            "recording_group_include_global_resource_types": recording_group.get(
-                "includeGlobalResourceTypes",
-            ),
-            "recording_group_resource_types": recording_group.get("resourceTypes"),
-        })
+        result.append(
+            {
+                "id": f'{recorder["name"]}:{current_aws_account_id}:{region}',
+                "name": recorder["name"],
+                "role_arn": recorder.get("roleARN"),
+                "recording_group_all_supported": recording_group.get("allSupported"),
+                "recording_group_include_global_resource_types": recording_group.get(
+                    "includeGlobalResourceTypes",
+                ),
+                "recording_group_resource_types": recording_group.get("resourceTypes"),
+            }
+        )
     return result
 
 
@@ -83,17 +85,20 @@ def transform_delivery_channels(
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for channel in channels:
-        result.append({
-            "id": f'{channel["name"]}:{current_aws_account_id}:{region}',
-            "name": channel["name"],
-            "s3_bucket_name": channel.get("s3BucketName"),
-            "s3_key_prefix": channel.get("s3KeyPrefix"),
-            "s3_kms_key_arn": channel.get("s3KmsKeyArn"),
-            "sns_topic_arn": channel.get("snsTopicARN"),
-            "config_snapshot_delivery_properties_delivery_frequency": channel.get(
-                "configSnapshotDeliveryProperties", {},
-            ).get("deliveryFrequency"),
-        })
+        result.append(
+            {
+                "id": f'{channel["name"]}:{current_aws_account_id}:{region}',
+                "name": channel["name"],
+                "s3_bucket_name": channel.get("s3BucketName"),
+                "s3_key_prefix": channel.get("s3KeyPrefix"),
+                "s3_kms_key_arn": channel.get("s3KmsKeyArn"),
+                "sns_topic_arn": channel.get("snsTopicARN"),
+                "config_snapshot_delivery_properties_delivery_frequency": channel.get(
+                    "configSnapshotDeliveryProperties",
+                    {},
+                ).get("deliveryFrequency"),
+            }
+        )
     return result
 
 
@@ -106,16 +111,18 @@ def transform_config_rules(rules: list[dict]) -> list[dict[str, Any]]:
         if source.get("SourceDetails"):
             for detail in source["SourceDetails"]:
                 source_details.append(f"{detail}")
-        result.append({
-            **rule,
-            "scope_compliance_resource_types": scope.get("ComplianceResourceTypes"),
-            "scope_tag_key": scope.get("TagKey"),
-            "scope_tag_value": scope.get("TagValue"),
-            "scope_tag_compliance_resource_id": scope.get("ComplianceResourceId"),
-            "source_owner": source.get("Owner"),
-            "source_identifier": source.get("SourceIdentifier"),
-            "source_details": source_details,
-        })
+        result.append(
+            {
+                **rule,
+                "scope_compliance_resource_types": scope.get("ComplianceResourceTypes"),
+                "scope_tag_key": scope.get("TagKey"),
+                "scope_tag_value": scope.get("TagValue"),
+                "scope_tag_compliance_resource_id": scope.get("ComplianceResourceId"),
+                "source_owner": source.get("Owner"),
+                "source_identifier": source.get("SourceIdentifier"),
+                "source_details": source_details,
+            }
+        )
     return result
 
 
@@ -175,9 +182,15 @@ def load_config_rules(
 
 @timeit
 def cleanup_config(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
-    GraphJob.from_node_schema(AWSConfigurationRecorderSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSConfigDeliveryChannelSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSConfigRuleSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSConfigurationRecorderSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSConfigDeliveryChannelSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(AWSConfigRuleSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -197,7 +210,9 @@ def sync(
         )
         recorders = get_configuration_recorders(boto3_session, region)
         transformed_recorders = transform_configuration_recorders(
-            recorders, region, current_aws_account_id,
+            recorders,
+            region,
+            current_aws_account_id,
         )
         load_configuration_recorders(
             neo4j_session,
@@ -209,7 +224,9 @@ def sync(
 
         channels = get_delivery_channels(boto3_session, region)
         transformed_channels = transform_delivery_channels(
-            channels, region, current_aws_account_id,
+            channels,
+            region,
+            current_aws_account_id,
         )
         load_delivery_channels(
             neo4j_session,

@@ -41,6 +41,4 @@ class SecurityHubToAWSAccountRel(CartographyRelSchema):
 class SecurityHubSchema(CartographyNodeSchema):
     label: str = "SecurityHub"
     properties: SecurityHubNodeProperties = SecurityHubNodeProperties()
-    sub_resource_relationship: SecurityHubToAWSAccountRel = (
-        SecurityHubToAWSAccountRel()
-    )
+    sub_resource_relationship: SecurityHubToAWSAccountRel = SecurityHubToAWSAccountRel()
