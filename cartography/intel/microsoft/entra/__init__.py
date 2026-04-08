@@ -70,6 +70,17 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A cartography.config object
     :return: None
     """
+    if (
+        not config.entra_tenant_id
+        or not config.entra_client_id
+        or not config.entra_client_secret
+    ):
+        logger.info(
+            "Entra import is not configured - skipping this module. "
+            "See docs to configure.",
+        )
+        return
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "TENANT_ID": config.entra_tenant_id,
