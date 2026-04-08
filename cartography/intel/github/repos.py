@@ -1674,9 +1674,17 @@ def cleanup_github_branches(
     cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
     GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
 
-    # DEPRECATED: Remove this migration function when releasing v1
-    # Clean up orphaned pre-migration GitHubBranch nodes without RESOURCE rel.
-    # Before branch cleanup was scoped to orgs, branches from removed orgs were never cleaned up.
+
+# DEPRECATED: Remove this migration function when releasing v1
+def cleanup_orphaned_github_branches(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """One-time migration: clean up orphaned GitHubBranch nodes without RESOURCE rel.
+
+    Before branch cleanup was scoped to orgs, branches from removed orgs were never cleaned up.
+    This must be called once per sync cycle (not per org) to avoid repeated full-graph scans.
+    """
     neo4j_session.run(
         """
         MATCH (n:GitHubBranch)

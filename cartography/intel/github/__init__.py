@@ -134,3 +134,8 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 valid_repos,
                 workflows=all_workflows,
             )
+
+    # DEPRECATED: one-time migration, run once per sync cycle (not per org)
+    cartography.intel.github.repos.cleanup_orphaned_github_branches(
+        neo4j_session, common_job_parameters,
+    )
