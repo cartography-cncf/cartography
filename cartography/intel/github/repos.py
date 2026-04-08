@@ -1674,6 +1674,21 @@ def cleanup_github_branches(
     cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
     GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
 
+    # DEPRECATED: Remove this migration function when releasing v1
+    # Clean up orphaned pre-migration GitHubBranch nodes without RESOURCE rel.
+    # Before branch cleanup was scoped to orgs, branches from removed orgs were never cleaned up.
+    neo4j_session.run(
+        """
+        MATCH (n:GitHubBranch)
+        WHERE n.lastupdated <> $UPDATE_TAG
+          AND NOT (n)<-[:RESOURCE]-(:GitHubOrganization)
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        LIMIT_SIZE=100,
+    )
+
 
 @timeit
 def cleanup_github_languages(
