@@ -1437,7 +1437,9 @@ def load_github_owners(
     :param repo_owners: list of owner to repo mappings
     :return: Nothing
     """
-    organization_owners = [owner for owner in repo_owners if owner["type"] == "Organization"]
+    organization_owners = [
+        owner for owner in repo_owners if owner["type"] == "Organization"
+    ]
     user_owners = [owner for owner in repo_owners if owner["type"] == "User"]
 
     load_data(
@@ -1699,9 +1701,7 @@ def cleanup_github_collaborators(
     for affiliation in ("DIRECT", "OUTSIDE"):
         for permission in ("ADMIN", "MAINTAIN", "READ", "TRIAGE", "WRITE"):
             GraphJob.from_node_schema(
-                make_github_collaborator_schema(
-                    f"{affiliation}_COLLAB_{permission}"
-                ),
+                make_github_collaborator_schema(f"{affiliation}_COLLAB_{permission}"),
                 common_job_parameters,
             ).run(neo4j_session)
 
@@ -1711,9 +1711,9 @@ def cleanup_python_requirements(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(
-        GitHubPythonLibrarySchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(GitHubPythonLibrarySchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit

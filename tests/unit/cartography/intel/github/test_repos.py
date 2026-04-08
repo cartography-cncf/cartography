@@ -303,7 +303,15 @@ def test_repos_need_privileged_details_when_fields_present():
     "get_repo_privileged_details_by_url",
     side_effect=ValueError("privileged fetch failed"),
 )
-@patch.object(cartography.intel.github.repos, "run_cleanup_job")
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
+@patch.object(cartography.intel.github.repos, "cleanup_python_requirements")
+@patch.object(cartography.intel.github.repos, "cleanup_github_collaborators")
+@patch.object(cartography.intel.github.repos, "cleanup_github_owners")
+@patch.object(cartography.intel.github.repos, "cleanup_github_languages")
+@patch.object(cartography.intel.github.repos, "cleanup_github_branches")
+@patch.object(cartography.intel.github.repos, "cleanup_github_repos")
 @patch.object(cartography.intel.github.repos, "load")
 @patch.object(
     cartography.intel.github.repos,
@@ -315,7 +323,15 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_get,
     mock_get_repo_collaborators,
     mock_load,
-    mock_run_cleanup_job,
+    mock_cleanup_github_repos,
+    mock_cleanup_github_branches,
+    mock_cleanup_github_languages,
+    mock_cleanup_github_owners,
+    mock_cleanup_github_collaborators,
+    mock_cleanup_python_requirements,
+    mock_cleanup_github_dependencies,
+    mock_cleanup_github_manifests,
+    mock_cleanup_branch_protection_rules,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
@@ -339,4 +355,12 @@ def test_sync_continues_when_privileged_fetch_fails(
     )
     assert mock_get_repo_collaborators.call_count == 2
     mock_load.assert_called_once()
-    mock_run_cleanup_job.assert_called_once()
+    mock_cleanup_github_repos.assert_called_once()
+    mock_cleanup_github_branches.assert_called_once()
+    mock_cleanup_github_languages.assert_called_once()
+    mock_cleanup_github_owners.assert_called_once()
+    mock_cleanup_github_collaborators.assert_called_once()
+    mock_cleanup_python_requirements.assert_called_once()
+    mock_cleanup_github_dependencies.assert_called_once()
+    mock_cleanup_github_manifests.assert_called_once()
+    mock_cleanup_branch_protection_rules.assert_called_once()
