@@ -1,12 +1,13 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
+from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -22,42 +23,16 @@ def sync_vulnerabilities(
     all_ids = get_spotlight_vulnerability_ids(client)
     for ids in all_ids:
         vulnerability_data = get_spotlight_vulnerabilities(client, ids)
-        load_vulnerability_data(neo4j_session, vulnerability_data, update_tag)
+        vulns, cves = transform(vulnerability_data)
+        load_vulnerability_data(neo4j_session, vulns, update_tag)
+        load_cve_data(neo4j_session, cves, update_tag)
 
 
-def load_vulnerability_data(
-    neo4j_session: neo4j.Session,
-    data: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Transform and load scan information
-    """
-    ingestion_cypher_query = """
-    UNWIND $Vulnerabilities AS vuln
-        MERGE (v:SpotlightVulnerability{id: vuln.id})
-        ON CREATE SET v.aid = vuln.aid,
-            v.cid = vuln.cid,
-            v.firstseen = timestamp()
-        SET v.status = vuln.status,
-            v.created_timestamp = vuln.created_timestamp,
-            v.closed_timestamp = vuln.closed_timestamp,
-            v.updated_timestamp = vuln.updated_timestamp,
-            v.cve_id = vuln.cve_id,
-            v.host_info_local_ip = vuln.host_info_local_ip,
-            v.remediation_ids = vuln.remediation_ids,
-            v.app_product_name_version = vuln.app_product_name_version,
-            v.lastupdated = $update_tag
-        WITH v
-        MATCH (h:CrowdstrikeHost{id: v.aid})
-        MERGE (h)-[hv:HAS_VULNERABILITY]->(v)
-        ON CREATE SET hv.firstseen = timestamp()
-        SET hv.lastupdated = $update_tag
-    """
-    vulns = []
-    cves = []
+def transform(data: list[dict]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    vulns: list[dict[str, Any]] = []
+    cves: list[dict[str, Any]] = []
     for item in data:
-        vuln = {}
+        vuln: dict[str, Any] = {}
         for key in [
             "id",
             "aid",
@@ -79,45 +54,38 @@ def load_vulnerability_data(
             cves.append(cve)
         vuln["host_info_local_ip"] = item.get("host_info", {}).get("local_ip")
         vulns.append(vuln)
-    run_write_query(
+    return vulns, cves
+
+
+def load_vulnerability_data(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    load(
         neo4j_session,
-        ingestion_cypher_query,
-        Vulnerabilities=vulns,
-        update_tag=update_tag,
+        SpotlightVulnerabilitySchema(),
+        data,
+        lastupdated=update_tag,
     )
-    _load_cves(neo4j_session, cves, update_tag)
 
 
-def _load_cves(neo4j_session: neo4j.Session, data: List[Dict], update_tag: int) -> None:
-    """
-    Transform and load cve information
-    """
-    ingestion_cypher_query = """
-    UNWIND $cves AS cve
-        MERGE (c:CVE:CrowdstrikeFinding{id: cve.id})
-        ON CREATE SET c.id = cve.id,
-            c.firstseen = timestamp()
-        SET c.base_score = cve.base_score,
-            c.base_severity = cve.severity,
-            c.exploitability_score = cve.exploit_status,
-            c.lastupdated = $update_tag
-        WITH c, cve
-        MATCH (v:SpotlightVulnerability{id: cve.vuln_id})
-        MERGE (v)-[hc:HAS_CVE]->(c)
-        ON CREATE SET hc.firstseen = timestamp()
-        SET hc.lastupdated = $update_tag
-    """
-    run_write_query(
+def load_cve_data(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    load(
         neo4j_session,
-        ingestion_cypher_query,
-        cves=data,
-        update_tag=update_tag,
+        CrowdstrikeCVESchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 
 def get_spotlight_vulnerability_ids(
     client: Spotlight_Vulnerabilities,
-) -> List[List[str]]:
+) -> list[list[str]]:
     ids = []
     parameters = {"filter": 'status:!"closed"', "limit": 400}
     response = client.queryVulnerabilities(parameters=parameters)
@@ -142,8 +110,8 @@ def get_spotlight_vulnerability_ids(
 
 def get_spotlight_vulnerabilities(
     client: Spotlight_Vulnerabilities,
-    ids: List[str],
-) -> List[Dict]:
+    ids: list[str],
+) -> list[dict]:
     response = client.getVulnerabilities(ids=",".join(ids))
     body = response.get("body", {})
     return body.get("resources", [])

@@ -12,6 +12,21 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
+def _create_prerequisite_nodes(neo4j_session):
+    """Pre-create nodes that Redshift clusters will connect to via other_relationships."""
+    neo4j_session.run(
+        "MERGE (sg:EC2SecurityGroup {id: 'my-vpc-sg'})"
+        " ON CREATE SET sg.firstseen = timestamp()",
+    )
+    neo4j_session.run(
+        "MERGE (p:AWSPrincipal {arn: 'arn:aws:iam::1111:role/my-redshift-iam-role'})"
+        " ON CREATE SET p.firstseen = timestamp()",
+    )
+    neo4j_session.run(
+        "MERGE (v:AWSVpc {id: 'my_vpc'})" " ON CREATE SET v.firstseen = timestamp()",
+    )
+
+
 @patch.object(
     cartography.intel.aws.redshift,
     "get_redshift_cluster_data",
@@ -23,6 +38,7 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
     """
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _create_prerequisite_nodes(neo4j_session)
 
     cartography.intel.aws.redshift.sync(
         neo4j_session,
