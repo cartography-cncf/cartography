@@ -2,8 +2,8 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.github.repos
-from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _build_branch_data
+from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
