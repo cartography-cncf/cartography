@@ -23,7 +23,6 @@ import cartography.intel.cve
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
-import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
@@ -35,6 +34,7 @@ import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.microsoft
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.ontology
@@ -69,7 +69,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
+        "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
