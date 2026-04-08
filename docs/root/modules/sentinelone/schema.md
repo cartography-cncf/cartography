@@ -172,9 +172,11 @@ Represents a specific version of an application.
     (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1AppFinding
+### S1AppFinding::S1Finding::Risk::Finding
 
 Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
+
+> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSASTFinding, TrivyImageFinding).
 
 | Field | Description |
 |-------|-------------|

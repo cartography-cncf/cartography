@@ -175,7 +175,7 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 class AWSInspectorFindingSchema(CartographyNodeSchema):
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "Finding"])
     sub_resource_relationship: InspectorFindingToAWSAccountRel = (
         InspectorFindingToAWSAccountRel()
     )

@@ -119,7 +119,9 @@ class S1AppFindingToCVERel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S1AppFindingSchema(CartographyNodeSchema):
     label: str = "S1AppFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S1Finding", "Risk"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["S1Finding", "Risk", "Finding"]
+    )
     properties: S1AppFindingNodeProperties = S1AppFindingNodeProperties()
     sub_resource_relationship: S1AppFindingToAccountRel = S1AppFindingToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

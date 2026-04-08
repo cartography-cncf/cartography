@@ -1,7 +1,9 @@
 ## Trivy Schema
 
-### TrivyImageFinding
+### TrivyImageFinding::Risk::CVE::Finding
 Representation of a vulnerability finding in a container image.
+
+> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSASTFinding, CVE).
 
 | Field | Description |
 |-------|-------------|
