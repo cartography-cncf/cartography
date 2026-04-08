@@ -6,6 +6,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -173,8 +174,19 @@ def cleanup_transit_gateways(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    GraphJob.from_node_schema(AWSTransitGatewaySchema(), common_job_parameters).run(
-        neo4j_session
+    # Custom cleanup for TGW: the sub_resource RESOURCE rel points to OwnerId (per-record),
+    # not AWS_ID (kwarg), so GraphJob.from_node_schema() can't scope cleanup correctly.
+    # Instead, scope via RESOURCE|SHARED_WITH to the syncing account, matching both owned
+    # and shared TGWs.
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (n:AWSTransitGateway)-[r:RESOURCE|SHARED_WITH]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)
+        """,
+        **common_job_parameters,
+        LIMIT_SIZE=100,
     )
     GraphJob.from_node_schema(
         AWSTransitGatewayAttachmentSchema(), common_job_parameters

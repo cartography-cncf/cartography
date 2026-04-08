@@ -38,11 +38,14 @@ class AWSTransitGatewayNodeProperties(CartographyNodeProperties):
 
 
 # (:AWSAccount)-[:RESOURCE]->(:AWSTransitGateway)
+# Uses OwnerId from data (not kwargs) so the RESOURCE rel points to the actual owner account,
+# preserving correct semantics for shared TGWs. Cleanup is handled with custom queries
+# since GraphJob.from_node_schema() requires set_in_kwargs=True on the sub_resource matcher.
 @dataclass(frozen=True)
 class AWSTransitGatewayToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("OwnerId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
