@@ -42,3 +42,11 @@
   - rds:StopDBInstance
   - rds:StartDBInstance
   relationship_name: CAN_ADMINISTER
+# Map principals that can execute tasks via Data Pipelines.
+- target_label: DataPipeline
+  permissions:
+  - iam:PassRole
+  - datapipeline:CreatePipeline
+  - datapipeline:PutPipelineDefinition
+  - datapipeline:ActivatePipeline
+  relationship_name: CAN_EXEC

@@ -2816,6 +2816,31 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_parse_error
     ORDER BY c.certificate_authority_parse_status, c.name;
     ```
+
+### DataPipeline
+
+Representation of an AWS [Data Pipeline](https://docs.aws.amazon.com/datapipeline/latest/APIReference/API_PipelineDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the data pipeline |
+| **arn** | The AWS-unique identifier (ARN) |
+| pipeline_id | The AWS Data Pipeline ID |
+| name | The pipeline name |
+| description | The pipeline description |
+| unique_id | The pipeline unique ID |
+| state | The pipeline lifecycle state |
+| health_status | The pipeline health status |
+| region | The AWS region of the data pipeline |
+
+#### Relationships
+- Data Pipelines belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DataPipeline)
+    ```
+
 ### EMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
