@@ -15,13 +15,17 @@ aws_mapping = OntologyMapping(
             node_label="KMSKey",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="arn", required=True,
+                    ontology_field="name",
+                    node_field="arn",
+                    required=True,
                 ),
                 OntologyFieldMapping(
-                    ontology_field="key_type", node_field="key_usage",
+                    ontology_field="key_type",
+                    node_field="key_usage",
                 ),
                 OntologyFieldMapping(
-                    ontology_field="enabled", node_field="enabled",
+                    ontology_field="enabled",
+                    node_field="enabled",
                 ),
             ],
         ),
@@ -35,10 +39,13 @@ gcp_mapping = OntologyMapping(
             node_label="GCPCryptoKey",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True,
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
                 ),
                 OntologyFieldMapping(
-                    ontology_field="key_type", node_field="purpose",
+                    ontology_field="key_type",
+                    node_field="purpose",
                 ),
                 OntologyFieldMapping(
                     ontology_field="enabled",
@@ -63,10 +70,13 @@ azure_mapping = OntologyMapping(
             node_label="AzureKeyVaultKey",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True,
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
                 ),
                 OntologyFieldMapping(
-                    ontology_field="enabled", node_field="enabled",
+                    ontology_field="enabled",
+                    node_field="enabled",
                 ),
             ],
         ),
