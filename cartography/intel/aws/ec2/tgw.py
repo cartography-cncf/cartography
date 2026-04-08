@@ -181,12 +181,11 @@ def cleanup_transit_gateways(
     run_write_query(
         neo4j_session,
         """
-        MATCH (n:AWSTransitGateway)-[r:RESOURCE|SHARED_WITH]-(:AWSAccount{id: $AWS_ID})
+        MATCH (n:AWSTransitGateway)-[:RESOURCE|SHARED_WITH]-(:AWSAccount{id: $AWS_ID})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)
+        DETACH DELETE n
         """,
         **common_job_parameters,
-        LIMIT_SIZE=100,
     )
     GraphJob.from_node_schema(
         AWSTransitGatewayAttachmentSchema(), common_job_parameters
