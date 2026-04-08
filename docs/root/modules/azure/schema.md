@@ -1786,6 +1786,8 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
 
 Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
 
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|

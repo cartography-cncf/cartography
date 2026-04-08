@@ -847,6 +847,8 @@ Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/r
 
 Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
 
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+
 | Field | Description |
 |---|---|
 | id | The full resource name of the Crypto Key. |

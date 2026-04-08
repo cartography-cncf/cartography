@@ -23,6 +23,7 @@ TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
+EK{{EncryptionKey}}
 PR{{PermissionRole}}
 NAC{{NetworkAccessControl}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -237,6 +238,24 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_created_at | Timestamp when the secret was created. |
 | _ont_updated_at | Timestamp when the secret was last updated. |
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
+
+
+### EncryptionKey
+
+```{note}
+EncryptionKey is a semantic label.
+```
+
+An encryption key represents a cryptographic key managed by a cloud key management service.
+It generalizes concepts like AWS KMS Keys, GCP Cloud KMS CryptoKeys, and Azure Key Vault Keys.
+Encryption keys are used for data encryption, signing, and other cryptographic operations.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the encryption key (REQUIRED). |
+| _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
+| _ont_enabled | Whether the encryption key is currently enabled. |
+| _ont_rotation_enabled | Whether automatic key rotation is configured. |
 
 
 ### ComputeInstance
