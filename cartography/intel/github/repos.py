@@ -1669,13 +1669,10 @@ def cleanup_github_repos(
 def cleanup_github_branches(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    owner_org_ids: List[str],
+    owner_org_id: str,
 ) -> None:
-    for owner_org_id in owner_org_ids:
-        cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
-        GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(
-            neo4j_session
-        )
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
 
 
 @timeit
@@ -1870,14 +1867,15 @@ def sync(
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_repos(neo4j_session, common_job_parameters)
-    owner_org_ids = list(
-        {
+    owner_org_id = next(
+        (
             repo["owner_org_id"]
             for repo in repo_data["repos"]
             if repo.get("owner_org_id")
-        }
+        ),
+        f"https://github.com/{organization}",
     )
-    cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_ids)
+    cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_github_languages(neo4j_session, common_job_parameters)
     cleanup_github_owners(neo4j_session, common_job_parameters)
     cleanup_github_collaborators(neo4j_session, common_job_parameters)

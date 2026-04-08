@@ -317,6 +317,57 @@ def test_build_branch_data_includes_owner_org_id():
     ]
 
 
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
+@patch.object(cartography.intel.github.repos, "cleanup_python_requirements")
+@patch.object(cartography.intel.github.repos, "cleanup_github_collaborators")
+@patch.object(cartography.intel.github.repos, "cleanup_github_owners")
+@patch.object(cartography.intel.github.repos, "cleanup_github_languages")
+@patch.object(cartography.intel.github.repos, "cleanup_github_branches")
+@patch.object(cartography.intel.github.repos, "cleanup_github_repos")
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[])
+def test_sync_cleans_up_branches_when_org_has_no_repos(
+    mock_get,
+    mock_get_dep_manifests,
+    mock_get_repo_collaborators,
+    mock_load,
+    mock_cleanup_github_repos,
+    mock_cleanup_github_branches,
+    mock_cleanup_github_languages,
+    mock_cleanup_github_owners,
+    mock_cleanup_github_collaborators,
+    mock_cleanup_python_requirements,
+    mock_cleanup_github_dependencies,
+    mock_cleanup_github_manifests,
+    mock_cleanup_branch_protection_rules,
+):
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    mock_cleanup_github_branches.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "https://github.com/example-org",
+    )
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
