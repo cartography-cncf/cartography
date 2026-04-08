@@ -16,7 +16,6 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from cartography.client.core.tx import load as load_data
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.github.util import fetch_all
@@ -1378,12 +1377,17 @@ def load_github_repos(
 def _build_branch_data(repo_data: List[Dict]) -> List[Dict]:
     branch_data = []
     for repo in repo_data:
-        if repo.get("defaultbranch") and repo.get("defaultbranchid"):
+        if (
+            repo.get("defaultbranch")
+            and repo.get("defaultbranchid")
+            and repo.get("owner_org_id")
+        ):
             branch_data.append(
                 {
                     "id": repo["defaultbranchid"],
                     "name": repo["defaultbranch"],
                     "repo_id": repo["id"],
+                    "owner_org_id": repo["owner_org_id"],
                 }
             )
     return branch_data
@@ -1395,12 +1399,21 @@ def load_github_branches(
     update_tag: int,
     repo_data: List[Dict],
 ) -> None:
-    load_data(
-        neo4j_session,
-        GitHubBranchSchema(),
-        _build_branch_data(repo_data),
-        lastupdated=update_tag,
-    )
+    branches_by_org = defaultdict(list)
+    for branch in _build_branch_data(repo_data):
+        owner_org_id = branch["owner_org_id"]
+        branches_by_org[owner_org_id].append(
+            {k: v for k, v in branch.items() if k != "owner_org_id"}
+        )
+
+    for owner_org_id, branch_data in branches_by_org.items():
+        load_data(
+            neo4j_session,
+            GitHubBranchSchema(),
+            branch_data,
+            lastupdated=update_tag,
+            owner_org_id=owner_org_id,
+        )
 
 
 @timeit
@@ -1656,18 +1669,13 @@ def cleanup_github_repos(
 def cleanup_github_branches(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
+    owner_org_ids: List[str],
 ) -> None:
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (n:GitHubBranch)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=common_job_parameters.get("LIMIT_SIZE", 100),
-    )
+    for owner_org_id in owner_org_ids:
+        cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+        GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(
+            neo4j_session
+        )
 
 
 @timeit
@@ -1862,7 +1870,14 @@ def sync(
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_repos(neo4j_session, common_job_parameters)
-    cleanup_github_branches(neo4j_session, common_job_parameters)
+    owner_org_ids = list(
+        {
+            repo["owner_org_id"]
+            for repo in repo_data["repos"]
+            if repo.get("owner_org_id")
+        }
+    )
+    cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_ids)
     cleanup_github_languages(neo4j_session, common_job_parameters)
     cleanup_github_owners(neo4j_session, common_job_parameters)
     cleanup_github_collaborators(neo4j_session, common_job_parameters)

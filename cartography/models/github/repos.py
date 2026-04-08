@@ -86,6 +86,17 @@ class GitHubBranchNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class GitHubBranchToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubRepositoryRelProperties = GitHubRepositoryRelProperties()
+
+
+@dataclass(frozen=True)
 class GitHubBranchToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -100,8 +111,11 @@ class GitHubBranchToRepositoryRel(CartographyRelSchema):
 class GitHubBranchSchema(CartographyNodeSchema):
     label: str = "GitHubBranch"
     properties: GitHubBranchNodeProperties = GitHubBranchNodeProperties()
-    sub_resource_relationship: GitHubBranchToRepositoryRel = (
-        GitHubBranchToRepositoryRel()
+    sub_resource_relationship: GitHubBranchToOrganizationRel = (
+        GitHubBranchToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubBranchToRepositoryRel()],
     )
 
 

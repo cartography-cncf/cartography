@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
@@ -296,6 +297,24 @@ def test_repos_need_privileged_details_when_fields_missing():
 
 def test_repos_need_privileged_details_when_fields_present():
     assert _repos_need_privileged_details([GET_REPOS[0], GET_REPOS[2]]) is False
+
+
+def test_build_branch_data_includes_owner_org_id():
+    transformed_repo = {
+        "id": "https://github.com/simpsoncorp/sample_repo",
+        "defaultbranch": "main",
+        "defaultbranchid": "branch_ref_id==",
+        "owner_org_id": "https://github.com/simpsoncorp",
+    }
+
+    assert _build_branch_data([transformed_repo]) == [
+        {
+            "id": "branch_ref_id==",
+            "name": "main",
+            "repo_id": "https://github.com/simpsoncorp/sample_repo",
+            "owner_org_id": "https://github.com/simpsoncorp",
+        }
+    ]
 
 
 @patch.object(
