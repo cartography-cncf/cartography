@@ -35,6 +35,7 @@ IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
+RT{{ResourceTag}}
 ```
 
 :::{note}
@@ -765,3 +766,46 @@ It generalizes concepts like AWS ECRImageLayer and OCI image layers.
     ```
     (:ImageLayer)-[:NEXT]->(:ImageLayer)
     ```
+
+
+### ResourceTag
+
+```{note}
+ResourceTag is a semantic label.
+**Ontology Mapping**: `AWSTag` and `GCPLabel` nodes receive the `ResourceTag` label.
+```
+
+A resource tag represents a key/value metadata label attached to a cloud resource. It provides a shared semantic layer for cross-cloud querying of provider-native metadata nodes (`AWSTag`, `GCPLabel`, etc.) without losing provider-specific fidelity.
+
+**Provider mappings:**
+
+| Provider | Native Node | Extra Labels |
+|----------|-------------|--------------|
+| AWS | `AWSTag` | `Tag`, `ResourceTag` |
+| GCP | `GCPLabel` | `Label`, `ResourceTag` |
+
+Since both `AWSTag` and `GCPLabel` share the same `key` and `value` field names, no `_ont_*` normalization properties are needed.
+
+#### Example Cross-Cloud Queries
+
+Count all tags/labels across providers:
+```cypher
+MATCH (t:ResourceTag)
+RETURN CASE
+  WHEN 'AWSTag' IN labels(t) THEN 'AWS'
+  WHEN 'GCPLabel' IN labels(t) THEN 'GCP'
+  ELSE 'Unknown'
+END AS provider_type, COUNT(t) AS total
+```
+
+Find all resources tagged with `env=production` across AWS and GCP:
+```cypher
+MATCH (r)-[:TAGGED|LABELED]->(t:ResourceTag {key: 'env', value: 'production'})
+RETURN r, t
+```
+
+Verify provider-specific queries still work:
+```cypher
+MATCH (n:AWSTag) RETURN n LIMIT 5
+MATCH (n:GCPLabel) RETURN n LIMIT 5
+```

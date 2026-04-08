@@ -78,7 +78,9 @@ class GCPBucketGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "GCPBucketLabel"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Label", "GCPBucketLabel", "ResourceTag"]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -114,7 +116,7 @@ class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "ResourceTag"])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
