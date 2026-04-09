@@ -521,7 +521,7 @@ def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
-    # Aliases for backwards compatibility: normalize legacy names to canonical module names.
+    # DEPRECATED: compatibility alias for legacy module selection. Remove in v1.0.0.
     _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
 
     validated_modules: list[str] = []

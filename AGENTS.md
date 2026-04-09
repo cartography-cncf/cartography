@@ -83,6 +83,11 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - If you must execute a handwritten write query, use `run_write_query()` instead of `neo4j_session.run()` so the write runs in a managed transaction with Cartography's retry handling.
 - Reserve direct `neo4j_session.run()` for read queries or intentional low-level paths that cannot use the managed write helpers.
 
+**Deprecation Conventions:**
+- For temporary compatibility shims, legacy aliases, and migration-only edges, add a code comment in the form `# DEPRECATED: ... will be removed in v1.0.0`.
+- Prefer comment-only deprecation markers for internal compatibility code that should stay quiet during normal runs.
+- Use runtime warnings or log warnings only when users are actively invoking a deprecated public module or API surface.
+
 ## Git and Pull Request Guidelines
 
 **Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
