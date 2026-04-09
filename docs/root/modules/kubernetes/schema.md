@@ -32,6 +32,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 - All resources whether cluster-scoped or namespace-scoped belong to a `KubernetesCluster`.
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNamespace,
+                                       :KubernetesNode,
                                        :KubernetesPod,
                                        :KubernetesContainer,
                                        :KubernetesService,
@@ -51,6 +52,35 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 - A `KubernetesPod` belongs to a `KubernetesCluster`
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesPod)
+    ```
+
+### KubernetesNode
+Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/architecture/nodes/)
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the node derived from cluster name and node name (e.g. `my-cluster/my-node`) |
+| **name** | Name of the Kubernetes node |
+| **cluster\_name** | Name of the Kubernetes cluster this node belongs to |
+| architecture | Raw CPU architecture as reported by the node (e.g. `amd64`, `arm64`) |
+| architecture\_normalized | Canonical CPU architecture after normalization (e.g. `x86_64` → `amd64`, `aarch64` → `arm64`) |
+| os | Operating system of the node (e.g. `linux`) |
+| os\_image | Human-readable OS image name (e.g. `Ubuntu 22.04.3 LTS`) |
+| kernel\_version | Kernel version of the node (e.g. `5.15.0-1034-aws`) |
+| container\_runtime\_version | Container runtime and version (e.g. `containerd://1.7.0`) |
+| kubelet\_version | Version of the kubelet running on the node (e.g. `v1.27.1`) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesNode` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNode)
+    ```
+
+- `KubernetesPod` runs on a `KubernetesNode`.
+    ```
+    (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
     ```
 
 ### KubernetesNamespace
@@ -113,6 +143,11 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
+- `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
+    ```
+    (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+    ```
+
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesPod`. Created by the `k8s_lb_exposure` analysis job.
     ```
     (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesPod)
@@ -131,6 +166,9 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | **namespace** | The Kubernetes namespace where this container is deployed |
 | **cluster\_name** | Name of the Kubernetes cluster where this container is deployed |
 | image\_pull_policy | The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent) |
+| architecture | Set by analysis job. Raw CPU architecture inherited from the scheduled node (e.g. `amd64`, `arm64`). |
+| architecture\_normalized | Set by analysis job. Canonical CPU architecture after normalization (e.g. `x86_64` → `amd64`, `aarch64` → `arm64`). |
+| architecture\_source | Set by analysis job. Always `node_info` for Kubernetes, indicating the value was derived from the scheduled node. |
 | status\_image\_id | ImageID of the container's image. |
 | **status\_image\_sha** | The SHA portion of the status\_image\_id |
 | status\_ready | Specifies whether the container has passed its readiness probe. |
