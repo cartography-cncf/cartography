@@ -4,6 +4,8 @@ Integration tests for ontology devices module
 
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
@@ -380,7 +382,8 @@ def test_load_ontology_devices_from_sentinelone(neo4j_session):
     ) == {("SN-S1-001", "SN-S1-001")}
 
 
-def test_load_ontology_devices_from_entra_intune(neo4j_session):
+@pytest.mark.parametrize("source_of_truth", [["microsoft"], ["entra"]])
+def test_load_ontology_devices_from_entra_intune(neo4j_session, source_of_truth):
     """Intune managed devices should produce ontology devices and OBSERVED_AS links."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -400,7 +403,7 @@ def test_load_ontology_devices_from_entra_intune(neo4j_session):
 
     cartography.intel.ontology.devices.sync(
         neo4j_session,
-        ["microsoft"],
+        source_of_truth,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
