@@ -3,7 +3,7 @@
   "statements": [
     {
       "__comment": "Reset: clear architecture fields from all containers in this cluster",
-      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer) WHERE c.architecture IS NOT NULL REMOVE c.architecture, c.architecture_normalized, c.architecture_source",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer) WHERE c.architecture IS NOT NULL OR c.architecture_normalized IS NOT NULL OR c.architecture_source IS NOT NULL REMOVE c.architecture, c.architecture_normalized, c.architecture_source",
       "iterative": true
     },
     {
