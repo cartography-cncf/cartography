@@ -400,7 +400,7 @@ def test_load_ontology_devices_from_entra_intune(neo4j_session):
 
     cartography.intel.ontology.devices.sync(
         neo4j_session,
-        ["entra"],
+        ["microsoft"],
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -504,7 +504,7 @@ def test_load_ontology_devices_from_entra_intune_with_hostname_fallback(
 
     cartography.intel.ontology.devices.sync(
         neo4j_session,
-        ["entra"],
+        ["microsoft"],
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
