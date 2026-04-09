@@ -9,6 +9,10 @@ from typing import List
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load_matchlinks
@@ -28,6 +32,31 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _collect_lookup_events(page_iterator: Any) -> List[Dict[str, Any]]:
+    all_events: List[Dict[str, Any]] = []
+    try:
+        for page in page_iterator:
+            all_events.extend(page.get("Events", []))
+    except ClientError as error:
+        if _is_retryable_cloudtrail_error(error):
+            raise CloudTrailTransientRegionFailure(
+                "AWS SDK retries were exhausted for transient LookupEvents failure"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise CloudTrailTransientRegionFailure(
+            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
+        ) from error
+
+    return all_events
 
 
 @timeit
@@ -76,20 +105,7 @@ def get_assume_role_events(
         },
     )
 
-    all_events = []
-    try:
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as e:
-        if _is_retryable_cloudtrail_error(e):
-            raise CloudTrailTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure"
-            ) from e
-        raise
-    except ResponseParserError as e:
-        raise CloudTrailTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
-        ) from e
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
 
@@ -142,20 +158,7 @@ def get_saml_role_events(
         },
     )
 
-    all_events = []
-    try:
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as e:
-        if _is_retryable_cloudtrail_error(e):
-            raise CloudTrailTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure"
-            ) from e
-        raise
-    except ResponseParserError as e:
-        raise CloudTrailTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
-        ) from e
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithSAML events from region '{region}'"
@@ -210,20 +213,7 @@ def get_web_identity_role_events(
         },
     )
 
-    all_events = []
-    try:
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as e:
-        if _is_retryable_cloudtrail_error(e):
-            raise CloudTrailTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure"
-            ) from e
-        raise
-    except ResponseParserError as e:
-        raise CloudTrailTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
-        ) from e
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithWebIdentity events from region '{region}'"
