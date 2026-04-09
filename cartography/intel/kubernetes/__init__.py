@@ -101,11 +101,6 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_ingress(session, client, config.update_tag, common_job_parameters)
 
             run_scoped_analysis_job(
-                "k8s_container_architecture.json",
-                session,
-                common_job_parameters,
-            )
-            run_scoped_analysis_job(
                 "k8s_compute_asset_exposure.json",
                 session,
                 common_job_parameters,

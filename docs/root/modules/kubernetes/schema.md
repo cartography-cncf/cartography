@@ -166,9 +166,6 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | **namespace** | The Kubernetes namespace where this container is deployed |
 | **cluster\_name** | Name of the Kubernetes cluster where this container is deployed |
 | image\_pull_policy | The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent) |
-| architecture | Set by analysis job. Raw CPU architecture inherited from the scheduled node (e.g. `amd64`, `arm64`). |
-| architecture\_normalized | Set by analysis job. Canonical CPU architecture after normalization (e.g. `x86_64` → `amd64`, `aarch64` → `arm64`). |
-| architecture\_source | Set by analysis job. Always `node_info` for Kubernetes, indicating the value was derived from the scheduled node. |
 | status\_image\_id | ImageID of the container's image. |
 | **status\_image\_sha** | The SHA portion of the status\_image\_id |
 | status\_ready | Specifies whether the container has passed its readiness probe. |
