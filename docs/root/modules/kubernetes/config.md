@@ -2,13 +2,28 @@
 
 Follow these steps to analyze Kubernetes objects in Cartography.
 
-1. Configure a [kubeconfig file](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) specifying access to one or mulitple clusters.
-    - Access to mutliple K8 clusters can be organized in a single kubeconfig file. Intel module of Kubernetes will automatically detect that and attempt to sync each cluster.
+1. Configure a [kubeconfig file](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) specifying access to one or multiple clusters.
+    - Access to multiple Kubernetes clusters can be organized in a single kubeconfig file. Cartography's Kubernetes intel module will automatically detect that and attempt to sync each cluster.
 2. Note down the path of configured kubeconfig file and pass it to cartography CLI with `--k8s-kubeconfig` parameter.
 
 ### Required Permissions
 
-Cartography's Kubernetes module requires read-only access to the following resources. Create a ClusterRole and bind it to the identity used by Cartography:
+Cartography's Kubernetes module requires read-only access to the following Kubernetes API calls:
+
+- `get namespaces` for reading `kube-system` cluster metadata
+- `list namespaces`
+- `list pods`
+- `list services`
+- `list serviceaccounts`
+- `list secrets`
+- `list roles`
+- `list rolebindings`
+- `list clusterroles`
+- `list clusterrolebindings`
+- `list ingresses`
+- `get configmaps` for reading the `aws-auth` ConfigMap in `kube-system` (`EKS` only)
+
+Create a ClusterRole and bind it to the identity used by Cartography:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -28,7 +43,7 @@ rules:
     - services
     - serviceaccounts
   verbs: ["list"]
-# Secrets - list only, no read access
+# Secrets - Cartography stores metadata only, but Kubernetes list access can still reveal secret contents
 - apiGroups: [""]
   resources:
     - secrets
@@ -46,7 +61,7 @@ rules:
   resources:
     - ingresses
   verbs: ["list"]
-# ConfigMaps - read aws-auth identity mapping
+# ConfigMaps (EKS only) - read aws-auth identity mapping
 - apiGroups: [""]
   resources:
     - configmaps
@@ -54,6 +69,39 @@ rules:
 ```
 
 The `/version` endpoint (used to detect the cluster version) requires no additional RBAC — it is accessible by default via the `system:public-info-viewer` ClusterRole.
+
+### Additional AWS Permissions for EKS
+
+If you run Cartography against Amazon EKS and set `--managed-kubernetes eks`, Cartography also enriches cluster access metadata by calling the EKS API for:
+
+- Access Entries
+- External OIDC identity provider configs
+
+Grant the AWS principal running Cartography these IAM actions on each target cluster:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListAccessEntries",
+        "eks:DescribeAccessEntry",
+        "eks:ListIdentityProviderConfigs",
+        "eks:DescribeIdentityProviderConfig"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+Notes:
+
+- These AWS permissions are in addition to the Kubernetes RBAC above.
+- Cartography derives the EKS region from the `cluster` field of each kubeconfig context entry. When using `aws eks update-kubeconfig`, this field is automatically set to the cluster ARN.
+- If you use `aws eks update-kubeconfig` to generate the kubeconfig that Cartography consumes, that command also requires `eks:DescribeCluster`.
 
 ### TLS Troubleshooting and Validation
 
