@@ -303,7 +303,7 @@ class Sync:
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ("analysis", "create_indexes"):
+            if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)

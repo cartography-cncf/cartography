@@ -72,7 +72,7 @@ keycloak_mapping = OntologyMapping(
 )
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraApplication",
@@ -182,7 +182,7 @@ jumpcloud_mapping = OntologyMapping(
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "okta": okta_mapping,
     "slack": slack_mapping,
     "jumpcloud": jumpcloud_mapping,

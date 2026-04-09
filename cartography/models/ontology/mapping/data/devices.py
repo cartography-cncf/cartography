@@ -244,7 +244,7 @@ jumpcloud_mapping = OntologyMapping(
 )
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="IntuneManagedDevice",
@@ -279,7 +279,7 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "duo": duo_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "googleworkspace": googleworkspace_mapping,
     "jumpcloud": jumpcloud_mapping,
     "kandji": kandji_mapping,

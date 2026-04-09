@@ -3,7 +3,7 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraUser",
@@ -592,7 +592,7 @@ kubernetes_mapping = OntologyMapping(
 )
 
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
