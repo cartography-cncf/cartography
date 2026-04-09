@@ -117,8 +117,15 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         # Get container image from containers[0].image (v2 API has containers at top level)
         containers = revision.get("containers", [])
         container_image = None
+        image_digest = None
         if containers:
             container_image = containers[0].get("image")
+            try:
+                image_digest = (
+                    container_image.split("@")[1] if container_image else None
+                )
+            except IndexError:
+                image_digest = None
 
         # Get service account email (v2 API has serviceAccount at top level)
         service_account_email = revision.get("serviceAccount")
@@ -132,6 +139,11 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
                 "name": short_name,
                 "service": service_full_name,
                 "container_image": container_image,
+                "image_digest": image_digest,
+                # Cloud Run only supports x86_64 (amd64); ARM workloads are not supported
+                "architecture": "amd64",
+                "architecture_normalized": "amd64",
+                "architecture_source": "platform_requirement",
                 "service_account_email": service_account_email,
                 "log_uri": log_uri,
                 "project_id": project_id,

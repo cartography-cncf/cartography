@@ -6,9 +6,13 @@ import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
 import cartography.intel.gcp.cloudrun.service as cloudrun_service
 from tests.data.gcp.cloudrun import MOCK_EXECUTIONS
+from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_JOBS
+from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISIONS
 from tests.data.gcp.cloudrun import MOCK_SERVICES
+from tests.data.gcp.cloudrun import TEST_JOB_DIGEST
+from tests.data.gcp.cloudrun import TEST_REVISION_DIGEST
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -208,3 +212,68 @@ def test_sync_cloudrun(
         (TEST_JOB_ID, f"{TEST_JOB_ID}:env:staging"),
         (TEST_JOB_ID, f"{TEST_JOB_ID}:team:batch"),
     }
+
+
+@patch("cartography.intel.gcp.cloudrun.job.get_jobs")
+@patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
+def test_has_image_rels(mock_get_revisions, mock_get_jobs, neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    mock_get_revisions.return_value = MOCK_REVISION_WITH_DIGEST
+    mock_get_jobs.return_value = MOCK_JOB_WITH_DIGEST
+
+    # Create prerequisite nodes
+    neo4j_session.run(
+        "MERGE (p:GCPProject {id: $id}) SET p.lastupdated = $tag",
+        id=TEST_PROJECT_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:ECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_REVISION_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:ECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_JOB_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    mock_client = MagicMock()
+
+    cloudrun_revision.sync_revisions(
+        neo4j_session,
+        mock_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    cloudrun_job.sync_jobs(
+        neo4j_session,
+        mock_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunRevision",
+        "id",
+        "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_REVISION_ID, TEST_REVISION_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunJob",
+        "id",
+        "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_JOB_ID, TEST_JOB_DIGEST)}

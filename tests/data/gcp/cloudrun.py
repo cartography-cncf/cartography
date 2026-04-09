@@ -52,6 +52,44 @@ MOCK_JOBS = {
     ],
 }
 
+TEST_REVISION_DIGEST = (
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_JOB_DIGEST = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+MOCK_REVISION_WITH_DIGEST = [
+    {
+        "name": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+        "service": "test-service",
+        "containers": [
+            {
+                "image": f"gcr.io/test-project/test-image@{TEST_REVISION_DIGEST}",
+            },
+        ],
+        "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+        "logUri": "https://console.cloud.google.com/logs/viewer?project=test-project",
+    },
+]
+
+MOCK_JOB_WITH_DIGEST = [
+    {
+        "name": "projects/test-project/locations/us-west1/jobs/test-job",
+        "labels": {},
+        "template": {
+            "template": {
+                "containers": [
+                    {
+                        "image": f"gcr.io/test-project/batch-processor@{TEST_JOB_DIGEST}",
+                    },
+                ],
+                "serviceAccount": "batch-sa@test-project.iam.gserviceaccount.com",
+            },
+        },
+    },
+]
+
 MOCK_EXECUTIONS = {
     "executions": [
         {

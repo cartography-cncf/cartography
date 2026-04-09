@@ -1826,9 +1826,14 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 | **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
 | name | Short name of the revision |
 | service | Full resource name of the parent service |
-| container_image | The container image for this revision |
+| container_image | The container image reference for this revision (digest form from the v2 API) |
+| image_digest | The digest portion of the container image (e.g., `sha256:abc...`), used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this revision |
 | log_uri | URI to Cloud Logging for this revision |
+| project_id | The GCP project ID this revision belongs to |
 
 #### Relationships
 
@@ -1844,6 +1849,11 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     ```
     (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
+  - GCPCloudRunRevisions are linked to the container image they run.
+    ```
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
+    ```
 
 ### GCPCloudRunJob
 
@@ -1858,8 +1868,13 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 | **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
 | name | Short name of the job |
 | location | The GCP location where the job is deployed |
-| container_image | The container image for the job |
+| container_image | The container image reference for the job |
+| image_digest | The digest portion of the container image (e.g., `sha256:abc...`), used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this job |
+| project_id | The GCP project ID this job belongs to |
 
 #### Relationships
 
@@ -1874,6 +1889,11 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
   - GCPCloudRunJobs use GCPServiceAccounts.
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+  - GCPCloudRunJobs are linked to the container image they run.
+    ```
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
     ```
 
 ### GCPCloudRunExecution
