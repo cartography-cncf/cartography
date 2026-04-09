@@ -163,6 +163,11 @@ def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),
                 "node": pod.spec.node_name,
+                "node_id": (
+                    f"{cluster_name}/{pod.spec.node_name}"
+                    if pod.spec.node_name
+                    else None
+                ),
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
                 "secret_volume_ids": volume_secrets,

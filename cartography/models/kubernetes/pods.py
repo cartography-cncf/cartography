@@ -107,6 +107,25 @@ class KubernetesPodToSecretEnvRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPodToKubernetesNodeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+class KubernetesPodToKubernetesNodeRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("node_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_ON"
+    properties: KubernetesPodToKubernetesNodeRelProperties = (
+        KubernetesPodToKubernetesNodeRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPodToServiceAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -137,6 +156,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesPodToKubernetesNamespaceRel(),
+            KubernetesPodToKubernetesNodeRel(),
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),

@@ -1,0 +1,15 @@
+{
+  "name": "Kubernetes container architecture",
+  "statements": [
+    {
+      "__comment": "Reset: clear architecture fields from all containers in this cluster",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer) WHERE c.architecture IS NOT NULL REMOVE c.architecture, c.architecture_normalized, c.architecture_source",
+      "iterative": true
+    },
+    {
+      "__comment": "Set: stamp architecture from the scheduled node onto each container via Pod->RUNS_ON->Node",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer)<-[:CONTAINS]-(pod:KubernetesPod)-[:RUNS_ON]->(node:KubernetesNode) WHERE node.architecture_normalized IS NOT NULL SET c.architecture = node.architecture, c.architecture_normalized = node.architecture_normalized, c.architecture_source = 'node_info'",
+      "iterative": false
+    }
+  ]
+}
