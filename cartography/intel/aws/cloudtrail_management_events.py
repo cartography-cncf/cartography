@@ -728,6 +728,7 @@ def sync_assume_role_events(
     )
 
     total_role_assumptions = 0
+    cleanup_safe = True
 
     # Process events region by region
     for region in regions:
@@ -742,6 +743,7 @@ def sync_assume_role_events(
                 lookback_hours=lookback_hours,
             )
         except CloudTrailTransientRegionFailure:
+            cleanup_safe = False
             logger.warning(
                 "Skipping CloudTrail management events for account %s in region %s after transient failure",
                 current_aws_account_id,
@@ -766,8 +768,13 @@ def sync_assume_role_events(
             f"Loaded {len(assume_role_assumptions)} AssumeRole assumptions for region {region}"
         )
 
-    # Run cleanup for stale relationships after processing all regions
-    cleanup(neo4j_session, current_aws_account_id, update_tag)
+    if cleanup_safe:
+        cleanup(neo4j_session, current_aws_account_id, update_tag)
+    else:
+        logger.warning(
+            "Skipping CloudTrail management events cleanup for account %s because one or more regions had transient failures. Preserving last-known-good data.",
+            current_aws_account_id,
+        )
 
     logger.info(
         f"CloudTrail management events sync completed successfully. "
