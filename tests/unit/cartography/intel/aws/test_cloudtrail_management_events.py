@@ -1,3 +1,14 @@
+from unittest.mock import MagicMock
+
+import pytest
+from botocore.exceptions import ClientError
+
+from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
+from cartography.intel.aws.cloudtrail_management_events import get_assume_role_events
+from cartography.intel.aws.cloudtrail_management_events import get_saml_role_events
+from cartography.intel.aws.cloudtrail_management_events import (
+    get_web_identity_role_events,
+)
 from cartography.intel.aws.cloudtrail_management_events import (
     transform_assume_role_events_to_role_assumptions,
 )
@@ -156,3 +167,72 @@ def test_transform_web_identity_role_events_with_null_request_parameters():
 
     # Assert - Events with null requestParameters should be skipped, resulting in empty list
     assert len(result) == 0
+
+
+def test_get_assume_role_events_raises_transient_region_failure_on_503():
+    boto3_session = MagicMock()
+    page_iterator = MagicMock()
+    page_iterator.__iter__ = MagicMock(
+        side_effect=ClientError(
+            {
+                "Error": {
+                    "Code": "ServiceUnavailable",
+                    "Message": "Service Unavailable",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 503},
+            },
+            "LookupEvents",
+        )
+    )
+    boto3_session.client.return_value.get_paginator.return_value.paginate.return_value = (
+        page_iterator
+    )
+
+    with pytest.raises(CloudTrailTransientRegionFailure):
+        get_assume_role_events(boto3_session, "me-central-1", 24)
+
+
+def test_get_saml_role_events_raises_transient_region_failure_on_503():
+    boto3_session = MagicMock()
+    page_iterator = MagicMock()
+    page_iterator.__iter__ = MagicMock(
+        side_effect=ClientError(
+            {
+                "Error": {
+                    "Code": "ServiceUnavailable",
+                    "Message": "Service Unavailable",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 503},
+            },
+            "LookupEvents",
+        )
+    )
+    boto3_session.client.return_value.get_paginator.return_value.paginate.return_value = (
+        page_iterator
+    )
+
+    with pytest.raises(CloudTrailTransientRegionFailure):
+        get_saml_role_events(boto3_session, "me-central-1", 24)
+
+
+def test_get_web_identity_role_events_raises_transient_region_failure_on_503():
+    boto3_session = MagicMock()
+    page_iterator = MagicMock()
+    page_iterator.__iter__ = MagicMock(
+        side_effect=ClientError(
+            {
+                "Error": {
+                    "Code": "ServiceUnavailable",
+                    "Message": "Service Unavailable",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 503},
+            },
+            "LookupEvents",
+        )
+    )
+    boto3_session.client.return_value.get_paginator.return_value.paginate.return_value = (
+        page_iterator
+    )
+
+    with pytest.raises(CloudTrailTransientRegionFailure):
+        get_web_identity_role_events(boto3_session, "me-central-1", 24)
