@@ -23,7 +23,6 @@ import cartography.intel.cve
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
-import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
@@ -70,7 +69,6 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
         "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
@@ -523,12 +521,17 @@ def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
+    # Aliases for backwards compatibility: normalize legacy names to canonical module names.
+    _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
+
     validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
+        module = _MODULE_ALIASES.get(module, module)
 
         if module in TOP_LEVEL_MODULES.keys():
-            validated_modules.append(module)
+            if module not in validated_modules:
+                validated_modules.append(module)
         else:
             valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(
