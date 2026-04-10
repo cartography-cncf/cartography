@@ -12,17 +12,9 @@ TEST_UPDATE_TAG = 123456789
 TEST_CONTAINER_ID = f"{TEST_CONTAINER_GROUP_ID}/my-container"
 
 
-@patch("cartography.intel.azure.group_containers.get_container_architectures")
 @patch("cartography.intel.azure.group_containers.get_container_groups")
-def test_has_image_rel(mock_get, mock_get_arch, neo4j_session):
+def test_has_image_rel(mock_get, neo4j_session):
     mock_get.return_value = MOCK_CONTAINER_GROUP_WITH_CONTAINERS
-    mock_get_arch.return_value = {
-        TEST_GROUP_CONTAINER_DIGEST: {
-            "architecture": "amd64",
-            "architecture_normalized": "amd64",
-            "architecture_source": "acr_manifest",
-        },
-    }
 
     neo4j_session.run(
         "MERGE (s:AzureSubscription {id: $id}) SET s.lastupdated = $tag",
