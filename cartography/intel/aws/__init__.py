@@ -370,11 +370,19 @@ def _autodiscover_account_regions(boto3_session: boto3.session.Session, account_
 # Get list of all regions where API calls are not blocked
 def get_allowed_regions(enabled_regions: list[str], boto3_session: boto3.session.Session):
     allowed_regions = []
+    config = botocore.config.Config(
+        read_timeout=360,
+        connect_timeout=60,
+        retries={
+            'max_attempts': 2,
+            'mode': 'standard',
+        },
+    )
 
     # Check for EC2 instances in each region to determine if the region is enabled
     for region in enabled_regions:
         try:
-            ec2_region = boto3_session.client("ec2", region_name=region, config=get_botocore_config())
+            ec2_region = boto3_session.client("ec2", region_name=region, config=config)
             ec2_region.describe_vpcs()
             allowed_regions.append(region)
 
@@ -388,6 +396,8 @@ def get_allowed_regions(enabled_regions: list[str], boto3_session: boto3.session
                 logger.info(f"Access denied or region restricted: {region}")
             else:
                 logger.info(f"Unexpected error occurred in region {region}: {e}")
+        except Exception as e:
+            logger.info(f"error occurred in region {region}: {e}")
 
     return allowed_regions
 

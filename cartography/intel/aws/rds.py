@@ -597,7 +597,7 @@ def load_rds_instances(
         if rds.get('DBSubnetGroup'):
             subnets.append(rds)
 
-        if rds.get("Engine") in ["aurora-mysql", "mysql", "mariadb", "aurora-postgres", "postgres", "aurora-postgresql", "postgresql"]:
+        if rds.get("Engine") in ["aurora-mysql", "mysql", "mariadb", "aurora-postgres", "postgres", "aurora-postgresql", "postgresql", "sqlserver-ex"]:
             arn = rds.get("DBInstanceArn", "")
             database_name = arn.split(":db:")[-1] if ":db:" in arn else ""
             rds['DatabaseName'] = rds.get("DBName", database_name)
