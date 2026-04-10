@@ -176,7 +176,7 @@ async def sync_service_principals(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> dict[str, str]:
     """
     Sync Entra service principals to the graph.
 
@@ -186,6 +186,7 @@ async def sync_service_principals(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :return: Mapping of application app_id to Entra service principal node id.
     """
     # Create credentials and client
     credential = ClientSecretCredential(
@@ -201,11 +202,14 @@ async def sync_service_principals(
         service_principals_batch = []
         batch_size = 50  # Batch size for service principals
         total_count = 0
+        service_principal_ids_by_app_id: dict[str, str] = {}
 
         # Stream service principals and process in batches
         async for spn in get_entra_service_principals(client):
             service_principals_batch.append(spn)
             total_count += 1
+            if spn.app_id and spn.id:
+                service_principal_ids_by_app_id[spn.app_id] = spn.id
 
             # Transform and load service principals in batches
             if len(service_principals_batch) >= batch_size:
@@ -236,5 +240,6 @@ async def sync_service_principals(
             transformed_service_principals.clear()
 
         cleanup_service_principals(neo4j_session, common_job_parameters)
+        return service_principal_ids_by_app_id
     finally:
         credential.close()

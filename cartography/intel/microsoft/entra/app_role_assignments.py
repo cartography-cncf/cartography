@@ -10,8 +10,6 @@ from msgraph.generated.models.app_role_assignment_collection_response import (
 )
 
 from cartography.client.core.tx import load
-from cartography.client.microsoft import get_entra_service_principal_id_for_app
-from cartography.client.microsoft import list_entra_application_ids
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.applications import (
     APP_ROLE_ASSIGNMENTS_PAGE_SIZE,
@@ -26,26 +24,23 @@ from cartography.util import timeit
 
 @timeit
 async def get_app_role_assignments_for_app(
-    client: GraphServiceClient, neo4j_session: neo4j.Session, app_id: str
+    client: GraphServiceClient,
+    app_id: str,
+    service_principal_id: str | None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Gets app role assignments for a single application by querying the graph for service principal ID.
+    Gets app role assignments for a single application.
 
     :param client: GraphServiceClient
-    :param neo4j_session: Neo4j session for querying service principal
     :param app_id: Application ID
+    :param service_principal_id: Entra service principal node ID for the application
     :return: Generator of app role assignment data as dicts
     """
     logger.info(f"Fetching role assignments for application: {app_id}")
 
-    service_principal_id = get_entra_service_principal_id_for_app(
-        neo4j_session,
-        app_id,
-    )
-
     if not service_principal_id:
         logger.warning(
-            f"No service principal found in graph for application {app_id}. Continuing."
+            f"No service principal found for application {app_id}. Continuing."
         )
         return
 
@@ -235,6 +230,8 @@ async def sync_app_role_assignments(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    app_ids: list[str],
+    service_principal_ids_by_app_id: dict[str, str],
 ) -> None:
     """
     Sync Entra app role assignments to the graph.
@@ -261,12 +258,13 @@ async def sync_app_role_assignments(
         assignments_batch = []
         total_assignment_count = 0
 
-        app_ids = list_entra_application_ids(neo4j_session)
-
         for app_id in app_ids:
-            # Stream app role assignments (now using graph query for service principal ID)
+            service_principal_id = service_principal_ids_by_app_id.get(app_id)
+
             async for assignment in get_app_role_assignments_for_app(
-                client, neo4j_session, app_id
+                client,
+                app_id,
+                service_principal_id,
             ):
                 assignments_batch.append(assignment)
                 total_assignment_count += 1

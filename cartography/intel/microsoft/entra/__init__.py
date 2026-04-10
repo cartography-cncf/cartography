@@ -130,7 +130,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Run application sync
-        await sync_entra_applications(
+        app_ids = await sync_entra_applications(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
@@ -140,7 +140,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Run service principals sync
-        await sync_service_principals(
+        service_principal_ids_by_app_id = await sync_service_principals(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
@@ -157,6 +157,8 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            app_ids,
+            service_principal_ids_by_app_id,
         )
 
         # Run federation sync (after all resources are synced)

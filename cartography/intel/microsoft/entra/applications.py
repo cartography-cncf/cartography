@@ -143,7 +143,7 @@ async def sync_entra_applications(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[str]:
     """
     Sync Entra applications and their app role assignments to the graph.
 
@@ -153,6 +153,7 @@ async def sync_entra_applications(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
+    :return: List of synced Entra application app_id values.
     """
     # Create credentials and client
     credential = ClientSecretCredential(
@@ -170,11 +171,14 @@ async def sync_entra_applications(
         app_batch_size = 10  # Batch size for applications
         apps_batch = []
         total_app_count = 0
+        app_ids: list[str] = []
 
         # Stream and load applications
         async for app in get_entra_applications(client):
             total_app_count += 1
             apps_batch.append(app)
+            if app.app_id:
+                app_ids.append(app.app_id)
 
             # Transform and load applications in batches
             if len(apps_batch) >= app_batch_size:
@@ -199,5 +203,6 @@ async def sync_entra_applications(
         logger.info(f"Completed syncing {total_app_count} applications")
         # Final garbage collection
         gc.collect()
+        return app_ids
     finally:
         credential.close()

@@ -112,8 +112,16 @@ async def _mock_get_entra_service_principals(client):
         yield spn
 
 
-async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
+async def _mock_get_app_role_assignments_for_app(client, app_id, service_principal_id):
     """Mock async generator for get_app_role_assignments_for_app"""
+    expected_service_principal_by_app_id = {
+        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "sp-11111111-1111-1111-1111-111111111111",
+        "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb": "sp-22222222-2222-2222-2222-222222222222",
+    }
+
+    if service_principal_id != expected_service_principal_by_app_id.get(app_id):
+        return
+
     # Return assignments that match this app_id
     assignments, _ = _prepare_mock_assignments()
 
@@ -174,7 +182,7 @@ async def test_sync_entra_applications(
 
     # Act - sync in the correct order: applications -> service principals -> app role assignments
     # First sync applications
-    await sync_entra_applications(
+    app_ids = await sync_entra_applications(
         neo4j_session,
         TEST_TENANT_ID,
         TEST_CLIENT_ID,
@@ -184,7 +192,7 @@ async def test_sync_entra_applications(
     )
 
     # Then sync service principals
-    await sync_service_principals(
+    service_principal_ids_by_app_id = await sync_service_principals(
         neo4j_session,
         TEST_TENANT_ID,
         TEST_CLIENT_ID,
@@ -193,7 +201,7 @@ async def test_sync_entra_applications(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    # Finally sync app role assignments (this will query the graph for applications)
+    # Finally sync app role assignments using the in-memory application/service principal IDs
     await sync_app_role_assignments(
         neo4j_session,
         TEST_TENANT_ID,
@@ -201,6 +209,8 @@ async def test_sync_entra_applications(
         TEST_CLIENT_SECRET,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+        app_ids,
+        service_principal_ids_by_app_id,
     )
 
     await sync_entra_federation(
