@@ -36,6 +36,7 @@ def test_transform_pods_defaults_service_account_name():
             "service_account_id": "my-cluster-1/my-namespace/default",
             "node": "node-a",
             "node_id": "my-cluster-1/node-a",
+            "architecture_normalized": None,
             "labels": "{}",
             "containers": [],
             "secret_volume_ids": [],
