@@ -47,14 +47,17 @@ async def sync_tenant(
         client_id=client_id,
         client_secret=client_secret,
     )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    try:
+        client = GraphServiceClient(
+            credential, scopes=["https://graph.microsoft.com/.default"]
+        )
 
-    # Fetch tenant and load it
-    tenant = await get_tenant(client)
-    transformed_tenant = transform_tenant(tenant, tenant_id)
-    load_tenant(neo4j_session, transformed_tenant, update_tag)
+        # Fetch tenant and load it
+        tenant = await get_tenant(client)
+        transformed_tenant = transform_tenant(tenant, tenant_id)
+        load_tenant(neo4j_session, transformed_tenant, update_tag)
+    finally:
+        credential.close()
 
 
 @timeit

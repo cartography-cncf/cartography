@@ -54,82 +54,85 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             client_id=config.entra_client_id,
             client_secret=config.entra_client_secret,
         )
-        intune_client = GraphServiceClient(
-            credential,
-            scopes=["https://graph.microsoft.com/.default"],
-        )
-
-        managed_devices_synced = False
         try:
-            await sync_managed_devices(
-                neo4j_session,
-                intune_client,
-                config.entra_tenant_id,
-                config.update_tag,
-                common_job_parameters,
+            intune_client = GraphServiceClient(
+                credential,
+                scopes=["https://graph.microsoft.com/.default"],
             )
-            managed_devices_synced = True
-        except APIError as e:
-            if e.response_status_code == 403:
-                logger.warning(
-                    "Skipping Intune managed device sync: missing "
-                    "DeviceManagementManagedDevices.Read.All permission (403).",
+
+            managed_devices_synced = False
+            try:
+                await sync_managed_devices(
+                    neo4j_session,
+                    intune_client,
+                    config.entra_tenant_id,
+                    config.update_tag,
+                    common_job_parameters,
+                )
+                managed_devices_synced = True
+            except APIError as e:
+                if e.response_status_code == 403:
+                    logger.warning(
+                        "Skipping Intune managed device sync: missing "
+                        "DeviceManagementManagedDevices.Read.All permission (403).",
+                    )
+                else:
+                    raise
+
+            try:
+                await sync_detected_apps(
+                    neo4j_session,
+                    intune_client,
+                    config.entra_tenant_id,
+                    config.update_tag,
+                    common_job_parameters,
+                )
+            except APIError as e:
+                if e.response_status_code == 403:
+                    logger.warning(
+                        "Skipping Intune detected app sync: missing "
+                        "DeviceManagementManagedDevices.Read.All permission (403).",
+                    )
+                else:
+                    raise
+
+            compliance_policies_synced = False
+            try:
+                await sync_compliance_policies(
+                    neo4j_session,
+                    intune_client,
+                    config.entra_tenant_id,
+                    config.update_tag,
+                    common_job_parameters,
+                )
+                compliance_policies_synced = True
+            except APIError as e:
+                if e.response_status_code == 403:
+                    logger.warning(
+                        "Skipping Intune compliance policy sync: missing "
+                        "DeviceManagementConfiguration.Read.All permission (403).",
+                    )
+                else:
+                    raise
+
+            # Only run the analysis job when both sides synced successfully.
+            # If either side was skipped (403), stale nodes remain without
+            # cleanup; running the analysis would refresh APPLIES_TO edges on
+            # those stale nodes, preventing their eventual removal.
+            if managed_devices_synced and compliance_policies_synced:
+                run_scoped_analysis_job(
+                    "intune_compliance_policy_device.json",
+                    neo4j_session,
+                    common_job_parameters,
                 )
             else:
-                raise
-
-        try:
-            await sync_detected_apps(
-                neo4j_session,
-                intune_client,
-                config.entra_tenant_id,
-                config.update_tag,
-                common_job_parameters,
-            )
-        except APIError as e:
-            if e.response_status_code == 403:
-                logger.warning(
-                    "Skipping Intune detected app sync: missing "
-                    "DeviceManagementManagedDevices.Read.All permission (403).",
+                logger.info(
+                    "Skipping Intune compliance-policy-to-device analysis: "
+                    "managed_devices_synced=%s, compliance_policies_synced=%s.",
+                    managed_devices_synced,
+                    compliance_policies_synced,
                 )
-            else:
-                raise
-
-        compliance_policies_synced = False
-        try:
-            await sync_compliance_policies(
-                neo4j_session,
-                intune_client,
-                config.entra_tenant_id,
-                config.update_tag,
-                common_job_parameters,
-            )
-            compliance_policies_synced = True
-        except APIError as e:
-            if e.response_status_code == 403:
-                logger.warning(
-                    "Skipping Intune compliance policy sync: missing "
-                    "DeviceManagementConfiguration.Read.All permission (403).",
-                )
-            else:
-                raise
-
-        # Only run the analysis job when both sides synced successfully.
-        # If either side was skipped (403), stale nodes remain without
-        # cleanup; running the analysis would refresh APPLIES_TO edges on
-        # those stale nodes, preventing their eventual removal.
-        if managed_devices_synced and compliance_policies_synced:
-            run_scoped_analysis_job(
-                "intune_compliance_policy_device.json",
-                neo4j_session,
-                common_job_parameters,
-            )
-        else:
-            logger.info(
-                "Skipping Intune compliance-policy-to-device analysis: "
-                "managed_devices_synced=%s, compliance_policies_synced=%s.",
-                managed_devices_synced,
-                compliance_policies_synced,
-            )
+        finally:
+            credential.close()
 
     asyncio.run(main())

@@ -242,27 +242,30 @@ async def sync_entra_users(
         client_id=client_id,
         client_secret=client_secret,
     )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    try:
+        client = GraphServiceClient(
+            credential, scopes=["https://graph.microsoft.com/.default"]
+        )
 
-    # Process users in batches to reduce memory consumption
-    batch_size = (
-        500  # Process users in larger batches since they're simpler than groups
-    )
-    users_batch = []
+        # Process users in batches to reduce memory consumption
+        batch_size = (
+            500  # Process users in larger batches since they're simpler than groups
+        )
+        users_batch = []
 
-    async for user in get_users(client):
-        users_batch.append(user)
+        async for user in get_users(client):
+            users_batch.append(user)
 
-        if len(users_batch) >= batch_size:
+            if len(users_batch) >= batch_size:
+                transformed_users = list(transform_users(users_batch))
+                load_users(neo4j_session, transformed_users, tenant_id, update_tag)
+                users_batch.clear()
+
+        # Process any remaining users
+        if users_batch:
             transformed_users = list(transform_users(users_batch))
             load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-            users_batch.clear()
 
-    # Process any remaining users
-    if users_batch:
-        transformed_users = list(transform_users(users_batch))
-        load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-
-    cleanup(neo4j_session, common_job_parameters)
+        cleanup(neo4j_session, common_job_parameters)
+    finally:
+        credential.close()

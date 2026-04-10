@@ -160,40 +160,44 @@ async def sync_entra_applications(
         client_id=client_id,
         client_secret=client_secret,
     )
+    try:
+        client = GraphServiceClient(
+            credential,
+            scopes=["https://graph.microsoft.com/.default"],
+        )
 
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
+        # Step 1: Sync applications
+        app_batch_size = 10  # Batch size for applications
+        apps_batch = []
+        total_app_count = 0
 
-    # Step 1: Sync applications
-    app_batch_size = 10  # Batch size for applications
-    apps_batch = []
-    total_app_count = 0
+        # Stream and load applications
+        async for app in get_entra_applications(client):
+            total_app_count += 1
+            apps_batch.append(app)
 
-    # Stream and load applications
-    async for app in get_entra_applications(client):
-        total_app_count += 1
-        apps_batch.append(app)
+            # Transform and load applications in batches
+            if len(apps_batch) >= app_batch_size:
+                transformed_apps = list(transform_applications(apps_batch))
+                load_applications(
+                    neo4j_session, transformed_apps, update_tag, tenant_id
+                )
+                logger.info(
+                    f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
+                )
+                apps_batch.clear()
+                transformed_apps.clear()
+                gc.collect()  # Force garbage collection
 
-        # Transform and load applications in batches
-        if len(apps_batch) >= app_batch_size:
+        # Process remaining applications
+        if apps_batch:
             transformed_apps = list(transform_applications(apps_batch))
             load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
-            logger.info(
-                f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
-            )
             apps_batch.clear()
             transformed_apps.clear()
-            gc.collect()  # Force garbage collection
-
-    # Process remaining applications
-    if apps_batch:
-        transformed_apps = list(transform_applications(apps_batch))
-        load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
-        apps_batch.clear()
-        transformed_apps.clear()
-    cleanup_applications(neo4j_session, common_job_parameters)
-    logger.info(f"Completed syncing {total_app_count} applications")
-    # Final garbage collection
-    gc.collect()
+        cleanup_applications(neo4j_session, common_job_parameters)
+        logger.info(f"Completed syncing {total_app_count} applications")
+        # Final garbage collection
+        gc.collect()
+    finally:
+        credential.close()

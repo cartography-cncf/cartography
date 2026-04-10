@@ -193,43 +193,48 @@ async def sync_service_principals(
         client_id=client_id,
         client_secret=client_secret,
     )
+    try:
+        client = GraphServiceClient(
+            credential,
+            scopes=["https://graph.microsoft.com/.default"],
+        )
+        service_principals_batch = []
+        batch_size = 50  # Batch size for service principals
+        total_count = 0
 
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
-    service_principals_batch = []
-    batch_size = 50  # Batch size for service principals
-    total_count = 0
+        # Stream service principals and process in batches
+        async for spn in get_entra_service_principals(client):
+            service_principals_batch.append(spn)
+            total_count += 1
 
-    # Stream service principals and process in batches
-    async for spn in get_entra_service_principals(client):
-        service_principals_batch.append(spn)
-        total_count += 1
+            # Transform and load service principals in batches
+            if len(service_principals_batch) >= batch_size:
+                transformed_service_principals = transform_service_principals(
+                    service_principals_batch
+                )
+                load_service_principals(
+                    neo4j_session,
+                    transformed_service_principals,
+                    update_tag,
+                    tenant_id,
+                )
+                logger.info(
+                    f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
+                )
+                service_principals_batch.clear()
+                transformed_service_principals.clear()
 
-        # Transform and load service principals in batches
-        if len(service_principals_batch) >= batch_size:
+        # Process remaining service principals
+        if service_principals_batch:
             transformed_service_principals = transform_service_principals(
                 service_principals_batch
             )
             load_service_principals(
                 neo4j_session, transformed_service_principals, update_tag, tenant_id
             )
-            logger.info(
-                f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
-            )
             service_principals_batch.clear()
             transformed_service_principals.clear()
 
-    # Process remaining service principals
-    if service_principals_batch:
-        transformed_service_principals = transform_service_principals(
-            service_principals_batch
-        )
-        load_service_principals(
-            neo4j_session, transformed_service_principals, update_tag, tenant_id
-        )
-        service_principals_batch.clear()
-        transformed_service_principals.clear()
-
-    cleanup_service_principals(neo4j_session, common_job_parameters)
+        cleanup_service_principals(neo4j_session, common_job_parameters)
+    finally:
+        credential.close()
