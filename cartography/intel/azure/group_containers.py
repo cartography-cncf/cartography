@@ -3,6 +3,7 @@ from typing import Any
 
 import neo4j
 import requests as http_requests
+import requests.exceptions
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
@@ -81,7 +82,7 @@ def get_architecture(
         )
         blob_resp.raise_for_status()
         return blob_resp.json().get("architecture")
-    except Exception as e:
+    except (requests.exceptions.RequestException, KeyError, ValueError) as e:
         logger.warning(
             f"Failed to fetch architecture for {registry}/{repo}@{digest}: {e}"
         )
@@ -125,6 +126,7 @@ def get_container_architectures(
             if ".azurecr.io/" not in ref:
                 continue
             registry, repo = ref.split("/", 1)
+            repo = repo.split(":")[0]  # strip optional :tag from repo:tag@digest refs
             if digest not in targets:
                 targets[digest] = (registry, repo)
 
