@@ -47,14 +47,17 @@ async def sync_tenant(
         client_id=client_id,
         client_secret=client_secret,
     )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    try:
+        client = GraphServiceClient(
+            credential, scopes=["https://graph.microsoft.com/.default"]
+        )
 
-    # Fetch tenant and load it
-    tenant = await get_tenant(client)
-    transformed_tenant = transform_tenant(tenant, tenant_id)
-    load_tenant(neo4j_session, transformed_tenant, update_tag)
+        # Fetch tenant and load it
+        tenant = await get_tenant(client)
+        transformed_tenant = transform_tenant(tenant, tenant_id)
+        load_tenant(neo4j_session, transformed_tenant, update_tag)
+    finally:
+        credential.close()
 
 
 @timeit
@@ -127,7 +130,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Run application sync
-        await sync_entra_applications(
+        app_ids = await sync_entra_applications(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
@@ -137,7 +140,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Run service principals sync
-        await sync_service_principals(
+        service_principal_ids_by_app_id = await sync_service_principals(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
@@ -154,6 +157,8 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            app_ids,
+            service_principal_ids_by_app_id,
         )
 
         # Run federation sync (after all resources are synced)

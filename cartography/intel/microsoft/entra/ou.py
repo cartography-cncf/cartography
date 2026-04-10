@@ -109,28 +109,33 @@ async def sync_entra_ous(
         client_id=client_id,
         client_secret=client_secret,
     )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    try:
+        client = GraphServiceClient(
+            credential, scopes=["https://graph.microsoft.com/.default"]
+        )
 
-    # Process OUs in batches
-    batch_size = 100  # OUs are typically fewer than users/groups
-    units_batch = []
+        # Process OUs in batches
+        batch_size = 100  # OUs are typically fewer than users/groups
+        units_batch = []
 
-    async for unit in get_entra_ous(client):
-        units_batch.append(unit)
+        async for unit in get_entra_ous(client):
+            units_batch.append(unit)
 
-        if len(units_batch) >= batch_size:
+            if len(units_batch) >= batch_size:
+                transformed_units = list(transform_ous(units_batch, tenant_id))
+                load_ous(
+                    neo4j_session, transformed_units, update_tag, common_job_parameters
+                )
+                units_batch.clear()
+
+        # Process any remaining OUs
+        if units_batch:
             transformed_units = list(transform_ous(units_batch, tenant_id))
             load_ous(
                 neo4j_session, transformed_units, update_tag, common_job_parameters
             )
-            units_batch.clear()
 
-    # Process any remaining OUs
-    if units_batch:
-        transformed_units = list(transform_ous(units_batch, tenant_id))
-        load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
-
-    # Cleanup stale data
-    cleanup_ous(neo4j_session, common_job_parameters)
+        # Cleanup stale data
+        cleanup_ous(neo4j_session, common_job_parameters)
+    finally:
+        credential.close()

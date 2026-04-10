@@ -10,8 +10,6 @@ from msgraph.generated.models.app_role_assignment_collection_response import (
 )
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_list_of_values_tx
-from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.applications import (
     APP_ROLE_ASSIGNMENTS_PAGE_SIZE,
@@ -26,30 +24,23 @@ from cartography.util import timeit
 
 @timeit
 async def get_app_role_assignments_for_app(
-    client: GraphServiceClient, neo4j_session: neo4j.Session, app_id: str
+    client: GraphServiceClient,
+    app_id: str,
+    service_principal_id: str | None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Gets app role assignments for a single application by querying the graph for service principal ID.
+    Gets app role assignments for a single application.
 
     :param client: GraphServiceClient
-    :param neo4j_session: Neo4j session for querying service principal
     :param app_id: Application ID
+    :param service_principal_id: Entra service principal node ID for the application
     :return: Generator of app role assignment data as dicts
     """
     logger.info(f"Fetching role assignments for application: {app_id}")
 
-    # Query the graph to get the service principal ID for this application
-    query = """
-    MATCH (sp:EntraServicePrincipal {app_id: $app_id})
-    RETURN sp.id as service_principal_id
-    """
-    service_principal_id = neo4j_session.execute_read(
-        read_single_value_tx, query, app_id=app_id
-    )
-
     if not service_principal_id:
         logger.warning(
-            f"No service principal found in graph for application {app_id}. Continuing."
+            f"No service principal found for application {app_id}. Continuing."
         )
         return
 
@@ -239,6 +230,8 @@ async def sync_app_role_assignments(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    app_ids: list[str],
+    service_principal_ids_by_app_id: dict[str, str],
 ) -> None:
     """
     Sync Entra app role assignments to the graph.
@@ -256,52 +249,55 @@ async def sync_app_role_assignments(
         client_id=client_id,
         client_secret=client_secret,
     )
-
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
-    assignment_batch_size = 200  # Batch size for assignments
-    assignments_batch = []
-    total_assignment_count = 0
-
-    # Get app_ids from graph instead of streaming from API again
-    query = "MATCH (app:EntraApplication) RETURN app.app_id"
-    app_ids = neo4j_session.execute_read(read_list_of_values_tx, query)
-
-    for app_id in app_ids:
-        # Stream app role assignments (now using graph query for service principal ID)
-        async for assignment in get_app_role_assignments_for_app(
-            client, neo4j_session, app_id
-        ):
-            assignments_batch.append(assignment)
-            total_assignment_count += 1
-
-            # Transform and load assignments in batches
-            if len(assignments_batch) >= assignment_batch_size:
-                transformed_assignments = transform_app_role_assignments(
-                    assignments_batch
-                )
-                load_app_role_assignments(
-                    neo4j_session, transformed_assignments, update_tag, tenant_id
-                )
-                logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
-                assignments_batch.clear()
-                transformed_assignments.clear()
-
-                # Force garbage collection after batch load
-                gc.collect()
-
-    # Process remaining assignments
-    if assignments_batch:
-        transformed_assignments = transform_app_role_assignments(assignments_batch)
-        load_app_role_assignments(
-            neo4j_session, transformed_assignments, update_tag, tenant_id
+    try:
+        client = GraphServiceClient(
+            credential,
+            scopes=["https://graph.microsoft.com/.default"],
         )
-        assignments_batch.clear()
-        transformed_assignments.clear()
+        assignment_batch_size = 200  # Batch size for assignments
+        assignments_batch = []
+        total_assignment_count = 0
 
-    cleanup_app_role_assignments(neo4j_session, common_job_parameters)
-    logger.info(f"Completed syncing {total_assignment_count} app role assignments")
-    # Final garbage collection
-    gc.collect()
+        for app_id in app_ids:
+            service_principal_id = service_principal_ids_by_app_id.get(app_id)
+
+            async for assignment in get_app_role_assignments_for_app(
+                client,
+                app_id,
+                service_principal_id,
+            ):
+                assignments_batch.append(assignment)
+                total_assignment_count += 1
+
+                # Transform and load assignments in batches
+                if len(assignments_batch) >= assignment_batch_size:
+                    transformed_assignments = transform_app_role_assignments(
+                        assignments_batch
+                    )
+                    load_app_role_assignments(
+                        neo4j_session, transformed_assignments, update_tag, tenant_id
+                    )
+                    logger.debug(
+                        f"Loaded batch of {len(assignments_batch)} assignments"
+                    )
+                    assignments_batch.clear()
+                    transformed_assignments.clear()
+
+                    # Force garbage collection after batch load
+                    gc.collect()
+
+        # Process remaining assignments
+        if assignments_batch:
+            transformed_assignments = transform_app_role_assignments(assignments_batch)
+            load_app_role_assignments(
+                neo4j_session, transformed_assignments, update_tag, tenant_id
+            )
+            assignments_batch.clear()
+            transformed_assignments.clear()
+
+        cleanup_app_role_assignments(neo4j_session, common_job_parameters)
+        logger.info(f"Completed syncing {total_assignment_count} app role assignments")
+        # Final garbage collection
+        gc.collect()
+    finally:
+        credential.close()

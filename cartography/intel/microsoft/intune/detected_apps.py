@@ -1,6 +1,8 @@
+import gc
 import logging
 from typing import Any
 from typing import AsyncGenerator
+from typing import Iterator
 
 import neo4j
 from kiota_abstractions.api_error import APIError
@@ -14,6 +16,8 @@ from cartography.models.microsoft.intune.detected_app import IntuneDetectedAppSc
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+DETECTED_APP_ROW_BATCH_SIZE = 1000
 
 
 @timeit
@@ -134,6 +138,32 @@ def transform_detected_apps(
     return result
 
 
+def iter_detected_app_rows(
+    app: DetectedApp,
+) -> Iterator[dict[str, Any]]:
+    """
+    Yield rows matching IntuneDetectedAppSchema for a single detected app.
+
+    This avoids materializing a large intermediate list for batches of apps that
+    may each expand to many managed-device relationships.
+    """
+    base: dict[str, Any] = {
+        "id": app.id,
+        "display_name": app.display_name,
+        "version": app.version,
+        "size_in_byte": app.size_in_byte,
+        "device_count": app.device_count,
+        "publisher": app.publisher,
+        "platform": app.platform.value if app.platform else None,
+    }
+
+    if app.managed_devices:
+        for device in app.managed_devices:
+            yield {**base, "device_id": device.id}
+    else:
+        yield {**base, "device_id": None}
+
+
 @timeit
 def load_detected_apps(
     neo4j_session: neo4j.Session,
@@ -169,19 +199,50 @@ async def sync_detected_apps(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    apps_batch: list[DetectedApp] = []
-    batch_size = 500
+    row_batch: list[dict[str, Any]] = []
+    apps_processed = 0
+    rows_processed = 0
 
     async for app in get_detected_apps(client):
-        apps_batch.append(app)
+        apps_processed += 1
 
-        if len(apps_batch) >= batch_size:
-            transformed = transform_detected_apps(apps_batch)
-            load_detected_apps(neo4j_session, transformed, tenant_id, update_tag)
-            apps_batch.clear()
+        for row in iter_detected_app_rows(app):
+            row_batch.append(row)
+            rows_processed += 1
 
-    if apps_batch:
-        transformed = transform_detected_apps(apps_batch)
-        load_detected_apps(neo4j_session, transformed, tenant_id, update_tag)
+            if len(row_batch) >= DETECTED_APP_ROW_BATCH_SIZE:
+                current_batch_size = len(row_batch)
+                load_detected_apps(neo4j_session, row_batch, tenant_id, update_tag)
+                logger.info(
+                    "Loaded batch of %d detected app rows "
+                    "(apps processed: %d, total rows: %d)",
+                    current_batch_size,
+                    apps_processed,
+                    rows_processed,
+                )
+                row_batch.clear()
+                gc.collect()
+
+        # Expanded managed-device lists can be large; release them as soon as the
+        # corresponding rows have been flushed into the current row batch.
+        app.managed_devices = None
+
+    if row_batch:
+        current_batch_size = len(row_batch)
+        load_detected_apps(neo4j_session, row_batch, tenant_id, update_tag)
+        logger.info(
+            "Loaded final batch of %d detected app rows "
+            "(apps processed: %d, total rows: %d)",
+            current_batch_size,
+            apps_processed,
+            rows_processed,
+        )
+        row_batch.clear()
+        gc.collect()
 
     cleanup(neo4j_session, common_job_parameters)
+    logger.info(
+        "Completed syncing %d detected apps into %d rows",
+        apps_processed,
+        rows_processed,
+    )
