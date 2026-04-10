@@ -25,6 +25,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
     node: PropertyRef = PropertyRef("node")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

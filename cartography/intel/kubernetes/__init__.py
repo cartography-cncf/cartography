@@ -58,7 +58,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             )
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
-            sync_nodes(session, client, config.update_tag, common_job_parameters)
+            node_arch_map = sync_nodes(
+                session, client, config.update_tag, common_job_parameters
+            )
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
@@ -89,6 +91,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
                 region=region,
+                node_arch_map=node_arch_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(

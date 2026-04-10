@@ -6,25 +6,13 @@ from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.nodes import KubernetesNodeSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-_ARCH_NORMALIZATION_MAP = {
-    "amd64": "amd64",
-    "x86_64": "amd64",
-    "arm64": "arm64",
-    "aarch64": "arm64",
-}
-
-
-def _normalize_architecture(arch: str | None) -> str | None:
-    if arch is None:
-        return None
-    return _ARCH_NORMALIZATION_MAP.get(arch.lower(), arch.lower())
 
 
 @timeit
@@ -42,7 +30,7 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
                 "architecture": arch_raw,
-                "architecture_normalized": _normalize_architecture(arch_raw),
+                "architecture_normalized": normalize_architecture(arch_raw),
                 "os": node_info.operating_system if node_info else None,
                 "os_image": node_info.os_image if node_info else None,
                 "kernel_version": node_info.kernel_version if node_info else None,
@@ -85,7 +73,7 @@ def sync_nodes(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> dict[str, str]:
     raw_nodes = get_nodes(client)
     transformed = transform_nodes(raw_nodes, client.name)
     load_nodes(
@@ -96,3 +84,10 @@ def sync_nodes(
         client.name,
     )
     cleanup(session, common_job_parameters)
+    # Return a node-name → architecture_normalized lookup so callers can stamp
+    # the runtime arch onto pods and containers without a graph traversal.
+    return {
+        n["name"]: n["architecture_normalized"]
+        for n in transformed
+        if n.get("architecture_normalized")
+    }
