@@ -32,6 +32,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_limit: PropertyRef = PropertyRef("memory_limit")
     cpu_limit: PropertyRef = PropertyRef("cpu_limit")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
