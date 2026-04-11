@@ -80,4 +80,5 @@ def test_transform_pods_propagates_node_architecture_to_pod_and_container():
     )
 
     assert transformed[0]["architecture_normalized"] == "arm64"
+    assert transformed[0]["containers"][0]["image_pull_policy"] == "IfNotPresent"
     assert transformed[0]["containers"][0]["architecture_normalized"] == "arm64"

@@ -195,6 +195,18 @@ def test_load_pod_containers(neo4j_session, _create_test_cluster):
     # Assert
     expected_nodes = {("my-pod-container",), ("my-service-pod-container",)}
     assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == expected_nodes
+    expected_pull_policies = {
+        ("my-pod-container", "always"),
+        ("my-service-pod-container", "always"),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "image_pull_policy"],
+        )
+        == expected_pull_policies
+    )
 
 
 def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):

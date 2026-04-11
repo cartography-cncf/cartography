@@ -28,7 +28,7 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "image": container.image,
             "namespace": pod.metadata.namespace,
             "pod_id": pod.metadata.uid,
-            "imagePullPolicy": container.image_pull_policy,
+            "image_pull_policy": container.image_pull_policy,
             "architecture_normalized": node_arch,
         }
 
