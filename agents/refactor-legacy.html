@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Refactoring Legacy Code to Data Model - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Troubleshooting Guide" href="troubleshooting.html" /><link rel="prev" title="Enriching the Ontology" href="enrich-ontology.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Refactoring Legacy Code to Data Model"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/microsoft/schema.html">Microsoft Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Agent Procedures</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="add-relationship.html">Adding a New Relationship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analysis-jobs.html">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-module.html">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#step-1-prevent-regressions-critical">Step 1: Prevent Regressions (CRITICAL)</a><ul>
+<li><a class="reference internal" href="#a-identify-the-sync-function">1a. Identify the Sync Function</a></li>
+<li><a class="reference internal" href="#b-ensure-integration-test-exists">1b. Ensure Integration Test Exists</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-2-convert-to-data-model">Step 2: Convert to Data Model</a><ul>
+<li><a class="reference internal" href="#a-create-data-model-schema-files">2a. Create Data Model Schema Files</a></li>
+<li><a class="reference internal" href="#b-replace-load-functions">2b. Replace load_* Functions</a></li>
+<li><a class="reference internal" href="#c-replace-cleanup-functions">2c. Replace cleanup_* Functions</a></li>
+<li><a class="reference internal" href="#d-test-continuously">2d. Test Continuously</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-3-cleanup-legacy-files">Step 3: Cleanup Legacy Files</a><ul>
+<li><a class="reference internal" href="#a-remove-index-entries">3a. Remove Index Entries</a></li>
+<li><a class="reference internal" href="#b-remove-cleanup-job-files">3b. Remove Cleanup Job Files</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-refactoring-patterns">Common Refactoring Patterns</a><ul>
+<li><a class="reference internal" href="#pattern-1-simple-node-migration">Pattern 1: Simple Node Migration</a></li>
+<li><a class="reference internal" href="#pattern-2-complex-relationships">Pattern 2: Complex Relationships</a></li>
+<li><a class="reference internal" href="#pattern-3-matchlinks-for-complex-cases">Pattern 3: MatchLinks for Complex Cases</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#things-you-may-encounter">Things You May Encounter</a><ul>
+<li><a class="reference internal" href="#multiple-intel-modules-modifying-same-nodes">Multiple Intel Modules Modifying Same Nodes</a></li>
+<li><a class="reference internal" href="#legacy-test-adjustments">Legacy Test Adjustments</a></li>
+<li><a class="reference internal" href="#complex-cypher-queries">Complex Cypher Queries</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#what-not-to-test">What NOT to Test</a></li>
+<li><a class="reference internal" href="#when-to-stop-and-ask">When to Stop and Ask</a></li>
+<li><a class="reference internal" href="#refactoring-checklist">Refactoring Checklist</a></li>
+<li><a class="reference internal" href="#success-criteria">Success Criteria</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/agents/refactor-legacy.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Agent Procedures</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Refactoring Legacy Code to Data Model</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/refactor-legacy.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/refactor-legacy.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/refactor-legacy.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/refactor-legacy.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/refactor-legacy.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="refactoring-legacy-code-to-data-model">
+<h1>Refactoring Legacy Code to Data Model<a class="headerlink" href="#refactoring-legacy-code-to-data-model" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Related docs</strong>: <span class="xref myst">Main AGENTS.md</span> | <a class="reference internal" href="create-module.html"><span class="std std-doc">Create Module</span></a> | <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Add Node Type</span></a></p>
+</div></blockquote>
+<p><strong>IMPORTANT</strong>: A critical task for AI agents is refactoring legacy Cartography code from handwritten Cypher queries to the modern data model approach. This guide provides a step-by-step procedure to safely perform these refactors.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Legacy Cartography modules use handwritten Cypher queries to create nodes and relationships. The modern approach uses declarative data models that automatically generate optimized queries. Refactoring improves maintainability, performance, and consistency.</p>
+</section>
+<section id="step-1-prevent-regressions-critical">
+<h2>Step 1: Prevent Regressions (CRITICAL)<a class="headerlink" href="#step-1-prevent-regressions-critical" title="Link to this heading">¶</a></h2>
+<p><strong>Before touching any code</strong>, ensure you have comprehensive test coverage:</p>
+<section id="a-identify-the-sync-function">
+<h3>1a. Identify the Sync Function<a class="headerlink" href="#a-identify-the-sync-function" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Locate the main <code class="docutils literal notranslate"><span class="pre">sync_*()</span></code> function for the module</p></li>
+<li><p>This is usually named like <code class="docutils literal notranslate"><span class="pre">sync_ec2_instances()</span></code>, <code class="docutils literal notranslate"><span class="pre">sync_users()</span></code>, etc.</p></li>
+<li><p>Example: <code class="docutils literal notranslate"><span class="pre">cartography.intel.aws.ec2.instances.sync()</span></code></p></li>
+</ul>
+</section>
+<section id="b-ensure-integration-test-exists">
+<h3>1b. Ensure Integration Test Exists<a class="headerlink" href="#b-ensure-integration-test-exists" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Check for integration tests in <code class="docutils literal notranslate"><span class="pre">tests/integration/cartography/intel/[module]/</span></code></p></li>
+<li><p>The test MUST call the sync function directly</p></li>
+<li><p>If no test exists, <strong>CREATE IT FIRST</strong> before any refactoring:</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Example: tests/integration/cartography/intel/aws/ec2/test_instances.py</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">unittest.mock</span><span class="w"> </span><span class="kn">import</span> <span class="n">patch</span>
+</span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">cartography.intel.aws.ec2.instances</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.data.aws.ec2.instances</span><span class="w"> </span><span class="kn">import</span> <span class="n">MOCK_INSTANCES_DATA</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.integration.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_nodes</span><span class="p">,</span> <span class="n">check_rels</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="n">TEST_UPDATE_TAG</span> <span class="o">=</span> <span class="mi">123456789</span>
+</span><span data-line="8"><span class="n">TEST_AWS_ACCOUNT_ID</span> <span class="o">=</span> <span class="s2">&quot;123456789012&quot;</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="nd">@patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">cartography</span><span class="o">.</span><span class="n">intel</span><span class="o">.</span><span class="n">aws</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">instances</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="n">return_value</span><span class="o">=</span><span class="n">MOCK_INSTANCES_DATA</span><span class="p">)</span>
+</span><span data-line="11"><span class="k">def</span><span class="w"> </span><span class="nf">test_sync_ec2_instances</span><span class="p">(</span><span class="n">mock_get</span><span class="p">,</span> <span class="n">neo4j_session</span><span class="p">):</span>
+</span><span data-line="12"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that EC2 instances sync correctly&quot;&quot;&quot;</span>
+</span><span data-line="13">    <span class="c1"># Act - Call the sync function</span>
+</span><span data-line="14">    <span class="n">cartography</span><span class="o">.</span><span class="n">intel</span><span class="o">.</span><span class="n">aws</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">sync</span><span class="p">(</span>
+</span><span data-line="15">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="16">        <span class="n">boto3_session</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># Mocked</span>
+</span><span data-line="17">        <span class="n">regions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;us-east-1&quot;</span><span class="p">],</span>
+</span><span data-line="18">        <span class="n">current_aws_account_id</span><span class="o">=</span><span class="n">TEST_AWS_ACCOUNT_ID</span><span class="p">,</span>
+</span><span data-line="19">        <span class="n">update_tag</span><span class="o">=</span><span class="n">TEST_UPDATE_TAG</span><span class="p">,</span>
+</span><span data-line="20">        <span class="n">common_job_parameters</span><span class="o">=</span><span class="p">{</span>
+</span><span data-line="21">            <span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">TEST_UPDATE_TAG</span><span class="p">,</span>
+</span><span data-line="22">            <span class="s2">&quot;AWS_ID&quot;</span><span class="p">:</span> <span class="n">TEST_AWS_ACCOUNT_ID</span><span class="p">,</span>
+</span><span data-line="23">        <span class="p">},</span>
+</span><span data-line="24">    <span class="p">)</span>
+</span><span data-line="25">
+</span><span data-line="26">    <span class="c1"># Assert - Check expected nodes exist</span>
+</span><span data-line="27">    <span class="n">expected_nodes</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="28">        <span class="p">(</span><span class="s2">&quot;i-1234567890abcdef0&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">),</span>
+</span><span data-line="29">        <span class="p">(</span><span class="s2">&quot;i-0987654321fedcba0&quot;</span><span class="p">,</span> <span class="s2">&quot;stopped&quot;</span><span class="p">),</span>
+</span><span data-line="30">    <span class="p">}</span>
+</span><span data-line="31">    <span class="k">assert</span> <span class="n">check_nodes</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="s2">&quot;EC2Instance&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="n">expected_nodes</span>
+</span></pre></div>
+</div>
+<ul class="simple">
+<li><p><strong>CRITICAL</strong>: Run the test and ensure it passes before proceeding</p></li>
+<li><p>If the test doesn’t exist or fails, fix it first - <strong>no exceptions</strong></p></li>
+</ul>
+</section>
+</section>
+<section id="step-2-convert-to-data-model">
+<h2>Step 2: Convert to Data Model<a class="headerlink" href="#step-2-convert-to-data-model" title="Link to this heading">¶</a></h2>
+<p>Now safely convert the legacy code to use the modern data model:</p>
+<section id="a-create-data-model-schema-files">
+<h3>2a. Create Data Model Schema Files<a class="headerlink" href="#a-create-data-model-schema-files" title="Link to this heading">¶</a></h3>
+<p>Create schema files in <code class="docutils literal notranslate"><span class="pre">cartography/models/[module]/</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># cartography/models/aws/ec2/instances.py</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.common</span><span class="w"> </span><span class="kn">import</span> <span class="n">PropertyRef</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.nodes</span><span class="w"> </span><span class="kn">import</span> <span class="n">CartographyNodeProperties</span><span class="p">,</span> <span class="n">CartographyNodeSchema</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.relationships</span><span class="w"> </span><span class="kn">import</span> <span class="n">CartographyRelSchema</span><span class="p">,</span> <span class="n">LinkDirection</span><span class="p">,</span> <span class="n">make_target_node_matcher</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8"><span class="k">class</span><span class="w"> </span><span class="nc">EC2InstanceNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="9">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+</span><span data-line="10">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="11">    <span class="n">instanceid</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">)</span>
+</span><span data-line="12">    <span class="n">state</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;State&quot;</span><span class="p">)</span>
+</span><span data-line="13">    <span class="c1"># ... other properties</span>
+</span><span data-line="14">
+</span><span data-line="15"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="16"><span class="k">class</span><span class="w"> </span><span class="nc">EC2InstanceToAWSAccountRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="17">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSAccount&quot;</span>
+</span><span data-line="18">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="19">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;AWS_ID&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span data-line="20">    <span class="p">})</span>
+</span><span data-line="21">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>
+</span><span data-line="22">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RESOURCE&quot;</span>
+</span><span data-line="23">    <span class="n">properties</span><span class="p">:</span> <span class="n">EC2InstanceToAWSAccountRelProperties</span> <span class="o">=</span> <span class="n">EC2InstanceToAWSAccountRelProperties</span><span class="p">()</span>
+</span><span data-line="24">
+</span><span data-line="25"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="26"><span class="k">class</span><span class="w"> </span><span class="nc">EC2InstanceSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="27">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;EC2Instance&quot;</span>
+</span><span data-line="28">    <span class="n">properties</span><span class="p">:</span> <span class="n">EC2InstanceNodeProperties</span> <span class="o">=</span> <span class="n">EC2InstanceNodeProperties</span><span class="p">()</span>
+</span><span data-line="29">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">EC2InstanceToAWSAccountRel</span> <span class="o">=</span> <span class="n">EC2InstanceToAWSAccountRel</span><span class="p">()</span>
+</span></pre></div>
+</div>
+</section>
+<section id="b-replace-load-functions">
+<h3>2b. Replace load_* Functions<a class="headerlink" href="#b-replace-load-functions" title="Link to this heading">¶</a></h3>
+<p>Replace handwritten Cypher in load functions with data model <code class="docutils literal notranslate"><span class="pre">load()</span></code> calls:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Before (legacy)</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">load_ec2_instances</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">region</span><span class="p">,</span> <span class="n">current_aws_account_id</span><span class="p">,</span> <span class="n">update_tag</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">ingest_instances</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="4"><span class="s2">    UNWIND $instances_list as instance</span>
+</span><span data-line="5"><span class="s2">    MERGE (i:EC2Instance{id: instance.id})</span>
+</span><span data-line="6"><span class="s2">    ON CREATE SET i.firstseen = timestamp()</span>
+</span><span data-line="7"><span class="s2">    SET i.instanceid = instance.InstanceId,</span>
+</span><span data-line="8"><span class="s2">        i.state = instance.State,</span>
+</span><span data-line="9"><span class="s2">        i.lastupdated = $update_tag</span>
+</span><span data-line="10"><span class="s2">    WITH i</span>
+</span><span data-line="11"><span class="s2">    MATCH (owner:AWSAccount{id: $aws_account_id})</span>
+</span><span data-line="12"><span class="s2">    MERGE (owner)-[r:RESOURCE]-&gt;(i)</span>
+</span><span data-line="13"><span class="s2">    ON CREATE SET r.firstseen = timestamp()</span>
+</span><span data-line="14"><span class="s2">    SET r.lastupdated = $update_tag</span>
+</span><span data-line="15"><span class="s2">    &quot;&quot;&quot;</span>
+</span><span data-line="16">    <span class="n">neo4j_session</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ingest_instances</span><span class="p">,</span> <span class="n">instances_list</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">aws_account_id</span><span class="o">=</span><span class="n">current_aws_account_id</span><span class="p">,</span> <span class="n">update_tag</span><span class="o">=</span><span class="n">update_tag</span><span class="p">)</span>
+</span><span data-line="17">
+</span><span data-line="18"><span class="c1"># After (data model)</span>
+</span><span data-line="19"><span class="k">def</span><span class="w"> </span><span class="nf">load_ec2_instances</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">region</span><span class="p">,</span> <span class="n">current_aws_account_id</span><span class="p">,</span> <span class="n">update_tag</span><span class="p">):</span>
+</span><span data-line="20">    <span class="n">load</span><span class="p">(</span>
+</span><span data-line="21">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="22">        <span class="n">EC2InstanceSchema</span><span class="p">(),</span>
+</span><span data-line="23">        <span class="n">data</span><span class="p">,</span>
+</span><span data-line="24">        <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="25">        <span class="n">AWS_ID</span><span class="o">=</span><span class="n">current_aws_account_id</span><span class="p">,</span>
+</span><span data-line="26">    <span class="p">)</span>
+</span></pre></div>
+</div>
+<p>If you still need a handwritten write query during a refactor, do not keep <code class="docutils literal notranslate"><span class="pre">neo4j_session.run(...)</span></code> for that write path. Use <code class="docutils literal notranslate"><span class="pre">run_write_query()</span></code> so the query executes with Cartography’s managed transaction and retry behavior.</p>
+</section>
+<section id="c-replace-cleanup-functions">
+<h3>2c. Replace cleanup_* Functions<a class="headerlink" href="#c-replace-cleanup-functions" title="Link to this heading">¶</a></h3>
+<p>Replace handwritten cleanup with data model cleanup:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Before (legacy)</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">cleanup_ec2_instances</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">run_cleanup_job</span><span class="p">(</span><span class="s1">&#39;aws_import_ec2_instances_cleanup.json&#39;</span><span class="p">,</span> <span class="n">neo4j_session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># After (data model)</span>
+</span><span data-line="6"><span class="k">def</span><span class="w"> </span><span class="nf">cleanup_ec2_instances</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">):</span>
+</span><span data-line="7">    <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_node_schema</span><span class="p">(</span><span class="n">EC2InstanceSchema</span><span class="p">(),</span> <span class="n">common_job_parameters</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="d-test-continuously">
+<h3>2d. Test Continuously<a class="headerlink" href="#d-test-continuously" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Run your integration test after each change</p></li>
+<li><p>Ensure it still passes - if not, debug before continuing</p></li>
+<li><p>You may need to update minor details in tests due to data model differences</p></li>
+</ul>
+</section>
+</section>
+<section id="step-3-cleanup-legacy-files">
+<h2>Step 3: Cleanup Legacy Files<a class="headerlink" href="#step-3-cleanup-legacy-files" title="Link to this heading">¶</a></h2>
+<p>Once tests pass, clean up legacy infrastructure:</p>
+<section id="a-remove-index-entries">
+<h3>3a. Remove Index Entries<a class="headerlink" href="#a-remove-index-entries" title="Link to this heading">¶</a></h3>
+<p>Remove manual index entries from <code class="docutils literal notranslate"><span class="pre">cartography/data/indexes.cypher</span></code>:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="err">#</span><span class="w"> </span><span class="k">Remove</span><span class="w"> </span><span class="n">entries</span><span class="w"> </span><span class="n">like</span><span class="w"> </span><span class="n">these</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">model</span><span class="w"> </span><span class="n">creates</span><span class="w"> </span><span class="n">indexes</span><span class="w"> </span><span class="n">automatically</span>
+</span><span data-line="2"><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="n">EXISTS</span><span class="w"> </span><span class="n">FOR</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">.</span><span class="n">id</span><span class="p">);</span>
+</span><span data-line="3"><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="n">EXISTS</span><span class="w"> </span><span class="n">FOR</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">.</span><span class="n">lastupdated</span><span class="p">);</span>
+</span></pre></div>
+</div>
+<p><strong>Note</strong>: Only remove indexes for nodes you’ve converted to data model. Leave others untouched.</p>
+</section>
+<section id="b-remove-cleanup-job-files">
+<h3>3b. Remove Cleanup Job Files<a class="headerlink" href="#b-remove-cleanup-job-files" title="Link to this heading">¶</a></h3>
+<p>Remove corresponding cleanup JSON files from <code class="docutils literal notranslate"><span class="pre">cartography/data/jobs/cleanup/</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Remove files like:</span>
+</span><span data-line="2">rm<span class="w"> </span>cartography/data/jobs/cleanup/aws_import_ec2_instances_cleanup.json
+</span></pre></div>
+</div>
+<p><strong>Note</strong>: Only remove cleanup files for modules you’ve fully converted.</p>
+</section>
+</section>
+<section id="common-refactoring-patterns">
+<h2>Common Refactoring Patterns<a class="headerlink" href="#common-refactoring-patterns" title="Link to this heading">¶</a></h2>
+<section id="pattern-1-simple-node-migration">
+<h3>Pattern 1: Simple Node Migration<a class="headerlink" href="#pattern-1-simple-node-migration" title="Link to this heading">¶</a></h3>
+<p>Most legacy nodes can be directly converted to data model schemas.</p>
+</section>
+<section id="pattern-2-complex-relationships">
+<h3>Pattern 2: Complex Relationships<a class="headerlink" href="#pattern-2-complex-relationships" title="Link to this heading">¶</a></h3>
+<p>For modules with complex relationships, you may need:</p>
+<ul class="simple">
+<li><p><strong>One-to-Many relationships</strong> (see <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Add Node Type</span></a>)</p></li>
+<li><p><strong>Composite Node Pattern</strong> for nodes that get data from multiple sources</p></li>
+</ul>
+</section>
+<section id="pattern-3-matchlinks-for-complex-cases">
+<h3>Pattern 3: MatchLinks for Complex Cases<a class="headerlink" href="#pattern-3-matchlinks-for-complex-cases" title="Link to this heading">¶</a></h3>
+<p>Use <a class="reference internal" href="add-relationship.html#matchlinks-connecting-existing-nodes"><span class="std std-ref">MatchLinks</span></a> sparingly, only when:</p>
+<ul class="simple">
+<li><p>Connecting two existing node types from separate data sources</p></li>
+<li><p>Rich relationship properties that don’t belong in nodes</p></li>
+</ul>
+</section>
+</section>
+<section id="things-you-may-encounter">
+<h2>Things You May Encounter<a class="headerlink" href="#things-you-may-encounter" title="Link to this heading">¶</a></h2>
+<section id="multiple-intel-modules-modifying-same-nodes">
+<h3>Multiple Intel Modules Modifying Same Nodes<a class="headerlink" href="#multiple-intel-modules-modifying-same-nodes" title="Link to this heading">¶</a></h3>
+<p>When refactoring modules that modify the same node type:</p>
+<ul class="simple">
+<li><p>Use <strong>Simple Relationship Pattern</strong> if only referencing by ID</p></li>
+<li><p>Use <strong>Composite Node Pattern</strong> for different views of the same entity from different data sources (see <a class="reference internal" href="add-relationship.html#multiple-intel-modules-modifying-the-same-node-type"><span class="std std-ref">Add Relationship</span></a>)</p></li>
+</ul>
+</section>
+<section id="legacy-test-adjustments">
+<h3>Legacy Test Adjustments<a class="headerlink" href="#legacy-test-adjustments" title="Link to this heading">¶</a></h3>
+<p>Older tests may need small tweaks:</p>
+<ul class="simple">
+<li><p>Update expected property names if data model changes them</p></li>
+<li><p>Adjust relationship directions if needed</p></li>
+<li><p>Remove tests for manual cleanup jobs (data model handles this)</p></li>
+</ul>
+</section>
+<section id="complex-cypher-queries">
+<h3>Complex Cypher Queries<a class="headerlink" href="#complex-cypher-queries" title="Link to this heading">¶</a></h3>
+<p>Some legacy queries are complex. Break them down:</p>
+<ol class="arabic simple">
+<li><p>Identify what nodes/relationships are being created</p></li>
+<li><p>Map to data model schemas</p></li>
+<li><p>Use multiple <code class="docutils literal notranslate"><span class="pre">load()</span></code> calls if needed</p></li>
+</ol>
+</section>
+</section>
+<section id="what-not-to-test">
+<h2>What NOT to Test<a class="headerlink" href="#what-not-to-test" title="Link to this heading">¶</a></h2>
+<p><strong>Do NOT explicitly test cleanup functions</strong> unless there’s a specific concern:</p>
+<ul class="simple">
+<li><p>Data model handles complex cleanup cases automatically</p></li>
+<li><p>Testing cleanup adds unnecessary boilerplate</p></li>
+<li><p>Focus tests on data ingestion, not cleanup behavior</p></li>
+</ul>
+</section>
+<section id="when-to-stop-and-ask">
+<h2>When to Stop and Ask<a class="headerlink" href="#when-to-stop-and-ask" title="Link to this heading">¶</a></h2>
+<p>Refactors can be complex. <strong>Stop and ask the user</strong> if you encounter:</p>
+<ul class="simple">
+<li><p>Unclear business logic in legacy Cypher</p></li>
+<li><p>Complex relationships that don’t map clearly to data model</p></li>
+<li><p>Test failures you can’t resolve</p></li>
+<li><p>Multiple modules that seem interdependent</p></li>
+</ul>
+</section>
+<section id="refactoring-checklist">
+<h2>Refactoring Checklist<a class="headerlink" href="#refactoring-checklist" title="Link to this heading">¶</a></h2>
+<p>Before submitting a refactor:</p>
+<ul class="simple">
+<li><p>[ ] <strong>Integration test exists and passes</strong> for the sync function</p></li>
+<li><p>[ ] <strong>Data model schemas</strong> defined with proper relationships</p></li>
+<li><p>[ ] <strong>Legacy load functions</strong> converted to use <code class="docutils literal notranslate"><span class="pre">load()</span></code></p></li>
+<li><p>[ ] <strong>Legacy cleanup functions</strong> converted to use <code class="docutils literal notranslate"><span class="pre">GraphJob.from_node_schema()</span></code></p></li>
+<li><p>[ ] <strong>Tests still pass</strong> after all changes</p></li>
+<li><p>[ ] <strong>Index entries removed</strong> from <code class="docutils literal notranslate"><span class="pre">indexes.cypher</span></code></p></li>
+<li><p>[ ] <strong>Cleanup JSON files removed</strong> from cleanup directory</p></li>
+<li><p>[ ] <strong>No regressions</strong> - all functionality preserved</p></li>
+</ul>
+</section>
+<section id="success-criteria">
+<h2>Success Criteria<a class="headerlink" href="#success-criteria" title="Link to this heading">¶</a></h2>
+<p>A successful refactor should:</p>
+<ol class="arabic simple">
+<li><p><strong>Preserve all functionality</strong> - tests pass</p></li>
+<li><p><strong>Use data model</strong> - no handwritten Cypher for CRUD operations</p></li>
+<li><p><strong>Clean up legacy files</strong> - indexes and cleanup jobs removed</p></li>
+<li><p><strong>Maintain performance</strong> - no significant speed degradation</p></li>
+<li><p><strong>Follow patterns</strong> - consistent with other modern modules</p></li>
+</ol>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="enrich-ontology.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Enriching the Ontology</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="troubleshooting.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Troubleshooting Guide</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

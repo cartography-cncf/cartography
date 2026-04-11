@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Troubleshooting Guide - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="&lt;no title&gt;" href="../references/index.html" /><link rel="prev" title="Refactoring Legacy Code to Data Model" href="refactor-legacy.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Troubleshooting Guide"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/microsoft/schema.html">Microsoft Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Agent Procedures</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="add-relationship.html">Adding a New Relationship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analysis-jobs.html">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-module.html">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="refactor-legacy.html">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#common-issues-and-solutions">Common Issues and Solutions</a><ul>
+<li><a class="reference internal" href="#import-errors">Import Errors</a></li>
+<li><a class="reference internal" href="#schema-validation-errors">Schema Validation Errors</a></li>
+<li><a class="reference internal" href="#relationship-connection-issues">Relationship Connection Issues</a></li>
+<li><a class="reference internal" href="#cleanup-job-failures">Cleanup Job Failures</a></li>
+<li><a class="reference internal" href="#data-transform-issues">Data Transform Issues</a></li>
+<li><a class="reference internal" href="#schema-definition-issues">Schema Definition Issues</a></li>
+<li><a class="reference internal" href="#performance-issues">Performance Issues</a></li>
+<li><a class="reference internal" href="#matchlink-issues">MatchLink Issues</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#debugging-tips-for-ai-assistants">Debugging Tips for AI Assistants</a></li>
+<li><a class="reference internal" href="#key-files-for-debugging">Key Files for Debugging</a></li>
+<li><a class="reference internal" href="#test-utilities">Test Utilities</a></li>
+<li><a class="reference internal" href="#error-messages-reference">Error Messages Reference</a></li>
+<li><a class="reference internal" href="#when-to-ask-for-help">When to Ask for Help</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/agents/troubleshooting.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Agent Procedures</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Troubleshooting Guide</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/troubleshooting.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/troubleshooting.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/troubleshooting.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/troubleshooting.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/troubleshooting.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="troubleshooting-guide">
+<h1>Troubleshooting Guide<a class="headerlink" href="#troubleshooting-guide" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Related docs</strong>: <span class="xref myst">Main AGENTS.md</span> | <a class="reference internal" href="create-module.html"><span class="std std-doc">Create Module</span></a> | <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Add Node Type</span></a></p>
+</div></blockquote>
+<p>This guide helps you diagnose and fix common issues when developing Cartography intel modules.</p>
+<section id="common-issues-and-solutions">
+<h2>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Link to this heading">¶</a></h2>
+<section id="import-errors">
+<h3>Import Errors<a class="headerlink" href="#import-errors" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: ModuleNotFoundError for your new module</span>
+</span><span data-line="2"><span class="c1"># Solution: Ensure __init__.py files exist in all directories</span>
+</span><span data-line="3"><span class="n">cartography</span><span class="o">/</span><span class="n">intel</span><span class="o">/</span><span class="n">your_service</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span>
+</span><span data-line="4"><span class="n">cartography</span><span class="o">/</span><span class="n">models</span><span class="o">/</span><span class="n">your_service</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span>
+</span></pre></div>
+</div>
+<p><strong>Checklist:</strong></p>
+<ul class="simple">
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> exists in <code class="docutils literal notranslate"><span class="pre">cartography/intel/your_service/</span></code></p></li>
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> exists in <code class="docutils literal notranslate"><span class="pre">cartography/models/your_service/</span></code></p></li>
+<li><p>[ ] Module is imported in parent <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> if needed</p></li>
+</ul>
+</section>
+<section id="schema-validation-errors">
+<h3>Schema Validation Errors<a class="headerlink" href="#schema-validation-errors" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: &quot;PropertyRef validation failed&quot;</span>
+</span><span data-line="2"><span class="c1"># Solution: Check dataclass syntax and PropertyRef definitions</span>
+</span><span data-line="3"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Don&#39;t forget frozen=True!</span>
+</span><span data-line="4"><span class="k">class</span><span class="w"> </span><span class="nc">YourNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="5">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>  <span class="c1"># Must have type annotation</span>
+</span></pre></div>
+</div>
+<p><strong>Common causes:</strong></p>
+<ul class="simple">
+<li><p>Missing <code class="docutils literal notranslate"><span class="pre">frozen=True</span></code> in <code class="docutils literal notranslate"><span class="pre">&#64;dataclass</span></code> decorator</p></li>
+<li><p>Missing type annotation (<code class="docutils literal notranslate"><span class="pre">:</span> <span class="pre">PropertyRef</span></code>)</p></li>
+<li><p>Typo in PropertyRef field name</p></li>
+</ul>
+</section>
+<section id="relationship-connection-issues">
+<h3>Relationship Connection Issues<a class="headerlink" href="#relationship-connection-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Relationships not created</span>
+</span><span data-line="2"><span class="c1"># Solution: Ensure target nodes exist before creating relationships</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># Load parent nodes first:</span>
+</span><span data-line="5"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">TenantSchema</span><span class="p">(),</span> <span class="n">tenant_data</span><span class="p">,</span> <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">)</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="c1"># Then load child nodes with relationships:</span>
+</span><span data-line="8"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">UserSchema</span><span class="p">(),</span> <span class="n">user_data</span><span class="p">,</span> <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span> <span class="n">TENANT_ID</span><span class="o">=</span><span class="n">tenant_id</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p><strong>Debugging steps:</strong></p>
+<ol class="arabic simple">
+<li><p>Check that the target node label matches exactly</p></li>
+<li><p>Verify the <code class="docutils literal notranslate"><span class="pre">target_node_matcher</span></code> property name matches the target node’s property</p></li>
+<li><p>Ensure the value in your data dict or kwargs is not <code class="docutils literal notranslate"><span class="pre">None</span></code></p></li>
+</ol>
+</section>
+<section id="cleanup-job-failures">
+<h3>Cleanup Job Failures<a class="headerlink" href="#cleanup-job-failures" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: &quot;GraphJob failed&quot; during cleanup</span>
+</span><span data-line="2"><span class="c1"># Solution: Check common_job_parameters structure</span>
+</span><span data-line="3"><span class="n">common_job_parameters</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="4">    <span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span>  <span class="c1"># Must match what&#39;s set on nodes</span>
+</span><span data-line="5">    <span class="s2">&quot;TENANT_ID&quot;</span><span class="p">:</span> <span class="n">tenant_id</span><span class="p">,</span>           <span class="c1"># If using scoped cleanup (default)</span>
+</span><span data-line="6"><span class="p">}</span>
+</span></pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Cleanup deleting too much data (wrong scoped_cleanup setting)</span>
+</span><span data-line="2"><span class="c1"># Solution: Verify scoped_cleanup setting is appropriate</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5"><span class="k">class</span><span class="w"> </span><span class="nc">MySchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="6">    <span class="c1"># For tenant-scoped resources (default, most common):</span>
+</span><span data-line="7">    <span class="c1"># scoped_cleanup: bool = True  # Default - no need to specify</span>
+</span><span data-line="8">
+</span><span data-line="9">    <span class="c1"># For global resources only (rare):</span>
+</span><span data-line="10">    <span class="n">scoped_cleanup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Only for vuln data, threat intel, etc.</span>
+</span></pre></div>
+</div>
+</section>
+<section id="data-transform-issues">
+<h3>Data Transform Issues<a class="headerlink" href="#data-transform-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: KeyError during transform</span>
+</span><span data-line="2"><span class="c1"># Solution: Handle required vs optional fields correctly</span>
+</span><span data-line="3"><span class="p">{</span>
+</span><span data-line="4">    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>                    <span class="c1"># Required - let it fail</span>
+</span><span data-line="5">    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>            <span class="c1"># Optional - use .get()</span>
+</span><span data-line="6">    <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>      <span class="c1"># DON&#39;T use empty string default</span>
+</span><span data-line="7">    <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">),</span>          <span class="c1"># DO use None default</span>
+</span><span data-line="8"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="schema-definition-issues">
+<h3>Schema Definition Issues<a class="headerlink" href="#schema-definition-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Adding custom fields to schema classes</span>
+</span><span data-line="2"><span class="c1"># Solution: Remove them - only standard fields are recognized by the loading system</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5"><span class="k">class</span><span class="w"> </span><span class="nc">MyRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="6">    <span class="c1"># Remove any custom fields like these:</span>
+</span><span data-line="7">    <span class="c1"># conditional_match_property: str = &quot;some_field&quot;  # Ignored</span>
+</span><span data-line="8">    <span class="c1"># custom_flag: bool = True                        # Ignored</span>
+</span><span data-line="9">    <span class="c1"># extra_config: dict = {}                         # Ignored</span>
+</span><span data-line="10">
+</span><span data-line="11">    <span class="c1"># Keep only the standard relationship fields</span>
+</span><span data-line="12">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;TargetNode&quot;</span>
+</span><span data-line="13">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</span><span data-line="14">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="15">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;CONNECTS_TO&quot;</span>
+</span><span data-line="16">    <span class="n">properties</span><span class="p">:</span> <span class="n">MyRelProperties</span> <span class="o">=</span> <span class="n">MyRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+</section>
+<section id="performance-issues">
+<h3>Performance Issues<a class="headerlink" href="#performance-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Slow queries</span>
+</span><span data-line="2"><span class="c1"># Solution: Add indexes to frequently queried fields</span>
+</span><span data-line="3"><span class="n">email</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># Query on indexed fields only</span>
+</span><span data-line="6"><span class="n">MATCH</span> <span class="p">(</span><span class="n">u</span><span class="p">:</span><span class="n">User</span> <span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="err">$</span><span class="n">user_id</span><span class="p">})</span>  <span class="c1"># Good - id is always indexed</span>
+</span><span data-line="7"><span class="n">MATCH</span> <span class="p">(</span><span class="n">u</span><span class="p">:</span><span class="n">User</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="err">$</span><span class="n">name</span><span class="p">})</span>   <span class="c1"># Bad - name might not be indexed</span>
+</span></pre></div>
+</div>
+<p><strong>Note:</strong> Fields referred to in a <code class="docutils literal notranslate"><span class="pre">target_node_matcher</span></code> are indexed automatically.</p>
+</section>
+<section id="matchlink-issues">
+<h3>MatchLink Issues<a class="headerlink" href="#matchlink-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: MatchLinks not creating relationships</span>
+</span><span data-line="2"><span class="c1"># Solution: Ensure both source and target nodes exist first</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># 1. Load source nodes</span>
+</span><span data-line="5"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">SourceNodeSchema</span><span class="p">(),</span> <span class="n">source_data</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="c1"># 2. Load target nodes</span>
+</span><span data-line="8"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">TargetNodeSchema</span><span class="p">(),</span> <span class="n">target_data</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="c1"># 3. Then load matchlinks</span>
+</span><span data-line="11"><span class="n">load_matchlinks</span><span class="p">(</span>
+</span><span data-line="12">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="13">    <span class="n">YourMatchLinkSchema</span><span class="p">(),</span>
+</span><span data-line="14">    <span class="n">mapping_data</span><span class="p">,</span>
+</span><span data-line="15">    <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="16">    <span class="n">_sub_resource_label</span><span class="o">=</span><span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>
+</span><span data-line="17">    <span class="n">_sub_resource_id</span><span class="o">=</span><span class="n">account_id</span><span class="p">,</span>
+</span><span data-line="18"><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: MatchLink cleanup not working</span>
+</span><span data-line="2"><span class="c1"># Solution: Use GraphJob.from_matchlink() with correct parameters</span>
+</span><span data-line="3"><span class="n">GraphJob</span><span class="o">.</span><span class="n">from_matchlink</span><span class="p">(</span>
+</span><span data-line="4">    <span class="n">YourMatchLinkSchema</span><span class="p">(),</span>
+</span><span data-line="5">    <span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>                          <span class="c1"># _sub_resource_label</span>
+</span><span data-line="6">    <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;AWS_ID&quot;</span><span class="p">],</span>       <span class="c1"># _sub_resource_id</span>
+</span><span data-line="7">    <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">],</span>   <span class="c1"># update_tag</span>
+</span><span data-line="8"><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="debugging-tips-for-ai-assistants">
+<h2>Debugging Tips for AI Assistants<a class="headerlink" href="#debugging-tips-for-ai-assistants" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Check existing patterns first</strong>: Look at similar modules in <code class="docutils literal notranslate"><span class="pre">cartography/intel/</span></code> before creating new patterns</p></li>
+<li><p><strong>Verify data model imports</strong>: Ensure all <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> imports are correct</p></li>
+<li><p><strong>Test transform functions</strong>: Always test data transformation logic with real API responses</p></li>
+<li><p><strong>Validate Neo4j queries</strong>: Use Neo4j browser to test queries manually if relationships aren’t working</p></li>
+<li><p><strong>Check file naming</strong>: Module files should match the service name (e.g., <code class="docutils literal notranslate"><span class="pre">cartography/intel/lastpass/users.py</span></code>)</p></li>
+<li><p><strong>Run tests incrementally</strong>: After each change, run the integration test to catch issues early</p></li>
+<li><p><strong>Use the sync function</strong>: Always test through the <code class="docutils literal notranslate"><span class="pre">sync()</span></code> function, not individual <code class="docutils literal notranslate"><span class="pre">load()</span></code> calls</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="key-files-for-debugging">
+<h2>Key Files for Debugging<a class="headerlink" href="#key-files-for-debugging" title="Link to this heading">¶</a></h2>
+<p>Understanding these files helps diagnose issues:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/client/core/tx.py</span></code></p></td>
+<td><p>Core <code class="docutils literal notranslate"><span class="pre">load()</span></code> and <code class="docutils literal notranslate"><span class="pre">load_matchlinks()</span></code> functions - check for query generation issues</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/graph/job.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GraphJob</span></code> class for cleanup operations</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/models/core/common.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PropertyRef</span></code> class definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/models/core/nodes.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code>, <code class="docutils literal notranslate"><span class="pre">CartographyNodeProperties</span></code> base classes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/models/core/relationships.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code>, <code class="docutils literal notranslate"><span class="pre">LinkDirection</span></code>, matchers</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/config.py</span></code></p></td>
+<td><p>Configuration object - check for missing fields</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/cli.py</span></code></p></td>
+<td><p>Typer-based CLI with organized help panels</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/data/indexes.cypher</span></code></p></td>
+<td><p>Manual index definitions (legacy)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cartography/data/jobs/cleanup/</span></code></p></td>
+<td><p>Legacy cleanup job JSON files</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="test-utilities">
+<h2>Test Utilities<a class="headerlink" href="#test-utilities" title="Link to this heading">¶</a></h2>
+<p>Use these utilities in integration tests:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.integration.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_nodes</span><span class="p">,</span> <span class="n">check_rels</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="c1"># Check nodes exist with expected properties</span>
+</span><span data-line="4"><span class="n">expected_nodes</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="5">    <span class="p">(</span><span class="s2">&quot;user-123&quot;</span><span class="p">,</span> <span class="s2">&quot;alice@example.com&quot;</span><span class="p">),</span>
+</span><span data-line="6">    <span class="p">(</span><span class="s2">&quot;user-456&quot;</span><span class="p">,</span> <span class="s2">&quot;bob@example.com&quot;</span><span class="p">),</span>
+</span><span data-line="7"><span class="p">}</span>
+</span><span data-line="8"><span class="k">assert</span> <span class="n">check_nodes</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="s2">&quot;YourServiceUser&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="n">expected_nodes</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="c1"># Check relationships exist</span>
+</span><span data-line="11"><span class="n">expected_rels</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="12">    <span class="p">(</span><span class="s2">&quot;user-123&quot;</span><span class="p">,</span> <span class="s2">&quot;tenant-123&quot;</span><span class="p">),</span>
+</span><span data-line="13">    <span class="p">(</span><span class="s2">&quot;user-456&quot;</span><span class="p">,</span> <span class="s2">&quot;tenant-123&quot;</span><span class="p">),</span>
+</span><span data-line="14"><span class="p">}</span>
+</span><span data-line="15"><span class="k">assert</span> <span class="n">check_rels</span><span class="p">(</span>
+</span><span data-line="16">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="17">    <span class="s2">&quot;YourServiceUser&quot;</span><span class="p">,</span>      <span class="c1"># Source node label</span>
+</span><span data-line="18">    <span class="s2">&quot;id&quot;</span><span class="p">,</span>                   <span class="c1"># Source node property</span>
+</span><span data-line="19">    <span class="s2">&quot;YourServiceTenant&quot;</span><span class="p">,</span>    <span class="c1"># Target node label</span>
+</span><span data-line="20">    <span class="s2">&quot;id&quot;</span><span class="p">,</span>                   <span class="c1"># Target node property</span>
+</span><span data-line="21">    <span class="s2">&quot;RESOURCE&quot;</span><span class="p">,</span>             <span class="c1"># Relationship label</span>
+</span><span data-line="22">    <span class="n">rel_direction_right</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span data-line="23"><span class="p">)</span> <span class="o">==</span> <span class="n">expected_rels</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="error-messages-reference">
+<h2>Error Messages Reference<a class="headerlink" href="#error-messages-reference" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Error Message</p></th>
+<th class="head"><p>Likely Cause</p></th>
+<th class="head"><p>Solution</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PropertyRef</span> <span class="pre">validation</span> <span class="pre">failed</span></code></p></td>
+<td><p>Missing type annotation or frozen=True</p></td>
+<td><p>Check dataclass definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Node</span> <span class="pre">not</span> <span class="pre">found</span> <span class="pre">for</span> <span class="pre">relationship</span></code></p></td>
+<td><p>Target node doesn’t exist</p></td>
+<td><p>Load parent nodes first</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GraphJob</span> <span class="pre">failed</span></code></p></td>
+<td><p>Wrong common_job_parameters</p></td>
+<td><p>Check UPDATE_TAG and tenant ID</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">KeyError:</span> <span class="pre">'field_name'</span></code></p></td>
+<td><p>Required field missing in API response</p></td>
+<td><p>Use <code class="docutils literal notranslate"><span class="pre">.get()</span></code> for optional fields</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ModuleNotFoundError</span></code></p></td>
+<td><p>Missing <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code></p></td>
+<td><p>Add <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> to all directories</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Relationship</span> <span class="pre">not</span> <span class="pre">created</span></code></p></td>
+<td><p>Matcher property mismatch</p></td>
+<td><p>Verify property names match exactly</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="when-to-ask-for-help">
+<h2>When to Ask for Help<a class="headerlink" href="#when-to-ask-for-help" title="Link to this heading">¶</a></h2>
+<p>Stop and ask the user if you encounter:</p>
+<ul class="simple">
+<li><p>Unclear business logic in legacy Cypher queries</p></li>
+<li><p>Complex relationships that don’t map clearly to data model</p></li>
+<li><p>Test failures you can’t resolve after multiple attempts</p></li>
+<li><p>Multiple modules that seem interdependent</p></li>
+<li><p>Performance issues that persist after adding indexes</p></li>
+<li><p>Unexpected data in the graph after sync</p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="refactor-legacy.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Refactoring Legacy Code to Data Model</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../references/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">&lt;no title&gt;</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

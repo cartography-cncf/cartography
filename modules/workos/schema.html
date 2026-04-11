@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>WorkOS Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Cartography Developer Guide" href="../../dev/developer-guide.html" /><link rel="prev" title="WorkOS Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="WorkOS Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">WorkOS</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../agents/index.html">Agent Procedures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/add-relationship.html">Adding a New Relationship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/analysis-jobs.html">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/create-module.html">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/refactor-legacy.html">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../agents/troubleshooting.html">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#workosenvironment">WorkOSEnvironment</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosorganization">WorkOSOrganization</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosuser">WorkOSUser</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosorganizationmembership">WorkOSOrganizationMembership</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosrole">WorkOSRole</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosinvitation">WorkOSInvitation</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosdirectory">WorkOSDirectory</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosdirectoryuser">WorkOSDirectoryUser</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosdirectorygroup">WorkOSDirectoryGroup</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosorganizationdomain">WorkOSOrganizationDomain</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosapikey">WorkOSAPIKey</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workosapplication">WorkOSApplication</a><ul>
+<li><a class="reference internal" href="#id11">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/workos/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">WorkOS</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">WorkOS Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/workos/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/workos/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/workos/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/workos/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/workos/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="workos-schema">
+<h1>WorkOS Schema<a class="headerlink" href="#workos-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+E(WorkOSEnvironment) -- RESOURCE --&gt; O(Organization)
+E -- RESOURCE --&gt; U(User)
+E -- RESOURCE --&gt; D(Directory)
+E -- RESOURCE --&gt; R(Role)
+E -- RESOURCE --&gt; I(Invitation)
+E -- RESOURCE --&gt; M(OrganizationMembership)
+E -- RESOURCE --&gt; DU(DirectoryUser)
+E -- RESOURCE --&gt; DG(DirectoryGroup)
+E -- RESOURCE --&gt; OD(OrganizationDomain)
+E -- RESOURCE --&gt; AK(APIKey)
+E -- RESOURCE --&gt; APP(Application)
+O -- HAS --&gt; R
+O -- OWNS --&gt; AK
+APP -- BELONGS_TO --&gt; O
+U -- MEMBER_OF --&gt; M
+M -- IN --&gt; O
+M -- WITH_ROLE --&gt; R
+I -- FOR_ORGANIZATION --&gt; O
+I -- INVITES --&gt; U
+I -- INVITED_BY --&gt; U
+D -- BELONGS_TO --&gt; O
+D -- HAS --&gt; DU
+D -- HAS --&gt; DG
+DU -- BELONGS_TO --&gt; O
+DU -- MEMBER_OF --&gt; DG
+DG -- BELONGS_TO --&gt; O
+OD -- DOMAIN_OF --&gt; O
+    </pre><section id="workosenvironment">
+<h2>WorkOSEnvironment<a class="headerlink" href="#workosenvironment" title="Link to this heading">¶</a></h2>
+<p>Represents a WorkOS Environment (root node for a WorkOS account/client). This is the top-level node that all other WorkOS resources are connected to.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">Tenant</span></code> to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The WorkOS client ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>All WorkOS resources belong to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span>
+</span><span data-line="2">    <span class="p">:</span><span class="n">WorkOSOrganization</span><span class="p">,</span>
+</span><span data-line="3">    <span class="p">:</span><span class="n">WorkOSUser</span><span class="p">,</span>
+</span><span data-line="4">    <span class="p">:</span><span class="n">WorkOSDirectory</span><span class="p">,</span>
+</span><span data-line="5">    <span class="p">:</span><span class="n">WorkOSRole</span><span class="p">,</span>
+</span><span data-line="6">    <span class="p">:</span><span class="n">WorkOSInvitation</span><span class="p">,</span>
+</span><span data-line="7">    <span class="p">:</span><span class="n">WorkOSOrganizationMembership</span><span class="p">,</span>
+</span><span data-line="8">    <span class="p">:</span><span class="n">WorkOSDirectoryUser</span><span class="p">,</span>
+</span><span data-line="9">    <span class="p">:</span><span class="n">WorkOSDirectoryGroup</span><span class="p">,</span>
+</span><span data-line="10">    <span class="p">:</span><span class="n">WorkOSOrganizationDomain</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">:</span><span class="n">WorkOSAPIKey</span><span class="p">,</span>
+</span><span data-line="12">    <span class="p">:</span><span class="n">WorkOSApplication</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosorganization">
+<h2>WorkOSOrganization<a class="headerlink" href="#workosorganization" title="Link to this heading">¶</a></h2>
+<p>Represents a WorkOS Organization. Organizations are the primary tenant unit in WorkOS and can contain multiple users, directories, and other resources.</p>
+<p><strong>Ontology Labels</strong>: <code class="docutils literal notranslate"><span class="pre">Tenant</span></code></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the organization</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the organization was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the organization was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p>allow_profiles_outside_organization</p></td>
+<td><p>Whether profiles outside the organization are allowed</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Organization</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Organization</span></code> has <code class="docutils literal notranslate"><span class="pre">Roles</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosuser">
+<h2>WorkOSUser<a class="headerlink" href="#workosuser" title="Link to this heading">¶</a></h2>
+<p>Represents an individual user in WorkOS. Users can be members of multiple organizations and have authentication profiles.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code> to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GitHubUser).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The email address of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>first_name</p></td>
+<td><p>The first name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_name</p></td>
+<td><p>The last name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>email_verified</p></td>
+<td><p>Whether the email address has been verified</p></td>
+</tr>
+<tr class="row-odd"><td><p>profile_picture_url</p></td>
+<td><p>URL to the user’s profile picture</p></td>
+</tr>
+<tr class="row-even"><td><p>last_sign_in_at</p></td>
+<td><p>The RFC 3339 datetime of the user’s last sign-in</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the user was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the user was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> is member of <code class="docutils literal notranslate"><span class="pre">OrganizationMembership</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganizationMembership</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can be invited by <code class="docutils literal notranslate"><span class="pre">Invitation</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INVITES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can create <code class="docutils literal notranslate"><span class="pre">Invitation</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INVITED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosorganizationmembership">
+<h2>WorkOSOrganizationMembership<a class="headerlink" href="#workosorganizationmembership" title="Link to this heading">¶</a></h2>
+<p>Represents a user’s membership in an organization. This links users to organizations and defines their roles within the organization.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_id</p></td>
+<td><p>The ID of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>organization_id</p></td>
+<td><p>The ID of the organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The status of the membership (e.g., active, pending)</p></td>
+</tr>
+<tr class="row-even"><td><p>role_id</p></td>
+<td><p>The ID of the role assigned to the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the membership was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the membership was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">OrganizationMembership</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganizationMembership</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> is member of <code class="docutils literal notranslate"><span class="pre">OrganizationMembership</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganizationMembership</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OrganizationMembership</span></code> is in <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganizationMembership</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OrganizationMembership</span></code> has <code class="docutils literal notranslate"><span class="pre">Role</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganizationMembership</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">WITH_ROLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosrole">
+<h2>WorkOSRole<a class="headerlink" href="#workosrole" title="Link to this heading">¶</a></h2>
+<p>Represents a role within an organization. Roles define permissions and access levels for users.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>slug</p></td>
+<td><p>A unique slug identifier for the role</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the role</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>A description of the role</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of the role (e.g., environment, organization)</p></td>
+</tr>
+<tr class="row-odd"><td><p>organization_id</p></td>
+<td><p>The ID of the organization this role belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the role was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the role was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Role</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Organization</span></code> has <code class="docutils literal notranslate"><span class="pre">Role</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosinvitation">
+<h2>WorkOSInvitation<a class="headerlink" href="#workosinvitation" title="Link to this heading">¶</a></h2>
+<p>Represents an invitation to join an organization. Invitations are sent to users to join specific organizations.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The email address of the invited user</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p>The state of the invitation (e.g., pending, accepted, expired)</p></td>
+</tr>
+<tr class="row-odd"><td><p>organization_id</p></td>
+<td><p>The ID of the organization the user is invited to</p></td>
+</tr>
+<tr class="row-even"><td><p>inviter_user_id</p></td>
+<td><p>The ID of the user who sent the invitation</p></td>
+</tr>
+<tr class="row-odd"><td><p>expires_at</p></td>
+<td><p>The RFC 3339 datetime when the invitation expires</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the invitation was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the invitation was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p>accepted_at</p></td>
+<td><p>The RFC 3339 datetime of when the invitation was accepted</p></td>
+</tr>
+<tr class="row-odd"><td><p>revoked_at</p></td>
+<td><p>The RFC 3339 datetime of when the invitation was revoked</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Invitation</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Invitation</span></code> is for <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FOR_ORGANIZATION</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Invitation</span></code> invites <code class="docutils literal notranslate"><span class="pre">User</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INVITES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Invitation</span></code> was created by <code class="docutils literal notranslate"><span class="pre">User</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSInvitation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INVITED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosdirectory">
+<h2>WorkOSDirectory<a class="headerlink" href="#workosdirectory" title="Link to this heading">¶</a></h2>
+<p>Represents a directory sync connection. Directories are used to sync users and groups from external identity providers (e.g., Google Workspace, Okta, Azure AD).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the directory</p></td>
+</tr>
+<tr class="row-even"><td><p>domain</p></td>
+<td><p>The domain associated with the directory</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>The state of the directory (e.g., linked, unlinked)</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of identity provider (e.g., gsuite, okta, azure)</p></td>
+</tr>
+<tr class="row-odd"><td><p>organization_id</p></td>
+<td><p>The ID of the organization this directory belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> belongs to <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BELONGS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> has <code class="docutils literal notranslate"><span class="pre">DirectoryUser</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> has <code class="docutils literal notranslate"><span class="pre">DirectoryGroup</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosdirectoryuser">
+<h2>WorkOSDirectoryUser<a class="headerlink" href="#workosdirectoryuser" title="Link to this heading">¶</a></h2>
+<p>Represents a user synced from an external directory. These are different from WorkOSUser objects and represent users from identity providers.</p>
+<p><strong>Ontology Labels</strong>: <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>idp_id</p></td>
+<td><p>The identifier from the identity provider</p></td>
+</tr>
+<tr class="row-even"><td><p>directory_id</p></td>
+<td><p>The ID of the directory this user belongs to</p></td>
+</tr>
+<tr class="row-odd"><td><p>organization_id</p></td>
+<td><p>The ID of the organization this user belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>first_name</p></td>
+<td><p>The first name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_name</p></td>
+<td><p>The last name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p>The email address of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>The state of the directory user (e.g., active, inactive)</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory user was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory user was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p>custom_attributes</p></td>
+<td><p>Custom attributes from the identity provider</p></td>
+</tr>
+<tr class="row-odd"><td><p>raw_attributes</p></td>
+<td><p>Raw attributes from the identity provider</p></td>
+</tr>
+<tr class="row-even"><td><p>roles</p></td>
+<td><p>JSON list of directory role slugs assigned to the user by the IdP</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectoryUser</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> has <code class="docutils literal notranslate"><span class="pre">DirectoryUser</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectoryUser</span></code> belongs to <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectoryUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BELONGS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectoryUser</span></code> is member of <code class="docutils literal notranslate"><span class="pre">DirectoryGroup</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectoryUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosdirectorygroup">
+<h2>WorkOSDirectoryGroup<a class="headerlink" href="#workosdirectorygroup" title="Link to this heading">¶</a></h2>
+<p>Represents a group synced from an external directory. Groups contain directory users and represent organizational units from identity providers.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>idp_id</p></td>
+<td><p>The identifier from the identity provider</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory group was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the directory group was last updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>raw_attributes</p></td>
+<td><p>Raw attributes from the identity provider</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectoryGroup</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Directory</span></code> has <code class="docutils literal notranslate"><span class="pre">DirectoryGroup</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectory</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSDirectoryGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DirectoryGroup</span></code> belongs to <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSDirectoryGroup</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BELONGS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosorganizationdomain">
+<h2>WorkOSOrganizationDomain<a class="headerlink" href="#workosorganizationdomain" title="Link to this heading">¶</a></h2>
+<p>Represents a domain verified for an organization. Domains are used to verify ownership of email domains and can be used for automatic user assignment.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain</p></td>
+<td><p>The domain name (e.g., example.com)</p></td>
+</tr>
+<tr class="row-even"><td><p>organization_id</p></td>
+<td><p>The ID of the organization this domain belongs to</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>The verification state of the domain (e.g., verified, pending)</p></td>
+</tr>
+<tr class="row-even"><td><p>verification_strategy</p></td>
+<td><p>The strategy used to verify the domain</p></td>
+</tr>
+<tr class="row-odd"><td><p>verification_token</p></td>
+<td><p>The token used for domain verification</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">OrganizationDomain</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganizationDomain</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OrganizationDomain</span></code> is domain of <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganizationDomain</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DOMAIN_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosapikey">
+<h2>WorkOSAPIKey<a class="headerlink" href="#workosapikey" title="Link to this heading">¶</a></h2>
+<p>Represents an API key used for programmatic access to WorkOS resources.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">APIKey</span></code> to enable cross-platform queries for API keys across different systems (e.g., OpenAIApiKey, ScalewayAPIKey).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the API key</p></td>
+</tr>
+<tr class="row-even"><td><p>obfuscated_value</p></td>
+<td><p>The obfuscated/partial API key value</p></td>
+</tr>
+<tr class="row-odd"><td><p>permissions</p></td>
+<td><p>The permissions granted to this API key</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the API key was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the API key was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p>last_used_at</p></td>
+<td><p>The RFC 3339 datetime of when the API key was last used</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">APIKey</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSAPIKey</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Organization</span></code> owns <code class="docutils literal notranslate"><span class="pre">APIKey</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSAPIKey</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> owns <code class="docutils literal notranslate"><span class="pre">APIKey</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSAPIKey</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="workosapplication">
+<h2>WorkOSApplication<a class="headerlink" href="#workosapplication" title="Link to this heading">¶</a></h2>
+<p>Represents a Connect application integrated with WorkOS. These can be OAuth applications or Machine-to-Machine (M2M) applications.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code> to enable cross-platform queries for OAuth/SAML applications across different systems (e.g., OktaApplication, KeycloakClient).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The identifier, which can be referenced in API endpoints</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_id</p></td>
+<td><p>The OAuth client ID for the application</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the application</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>A description of the application</p></td>
+</tr>
+<tr class="row-even"><td><p>application_type</p></td>
+<td><p>The type of application (oauth or m2m)</p></td>
+</tr>
+<tr class="row-odd"><td><p>redirect_uris</p></td>
+<td><p>List of allowed redirect URIs for OAuth flows</p></td>
+</tr>
+<tr class="row-even"><td><p>uses_pkce</p></td>
+<td><p>Whether the application uses PKCE (Proof Key for Code Exchange)</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_first_party</p></td>
+<td><p>Whether this is a first-party application</p></td>
+</tr>
+<tr class="row-even"><td><p>was_dynamically_registered</p></td>
+<td><p>Whether the application was dynamically registered</p></td>
+</tr>
+<tr class="row-odd"><td><p>scopes</p></td>
+<td><p>The OAuth scopes granted to this application</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The RFC 3339 datetime of when the application was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>The RFC 3339 datetime of when the application was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id11">
+<h3>Relationships<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Application</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">Environment</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSApplication</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Application</span></code> belongs to <code class="docutils literal notranslate"><span class="pre">Organization</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">WorkOSApplication</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BELONGS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WorkOSOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">WorkOS Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../../dev/developer-guide.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Cartography Developer Guide</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=cac61aee"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>
