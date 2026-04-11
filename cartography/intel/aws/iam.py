@@ -844,7 +844,7 @@ def _transform_policy_statements(statements: Any, policy_id: str) -> List[Dict]:
     return statements
 
 
-def transform_policy_data(policy_map: Dict, policy_type: str, current_aws_account_id: str,) -> None:
+def transform_policy_data(policy_map: Dict, policy_type: str, current_aws_account_id: str) -> None:
     for principal_arn, policy_statement_map in policy_map.items():
         logger.debug(f"Transforming IAM {policy_type} policies for principal {principal_arn}")
         for policy_key, statements in policy_statement_map.items():
@@ -889,7 +889,7 @@ def _load_policy_tx(
         MERGE (policy:AWSPolicy{id: $PolicyId})
         ON CREATE SET
         policy.firstseen = timestamp()
-        SET 
+        SET
         policy.lastupdated = $aws_update_tag
         WITH policy
         MATCH (principal:AWSPrincipal{arn: $PrincipalArn})

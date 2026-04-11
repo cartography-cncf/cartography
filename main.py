@@ -283,7 +283,7 @@ def azure_devops_process_request(logger, params):
                 "client_id": os.environ.get("CDX_AZURE_CLIENT_ID"),
                 "client_secret": os.environ.get("CDX_AZURE_CLIENT_SECRET"),
                 "url": "https://dev.azure.com",
-                "name": params.get("workspace", {}).get("account_id")
+                "name": params.get("workspace", {}).get("account_id"),
             },
         ],
     }
@@ -376,7 +376,9 @@ def bitbucket_process_request(logger, params):
             "client_id": os.environ["CDX_BITBUCKET_CLIENT_ID"],
             "client_secret": os.environ["CDX_BITBUCKET_CLIENT_SECRET"],
             "refresh_token": params.get("refreshToken"),
-            "access_token": get_bitbucket_access_token(
+            # Prefer workspace access token (no OAuth refresh needed).
+            # Falls back to OAuth refresh token flow for legacy sources.
+            "access_token": params.get("workspaceAccessToken") or get_bitbucket_access_token(
                 logger,
                 os.environ["CDX_BITBUCKET_CLIENT_ID"],
                 os.environ["CDX_BITBUCKET_CLIENT_SECRET"],

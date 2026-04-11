@@ -43,7 +43,7 @@ def call_azure_devops_api(
     """
     headers = {
         "Accept": "application/json",
-        "Authorization": f"Bearer {access_token}"
+        "Authorization": f"Bearer {access_token}",
     }
 
     for attempt in range(MAX_RETRIES):

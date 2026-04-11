@@ -79,7 +79,7 @@ def sync_organization(
             access_token,
             url,
             org_name,
-            projects_data
+            projects_data,
         )
 
         members.sync(
@@ -87,7 +87,7 @@ def sync_organization(
             common_job_parameters,
             access_token,
             url,
-            org_name
+            org_name,
         )
 
     except exceptions.RequestException as e:

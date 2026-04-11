@@ -118,7 +118,7 @@ class Sync:
                         "github",
                         "bitbucket",
                         "gitlab",
-                        "azuredevops"
+                        "azuredevops",
                     ]:
                         response = stage_func(neo4j_session, config)
                     else:
