@@ -23,21 +23,24 @@ def get_nodes(client: K8sClient) -> list[V1Node]:
 def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, Any]]:
     transformed = []
     for node in nodes:
-        node_info = node.status.node_info if node.status else None
-        arch_raw = node_info.architecture if node_info else None
+        ni = node.status.node_info if node.status else None
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
-                "architecture": arch_raw,
-                "architecture_normalized": normalize_architecture(arch_raw),
-                "os": node_info.operating_system if node_info else None,
-                "os_image": node_info.os_image if node_info else None,
-                "kernel_version": node_info.kernel_version if node_info else None,
-                "container_runtime_version": (
-                    node_info.container_runtime_version if node_info else None
+                "architecture": getattr(ni, "architecture", None),
+                "architecture_normalized": normalize_architecture(
+                    getattr(ni, "architecture", None),
                 ),
-                "kubelet_version": node_info.kubelet_version if node_info else None,
+                "os": getattr(ni, "operating_system", None),
+                "os_image": getattr(ni, "os_image", None),
+                "kernel_version": getattr(ni, "kernel_version", None),
+                "container_runtime_version": getattr(
+                    ni,
+                    "container_runtime_version",
+                    None,
+                ),
+                "kubelet_version": getattr(ni, "kubelet_version", None),
             }
         )
     return transformed

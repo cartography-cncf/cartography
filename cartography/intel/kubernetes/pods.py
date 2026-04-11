@@ -150,9 +150,10 @@ def transform_pods(
     node_arch_map: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     transformed_pods = []
+    arch_map = node_arch_map or {}
 
     for pod in pods:
-        node_arch = (node_arch_map or {}).get(pod.spec.node_name or "")
+        node_arch = arch_map.get(pod.spec.node_name or "")
         containers = _extract_pod_containers(pod, node_arch=node_arch)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
