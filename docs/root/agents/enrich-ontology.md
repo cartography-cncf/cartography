@@ -70,9 +70,11 @@ Canonical nodes are created by a **dedicated intel module** (`cartography.intel.
 **Configuration:**
 ```bash
 # Configure sources of truth for ontology nodes
-cartography --ontology-users-source "okta,entra,gsuite"
+cartography --ontology-users-source "okta,microsoft,gsuite"
 cartography --ontology-devices-source "crowdstrike,kandji,duo"
 ```
+
+`microsoft` is the canonical source name for Microsoft Graph data. `entra` is still accepted as a backward-compatible alias during the migration.
 
 ## Available Semantic Labels and Fields
 

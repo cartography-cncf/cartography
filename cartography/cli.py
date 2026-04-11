@@ -74,6 +74,7 @@ MODULE_PANELS = {
     "aws": PANEL_AWS,
     "azure": PANEL_AZURE,
     "entra": PANEL_ENTRA,
+    "microsoft": PANEL_ENTRA,
     "gcp": PANEL_GCP,
     "oci": PANEL_OCI,
     "okta": PANEL_OKTA,

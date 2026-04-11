@@ -55,7 +55,7 @@ duo_mapping = OntologyMapping(
 
 # Entra (formerly Azure AD)
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraGroup",
@@ -316,7 +316,7 @@ kubernetes_mapping = OntologyMapping(
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "duo": duo_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
     "googleworkspace": googleworkspace_mapping,

@@ -8,9 +8,17 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
+from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.cloudtrail import _is_retryable_cloudtrail_error
+from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cloudtrail.management_events import AssumedRoleMatchLink
@@ -24,6 +32,31 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _collect_lookup_events(page_iterator: Any) -> List[Dict[str, Any]]:
+    all_events: List[Dict[str, Any]] = []
+    try:
+        for page in page_iterator:
+            all_events.extend(page.get("Events", []))
+    except ClientError as error:
+        if _is_retryable_cloudtrail_error(error):
+            raise CloudTrailTransientRegionFailure(
+                "AWS SDK retries were exhausted for transient LookupEvents failure"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise CloudTrailTransientRegionFailure(
+            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
+        ) from error
+
+    return all_events
 
 
 @timeit
@@ -72,9 +105,7 @@ def get_assume_role_events(
         },
     )
 
-    all_events = []
-    for page in page_iterator:
-        all_events.extend(page.get("Events", []))
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
 
@@ -127,9 +158,7 @@ def get_saml_role_events(
         },
     )
 
-    all_events = []
-    for page in page_iterator:
-        all_events.extend(page.get("Events", []))
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithSAML events from region '{region}'"
@@ -184,9 +213,7 @@ def get_web_identity_role_events(
         },
     )
 
-    all_events = []
-    for page in page_iterator:
-        all_events.extend(page.get("Events", []))
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithWebIdentity events from region '{region}'"
@@ -691,6 +718,7 @@ def sync_assume_role_events(
     )
 
     total_role_assumptions = 0
+    cleanup_safe = True
 
     # Process events region by region
     for region in regions:
@@ -698,11 +726,20 @@ def sync_assume_role_events(
 
         # Process AssumeRole events specifically
         logger.info(f"Fetching AssumeRole events specifically for region {region}")
-        assume_role_events = get_assume_role_events(
-            boto3_session=boto3_session,
-            region=region,
-            lookback_hours=lookback_hours,
-        )
+        try:
+            assume_role_events = get_assume_role_events(
+                boto3_session=boto3_session,
+                region=region,
+                lookback_hours=lookback_hours,
+            )
+        except CloudTrailTransientRegionFailure:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping CloudTrail management events for account %s in region %s after transient failure",
+                current_aws_account_id,
+                region,
+            )
+            continue
 
         # Transform AssumeRole events to role assumptions
         assume_role_assumptions = transform_assume_role_events_to_role_assumptions(
@@ -721,8 +758,13 @@ def sync_assume_role_events(
             f"Loaded {len(assume_role_assumptions)} AssumeRole assumptions for region {region}"
         )
 
-    # Run cleanup for stale relationships after processing all regions
-    cleanup(neo4j_session, current_aws_account_id, update_tag)
+    if cleanup_safe:
+        cleanup(neo4j_session, current_aws_account_id, update_tag)
+    else:
+        logger.warning(
+            "Skipping CloudTrail management events cleanup for account %s because one or more regions had transient failures. Preserving last-known-good data.",
+            current_aws_account_id,
+        )
 
     logger.info(
         f"CloudTrail management events sync completed successfully. "
@@ -787,11 +829,19 @@ def sync_saml_role_events(
         logger.info(
             f"Fetching AssumeRoleWithSAML events specifically for region {region}"
         )
-        saml_role_events = get_saml_role_events(
-            boto3_session=boto3_session,
-            region=region,
-            lookback_hours=lookback_hours,
-        )
+        try:
+            saml_role_events = get_saml_role_events(
+                boto3_session=boto3_session,
+                region=region,
+                lookback_hours=lookback_hours,
+            )
+        except CloudTrailTransientRegionFailure:
+            logger.warning(
+                "Skipping CloudTrail SAML management events for account %s in region %s after transient failure",
+                current_aws_account_id,
+                region,
+            )
+            continue
 
         # Transform AssumeRoleWithSAML events to role assumptions
         saml_role_assumptions = transform_saml_role_events_to_role_assumptions(
@@ -873,11 +923,19 @@ def sync_web_identity_role_events(
         logger.info(
             f"Fetching AssumeRoleWithWebIdentity events specifically for region {region}"
         )
-        web_identity_role_events = get_web_identity_role_events(
-            boto3_session=boto3_session,
-            region=region,
-            lookback_hours=lookback_hours,
-        )
+        try:
+            web_identity_role_events = get_web_identity_role_events(
+                boto3_session=boto3_session,
+                region=region,
+                lookback_hours=lookback_hours,
+            )
+        except CloudTrailTransientRegionFailure:
+            logger.warning(
+                "Skipping CloudTrail WebIdentity management events for account %s in region %s after transient failure",
+                current_aws_account_id,
+                region,
+            )
+            continue
 
         # Transform AssumeRoleWithWebIdentity events to role assumptions
         web_identity_role_assumptions = (
