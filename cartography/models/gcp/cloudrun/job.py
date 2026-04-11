@@ -18,6 +18,10 @@ class GCPCloudRunJobProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     location: PropertyRef = PropertyRef("location")
     container_image: PropertyRef = PropertyRef("container_image")
+    image_digest: PropertyRef = PropertyRef("image_digest")
+    architecture: PropertyRef = PropertyRef("architecture")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    architecture_source: PropertyRef = PropertyRef("architecture_source")
     service_account_email: PropertyRef = PropertyRef("service_account_email")
     project_id: PropertyRef = PropertyRef("project_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -58,6 +62,42 @@ class CloudRunJobToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudRunJobToECRImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudRunJobToECRImageRel(CartographyRelSchema):
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: CloudRunJobToECRImageRelProperties = (
+        CloudRunJobToECRImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunJobToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudRunJobToGitLabContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: CloudRunJobToGitLabContainerImageRelProperties = (
+        CloudRunJobToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunJobSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJob"
     properties: GCPCloudRunJobProperties = GCPCloudRunJobProperties()
@@ -66,5 +106,7 @@ class GCPCloudRunJobSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunJobToServiceAccountRel(),
+            CloudRunJobToECRImageRel(),
+            CloudRunJobToGitLabContainerImageRel(),
         ],
     )

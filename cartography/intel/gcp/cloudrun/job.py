@@ -97,11 +97,18 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
 
         # Get container image from template.template.containers[0].image
         container_image = None
+        image_digest = None
         template = job.get("template", {})
         task_template = template.get("template", {})
         containers = task_template.get("containers", [])
         if containers and len(containers) > 0:
             container_image = containers[0].get("image")
+            try:
+                image_digest = (
+                    container_image.split("@")[1] if container_image else None
+                )
+            except IndexError:
+                image_digest = None
 
         # Get service account email from template.template.serviceAccount
         service_account_email = task_template.get("serviceAccount")
@@ -112,6 +119,11 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
                 "name": short_name,
                 "location": location,
                 "container_image": container_image,
+                "image_digest": image_digest,
+                # Cloud Run only supports x86_64 (amd64); ARM workloads are not supported
+                "architecture": "amd64",
+                "architecture_normalized": "amd64",
+                "architecture_source": "platform_requirement",
                 "service_account_email": service_account_email,
                 "project_id": project_id,
                 "labels": job.get("labels", {}),
