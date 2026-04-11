@@ -43,3 +43,41 @@ def test_transform_pods_defaults_service_account_name():
             "secret_env_ids": [],
         },
     ]
+
+
+def test_transform_pods_propagates_node_architecture_to_pod_and_container():
+    pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="pod-2",
+            name="arch-pod",
+            namespace="my-namespace",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[
+                SimpleNamespace(
+                    name="app",
+                    image="example:latest",
+                    image_pull_policy="IfNotPresent",
+                    resources=None,
+                    env=None,
+                    env_from=None,
+                ),
+            ],
+            volumes=[],
+            node_name="node-a",
+            service_account_name="default",
+        ),
+        status=SimpleNamespace(phase="Running", container_statuses=[]),
+    )
+
+    transformed = transform_pods(
+        [pod],
+        "my-cluster-1",
+        node_arch_map={"node-a": "arm64"},
+    )
+
+    assert transformed[0]["architecture_normalized"] == "arm64"
+    assert transformed[0]["containers"][0]["architecture_normalized"] == "arm64"

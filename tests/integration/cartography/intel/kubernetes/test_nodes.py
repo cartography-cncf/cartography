@@ -25,8 +25,16 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
 
     # Act
-    sync_nodes(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
-    sync_pods(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+    node_arch_map = sync_nodes(
+        neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters
+    )
+    sync_pods(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+        node_arch_map=node_arch_map,
+    )
 
     # Assert: nodes are in the graph
     assert check_nodes(neo4j_session, "KubernetesNode", ["name"]) == {
@@ -43,3 +51,15 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         "name",
         "RUNS_ON",
     ) == {("node-test-pod", "my-node")}
+
+    # Assert: pod and container inherit normalized runtime architecture
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesPod",
+        ["name", "architecture_normalized"],
+    ) == {("node-test-pod", "amd64")}
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesContainer",
+        ["name", "architecture_normalized"],
+    ) == {("node-test-container", "amd64")}

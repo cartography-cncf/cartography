@@ -45,7 +45,16 @@ RAW_PODS = [
             labels={},
         ),
         spec=SimpleNamespace(
-            containers=[],
+            containers=[
+                SimpleNamespace(
+                    name="node-test-container",
+                    image="node-test:latest",
+                    image_pull_policy="IfNotPresent",
+                    resources=None,
+                    env=None,
+                    env_from=None,
+                ),
+            ],
             volumes=[],
             node_name="my-node",
             service_account_name="default",
