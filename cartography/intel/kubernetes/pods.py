@@ -18,7 +18,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
+def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[str, Any]:
     pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
@@ -28,7 +28,8 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
             "image": container.image,
             "namespace": pod.metadata.namespace,
             "pod_id": pod.metadata.uid,
-            "imagePullPolicy": container.image_pull_policy,
+            "image_pull_policy": container.image_pull_policy,
+            "architecture_normalized": node_arch,
         }
 
         # Extract resource requests and limits
@@ -143,11 +144,17 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
-def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]:
+def transform_pods(
+    pods: list[V1Pod],
+    cluster_name: str,
+    node_arch_map: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     transformed_pods = []
+    arch_map = node_arch_map or {}
 
     for pod in pods:
-        containers = _extract_pod_containers(pod)
+        node_arch = arch_map.get(pod.spec.node_name or "")
+        containers = _extract_pod_containers(pod, node_arch=node_arch)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
         transformed_pods.append(
@@ -163,6 +170,12 @@ def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),
                 "node": pod.spec.node_name,
+                "node_id": (
+                    f"{cluster_name}/{pod.spec.node_name}"
+                    if pod.spec.node_name
+                    else None
+                ),
+                "architecture_normalized": node_arch,
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
                 "secret_volume_ids": volume_secrets,
@@ -251,10 +264,11 @@ def sync_pods(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     region: str | None = None,
+    node_arch_map: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
-    transformed_pods = transform_pods(pods, client.name)
+    transformed_pods = transform_pods(pods, client.name, node_arch_map=node_arch_map)
     load_pods(
         session=session,
         pods=transformed_pods,
