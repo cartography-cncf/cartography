@@ -42,3 +42,8 @@
   - rds:StopDBInstance
   - rds:StartDBInstance
   relationship_name: CAN_ADMINISTER
+# Map principals that can execute CloudFormation stacks.
+- target_label: CloudFormationStack
+  permissions:
+  - cloudformation:UpdateStack
+  relationship_name: CAN_EXEC
