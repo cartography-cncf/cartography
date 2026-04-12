@@ -4,6 +4,9 @@ from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
 from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
+from tests.data.aws.iam.service_specific_credentials import (
+    GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA,
+)
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
@@ -320,4 +323,107 @@ def test_transform_mfa_devices():
 def test_transform_mfa_devices_empty():
     raw_data = []
     result = iam.transform_mfa_devices(raw_data)
+    assert result == []
+
+
+def test_transform_service_specific_credentials():
+    result = iam.transform_service_specific_credentials(
+        GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA
+    )
+
+    assert len(result) == 3
+    assert result[0]["service_specific_credential_id"] == "ANPAEXAMPLEUSER1A"
+    assert result[0]["service_name"] == "codecommit.amazonaws.com"
+    assert result[0]["user_arn"] == "arn:aws:iam::1234:user/user1"
+
+    assert result[1]["service_specific_credential_id"] == "ANPAEXAMPLEUSER1B"
+    assert result[1]["status"] == "Inactive"
+    assert result[1]["username"] == "user1"
+
+    assert result[2]["service_specific_credential_id"] == "ANPAEXAMPLEUSER2A"
+    assert result[2]["service_name"] == "codecommit.amazonaws.com"
+    assert result[2]["user_arn"] == "arn:aws:iam::1234:user/user2"
+
+
+def test_get_user_service_specific_credentials_data(monkeypatch):
+    users = [
+        {"name": "user1", "arn": "arn:aws:iam::1234:user/user1"},
+        {"name": "user2", "arn": "arn:aws:iam::1234:user/user2"},
+    ]
+
+    lookup = {
+        "user1": GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA[
+            "arn:aws:iam::1234:user/user1"
+        ],
+        "user2": GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA[
+            "arn:aws:iam::1234:user/user2"
+        ],
+    }
+
+    def _fake_getter(_boto3_session, username):
+        return lookup[username]
+
+    monkeypatch.setattr(
+        iam,
+        "get_service_specific_credentials_data",
+        _fake_getter,
+    )
+
+    result = iam.get_user_service_specific_credentials_data(object(), users)
+
+    assert set(result.keys()) == {
+        "arn:aws:iam::1234:user/user1",
+        "arn:aws:iam::1234:user/user2",
+    }
+    assert len(result["arn:aws:iam::1234:user/user1"]) == 2
+    assert len(result["arn:aws:iam::1234:user/user2"]) == 1
+
+
+def test_transform_service_specific_credentials_skips_missing_credential_id():
+    raw = {
+        "arn:aws:iam::1234:user/user1": [
+            {
+                "UserName": "user1",
+                "ServiceName": "codecommit.amazonaws.com",
+                "ServiceUserName": "foo",
+                "Status": "Active",
+                "CreateDate": datetime.datetime(2024, 1, 1, 0, 0, 0),
+            },
+            {
+                "UserName": "user1",
+                "ServiceSpecificCredentialId": "ANPAVALID",
+                "ServiceName": "bedrock.amazonaws.com",
+                "ServiceUserName": "bar",
+                "Status": "Inactive",
+                "CreateDate": datetime.datetime(2024, 1, 2, 0, 0, 0),
+            },
+        ]
+    }
+
+    result = iam.transform_service_specific_credentials(raw)
+
+    assert len(result) == 1
+    assert result[0]["service_specific_credential_id"] == "ANPAVALID"
+    assert result[0]["service_name"] == "bedrock.amazonaws.com"
+
+
+def test_get_service_specific_credentials_data_handles_no_such_entity(monkeypatch):
+    class NoSuchEntityException(Exception):
+        pass
+
+    class FakeExceptions:
+        pass
+
+    FakeExceptions.NoSuchEntityException = NoSuchEntityException
+
+    class FakeClient:
+        exceptions = FakeExceptions
+
+        def list_service_specific_credentials(self, **kwargs):
+            raise NoSuchEntityException()
+
+    monkeypatch.setattr(iam, "create_boto3_client", lambda *_: FakeClient())
+
+    result = iam.get_service_specific_credentials_data(object(), "deleted-user")
+
     assert result == []
