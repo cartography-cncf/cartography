@@ -3,11 +3,11 @@ from collections.abc import Iterator
 from typing import Any
 
 import neo4j
-from requests import Session
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_single_value_tx
 from cartography.client.core.tx import run_write_query
+from cartography.intel.ubuntu.util import retryable_session
 from cartography.intel.ubuntu.feed import FEED_ID
 from cartography.models.ubuntu.cves import UbuntuCVESchema
 from cartography.util import timeit
@@ -205,7 +205,7 @@ def _fetch_cves(
     """
     offset = start_offset
     total_fetched = 0
-    session = Session()
+    session = retryable_session()
 
     if since is None:
         params_base: dict[str, str] = {"limit": str(_PAGE_SIZE), "order": "ascending"}
