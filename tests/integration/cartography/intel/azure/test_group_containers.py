@@ -31,6 +31,11 @@ def test_has_image_rel(mock_get, neo4j_session):
         digest=TEST_GROUP_CONTAINER_DIGEST,
         tag=TEST_UPDATE_TAG,
     )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryContainerImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_GROUP_CONTAINER_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -50,6 +55,15 @@ def test_has_image_rel(mock_get, neo4j_session):
         "AzureGroupContainer",
         "id",
         "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureGroupContainer",
+        "id",
+        "GCPArtifactRegistryContainerImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
