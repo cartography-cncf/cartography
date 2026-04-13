@@ -1961,6 +1961,7 @@ Representation of an individual container within an [Azure Container Group](http
     ```cypher
     (AzureGroupContainer)-[:HAS_IMAGE]->(ECRImage)
     (AzureGroupContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
 
 ### AzureLoadBalancer
