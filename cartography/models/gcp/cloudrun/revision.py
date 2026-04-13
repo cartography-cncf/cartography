@@ -138,6 +138,26 @@ class CloudRunRevisionToGCPArtifactRegistryContainerImageRel(CartographyRelSchem
 
 
 @dataclass(frozen=True)
+class CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudRunRevisionToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties = (
+        CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunRevisionSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunRevision"
     properties: GCPCloudRunRevisionProperties = GCPCloudRunRevisionProperties()
@@ -151,5 +171,6 @@ class GCPCloudRunRevisionSchema(CartographyNodeSchema):
             CloudRunRevisionToECRImageRel(),
             CloudRunRevisionToGitLabContainerImageRel(),
             CloudRunRevisionToGCPArtifactRegistryContainerImageRel(),
+            CloudRunRevisionToGCPArtifactRegistryPlatformImageRel(),
         ],
     )

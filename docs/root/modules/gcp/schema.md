@@ -1849,10 +1849,12 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     ```
     (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunRevisions are linked to the container image they run.
+  - GCPCloudRunRevisions are linked to the container image they run. Matches on `image_digest`.
     ```
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 ### GCPCloudRunJob
@@ -1890,10 +1892,12 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunJobs are linked to the container image they run.
+  - GCPCloudRunJobs are linked to the container image they run. Matches on `image_digest`.
     ```
     (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 ### GCPCloudRunExecution
