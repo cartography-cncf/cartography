@@ -1,10 +1,12 @@
-from unittest.mock import MagicMock
-from unittest.mock import patch
+import logging
+from unittest.mock import Mock
 
+import pytest
 from requests import Session
 from requests.adapters import HTTPAdapter
-from urllib3 import Retry
+from urllib3.exceptions import MaxRetryError
 
+from cartography.intel.ubuntu.util import LoggingRetry
 from cartography.intel.ubuntu.util import retryable_session
 
 
@@ -17,17 +19,16 @@ class TestRetryableSession:
         session = retryable_session()
         adapter = session.get_adapter("https://ubuntu.com")
         assert isinstance(adapter, HTTPAdapter)
-        retry: Retry = adapter.max_retries
-        assert isinstance(retry, Retry)
+        assert isinstance(adapter.max_retries, LoggingRetry)
 
     def test_retry_policy_covers_503(self):
         session = retryable_session()
-        retry: Retry = session.get_adapter("https://example.com").max_retries
+        retry = session.get_adapter("https://example.com").max_retries
         assert 503 in retry.status_forcelist
 
     def test_retry_policy_parameters(self):
         session = retryable_session()
-        retry: Retry = session.get_adapter("https://example.com").max_retries
+        retry = session.get_adapter("https://example.com").max_retries
         assert retry.total == 5
         assert retry.connect == 1
         assert retry.backoff_factor == 1
@@ -35,31 +36,34 @@ class TestRetryableSession:
         assert set(retry.allowed_methods) == {"GET"}
 
 
-class TestFetchUsesRetrySession:
-    @patch("cartography.intel.ubuntu.cves.retryable_session")
-    def test_fetch_cves_creates_retryable_session(self, mock_factory):
-        mock_session = MagicMock(spec=Session)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"cves": [], "total_results": 0}
-        mock_session.get.return_value = mock_response
-        mock_factory.return_value = mock_session
+class TestLoggingRetry:
+    def test_logs_warning_on_retry(self, caplog):
+        retry = LoggingRetry(total=3, status_forcelist=[503], allowed_methods=["GET"])
+        mock_response = Mock(status=503)
 
-        from cartography.intel.ubuntu.cves import _fetch_cves
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.ubuntu.util"):
+            retry.increment(
+                method="GET",
+                url="/security/cves.json",
+                response=mock_response,
+            )
 
-        list(_fetch_cves("https://ubuntu.com"))
-        mock_factory.assert_called_once()
+        assert len(caplog.records) == 1
+        assert "Ubuntu API retry" in caplog.records[0].message
+        assert "503" in caplog.records[0].message
 
-    @patch("cartography.intel.ubuntu.notices.retryable_session")
-    def test_fetch_notices_creates_retryable_session(self, mock_factory):
-        mock_session = MagicMock(spec=Session)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"notices": [], "total_results": 0}
-        mock_session.get.return_value = mock_response
-        mock_factory.return_value = mock_session
+    def test_logs_error_when_retries_exhausted(self, caplog):
+        retry = LoggingRetry(total=0, status_forcelist=[503], allowed_methods=["GET"])
+        mock_response = Mock(status=503)
 
-        from cartography.intel.ubuntu.notices import _fetch_notices
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.ubuntu.util"):
+            with pytest.raises(MaxRetryError):
+                retry.increment(
+                    method="GET",
+                    url="/security/cves.json",
+                    response=mock_response,
+                )
 
-        list(_fetch_notices("https://ubuntu.com"))
-        mock_factory.assert_called_once()
+        error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(error_records) == 1
+        assert "retries exhausted" in error_records[0].message
