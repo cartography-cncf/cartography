@@ -238,7 +238,7 @@ def _load_tags_tx(
             MATCH
             (a:AWSAccount{id:$Account})-[res:RESOURCE]->(resource:$resource_label{$property:tag_mapping.resource_id})
             MERGE
-            (aws_tag:AWSTag:Tag{id:input_tag.Key + ":" + input_tag.Value})
+            (aws_tag:AWSTag:Tag:ResourceTag{id:input_tag.Key + ":" + input_tag.Value})
             ON CREATE SET aws_tag.firstseen = timestamp()
 
             SET aws_tag.lastupdated = $UpdateTag,

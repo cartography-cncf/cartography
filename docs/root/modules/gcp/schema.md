@@ -230,7 +230,7 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 
 Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
 
-> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+> **Ontology Mapping**: This node carries the extra labels `Label` and `ResourceTag`. The `ResourceTag` label enables cross-cloud queries that target both GCPLabel and AWSTag nodes with a single pattern (`:ResourceTag`).
 
 Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
 
