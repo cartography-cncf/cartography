@@ -238,6 +238,16 @@ def test_has_image_rels(mock_get_revisions, mock_get_jobs, neo4j_session):
         digest=TEST_JOB_DIGEST,
         tag=TEST_UPDATE_TAG,
     )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryContainerImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_REVISION_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryContainerImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_JOB_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -274,6 +284,24 @@ def test_has_image_rels(mock_get_revisions, mock_get_jobs, neo4j_session):
         "GCPCloudRunJob",
         "id",
         "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_JOB_ID, TEST_JOB_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunRevision",
+        "id",
+        "GCPArtifactRegistryContainerImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_REVISION_ID, TEST_REVISION_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunJob",
+        "id",
+        "GCPArtifactRegistryContainerImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_JOB_ID, TEST_JOB_DIGEST)}
