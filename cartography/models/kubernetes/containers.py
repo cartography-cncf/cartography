@@ -162,6 +162,26 @@ class KubernetesContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSc
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -176,5 +196,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
             KubernetesContainerToGCPArtifactRegistryContainerImageRel(),
+            KubernetesContainerToGCPArtifactRegistryPlatformImageRel(),
         ]
     )

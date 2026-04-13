@@ -30,6 +30,11 @@ def test_container_has_image_rels(neo4j_session):
         d=TEST_IMAGE_SHA,
         tag=TEST_UPDATE_TAG,
     )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryPlatformImage {id: $d, digest: $d}) SET img.lastupdated = $tag",
+        d=TEST_IMAGE_SHA,
+        tag=TEST_UPDATE_TAG,
+    )
 
     load_kubernetes_cluster(neo4j_session, KUBERNETES_CLUSTER_DATA, TEST_UPDATE_TAG)
     load_namespaces(
@@ -87,6 +92,17 @@ def test_container_has_image_rels(neo4j_session):
             "KubernetesContainer",
             "name",
             "GCPArtifactRegistryContainerImage",
+            "digest",
+            "HAS_IMAGE",
+        )
+        == expected_rels
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesContainer",
+            "name",
+            "GCPArtifactRegistryPlatformImage",
             "digest",
             "HAS_IMAGE",
         )
