@@ -1962,6 +1962,7 @@ Representation of an individual container within an [Azure Container Group](http
     (AzureGroupContainer)-[:HAS_IMAGE]->(ECRImage)
     (AzureGroupContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 ### AzureLoadBalancer
