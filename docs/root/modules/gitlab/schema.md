@@ -21,8 +21,8 @@ O -- RESOURCE --> CI(GitLabContainerImage)
 O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
-CR -- HAS_TAG --> CT
-CT -- REFERENCES --> CI
+CR -- REPO_IMAGE --> CT
+CT -- IMAGE --> CI
 CI -- CONTAINS_IMAGE --> CI
 CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
@@ -40,10 +40,11 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab organization/group |
+| **id** | The numeric GitLab organization ID |
 | **name** | Name of the organization |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| web_url | Web URL of the organization |
 | description | Description of the organization |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID (null for top-level organizations) |
@@ -79,10 +80,11 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab group |
+| **id** | The numeric GitLab group ID |
 | **name** | Name of the group |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| web_url | Web URL of the group |
 | description | Description of the group |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID |
@@ -124,10 +126,11 @@ Representation of a GitLab project (repository). Projects are GitLab's equivalen
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab project |
+| **id** | The numeric GitLab project ID |
 | **name** | Name of the project |
 | **path** | URL path slug |
 | **path_with_namespace** | Full path including namespace |
+| web_url | Web URL of the project |
 | description | Description of the project |
 | visibility | Visibility level (private, internal, public) |
 | default_branch | Default branch name (e.g., main, master) |
@@ -196,7 +199,7 @@ ORDER BY project_count DESC
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
 
-    Commit authors are matched to GitLab users by display name. Only commits from current members are tracked.
+    Commit authors are matched to GitLab users by email address. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 
@@ -228,8 +231,9 @@ Representation of a GitLab user. Users belong to an organization and can be memb
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab user |
+| **id** | The numeric GitLab user ID |
 | **username** | Username of the user |
+| web_url | Web URL of the user |
 | name | Full name of the user |
 | state | State of the user (active, blocked, etc.) |
 | email | Email address of the user (if public) |
@@ -367,7 +371,7 @@ Representation of a GitLab container registry repository. Each project can have 
 - GitLabContainerRepositories have GitLabContainerRepositoryTags.
 
     ```
-    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
     ```
 
 ### GitLabContainerRepositoryTag
@@ -401,13 +405,13 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 - GitLabContainerRepositoryTags belong to GitLabContainerRepositories.
 
     ```
-    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
     ```
 
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
 
     ```
-    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
     ```
 
 ### GitLabContainerImage
@@ -433,6 +437,9 @@ Representation of a container image identified by its digest. Images are content
 | layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
 | head_layer_diff_id | Diff_id of the first (base) layer in this image |
 | tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
+| source_uri | Normalized VCS URL extracted from image provenance |
+| source_revision | Commit SHA extracted from image provenance |
+| source_file | Source definition file extracted from image provenance (for example `Dockerfile`) |
 
 #### Relationships
 
@@ -451,7 +458,7 @@ Representation of a container image identified by its digest. Images are content
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
 
     ```
-    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
     ```
 
 - GitLabContainerImageAttestations attest to GitLabContainerImages.
@@ -570,7 +577,7 @@ Representation of a container image attestation (signature or provenance). Attes
 Get all container images with their tags:
 
 ```cypher
-MATCH (repo:GitLabContainerRepository)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)-[:REFERENCES]->(img:GitLabContainerImage)
+MATCH (repo:GitLabContainerRepository)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN repo.name, tag.name, img.digest, img.architecture, img.os
 ```
 
@@ -592,8 +599,8 @@ Get the full container registry hierarchy:
 
 ```cypher
 MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
-OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
-OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
+OPTIONAL MATCH (repo)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)
+OPTIONAL MATCH (tag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
 ```
 

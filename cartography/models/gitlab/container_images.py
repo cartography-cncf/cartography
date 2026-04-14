@@ -34,6 +34,9 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     architecture: PropertyRef = PropertyRef("architecture")
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    source_file: PropertyRef = PropertyRef("source_file")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
     # Layer diff IDs from the image config (used for Dockerfile matching and layer relationships)
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
@@ -56,7 +59,10 @@ class GitLabContainerImageToOrgRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -200,4 +206,29 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
                 conditions={"type": "manifest_list"},
             ),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
+    """
+    Minimal property set for provenance-only updates on existing GitLabContainerImage nodes.
+    """
+
+    id: PropertyRef = PropertyRef("digest")
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    source_file: PropertyRef = PropertyRef("source_file")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
+    """
+    Schema for provenance-only enrichment of GitLabContainerImage nodes.
+    """
+
+    label: str = "GitLabContainerImage"
+    properties: GitLabContainerImageProvenanceNodeProperties = (
+        GitLabContainerImageProvenanceNodeProperties()
     )

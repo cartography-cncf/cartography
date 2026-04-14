@@ -119,6 +119,10 @@ def test_sync_container_image_attestations_skips_cleanup_after_partial_failure(
         load_mock,
     )
     monkeypatch.setattr(
+        "cartography.intel.gitlab.container_image_attestations.load_image_provenance",
+        Mock(),
+    )
+    monkeypatch.setattr(
         "cartography.intel.gitlab.container_image_attestations.cleanup_container_image_attestations",
         cleanup_mock,
     )
@@ -127,7 +131,7 @@ def test_sync_container_image_attestations_skips_cleanup_after_partial_failure(
         neo4j_session=Mock(),
         gitlab_url="https://gitlab.example.com",
         token="pat",
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
         manifests=[],
         manifest_lists=[],
         update_tag=123,
@@ -153,6 +157,10 @@ def test_sync_container_image_attestations_runs_cleanup_when_complete(monkeypatc
         load_mock,
     )
     monkeypatch.setattr(
+        "cartography.intel.gitlab.container_image_attestations.load_image_provenance",
+        Mock(),
+    )
+    monkeypatch.setattr(
         "cartography.intel.gitlab.container_image_attestations.cleanup_container_image_attestations",
         cleanup_mock,
     )
@@ -161,7 +169,7 @@ def test_sync_container_image_attestations_runs_cleanup_when_complete(monkeypatc
         neo4j_session=Mock(),
         gitlab_url="https://gitlab.example.com",
         token="pat",
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
         manifests=[],
         manifest_lists=[],
         update_tag=123,

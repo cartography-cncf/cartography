@@ -29,15 +29,15 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_unmatched_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
-    org_url: str,
+    organization_id: int,
     update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query GitLab container images not yet matched by provenance in this sync iteration.
+    Query container images not yet matched by provenance in this sync iteration.
 
-    Scoped to the current GitLab organization via the graph path:
-    GitLabOrganization → RESOURCE → GitLabContainerRepository → HAS_TAG → Tag → REFERENCES → Image.
+    Uses the generic ontology labels and relationship labels so the same query works
+    for ECR and GitLab Container Registry.
 
     Returns one image per container repository (preferring 'latest' tag, then most recent).
     Excludes images that already have a PACKAGED_FROM relationship created in the current
@@ -45,27 +45,29 @@ def get_unmatched_gitlab_container_images_with_history(
     previous iterations are included so they can be re-matched before cleanup removes them.
 
     :param neo4j_session: Neo4j session
-    :param org_url: The GitLab organization URL to scope the query
+    :param organization_id: The GitLab organization numeric ID used for scoping
     :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
     query = """
-        MATCH (org:GitLabOrganization {id: $org_url})-[:RESOURCE]->(repo:GitLabContainerRepository)
-              -[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
-              -[:REFERENCES]->(img:GitLabContainerImage)
+        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
-        WITH repo, img, tag
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitLabOrganization'}]->())
+              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization_id}]->())
+          )
+        WITH repo, img, repo_img
         ORDER BY
-            CASE WHEN tag.name = 'latest' THEN 0 ELSE 1 END,
-            tag.created_at DESC
+            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
+            repo_img.image_pushed_at DESC
         WITH repo, collect({
             digest: img.digest,
-            uri: img.uri,
-            repository_location: repo.id,
-            tag: tag.name,
+            uri: repo_img.uri,
+            repository_location: coalesce(repo.uri, repo.id),
+            tag: repo_img.tag,
             layer_diff_ids: img.layer_diff_ids,
             type: img.type,
             architecture: img.architecture,
@@ -98,7 +100,11 @@ def get_unmatched_gitlab_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query, update_tag=update_tag, org_url=org_url)
+    result = neo4j_session.run(
+        query,
+        update_tag=update_tag,
+        organization_id=organization_id,
+    )
     images = []
 
     for record in result:
@@ -120,7 +126,7 @@ def get_unmatched_gitlab_container_images_with_history(
         )
 
     logger.info(
-        f"Found {len(images)} GitLab container images with layer history (one per repository)"
+        f"Found {len(images)} unmatched container images with layer history"
     )
     return images
 
@@ -277,7 +283,7 @@ def sync(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    organization_id: int,
     update_tag: int,
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
@@ -297,14 +303,14 @@ def sync(
     :param neo4j_session: Neo4j session for querying container images
     :param gitlab_url: The GitLab instance URL
     :param token: GitLab API token
-    :param org_url: The GitLab organization URL
+    :param organization_id: The GitLab organization numeric ID
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param projects: List of project dictionaries to search for Dockerfiles
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches
     """
-    logger.info("Starting supply chain sync for GitLab org %s", org_url)
+    logger.info("Starting supply chain sync for GitLab org %s", organization_id)
 
     # 1. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
     provenance_data = [
@@ -331,13 +337,13 @@ def sync(
             provenance_data,
             lastupdated=update_tag,
             _sub_resource_label="GitLabOrganization",
-            _sub_resource_id=org_url,
+            _sub_resource_id=organization_id,
         )
 
     # 2. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
     unmatched = get_unmatched_gitlab_container_images_with_history(
         neo4j_session,
-        org_url,
+        organization_id,
         update_tag,
         limit=image_limit,
     )
@@ -367,21 +373,21 @@ def sync(
                         matchlink_data,
                         lastupdated=update_tag,
                         _sub_resource_label="GitLabOrganization",
-                        _sub_resource_id=org_url,
+                        _sub_resource_id=organization_id,
                     )
 
     # 4. Cleanup stale relationships
     GraphJob.from_matchlink(
         GitLabProjectProvenancePackagedFromMatchLink(),
         "GitLabOrganization",
-        org_url,
+        organization_id,
         update_tag,
     ).run(neo4j_session)
 
     GraphJob.from_matchlink(
         GitLabProjectDockerfilePackagedFromMatchLink(),
         "GitLabOrganization",
-        org_url,
+        organization_id,
         update_tag,
     ).run(neo4j_session)
 
@@ -392,4 +398,4 @@ def sync(
         common_job_parameters,
     )
 
-    logger.info("Completed supply chain sync for GitLab org %s", org_url)
+    logger.info("Completed supply chain sync for GitLab org %s", organization_id)

@@ -45,6 +45,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     common_job_parameters: dict[str, Any] = {
         "UPDATE_TAG": config.update_tag,
         "ORGANIZATION_ID": organization_id,
+        "org_id": organization_id,
     }
 
     logger.info(
@@ -78,9 +79,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         raise
 
     org_url: str = organization["web_url"]
-
-    # Add org_url to common_job_parameters for cleanup jobs
-    common_job_parameters["org_url"] = org_url
+    common_job_parameters["gitlab_url"] = gitlab_url
 
     # Sync groups (nested subgroups within this organization)
     # Returns the groups list to avoid redundant API calls
@@ -121,7 +120,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session,
             gitlab_url,
             token,
-            org_url,
+            organization_id,
             organization_id,
             config.update_tag,
             common_job_parameters,
@@ -135,7 +134,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session,
             gitlab_url,
             token,
-            org_url,
+            organization_id,
             all_container_repositories,
             config.update_tag,
             common_job_parameters,
@@ -147,7 +146,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         all_container_repositories,
         config.update_tag,
         common_job_parameters,
@@ -158,7 +157,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         all_image_manifests,
         manifest_lists,
         config.update_tag,
@@ -171,7 +170,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         config.update_tag,
         common_job_parameters,
         all_projects,

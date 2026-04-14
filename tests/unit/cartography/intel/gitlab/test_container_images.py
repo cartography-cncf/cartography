@@ -72,7 +72,8 @@ def test_load_container_images_uses_conservative_batch_size(monkeypatch):
     load_container_images(
         neo4j_session=Mock(),
         images=[{"digest": "sha256:image"}],
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
+        gitlab_url="https://gitlab.example.com",
         update_tag=123,
     )
 
@@ -89,7 +90,8 @@ def test_load_container_image_layers_uses_conservative_batch_size(monkeypatch):
     load_container_image_layers(
         neo4j_session=Mock(),
         layers=[{"diff_id": "sha256:layer"}],
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
+        gitlab_url="https://gitlab.example.com",
         update_tag=123,
     )
 
@@ -134,10 +136,10 @@ def test_sync_container_images_processes_repositories_in_batches(monkeypatch):
         neo4j_session=Mock(),
         gitlab_url="https://gitlab.example.com",
         token="pat",
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
         repositories=repositories,
         update_tag=123,
-        common_job_parameters={"UPDATE_TAG": 123},
+        common_job_parameters={"UPDATE_TAG": 123, "org_id": 123, "gitlab_url": "https://gitlab.example.com"},
     )
 
     assert mocks["get_images"].call_count == 3
@@ -163,10 +165,10 @@ def test_sync_container_images_cleans_up_when_repositories_empty(monkeypatch):
         neo4j_session=Mock(),
         gitlab_url="https://gitlab.example.com",
         token="pat",
-        org_url="https://gitlab.example.com/groups/core",
+        org_id=123,
         repositories=[],
         update_tag=123,
-        common_job_parameters={"UPDATE_TAG": 123},
+        common_job_parameters={"UPDATE_TAG": 123, "org_id": 123, "gitlab_url": "https://gitlab.example.com"},
     )
 
     mocks["get_images"].assert_not_called()

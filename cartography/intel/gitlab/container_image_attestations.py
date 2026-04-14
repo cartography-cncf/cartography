@@ -7,7 +7,9 @@ Attestations are discovered via cosign's tag-based scheme:
 - Attestations: sha256-{digest}.att
 """
 
+import json
 import logging
+from base64 import b64decode
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,9 +18,14 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
+from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
+)
+from cartography.models.gitlab.container_images import (
+    GitLabContainerImageProvenanceSchema,
 )
 from cartography.util import timeit
 
@@ -222,8 +229,113 @@ def get_container_image_attestations(
     return all_attestations, summary
 
 
+def _extract_predicate_from_attestation(
+    attestation: dict[str, Any],
+    gitlab_url: str,
+    token: str,
+) -> dict[str, Any] | None:
+    """
+    Decode a DSSE attestation blob and return the embedded predicate when present.
+    """
+    registry_url = attestation.get("_registry_url")
+    repository_name = attestation.get("_repository_name")
+    layers = attestation.get("layers", [])
+    if not registry_url or not repository_name or not layers:
+        return None
+
+    layer_digest = layers[0].get("digest")
+    if not layer_digest:
+        return None
+
+    try:
+        blob = fetch_registry_blob(
+            gitlab_url,
+            str(registry_url),
+            str(repository_name),
+            str(layer_digest),
+            token,
+        )
+    except requests.exceptions.RequestException:
+        logger.warning(
+            "Failed to fetch attestation blob for %s",
+            attestation.get("_digest"),
+            exc_info=True,
+        )
+        return None
+
+    payload_b64 = blob.get("payload")
+    if not payload_b64:
+        return None
+
+    try:
+        payload = json.loads(b64decode(str(payload_b64)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        logger.debug(
+            "Failed to decode attestation payload for %s",
+            attestation.get("_digest"),
+            exc_info=True,
+        )
+        return None
+
+    if isinstance(payload, dict) and "predicate" in payload:
+        predicate = payload.get("predicate")
+        return predicate if isinstance(predicate, dict) else None
+    return None
+
+
+def _extract_image_provenance(
+    attestation: dict[str, Any],
+    predicate: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Extract the subset of SLSA provenance fields used by supply-chain matching.
+    """
+    result: dict[str, Any] = {}
+
+    metadata = predicate.get("metadata", {})
+    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
+    vcs = buildkit_metadata.get("vcs", {})
+    if not vcs:
+        run_details = predicate.get("runDetails", {})
+        run_metadata = run_details.get("metadata", {})
+        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
+
+    if vcs.get("source"):
+        result["source_uri"] = normalize_vcs_url(str(vcs["source"]))
+    if vcs.get("revision"):
+        result["source_revision"] = vcs["revision"]
+
+    invocation = predicate.get("invocation", {})
+    config_source = invocation.get("configSource", {})
+    entry_point = config_source.get("entryPoint", "")
+    if not entry_point:
+        build_def = predicate.get("buildDefinition", {})
+        entry_point = (
+            build_def.get("externalParameters", {})
+            .get("configSource", {})
+            .get("path", "Dockerfile")
+        )
+    if not entry_point:
+        entry_point = "Dockerfile"
+
+    if result.get("source_uri"):
+        dockerfile_dir = (
+            str(vcs.get("localdir:dockerfile") or "")
+            .removeprefix("./")
+            .rstrip("/")
+        )
+        result["source_file"] = (
+            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
+        )
+
+    result["attests_digest"] = attestation.get("_attests_digest")
+    return result
+
+
 def transform_container_image_attestations(
     raw_attestations: list[dict[str, Any]],
+    gitlab_url: str,
+    token: str,
 ) -> list[dict[str, Any]]:
     """
     Transform raw attestation data into the format expected by the schema.
@@ -231,39 +343,73 @@ def transform_container_image_attestations(
     transformed = []
 
     for attestation in raw_attestations:
-        transformed.append(
-            {
-                "digest": attestation.get("_digest"),
-                "media_type": attestation.get("mediaType"),
-                "attestation_type": attestation.get("_attestation_type"),
-                "predicate_type": attestation.get("predicateType"),
-                "attests_digest": attestation.get("_attests_digest"),
-            }
-        )
+        record = {
+            "digest": attestation.get("_digest"),
+            "media_type": attestation.get("mediaType"),
+            "attestation_type": attestation.get("_attestation_type"),
+            "predicate_type": attestation.get("predicateType"),
+            "attests_digest": attestation.get("_attests_digest"),
+        }
+        if attestation.get("_attestation_type") in {"att", "buildx"}:
+            predicate = _extract_predicate_from_attestation(
+                attestation,
+                gitlab_url,
+                token,
+            )
+            if predicate:
+                record.update(_extract_image_provenance(attestation, predicate))
+        transformed.append(record)
 
     logger.info(f"Transformed {len(transformed)} container image attestations")
     return transformed
+
+
+def transform_image_provenance_records(
+    transformed_attestations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Build provenance-only records to merge onto GitLabContainerImage nodes by digest.
+    """
+    provenance_by_digest: dict[str, dict[str, Any]] = {}
+
+    for attestation in transformed_attestations:
+        attests_digest = attestation.get("attests_digest")
+        source_uri = attestation.get("source_uri")
+        if not attests_digest or not source_uri:
+            continue
+        provenance_by_digest[str(attests_digest)] = {
+            "digest": attests_digest,
+            "source_uri": source_uri,
+            "source_revision": attestation.get("source_revision"),
+            "source_file": attestation.get("source_file"),
+        }
+
+    records = list(provenance_by_digest.values())
+    logger.info("Transformed %d image provenance record(s)", len(records))
+    return records
 
 
 @timeit
 def load_container_image_attestations(
     neo4j_session: neo4j.Session,
     attestations: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
     Load GitLab container image attestations into the graph.
     """
     logger.info(
-        f"Loading {len(attestations)} container image attestations for {org_url}"
+        f"Loading {len(attestations)} container image attestations for {org_id}"
     )
     load(
         neo4j_session,
         GitLabContainerImageAttestationSchema(),
         attestations,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -283,11 +429,31 @@ def cleanup_container_image_attestations(
 
 
 @timeit
+def load_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_records: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Load provenance fields directly onto GitLabContainerImage nodes.
+    """
+    if not provenance_records:
+        return
+
+    load(
+        neo4j_session,
+        GitLabContainerImageProvenanceSchema(),
+        provenance_records,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
 def sync_container_image_attestations(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    org_id: int,
     manifests: list[dict[str, Any]],
     manifest_lists: list[dict[str, Any]],
     update_tag: int,
@@ -296,18 +462,34 @@ def sync_container_image_attestations(
     """
     Sync GitLab container image attestations for an organization.
     """
-    logger.info(f"Syncing container image attestations for organization {org_url}")
+    logger.info(f"Syncing container image attestations for organization {org_id}")
 
     raw_attestations, summary = get_container_image_attestations(
         gitlab_url, token, manifests, manifest_lists
     )
 
-    transformed = transform_container_image_attestations(raw_attestations)
-    load_container_image_attestations(neo4j_session, transformed, org_url, update_tag)
+    transformed = transform_container_image_attestations(
+        raw_attestations,
+        gitlab_url,
+        token,
+    )
+    provenance_records = transform_image_provenance_records(transformed)
+    load_container_image_attestations(
+        neo4j_session,
+        transformed,
+        org_id,
+        gitlab_url,
+        update_tag,
+    )
+    load_image_provenance(
+        neo4j_session,
+        provenance_records,
+        update_tag,
+    )
     if summary.failed:
         logger.warning(
             "Skipping GitLab container image attestations cleanup for %s because %d of %d registry probe(s) failed. Existing attestation data was preserved.",
-            org_url,
+            org_id,
             summary.failed,
             summary.attempted,
         )

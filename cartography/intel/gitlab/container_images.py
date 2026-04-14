@@ -440,7 +440,8 @@ def transform_container_image_layers(
 def load_container_images(
     neo4j_session: neo4j.Session,
     images: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -452,7 +453,8 @@ def load_container_images(
         images,
         batch_size=GITLAB_CONTAINER_IMAGE_BATCH_SIZE,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -473,7 +475,8 @@ def cleanup_container_images(
 def load_container_image_layers(
     neo4j_session: neo4j.Session,
     layers: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -485,7 +488,8 @@ def load_container_image_layers(
         layers,
         batch_size=GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -507,7 +511,7 @@ def sync_container_images(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    org_id: int,
     repositories: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
@@ -548,11 +552,23 @@ def sync_container_images(
         layers = transform_container_image_layers(raw_manifests)
 
         # Load layers FIRST so they exist when image relationships are created.
-        load_container_image_layers(neo4j_session, layers, org_url, update_tag)
-        load_container_images(neo4j_session, images, org_url, update_tag)
+        load_container_image_layers(
+            neo4j_session,
+            layers,
+            org_id,
+            gitlab_url,
+            update_tag,
+        )
+        load_container_images(
+            neo4j_session,
+            images,
+            org_id,
+            gitlab_url,
+            update_tag,
+        )
 
     if total_repositories == 0:
-        logger.info("No GitLab container repositories found for %s", org_url)
+        logger.info("No GitLab container repositories found for %s", org_id)
 
     cleanup_container_image_layers(neo4j_session, common_job_parameters)
     cleanup_container_images(neo4j_session, common_job_parameters)
