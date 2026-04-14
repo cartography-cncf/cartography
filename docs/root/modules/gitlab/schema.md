@@ -22,7 +22,9 @@ O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
 CR -- REPO_IMAGE --> CT
+CR -. HAS_TAG .-> CT
 CT -- IMAGE --> CI
+CT -. REFERENCES .-> CI
 CI -- CONTAINS_IMAGE --> CI
 CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
@@ -44,11 +46,12 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
 | **name** | Name of the organization |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
-| web_url | Web URL of the organization |
+| **web_url** | Web URL of the organization |
 | description | Description of the organization |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID (null for top-level organizations) |
 | created_at | GitLab timestamp from when the organization was created |
+| **gitlab_url** | GitLab instance URL |
 
 #### Relationships
 
@@ -84,7 +87,8 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
 | **name** | Name of the group |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
-| web_url | Web URL of the group |
+| **web_url** | Web URL of the group |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the group |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID |
@@ -130,7 +134,8 @@ Representation of a GitLab project (repository). Projects are GitLab's equivalen
 | **name** | Name of the project |
 | **path** | URL path slug |
 | **path_with_namespace** | Full path including namespace |
-| web_url | Web URL of the project |
+| **web_url** | Web URL of the project |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the project |
 | visibility | Visibility level (private, internal, public) |
 | default_branch | Default branch name (e.g., main, master) |
@@ -233,7 +238,8 @@ Representation of a GitLab user. Users belong to an organization and can be memb
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The numeric GitLab user ID |
 | **username** | Username of the user |
-| web_url | Web URL of the user |
+| **web_url** | Web URL of the user |
+| **gitlab_url** | GitLab instance URL |
 | name | Full name of the user |
 | state | State of the user (active, blocked, etc.) |
 | email | Email address of the user (if public) |
@@ -374,6 +380,12 @@ Representation of a GitLab container registry repository. Each project can have 
     (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
     ```
 
+    Legacy compatibility edge still emitted by the current implementation:
+
+    ```
+    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    ```
+
 ### GitLabContainerRepositoryTag
 
 Representation of a tag within a GitLab container repository. Tags are human-readable pointers to container images.
@@ -414,6 +426,12 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
     (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
     ```
 
+    Legacy compatibility edge still emitted by the current implementation:
+
+    ```
+    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    ```
+
 ### GitLabContainerImage
 
 Representation of a container image identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
@@ -425,11 +443,11 @@ Representation of a container image identified by its digest. Images are content
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The image digest (e.g., `sha256:abc123...`) |
-| digest | Same as id, the image digest |
-| uri | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
+| **digest** | Same as id, the image digest |
+| **uri** | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
 | media_type | OCI/Docker media type of the manifest |
 | schema_version | Manifest schema version |
-| type | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| **type** | Either `image` (single platform) or `manifest_list` (multi-arch) |
 | architecture | CPU architecture (e.g., `amd64`, `arm64`) - null for manifest lists |
 | os | Operating system (e.g., `linux`) - null for manifest lists |
 | variant | Architecture variant (e.g., `v8`) - null for manifest lists |
@@ -437,7 +455,7 @@ Representation of a container image identified by its digest. Images are content
 | layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
 | head_layer_diff_id | Diff_id of the first (base) layer in this image |
 | tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
-| source_uri | Normalized VCS URL extracted from image provenance |
+| **source_uri** | Normalized VCS URL extracted from image provenance |
 | source_revision | Commit SHA extracted from image provenance |
 | source_file | Source definition file extracted from image provenance (for example `Dockerfile`) |
 

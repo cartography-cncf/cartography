@@ -139,7 +139,11 @@ def test_sync_container_images_processes_repositories_in_batches(monkeypatch):
         org_id=123,
         repositories=repositories,
         update_tag=123,
-        common_job_parameters={"UPDATE_TAG": 123, "org_id": 123, "gitlab_url": "https://gitlab.example.com"},
+        common_job_parameters={
+            "UPDATE_TAG": 123,
+            "org_id": 123,
+            "gitlab_url": "https://gitlab.example.com",
+        },
     )
 
     assert mocks["get_images"].call_count == 3
@@ -168,7 +172,11 @@ def test_sync_container_images_cleans_up_when_repositories_empty(monkeypatch):
         org_id=123,
         repositories=[],
         update_tag=123,
-        common_job_parameters={"UPDATE_TAG": 123, "org_id": 123, "gitlab_url": "https://gitlab.example.com"},
+        common_job_parameters={
+            "UPDATE_TAG": 123,
+            "org_id": 123,
+            "gitlab_url": "https://gitlab.example.com",
+        },
     )
 
     mocks["get_images"].assert_not_called()

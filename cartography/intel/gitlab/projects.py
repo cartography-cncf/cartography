@@ -152,8 +152,8 @@ def transform_projects(
             # Group-level project - has relationship to nested group
             group_id = namespace_id
 
-        # Get languages for this project (stored as JSON string for Neo4j)
-        project_id: int = project.get("id", 0)
+        # GitLab project IDs are canonical and required for identity/matching.
+        project_id = project["id"]
         project_languages = languages_by_project.get(project_id, {})
         # Convert to JSON string for storage in Neo4j
         languages_json = json.dumps(project_languages) if project_languages else None

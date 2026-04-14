@@ -320,9 +320,7 @@ def _extract_image_provenance(
 
     if result.get("source_uri"):
         dockerfile_dir = (
-            str(vcs.get("localdir:dockerfile") or "")
-            .removeprefix("./")
-            .rstrip("/")
+            str(vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
         )
         result["source_file"] = (
             f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point

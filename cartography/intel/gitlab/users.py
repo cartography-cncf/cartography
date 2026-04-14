@@ -90,7 +90,6 @@ def get_commits(
 def transform_commit_activity(
     commits_by_project: dict[int, list[dict[str, Any]]],
     users_by_email: dict[str, int],
-    users_by_name: dict[str, int],
     user_records: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
@@ -100,12 +99,10 @@ def transform_commit_activity(
     Takes existing user records and creates new records with commit properties added.
 
     Matching strategy:
-    1. Try to match by author_email first (more accurate)
-    2. Fall back to author_name if email not available or not found
+    1. Match by author_email only.
 
     :param commits_by_project: Dict mapping project_id to list of commits
     :param users_by_email: Dict mapping user email to user ID
-    :param users_by_name: Dict mapping user display name to user ID
     :param user_records: Existing user records with all user properties
     :return: List of commit activity records (user data + commit properties)
     """
@@ -117,26 +114,18 @@ def transform_commit_activity(
 
     # Track matching stats for logging
     email_matches = 0
-    name_matches = 0
     no_matches = 0
 
     for project_id, commits in commits_by_project.items():
         for commit in commits:
             committed_date = commit.get("committed_date")
             author_email = commit.get("author_email")
-            author_name = commit.get("author_name")
-
             if not committed_date:
                 continue
 
-            # Try to match user by email first, then fall back to name
-            user_id = None
             if author_email and author_email in users_by_email:
                 user_id = users_by_email[author_email]
                 email_matches += 1
-            elif author_name and author_name in users_by_name:
-                user_id = users_by_name[author_name]
-                name_matches += 1
             else:
                 no_matches += 1
                 continue
@@ -148,8 +137,7 @@ def transform_commit_activity(
             activity[key].append(committed_date)
 
     logger.info(
-        f"Commit author matching: {email_matches} by email, "
-        f"{name_matches} by name, {no_matches} unmatched"
+        f"Commit author matching: {email_matches} by email, {no_matches} unmatched"
     )
 
     # Build records by taking existing user data and adding commit properties
@@ -280,9 +268,7 @@ def transform_users_and_memberships(
         else:
             # User has no group memberships - add single record with just user data
             # Find user data from org_members
-            user_data = next(
-                (m for m in org_members if m.get("id") == user_id), None
-            )
+            user_data = next((m for m in org_members if m.get("id") == user_id), None)
             if user_data:
                 records.append(
                     {
@@ -450,13 +436,8 @@ def sync_gitlab_users(
     # Load users and their group memberships into Neo4j
     load_users(neo4j_session, user_records, organization_id, gitlab_url, update_tag)
 
-    # Build email and name mappings for commit author matching
-    # Try email first (more accurate), fall back to name
+    # Build email mapping for commit author matching.
     users_by_email: dict[str, int] = {}
-    users_by_name: dict[str, int] = {}
-
-    # Track duplicate names for warning
-    duplicate_names: set[str] = set()
 
     # Collect all members (org + groups) to process
     all_members = list(org_members)
@@ -464,7 +445,6 @@ def sync_gitlab_users(
         all_members.extend(members)
 
     for member in all_members:
-        name = member.get("name")
         email = member.get("email")
         user_id = member.get("id")
         username = member.get("username", "")
@@ -477,25 +457,7 @@ def sync_gitlab_users(
         if email and user_id:
             users_by_email[email] = user_id
 
-        # Build name mapping (always available as fallback)
-        if name and user_id:
-            # Check for duplicate names
-            if name in users_by_name and users_by_name[name] != user_id:
-                duplicate_names.add(name)
-            users_by_name[name] = user_id
-
-    # Warn about duplicate names (silent data loss risk)
-    if duplicate_names:
-        logger.warning(
-            f"Found {len(duplicate_names)} users with duplicate display names. "
-            "Commit matching by name may be inaccurate for these users. "
-            "Email matching will be attempted first."
-        )
-
-    logger.info(
-        f"Built commit author mappings: {len(users_by_email)} by email, "
-        f"{len(users_by_name)} by name"
-    )
+    logger.info(f"Built commit author mappings: {len(users_by_email)} by email")
 
     # Fetch commits for all projects to build commit activity
     commits_by_project: dict[int, list[dict[str, Any]]] = {}
@@ -520,7 +482,7 @@ def sync_gitlab_users(
     # Transform and load commit activity
     if commits_by_project:
         activity_records = transform_commit_activity(
-            commits_by_project, users_by_email, users_by_name, user_records
+            commits_by_project, users_by_email, user_records
         )
         if activity_records:
             load_commit_activity(

@@ -120,7 +120,11 @@ def test_sync_gitlab_users(
         "https://gitlab.example.com",
         "fake-token",
         TEST_UPDATE_TAG,
-        {"ORGANIZATION_ID": TEST_ORG_ID, "org_id": TEST_ORG_ID, "gitlab_url": TEST_GITLAB_URL},
+        {
+            "ORGANIZATION_ID": TEST_ORG_ID,
+            "org_id": TEST_ORG_ID,
+            "gitlab_url": TEST_GITLAB_URL,
+        },
         test_groups,
         test_projects,
         commits_since_days=90,

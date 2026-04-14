@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 def get_unmatched_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
     organization_id: int,
+    gitlab_url: str,
     update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
@@ -46,6 +47,7 @@ def get_unmatched_gitlab_container_images_with_history(
 
     :param neo4j_session: Neo4j session
     :param organization_id: The GitLab organization numeric ID used for scoping
+    :param gitlab_url: The GitLab instance URL used to scope GitLab registry images
     :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
@@ -54,6 +56,13 @@ def get_unmatched_gitlab_container_images_with_history(
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
+          AND (
+              NOT repo:GitLabContainerRepository
+              OR exists(
+                  (:GitLabOrganization {id: $organization_id, gitlab_url: $gitlab_url})
+                  -[:RESOURCE]->(repo)
+              )
+          )
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitLabOrganization'}]->())
@@ -104,6 +113,7 @@ def get_unmatched_gitlab_container_images_with_history(
         query,
         update_tag=update_tag,
         organization_id=organization_id,
+        gitlab_url=gitlab_url,
     )
     images = []
 
@@ -125,9 +135,7 @@ def get_unmatched_gitlab_container_images_with_history(
             )
         )
 
-    logger.info(
-        f"Found {len(images)} unmatched container images with layer history"
-    )
+    logger.info(f"Found {len(images)} unmatched container images with layer history")
     return images
 
 
@@ -344,6 +352,7 @@ def sync(
     unmatched = get_unmatched_gitlab_container_images_with_history(
         neo4j_session,
         organization_id,
+        gitlab_url,
         update_tag,
         limit=image_limit,
     )
@@ -380,14 +389,14 @@ def sync(
     GraphJob.from_matchlink(
         GitLabProjectProvenancePackagedFromMatchLink(),
         "GitLabOrganization",
-        organization_id,
+        str(organization_id),
         update_tag,
     ).run(neo4j_session)
 
     GraphJob.from_matchlink(
         GitLabProjectDockerfilePackagedFromMatchLink(),
         "GitLabOrganization",
-        organization_id,
+        str(organization_id),
         update_tag,
     ).run(neo4j_session)
 
