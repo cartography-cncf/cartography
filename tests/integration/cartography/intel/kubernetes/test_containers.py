@@ -20,6 +20,9 @@ TEST_UPDATE_TAG = 123456789
 def test_container_has_image_rels(neo4j_session):
     parent_image = MOCK_DOCKER_IMAGES[0]
     child_image = MOCK_PLATFORM_IMAGES[1]
+    child_container_image_uri = (
+        f"{parent_image['uri'].rsplit('@', 1)[0]}@{child_image['digest']}"
+    )
 
     neo4j_session.run(
         """
@@ -33,6 +36,20 @@ def test_container_has_image_rels(neo4j_session):
         digest=parent_image["name"].split("@", 1)[1],
         uri=parent_image["uri"],
         media_type=parent_image["mediaType"],
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
+        SET img.digest = $digest,
+            img.uri = $uri,
+            img.media_type = $media_type,
+            img.lastupdated = $tag
+        """,
+        id=f"{parent_image['name'].rsplit('@', 1)[0]}@{child_image['digest']}",
+        digest=child_image["digest"],
+        uri=child_container_image_uri,
+        media_type=child_image["media_type"],
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
@@ -58,20 +75,17 @@ def test_container_has_image_rels(neo4j_session):
     pods = deepcopy(KUBERNETES_PODS_DATA)
 
     # This container declares the parent image index in spec, while runtime status resolves
-    # to the child digest. HAS_IMAGE should still follow the declared image reference.
+    # to the child digest. HAS_IMAGE should follow the runtime digest uniformly.
     containers[0]["image"] = parent_image["uri"]
-    containers[0]["declared_image_sha"] = parent_image["name"].split("@", 1)[1]
     containers[0][
         "status_image_id"
     ] = f"{parent_image['uri'].rsplit('@', 1)[0]}@{child_image['digest']}"
     containers[0]["status_image_sha"] = child_image["digest"]
     pods[0]["containers"] = [containers[0]]
 
-    # This container declares the child platform manifest directly in spec.
-    containers[1][
-        "image"
-    ] = f"{parent_image['uri'].rsplit('@', 1)[0]}@{child_image['digest']}"
-    containers[1]["declared_image_sha"] = child_image["digest"]
+    # This container declares the child platform manifest directly in spec. It should
+    # resolve to the same runtime digest-backed image relationships.
+    containers[1]["image"] = child_container_image_uri
     containers[1]["status_image_id"] = containers[1]["image"]
     containers[1]["status_image_sha"] = child_image["digest"]
     pods[1]["containers"] = [containers[1]]
@@ -107,7 +121,8 @@ def test_container_has_image_rels(neo4j_session):
         "digest",
         "HAS_IMAGE",
     ) == {
-        ("my-pod-container", parent_image["name"].split("@", 1)[1]),
+        ("my-pod-container", child_image["digest"]),
+        ("my-service-pod-container", child_image["digest"]),
     }
 
     assert check_rels(
@@ -118,5 +133,6 @@ def test_container_has_image_rels(neo4j_session):
         "digest",
         "HAS_IMAGE",
     ) == {
+        ("my-pod-container", child_image["digest"]),
         ("my-service-pod-container", child_image["digest"]),
     }
