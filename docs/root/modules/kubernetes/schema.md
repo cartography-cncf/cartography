@@ -167,8 +167,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | **namespace** | The Kubernetes namespace where this container is deployed |
 | **cluster\_name** | Name of the Kubernetes cluster where this container is deployed |
 | image\_pull_policy | The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent) |
-| status\_image\_id | ImageID of the container's image. |
-| **status\_image\_sha** | The SHA portion of the status\_image\_id |
+| status\_image\_id | Runtime-reported image identifier for the container. This may differ from the declared `image` field because the container runtime can rewrite tags or parent image indexes to digest-qualified references. |
+| **status\_image\_sha** | The SHA portion of the runtime-reported `status_image_id` when Cartography can extract it. |
 | status\_ready | Specifies whether the container has passed its readiness probe. |
 | status\_started | Specifies whether the container has passed its startup probe. |
 | **status\_state** | State of the container (running, terminated, waiting) |
@@ -189,7 +189,10 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
-- `KubernetesContainer` references container images from registries. The relationship matches containers to images by digest (`status_image_sha`).
+- `KubernetesContainer` references container images from registries.
+  `HAS_IMAGE` is intended to represent the image reference declared on the Kubernetes container spec (`image`), not the runtime-resolved digest reported in container status.
+  For Google Artifact Registry, that means a digest-qualified spec reference can point either to the top-level image object (`GCPArtifactRegistryContainerImage`) or directly to a platform-specific manifest (`GCPArtifactRegistryPlatformImage`), depending on what was declared.
+  Runtime fields like `status_image_id` and `status_image_sha` are preserved on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)

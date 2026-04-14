@@ -81,4 +81,38 @@ def test_transform_pods_propagates_node_architecture_to_pod_and_container():
 
     assert transformed[0]["architecture_normalized"] == "arm64"
     assert transformed[0]["containers"][0]["image_pull_policy"] == "IfNotPresent"
+    assert transformed[0]["containers"][0]["declared_image_sha"] is None
     assert transformed[0]["containers"][0]["architecture_normalized"] == "arm64"
+
+
+def test_transform_pods_extracts_declared_image_digest_for_containers():
+    pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="pod-3",
+            name="digest-pod",
+            namespace="my-namespace",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[
+                SimpleNamespace(
+                    name="app",
+                    image="example.registry/repo/app@sha256:abc123",
+                    image_pull_policy="IfNotPresent",
+                    resources=None,
+                    env=None,
+                    env_from=None,
+                ),
+            ],
+            volumes=[],
+            node_name="node-a",
+            service_account_name="default",
+        ),
+        status=SimpleNamespace(phase="Running", container_statuses=[]),
+    )
+
+    transformed = transform_pods([pod], "my-cluster-1")
+
+    assert transformed[0]["containers"][0]["declared_image_sha"] == "sha256:abc123"

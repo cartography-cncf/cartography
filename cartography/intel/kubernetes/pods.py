@@ -22,10 +22,16 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
     pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
+        try:
+            declared_image_sha = container.image.split("@", 1)[1]
+        except IndexError:
+            declared_image_sha = None
+
         containers[container.name] = {
             "uid": f"{pod.metadata.uid}-{container.name}",
             "name": container.name,
             "image": container.image,
+            "declared_image_sha": declared_image_sha,
             "namespace": pod.metadata.namespace,
             "pod_id": pod.metadata.uid,
             "image_pull_policy": container.image_pull_policy,

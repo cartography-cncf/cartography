@@ -150,9 +150,14 @@ class KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+    """
+    Matches the declared container image reference from the Kubernetes spec to the
+    top-level GAR image object (for example an OCI image index).
+    """
+
     target_node_label: str = "GCPArtifactRegistryContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("status_image_sha")}
+        {"uri": PropertyRef("image")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
@@ -170,9 +175,14 @@ class KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
+    """
+    Matches the declared container image reference from the Kubernetes spec when it
+    directly targets a platform-specific GAR manifest by digest.
+    """
+
     target_node_label: str = "GCPArtifactRegistryPlatformImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("status_image_sha")}
+        {"digest": PropertyRef("declared_image_sha")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
