@@ -82,3 +82,31 @@ def test_transform_pods_propagates_node_architecture_to_pod_and_container():
     assert transformed[0]["architecture_normalized"] == "arm64"
     assert transformed[0]["containers"][0]["image_pull_policy"] == "IfNotPresent"
     assert transformed[0]["containers"][0]["architecture_normalized"] == "arm64"
+
+
+def test_transform_pods_leaves_unscheduled_pod_without_node_link_data():
+    pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="pod-3",
+            name="pending-pod",
+            namespace="my-namespace",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[],
+            volumes=[],
+            node_name=None,
+            service_account_name="default",
+        ),
+        status=SimpleNamespace(phase="Pending", container_statuses=[]),
+    )
+
+    transformed = transform_pods(
+        [pod], "my-cluster-1", node_arch_map={"node-a": "amd64"}
+    )
+
+    assert transformed[0]["node"] is None
+    assert transformed[0]["node_id"] is None
+    assert transformed[0]["architecture_normalized"] is None

@@ -24,14 +24,13 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
     transformed = []
     for node in nodes:
         ni = node.status.node_info if node.status else None
+        raw_arch = getattr(ni, "architecture", None)
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
-                "architecture": getattr(ni, "architecture", None),
-                "architecture_normalized": normalize_architecture(
-                    getattr(ni, "architecture", None),
-                ),
+                "architecture": raw_arch,
+                "architecture_normalized": normalize_architecture(raw_arch),
                 "os": getattr(ni, "operating_system", None),
                 "os_image": getattr(ni, "os_image", None),
                 "kernel_version": getattr(ni, "kernel_version", None),

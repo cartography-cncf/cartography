@@ -63,3 +63,70 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         "KubernetesContainer",
         ["name", "architecture_normalized"],
     ) == {("node-test-container", "amd64")}
+
+
+def test_sync_nodes_skips_runs_on_for_unscheduled_pod(neo4j_session, monkeypatch):
+    unscheduled_pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="unscheduled-pod-uid",
+            name="unscheduled-pod",
+            namespace="default",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={},
+        ),
+        spec=SimpleNamespace(
+            containers=[
+                SimpleNamespace(
+                    name="pending-container",
+                    image="pending:latest",
+                    image_pull_policy="IfNotPresent",
+                    resources=None,
+                    env=None,
+                    env_from=None,
+                ),
+            ],
+            volumes=[],
+            node_name=None,
+            service_account_name="default",
+        ),
+        status=SimpleNamespace(phase="Pending", container_statuses=[]),
+    )
+
+    monkeypatch.setattr(nodes_module, "get_nodes", lambda client: RAW_NODES)
+    monkeypatch.setattr(pods_module, "get_pods", lambda client: [unscheduled_pod])
+
+    client = SimpleNamespace(name=CLUSTER_NAME)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
+
+    node_arch_map = sync_nodes(
+        neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters
+    )
+    sync_pods(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+        node_arch_map=node_arch_map,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (p:KubernetesPod {name: $pod_name})
+        OPTIONAL MATCH (p)-[:RUNS_ON]->(n:KubernetesNode)
+        RETURN count(n) AS rel_count
+        """,
+        pod_name="unscheduled-pod",
+    ).single()
+    assert result["rel_count"] == 0
+    pod_result = neo4j_session.run(
+        """
+        MATCH (p:KubernetesPod {name: $pod_name})
+        RETURN p.name AS name, p.architecture_normalized AS architecture_normalized
+        """,
+        pod_name="unscheduled-pod",
+    ).single()
+    assert (pod_result["name"], pod_result["architecture_normalized"]) == (
+        "unscheduled-pod",
+        None,
+    )
