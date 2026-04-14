@@ -17,7 +17,9 @@ class GCPCloudRunRevisionProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     service: PropertyRef = PropertyRef("service")
     container_image: PropertyRef = PropertyRef("container_image")
+    container_images: PropertyRef = PropertyRef("container_images")
     image_digest: PropertyRef = PropertyRef("image_digest")
+    image_digests: PropertyRef = PropertyRef("image_digests")
     architecture: PropertyRef = PropertyRef("architecture")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     architecture_source: PropertyRef = PropertyRef("architecture_source")
@@ -90,7 +92,7 @@ class CloudRunRevisionToECRImageRelProperties(CartographyRelProperties):
 class CloudRunRevisionToECRImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
@@ -108,7 +110,7 @@ class CloudRunRevisionToGitLabContainerImageRelProperties(CartographyRelProperti
 class CloudRunRevisionToGitLabContainerImageRel(CartographyRelSchema):
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
@@ -118,42 +120,22 @@ class CloudRunRevisionToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunRevisionToGCPArtifactRegistryContainerImageRelProperties(
+class CloudRunRevisionToArtifactRegistryContainerImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunRevisionToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+class CloudRunRevisionToArtifactRegistryContainerImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: CloudRunRevisionToGCPArtifactRegistryContainerImageRelProperties = (
-        CloudRunRevisionToGCPArtifactRegistryContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties = (
-        CloudRunRevisionToGCPArtifactRegistryPlatformImageRelProperties()
+    properties: CloudRunRevisionToArtifactRegistryContainerImageRelProperties = (
+        CloudRunRevisionToArtifactRegistryContainerImageRelProperties()
     )
 
 
@@ -170,7 +152,6 @@ class GCPCloudRunRevisionSchema(CartographyNodeSchema):
             CloudRunRevisionToServiceAccountRel(),
             CloudRunRevisionToECRImageRel(),
             CloudRunRevisionToGitLabContainerImageRel(),
-            CloudRunRevisionToGCPArtifactRegistryContainerImageRel(),
-            CloudRunRevisionToGCPArtifactRegistryPlatformImageRel(),
+            CloudRunRevisionToArtifactRegistryContainerImageRel(),
         ],
     )

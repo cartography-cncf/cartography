@@ -21,7 +21,7 @@ MOCK_REVISIONS = {
             "service": "test-service",
             "containers": [
                 {
-                    "image": "gcr.io/test-project/test-image:latest",
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/test-image:latest",
                 },
             ],
             "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
@@ -42,7 +42,7 @@ MOCK_JOBS = {
                 "template": {
                     "containers": [
                         {
-                            "image": "gcr.io/test-project/batch-processor:v1",
+                            "image": "us-west1-docker.pkg.dev/test-project/runtime-repo/batch-processor:v1",
                         },
                     ],
                     "serviceAccount": "batch-sa@test-project.iam.gserviceaccount.com",
@@ -52,11 +52,17 @@ MOCK_JOBS = {
     ],
 }
 
-TEST_REVISION_DIGEST = (
-    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+TEST_REVISION_PRIMARY_DIGEST = (
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
 )
-TEST_JOB_DIGEST = (
-    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+TEST_REVISION_SIDECAR_DIGEST = (
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+)
+TEST_JOB_PRIMARY_DIGEST = (
+    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+)
+TEST_JOB_SIDECAR_DIGEST = (
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 )
 
 MOCK_REVISION_WITH_DIGEST = [
@@ -65,7 +71,12 @@ MOCK_REVISION_WITH_DIGEST = [
         "service": "test-service",
         "containers": [
             {
-                "image": f"gcr.io/test-project/test-image@{TEST_REVISION_DIGEST}",
+                "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/test-image"
+                f"@{TEST_REVISION_PRIMARY_DIGEST}",
+            },
+            {
+                "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/log-sidecar"
+                f"@{TEST_REVISION_SIDECAR_DIGEST}",
             },
         ],
         "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
@@ -81,7 +92,12 @@ MOCK_JOB_WITH_DIGEST = [
             "template": {
                 "containers": [
                     {
-                        "image": f"gcr.io/test-project/batch-processor@{TEST_JOB_DIGEST}",
+                        "image": "us-west1-docker.pkg.dev/test-project/runtime-repo/batch-processor"
+                        f"@{TEST_JOB_PRIMARY_DIGEST}",
+                    },
+                    {
+                        "image": "us-west1-docker.pkg.dev/test-project/runtime-repo/otel-sidecar"
+                        f"@{TEST_JOB_SIDECAR_DIGEST}",
                     },
                 ],
                 "serviceAccount": "batch-sa@test-project.iam.gserviceaccount.com",

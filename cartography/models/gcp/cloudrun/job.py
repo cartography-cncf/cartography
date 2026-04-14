@@ -18,7 +18,9 @@ class GCPCloudRunJobProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     location: PropertyRef = PropertyRef("location")
     container_image: PropertyRef = PropertyRef("container_image")
+    container_images: PropertyRef = PropertyRef("container_images")
     image_digest: PropertyRef = PropertyRef("image_digest")
+    image_digests: PropertyRef = PropertyRef("image_digests")
     architecture: PropertyRef = PropertyRef("architecture")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     architecture_source: PropertyRef = PropertyRef("architecture_source")
@@ -70,7 +72,7 @@ class CloudRunJobToECRImageRelProperties(CartographyRelProperties):
 class CloudRunJobToECRImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
@@ -88,7 +90,7 @@ class CloudRunJobToGitLabContainerImageRelProperties(CartographyRelProperties):
 class CloudRunJobToGitLabContainerImageRel(CartographyRelSchema):
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
@@ -98,42 +100,22 @@ class CloudRunJobToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunJobToGCPArtifactRegistryContainerImageRelProperties(
+class CloudRunJobToArtifactRegistryContainerImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunJobToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+class CloudRunJobToArtifactRegistryContainerImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobToGCPArtifactRegistryContainerImageRelProperties = (
-        CloudRunJobToGCPArtifactRegistryContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunJobToGCPArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunJobToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobToGCPArtifactRegistryPlatformImageRelProperties = (
-        CloudRunJobToGCPArtifactRegistryPlatformImageRelProperties()
+    properties: CloudRunJobToArtifactRegistryContainerImageRelProperties = (
+        CloudRunJobToArtifactRegistryContainerImageRelProperties()
     )
 
 
@@ -148,7 +130,6 @@ class GCPCloudRunJobSchema(CartographyNodeSchema):
             CloudRunJobToServiceAccountRel(),
             CloudRunJobToECRImageRel(),
             CloudRunJobToGitLabContainerImageRel(),
-            CloudRunJobToGCPArtifactRegistryContainerImageRel(),
-            CloudRunJobToGCPArtifactRegistryPlatformImageRel(),
+            CloudRunJobToArtifactRegistryContainerImageRel(),
         ],
     )
