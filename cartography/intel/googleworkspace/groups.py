@@ -282,10 +282,9 @@ def transform_groups(
                 member_type = "GROUP" if member_key_id in group_emails else "USER"
                 logger.warning(
                     "Google Workspace membership %s is missing type; inferred %s "
-                    "from preferredMemberKey.id=%s",
+                    "from known group keys",
                     member.get("name", "<unknown>"),
                     member_type,
-                    member_key_id,
                 )
 
             for role_obj in member.get("roles", []):
