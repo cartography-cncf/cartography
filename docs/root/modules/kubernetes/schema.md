@@ -190,9 +190,10 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     ```
 
 - `KubernetesContainer` references container images from registries.
-  `HAS_IMAGE` is intended to represent the image reference declared on the Kubernetes container spec (`image`), not the runtime-resolved digest reported in container status.
-  For Google Artifact Registry, that means a digest-qualified spec reference can point either to the top-level image object (`GCPArtifactRegistryContainerImage`) or directly to a platform-specific manifest (`GCPArtifactRegistryPlatformImage`), depending on what was declared.
-  Runtime fields like `status_image_id` and `status_image_sha` are preserved on the container for later exact-image resolution work.
+  `HAS_IMAGE` matching is provider-specific today.
+  For ECR and GitLab, the relationship still matches the runtime digest (`status_image_sha`) reported in container status.
+  For Google Artifact Registry, the relationship follows the image reference declared on the Kubernetes container spec (`image`), so a digest-qualified spec reference can point either to the top-level image object (`GCPArtifactRegistryContainerImage`) or directly to a platform-specific manifest (`GCPArtifactRegistryPlatformImage`), depending on what was declared.
+  Runtime fields like `status_image_id` and `status_image_sha` are still preserved on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)

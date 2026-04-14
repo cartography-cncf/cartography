@@ -1570,7 +1570,7 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 |-------|-------------|
 | **id** | Full resource name of the Docker image |
 | name | The short name of the image |
-| uri | The URI of the image |
+| **uri** | The URI of the image |
 | digest | The image digest (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |
