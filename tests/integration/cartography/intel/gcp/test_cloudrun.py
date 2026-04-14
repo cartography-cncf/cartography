@@ -57,12 +57,6 @@ TEST_REVISION_PRIMARY_PLATFORM_DIGEST = (
 TEST_REVISION_SIDECAR_PLATFORM_DIGEST = (
     "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 )
-TEST_JOB_PRIMARY_PLATFORM_DIGEST = (
-    "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-)
-TEST_JOB_SIDECAR_PLATFORM_DIGEST = (
-    "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-)
 TEST_REVISION_PRIMARY_PLATFORM_IMAGE_ID = (
     f"{TEST_REVISION_PRIMARY_ARTIFACT_IMAGE_ID}@{TEST_REVISION_PRIMARY_PLATFORM_DIGEST}"
 )
@@ -76,12 +70,6 @@ TEST_JOB_PRIMARY_ARTIFACT_IMAGE_ID = (
 TEST_JOB_SIDECAR_ARTIFACT_IMAGE_ID = (
     "projects/test-project/locations/us-west1/repositories/runtime-repo/"
     f"dockerImages/otel-sidecar@{TEST_JOB_SIDECAR_DIGEST}"
-)
-TEST_JOB_PRIMARY_PLATFORM_IMAGE_ID = (
-    f"{TEST_JOB_PRIMARY_ARTIFACT_IMAGE_ID}@{TEST_JOB_PRIMARY_PLATFORM_DIGEST}"
-)
-TEST_JOB_SIDECAR_PLATFORM_IMAGE_ID = (
-    f"{TEST_JOB_SIDECAR_ARTIFACT_IMAGE_ID}@{TEST_JOB_SIDECAR_PLATFORM_DIGEST}"
 )
 
 
@@ -195,38 +183,6 @@ def _create_image_registry_nodes(neo4j_session):
         digest=TEST_REVISION_SIDECAR_DIGEST,
         name="log-sidecar",
         uri=TEST_REVISION_SIDECAR_IMAGE,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
-            img.parent_artifact_id = $parent_artifact_id,
-            img.architecture = 'amd64',
-            img.os = 'linux',
-            img.project_id = $project_id,
-            img.lastupdated = $tag
-        """,
-        id=TEST_JOB_PRIMARY_PLATFORM_IMAGE_ID,
-        digest=TEST_JOB_PRIMARY_PLATFORM_DIGEST,
-        parent_artifact_id=TEST_JOB_PRIMARY_ARTIFACT_IMAGE_ID,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
-            img.parent_artifact_id = $parent_artifact_id,
-            img.architecture = 'amd64',
-            img.os = 'linux',
-            img.project_id = $project_id,
-            img.lastupdated = $tag
-        """,
-        id=TEST_JOB_SIDECAR_PLATFORM_IMAGE_ID,
-        digest=TEST_JOB_SIDECAR_PLATFORM_DIGEST,
-        parent_artifact_id=TEST_JOB_SIDECAR_ARTIFACT_IMAGE_ID,
         project_id=TEST_PROJECT_ID,
         tag=TEST_UPDATE_TAG,
     )
@@ -614,26 +570,12 @@ def test_cloud_run_image_prerequisites(
             TEST_REVISION_SIDECAR_PLATFORM_IMAGE_ID,
             TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
         ),
-        (TEST_JOB_PRIMARY_PLATFORM_IMAGE_ID, TEST_JOB_PRIMARY_ARTIFACT_IMAGE_ID),
-        (TEST_JOB_SIDECAR_PLATFORM_IMAGE_ID, TEST_JOB_SIDECAR_ARTIFACT_IMAGE_ID),
     }
 
     assert (
         check_rels(
             neo4j_session,
             "GCPCloudRunRevision",
-            "id",
-            "GCPArtifactRegistryPlatformImage",
-            "digest",
-            "HAS_IMAGE",
-        )
-        == set()
-    )
-
-    assert (
-        check_rels(
-            neo4j_session,
-            "GCPCloudRunJob",
             "id",
             "GCPArtifactRegistryPlatformImage",
             "digest",
