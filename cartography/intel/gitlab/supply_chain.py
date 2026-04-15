@@ -76,6 +76,7 @@ def get_unmatched_gitlab_container_images_with_history(
             digest: img.digest,
             uri: repo_img.uri,
             repository_location: coalesce(repo.uri, repo.id),
+            project_id: repo.project_id,
             tag: repo_img.tag,
             layer_diff_ids: img.layer_diff_ids,
             type: img.type,
@@ -98,6 +99,7 @@ def get_unmatched_gitlab_container_images_with_history(
             best.digest AS digest,
             best.uri AS uri,
             best.repository_location AS repository_location,
+            best.project_id AS project_id,
             best.tag AS tag,
             best.layer_diff_ids AS layer_diff_ids,
             best.type AS type,
@@ -132,6 +134,11 @@ def get_unmatched_gitlab_container_images_with_history(
                 architecture=record["architecture"],
                 os=record["os"],
                 layer_history=layer_history,
+                scope_keys=(
+                    {"gitlab_project_id": str(record["project_id"])}
+                    if record["project_id"] is not None
+                    else None
+                ),
             )
         )
 
@@ -236,6 +243,8 @@ def _build_dockerfile_info(
         return None
     info["project_url"] = project_url
     info["project_name"] = project_name
+    if project.get("id") is not None:
+        info["scope_keys"] = {"gitlab_project_id": str(project["id"])}
     # Used by the shared matching algorithm
     info["source_repo_id"] = project_url
     return info

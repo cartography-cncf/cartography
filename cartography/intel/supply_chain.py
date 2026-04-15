@@ -518,6 +518,7 @@ class ContainerImage:
     architecture: str | None
     os: str | None
     layer_history: list[dict[str, Any]]
+    scope_keys: dict[str, str] | None = None
 
 
 @dataclass
@@ -546,14 +547,12 @@ def match_images_to_dockerfiles(
     :param min_confidence: Minimum confidence threshold for matches
     :return: List of ImageDockerfileMatch objects
     """
-    parsed_dockerfiles: list[ParsedDockerfile] = []
-    dockerfile_info_map: dict[str, dict[str, Any]] = {}
+    parsed_dockerfiles: list[tuple[ParsedDockerfile, dict[str, Any]]] = []
 
     for df_info in dockerfiles:
         try:
             parsed = parse(df_info["content"])
-            dockerfile_info_map[parsed.content_hash] = df_info
-            parsed_dockerfiles.append(parsed)
+            parsed_dockerfiles.append((parsed, df_info))
         except Exception as e:
             logger.warning("Failed to parse dockerfile %s: %s", df_info.get("path"), e)
 
@@ -586,13 +585,41 @@ def match_images_to_dockerfiles(
             )
             continue
 
+        candidate_dockerfiles = parsed_dockerfiles
+        if image.scope_keys:
+            candidate_dockerfiles = [
+                (parsed, df_info)
+                for parsed, df_info in parsed_dockerfiles
+                if all(
+                    df_info.get("scope_keys", {}).get(scope_name) == scope_value
+                    for scope_name, scope_value in image.scope_keys.items()
+                )
+            ]
+            if not candidate_dockerfiles:
+                logger.debug(
+                    "No Dockerfiles scoped to %s for image %s:%s",
+                    image.scope_keys,
+                    image.display_name,
+                    image.tag,
+                )
+                continue
+
         df_matches = find_best_dockerfile_matches(
-            image_commands, parsed_dockerfiles, min_confidence
+            image_commands,
+            [parsed for parsed, _ in candidate_dockerfiles],
+            min_confidence,
         )
 
         if df_matches:
             best_match = df_matches[0]
-            df_info = dockerfile_info_map.get(best_match.dockerfile.content_hash, {})
+            df_info = next(
+                (
+                    candidate_info
+                    for parsed, candidate_info in candidate_dockerfiles
+                    if parsed is best_match.dockerfile
+                ),
+                {},
+            )
 
             matches.append(
                 ImageDockerfileMatch(

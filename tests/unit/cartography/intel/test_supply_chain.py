@@ -1,6 +1,8 @@
+from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import get_slsa_dependency_list
+from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import unwrap_attestation_predicate
 
 
@@ -100,3 +102,44 @@ def test_extract_container_parent_image_supports_slsa_v1_dependencies():
         "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
         "parent_image_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     }
+
+
+def test_match_images_to_dockerfiles_scopes_by_scope_keys():
+    image = ContainerImage(
+        digest="sha256:test",
+        uri="registry.gitlab.com/acme/service:latest",
+        registry_id="registry.gitlab.com/acme/service",
+        display_name="registry.gitlab.com/acme/service",
+        tag="latest",
+        layer_diff_ids=["sha256:layer1"],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {
+                "created_by": "RUN apk add curl",
+                "empty_layer": False,
+            },
+        ],
+        scope_keys={"gitlab_project_id": "100"},
+    )
+
+    dockerfiles = [
+        {
+            "path": "Dockerfile",
+            "content": "FROM alpine\nRUN apk add curl\n",
+            "scope_keys": {"gitlab_project_id": "100"},
+            "source_repo_id": "https://gitlab.example.com/acme/service",
+        },
+        {
+            "path": "Dockerfile",
+            "content": "FROM alpine\nRUN apk add curl\n",
+            "scope_keys": {"gitlab_project_id": "200"},
+            "source_repo_id": "https://gitlab.example.com/acme/other-service",
+        },
+    ]
+
+    matches = match_images_to_dockerfiles([image], dockerfiles, min_confidence=0.5)
+
+    assert len(matches) == 1
+    assert matches[0].source_repo_id == "https://gitlab.example.com/acme/service"
