@@ -204,7 +204,7 @@ ORDER BY project_count DESC
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
 
-    Commit authors are matched to GitLab users by email address. Only commits from current members are tracked.
+    Commit authors are matched to GitLab users by email address when available, with a display-name fallback for current members. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 

@@ -1,6 +1,7 @@
 import base64
 import logging
 from typing import Any
+from typing import cast
 
 import neo4j
 import requests
@@ -68,7 +69,12 @@ def get_unmatched_gitlab_container_images_with_history(
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitLabOrganization'}]->())
-              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization_id}]->())
+              OR exists((
+                  img
+              )-[:PACKAGED_FROM {
+                  _sub_resource_label: 'GitLabOrganization',
+                  _sub_resource_id: $organization_id
+              }]->())
           )
         WITH repo, img, repo_img
         ORDER BY
@@ -464,14 +470,14 @@ def sync(
     GraphJob.from_matchlink(
         GitLabProjectProvenancePackagedFromMatchLink(),
         "GitLabOrganization",
-        str(organization_id),
+        cast(Any, organization_id),
         update_tag,
     ).run(neo4j_session)
 
     GraphJob.from_matchlink(
         GitLabProjectDockerfilePackagedFromMatchLink(),
         "GitLabOrganization",
-        str(organization_id),
+        cast(Any, organization_id),
         update_tag,
     ).run(neo4j_session)
 

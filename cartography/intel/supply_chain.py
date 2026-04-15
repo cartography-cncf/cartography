@@ -626,14 +626,6 @@ def match_images_to_dockerfiles(
                     image.display_name,
                     image.tag,
                 )
-                print(
-                    "\n=== SUPPLY_CHAIN DEBUG: NO SCOPED DOCKERFILES ===\n"
-                    f"image={image.display_name}:{image.tag}\n"
-                    f"digest={image.digest}\n"
-                    f"scope_keys={image.scope_keys}\n"
-                    f"image_commands={image_commands}\n"
-                    f"available_dockerfile_scopes={[df_info.get('scope_keys') for _, df_info in parsed_dockerfiles]}\n"
-                )
                 continue
 
         df_matches = find_best_dockerfile_matches(
@@ -672,48 +664,6 @@ def match_images_to_dockerfiles(
                 best_match.confidence,
             )
         else:
-            debug_matches = find_best_dockerfile_matches(
-                image_commands,
-                [parsed for parsed, _ in candidate_dockerfiles],
-                min_confidence=0.0,
-            )
-            debug_top_matches: list[dict[str, Any]] = []
-            for debug_match in debug_matches[:5]:
-                matching_df_info = next(
-                    (
-                        candidate_info
-                        for parsed, candidate_info in candidate_dockerfiles
-                        if parsed is debug_match.dockerfile
-                    ),
-                    {},
-                )
-                debug_top_matches.append(
-                    {
-                        "path": matching_df_info.get("path"),
-                        "source_repo_id": matching_df_info.get("source_repo_id"),
-                        "scope_keys": matching_df_info.get("scope_keys"),
-                        "confidence": round(debug_match.confidence, 4),
-                        "command_similarity": round(
-                            debug_match.command_similarity,
-                            4,
-                        ),
-                        "matched_commands": debug_match.matched_commands,
-                        "total_commands": debug_match.total_commands,
-                        "dockerfile_commands": [
-                            normalize_command(f"{instr.cmd} {instr.value}")
-                            for instr in debug_match.dockerfile.get_final_stage_layer_instructions()
-                        ],
-                    }
-                )
-            print(
-                "\n=== SUPPLY_CHAIN DEBUG: NO MATCH ===\n"
-                f"image={image.display_name}:{image.tag}\n"
-                f"digest={image.digest}\n"
-                f"scope_keys={image.scope_keys}\n"
-                f"image_commands={image_commands}\n"
-                f"candidate_dockerfile_count={len(candidate_dockerfiles)}\n"
-                f"top_matches={json.dumps(debug_top_matches, indent=2, sort_keys=True)}\n"
-            )
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
             )
