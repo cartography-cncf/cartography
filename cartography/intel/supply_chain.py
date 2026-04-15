@@ -171,9 +171,6 @@ def normalize_command(cmd: str | None) -> str:
     # Lowercase first for consistent matching
     cmd = cmd.lower()
 
-    # Remove Dockerfile instruction prefixes
-    cmd = re.sub(r"^(run|copy|add)\s+", "", cmd)
-
     # Remove shell prefix added by Docker
     cmd = re.sub(r"^/bin/sh -c\s+", "", cmd)
     cmd = re.sub(r"^#\(nop\)\s+", "", cmd)  # BuildKit nop marker
@@ -188,8 +185,33 @@ def normalize_command(cmd: str | None) -> str:
     cmd = re.sub(r"\s*#.*$", "", cmd)
 
     # Normalize whitespace
-    cmd = " ".join(cmd.split())
+    cmd = " ".join(cmd.split()).strip()
+    if not cmd:
+        return ""
 
+    copy_add_match = re.match(r"^(copy|add)\s+(.+)$", cmd)
+    if copy_add_match:
+        instruction = copy_add_match.group(1)
+        remainder = copy_add_match.group(2)
+
+        # OCI history often looks like:
+        #   copy file:<hash> in /dest/
+        #   add dir:<hash> in /dest/
+        oci_copy_add = re.match(r"^(?:file|dir):\S+\s+in\s+(.+)$", remainder)
+        if oci_copy_add:
+            destination = oci_copy_add.group(1).strip()
+            return f"{instruction}_in {destination}"
+
+        # Dockerfile shell form: COPY src dest
+        # Keep only the destination so it becomes comparable to OCI history.
+        parts = remainder.split()
+        if parts:
+            destination = parts[-1]
+            return f"{instruction}_in {destination}"
+
+    # Remove Dockerfile RUN prefix after shell/buildkit cleanup so shell-wrapped
+    # history and raw Dockerfile instructions normalize the same way.
+    cmd = re.sub(r"^run\s+", "", cmd)
     return cmd.strip()
 
 
@@ -466,7 +488,9 @@ def _match_commands_to_dockerfile(
             command_similarity=0.0,
         )
 
-    df_commands = [instr.normalized_value for instr in df_instructions]
+    df_commands = [
+        normalize_command(f"{instr.cmd} {instr.value}") for instr in df_instructions
+    ]
 
     n_df_commands = len(df_commands)
     if len(image_commands) > n_df_commands:
@@ -602,6 +626,14 @@ def match_images_to_dockerfiles(
                     image.display_name,
                     image.tag,
                 )
+                print(
+                    "\n=== SUPPLY_CHAIN DEBUG: NO SCOPED DOCKERFILES ===\n"
+                    f"image={image.display_name}:{image.tag}\n"
+                    f"digest={image.digest}\n"
+                    f"scope_keys={image.scope_keys}\n"
+                    f"image_commands={image_commands}\n"
+                    f"available_dockerfile_scopes={[df_info.get('scope_keys') for _, df_info in parsed_dockerfiles]}\n"
+                )
                 continue
 
         df_matches = find_best_dockerfile_matches(
@@ -640,6 +672,48 @@ def match_images_to_dockerfiles(
                 best_match.confidence,
             )
         else:
+            debug_matches = find_best_dockerfile_matches(
+                image_commands,
+                [parsed for parsed, _ in candidate_dockerfiles],
+                min_confidence=0.0,
+            )
+            debug_top_matches: list[dict[str, Any]] = []
+            for debug_match in debug_matches[:5]:
+                matching_df_info = next(
+                    (
+                        candidate_info
+                        for parsed, candidate_info in candidate_dockerfiles
+                        if parsed is debug_match.dockerfile
+                    ),
+                    {},
+                )
+                debug_top_matches.append(
+                    {
+                        "path": matching_df_info.get("path"),
+                        "source_repo_id": matching_df_info.get("source_repo_id"),
+                        "scope_keys": matching_df_info.get("scope_keys"),
+                        "confidence": round(debug_match.confidence, 4),
+                        "command_similarity": round(
+                            debug_match.command_similarity,
+                            4,
+                        ),
+                        "matched_commands": debug_match.matched_commands,
+                        "total_commands": debug_match.total_commands,
+                        "dockerfile_commands": [
+                            normalize_command(f"{instr.cmd} {instr.value}")
+                            for instr in debug_match.dockerfile.get_final_stage_layer_instructions()
+                        ],
+                    }
+                )
+            print(
+                "\n=== SUPPLY_CHAIN DEBUG: NO MATCH ===\n"
+                f"image={image.display_name}:{image.tag}\n"
+                f"digest={image.digest}\n"
+                f"scope_keys={image.scope_keys}\n"
+                f"image_commands={image_commands}\n"
+                f"candidate_dockerfile_count={len(candidate_dockerfiles)}\n"
+                f"top_matches={json.dumps(debug_top_matches, indent=2, sort_keys=True)}\n"
+            )
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
             )

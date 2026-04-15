@@ -143,3 +143,36 @@ def test_match_images_to_dockerfiles_scopes_by_scope_keys():
 
     assert len(matches) == 1
     assert matches[0].source_repo_id == "https://gitlab.example.com/acme/service"
+
+
+def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
+    image = ContainerImage(
+        digest="sha256:test-copy",
+        uri="registry.gitlab.com/acme/service:latest",
+        registry_id="registry.gitlab.com/acme/service",
+        display_name="registry.gitlab.com/acme/service",
+        tag="latest",
+        layer_diff_ids=["sha256:layer1"],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {
+                "created_by": "/bin/sh -c #(nop) COPY file:abcd1234 in /usr/local/bin/",
+                "empty_layer": False,
+            },
+        ],
+    )
+
+    dockerfiles = [
+        {
+            "path": "Dockerfile",
+            "content": "FROM alpine\nCOPY ./bin/service /usr/local/bin/\n",
+            "source_repo_id": "https://gitlab.example.com/acme/service",
+        },
+    ]
+
+    matches = match_images_to_dockerfiles([image], dockerfiles, min_confidence=0.5)
+
+    assert len(matches) == 1
+    assert matches[0].source_repo_id == "https://gitlab.example.com/acme/service"

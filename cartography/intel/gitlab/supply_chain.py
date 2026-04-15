@@ -25,6 +25,8 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE = 0.2
+
 
 @timeit
 def get_unmatched_gitlab_container_images_with_history(
@@ -295,6 +297,60 @@ def get_dockerfiles_for_projects(
     return all_dockerfiles
 
 
+def build_singleton_dockerfile_fallback_matchlinks(
+    images: list[ContainerImage],
+    dockerfiles: list[dict[str, Any]],
+    matched_image_digests: set[str],
+) -> list[dict[str, Any]]:
+    """
+    Build low-confidence fallback matchlinks when a scoped project has exactly one Dockerfile.
+
+    This is GitLab-specific: container repositories map back to a GitLab project, so if a
+    project's registry image has no provenance match and command matching fails, a lone
+    Dockerfile in that same project is still a strong enough heuristic to preserve as a
+    fallback signal.
+    """
+    fallback_records: list[dict[str, Any]] = []
+
+    for image in images:
+        if image.digest in matched_image_digests:
+            continue
+        if not image.scope_keys:
+            continue
+
+        candidate_dockerfiles = [
+            df_info
+            for df_info in dockerfiles
+            if all(
+                df_info.get("scope_keys", {}).get(scope_name) == scope_value
+                for scope_name, scope_value in image.scope_keys.items()
+            )
+        ]
+
+        if len(candidate_dockerfiles) != 1:
+            continue
+
+        dockerfile = candidate_dockerfiles[0]
+        project_url = dockerfile.get("project_url")
+        if not project_url:
+            continue
+
+        fallback_records.append(
+            {
+                "image_digest": image.digest,
+                "project_url": project_url,
+                "match_method": "dockerfile_singleton_fallback",
+                "dockerfile_path": dockerfile.get("path"),
+                "confidence": GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE,
+                "matched_commands": 0,
+                "total_commands": 0,
+                "command_similarity": 0.0,
+            }
+        )
+
+    return fallback_records
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -375,24 +431,34 @@ def sync(
                 dockerfiles,
                 min_confidence=min_match_confidence,
             )
-            if matches:
-                matchlink_data = transform_matches_for_matchlink(
-                    matches,
-                    "project_url",
-                )
-                if matchlink_data:
+            matchlink_data = transform_matches_for_matchlink(
+                matches,
+                "project_url",
+            )
+            fallback_matchlink_data = build_singleton_dockerfile_fallback_matchlinks(
+                unmatched,
+                dockerfiles,
+                {match.image_digest for match in matches},
+            )
+            all_dockerfile_matchlink_data = matchlink_data + fallback_matchlink_data
+            if all_dockerfile_matchlink_data:
+                if fallback_matchlink_data:
                     logger.info(
-                        "Loading %d dockerfile-based PACKAGED_FROM relationships",
-                        len(matchlink_data),
+                        "Adding %d singleton Dockerfile fallback PACKAGED_FROM relationship(s)",
+                        len(fallback_matchlink_data),
                     )
-                    load_matchlinks(
-                        neo4j_session,
-                        GitLabProjectDockerfilePackagedFromMatchLink(),
-                        matchlink_data,
-                        lastupdated=update_tag,
-                        _sub_resource_label="GitLabOrganization",
-                        _sub_resource_id=organization_id,
-                    )
+                logger.info(
+                    "Loading %d dockerfile-based PACKAGED_FROM relationships",
+                    len(all_dockerfile_matchlink_data),
+                )
+                load_matchlinks(
+                    neo4j_session,
+                    GitLabProjectDockerfilePackagedFromMatchLink(),
+                    all_dockerfile_matchlink_data,
+                    lastupdated=update_tag,
+                    _sub_resource_label="GitLabOrganization",
+                    _sub_resource_id=organization_id,
+                )
 
     # 4. Cleanup stale relationships
     GraphJob.from_matchlink(

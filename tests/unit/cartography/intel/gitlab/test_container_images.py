@@ -7,6 +7,7 @@ from cartography.intel.gitlab.container_images import (
 from cartography.intel.gitlab.container_images import load_container_image_layers
 from cartography.intel.gitlab.container_images import load_container_images
 from cartography.intel.gitlab.container_images import sync_container_images
+from cartography.intel.gitlab.container_images import transform_container_image_layers
 
 
 def _patch_sync_container_images_dependencies(
@@ -188,3 +189,62 @@ def test_sync_container_images_cleans_up_when_repositories_empty(monkeypatch):
     mocks["cleanup_images"].assert_called_once()
     assert manifests == []
     assert manifest_lists == []
+
+
+def test_transform_container_image_layers_persists_history_and_is_empty():
+    raw_manifests = [
+        {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "_digest": "sha256:image",
+            "layers": [
+                {
+                    "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                    "size": 10,
+                    "digest": "sha256:layer1",
+                },
+                {
+                    "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                    "size": 20,
+                    "digest": "sha256:layer2",
+                },
+            ],
+            "_config": {
+                "rootfs": {
+                    "diff_ids": [
+                        "sha256:diff1",
+                        "sha256:diff2",
+                    ],
+                },
+                "history": [
+                    {
+                        "created_by": "/bin/sh -c #(nop) LABEL maintainer=test",
+                        "empty_layer": True,
+                    },
+                    {"created_by": "/bin/sh -c apk add curl"},
+                    {"created_by": "/bin/sh -c mkdir /app"},
+                ],
+            },
+        },
+    ]
+
+    layers = transform_container_image_layers(raw_manifests)
+
+    assert layers == [
+        {
+            "diff_id": "sha256:diff1",
+            "digest": "sha256:layer1",
+            "media_type": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 10,
+            "is_empty": False,
+            "history": "/bin/sh -c apk add curl",
+            "next_diff_ids": ["sha256:diff2"],
+        },
+        {
+            "diff_id": "sha256:diff2",
+            "digest": "sha256:layer2",
+            "media_type": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 20,
+            "is_empty": False,
+            "history": "/bin/sh -c mkdir /app",
+        },
+    ]

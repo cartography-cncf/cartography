@@ -32,6 +32,8 @@ class GitLabContainerImageLayerNodeProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     media_type: PropertyRef = PropertyRef("media_type")
     size: PropertyRef = PropertyRef("size")
+    is_empty: PropertyRef = PropertyRef("is_empty")
+    history: PropertyRef = PropertyRef("history")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

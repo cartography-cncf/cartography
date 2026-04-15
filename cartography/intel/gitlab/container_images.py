@@ -364,9 +364,29 @@ def transform_container_image_layers(
         layers = manifest.get("layers", [])
         config = manifest.get("_config", {})
         diff_ids_raw = config.get("rootfs", {}).get("diff_ids", [])
+        history_raw = config.get("history", [])
 
         # Ensure diff_ids is a list for type checking
         diff_ids: list[Any] = diff_ids_raw if isinstance(diff_ids_raw, list) else []
+        history_entries: list[Any] = (
+            history_raw if isinstance(history_raw, list) else []
+        )
+
+        # Align history entries to diff_ids using the OCI config convention where
+        # empty layers do not consume diff_ids.
+        history_by_diff_id: dict[str, str] = {}
+        diff_id_index = 0
+        for history_entry_raw in history_entries:
+            if not isinstance(history_entry_raw, dict):
+                continue
+            if history_entry_raw.get("empty_layer", False):
+                continue
+            if diff_id_index >= len(diff_ids):
+                break
+            created_by = history_entry_raw.get("created_by")
+            if created_by:
+                history_by_diff_id[str(diff_ids[diff_id_index])] = str(created_by)
+            diff_id_index += 1
 
         # Process each layer in the chain
         for i, layer in enumerate(layers):
@@ -399,6 +419,8 @@ def transform_container_image_layers(
                     "digest": layer_digest,
                     "media_type": layer.get("mediaType"),
                     "size": layer.get("size"),
+                    "is_empty": False,
+                    "history": history_by_diff_id.get(str(diff_id)),
                     "next_diff_ids": set(),
                 }
 
@@ -418,7 +440,10 @@ def transform_container_image_layers(
             "digest": layer["digest"],
             "media_type": layer["media_type"],
             "size": layer["size"],
+            "is_empty": layer["is_empty"],
         }
+        if layer["history"]:
+            layer_dict["history"] = layer["history"]
         if layer["next_diff_ids"]:
             layer_dict["next_diff_ids"] = list(layer["next_diff_ids"])
         all_layers.append(layer_dict)
