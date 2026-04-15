@@ -10,9 +10,24 @@ from urllib3.exceptions import MaxRetryError
 
 logger = logging.getLogger(__name__)
 
+_UBUNTU_API_RETRY_TOTAL = 5
+_UBUNTU_API_RETRY_CONNECT = 1
+_UBUNTU_API_RETRY_BACKOFF_FACTOR = 1.0
+_UBUNTU_API_STATUS_FORCELIST: tuple[int, ...] = (429, 500, 502, 503, 504)
+_UBUNTU_API_ALLOWED_METHODS: frozenset[str] = frozenset({"GET"})
+
 
 class LoggingRetry(Retry):
     """Retry subclass that logs each retry attempt for production observability."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        # urllib3 reconstructs via type(self)(**params); accept full Retry kwargs.
+        kwargs.setdefault("total", _UBUNTU_API_RETRY_TOTAL)
+        kwargs.setdefault("connect", _UBUNTU_API_RETRY_CONNECT)
+        kwargs.setdefault("backoff_factor", _UBUNTU_API_RETRY_BACKOFF_FACTOR)
+        kwargs.setdefault("status_forcelist", _UBUNTU_API_STATUS_FORCELIST)
+        kwargs.setdefault("allowed_methods", _UBUNTU_API_ALLOWED_METHODS)
+        super().__init__(**kwargs)
 
     def increment(
         self,
@@ -24,15 +39,18 @@ class LoggingRetry(Retry):
         _stacktrace: Any = None,
     ) -> LoggingRetry:
         status = response.status if response else None
-        remaining = self.total
-        if isinstance(remaining, int):
-            remaining -= 1
+        retries_left: int | bool | None
+        match self.total:
+            case int(total_int):
+                retries_left = total_int - 1
+            case _:
+                retries_left = self.total
         logger.warning(
             "Ubuntu API retry: method=%s url=%s status=%s retries_left=%s error=%s",
             method,
             url,
             status,
-            remaining,
+            retries_left,
             error,
         )
         try:
@@ -61,12 +79,6 @@ def retryable_session() -> Session:
     returns intermittently.  Uses exponential backoff via urllib3.
     """
     session = Session()
-    retry_policy = LoggingRetry(
-        total=5,
-        connect=1,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
+    retry_policy = LoggingRetry()
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
