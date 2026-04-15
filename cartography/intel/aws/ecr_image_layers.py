@@ -21,10 +21,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
-from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
-from cartography.intel.supply_chain import get_slsa_dependency_list
+from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit

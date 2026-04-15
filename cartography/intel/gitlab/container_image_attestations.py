@@ -20,8 +20,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
-from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_container_parent_image
+from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import unwrap_attestation_predicate
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
@@ -294,7 +294,9 @@ def _extract_image_provenance(
     """
     result = extract_image_source_provenance(predicate)
     result.update(extract_container_parent_image(predicate))
-    result["attests_digest"] = attestation.get("_attests_digest")
+    attests_digest = attestation.get("_attests_digest")
+    if attests_digest is not None:
+        result["attests_digest"] = str(attests_digest)
     return result
 
 

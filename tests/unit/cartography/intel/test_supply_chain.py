@@ -1,5 +1,5 @@
-from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_container_parent_image
+from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import get_slsa_dependency_list
 from cartography.intel.supply_chain import unwrap_attestation_predicate
 
