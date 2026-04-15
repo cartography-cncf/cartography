@@ -354,8 +354,9 @@ def transform_image_provenance_records(
         parent_image_digest = attestation.get("parent_image_digest")
         if not attests_digest or (not source_uri and not parent_image_digest):
             continue
-        provenance_by_digest[str(attests_digest)] = {
-            "digest": attests_digest,
+        digest = str(attests_digest)
+        existing = provenance_by_digest.get(digest, {"digest": attests_digest})
+        candidate = {
             "source_uri": source_uri,
             "source_revision": attestation.get("source_revision"),
             "source_file": attestation.get("source_file"),
@@ -364,6 +365,8 @@ def transform_image_provenance_records(
             "from_attestation": True,
             "confidence": 1.0,
         }
+        existing.update({k: v for k, v in candidate.items() if v is not None})
+        provenance_by_digest[digest] = existing
 
     records = list(provenance_by_digest.values())
     logger.info("Transformed %d image provenance record(s)", len(records))

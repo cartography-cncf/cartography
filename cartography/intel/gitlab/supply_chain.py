@@ -82,7 +82,7 @@ def get_unmatched_gitlab_container_images_with_history(
             repo_img.created_at DESC
         WITH repo, collect({
             digest: img.digest,
-            uri: repo_img.location,
+            uri: repo_img.id,
             repository_location: coalesce(repo.uri, repo.id),
             project_id: repo.project_id,
             tag: repo_img.name,

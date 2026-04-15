@@ -372,9 +372,37 @@ def test_transform_image_provenance_records_keeps_parent_only_records():
     assert records == [
         {
             "digest": "sha256:image123",
-            "source_uri": None,
-            "source_revision": None,
-            "source_file": None,
+            "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+            "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "from_attestation": True,
+            "confidence": 1.0,
+        },
+    ]
+
+
+def test_transform_image_provenance_records_merges_parent_only_without_overwriting_source():
+    records = transform_image_provenance_records(
+        [
+            {
+                "attests_digest": "sha256:image123",
+                "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+                "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
+                "source_file": "docker/Dockerfile",
+            },
+            {
+                "attests_digest": "sha256:image123",
+                "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+                "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            },
+        ],
+    )
+
+    assert records == [
+        {
+            "digest": "sha256:image123",
+            "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+            "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
+            "source_file": "docker/Dockerfile",
             "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
             "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "from_attestation": True,
