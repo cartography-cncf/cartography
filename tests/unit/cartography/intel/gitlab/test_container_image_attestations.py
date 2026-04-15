@@ -6,10 +6,19 @@ from cartography.intel.gitlab.container_image_attestations import (
     AttestationDiscoverySummary,
 )
 from cartography.intel.gitlab.container_image_attestations import (
+    _extract_image_provenance,
+)
+from cartography.intel.gitlab.container_image_attestations import (
+    _extract_predicate_from_attestation,
+)
+from cartography.intel.gitlab.container_image_attestations import (
     get_container_image_attestations,
 )
 from cartography.intel.gitlab.container_image_attestations import (
     sync_container_image_attestations,
+)
+from cartography.intel.gitlab.container_image_attestations import (
+    transform_image_provenance_records,
 )
 
 
@@ -178,3 +187,139 @@ def test_sync_container_image_attestations_runs_cleanup_when_complete(monkeypatc
 
     load_mock.assert_called_once()
     cleanup_mock.assert_called_once()
+
+
+def test_extract_predicate_from_attestation_unwraps_dsse_payload(monkeypatch):
+    predicate_blob = {
+        "payload": "eyJwcmVkaWNhdGUiOiB7IkJ1aWxkRGVmaW5pdGlvbiI6IG51bGx9fQ==",
+    }
+    attestation = {
+        "_digest": "sha256:attestation123",
+        "_registry_url": "https://registry.example.com",
+        "_repository_name": "group/project",
+        "layers": [{"digest": "sha256:layer"}],
+    }
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_image_attestations.fetch_registry_blob",
+        lambda *args, **kwargs: predicate_blob,
+    )
+
+    predicate = _extract_predicate_from_attestation(
+        attestation,
+        "https://gitlab.example.com",
+        "pat",
+    )
+
+    assert predicate == {"BuildDefinition": None}
+
+
+def test_extract_image_provenance_supports_buildkit_shape():
+    attestation = {"_attests_digest": "sha256:image123"}
+    predicate = {
+        "materials": [
+            {
+                "uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+                "digest": {
+                    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                },
+            },
+        ],
+        "metadata": {
+            "https://mobyproject.org/buildkit@v1#metadata": {
+                "vcs": {
+                    "source": "https://gitlab.example.com/myorg/awesome-project.git",
+                    "revision": "deadbeefcafebabe",
+                    "localdir:dockerfile": "docker",
+                },
+            },
+        },
+        "buildDefinition": {
+            "externalParameters": {
+                "configSource": {
+                    "path": "Dockerfile",
+                },
+            },
+        },
+    }
+
+    result = _extract_image_provenance(attestation, predicate)
+
+    assert result == {
+        "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+        "source_revision": "deadbeefcafebabe",
+        "source_file": "docker/Dockerfile",
+        "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+        "parent_image_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "attests_digest": "sha256:image123",
+    }
+
+
+def test_extract_image_provenance_supports_gitlab_slsa_v1_shape():
+    attestation = {"_attests_digest": "sha256:image123"}
+    predicate = {
+        "buildDefinition": {
+            "externalParameters": {
+                "source": "https://gitlab.example.com/myorg/awesome-project.git",
+                "entryPoint": "docker/Dockerfile",
+            },
+            "resolvedDependencies": [
+                {
+                    "uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+                    "digest": {
+                        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    },
+                },
+                {
+                    "uri": "https://gitlab.example.com/myorg/awesome-project",
+                    "digest": {
+                        "gitCommit": "a288201509dd9a85da4141e07522bad412938dbe",
+                    },
+                },
+            ],
+        },
+        "runDetails": {
+            "metadata": {
+                "invocationId": 412,
+            },
+        },
+    }
+
+    result = _extract_image_provenance(attestation, predicate)
+
+    assert result == {
+        "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+        "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
+        "source_file": "docker/Dockerfile",
+        "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+        "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "attests_digest": "sha256:image123",
+    }
+
+
+def test_transform_image_provenance_records_keeps_gitlab_slsa_fields():
+    records = transform_image_provenance_records(
+        [
+            {
+                "attests_digest": "sha256:image123",
+                "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+                "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
+                "source_file": "docker/Dockerfile",
+                "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+                "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            },
+        ],
+    )
+
+    assert records == [
+        {
+            "digest": "sha256:image123",
+            "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+            "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
+            "source_file": "docker/Dockerfile",
+            "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+            "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "from_attestation": True,
+            "confidence": 1.0,
+        },
+    ]

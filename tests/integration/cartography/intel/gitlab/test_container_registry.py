@@ -34,6 +34,14 @@ TEST_ATTESTATION_BLOB = {
         json.dumps(
             {
                 "predicate": {
+                    "materials": [
+                        {
+                            "uri": "pkg:docker/registry.gitlab.example.com/base-images/python@3.12",
+                            "digest": {
+                                "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                            },
+                        },
+                    ],
                     "metadata": {
                         "https://mobyproject.org/buildkit@v1#metadata": {
                             "vcs": {
@@ -71,6 +79,21 @@ def _create_test_org(neo4j_session):
         org_id=TEST_ORG_ID,
         org_url=TEST_ORG_URL,
         gitlab_url=TEST_GITLAB_URL,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
+def _create_test_parent_image(neo4j_session):
+    """Create a base image node so BUILT_FROM can resolve."""
+    neo4j_session.run(
+        """
+        MERGE (img:GitLabContainerImage {id: $digest})
+        ON CREATE SET img.firstseen = timestamp()
+        SET img.digest = $digest,
+            img.type = 'image',
+            img.lastupdated = $update_tag
+        """,
+        digest="sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -116,6 +139,7 @@ def test_sync_container_registry(
 
     # Create test organization
     _create_test_org(neo4j_session)
+    _create_test_parent_image(neo4j_session)
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -219,7 +243,7 @@ def test_sync_container_registry(
     }
     assert (
         check_nodes(neo4j_session, "GitLabContainerImage", ["id", "type"])
-        == expected_images
+        >= expected_images
     )
 
     # Verify container image RESOURCE relationships
@@ -590,13 +614,32 @@ def test_sync_container_registry(
             "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
             "https://gitlab.example.com/myorg/awesome-project",
             "docker/Dockerfile",
+            "pkg:docker/registry.gitlab.example.com/base-images/python@3.12",
         ),
     }
     assert (
         check_nodes(
             neo4j_session,
             "GitLabContainerImage",
-            ["id", "source_uri", "source_file"],
+            ["id", "source_uri", "source_file", "parent_image_uri"],
         )
         >= expected_provenance
+    )
+
+    expected_built_from_rels = {
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabContainerImage",
+            "id",
+            "GitLabContainerImage",
+            "id",
+            "BUILT_FROM",
+        )
+        >= expected_built_from_rels
     )

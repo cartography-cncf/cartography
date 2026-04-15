@@ -37,6 +37,8 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
     source_revision: PropertyRef = PropertyRef("source_revision")
     source_file: PropertyRef = PropertyRef("source_file")
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
     # Layer diff IDs from the image config (used for Dockerfile matching and layer relationships)
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
@@ -165,6 +167,31 @@ class GitLabContainerImageToTailLayerRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitLabContainerImageToParentImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    from_attestation: PropertyRef = PropertyRef("from_attestation")
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    confidence: PropertyRef = PropertyRef("confidence")
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToParentImageRel(CartographyRelSchema):
+    """
+    Relationship from a GitLabContainerImage to its parent/base image.
+    """
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("parent_image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILT_FROM"
+    properties: GitLabContainerImageToParentImageRelProperties = (
+        GitLabContainerImageToParentImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabContainerImageSchema(CartographyNodeSchema):
     """
     Schema for GitLab Container Image nodes.
@@ -192,6 +219,7 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
             GitLabContainerImageToLayerRel(),
             GitLabContainerImageToHeadLayerRel(),
             GitLabContainerImageToTailLayerRel(),
+            GitLabContainerImageToParentImageRel(),
         ],
     )
     # Add generic ontology labels for cross-registry querying
@@ -219,6 +247,8 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
     source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
     source_revision: PropertyRef = PropertyRef("source_revision")
     source_file: PropertyRef = PropertyRef("source_file")
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -231,4 +261,9 @@ class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageProvenanceNodeProperties = (
         GitLabContainerImageProvenanceNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitLabContainerImageToParentImageRel(),
+        ],
     )

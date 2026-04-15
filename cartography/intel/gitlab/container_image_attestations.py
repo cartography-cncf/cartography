@@ -20,7 +20,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
-from cartography.intel.supply_chain import normalize_vcs_url
+from cartography.intel.supply_chain import extract_image_source_provenance
+from cartography.intel.supply_chain import extract_container_parent_image
+from cartography.intel.supply_chain import unwrap_attestation_predicate
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
 )
@@ -279,7 +281,7 @@ def _extract_predicate_from_attestation(
 
     if isinstance(payload, dict) and "predicate" in payload:
         predicate = payload.get("predicate")
-        return predicate if isinstance(predicate, dict) else None
+        return unwrap_attestation_predicate(predicate)
     return None
 
 
@@ -290,42 +292,8 @@ def _extract_image_provenance(
     """
     Extract the subset of SLSA provenance fields used by supply-chain matching.
     """
-    result: dict[str, Any] = {}
-
-    metadata = predicate.get("metadata", {})
-    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
-    vcs = buildkit_metadata.get("vcs", {})
-    if not vcs:
-        run_details = predicate.get("runDetails", {})
-        run_metadata = run_details.get("metadata", {})
-        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
-
-    if vcs.get("source"):
-        result["source_uri"] = normalize_vcs_url(str(vcs["source"]))
-    if vcs.get("revision"):
-        result["source_revision"] = vcs["revision"]
-
-    invocation = predicate.get("invocation", {})
-    config_source = invocation.get("configSource", {})
-    entry_point = config_source.get("entryPoint", "")
-    if not entry_point:
-        build_def = predicate.get("buildDefinition", {})
-        entry_point = (
-            build_def.get("externalParameters", {})
-            .get("configSource", {})
-            .get("path", "Dockerfile")
-        )
-    if not entry_point:
-        entry_point = "Dockerfile"
-
-    if result.get("source_uri"):
-        dockerfile_dir = (
-            str(vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
-        )
-        result["source_file"] = (
-            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
-        )
-
+    result = extract_image_source_provenance(predicate)
+    result.update(extract_container_parent_image(predicate))
     result["attests_digest"] = attestation.get("_attests_digest")
     return result
 
@@ -380,6 +348,10 @@ def transform_image_provenance_records(
             "source_uri": source_uri,
             "source_revision": attestation.get("source_revision"),
             "source_file": attestation.get("source_file"),
+            "parent_image_uri": attestation.get("parent_image_uri"),
+            "parent_image_digest": attestation.get("parent_image_digest"),
+            "from_attestation": True,
+            "confidence": 1.0,
         }
 
     records = list(provenance_by_digest.values())
