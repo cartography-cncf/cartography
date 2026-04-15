@@ -214,6 +214,39 @@ def test_extract_predicate_from_attestation_unwraps_dsse_payload(monkeypatch):
     assert predicate == {"BuildDefinition": None}
 
 
+def test_extract_predicate_from_attestation_accepts_raw_in_toto_statement(monkeypatch):
+    attestation = {
+        "_digest": "sha256:attestation123",
+        "_registry_url": "https://registry.example.com",
+        "_repository_name": "group/project",
+        "layers": [{"digest": "sha256:layer"}],
+    }
+    raw_statement = {
+        "_type": "https://in-toto.io/Statement/v0.1",
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "predicate": {
+            "buildDefinition": {
+                "externalParameters": {
+                    "source": "https://gitlab.example.com/myorg/project.git",
+                },
+            },
+        },
+    }
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_image_attestations.fetch_registry_blob",
+        lambda *args, **kwargs: raw_statement,
+    )
+
+    predicate = _extract_predicate_from_attestation(
+        attestation,
+        "https://gitlab.example.com",
+        "pat",
+    )
+
+    assert predicate == raw_statement["predicate"]
+
+
 def test_extract_image_provenance_supports_buildkit_shape():
     attestation = {"_attests_digest": "sha256:image123"}
     predicate = {
@@ -317,6 +350,31 @@ def test_transform_image_provenance_records_keeps_gitlab_slsa_fields():
             "source_uri": "https://gitlab.example.com/myorg/awesome-project",
             "source_revision": "a288201509dd9a85da4141e07522bad412938dbe",
             "source_file": "docker/Dockerfile",
+            "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+            "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "from_attestation": True,
+            "confidence": 1.0,
+        },
+    ]
+
+
+def test_transform_image_provenance_records_keeps_parent_only_records():
+    records = transform_image_provenance_records(
+        [
+            {
+                "attests_digest": "sha256:image123",
+                "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
+                "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            },
+        ],
+    )
+
+    assert records == [
+        {
+            "digest": "sha256:image123",
+            "source_uri": None,
+            "source_revision": None,
+            "source_file": None,
             "parent_image_uri": "pkg:docker/registry.gitlab.com/base-images/python@3.12",
             "parent_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "from_attestation": True,

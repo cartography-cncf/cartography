@@ -237,7 +237,11 @@ def _extract_predicate_from_attestation(
     token: str,
 ) -> dict[str, Any] | None:
     """
-    Decode a DSSE attestation blob and return the embedded predicate when present.
+    Decode an attestation blob and return the embedded predicate when present.
+
+    Supports both:
+    - DSSE/cosign envelopes where the blob contains a base64 `payload`
+    - raw in-toto statements where the blob is already JSON with `predicate`
     """
     registry_url = attestation.get("_registry_url")
     repository_name = attestation.get("_repository_name")
@@ -266,22 +270,26 @@ def _extract_predicate_from_attestation(
         return None
 
     payload_b64 = blob.get("payload")
-    if not payload_b64:
+    if payload_b64:
+        try:
+            payload = json.loads(b64decode(str(payload_b64)).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            logger.debug(
+                "Failed to decode attestation payload for %s",
+                attestation.get("_digest"),
+                exc_info=True,
+            )
+            return None
+
+        if isinstance(payload, dict) and "predicate" in payload:
+            predicate = payload.get("predicate")
+            return unwrap_attestation_predicate(predicate)
         return None
 
-    try:
-        payload = json.loads(b64decode(str(payload_b64)).decode("utf-8"))
-    except (ValueError, UnicodeDecodeError):
-        logger.debug(
-            "Failed to decode attestation payload for %s",
-            attestation.get("_digest"),
-            exc_info=True,
-        )
-        return None
-
-    if isinstance(payload, dict) and "predicate" in payload:
-        predicate = payload.get("predicate")
+    if "predicate" in blob:
+        predicate = blob.get("predicate")
         return unwrap_attestation_predicate(predicate)
+
     return None
 
 
@@ -343,7 +351,8 @@ def transform_image_provenance_records(
     for attestation in transformed_attestations:
         attests_digest = attestation.get("attests_digest")
         source_uri = attestation.get("source_uri")
-        if not attests_digest or not source_uri:
+        parent_image_digest = attestation.get("parent_image_digest")
+        if not attests_digest or (not source_uri and not parent_image_digest):
             continue
         provenance_by_digest[str(attests_digest)] = {
             "digest": attests_digest,

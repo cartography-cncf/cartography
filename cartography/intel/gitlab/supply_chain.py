@@ -78,14 +78,14 @@ def get_unmatched_gitlab_container_images_with_history(
           )
         WITH repo, img, repo_img
         ORDER BY
-            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
-            repo_img.image_pushed_at DESC
+            CASE WHEN repo_img.name = 'latest' THEN 0 ELSE 1 END,
+            repo_img.created_at DESC
         WITH repo, collect({
             digest: img.digest,
-            uri: repo_img.uri,
+            uri: repo_img.location,
             repository_location: coalesce(repo.uri, repo.id),
             project_id: repo.project_id,
-            tag: repo_img.tag,
+            tag: repo_img.name,
             layer_diff_ids: img.layer_diff_ids,
             type: img.type,
             architecture: img.architecture,
