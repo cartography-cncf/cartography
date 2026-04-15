@@ -1,5 +1,10 @@
 # flake8: noqa
+# Tests data for GKE. The 'id' and 'region' fields are set here to mirror what
+# get_gke_clusters() computes at runtime so that load_gke_clusters() and
+# load_gke_node_pools() can be tested in isolation without mocking the API call.
 GKE_CLUSTERS = [{
+    'id': 'projects/test-cluster/locations/europe-west2/clusters/test-cluster',
+    'region': 'europe-west2',
     'selfLink': 'https://container.googleapis.com/v1/projects/test-cluster/locations/europe-west2/clusters/test-cluster',
     'createTime': '2019-01-01T00:00:00+00:00',
     'name': 'test-cluster',

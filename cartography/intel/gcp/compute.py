@@ -523,7 +523,8 @@ def transform_gcp_instances(response_objects: List[Dict], compute: Resource) -> 
     """
     instance_list = []
     for res in response_objects:
-        # prefix is of the form https://www.googleapis.com/compute/v1/projects/<project_id>/zones/<zone_name>/<resource_name>
+        # prefix is of the form-
+        # https://www.googleapis.com/compute/v1/projects/<project_id>/zones/<zone_name>/<resource_name>
         prefix = res["zone"]
 
         prefix_fields = _parse_instance_uri_prefix(prefix)
@@ -544,6 +545,12 @@ def transform_gcp_instances(response_objects: List[Dict], compute: Resource) -> 
         )
         x = res["zone_name"].split("-")
         res["region"] = f"{x[0]}-{x[1]}"
+
+        # Extract GKE metadata labels if this instance is a Kubernetes node.
+        # GCP automatically attaches these labels to all GKE-managed Compute instances.
+        labels = res.get("labels", {})
+        res["gke_cluster_name"] = labels.get("goog-gke-cluster-name")
+        res["gke_node_pool_name"] = labels.get("goog-gke-nodepool")
 
         for disk in res.get("disks", []):
             if disk.get("boot"):
@@ -947,6 +954,99 @@ def load_gcp_instances(session: neo4j.Session, instances_list: List[Dict], gcp_u
         _attach_gcp_nics(session, instance, gcp_update_tag)
         _attach_gcp_vpc(session, instance["partial_uri"], gcp_update_tag)
         _attach_instance_service_account(session, instance, gcp_update_tag)
+        # Link to GKE cluster and node pool when the instance carries GKE metadata labels.
+        # These labels (goog-gke-cluster-name, goog-gke-nodepool) are attached automatically
+        # by GCP to every Compute instance that is a GKE node.
+        if instance.get("gke_cluster_name"):
+            _link_instance_to_gke_cluster(session, instance, gcp_update_tag)
+        if instance.get("gke_cluster_name") and instance.get("gke_node_pool_name"):
+            _link_instance_to_gke_node_pool(session, instance, gcp_update_tag)
+
+
+@timeit
+def _link_instance_to_gke_cluster(
+    neo4j_session: neo4j.Session, instance: Dict, gcp_update_tag: int,
+) -> None:
+    """
+    Create a (GKECluster)-[:HAS_NODE]->(GCPInstance) relationship.
+
+    Uses MATCH for GKECluster (not MERGE) so that if the GKE sync has not yet
+    run for this project the relationship is simply skipped rather than creating
+    a dangling, property-less GKECluster stub.
+
+    The cluster ID is reconstructed with the same format as get_gke_clusters():
+        projects/{project_id}/locations/{region}/clusters/{cluster_name}
+
+    :type neo4j_session: neo4j.Session
+    :param neo4j_session: The Neo4j session
+    :type instance: Dict
+    :param instance: A single transformed GCP instance dict.
+                     Must contain 'project_id', 'region', and 'gke_cluster_name'.
+    :type gcp_update_tag: int
+    :param gcp_update_tag: Timestamp to stamp on the relationship
+    :rtype: NoneType
+    :return: Nothing
+    """
+    query = """
+    MATCH (cluster:GKECluster{id: $ClusterId})
+    MATCH (i:GCPInstance{id: $InstanceId})
+    MERGE (cluster)-[r:HAS_NODE]->(i)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $gcp_update_tag
+    """
+    cluster_id = (
+        f"projects/{instance['project_id']}/locations/{instance['region']}"
+        f"/clusters/{instance['gke_cluster_name']}"
+    )
+    neo4j_session.run(
+        query,
+        ClusterId=cluster_id,
+        InstanceId=instance["partial_uri"],
+        gcp_update_tag=gcp_update_tag,
+    )
+
+
+@timeit
+def _link_instance_to_gke_node_pool(
+    neo4j_session: neo4j.Session, instance: Dict, gcp_update_tag: int,
+) -> None:
+    """
+    Create a (GKENodePool)-[:HAS_NODE]->(GCPInstance) relationship.
+
+    Uses MATCH for GKENodePool (not MERGE) so that if the GKE sync has not yet
+    run for this project the relationship is simply skipped.
+
+    The node pool ID is reconstructed with the same format as _load_gke_node_pools_tx():
+        projects/{project_id}/locations/{region}/clusters/{cluster_name}/nodePools/{pool_name}
+
+    :type neo4j_session: neo4j.Session
+    :param neo4j_session: The Neo4j session
+    :type instance: Dict
+    :param instance: A single transformed GCP instance dict.
+                     Must contain 'project_id', 'region', 'gke_cluster_name', and 'gke_node_pool_name'.
+    :type gcp_update_tag: int
+    :param gcp_update_tag: Timestamp to stamp on the relationship
+    :rtype: NoneType
+    :return: Nothing
+    """
+    query = """
+    MATCH (pool:GKENodePool{id: $NodePoolId})
+    MATCH (i:GCPInstance{id: $InstanceId})
+    MERGE (pool)-[r:HAS_NODE]->(i)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $gcp_update_tag
+    """
+    cluster_id = (
+        f"projects/{instance['project_id']}/locations/{instance['region']}"
+        f"/clusters/{instance['gke_cluster_name']}"
+    )
+    node_pool_id = f"{cluster_id}/nodePools/{instance['gke_node_pool_name']}"
+    neo4j_session.run(
+        query,
+        NodePoolId=node_pool_id,
+        InstanceId=instance["partial_uri"],
+        gcp_update_tag=gcp_update_tag,
+    )
 
 
 @timeit
@@ -985,7 +1085,9 @@ def load_gcp_instances_tx(tx: neo4j.Transaction, instances: Dict, gcp_update_tag
     i.machine_type = instance.machineType,
     i.source_image = instance.sourceImage,
     i.disk_name = instance.diskName,
-    i.os_features = instance.osFeatures
+    i.os_features = instance.osFeatures,
+    i.gke_cluster_name = instance.gke_cluster_name,
+    i.gke_node_pool_name = instance.gke_node_pool_name
     WITH i, p
 
     MERGE (p)-[r:RESOURCE]->(i)
