@@ -15,6 +15,7 @@ from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
+from botocore.exceptions import UnknownRegionError
 from botocore.parsers import ResponseParserError
 
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
@@ -115,7 +116,7 @@ def get_available_sagemaker_regions(
         for region in regions:
             try:
                 partitions.add(get_partition_for_region(region))
-            except Exception:
+            except UnknownRegionError:
                 logger.debug(
                     "Could not determine AWS partition for region '%s' while filtering SageMaker regions.",
                     region,

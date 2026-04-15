@@ -3,9 +3,11 @@ from unittest.mock import MagicMock
 import pytest
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import UnknownRegionError
 
 from cartography.intel.aws import sagemaker
 from cartography.intel.aws.sagemaker import notebook_instances
+from cartography.intel.aws.sagemaker.util import get_available_sagemaker_regions
 from cartography.intel.aws.sagemaker.util import SageMakerTransientRegionFailure
 
 
@@ -269,3 +271,31 @@ def test_sagemaker_sync_filters_supported_regions_and_carries_skip_regions_forwa
             {"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
             {"me-south-1"},
         )
+
+
+def test_get_available_sagemaker_regions_skips_unknown_regions_and_uses_known_partition(
+    mocker,
+):
+    boto3_session = MagicMock()
+
+    def _get_partition_for_region(region):
+        if region == "not-a-region":
+            raise UnknownRegionError(
+                region_name=region,
+                error_msg="No partition found for provided region_name.",
+            )
+        return "aws"
+
+    boto3_session.get_partition_for_region.side_effect = _get_partition_for_region
+    boto3_session.get_available_regions.return_value = ["us-east-1", "me-south-1"]
+
+    available_regions = get_available_sagemaker_regions(
+        boto3_session,
+        ["us-east-1", "not-a-region"],
+    )
+
+    assert available_regions == {"us-east-1", "me-south-1"}
+    boto3_session.get_available_regions.assert_called_once_with(
+        "sagemaker",
+        partition_name="aws",
+    )
