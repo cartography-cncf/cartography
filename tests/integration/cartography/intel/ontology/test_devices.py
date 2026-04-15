@@ -442,6 +442,10 @@ def test_link_ontology_devices_from_crowdstrike_email(neo4j_session):
         SET u.email = 'hjsimpson@simpson.corp',
             u.lastupdated = $update_tag
 
+        MERGE (u2:User {id: 'marge@simpson.corp'})
+        SET u2.email = 'marge@simpson.corp',
+            u2.lastupdated = $update_tag
+
         CREATE (:CrowdstrikeHost {
             id: 'crowdstrike-host-2',
             device_id: 'crowdstrike-host-2',

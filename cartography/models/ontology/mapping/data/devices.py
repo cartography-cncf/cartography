@@ -49,7 +49,7 @@ crowdstrike_mapping = OntologyMapping(
     rels=[
         OntologyRelMapping(
             __comment__="Link Device to User based on CrowdstrikeHost email matching canonical User email",
-            query="MATCH (u:User), (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE u.email IS NOT NULL AND host.email IS NOT NULL AND toLower(u.email) = toLower(host.email) AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(host.email) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND toLower(u.email) = host_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
     ],
