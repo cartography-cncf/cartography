@@ -24,3 +24,12 @@ def test_load_host_data(neo4j_session, *args):
     )
     actual_nodes = {(n["n.id"]) for n in nodes}
     assert actual_nodes == expected_nodes
+
+    nodes = neo4j_session.run(
+        """
+        MATCH (n:CrowdstrikeHost)
+        RETURN n.email
+        """,
+    )
+    actual_emails = {n["n.email"] for n in nodes}
+    assert actual_emails == {"alice@example.com"}

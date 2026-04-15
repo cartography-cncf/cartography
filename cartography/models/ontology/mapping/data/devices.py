@@ -25,8 +25,12 @@ crowdstrike_mapping = OntologyMapping(
             node_label="CrowdstrikeHost",
             fields=[
                 OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(ontology_field="os", node_field="platform_name"),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="model", node_field="system_product_name"
                 ),
                 OntologyFieldMapping(
                     ontology_field="platform", node_field="platform_name"
@@ -40,6 +44,13 @@ crowdstrike_mapping = OntologyMapping(
                     ontology_field="instance_id", node_field="instance_id"
                 ),
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on CrowdstrikeHost email matching canonical User email",
+            query="MATCH (u:User), (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE u.email IS NOT NULL AND host.email IS NOT NULL AND toLower(u.email) = toLower(host.email) AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
         ),
     ],
 )
