@@ -90,6 +90,7 @@ def get_commits(
 def transform_commit_activity(
     commits_by_project: dict[int, list[dict[str, Any]]],
     users_by_email: dict[str, int],
+    users_by_name: dict[str, int],
     user_records: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
@@ -99,10 +100,13 @@ def transform_commit_activity(
     Takes existing user records and creates new records with commit properties added.
 
     Matching strategy:
-    1. Match by author_email only.
+    1. Match by author_email first.
+    2. Fall back to author_name when email is unavailable or not exposed by the
+       GitLab members API for the current token/instance.
 
     :param commits_by_project: Dict mapping project_id to list of commits
     :param users_by_email: Dict mapping user email to user ID
+    :param users_by_name: Dict mapping user display name to user ID
     :param user_records: Existing user records with all user properties
     :return: List of commit activity records (user data + commit properties)
     """
@@ -114,18 +118,23 @@ def transform_commit_activity(
 
     # Track matching stats for logging
     email_matches = 0
+    name_matches = 0
     no_matches = 0
 
     for project_id, commits in commits_by_project.items():
         for commit in commits:
             committed_date = commit.get("committed_date")
             author_email = commit.get("author_email")
+            author_name = commit.get("author_name")
             if not committed_date:
                 continue
 
             if author_email and author_email in users_by_email:
                 user_id = users_by_email[author_email]
                 email_matches += 1
+            elif author_name and author_name in users_by_name:
+                user_id = users_by_name[author_name]
+                name_matches += 1
             else:
                 no_matches += 1
                 continue
@@ -137,7 +146,8 @@ def transform_commit_activity(
             activity[key].append(committed_date)
 
     logger.info(
-        f"Commit author matching: {email_matches} by email, {no_matches} unmatched"
+        f"Commit author matching: {email_matches} by email, "
+        f"{name_matches} by name, {no_matches} unmatched"
     )
 
     # Build records by taking existing user data and adding commit properties
@@ -436,8 +446,9 @@ def sync_gitlab_users(
     # Load users and their group memberships into Neo4j
     load_users(neo4j_session, user_records, organization_id, gitlab_url, update_tag)
 
-    # Build email mapping for commit author matching.
+    # Build email/name mappings for commit author matching.
     users_by_email: dict[str, int] = {}
+    users_by_name: dict[str, int] = {}
 
     # Collect all members (org + groups) to process
     all_members = list(org_members)
@@ -456,8 +467,15 @@ def sync_gitlab_users(
         # Build email mapping (if email is available)
         if email and user_id:
             users_by_email[email] = user_id
+        name = member.get("name")
+        if name and user_id:
+            users_by_name[name] = user_id
 
-    logger.info(f"Built commit author mappings: {len(users_by_email)} by email")
+    logger.info(
+        "Built commit author mappings: %d by email, %d by name",
+        len(users_by_email),
+        len(users_by_name),
+    )
 
     # Fetch commits for all projects to build commit activity
     commits_by_project: dict[int, list[dict[str, Any]]] = {}
@@ -482,7 +500,7 @@ def sync_gitlab_users(
     # Transform and load commit activity
     if commits_by_project:
         activity_records = transform_commit_activity(
-            commits_by_project, users_by_email, user_records
+            commits_by_project, users_by_email, users_by_name, user_records
         )
         if activity_records:
             load_commit_activity(
