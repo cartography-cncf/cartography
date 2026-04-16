@@ -161,7 +161,9 @@ async def sync_entra_groups(
         # returning a 404.  Skip it and move on.
         try:
             owners = await call_with_retries(get_group_owners, client, group.id)
-            users, subgroups = await call_with_retries(get_group_members, client, group.id)
+            users, subgroups = await call_with_retries(
+                get_group_members, client, group.id
+            )
         except APIError as e:
             if e.response_status_code == 404:
                 logger.warning(
