@@ -117,10 +117,10 @@ class AzureBlobContainerReader:
 
     def read_bytes(self, ref: ObjectRef) -> bytes:
         account_name, _sep, container_name = ref.bucket.partition("/")
-        if not account_name or not container_name:
+        if not account_name or not container_name or account_name != self._account_name:
             raise ObjectStoreParseError(
                 ref.uri,
-                "Azure blob reference is missing account or container information",
+                "Azure blob reference has invalid account or container information",
             )
         blob_client = self._client.get_blob_client(
             container=container_name,

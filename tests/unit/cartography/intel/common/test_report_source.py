@@ -35,6 +35,16 @@ def test_parse_s3_report_source() -> None:
     )
 
 
+def test_parse_report_source_accepts_uppercase_scheme() -> None:
+    source = parse_report_source("S3://example-bucket/reports/trivy/")
+
+    assert source == S3ReportSource(
+        raw="S3://example-bucket/reports/trivy/",
+        bucket="example-bucket",
+        prefix="reports/trivy/",
+    )
+
+
 def test_parse_gcs_report_source() -> None:
     source = parse_report_source("gs://example-bucket/reports/syft")
 

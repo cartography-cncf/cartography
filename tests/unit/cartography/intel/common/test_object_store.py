@@ -134,6 +134,20 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
     )
 
 
+def test_azure_blob_reader_rejects_cross_account_ref() -> None:
+    reader = AzureBlobContainerReader.__new__(AzureBlobContainerReader)
+    reader._account_name = "acct"
+    reader._client = MagicMock()
+
+    with pytest.raises(
+        ObjectStoreParseError,
+        match="Azure blob reference has invalid account or container information",
+    ):
+        reader.read_bytes(
+            ObjectRef("azblob", "otheracct/container", "reports/findings.txt"),
+        )
+
+
 def test_read_text_document_reports_source_on_decode_error() -> None:
     reader = MagicMock()
     ref = ObjectRef("s3", "example-bucket", "reports/bad.txt")

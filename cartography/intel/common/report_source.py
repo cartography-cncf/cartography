@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cartography.intel.common.object_store import BucketReader
 
-_SOURCE_SCHEME_RE = re.compile(r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$")
+_SOURCE_SCHEME_RE = re.compile(
+    r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -95,7 +98,7 @@ def parse_report_source(raw_source: str) -> ReportSource:
     if not scheme_match:
         return LocalReportSource(raw=raw_source, path=os.path.expanduser(source))
 
-    scheme = scheme_match.group("scheme")
+    scheme = scheme_match.group("scheme").lower()
     remainder = scheme_match.group("rest")
 
     if scheme == "s3":
