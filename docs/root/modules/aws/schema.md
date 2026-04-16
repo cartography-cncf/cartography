@@ -2796,6 +2796,11 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
     (AWSAccount)-[RESOURCE]->(EKSCluster)
     ```
 
+- An EKS Cluster maps to the `KubernetesCluster` synced from the same control plane.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    ```
+
 #### Example queries
 
 - Compare EKS API server certificate authority metadata across clusters:
