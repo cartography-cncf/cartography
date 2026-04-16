@@ -135,6 +135,13 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 workflows=all_workflows,
             )
 
+    # Clean up unscoped GitHub nodes once after all orgs have been refreshed.
+    cartography.intel.github.users.cleanup(neo4j_session, common_job_parameters)
+    cartography.intel.github.repos.cleanup_global_resources(
+        neo4j_session,
+        common_job_parameters,
+    )
+
     # DEPRECATED: one-time migration, run once per sync cycle (not per org)
     cartography.intel.github.repos.cleanup_orphaned_github_branches(
         neo4j_session,

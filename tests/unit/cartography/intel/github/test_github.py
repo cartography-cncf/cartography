@@ -1,8 +1,10 @@
 import typing
+from base64 import b64encode
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as tz
+import json
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -16,6 +18,63 @@ from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
+
+
+@patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
+@patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch("cartography.intel.github.users.cleanup")
+@patch("cartography.intel.github.supply_chain.sync")
+@patch("cartography.intel.github.repos.get", return_value=[])
+@patch("cartography.intel.github.commits.sync_github_commits")
+@patch("cartography.intel.github._get_repos_from_graph", return_value=[])
+@patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.teams.sync_github_teams")
+@patch("cartography.intel.github.repos.sync")
+@patch("cartography.intel.github.users.sync")
+@patch("cartography.intel.github.make_credential", side_effect=["token-1", "token-2"])
+def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
+    mock_make_credential: Mock,
+    mock_users_sync: Mock,
+    mock_repos_sync: Mock,
+    mock_teams_sync: Mock,
+    mock_actions_sync: Mock,
+    mock_get_repos_from_graph: Mock,
+    mock_sync_github_commits: Mock,
+    mock_get_repos: Mock,
+    mock_supply_chain_sync: Mock,
+    mock_users_cleanup: Mock,
+    mock_cleanup_global_resources: Mock,
+    mock_cleanup_orphaned_branches: Mock,
+) -> None:
+    github_config = {
+        "organization": [
+            {"name": "org-1", "url": "https://api.github.com/graphql"},
+            {"name": "org-2", "url": "https://api.github.com/graphql"},
+        ],
+    }
+    config = Mock(
+        github_config=b64encode(json.dumps(github_config).encode()).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+
+    from cartography.intel.github import start_github_ingestion
+
+    neo4j_session = Mock()
+    start_github_ingestion(neo4j_session, config)
+
+    assert mock_users_sync.call_count == 2
+    assert mock_repos_sync.call_count == 2
+    mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
+    mock_cleanup_global_resources.assert_called_once_with(
+        neo4j_session,
+        {"UPDATE_TAG": 123},
+    )
+    mock_cleanup_orphaned_branches.assert_called_once_with(
+        neo4j_session,
+        {"UPDATE_TAG": 123},
+    )
+    assert mock_supply_chain_sync.call_count == 0
 
 
 @patch("cartography.intel.github.util.time.sleep")
