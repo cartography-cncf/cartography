@@ -791,7 +791,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--jamf-base-uri",
-                    help="Jamf base URI, e.g. https://hostname.com/JSSResource.",
+                    help="Jamf base URI, e.g. https://hostname.jamfcloud.com.",
                     rich_help_panel=PANEL_JAMF,
                     hidden=PANEL_JAMF not in visible_panels,
                 ),

@@ -6,6 +6,7 @@ import requests
 
 from cartography.intel.jamf.util import call_jamf_api
 from cartography.intel.jamf.util import create_jamf_api_session
+from cartography.intel.jamf.util import get_paginated_jamf_results
 
 
 @patch("cartography.intel.jamf.util.requests.Session")
@@ -134,4 +135,56 @@ def test_call_jamf_api_normalizes_trailing_slashes() -> None:
     mock_session.get.assert_called_once_with(
         "https://test.jamfcloud.com/JSSResource/computergroups",
         timeout=(60, 60),
+        params=None,
     )
+
+
+def test_call_jamf_api_uses_instance_uri_for_modern_api_paths() -> None:
+    mock_session = Mock()
+    mock_response = Mock()
+    mock_response.json.return_value = {"results": [], "totalCount": 0}
+    mock_session.get.return_value = mock_response
+
+    call_jamf_api(
+        "/api/v1/groups",
+        "https://test.jamfcloud.com/JSSResource/",
+        mock_session,
+    )
+
+    mock_session.get.assert_called_once_with(
+        "https://test.jamfcloud.com/api/v1/groups",
+        timeout=(60, 60),
+        params=None,
+    )
+
+
+def test_get_paginated_jamf_results_collects_all_pages() -> None:
+    mock_session = Mock()
+    first_page_response = Mock()
+    first_page_response.json.return_value = {
+        "results": [{"id": 1}, {"id": 2}],
+        "totalCount": 3,
+    }
+    second_page_response = Mock()
+    second_page_response.json.return_value = {
+        "results": [{"id": 3}],
+        "totalCount": 3,
+    }
+    mock_session.get.side_effect = [first_page_response, second_page_response]
+
+    results = get_paginated_jamf_results(
+        "/api/v1/groups",
+        "https://test.jamfcloud.com",
+        mock_session,
+    )
+
+    assert results == [{"id": 1}, {"id": 2}, {"id": 3}]
+    assert mock_session.get.call_count == 2
+    assert mock_session.get.call_args_list[0].kwargs["params"] == {
+        "page": 0,
+        "page-size": 100,
+    }
+    assert mock_session.get.call_args_list[1].kwargs["params"] == {
+        "page": 1,
+        "page-size": 100,
+    }
