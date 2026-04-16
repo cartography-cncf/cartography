@@ -45,6 +45,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     common_job_parameters: dict[str, Any] = {
         "UPDATE_TAG": config.update_tag,
         "ORGANIZATION_ID": organization_id,
+        "org_id": organization_id,
     }
 
     logger.info(
@@ -53,7 +54,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync the specified organization (top-level group)
     try:
-        organization = cartography.intel.gitlab.organizations.sync_gitlab_organizations(
+        cartography.intel.gitlab.organizations.sync_gitlab_organizations(
             neo4j_session,
             gitlab_url,
             token,
@@ -77,10 +78,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             )
         raise
 
-    org_url: str = organization["web_url"]
-
-    # Add org_url to common_job_parameters for cleanup jobs
-    common_job_parameters["org_url"] = org_url
+    common_job_parameters["gitlab_url"] = gitlab_url
 
     # Sync groups (nested subgroups within this organization)
     # Returns the groups list to avoid redundant API calls
@@ -121,7 +119,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session,
             gitlab_url,
             token,
-            org_url,
+            organization_id,
             organization_id,
             config.update_tag,
             common_job_parameters,
@@ -135,7 +133,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session,
             gitlab_url,
             token,
-            org_url,
+            organization_id,
             all_container_repositories,
             config.update_tag,
             common_job_parameters,
@@ -147,7 +145,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         all_container_repositories,
         config.update_tag,
         common_job_parameters,
@@ -158,7 +156,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         all_image_manifests,
         manifest_lists,
         config.update_tag,
@@ -171,7 +169,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
-        org_url,
+        organization_id,
         config.update_tag,
         common_job_parameters,
         all_projects,
@@ -217,36 +215,36 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Cleanup leaf nodes (dependencies, dependency_files, branches) for each project
     for project in all_projects:
-        project_url: str = project["web_url"]
+        project_id: int = project["id"]
 
         # Cleanup dependencies
         cartography.intel.gitlab.dependencies.cleanup_dependencies(
-            neo4j_session, common_job_parameters, project_url
+            neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
         # Cleanup dependency files
         cartography.intel.gitlab.dependency_files.cleanup_dependency_files(
-            neo4j_session, common_job_parameters, project_url
+            neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
         # Cleanup branches
         cartography.intel.gitlab.branches.cleanup_branches(
-            neo4j_session, common_job_parameters, project_url
+            neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
     # Cleanup projects with cascade delete
     cartography.intel.gitlab.projects.cleanup_projects(
-        neo4j_session, common_job_parameters, org_url
+        neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup users
     cartography.intel.gitlab.users.cleanup_users(
-        neo4j_session, common_job_parameters, org_url
+        neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup groups with cascade delete
     cartography.intel.gitlab.groups.cleanup_groups(
-        neo4j_session, common_job_parameters, org_url
+        neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup organizations

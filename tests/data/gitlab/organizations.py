@@ -15,6 +15,7 @@ GET_GITLAB_ORGANIZATION_RESPONSE = {
 
 # Expected transformed organization output
 TRANSFORMED_ORGANIZATION = {
+    "id": 100,
     "web_url": "https://gitlab.example.com/myorg",
     "name": "MyOrg",
     "path": "myorg",
