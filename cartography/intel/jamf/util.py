@@ -71,6 +71,8 @@ def create_jamf_api_session(
         raise
 
     if response.ok:
+        # TODO: Jamf bearer tokens expire after a short TTL. Refresh or keep alive the
+        # token if this sync grows enough for long-running sessions to matter.
         session.headers.update(
             {"Authorization": f"Bearer {response.json()['token']}"},
         )
@@ -91,7 +93,9 @@ def create_jamf_api_session(
         session.close()
         raise
 
-    raise AssertionError("unreachable")
+    raise RuntimeError(
+        "Jamf auth token request failed without returning a handled status"
+    )
 
 
 @timeit
