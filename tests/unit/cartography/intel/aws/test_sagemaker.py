@@ -182,46 +182,57 @@ def test_sagemaker_sync_filters_supported_regions_and_carries_skip_regions_forwa
     boto3_session = MagicMock()
     boto3_session.get_partition_for_region.side_effect = lambda region: "aws"
     boto3_session.get_available_regions.return_value = ["us-east-1", "me-south-1"]
+    captured_skip_regions = {}
+
+    def _capture_skip_regions(name, return_value):
+        def _side_effect(*args):
+            captured_skip_regions.setdefault(name, []).append(args[6].copy())
+            return return_value
+
+        return _side_effect
 
     sync_notebook_instances = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_notebook_instances",
-        return_value={"me-south-1"},
+        side_effect=_capture_skip_regions(
+            "notebook_instances",
+            {"me-south-1"},
+        ),
     )
     sync_domains = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_domains",
-        return_value=set(),
+        side_effect=_capture_skip_regions("domains", set()),
     )
     sync_user_profiles = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_user_profiles",
-        return_value=set(),
+        side_effect=_capture_skip_regions("user_profiles", set()),
     )
     sync_training_jobs = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_training_jobs",
-        return_value=set(),
+        side_effect=_capture_skip_regions("training_jobs", set()),
     )
     sync_models = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_models",
-        return_value=set(),
+        side_effect=_capture_skip_regions("models", set()),
     )
     sync_endpoint_configs = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_endpoint_configs",
-        return_value=set(),
+        side_effect=_capture_skip_regions("endpoint_configs", set()),
     )
     sync_endpoints = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_endpoints",
-        return_value=set(),
+        side_effect=_capture_skip_regions("endpoints", set()),
     )
     sync_transform_jobs = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_transform_jobs",
-        return_value=set(),
+        side_effect=_capture_skip_regions("transform_jobs", set()),
     )
     sync_model_package_groups = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_model_package_groups",
-        return_value=set(),
+        side_effect=_capture_skip_regions("model_package_groups", set()),
     )
     sync_model_packages = mocker.patch(
         "cartography.intel.aws.sagemaker.sync_model_packages",
-        return_value=set(),
+        side_effect=_capture_skip_regions("model_packages", set()),
     )
 
     sagemaker.sync(
@@ -234,25 +245,17 @@ def test_sagemaker_sync_filters_supported_regions_and_carries_skip_regions_forwa
     )
 
     expected_regions = ["us-east-1", "me-south-1"]
-    sync_notebook_instances.assert_called_once_with(
+    assert sync_notebook_instances.call_count == 1
+    assert sync_notebook_instances.call_args.args[:6] == (
         mocker.ANY,
         boto3_session,
         expected_regions,
         "123456789012",
         1,
         {"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
-        set(),
-    )
-    sync_domains.assert_called_once_with(
-        mocker.ANY,
-        boto3_session,
-        expected_regions,
-        "123456789012",
-        1,
-        {"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
-        {"me-south-1"},
     )
     for patched_sync in (
+        sync_domains,
         sync_user_profiles,
         sync_training_jobs,
         sync_models,
@@ -262,15 +265,29 @@ def test_sagemaker_sync_filters_supported_regions_and_carries_skip_regions_forwa
         sync_model_package_groups,
         sync_model_packages,
     ):
-        patched_sync.assert_called_once_with(
+        assert patched_sync.call_count == 1
+        assert patched_sync.call_args.args[:6] == (
             mocker.ANY,
             boto3_session,
             expected_regions,
             "123456789012",
             1,
             {"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
-            {"me-south-1"},
         )
+
+    assert captured_skip_regions["notebook_instances"] == [set()]
+    for name in (
+        "domains",
+        "user_profiles",
+        "training_jobs",
+        "models",
+        "endpoint_configs",
+        "endpoints",
+        "transform_jobs",
+        "model_package_groups",
+        "model_packages",
+    ):
+        assert captured_skip_regions[name] == [{"me-south-1"}]
 
 
 def test_get_available_sagemaker_regions_skips_unknown_regions_and_uses_known_partition(

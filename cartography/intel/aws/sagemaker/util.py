@@ -18,18 +18,12 @@ from botocore.exceptions import ReadTimeoutError
 from botocore.exceptions import UnknownRegionError
 from botocore.parsers import ResponseParserError
 
-from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
+from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
-_REGION_UNSUPPORTED_SNIPPETS = (
-    "not supported in the called region",
-    "not supported in this region",
-    "unsupported in this region",
-)
-
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable[Any]])
 
 
@@ -57,16 +51,6 @@ def _is_retryable_sagemaker_error(error: ClientError) -> bool:
     )
 
 
-def _is_region_unsupported_error(
-    error_code: Optional[str],
-    error_message: Optional[str],
-) -> bool:
-    if error_code != "UnknownOperationException" or not error_message:
-        return False
-    lowered = error_message.lower()
-    return any(snippet in lowered for snippet in _REGION_UNSUPPORTED_SNIPPETS)
-
-
 def sagemaker_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     @wraps(func)
     def inner_function(*args, **kwargs):  # type: ignore
@@ -85,10 +69,7 @@ def sagemaker_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 raise SageMakerTransientRegionFailure(
                     f"AWS SDK retries were exhausted for transient SageMaker failure in {func.__name__}"
                 ) from error
-            if _is_region_unsupported_error(error_code, error_message):
-                logger.warning("%s in this region. Skipping...", error_message)
-                return []
-            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+            if is_aws_region_skippable_client_error(error):
                 logger.warning("%s in this region. Skipping...", error_message)
                 return []
             raise

@@ -89,6 +89,6 @@ def sync(
             current_aws_account_id,
             update_tag,
             common_job_parameters,
-            skip_regions.copy(),
+            skip_regions,
         )
         skip_regions.update(newly_failed_regions)
