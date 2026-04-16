@@ -2544,9 +2544,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
