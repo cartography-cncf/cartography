@@ -594,6 +594,27 @@ def _is_region_unsupported_unknown_operation(
     )
 
 
+def is_aws_region_skippable_client_error(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """
+    Return True when a ClientError indicates regional unavailability or regional access denial.
+
+    This is the shared classification used by AWS sync code that needs to decide
+    whether a regional failure should degrade to a regional skip instead of
+    failing the account-level sync.
+    """
+    error_code = error.response.get("Error", {}).get("Code")
+    error_message = error.response.get("Error", {}).get("Message")
+    return (
+        _is_region_unsupported_unknown_operation(
+            error_code,
+            error_message,
+        )
+        or error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES
+    )
+
+
 # TODO Move this to cartography.intel.aws.util.common
 def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     """
@@ -671,16 +692,10 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                     "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
                     "'sts_regional_endpoints = regional' to your AWS config file."
                 ) from e
-            if _is_region_unsupported_unknown_operation(error_code, error_message):
-                logger.warning(
-                    "{} in this region. Skipping...".format(
-                        error_message,
-                    ),
-                )
-                return []
             # The account is not authorized to use this service in this region
-            # so we can continue without raising an exception
-            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+            # or the service is unavailable in the region, so we can continue
+            # without raising an exception.
+            if is_aws_region_skippable_client_error(e):
                 if is_service_control_policy_explicit_deny(e):
                     logger.warning(
                         "Service control policy denied access while calling %s: %s",

@@ -38,10 +38,13 @@ GET_GITLAB_GROUPS_RESPONSE = [
 ]
 
 TEST_ORG_URL = "https://gitlab.example.com/myorg"
+TEST_ORG_ID = 100
+TEST_GITLAB_URL = "https://gitlab.example.com"
 
 # Expected transformed groups output
 TRANSFORMED_GROUPS = [
     {
+        "id": 20,
         "web_url": "https://gitlab.example.com/myorg/platform",
         "name": "Platform",
         "path": "platform",
@@ -50,10 +53,11 @@ TRANSFORMED_GROUPS = [
         "visibility": "private",
         "parent_id": 100,
         "created_at": "2023-06-15T09:00:00Z",
-        "org_url": TEST_ORG_URL,
-        "parent_group_url": None,  # Parent is org, not in group list
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
+        "id": 30,
         "web_url": "https://gitlab.example.com/myorg/apps",
         "name": "Apps",
         "path": "apps",
@@ -62,10 +66,11 @@ TRANSFORMED_GROUPS = [
         "visibility": "internal",
         "parent_id": 100,
         "created_at": "2023-07-20T14:30:00Z",
-        "org_url": TEST_ORG_URL,
-        "parent_group_url": None,  # Parent is org, not in group list
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
+        "id": 40,
         "web_url": "https://gitlab.example.com/myorg/platform/infrastructure",
         "name": "Infrastructure",
         "path": "infrastructure",
@@ -74,7 +79,7 @@ TRANSFORMED_GROUPS = [
         "visibility": "private",
         "parent_id": 20,
         "created_at": "2024-01-10T11:00:00Z",
-        "org_url": TEST_ORG_URL,
-        "parent_group_url": "https://gitlab.example.com/myorg/platform",  # Nested under Platform
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
 ]

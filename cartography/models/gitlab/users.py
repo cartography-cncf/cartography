@@ -27,12 +27,14 @@ class GitLabUserNodeProperties(CartographyNodeProperties):
     Users can be members of groups and commit to projects.
     """
 
-    id: PropertyRef = PropertyRef("web_url")  # Unique identifier (user profile URL)
+    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab user ID
     username: PropertyRef = PropertyRef("username", extra_index=True)  # GitLab username
     name: PropertyRef = PropertyRef("name")  # Full name
     state: PropertyRef = PropertyRef("state")  # User state (active, blocked, etc.)
     email: PropertyRef = PropertyRef("email")  # Email address (if public)
     is_admin: PropertyRef = PropertyRef("is_admin")  # Whether user is an admin
+    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
+    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -54,7 +56,10 @@ class GitLabUserToOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -85,7 +90,10 @@ class GitLabUserMemberOfGroupRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("group_url")},
+        {
+            "id": PropertyRef("group_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
@@ -118,7 +126,10 @@ class GitLabUserCommittedToProjectRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url")},
+        {
+            "id": PropertyRef("project_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "COMMITTED_TO"

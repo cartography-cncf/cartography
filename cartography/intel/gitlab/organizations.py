@@ -34,6 +34,7 @@ def transform_organizations(
 
     for org in raw_orgs:
         transformed_org = {
+            "id": org.get("id"),
             "web_url": org.get("web_url"),
             "name": org.get("name"),
             "path": org.get("path"),
