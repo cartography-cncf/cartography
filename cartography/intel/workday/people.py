@@ -135,7 +135,6 @@ def _load_organizations(
             organizations.append({"Supervisory_Organization": org_name})
             seen_orgs.add(org_name)
 
-    logger.info(f"Loading {len(organizations)} Workday organizations")
     load(
         neo4j_session,
         WorkdayOrganizationSchema(),
@@ -157,7 +156,6 @@ def _load_people(
     :param people_data: List of transformed people data
     :param update_tag: Update tag for tracking data freshness
     """
-    logger.info(f"Loading {len(people_data)} Workday people")
     load(
         neo4j_session,
         WorkdayHumanSchema(),

@@ -51,8 +51,7 @@ gitlab_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="description", node_field="description"
                 ),
-                # GitLabProject uses 'id' as web_url, so we use the same field for url
-                OntologyFieldMapping(ontology_field="url", node_field="id"),
+                OntologyFieldMapping(ontology_field="url", node_field="web_url"),
                 OntologyFieldMapping(
                     ontology_field="default_branch", node_field="default_branch"
                 ),

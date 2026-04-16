@@ -92,7 +92,6 @@ def _load_endpoints(
     """
     Load the endpoints into the database
     """
-    logger.info(f"Loading {len(endpoints)} duo endpoints")
     load(
         neo4j_session,
         DuoEndpointSchema(),

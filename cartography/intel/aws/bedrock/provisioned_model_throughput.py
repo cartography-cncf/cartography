@@ -93,10 +93,6 @@ def load_provisioned_throughputs(
     """
     Load provisioned model throughputs into the graph database.
     """
-    logger.info(
-        "Loading %d Bedrock provisioned throughputs for region %s", len(data), region
-    )
-
     load(
         neo4j_session,
         AWSBedrockProvisionedModelThroughputSchema(),

@@ -114,7 +114,6 @@ def load_api_keys(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS API keys into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSAPIKeySchema(),

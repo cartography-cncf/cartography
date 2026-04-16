@@ -14,6 +14,20 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_ONTOLOGY_SOURCE_ALIASES: dict[str, str] = {
+    "entra": "microsoft",
+}
+
+
+def normalize_source_of_truth(source_of_truth: list[str]) -> list[str]:
+    """Normalize legacy ontology source names to their canonical identifiers."""
+    normalized_sources: list[str] = []
+    for source in source_of_truth:
+        normalized_source = _ONTOLOGY_SOURCE_ALIASES.get(source.strip(), source.strip())
+        if normalized_source and normalized_source not in normalized_sources:
+            normalized_sources.append(normalized_source)
+    return normalized_sources
+
 
 @timeit
 def _run_source_node_single_query(
@@ -94,6 +108,7 @@ def get_source_nodes_from_graph(
     """
     results: dict[str, dict[str, Any]] = {}
     modules_mapping = ONTOLOGY_NODES_MAPPING[module_name]
+    source_of_truth = normalize_source_of_truth(source_of_truth)
     if len(source_of_truth) == 0:
         source_of_truth = list(modules_mapping.keys())
     # Check if ontology nodes are used in mapping

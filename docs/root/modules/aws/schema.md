@@ -2546,9 +2546,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -3877,6 +3880,8 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 
 Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIReference/API_KeyListEntry.html).
 
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -5103,9 +5108,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 ### EfsFileSystem

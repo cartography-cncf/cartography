@@ -49,7 +49,6 @@ def sync_single_syft(
     packages = transform_artifacts(data)
     if packages:
         load(neo4j_session, SyftPackageSchema(), packages, lastupdated=update_tag)
-        logger.info("Created %d SyftPackage nodes", len(packages))
 
     stat_handler.incr("syft_files_processed")
 

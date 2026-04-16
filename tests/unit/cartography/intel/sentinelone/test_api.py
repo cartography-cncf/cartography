@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ from cartography.intel.sentinelone.api import call_sentinelone_api
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.intel.sentinelone.api import is_retryable_sentinelone_exception
 from cartography.intel.sentinelone.api import is_site_scope_http_error
+from cartography.intel.sentinelone.api import SentinelOnePassthroughRequestException
 from tests.data.sentinelone.api import EXPECTED_PAGINATED_RESULT
 from tests.data.sentinelone.api import MOCK_API_RESPONSE_SUCCESS
 from tests.data.sentinelone.api import MOCK_EMPTY_PAGINATION_RESPONSE
@@ -88,6 +90,78 @@ def test_call_sentinelone_api_http_error(mock_request, mock_sleep):
 
     assert mock_request.call_count == 1
     mock_sleep.assert_not_called()
+
+
+@patch("time.sleep")
+@patch("cartography.intel.sentinelone.api.requests.request")
+def test_call_sentinelone_api_site_scope_http_error_avoids_backoff_giveup_log(
+    mock_request,
+    mock_sleep,
+    caplog,
+):
+    """Expected site-scope 403s should not emit backoff error logs."""
+    mock_response = Mock()
+    mock_response.status_code = 403
+    mock_response.json.return_value = {
+        "errors": [
+            {
+                "code": 4030010,
+                "detail": "Action is not allowed to site users",
+            },
+        ],
+    }
+    http_error = requests.exceptions.HTTPError("HTTP 403 Error", response=mock_response)
+    mock_response.raise_for_status.side_effect = http_error
+    mock_request.return_value = mock_response
+
+    with caplog.at_level(logging.INFO, logger="backoff"):
+        with pytest.raises(requests.exceptions.HTTPError):
+            call_sentinelone_api(
+                TEST_API_URL,
+                TEST_ENDPOINT,
+                TEST_API_TOKEN,
+                passthrough_exceptions=is_site_scope_http_error,
+            )
+
+    assert "Giving up request_once" not in caplog.text
+    assert "Backing off request_once" not in caplog.text
+    mock_sleep.assert_not_called()
+
+
+@patch("cartography.intel.sentinelone.api.requests.request")
+def test_call_sentinelone_api_passthrough_reraises_original_http_error(mock_request):
+    """Passthrough exceptions should bypass backoff and preserve the original error."""
+    mock_response = Mock()
+    mock_response.status_code = 403
+    mock_response.json.return_value = {
+        "errors": [
+            {
+                "code": 4030010,
+                "detail": "Action is not allowed to site users",
+            },
+        ],
+    }
+    http_error = requests.exceptions.HTTPError("HTTP 403 Error", response=mock_response)
+    mock_response.raise_for_status.side_effect = http_error
+    mock_request.return_value = mock_response
+
+    with pytest.raises(requests.exceptions.HTTPError) as excinfo:
+        call_sentinelone_api(
+            TEST_API_URL,
+            TEST_ENDPOINT,
+            TEST_API_TOKEN,
+            passthrough_exceptions=is_site_scope_http_error,
+        )
+
+    assert excinfo.value is http_error
+
+
+def test_passthrough_request_exception_wraps_original_request_error():
+    http_error = requests.exceptions.HTTPError("HTTP 403 Error")
+
+    wrapped = SentinelOnePassthroughRequestException(http_error)
+
+    assert wrapped.original is http_error
 
 
 @patch("time.sleep")

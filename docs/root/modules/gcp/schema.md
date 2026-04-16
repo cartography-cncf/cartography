@@ -847,6 +847,8 @@ Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/r
 
 Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
 
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+
 | Field | Description |
 |---|---|
 | id | The full resource name of the Crypto Key. |
@@ -1568,7 +1570,7 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 |-------|-------------|
 | **id** | Full resource name of the Docker image |
 | name | The short name of the image |
-| uri | The URI of the image |
+| **uri** | The URI of the image |
 | digest | The image digest (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |
@@ -1796,11 +1798,14 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
 | name | Short name of the service |
 | location | The GCP location where the service is deployed |
-| container_image | The container image for the service |
-| service_account_email | The email of the service account used by this service |
+| description | User-provided description of the service |
+| uri | Default URL serving the service |
+| latest_ready_revision | Full resource name of the latest ready revision for this service |
 | ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
 | exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
+
+Cloud Run services can split traffic across multiple revisions, so exact runtime image prerequisites are modeled on `GCPCloudRunRevision` rather than directly on the service node.
 
 #### Relationships
 
@@ -1817,6 +1822,8 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 
 Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container workloads (alongside `KubernetesContainer`, `ECSContainer`, `AzureGroupContainer`, etc.). Cloud Run revisions participate in the `RESOLVED_IMAGE` analysis job.
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -1824,9 +1831,16 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 | **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
 | name | Short name of the revision |
 | service | Full resource name of the parent service |
-| container_image | The container image for this revision |
+| container_image | First container image reference retained for compatibility; use `container_images` for all containers |
+| container_images | List of all container image references for this revision, including sidecars |
+| image_digest | First container digest retained for compatibility; use `image_digests` for all container digests |
+| image_digests | List of all container digests for this revision, used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this revision |
 | log_uri | URI to Cloud Logging for this revision |
+| project_id | The GCP project ID this revision belongs to |
 
 #### Relationships
 
@@ -1842,12 +1856,22 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     ```
     (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
+  - GCPCloudRunRevisions are linked to the image reference recorded in Cloud Run metadata. Matches on `image_digests`, so this can point to either a single-image manifest or a multi-architecture image index depending on what Cloud Run stores.
+    ```
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    ```
+  - GCPCloudRunRevisions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunRevision)-[:RESOLVED_IMAGE]->(Image)
+    ```
 
 ### GCPCloudRunJob
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
 
-> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+> **Ontology Mapping**: This node has the extra labels `Function` and `Container`. `Function` enables cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction). `Container` enables cross-platform container-workload queries (alongside `KubernetesContainer`, `ECSContainer`, etc.) and makes Cloud Run jobs participate in the `RESOLVED_IMAGE` analysis job. Cloud Run jobs legitimately inhabit both categories — they are container images run as on-demand functions.
 
 | Field | Description |
 |---|---|
@@ -1856,8 +1880,15 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 | **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
 | name | Short name of the job |
 | location | The GCP location where the job is deployed |
-| container_image | The container image for the job |
+| container_image | First container image reference retained for compatibility; use `container_images` for all containers |
+| container_images | List of all container image references for this job, including sidecars |
+| image_digest | First container digest retained for compatibility; use `image_digests` for all container digests |
+| image_digests | List of all container digests for this job, used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this job |
+| project_id | The GCP project ID this job belongs to |
 
 #### Relationships
 
@@ -1872,6 +1903,16 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
   - GCPCloudRunJobs use GCPServiceAccounts.
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+  - GCPCloudRunJobs are linked to the image reference recorded in Cloud Run metadata. Matches on `image_digests`, so this can point to either a single-image manifest or a multi-architecture image index depending on what Cloud Run stores.
+    ```
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    ```
+  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunExecution

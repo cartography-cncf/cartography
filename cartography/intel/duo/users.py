@@ -118,7 +118,6 @@ def _load_users(
     """
     Load the users into the database
     """
-    logger.info(f"Loading {len(users)} duo users")
     load(
         neo4j_session,
         DuoUserSchema(),

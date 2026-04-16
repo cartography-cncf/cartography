@@ -5,10 +5,20 @@ from typing import cast
 import backoff
 import requests
 
-from cartography.util import backoff_handler
+from cartography.helpers import backoff_handler
 
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
+
+
+class SentinelOnePassthroughRequestException(Exception):
+    """
+    Wrap a request exception that should bypass backoff and be re-raised as-is.
+    """
+
+    def __init__(self, original: requests.exceptions.RequestException):
+        super().__init__(str(original))
+        self.original = original
 
 
 def build_scope_params(
@@ -127,6 +137,8 @@ def call_sentinelone_api(
     method: str = "GET",
     params: dict[str, Any] | None = None,
     data: dict[str, Any] | None = None,
+    *,
+    passthrough_exceptions: Callable[[Exception], bool] | None = None,
 ) -> dict[str, Any]:
     """
     Call the SentinelOne API with backoff functionality
@@ -136,18 +148,25 @@ def call_sentinelone_api(
     :param method: The HTTP method to use (default is GET)
     :param params: Query parameters to include in the request
     :param data: Data to include in the request body for POST/PUT methods
+    :param passthrough_exceptions: Optional predicate for request exceptions
+        that should bypass backoff and be re-raised unchanged.
     :return: The JSON response from the API
     """
 
     def request_once() -> dict[str, Any]:
-        return _call_sentinelone_api_base(
-            api_url,
-            endpoint,
-            api_token,
-            method,
-            params,
-            data,
-        )
+        try:
+            return _call_sentinelone_api_base(
+                api_url,
+                endpoint,
+                api_token,
+                method,
+                params,
+                data,
+            )
+        except requests.exceptions.RequestException as exc:
+            if passthrough_exceptions and passthrough_exceptions(exc):
+                raise SentinelOnePassthroughRequestException(exc) from exc
+            raise
 
     wrapped_func = cast(
         Callable[[], dict[str, Any]],
@@ -160,7 +179,10 @@ def call_sentinelone_api(
         )(request_once),
     )
 
-    return wrapped_func()
+    try:
+        return wrapped_func()
+    except SentinelOnePassthroughRequestException as exc:
+        raise exc.original from None
 
 
 def get_paginated_results(
