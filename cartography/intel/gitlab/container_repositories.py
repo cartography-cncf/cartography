@@ -73,7 +73,8 @@ def transform_container_repositories(
 def load_container_repositories(
     neo4j_session: neo4j.Session,
     repositories: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -84,7 +85,8 @@ def load_container_repositories(
         GitLabContainerRepositorySchema(),
         repositories,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -108,7 +110,7 @@ def sync_container_repositories(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    org_id: int,
     group_id: int,
     update_tag: int,
     common_job_parameters: dict[str, Any],
@@ -116,12 +118,18 @@ def sync_container_repositories(
     """
     Sync GitLab container repositories for an organization.
     """
-    logger.info(f"Syncing container repositories for organization {org_url}")
+    logger.info(f"Syncing container repositories for organization {org_id}")
 
     raw_repositories = get_container_repositories(gitlab_url, token, group_id)
 
     transformed = transform_container_repositories(raw_repositories)
-    load_container_repositories(neo4j_session, transformed, org_url, update_tag)
+    load_container_repositories(
+        neo4j_session,
+        transformed,
+        org_id,
+        gitlab_url,
+        update_tag,
+    )
     cleanup_container_repositories(neo4j_session, common_job_parameters)
 
     return raw_repositories

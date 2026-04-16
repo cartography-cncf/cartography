@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Set
 
 import boto3
 import neo4j
@@ -17,6 +18,7 @@ from cartography.intel.aws.sagemaker.notebook_instances import sync_notebook_ins
 from cartography.intel.aws.sagemaker.training_jobs import sync_training_jobs
 from cartography.intel.aws.sagemaker.transform_jobs import sync_transform_jobs
 from cartography.intel.aws.sagemaker.user_profiles import sync_user_profiles
+from cartography.intel.aws.sagemaker.util import get_available_sagemaker_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -46,102 +48,47 @@ def sync(
         current_aws_account_id,
     )
 
-    # Sync Notebook Instances
-    sync_notebook_instances(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
+    available_regions = get_available_sagemaker_regions(boto3_session, regions)
+    if not available_regions:
+        logger.warning(
+            "Could not determine available SageMaker regions for account '%s'. Continuing with requested regions.",
+            current_aws_account_id,
+        )
+        sagemaker_regions = regions
+    else:
+        sagemaker_regions = [
+            region for region in regions if region in available_regions
+        ]
+        unsupported_regions = sorted(set(regions) - set(sagemaker_regions))
+        if unsupported_regions:
+            logger.info(
+                "Skipping SageMaker sync for account '%s' in unsupported regions: %s",
+                current_aws_account_id,
+                ", ".join(unsupported_regions),
+            )
 
-    # Sync Domains
-    sync_domains(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
+    skip_regions: Set[str] = set()
+    submodule_syncs = [
+        sync_notebook_instances,
+        sync_domains,
+        sync_user_profiles,
+        sync_training_jobs,
+        sync_models,
+        sync_endpoint_configs,
+        sync_endpoints,
+        sync_transform_jobs,
+        sync_model_package_groups,
+        sync_model_packages,
+    ]
 
-    # Sync User Profiles
-    sync_user_profiles(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Training Jobs
-    sync_training_jobs(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Models
-    sync_models(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Endpoint Configs
-    sync_endpoint_configs(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Endpoints
-    sync_endpoints(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Transform Jobs
-    sync_transform_jobs(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Model Package Groups
-    sync_model_package_groups(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-
-    # Sync Model Packages
-    sync_model_packages(
-        neo4j_session,
-        boto3_session,
-        regions,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
+    for sync_submodule in submodule_syncs:
+        newly_failed_regions = sync_submodule(
+            neo4j_session,
+            boto3_session,
+            sagemaker_regions,
+            current_aws_account_id,
+            update_tag,
+            common_job_parameters,
+            skip_regions,
+        )
+        skip_regions.update(newly_failed_regions)

@@ -115,7 +115,9 @@ def get_projects(gitlab_url: str, token: str, group_id: int) -> list[dict[str, A
 
 def transform_projects(
     raw_projects: list[dict[str, Any]],
+    org_id: int,
     org_url: str,
+    gitlab_url: str,
     languages_by_project: dict[int, dict[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
     """
@@ -140,22 +142,24 @@ def transform_projects(
             continue
 
         namespace_url = namespace.get("web_url")
+        namespace_id = namespace.get("id")
 
         # Determine if this project is in the org directly or in a nested group
         if namespace_url == org_url:
             # Org-level project - no group relationship
-            group_url = None
+            group_id = None
         else:
             # Group-level project - has relationship to nested group
-            group_url = namespace_url
+            group_id = namespace_id
 
-        # Get languages for this project (stored as JSON string for Neo4j)
-        project_id: int = project.get("id", 0)
+        # GitLab project IDs are canonical and required for identity/matching.
+        project_id = project["id"]
         project_languages = languages_by_project.get(project_id, {})
         # Convert to JSON string for storage in Neo4j
         languages_json = json.dumps(project_languages) if project_languages else None
 
         transformed_project = {
+            "id": project_id,
             "web_url": project.get("web_url"),
             "name": project.get("name"),
             "path": project.get("path"),
@@ -166,8 +170,9 @@ def transform_projects(
             "archived": project.get("archived", False),
             "created_at": project.get("created_at"),
             "last_activity_at": project.get("last_activity_at"),
-            "org_url": org_url,
-            "group_url": group_url,
+            "org_id": org_id,
+            "group_id": group_id,
+            "gitlab_url": gitlab_url,
             "languages": languages_json,
         }
         transformed.append(transformed_project)
@@ -180,7 +185,8 @@ def transform_projects(
 def load_projects(
     neo4j_session: neo4j.Session,
     projects: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -191,7 +197,8 @@ def load_projects(
         GitLabProjectSchema(),
         projects,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -199,14 +206,19 @@ def load_projects(
 def cleanup_projects(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab projects from the graph for a specific organization.
     Uses cascade delete to also remove child branches, dependency files, and dependencies.
     """
-    logger.info(f"Running GitLab projects cleanup for organization {org_url}")
-    cleanup_params = {**common_job_parameters, "org_url": org_url}
+    logger.info(f"Running GitLab projects cleanup for organization {org_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "org_id": org_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(
         GitLabProjectSchema(), cleanup_params, cascade_delete=True
     ).run(neo4j_session)
@@ -257,7 +269,7 @@ def sync_gitlab_projects(
     logger.info(f"Found languages for {projects_with_languages} projects")
 
     transformed_projects = transform_projects(
-        raw_projects, org_url, languages_by_project
+        raw_projects, organization_id, org_url, gitlab_url, languages_by_project
     )
 
     if not transformed_projects:
@@ -268,7 +280,13 @@ def sync_gitlab_projects(
         f"Found {len(transformed_projects)} projects in organization {org_name}"
     )
 
-    load_projects(neo4j_session, transformed_projects, org_url, update_tag)
+    load_projects(
+        neo4j_session,
+        transformed_projects,
+        organization_id,
+        gitlab_url,
+        update_tag,
+    )
 
     logger.info("GitLab projects sync completed")
     return raw_projects
