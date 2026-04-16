@@ -3,6 +3,7 @@ from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 
@@ -59,6 +60,30 @@ def test_load_clusters(neo4j_session):
             False,
         ),
     }
+
+
+def test_kubernetes_cluster_maps_to_eks_cluster(neo4j_session):
+    # Arrange: seed an EKSCluster whose arn matches cluster 1's external_id.
+    # Cluster 2's external_id intentionally has no matching EKSCluster.
+    cluster_1_arn = KUBERNETES_CLUSTER_DATA[0]["external_id"]
+    neo4j_session.run(
+        "MERGE (:EKSCluster {id: $arn, arn: $arn, lastupdated: $update_tag})",
+        arn=cluster_1_arn,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    load_kubernetes_cluster(neo4j_session, KUBERNETES_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    # Assert: MAPS_TO edge only for the cluster whose external_id matches.
+    assert check_rels(
+        neo4j_session,
+        "EKSCluster",
+        "arn",
+        "KubernetesCluster",
+        "id",
+        "MAPS_TO",
+    ) == {(cluster_1_arn, KUBERNETES_CLUSTER_IDS[0])}
 
 
 # cleaning up the kubernetes cluster node is currently not supported

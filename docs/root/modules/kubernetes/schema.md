@@ -54,6 +54,11 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesPod)
     ```
 
+- A `KubernetesCluster` maps to the `EKSCluster` that hosts it when its `external_id` is an EKS cluster ARN.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    ```
+
 ### KubernetesNode
 Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/architecture/nodes/)
 
