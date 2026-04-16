@@ -37,11 +37,7 @@ def _get_botocore_config(
     }
     if max_pool_connections is not None:
         kwargs["max_pool_connections"] = max_pool_connections
-    return _normalize_retries(
-        botocore.config.Config(**kwargs),
-        max_attempts=max_attempts,
-        retry_mode=retry_mode,
-    )
+    return botocore.config.Config(**kwargs)
 
 
 def get_botocore_config(

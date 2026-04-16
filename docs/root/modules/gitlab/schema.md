@@ -268,7 +268,7 @@ Representation of a GitLab user. Users belong to an organization and can be memb
     (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
 
-    This relationship is created by analyzing git commits and matching commit authors (by name) to current GitLab members.
+    This relationship is created by analyzing git commits and matching commit authors to current GitLab members by email address when available, with a display-name fallback.
 
 ### GitLabBranch
 
