@@ -87,7 +87,7 @@ def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
 ) -> None:
-    github_config = {"organization": []}
+    github_config: dict[str, list[dict[str, str]]] = {"organization": []}
     config = Mock(
         github_config=b64encode(json.dumps(github_config).encode()).decode(),
         update_tag=123,
