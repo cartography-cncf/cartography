@@ -21,6 +21,7 @@ from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLES_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_USER_IDS
 from tests.data.kubernetes.rbac import MOCK_OKTA_GROUPS
@@ -124,6 +125,21 @@ def test_sync_rbac_end_to_end(
     )
     assert expected_service_accounts.issubset(actual_service_accounts)
 
+    expected_service_account_role_arns = {
+        (
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[0],
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS[0],
+        ),
+        (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[1], None),
+        (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[2], None),
+    }
+    actual_service_account_role_arns = check_nodes(
+        neo4j_session,
+        "KubernetesServiceAccount",
+        ["id", "aws_role_arn"],
+    )
+    assert expected_service_account_role_arns.issubset(actual_service_account_role_arns)
+
     # Assert: Verify Role nodes were created with cluster-scoped IDs
     expected_roles = {
         (KUBERNETES_CLUSTER_1_ROLE_IDS[0],),  # "my-cluster-1/demo-ns/pod-reader"
@@ -197,6 +213,16 @@ def test_sync_rbac_end_to_end(
         "CONTAINS",
     )
     assert expected_sa_to_ns_rels.issubset(actual_sa_to_ns_rels)
+
+    actual_sa_to_aws_role_rels = check_rels(
+        neo4j_session,
+        "KubernetesServiceAccount",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES_ROLE",
+    )
+    assert actual_sa_to_aws_role_rels == set()
 
     # Assert: Verify RoleBinding to ServiceAccount relationships
     expected_rb_to_sa_rels = {
