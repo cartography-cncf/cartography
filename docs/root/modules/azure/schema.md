@@ -1919,6 +1919,51 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureContainerInstance)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
+- An Azure Container Instance (group) contains one or more AzureGroupContainers.
+    ```cypher
+    (AzureContainerInstance)-[:CONTAINS]->(:AzureGroupContainer)
+    ```
+
+### AzureGroupContainer
+
+Representation of an individual container within an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). A container group may run one or more containers — this node models each container separately to enable per-container image tracking.
+
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, ECSContainer).
+> **Note**: ACI does not expose host architecture via its API; all workloads are assumed to run on `amd64`. `HAS_IMAGE` resolves only when the image is referenced by digest (`image@sha256:...`); tag-based references produce no relationship.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | `{container_group_id}/{container_name}` |
+| name | The name of the container |
+| group_id | The full resource ID of the parent container group |
+| image | The container image reference as specified in the container group definition |
+| image_digest | The digest portion of the image reference (e.g., `sha256:abc...`), if the image was pinned by digest. `None` for tag-based references |
+| architecture | CPU architecture. Hardcoded to `amd64` — ACI does not expose host architecture and ARM64 support is not yet GA |
+| architecture_normalized | Canonical CPU architecture. Hardcoded to `amd64` |
+| cpu_request | CPU units requested by the container |
+| memory_request_gb | Memory (in GB) requested by the container |
+| cpu_limit | CPU limit for the container, if set |
+| memory_limit_gb | Memory limit (in GB) for the container, if set |
+
+#### Relationships
+
+- An AzureGroupContainer is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureGroupContainer)
+    ```
+- An Azure Container Instance (group) contains its AzureGroupContainers.
+    ```cypher
+    (AzureContainerInstance)-[:CONTAINS]->(:AzureGroupContainer)
+    ```
+- AzureGroupContainers are linked to the image they run when the image is pinned by digest.
+    ```cypher
+    (AzureGroupContainer)-[:HAS_IMAGE]->(ECRImage)
+    (AzureGroupContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    ```
 
 ### AzureLoadBalancer
 
