@@ -6,9 +6,13 @@ import boto3
 from neo4j import Session
 
 from cartography.config import Config
+from cartography.intel.common.object_store import BucketReader
 from cartography.intel.common.object_store import ObjectStoreParseError
 from cartography.intel.common.object_store import read_text_document
 from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.common.report_source import build_bucket_reader_for_source
+from cartography.intel.common.report_source import LocalReportSource
+from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
 from cartography.util import timeit
@@ -72,32 +76,27 @@ def sync_docker_scout_from_dir(
 
 
 @timeit
-def sync_docker_scout_from_s3(
+def sync_docker_scout_from_bucket_reader(
     neo4j_session: Session,
-    s3_bucket: str,
-    s3_prefix: str,
+    source_uri: str,
+    reader: BucketReader,
+    bucket_name: str,
+    prefix: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
 ) -> None:
-    logger.info(
-        "Using Docker Scout recommendation reports from s3://%s/%s",
-        s3_bucket,
-        s3_prefix,
-    )
+    logger.info("Using Docker Scout recommendation reports from %s", source_uri)
 
-    reader = S3BucketReader(boto3_session)
     report_refs = sorted(
-        reader.list_objects(s3_bucket, s3_prefix),
+        reader.list_objects(bucket_name, prefix),
         key=lambda ref: ref.key,
     )
     if not report_refs:
         logger.error(
-            "Docker Scout sync was configured, but no report files found in s3://%s/%s.",
-            s3_bucket,
-            s3_prefix,
+            "Docker Scout sync was configured, but no report files found in %s.",
+            source_uri,
         )
-        raise ValueError("No Docker Scout recommendation reports found in S3")
+        raise ValueError("No Docker Scout recommendation reports found in object store")
 
     logger.info("Processing %d S3 Docker Scout report files", len(report_refs))
 
@@ -134,31 +133,59 @@ def sync_docker_scout_from_s3(
 
 
 @timeit
+def sync_docker_scout_from_s3(
+    neo4j_session: Session,
+    s3_bucket: str,
+    s3_prefix: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    sync_docker_scout_from_bucket_reader(
+        neo4j_session,
+        source_uri=f"s3://{s3_bucket}/{s3_prefix}",
+        reader=S3BucketReader(boto3_session),
+        bucket_name=s3_bucket,
+        prefix=s3_prefix,
+        update_tag=update_tag,
+        common_job_parameters=common_job_parameters,
+    )
+
+
+@timeit
 def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None:
     """Entry point for Docker Scout ingestion from recommendation text reports."""
-    if not config.docker_scout_results_dir and not config.docker_scout_s3_bucket:
+    if not config.docker_scout_source:
         logger.info(
             "Docker Scout configuration not provided. Skipping Docker Scout ingestion."
         )
         return
 
+    source = parse_report_source(config.docker_scout_source)
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    if config.docker_scout_results_dir:
+    if isinstance(source, LocalReportSource):
         sync_docker_scout_from_dir(
             neo4j_session,
-            config.docker_scout_results_dir,
+            source.path,
             config.update_tag,
             common_job_parameters,
         )
         return
 
-    s3_prefix = config.docker_scout_s3_prefix or ""
-    sync_docker_scout_from_s3(
+    reader, bucket_name, prefix = build_bucket_reader_for_source(
+        source,
+        azure_sp_auth=config.azure_sp_auth,
+        azure_tenant_id=config.azure_tenant_id,
+        azure_client_id=config.azure_client_id,
+        azure_client_secret=config.azure_client_secret,
+    )
+    sync_docker_scout_from_bucket_reader(
         neo4j_session,
-        config.docker_scout_s3_bucket,
-        s3_prefix,
+        source.uri,
+        reader,
+        bucket_name,
+        prefix,
         config.update_tag,
         common_job_parameters,
-        boto3.Session(),
     )

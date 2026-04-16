@@ -1,3 +1,4 @@
+import logging
 import unittest.mock
 
 import typer
@@ -72,3 +73,60 @@ def test_cli_handles_typer_exit_code_zero():
         exit_code = cli.main([])
 
     assert exit_code == 0
+
+
+def test_cli_trivy_source_sets_config():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--trivy-source",
+            "gs://example-bucket/reports/trivy/",
+        ],
+    )
+
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.trivy_source == "gs://example-bucket/reports/trivy/"
+
+
+def test_cli_trivy_legacy_results_dir_sets_source(caplog):
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    with caplog.at_level(logging.WARNING):
+        cli.main(
+            [
+                "--neo4j-uri",
+                settings.get("NEO4J_URL"),
+                "--trivy-results-dir",
+                "/tmp/trivy-results",
+            ],
+        )
+
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.trivy_source == "/tmp/trivy-results"
+    assert "DEPRECATED: --trivy-results-dir" in caplog.text
+
+
+def test_cli_rejects_mixed_trivy_source_flags():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--trivy-source",
+            "s3://example-bucket/reports/trivy/",
+            "--trivy-results-dir",
+            "/tmp/trivy-results",
+        ],
+    )
+
+    assert exit_code == 1
+    sync.run.assert_not_called()

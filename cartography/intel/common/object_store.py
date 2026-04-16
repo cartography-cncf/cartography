@@ -61,6 +61,74 @@ class S3BucketReader:
         return response["Body"].read()
 
 
+class GCSBucketReader:
+    def __init__(self) -> None:
+        from google.cloud import storage
+
+        from cartography.intel.gcp.clients import get_gcp_credentials
+
+        credentials = get_gcp_credentials()
+        self._client = storage.Client(credentials=credentials)
+
+    def list_objects(self, bucket: str, prefix: str) -> list[ObjectRef]:
+        refs: list[ObjectRef] = []
+        for blob in self._client.list_blobs(bucket, prefix=prefix):
+            if blob.name.endswith("/"):
+                continue
+            refs.append(
+                ObjectRef(
+                    provider="gs",
+                    bucket=bucket,
+                    key=blob.name,
+                ),
+            )
+        return refs
+
+    def read_bytes(self, ref: ObjectRef) -> bytes:
+        bucket = self._client.bucket(ref.bucket)
+        blob = bucket.blob(ref.key)
+        return blob.download_as_bytes()
+
+
+class AzureBlobContainerReader:
+    def __init__(self, account_name: str, credential: Any) -> None:
+        from azure.storage.blob import BlobServiceClient
+
+        self._account_name = account_name
+        self._client = BlobServiceClient(
+            account_url=f"https://{account_name}.blob.core.windows.net",
+            credential=credential,
+        )
+
+    def list_objects(self, bucket: str, prefix: str) -> list[ObjectRef]:
+        refs: list[ObjectRef] = []
+        container_client = self._client.get_container_client(bucket)
+        for blob in container_client.list_blobs(name_starts_with=prefix):
+            if blob.name.endswith("/"):
+                continue
+            refs.append(
+                ObjectRef(
+                    provider="azblob",
+                    bucket=f"{self._account_name}/{bucket}",
+                    key=blob.name,
+                ),
+            )
+        return refs
+
+    def read_bytes(self, ref: ObjectRef) -> bytes:
+        account_name, _sep, container_name = ref.bucket.partition("/")
+        if not account_name or not container_name:
+            raise ObjectStoreParseError(
+                ref.uri,
+                "Azure blob reference is missing account or container information",
+            )
+        blob_client = self._client.get_blob_client(
+            container=container_name,
+            blob=ref.key,
+        )
+        return blob_client.download_blob().readall()
+
+
 def filter_object_refs(
     refs: Iterable[ObjectRef],
     *,

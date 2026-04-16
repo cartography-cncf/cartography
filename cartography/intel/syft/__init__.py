@@ -23,9 +23,13 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.common.object_store import BucketReader
 from cartography.intel.common.object_store import filter_object_refs
 from cartography.intel.common.object_store import read_json_document
 from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.common.report_source import build_bucket_reader_for_source
+from cartography.intel.common.report_source import LocalReportSource
+from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
@@ -110,41 +114,39 @@ def sync_syft_from_dir(
 
 
 @timeit
-def sync_syft_from_s3(
+def sync_syft_from_bucket_reader(
     neo4j_session: Session,
-    syft_s3_bucket: str,
-    syft_s3_prefix: str,
+    source_uri: str,
+    reader: BucketReader,
+    bucket_name: str,
+    prefix: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
 ) -> None:
     """
-    Sync Syft results from S3.
+    Sync Syft results from a cloud object store.
 
     Args:
         neo4j_session: Neo4j session
-        syft_s3_bucket: S3 bucket name
-        syft_s3_prefix: S3 prefix path
+        source_uri: Display URI for the configured source
+        reader: Reader for listing and fetching objects
+        bucket_name: Bucket or container name
+        prefix: Object prefix path
         update_tag: Update timestamp
         common_job_parameters: Common job parameters
-        boto3_session: boto3 session for S3 operations
     """
-    logger.info(
-        "Using Syft scan results from s3://%s/%s", syft_s3_bucket, syft_s3_prefix
-    )
+    logger.info("Using Syft scan results from %s", source_uri)
 
-    reader = S3BucketReader(boto3_session)
     json_files = filter_object_refs(
-        reader.list_objects(syft_s3_bucket, syft_s3_prefix),
+        reader.list_objects(bucket_name, prefix),
         suffix=".json",
     )
 
     if not json_files:
         logger.warning(
-            "Syft sync was configured, but no json files were found in bucket "
-            "'%s' with prefix '%s'. This is OK if you only ran Trivy without Syft.",
-            syft_s3_bucket,
-            syft_s3_prefix,
+            "Syft sync was configured, but no json files were found in %s. "
+            "This is OK if you only ran Trivy without Syft.",
+            source_uri,
         )
         return
 
@@ -163,6 +165,26 @@ def sync_syft_from_s3(
         )
 
     cleanup_syft(neo4j_session, update_tag)
+
+
+@timeit
+def sync_syft_from_s3(
+    neo4j_session: Session,
+    syft_s3_bucket: str,
+    syft_s3_prefix: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    sync_syft_from_bucket_reader(
+        neo4j_session,
+        source_uri=f"s3://{syft_s3_bucket}/{syft_s3_prefix}",
+        reader=S3BucketReader(boto3_session),
+        bucket_name=syft_s3_bucket,
+        prefix=syft_s3_prefix,
+        update_tag=update_tag,
+        common_job_parameters=common_job_parameters,
+    )
 
 
 @timeit
@@ -193,33 +215,38 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
         neo4j_session: Neo4j session
         config: Configuration object with syft_results_dir or syft_s3_bucket/prefix
     """
-    if not config.syft_s3_bucket and not config.syft_results_dir:
+    if not config.syft_source:
         logger.info("Syft configuration not provided. Skipping Syft ingestion.")
         return
 
+    source = parse_report_source(config.syft_source)
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
 
-    if config.syft_results_dir:
+    if isinstance(source, LocalReportSource):
         sync_syft_from_dir(
             neo4j_session,
-            config.syft_results_dir,
+            source.path,
             config.update_tag,
             common_job_parameters,
         )
         return
 
-    if config.syft_s3_bucket:
-        syft_s3_prefix = config.syft_s3_prefix if config.syft_s3_prefix else ""
+    reader, bucket_name, prefix = build_bucket_reader_for_source(
+        source,
+        azure_sp_auth=config.azure_sp_auth,
+        azure_tenant_id=config.azure_tenant_id,
+        azure_client_id=config.azure_client_id,
+        azure_client_secret=config.azure_client_secret,
+    )
 
-        boto3_session = boto3.Session()
-
-        sync_syft_from_s3(
-            neo4j_session,
-            config.syft_s3_bucket,
-            syft_s3_prefix,
-            config.update_tag,
-            common_job_parameters,
-            boto3_session,
-        )
+    sync_syft_from_bucket_reader(
+        neo4j_session,
+        source.uri,
+        reader,
+        bucket_name,
+        prefix,
+        config.update_tag,
+        common_job_parameters,
+    )

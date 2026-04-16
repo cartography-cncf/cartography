@@ -436,7 +436,7 @@ def test_sync_trivy_from_s3_no_matches(
     )
     mock_list_objects.return_value = []  # No scan results available
 
-    with pytest.raises(ValueError, match="No json scan results found in S3"):
+    with pytest.raises(ValueError, match="No json scan results found in object store"):
         sync_trivy_from_s3(
             neo4j_session=MagicMock(),
             trivy_s3_bucket="test-bucket",

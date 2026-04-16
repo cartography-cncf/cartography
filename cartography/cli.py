@@ -8,6 +8,8 @@ import typer
 from typing_extensions import Annotated
 
 from cartography.config import Config
+from cartography.intel.common.report_source import build_s3_source
+from cartography.intel.common.report_source import parse_report_source
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -172,6 +174,64 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
             visible_panels.add(MODULE_PANELS[module])
 
     return visible_panels
+
+
+def _resolve_report_source_option(
+    *,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    source_flag: str,
+    local_flag: str,
+    s3_bucket_flag: str,
+    s3_prefix_flag: str,
+) -> str | None:
+    if source and (local_path or s3_bucket or s3_prefix):
+        raise typer.BadParameter(
+            f"Cannot use {source_flag} with deprecated source flags "
+            f"({local_flag}, {s3_bucket_flag}, {s3_prefix_flag}).",
+        )
+
+    if local_path and (s3_bucket or s3_prefix):
+        raise typer.BadParameter(
+            f"Cannot use both {local_flag} and {s3_bucket_flag}/{s3_prefix_flag}. "
+            f"Use {source_flag} instead.",
+        )
+
+    if s3_prefix and not s3_bucket:
+        raise typer.BadParameter(
+            f"{s3_prefix_flag} requires {s3_bucket_flag}.",
+        )
+
+    if source:
+        try:
+            parse_report_source(source)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        return source
+
+    if local_path:
+        logger.warning(
+            "DEPRECATED: %s will be removed in Cartography v10.0.0; use %s instead.",
+            local_flag,
+            source_flag,
+        )
+        parse_report_source(local_path)
+        return local_path
+
+    if s3_bucket:
+        logger.warning(
+            "DEPRECATED: %s/%s will be removed in Cartography v10.0.0; use %s instead.",
+            s3_bucket_flag,
+            s3_prefix_flag,
+            source_flag,
+        )
+        resolved_source = build_s3_source(s3_bucket, s3_prefix)
+        parse_report_source(resolved_source)
+        return resolved_source
+
+    return None
 
 
 class CLI:
@@ -1318,29 +1378,41 @@ class CLI:
             # =================================================================
             # Docker Scout Options
             # =================================================================
+            docker_scout_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-source",
+                    help="Docker Scout report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--docker-scout-results-dir` will be removed in Cartography v10.0.0.
             docker_scout_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-results-dir",
-                    help="Local directory containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v10.0.0.
             docker_scout_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-bucket",
-                    help="S3 bucket name containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v10.0.0.
             docker_scout_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-prefix",
-                    help="S3 prefix path for Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1348,29 +1420,41 @@ class CLI:
             # =================================================================
             # Trivy Options
             # =================================================================
+            trivy_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--trivy-source",
+                    help="Trivy report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_TRIVY,
+                    hidden=PANEL_TRIVY not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--trivy-s3-bucket` will be removed in Cartography v10.0.0.
             trivy_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-bucket",
-                    help="S3 bucket name containing Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v10.0.0.
             trivy_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-prefix",
-                    help="S3 prefix path for Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v10.0.0.
             trivy_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-results-dir",
-                    help="Local directory containing Trivy JSON results.",
+                    help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
@@ -1378,58 +1462,82 @@ class CLI:
             # =================================================================
             # Syft Options
             # =================================================================
+            syft_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-source",
+                    help="Syft report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--syft-s3-bucket` will be removed in Cartography v10.0.0.
             syft_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-bucket",
-                    help="S3 bucket name containing Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v10.0.0.
             syft_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-prefix",
-                    help="S3 prefix path for Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-results-dir` will be removed in Cartography v10.0.0.
             syft_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-results-dir",
-                    help="Local directory containing Syft JSON results.",
+                    help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
             # AIBOM Options
             # =================================================================
+            aibom_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-source",
+                    help="AIBOM report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--aibom-s3-bucket` will be removed in Cartography v10.0.0.
             aibom_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-bucket",
-                    help="S3 bucket name containing AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v10.0.0.
             aibom_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-prefix",
-                    help="S3 prefix path for AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v10.0.0.
             aibom_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-results-dir",
-                    help="Local directory containing AIBOM JSON results.",
+                    help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v10.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
@@ -2128,37 +2236,55 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
-            # Log Docker Scout config
-            if docker_scout_results_dir:
-                logger.debug("Docker Scout results dir: %s", docker_scout_results_dir)
-            if docker_scout_s3_bucket:
-                logger.debug("Docker Scout S3 bucket: %s", docker_scout_s3_bucket)
-            if docker_scout_s3_prefix:
-                logger.debug("Docker Scout S3 prefix: %s", docker_scout_s3_prefix)
+            docker_scout_source = _resolve_report_source_option(
+                source=docker_scout_source,
+                local_path=docker_scout_results_dir,
+                s3_bucket=docker_scout_s3_bucket,
+                s3_prefix=docker_scout_s3_prefix,
+                source_flag="--docker-scout-source",
+                local_flag="--docker-scout-results-dir",
+                s3_bucket_flag="--docker-scout-s3-bucket",
+                s3_prefix_flag="--docker-scout-s3-prefix",
+            )
+            trivy_source = _resolve_report_source_option(
+                source=trivy_source,
+                local_path=trivy_results_dir,
+                s3_bucket=trivy_s3_bucket,
+                s3_prefix=trivy_s3_prefix,
+                source_flag="--trivy-source",
+                local_flag="--trivy-results-dir",
+                s3_bucket_flag="--trivy-s3-bucket",
+                s3_prefix_flag="--trivy-s3-prefix",
+            )
+            syft_source = _resolve_report_source_option(
+                source=syft_source,
+                local_path=syft_results_dir,
+                s3_bucket=syft_s3_bucket,
+                s3_prefix=syft_s3_prefix,
+                source_flag="--syft-source",
+                local_flag="--syft-results-dir",
+                s3_bucket_flag="--syft-s3-bucket",
+                s3_prefix_flag="--syft-s3-prefix",
+            )
+            aibom_source = _resolve_report_source_option(
+                source=aibom_source,
+                local_path=aibom_results_dir,
+                s3_bucket=aibom_s3_bucket,
+                s3_prefix=aibom_s3_prefix,
+                source_flag="--aibom-source",
+                local_flag="--aibom-results-dir",
+                s3_bucket_flag="--aibom-s3-bucket",
+                s3_prefix_flag="--aibom-s3-prefix",
+            )
 
-            # Log Trivy config
-            if trivy_s3_bucket:
-                logger.debug("Trivy S3 bucket: %s", trivy_s3_bucket)
-            if trivy_s3_prefix:
-                logger.debug("Trivy S3 prefix: %s", trivy_s3_prefix)
-            if trivy_results_dir:
-                logger.debug("Trivy results dir: %s", trivy_results_dir)
-
-            # Log Syft config
-            if syft_s3_bucket:
-                logger.debug("Syft S3 bucket: %s", syft_s3_bucket)
-            if syft_s3_prefix:
-                logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
-            if syft_results_dir:
-                logger.debug("Syft results dir: %s", syft_results_dir)
-
-            # Log AIBOM config
-            if aibom_s3_bucket:
-                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
-            if aibom_s3_prefix:
-                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
-            if aibom_results_dir:
-                logger.debug("AIBOM results dir: %s", aibom_results_dir)
+            if docker_scout_source:
+                logger.debug("Docker Scout source: %s", docker_scout_source)
+            if trivy_source:
+                logger.debug("Trivy source: %s", trivy_source)
+            if syft_source:
+                logger.debug("Syft source: %s", syft_source)
+            if aibom_source:
+                logger.debug("AIBOM source: %s", aibom_source)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -2364,14 +2490,18 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                docker_scout_source=docker_scout_source,
                 docker_scout_results_dir=docker_scout_results_dir,
                 docker_scout_s3_bucket=docker_scout_s3_bucket,
                 docker_scout_s3_prefix=docker_scout_s3_prefix,
+                trivy_source=trivy_source,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                syft_source=syft_source,
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
                 syft_results_dir=syft_results_dir,
+                aibom_source=aibom_source,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
                 aibom_results_dir=aibom_results_dir,
