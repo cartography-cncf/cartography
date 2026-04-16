@@ -4,6 +4,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel.jamf import computers
+from cartography.intel.jamf.util import create_jamf_api_session
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,18 @@ def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
         "TENANT_ID": config.jamf_base_uri,
     }
-    computers.sync(
-        neo4j_session,
+    api_session = create_jamf_api_session(
         config.jamf_base_uri,
         config.jamf_user,
         config.jamf_password,
-        config.update_tag,
-        common_job_parameters,
     )
+    try:
+        computers.sync(
+            neo4j_session,
+            api_session,
+            config.jamf_base_uri,
+            config.update_tag,
+            common_job_parameters,
+        )
+    finally:
+        api_session.close()

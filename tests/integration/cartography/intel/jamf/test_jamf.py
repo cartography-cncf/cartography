@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.jamf.computers
@@ -30,9 +31,8 @@ def test_sync(mock_get, neo4j_session):
     # Act
     sync(
         neo4j_session,
+        MagicMock(),
         TEST_JAMF_URI,
-        TEST_JAMF_USER,
-        TEST_JAMF_PASSWORD,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )

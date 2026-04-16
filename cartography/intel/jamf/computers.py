@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -15,11 +16,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(
+    api_session: requests.Session,
     jamf_base_uri: str,
-    jamf_user: str,
-    jamf_password: str,
 ) -> dict[str, Any]:
-    return call_jamf_api("/computergroups", jamf_base_uri, jamf_user, jamf_password)
+    return call_jamf_api("/computergroups", jamf_base_uri, api_session)
 
 
 def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -78,14 +78,13 @@ def cleanup(
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
+    api_session: requests.Session,
     jamf_base_uri: str,
-    jamf_user: str,
-    jamf_password: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
     # 1. GET
-    raw_data = get(jamf_base_uri, jamf_user, jamf_password)
+    raw_data = get(api_session, jamf_base_uri)
     # 2. TRANSFORM
     computer_groups = transform(raw_data)
     # 3. LOAD
