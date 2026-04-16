@@ -382,6 +382,103 @@ def test_load_ontology_devices_from_sentinelone(neo4j_session):
     ) == {("SN-S1-001", "SN-S1-001")}
 
 
+def test_load_ontology_devices_from_crowdstrike(neo4j_session):
+    """CrowdStrike hosts should produce ontology devices and OBSERVED_AS links."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:CrowdstrikeHost {
+            id: 'crowdstrike-host-1',
+            device_id: 'crowdstrike-host-1',
+            hostname: 'falcon-host-01',
+            platform_name: 'Windows',
+            os_version: '11.0.22631',
+            system_product_name: 'Latitude 7440',
+            serial_number: 'SN-CROWDSTRIKE-001',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "model", "serial_number"],
+    ) == {
+        (
+            "falcon-host-01",
+            "Windows",
+            "11.0.22631",
+            "Latitude 7440",
+            "SN-CROWDSTRIKE-001",
+        )
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "CrowdstrikeHost",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("SN-CROWDSTRIKE-001", "SN-CROWDSTRIKE-001")}
+
+
+def test_link_ontology_devices_from_crowdstrike_email(neo4j_session):
+    """CrowdStrike host email should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'hjsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (u2:User {id: 'marge@simpson.corp'})
+        SET u2.email = 'marge@simpson.corp',
+            u2.lastupdated = $update_tag
+
+        CREATE (:CrowdstrikeHost {
+            id: 'crowdstrike-host-2',
+            device_id: 'crowdstrike-host-2',
+            hostname: 'falcon-host-02',
+            platform_name: 'macOS',
+            os_version: '14.4',
+            system_product_name: 'MacBook Pro',
+            serial_number: 'SN-CROWDSTRIKE-002',
+            email: 'hjsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "email",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("hjsimpson@simpson.corp", "falcon-host-02")}
+
+
 @pytest.mark.parametrize("source_of_truth", [["microsoft"], ["entra"]])
 def test_load_ontology_devices_from_entra_intune(neo4j_session, source_of_truth):
     """Intune managed devices should produce ontology devices and OBSERVED_AS links."""
