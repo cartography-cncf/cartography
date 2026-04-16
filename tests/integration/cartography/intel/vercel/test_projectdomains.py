@@ -67,10 +67,7 @@ def test_load_vercel_project_domains(mock_api, neo4j_session):
         ("pdom_123",),
         ("pdom_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelProjectDomain", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelProjectDomain", ["id"]) == expected_nodes
 
     # Assert Project Domains are connected to Project via RESOURCE
     # (Project -RESOURCE-> ProjectDomain)

@@ -55,10 +55,7 @@ def test_load_vercel_users(mock_api, neo4j_session):
         ("user_homer", "homer@example.com"),
         ("user_marge", "marge@example.com"),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelUser", ["id", "email"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelUser", ["id", "email"]) == expected_nodes
 
     # Assert Users are connected with Team via MEMBER_OF
     expected_rels = {

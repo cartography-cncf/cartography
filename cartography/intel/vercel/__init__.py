@@ -64,49 +64,75 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Phase 1: Root tenant
     cartography.intel.vercel.teams.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
 
     # Phase 2: Users (needed for CREATED_BY rels later)
     cartography.intel.vercel.users.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
 
     # Phase 3: Projects (returns list for per-project iteration)
     projects = cartography.intel.vercel.projects.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
 
     # Phase 4: Team-level resources
     domains = cartography.intel.vercel.domains.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     edge_configs = cartography.intel.vercel.edgeconfigs.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.sharedenvironmentvariables.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.integrations.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.accessgroups.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.authtokens.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.webhooks.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.logdrains.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.securecomputenetworks.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
     cartography.intel.vercel.aliases.sync(
-        neo4j_session, api_session, common_job_parameters,
+        neo4j_session,
+        api_session,
+        common_job_parameters,
     )
 
     # Phase 5: Per-project sub-resources
@@ -117,23 +143,33 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             "project_id": project_id,
         }
         cartography.intel.vercel.deployments.sync(
-            neo4j_session, api_session, project_job_parameters,
+            neo4j_session,
+            api_session,
+            project_job_parameters,
             project_id=project_id,
         )
         cartography.intel.vercel.environmentvariables.sync(
-            neo4j_session, api_session, project_job_parameters,
+            neo4j_session,
+            api_session,
+            project_job_parameters,
             project_id=project_id,
         )
         cartography.intel.vercel.projectdomains.sync(
-            neo4j_session, api_session, project_job_parameters,
+            neo4j_session,
+            api_session,
+            project_job_parameters,
             project_id=project_id,
         )
         cartography.intel.vercel.firewallconfigs.sync(
-            neo4j_session, api_session, project_job_parameters,
+            neo4j_session,
+            api_session,
+            project_job_parameters,
             project_id=project_id,
         )
         cartography.intel.vercel.firewallbypassrules.sync(
-            neo4j_session, api_session, project_job_parameters,
+            neo4j_session,
+            api_session,
+            project_job_parameters,
             project_id=project_id,
         )
 
@@ -145,7 +181,9 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             "domain_name": domain_name,
         }
         cartography.intel.vercel.dnsrecords.sync(
-            neo4j_session, api_session, domain_job_parameters,
+            neo4j_session,
+            api_session,
+            domain_job_parameters,
             domain_name=domain_name,
         )
 
@@ -157,6 +195,8 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             "edge_config_id": ec_id,
         }
         cartography.intel.vercel.edgeconfigtokens.sync(
-            neo4j_session, api_session, ec_job_parameters,
+            neo4j_session,
+            api_session,
+            ec_job_parameters,
             edge_config_id=ec_id,
         )

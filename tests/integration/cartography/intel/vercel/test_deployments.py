@@ -69,10 +69,7 @@ def test_load_vercel_deployments(mock_api, neo4j_session):
         ("dpl_123",),
         ("dpl_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelDeployment", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelDeployment", ["id"]) == expected_nodes
 
     # Assert Deployments are connected to Project via RESOURCE (Project -RESOURCE-> Deployment)
     expected_project_rels = {

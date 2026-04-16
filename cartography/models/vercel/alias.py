@@ -71,9 +71,7 @@ class VercelAliasToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BELONGS_TO_PROJECT"
-    properties: VercelAliasToProjectRelProperties = (
-        VercelAliasToProjectRelProperties()
-    )
+    properties: VercelAliasToProjectRelProperties = VercelAliasToProjectRelProperties()
 
 
 @dataclass(frozen=True)

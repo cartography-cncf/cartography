@@ -39,7 +39,7 @@ AL -- BELONGS_TO_PROJECT --> P
 
 Represents a Vercel team (organization).
 
-> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems.
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
 
 | Field | Description |
 |-------|-------------|
@@ -65,7 +65,7 @@ Represents a Vercel team (organization).
 
 Represents a Vercel team member.
 
-> **Ontology Mapping**: This node has the extra label `UserAccount`.
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).
 
 | Field | Description |
 |-------|-------------|
@@ -155,7 +155,7 @@ Represents an individual deployment.
 
 Represents a domain owned by the team.
 
-> **Ontology Mapping**: This node has the extra label `DNSZone`.
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
 
 | Field | Description |
 |-------|-------------|
@@ -180,7 +180,7 @@ Represents a domain owned by the team.
 
 Represents a DNS record on a Vercel-managed domain.
 
-> **Ontology Mapping**: This node has the extra label `DNSRecord`.
+> **Ontology Mapping**: This node has the extra label `DNSRecord` to enable cross-platform queries for DNS records across different systems.
 
 | Field | Description |
 |-------|-------------|
@@ -368,6 +368,8 @@ Represents a team access group used for RBAC.
 ### VercelAuthToken
 
 Represents a Vercel API token.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API credentials across different systems.
 
 | Field | Description |
 |-------|-------------|

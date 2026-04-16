@@ -7,7 +7,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.vercel.util import paginated_get
-from cartography.models.vercel.sharedenvironmentvariable import VercelSharedEnvironmentVariableSchema
+from cartography.models.vercel.sharedenvironmentvariable import (
+    VercelSharedEnvironmentVariableSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -65,8 +67,11 @@ def load_shared_env_vars(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(VercelSharedEnvironmentVariableSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(
+        VercelSharedEnvironmentVariableSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )

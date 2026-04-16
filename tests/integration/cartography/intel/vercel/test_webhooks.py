@@ -59,10 +59,7 @@ def test_load_vercel_webhooks(mock_api, neo4j_session):
         ("whk_123",),
         ("whk_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelWebhook", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelWebhook", ["id"]) == expected_nodes
 
     # Assert Webhooks are connected to VercelTeam via RESOURCE
     expected_team_rels = {

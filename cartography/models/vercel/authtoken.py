@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -45,4 +46,5 @@ class VercelAuthTokenToTeamRel(CartographyRelSchema):
 class VercelAuthTokenSchema(CartographyNodeSchema):
     label: str = "VercelAuthToken"
     properties: VercelAuthTokenNodeProperties = VercelAuthTokenNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
     sub_resource_relationship: VercelAuthTokenToTeamRel = VercelAuthTokenToTeamRel()

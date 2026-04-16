@@ -86,9 +86,7 @@ class VercelAccessGroupToProjectRel(CartographyRelSchema):
 class VercelAccessGroupSchema(CartographyNodeSchema):
     label: str = "VercelAccessGroup"
     properties: VercelAccessGroupNodeProperties = VercelAccessGroupNodeProperties()
-    sub_resource_relationship: VercelAccessGroupToTeamRel = (
-        VercelAccessGroupToTeamRel()
-    )
+    sub_resource_relationship: VercelAccessGroupToTeamRel = VercelAccessGroupToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelAccessGroupToUserRel(), VercelAccessGroupToProjectRel()],
     )

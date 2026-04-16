@@ -63,7 +63,9 @@ def get(
             timeout=_TIMEOUT,
         )
         projects_resp.raise_for_status()
-        group["project_ids"] = [p["projectId"] for p in projects_resp.json().get("projects", [])]
+        group["project_ids"] = [
+            p["projectId"] for p in projects_resp.json().get("projects", [])
+        ]
 
     return groups
 
@@ -86,7 +88,8 @@ def load_access_groups(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(VercelAccessGroupSchema(), common_job_parameters).run(
         neo4j_session,

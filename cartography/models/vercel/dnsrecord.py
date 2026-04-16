@@ -47,6 +47,4 @@ class VercelDNSRecordSchema(CartographyNodeSchema):
     label: str = "VercelDNSRecord"
     properties: VercelDNSRecordNodeProperties = VercelDNSRecordNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
-    sub_resource_relationship: VercelDNSRecordToDomainRel = (
-        VercelDNSRecordToDomainRel()
-    )
+    sub_resource_relationship: VercelDNSRecordToDomainRel = VercelDNSRecordToDomainRel()

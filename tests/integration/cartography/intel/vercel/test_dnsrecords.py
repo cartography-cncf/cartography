@@ -62,10 +62,7 @@ def test_load_vercel_dns_records(mock_api, neo4j_session):
         ("rec_123",),
         ("rec_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelDNSRecord", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelDNSRecord", ["id"]) == expected_nodes
 
     # Assert DNS Records are connected to Domain via RESOURCE (Domain -RESOURCE-> DNSRecord)
     expected_rels = {

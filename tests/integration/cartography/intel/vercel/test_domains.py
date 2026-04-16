@@ -55,10 +55,7 @@ def test_load_vercel_domains(mock_api, neo4j_session):
         ("example.com",),
         ("example.org",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelDomain", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelDomain", ["id"]) == expected_nodes
 
     # Assert Domains are connected to Team via RESOURCE (Team -RESOURCE-> Domain)
     expected_rels = {

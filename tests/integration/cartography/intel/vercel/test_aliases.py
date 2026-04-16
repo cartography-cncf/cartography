@@ -63,10 +63,7 @@ def test_load_vercel_aliases(mock_api, neo4j_session):
         ("als_123",),
         ("als_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelAlias", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelAlias", ["id"]) == expected_nodes
 
     # Assert Aliases are connected to VercelTeam via RESOURCE
     expected_team_rels = {

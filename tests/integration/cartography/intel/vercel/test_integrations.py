@@ -59,10 +59,7 @@ def test_load_vercel_integrations(mock_api, neo4j_session):
         ("icfg_123",),
         ("icfg_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelIntegration", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelIntegration", ["id"]) == expected_nodes
 
     # Assert Integrations are connected to VercelTeam via RESOURCE
     expected_team_rels = {

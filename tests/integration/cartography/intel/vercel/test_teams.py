@@ -48,7 +48,4 @@ def test_load_vercel_teams(mock_api, neo4j_session):
     expected_nodes = {
         (TEST_TEAM_ID,),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelTeam", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelTeam", ["id"]) == expected_nodes

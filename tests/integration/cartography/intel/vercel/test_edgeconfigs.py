@@ -55,10 +55,7 @@ def test_load_vercel_edge_configs(mock_api, neo4j_session):
         ("ecfg_123",),
         ("ecfg_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelEdgeConfig", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelEdgeConfig", ["id"]) == expected_nodes
 
     # Assert Edge Configs are connected to VercelTeam via RESOURCE
     expected_team_rels = {

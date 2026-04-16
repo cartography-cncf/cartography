@@ -66,7 +66,8 @@ def load_domains(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(VercelDomainSchema(), common_job_parameters).run(
         neo4j_session,

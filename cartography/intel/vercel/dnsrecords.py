@@ -68,7 +68,8 @@ def load_dns_records(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(VercelDNSRecordSchema(), common_job_parameters).run(
         neo4j_session,

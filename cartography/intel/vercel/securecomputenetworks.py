@@ -6,9 +6,10 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.vercel.util import _TIMEOUT
 from cartography.intel.vercel.util import paginated_get
-from cartography.models.vercel.securecomputenetwork import VercelSecureComputeNetworkSchema
+from cartography.models.vercel.securecomputenetwork import (
+    VercelSecureComputeNetworkSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -68,8 +69,11 @@ def load_networks(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(VercelSecureComputeNetworkSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(
+        VercelSecureComputeNetworkSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )

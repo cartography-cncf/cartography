@@ -1,3 +1,4 @@
+from typing import cast
 from unittest.mock import patch
 
 import requests
@@ -17,17 +18,22 @@ TEST_UPDATE_TAG = 123456789
 TEST_TEAM_ID = "team_abc123"
 TEST_BASE_URL = "https://api.fake-vercel.com"
 
+
 # The sync function transforms raw API data by setting
 # n["project_ids"] = [p["id"] for p in n.get("projects", [])].
 # The stored data already has "project_ids" directly, so we construct a
 # raw-shaped payload for the mocked `get` that the sync can transform.
-_RAW_NETWORKS = [
-    {
-        **{k: v for k, v in n.items() if k != "project_ids"},
-        "projects": [{"id": pid} for pid in n["project_ids"]],
-    }
-    for n in tests.data.vercel.securecomputenetworks.VERCEL_SECURE_COMPUTE_NETWORKS
-]
+def _build_raw_networks() -> list[dict]:
+    raw = []
+    for n in tests.data.vercel.securecomputenetworks.VERCEL_SECURE_COMPUTE_NETWORKS:
+        entry = {k: v for k, v in n.items() if k != "project_ids"}
+        project_ids = cast(list, n["project_ids"])
+        entry["projects"] = [{"id": pid} for pid in project_ids]
+        raw.append(entry)
+    return raw
+
+
+_RAW_NETWORKS = _build_raw_networks()
 
 
 def _ensure_local_neo4j_has_test_networks(neo4j_session):

@@ -63,10 +63,7 @@ def test_load_vercel_access_groups(mock_api, neo4j_session):
         ("ag_123",),
         ("ag_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelAccessGroup", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelAccessGroup", ["id"]) == expected_nodes
 
     # Assert Access Groups are connected to VercelTeam via RESOURCE
     expected_team_rels = {

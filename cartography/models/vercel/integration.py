@@ -68,9 +68,7 @@ class VercelIntegrationToProjectRel(CartographyRelSchema):
 class VercelIntegrationSchema(CartographyNodeSchema):
     label: str = "VercelIntegration"
     properties: VercelIntegrationNodeProperties = VercelIntegrationNodeProperties()
-    sub_resource_relationship: VercelIntegrationToTeamRel = (
-        VercelIntegrationToTeamRel()
-    )
+    sub_resource_relationship: VercelIntegrationToTeamRel = VercelIntegrationToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelIntegrationToProjectRel()],
     )

@@ -55,10 +55,7 @@ def test_load_vercel_auth_tokens(mock_api, neo4j_session):
         ("tok_123",),
         ("tok_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelAuthToken", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelAuthToken", ["id"]) == expected_nodes
 
     # Assert Auth Tokens are connected to VercelTeam via RESOURCE
     expected_team_rels = {

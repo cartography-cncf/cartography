@@ -67,8 +67,7 @@ def test_load_vercel_firewall_bypass_rules(mock_api, neo4j_session):
         ("fbr_456",),
     }
     assert (
-        check_nodes(neo4j_session, "VercelFirewallBypassRule", ["id"])
-        == expected_nodes
+        check_nodes(neo4j_session, "VercelFirewallBypassRule", ["id"]) == expected_nodes
     )
 
     # Assert Firewall Bypass Rules are connected to VercelProject via RESOURCE

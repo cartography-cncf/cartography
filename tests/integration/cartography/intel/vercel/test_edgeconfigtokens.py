@@ -62,10 +62,7 @@ def test_load_vercel_edge_config_tokens(mock_api, neo4j_session):
         ("ect_123",),
         ("ect_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelEdgeConfigToken", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelEdgeConfigToken", ["id"]) == expected_nodes
 
     # Assert Edge Config Tokens are connected to VercelEdgeConfig via RESOURCE
     expected_edge_config_rels = {

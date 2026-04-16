@@ -59,10 +59,7 @@ def test_load_vercel_log_drains(mock_api, neo4j_session):
         ("ld_123",),
         ("ld_456",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelLogDrain", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelLogDrain", ["id"]) == expected_nodes
 
     # Assert Log Drains are connected to VercelTeam via RESOURCE
     expected_team_rels = {

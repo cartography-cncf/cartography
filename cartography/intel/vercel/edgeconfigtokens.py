@@ -6,7 +6,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.vercel.util import _TIMEOUT
 from cartography.intel.vercel.util import paginated_get
 from cartography.models.vercel.edgeconfigtoken import VercelEdgeConfigTokenSchema
 from cartography.util import timeit
@@ -69,7 +68,8 @@ def load_edge_config_tokens(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(VercelEdgeConfigTokenSchema(), common_job_parameters).run(
         neo4j_session,

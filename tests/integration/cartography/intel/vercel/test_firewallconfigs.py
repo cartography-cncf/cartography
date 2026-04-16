@@ -61,10 +61,7 @@ def test_load_vercel_firewall_configs(mock_api, neo4j_session):
     expected_nodes = {
         ("prj_abc_firewall",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelFirewallConfig", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelFirewallConfig", ["id"]) == expected_nodes
 
     # Assert Firewall Configs are connected to Project via RESOURCE
     # (Project -RESOURCE-> FirewallConfig)

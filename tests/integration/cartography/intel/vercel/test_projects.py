@@ -55,10 +55,7 @@ def test_load_vercel_projects(mock_api, neo4j_session):
         ("prj_abc",),
         ("prj_def",),
     }
-    assert (
-        check_nodes(neo4j_session, "VercelProject", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "VercelProject", ["id"]) == expected_nodes
 
     # Assert Projects are connected with Team via RESOURCE (Team -RESOURCE-> Project)
     expected_rels = {
