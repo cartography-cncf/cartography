@@ -99,7 +99,7 @@ class SemgrepSASTFindingToAssistantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepSASTFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSASTFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Finding"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
     properties: SemgrepSASTFindingNodeProperties = SemgrepSASTFindingNodeProperties()
     sub_resource_relationship: SemgrepSASTFindingToSemgrepDeploymentRel = (
         SemgrepSASTFindingToSemgrepDeploymentRel()

@@ -60,7 +60,7 @@ class AzureSubscriptionToAssessmentDeprecatedRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureSecurityAssessmentSchema(CartographyNodeSchema):
     label: str = "AzureSecurityAssessment"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Finding"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
     properties: AzureSecurityAssessmentProperties = AzureSecurityAssessmentProperties()
     sub_resource_relationship: AzureSubscriptionToAssessmentRel = (
         AzureSubscriptionToAssessmentRel()

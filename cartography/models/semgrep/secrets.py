@@ -76,7 +76,7 @@ class SemgrepSecretsFindingToGithubRepoRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSecretsFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Finding"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
     properties: SemgrepSecretsFindingNodeProperties = (
         SemgrepSecretsFindingNodeProperties()
     )

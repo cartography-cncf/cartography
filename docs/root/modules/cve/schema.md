@@ -1,10 +1,8 @@
 ## CVE Schema
 
-### CVE::Finding
+### CVE
 
 Representation of a [CVE](https://github.com/CVEProject/automation-working-group/blob/master/cve_json_schema/DRAFT-JSON-file-format-v4.md)
-
-> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSCAFinding, UbuntuCVE).
 
 | Field | Description |
 |-------|--------------|

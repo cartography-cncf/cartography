@@ -50,11 +50,11 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
     (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
     ```
 
-### SemgrepSASTFinding::Finding
+### SemgrepSASTFinding::SecurityIssue
 
 Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
 
-> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, TrivyImageFinding, CVE).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -98,11 +98,11 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
     (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
     ```
 
-### SemgrepSecretsFinding::Finding
+### SemgrepSecretsFinding::SecurityIssue
 
 Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
 
-> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, TrivyImageFinding, CVE).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -141,11 +141,9 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
     (SemgrepSecretsFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
-### SemgrepSCAFinding::Finding
+### SemgrepSCAFinding
 
 Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain/overview/) finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SupplyChainService.
-
-> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, TrivyImageFinding, CVE).
 
 | Field | Description |
 |-------|--------------|

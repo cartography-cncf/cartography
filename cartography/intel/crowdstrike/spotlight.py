@@ -35,7 +35,7 @@ def load_vulnerability_data(
     """
     ingestion_cypher_query = """
     UNWIND $Vulnerabilities AS vuln
-        MERGE (v:SpotlightVulnerability:Finding{id: vuln.id})
+        MERGE (v:SpotlightVulnerability{id: vuln.id})
         ON CREATE SET v.aid = vuln.aid,
             v.cid = vuln.cid,
             v.firstseen = timestamp()
@@ -47,11 +47,7 @@ def load_vulnerability_data(
             v.host_info_local_ip = vuln.host_info_local_ip,
             v.remediation_ids = vuln.remediation_ids,
             v.app_product_name_version = vuln.app_product_name_version,
-            v.lastupdated = $update_tag,
-            v._ont_source = 'crowdstrike',
-            v._ont_title = coalesce(vuln.cve_id, vuln.id),
-            v._ont_status = vuln.status,
-            v._ont_first_seen = vuln.created_timestamp
+            v.lastupdated = $update_tag
         WITH v
         MATCH (h:CrowdstrikeHost{id: v.aid})
         MERGE (h)-[hv:HAS_VULNERABILITY]->(v)

@@ -50,11 +50,9 @@ Representation of a Crowdstrike Host
     (CrowdstrikeHost)-[HAS_VULNERABILITY]->(SpotlightVulnerability)
     ```
 
-### SpotlightVulnerability::Finding
+### SpotlightVulnerability
 
 Representation of a Crowdstrike Vulnerability
-
-> **Ontology Mapping**: This node has the extra label `Finding` to enable cross-scanner queries for security findings across different tools (e.g., AWSInspectorFinding, SemgrepSASTFinding, TrivyImageFinding).
 
 | Field | Description |
 |-------|-------------|
