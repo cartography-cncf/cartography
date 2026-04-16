@@ -10,6 +10,7 @@ import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
+from cartography.intel.common.object_store import ObjectRef
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
@@ -709,8 +710,14 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
     boto3_session.client.return_value = s3_client
 
     with patch(
-        "cartography.intel.aibom._get_json_files_in_s3",
-        return_value={"reports/aibom-bad-encoding.json"},
+        "cartography.intel.aibom.S3BucketReader.list_objects",
+        return_value=[
+            ObjectRef(
+                "s3",
+                "example-bucket",
+                "reports/aibom-bad-encoding.json",
+            ),
+        ],
     ):
         sync_aibom_from_s3(
             neo4j_session,

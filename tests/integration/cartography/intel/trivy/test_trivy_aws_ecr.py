@@ -5,6 +5,8 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
+from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy import sync_trivy_from_s3
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -20,11 +22,15 @@ TEST_REGION = "us-east-1"
 
 
 @patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_s3",
-    return_value={
-        "trivy-scans/000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890.json"
-    },
+    S3BucketReader,
+    "list_objects",
+    return_value=[
+        ObjectRef(
+            "s3",
+            "test-bucket",
+            "trivy-scans/000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890.json",
+        ),
+    ],
 )
 @patch.object(
     cartography.intel.aws.ecr,
@@ -45,7 +51,7 @@ TEST_REGION = "us-east-1"
 def test_sync_trivy_aws_ecr(
     mock_get_images,
     mock_get_repos,
-    mock_list_s3_scan_results,
+    mock_list_s3_objects,
     neo4j_session,
 ):
     """

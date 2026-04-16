@@ -11,9 +11,11 @@ from cartography.client.gcp.artifact_registry import get_gcp_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
+from cartography.intel.common.object_store import filter_object_refs
+from cartography.intel.common.object_store import read_json_document
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
-from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -233,8 +235,10 @@ def sync_trivy_from_s3(
     )
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
-    json_files: set[str] = get_json_files_in_s3(
-        trivy_s3_bucket, trivy_s3_prefix, boto3_session
+    reader = S3BucketReader(boto3_session)
+    json_files = filter_object_refs(
+        reader.list_objects(trivy_s3_bucket, trivy_s3_prefix),
+        suffix=".json",
     )
 
     if len(json_files) == 0:
@@ -249,20 +253,18 @@ def sync_trivy_from_s3(
         raise ValueError("No json scan results found in S3.")
 
     logger.info(f"Processing {len(json_files)} Trivy result files from S3")
-    s3_client = boto3_session.client("s3")
-    for s3_object_key in json_files:
+    for ref in json_files:
         logger.debug(
-            f"Reading scan results from S3: s3://{trivy_s3_bucket}/{s3_object_key}"
+            "Reading scan results from S3: %s",
+            ref.uri,
         )
-        response = s3_client.get_object(Bucket=trivy_s3_bucket, Key=s3_object_key)
-        scan_data_json = response["Body"].read().decode("utf-8")
-        trivy_data = json.loads(scan_data_json)
+        trivy_data = read_json_document(reader, ref)
 
         prepared = _prepare_trivy_data(
             trivy_data,
             image_uris=image_uris,
             digest_aliases=digest_aliases,
-            source=f"s3://{trivy_s3_bucket}/{s3_object_key}",
+            source=ref.uri,
         )
         if prepared is None:
             continue

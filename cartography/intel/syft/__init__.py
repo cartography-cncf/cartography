@@ -23,6 +23,9 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.common.object_store import filter_object_refs
+from cartography.intel.common.object_store import read_json_document
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
@@ -61,39 +64,6 @@ def _get_json_files_in_dir(results_dir: str) -> set[str]:
             if filename.endswith(".json"):
                 results.add(os.path.join(root, filename))
     logger.info("Found %d json files in %s", len(results), results_dir)
-    return results
-
-
-def _get_json_files_in_s3(
-    s3_bucket: str, s3_prefix: str, boto3_session: boto3.Session
-) -> set[str]:
-    """
-    List S3 objects in the S3 prefix.
-
-    Args:
-        s3_bucket: S3 bucket name
-        s3_prefix: S3 prefix path
-        boto3_session: boto3 session
-
-    Returns:
-        Set of S3 object keys for JSON files
-    """
-    s3_client = boto3_session.client("s3")
-    results = set()
-
-    paginator = s3_client.get_paginator("list_objects_v2")
-    page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-
-    for page in page_iterator:
-        if "Contents" not in page:
-            continue
-
-        for obj in page["Contents"]:
-            object_key = obj["Key"]
-            if object_key.endswith(".json") and object_key.startswith(s3_prefix):
-                results.add(object_key)
-
-    logger.info("Found %d json files in s3://%s/%s", len(results), s3_bucket, s3_prefix)
     return results
 
 
@@ -163,7 +133,11 @@ def sync_syft_from_s3(
         "Using Syft scan results from s3://%s/%s", syft_s3_bucket, syft_s3_prefix
     )
 
-    json_files = _get_json_files_in_s3(syft_s3_bucket, syft_s3_prefix, boto3_session)
+    reader = S3BucketReader(boto3_session)
+    json_files = filter_object_refs(
+        reader.list_objects(syft_s3_bucket, syft_s3_prefix),
+        suffix=".json",
+    )
 
     if not json_files:
         logger.warning(
@@ -175,15 +149,13 @@ def sync_syft_from_s3(
         return
 
     logger.info("Processing %d Syft result files from S3", len(json_files))
-    s3_client = boto3_session.client("s3")
 
-    for s3_object_key in json_files:
+    for ref in json_files:
         logger.debug(
-            "Reading scan results from S3: s3://%s/%s", syft_s3_bucket, s3_object_key
+            "Reading scan results from S3: %s",
+            ref.uri,
         )
-        response = s3_client.get_object(Bucket=syft_s3_bucket, Key=s3_object_key)
-        scan_data_json = response["Body"].read().decode("utf-8")
-        syft_data = json.loads(scan_data_json)
+        syft_data = read_json_document(reader, ref)
         sync_single_syft(
             neo4j_session,
             syft_data,

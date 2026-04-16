@@ -6,6 +6,9 @@ import boto3
 from neo4j import Session
 
 from cartography.config import Config
+from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import read_text_document
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
 from cartography.util import timeit
@@ -24,22 +27,6 @@ def _get_report_files_in_dir(results_dir: str) -> list[str]:
         for path in Path(results_dir).rglob("*")
         if path.is_file() and not path.name.startswith(".")
     )
-
-
-def _get_report_files_in_s3(
-    s3_bucket: str,
-    s3_prefix: str,
-    boto3_session: boto3.Session,
-) -> list[str]:
-    client = boto3_session.client("s3")
-    paginator = client.get_paginator("list_objects_v2")
-    keys: list[str] = []
-    for page in paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix):
-        for obj in page.get("Contents", []):
-            key = obj["Key"]
-            if not key.endswith("/"):
-                keys.append(key)
-    return sorted(keys)
 
 
 @timeit
@@ -99,8 +86,12 @@ def sync_docker_scout_from_s3(
         s3_prefix,
     )
 
-    report_files = _get_report_files_in_s3(s3_bucket, s3_prefix, boto3_session)
-    if not report_files:
+    reader = S3BucketReader(boto3_session)
+    report_refs = sorted(
+        reader.list_objects(s3_bucket, s3_prefix),
+        key=lambda ref: ref.key,
+    )
+    if not report_refs:
         logger.error(
             "Docker Scout sync was configured, but no report files found in s3://%s/%s.",
             s3_bucket,
@@ -108,32 +99,28 @@ def sync_docker_scout_from_s3(
         )
         raise ValueError("No Docker Scout recommendation reports found in S3")
 
-    logger.info("Processing %d S3 Docker Scout report files", len(report_files))
+    logger.info("Processing %d S3 Docker Scout report files", len(report_refs))
 
     synced_count = 0
-    s3_client = boto3_session.client("s3")
-    for s3_key in report_files:
-        response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+    for ref in report_refs:
         try:
-            raw_recommendation = response["Body"].read().decode("utf-8")
-        except UnicodeDecodeError:
+            raw_recommendation = read_text_document(reader, ref)
+        except ObjectStoreParseError:
             logger.warning(
-                "Skipping unreadable Docker Scout report s3://%s/%s",
-                s3_bucket,
-                s3_key,
+                "Skipping unreadable Docker Scout report %s",
+                ref.uri,
             )
             continue
         if not _looks_like_docker_scout_report(raw_recommendation):
             logger.debug(
-                "Skipping s3://%s/%s: not a Docker Scout recommendation report",
-                s3_bucket,
-                s3_key,
+                "Skipping %s: not a Docker Scout recommendation report",
+                ref.uri,
             )
             continue
         if sync_from_file(
             neo4j_session,
             raw_recommendation,
-            f"s3://{s3_bucket}/{s3_key}",
+            ref.uri,
             update_tag,
         ):
             synced_count += 1

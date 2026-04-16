@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from cartography.intel.common.object_store import ObjectRef
 from cartography.intel.docker_scout import sync_docker_scout_from_dir
 from cartography.intel.docker_scout import sync_docker_scout_from_s3
 
@@ -41,8 +42,14 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     boto3_session.client.return_value = s3_client
 
     with patch(
-        "cartography.intel.docker_scout._get_report_files_in_s3",
-        return_value=["reports/bad-report.txt"],
+        "cartography.intel.docker_scout.S3BucketReader.list_objects",
+        return_value=[
+            ObjectRef(
+                "s3",
+                "example-bucket",
+                "reports/bad-report.txt",
+            ),
+        ],
     ):
         sync_docker_scout_from_s3(
             neo4j_session,

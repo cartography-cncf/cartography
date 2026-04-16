@@ -11,6 +11,11 @@ from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.aibom.loader import load_aibom_document
 from cartography.intel.aibom.parser import parse_aibom_document
+from cartography.intel.common.object_store import filter_object_refs
+from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import read_json_document
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
@@ -25,34 +30,6 @@ def _get_json_files_in_dir(results_dir: str) -> set[str]:
             if filename.endswith(".json"):
                 results.add(os.path.join(root, filename))
     logger.info("Found %d AIBOM json files in %s", len(results), results_dir)
-    return results
-
-
-def _get_json_files_in_s3(
-    s3_bucket: str,
-    s3_prefix: str,
-    s3_client: Any,
-) -> set[str]:
-    results: set[str] = set()
-
-    paginator = s3_client.get_paginator("list_objects_v2")
-    page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-
-    for page in page_iterator:
-        if "Contents" not in page:
-            continue
-
-        for obj in page["Contents"]:
-            object_key = obj["Key"]
-            if object_key.endswith(".json") and object_key.startswith(s3_prefix):
-                results.add(object_key)
-
-    logger.info(
-        "Found %d AIBOM json files in s3://%s/%s",
-        len(results),
-        s3_bucket,
-        s3_prefix,
-    )
     return results
 
 
@@ -76,18 +53,15 @@ def _iter_documents_from_dir(
 
 
 def _iter_documents_from_s3(
-    json_files: set[str],
-    s3_bucket: str,
-    s3_client: Any,
+    json_files: list[ObjectRef],
+    reader: S3BucketReader,
 ) -> Iterator[tuple[str, dict[str, Any]]]:
     """Yield (source_label, document) pairs from S3 objects."""
-    for object_key in json_files:
-        source = f"s3://{s3_bucket}/{object_key}"
+    for ref in json_files:
+        source = ref.uri
         try:
-            response = s3_client.get_object(Bucket=s3_bucket, Key=object_key)
-            scan_data_json = response["Body"].read().decode("utf-8")
-            document = json.loads(scan_data_json)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            document = read_json_document(reader, ref)
+        except ObjectStoreParseError as exc:
             logger.warning("Skipping unreadable AIBOM report %s: %s", source, exc)
             continue
 
@@ -165,9 +139,11 @@ def sync_aibom_from_s3(
 ) -> None:
     logger.info("Using AIBOM results from s3://%s/%s", aibom_s3_bucket, aibom_s3_prefix)
 
-    s3_client = boto3_session.client("s3")
-
-    json_files = _get_json_files_in_s3(aibom_s3_bucket, aibom_s3_prefix, s3_client)
+    reader = S3BucketReader(boto3_session)
+    json_files = filter_object_refs(
+        reader.list_objects(aibom_s3_bucket, aibom_s3_prefix),
+        suffix=".json",
+    )
     if not json_files:
         logger.warning(
             "AIBOM sync was configured, but no json files were found in bucket %s with prefix %s",
@@ -178,7 +154,7 @@ def sync_aibom_from_s3(
 
     _ingest_aibom_reports(
         neo4j_session,
-        _iter_documents_from_s3(json_files, aibom_s3_bucket, s3_client),
+        _iter_documents_from_s3(json_files, reader),
         update_tag,
         common_job_parameters,
     )

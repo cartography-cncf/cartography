@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cartography.intel.common.object_store import ObjectRef
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -42,7 +43,8 @@ def test_list_s3_scan_results_basic_match(mock_boto3_session):
     }
     assert result == expected_keys
 
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    assert mock_boto3_session.return_value.client.call_count == 1
+    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
     mock_boto3_session.return_value.client.return_value.get_paginator.assert_called_once_with(
         "list_objects_v2"
     )
@@ -79,7 +81,8 @@ def test_list_s3_scan_results_no_matches(mock_boto3_session):
     ]
     assert sorted(result) == sorted(expected_keys)
 
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    assert mock_boto3_session.return_value.client.call_count == 1
+    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
     mock_boto3_session.return_value.client.return_value.get_paginator.assert_called_once_with(
         "list_objects_v2"
     )
@@ -135,7 +138,8 @@ def test_list_s3_scan_results_with_url_encoding(mock_boto3_session):
     ]
     assert sorted(result) == sorted(expected_keys)
 
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    assert mock_boto3_session.return_value.client.call_count == 1
+    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
     mock_boto3_session.return_value.client.return_value.get_paginator.assert_called_once_with(
         "list_objects_v2"
     )
@@ -268,7 +272,8 @@ def test_sync_single_image_from_s3_success(
     )
 
     # Assert
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    assert mock_boto3_session.return_value.client.call_count == 1
+    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
         Bucket=s3_bucket, Key=s3_object_key
     )
@@ -313,7 +318,8 @@ def test_sync_single_image_from_s3_read_error(mock_boto3_session):
             mock_boto3_session.return_value,
         )
 
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    assert mock_boto3_session.return_value.client.call_count == 1
+    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
         Bucket=s3_bucket, Key=s3_object_key
     )
@@ -418,9 +424,9 @@ def test_sync_single_image_from_s3_load_error(
 
 
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.get_json_files_in_s3")
+@patch("cartography.intel.trivy.S3BucketReader.list_objects")
 def test_sync_trivy_from_s3_no_matches(
-    mock_get_json_files,
+    mock_list_objects,
     mock_get_targets_and_aliases,
 ):
     """Test that sync_trivy_from_s3 raises when no JSON files are present."""
@@ -428,7 +434,7 @@ def test_sync_trivy_from_s3_no_matches(
         {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"},
         {},
     )
-    mock_get_json_files.return_value = set()  # No scan results available
+    mock_list_objects.return_value = []  # No scan results available
 
     with pytest.raises(ValueError, match="No json scan results found in S3"):
         sync_trivy_from_s3(
@@ -444,11 +450,11 @@ def test_sync_trivy_from_s3_no_matches(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy.sync_single_image")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.get_json_files_in_s3")
+@patch("cartography.intel.trivy.S3BucketReader.list_objects")
 @patch("boto3.Session")
 def test_sync_trivy_from_s3_digest_files(
     mock_boto_session,
-    mock_get_json_files,
+    mock_list_objects,
     mock_get_targets_and_aliases,
     mock_sync_single_image,
     mock_cleanup,
@@ -463,7 +469,13 @@ def test_sync_trivy_from_s3_digest_files(
         {display_uri},
         {digest_uri: display_uri},
     )
-    mock_get_json_files.return_value = {"trivy-scans/app@sha256abcdef.json"}
+    mock_list_objects.return_value = [
+        ObjectRef(
+            provider="s3",
+            bucket="test-bucket",
+            key="trivy-scans/app@sha256abcdef.json",
+        ),
+    ]
 
     scan_payload = {
         "ArtifactName": digest_uri,

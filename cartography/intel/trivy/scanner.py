@@ -8,6 +8,10 @@ from neo4j import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.common.object_store import filter_object_refs
+from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import read_text_document
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
@@ -342,30 +346,14 @@ def get_json_files_in_s3(
     Returns:
         Set of S3 object keys for JSON files in the S3 prefix
     """
-    s3_client = boto3_session.client("s3")
-
     try:
-        # List objects in the S3 prefix
-        paginator = s3_client.get_paginator("list_objects_v2")
-        page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-        results = set()
-
-        for page in page_iterator:
-            if "Contents" not in page:
-                continue
-
-            for obj in page["Contents"]:
-                object_key = obj["Key"]
-
-                # Skip non-JSON files
-                if not object_key.endswith(".json"):
-                    continue
-
-                # Skip files that don't start with our prefix
-                if not object_key.startswith(s3_prefix):
-                    continue
-
-                results.add(object_key)
+        results = {
+            ref.key
+            for ref in filter_object_refs(
+                S3BucketReader(boto3_session).list_objects(s3_bucket, s3_prefix),
+                suffix=".json",
+            )
+        }
 
     except Exception as e:
         logger.error(
@@ -511,11 +499,12 @@ def sync_single_image_from_s3(
         s3_object_key: S3 object key for this image's scan results
         boto3_session: boto3 session for S3 operations
     """
-    s3_client = boto3_session.client("s3")
-
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
-    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
-    scan_data_json = response["Body"].read().decode("utf-8")
+    reader = S3BucketReader(boto3_session)
+    scan_data_json = read_text_document(
+        reader,
+        ObjectRef(provider="s3", bucket=s3_bucket, key=s3_object_key),
+    )
 
     trivy_data = json.loads(scan_data_json)
     sync_single_image(neo4j_session, trivy_data, image_uri, update_tag)

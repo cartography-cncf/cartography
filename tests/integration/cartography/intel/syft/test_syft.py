@@ -6,11 +6,14 @@ with DEPENDS_ON relationships between them.
 """
 
 import json
+from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+from cartography.intel.common.object_store import ObjectRef
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
+from cartography.intel.syft import sync_syft_from_s3
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
@@ -123,3 +126,36 @@ def test_sync_syft_from_dir(
     ).single()
 
     assert result["count"] == 3
+
+
+@patch(
+    "cartography.intel.syft.S3BucketReader.list_objects",
+    return_value=[ObjectRef("s3", "example-bucket", "reports/syft.json")],
+)
+def test_sync_syft_from_s3(
+    mock_list_objects,
+    neo4j_session,
+):
+    """
+    Test sync_syft_from_s3 reads bucket objects and creates SyftPackage nodes.
+    """
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+
+    boto3_session = MagicMock()
+    boto3_session.client.return_value.get_object.return_value = {
+        "Body": MagicMock(
+            read=MagicMock(return_value=json.dumps(SYFT_SAMPLE).encode("utf-8"))
+        ),
+    }
+
+    sync_syft_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        boto3_session,
+    )
+
+    actual_nodes = check_nodes(neo4j_session, "SyftPackage", ["id"])
+    assert len(actual_nodes) == 5
