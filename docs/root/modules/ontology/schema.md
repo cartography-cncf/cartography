@@ -288,7 +288,7 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Container Instances, and GCP Cloud Run Revisions / Jobs.
 
 | Field | Description |
 |-------|-------------|
