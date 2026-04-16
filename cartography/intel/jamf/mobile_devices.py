@@ -57,7 +57,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         result.append(
             {
-                "id": device.get("mobileDeviceId"),
+                "id": device["mobileDeviceId"],
                 "display_name": general.get("displayName"),
                 "managed": general.get("managed"),
                 "supervised": general.get("supervised"),
