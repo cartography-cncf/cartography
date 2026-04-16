@@ -37,6 +37,18 @@ def get_http_status_code(err: requests.HTTPError) -> int | None:
     return err.response.status_code
 
 
+def normalize_group_id(value: Any) -> int | str | None:
+    # Jamf's modern APIs return numeric group IDs as strings, while the Classic API
+    # fallback returns ints. Normalize both to ints for stable node matching.
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return value
+
+
 @timeit
 def create_jamf_api_session(
     jamf_base_uri: str,

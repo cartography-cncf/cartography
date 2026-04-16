@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.jamf.tenant import load_tenant
 from cartography.intel.jamf.util import get_http_status_code
 from cartography.intel.jamf.util import get_paginated_jamf_results
+from cartography.intel.jamf.util import normalize_group_id
 from cartography.models.jamf.computer import JamfComputerSchema
 from cartography.util import timeit
 
@@ -34,16 +35,6 @@ def _get_nested(data: dict[str, Any], *keys: str) -> Any:
             return None
         current = current.get(key)
     return current
-
-
-def _normalize_group_id(value: Any) -> int | str | None:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    return value
 
 
 @timeit
@@ -121,7 +112,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "group_ids": [
                     group_id
                     for group_id in (
-                        _normalize_group_id(group.get("groupId"))
+                        normalize_group_id(group.get("groupId"))
                         for group in (device.get("groupMemberships") or [])
                     )
                     if group_id is not None

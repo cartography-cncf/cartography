@@ -5,26 +5,18 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.jamf.tenant import load_tenant
 from cartography.intel.jamf.util import call_jamf_api
 from cartography.intel.jamf.util import get_http_status_code
 from cartography.intel.jamf.util import get_paginated_jamf_results
+from cartography.intel.jamf.util import normalize_group_id
 from cartography.models.jamf.computergroup import JamfComputerGroupSchema
 from cartography.models.jamf.mobiledevicegroup import JamfMobileDeviceGroupSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_group_id(value: Any) -> int | str | None:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    return value
 
 
 @timeit
@@ -43,13 +35,26 @@ def get(
             raise
 
         logger.info(
-            "Jamf: /api/v1/groups unavailable; falling back to legacy Classic API computer groups.",
+            "Jamf: /api/v1/groups unavailable; falling back to legacy Classic API group endpoints.",
         )
         classic_groups = call_jamf_api(
             "/computergroups",
             jamf_base_uri,
             api_session,
         ).get("computer_groups", [])
+        try:
+            classic_mobile_groups = call_jamf_api(
+                "/mobiledevicegroups",
+                jamf_base_uri,
+                api_session,
+            ).get("mobile_device_groups", [])
+        except requests.HTTPError as mobile_err:
+            if get_http_status_code(mobile_err) not in {404, 405}:
+                raise
+            logger.info(
+                "Jamf: Classic mobile device groups endpoint unavailable; skipping mobile groups in legacy fallback.",
+            )
+            classic_mobile_groups = []
         return [
             {
                 "groupDescription": None,
@@ -60,6 +65,16 @@ def get(
                 "smart": group.get("is_smart"),
             }
             for group in classic_groups
+        ] + [
+            {
+                "groupDescription": None,
+                "groupJamfProId": group.get("id"),
+                "groupName": group.get("name"),
+                "groupType": "MOBILE",
+                "membershipCount": None,
+                "smart": group.get("is_smart"),
+            }
+            for group in classic_mobile_groups
         ]
 
 
@@ -70,7 +85,7 @@ def transform(
     mobile_device_groups: list[dict[str, Any]] = []
     for group in api_result:
         transformed_group = {
-            "id": _normalize_group_id(group.get("groupJamfProId")),
+            "id": normalize_group_id(group.get("groupJamfProId")),
             "name": group.get("groupName"),
             "description": group.get("groupDescription"),
             "membership_count": group.get("membershipCount"),
@@ -122,7 +137,8 @@ def cleanup(
     ).run(neo4j_session)
 
     # DEPRECATED: remove orphaned pre-migration computer groups without RESOURCE rel.
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         """
         MATCH (n:JamfComputerGroup)
         WHERE n.lastupdated <> $UPDATE_TAG
