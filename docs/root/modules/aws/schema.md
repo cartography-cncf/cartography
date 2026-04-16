@@ -5103,9 +5103,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 ### EfsFileSystem
