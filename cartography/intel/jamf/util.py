@@ -42,6 +42,7 @@ def create_jamf_api_session(
         )
     except requests.exceptions.Timeout:
         logger.warning("Jamf: requests.post('%s') timed out.", token_uri)
+        session.close()
         raise
 
     if response.ok:
@@ -59,8 +60,13 @@ def create_jamf_api_session(
         )
         return session
 
-    response.raise_for_status()
-    return session
+    try:
+        response.raise_for_status()
+    except requests.HTTPError:
+        session.close()
+        raise
+
+    raise AssertionError("unreachable")
 
 
 @timeit
