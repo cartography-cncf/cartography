@@ -1,10 +1,10 @@
+import json
 import typing
 from base64 import b64encode
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as tz
-import json
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -75,6 +75,34 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         {"UPDATE_TAG": 123},
     )
     assert mock_supply_chain_sync.call_count == 0
+
+
+@patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
+@patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch("cartography.intel.github.users.cleanup")
+@patch("cartography.intel.github.make_credential")
+def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
+    mock_make_credential: Mock,
+    mock_users_cleanup: Mock,
+    mock_cleanup_global_resources: Mock,
+    mock_cleanup_orphaned_branches: Mock,
+) -> None:
+    github_config = {"organization": []}
+    config = Mock(
+        github_config=b64encode(json.dumps(github_config).encode()).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+
+    from cartography.intel.github import start_github_ingestion
+
+    neo4j_session = Mock()
+    start_github_ingestion(neo4j_session, config)
+
+    mock_make_credential.assert_not_called()
+    mock_users_cleanup.assert_not_called()
+    mock_cleanup_global_resources.assert_not_called()
+    mock_cleanup_orphaned_branches.assert_not_called()
 
 
 @patch("cartography.intel.github.util.time.sleep")
