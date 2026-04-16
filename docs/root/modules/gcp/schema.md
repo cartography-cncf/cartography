@@ -1862,6 +1862,10 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
+  - GCPCloudRunRevisions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunRevision)-[:RESOLVED_IMAGE]->(Image)
+    ```
 
 ### GCPCloudRunJob
 
@@ -1905,6 +1909,10 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    ```
+  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunExecution
