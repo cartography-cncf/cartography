@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -86,6 +87,7 @@ class VercelAccessGroupToProjectRel(CartographyRelSchema):
 class VercelAccessGroupSchema(CartographyNodeSchema):
     label: str = "VercelAccessGroup"
     properties: VercelAccessGroupNodeProperties = VercelAccessGroupNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Group"])
     sub_resource_relationship: VercelAccessGroupToTeamRel = VercelAccessGroupToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelAccessGroupToUserRel(), VercelAccessGroupToProjectRel()],

@@ -15,7 +15,7 @@ T -- RESOURCE --> AL(Alias)
 T -- RESOURCE --> EC(EdgeConfig)
 P -- RESOURCE --> DP(Deployment)
 P -- RESOURCE --> EV(EnvironmentVariable)
-P -- RESOURCE --> PD(ProjectDomain)
+P -- HAS_DOMAIN --> D
 P -- RESOURCE --> FC(FirewallConfig)
 P -- RESOURCE --> FBR(FirewallBypassRule)
 D -- RESOURCE --> DR(DNSRecord)
@@ -24,7 +24,6 @@ U(User) -- MEMBER_OF --> T
 DP -- CREATED_BY --> U
 FBR -- CREATED_BY --> U
 EV -- REFERENCES --> EC
-PD -- USES_DOMAIN --> D
 I -- CONFIGURED_FOR --> P
 AG -- HAS_MEMBER --> U
 AG -- HAS_ACCESS_TO --> P
@@ -118,7 +117,7 @@ Represents a Vercel project.
     ```
 - Projects own deployments, env vars, project domains, firewall config, and firewall bypass rules.
     ```
-    (:VercelProject)-[:RESOURCE]->(:VercelDeployment | :VercelEnvironmentVariable | :VercelProjectDomain | :VercelFirewallConfig | :VercelFirewallBypassRule)
+    (:VercelProject)-[:RESOURCE]->(:VercelDeployment | :VercelEnvironmentVariable | :VercelFirewallConfig | :VercelFirewallBypassRule)
     ```
 
 ### VercelDeployment
@@ -175,6 +174,10 @@ Represents a domain owned by the team.
     ```
     (:VercelTeam)-[:RESOURCE]->(:VercelDomain)-[:RESOURCE]->(:VercelDNSRecord)
     ```
+- Projects attach to domains via `HAS_DOMAIN`, which carries per-project configuration (`redirect`, `redirect_status_code`, `git_branch`, `verified`, `created_at`, `updated_at`, `project_domain_id`). Auto-generated `*.vercel.app` and external CNAMEd domains are also upserted as `VercelDomain` nodes via this relationship, without clobbering team-level domain fields.
+    ```
+    (:VercelProject)-[:HAS_DOMAIN]->(:VercelDomain)
+    ```
 
 ### VercelDNSRecord
 
@@ -198,33 +201,6 @@ Represents a DNS record on a Vercel-managed domain.
 - A DNS record belongs to a domain.
     ```
     (:VercelDomain)-[:RESOURCE]->(:VercelDNSRecord)
-    ```
-
-### VercelProjectDomain
-
-Represents a domain configuration attached to a specific project.
-
-| Field | Description |
-|-------|-------------|
-| id | Project-domain ID. |
-| firstseen | Timestamp of when a sync job first created this node. |
-| lastupdated | Timestamp of the last time the node was updated. |
-| name | Domain name attached to the project. |
-| redirect | Redirect target, if any. |
-| redirect_status_code | HTTP status code for the redirect. |
-| git_branch | Git branch this domain is bound to. |
-| verified | Whether the domain is verified for the project. |
-| created_at | Creation timestamp (ms). |
-| updated_at | Last update timestamp (ms). |
-
-#### Relationships
-- Attached to a project.
-    ```
-    (:VercelProject)-[:RESOURCE]->(:VercelProjectDomain)
-    ```
-- References the underlying team-level domain.
-    ```
-    (:VercelProjectDomain)-[:USES_DOMAIN]->(:VercelDomain)
     ```
 
 ### VercelEnvironmentVariable
@@ -343,6 +319,8 @@ Represents a third-party integration installed on the team.
 ### VercelAccessGroup
 
 Represents a team access group used for RBAC.
+
+> **Ontology Mapping**: This node has the extra label `Group` to enable cross-platform queries for user groups across different systems (e.g., OktaGroup, GoogleWorkspaceGroup, AWSGroup).
 
 | Field | Description |
 |-------|-------------|

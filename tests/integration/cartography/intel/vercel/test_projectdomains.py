@@ -22,15 +22,6 @@ TEST_BASE_URL = "https://api.fake-vercel.com"
 TEST_PROJECT_ID = "prj_abc"
 
 
-def _ensure_local_neo4j_has_test_project_domains(neo4j_session):
-    cartography.intel.vercel.projectdomains.load_project_domains(
-        neo4j_session,
-        tests.data.vercel.projectdomains.VERCEL_PROJECT_DOMAINS,
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-
 @patch.object(
     cartography.intel.vercel.projectdomains,
     "get",
@@ -38,8 +29,8 @@ def _ensure_local_neo4j_has_test_project_domains(neo4j_session):
 )
 def test_load_vercel_project_domains(mock_api, neo4j_session):
     """
-    Ensure that project domains actually get loaded and linked to their
-    project and backing Vercel domain
+    Ensure that per-project domains upsert VercelDomain nodes and create
+    HAS_DOMAIN relationships from VercelProject with per-project properties.
     """
 
     # Arrange
@@ -52,6 +43,8 @@ def test_load_vercel_project_domains(mock_api, neo4j_session):
     }
     _ensure_local_neo4j_has_test_teams(neo4j_session)
     _ensure_local_neo4j_has_test_projects(neo4j_session)
+    # Pre-seed one of the team-level domains so we can assert the node is
+    # not clobbered by the project-domain upsert.
     _ensure_local_neo4j_has_test_domains(neo4j_session)
 
     # Act
@@ -62,47 +55,46 @@ def test_load_vercel_project_domains(mock_api, neo4j_session):
         project_id=TEST_PROJECT_ID,
     )
 
-    # Assert Project Domains exist
-    expected_nodes = {
-        ("pdom_123",),
-        ("pdom_456",),
-    }
-    assert check_nodes(neo4j_session, "VercelProjectDomain", ["id"]) == expected_nodes
+    # Assert: both project-attached domains exist as VercelDomain nodes.
+    # "example.com" was already pre-seeded by the team-level domains sync;
+    # "www.example.com" is only referenced by the project, so it should be
+    # upserted here with minimal fields.
+    domain_ids = check_nodes(neo4j_session, "VercelDomain", ["id"])
+    assert ("example.com",) in domain_ids
+    assert ("www.example.com",) in domain_ids
 
-    # Assert Project Domains are connected to Project via RESOURCE
-    # (Project -RESOURCE-> ProjectDomain)
-    expected_project_rels = {
-        ("pdom_123", TEST_PROJECT_ID),
-        ("pdom_456", TEST_PROJECT_ID),
+    # Assert team-level fields survive the project-domain upsert
+    team_domain = neo4j_session.run(
+        "MATCH (d:VercelDomain {id: 'example.com'}) "
+        "RETURN d.service_type AS service_type, d.verified AS verified",
+    ).single()
+    assert team_domain["service_type"] == "zeit.world"
+
+    # Assert HAS_DOMAIN relationships from project to domains
+    expected_rels = {
+        (TEST_PROJECT_ID, "example.com"),
+        (TEST_PROJECT_ID, "www.example.com"),
     }
     assert (
         check_rels(
             neo4j_session,
-            "VercelProjectDomain",
-            "id",
             "VercelProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == expected_project_rels
-    )
-
-    # Assert Project Domains are connected to Domain via USES_DOMAIN
-    # (ProjectDomain -USES_DOMAIN-> Domain)
-    expected_domain_rels = {
-        ("pdom_123", "example.com"),
-        ("pdom_456", "example.org"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "VercelProjectDomain",
             "id",
             "VercelDomain",
             "id",
-            "USES_DOMAIN",
+            "HAS_DOMAIN",
             rel_direction_right=True,
         )
-        == expected_domain_rels
+        == expected_rels
     )
+
+    # Assert per-project properties are set on the relationship
+    rel_props = neo4j_session.run(
+        """
+        MATCH (p:VercelProject {id: $pid})-[r:HAS_DOMAIN]->(d:VercelDomain {id: 'www.example.com'})
+        RETURN r.redirect AS redirect, r.redirect_status_code AS status_code
+        """,
+        pid=TEST_PROJECT_ID,
+    ).single()
+    assert rel_props["redirect"] == "example.com"
+    assert rel_props["status_code"] == 308
