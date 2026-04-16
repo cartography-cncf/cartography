@@ -22,7 +22,7 @@ Representation of a Jamf tenant, identified by the configured Jamf base URI.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Jamf tenant ID (the base URI) |
+| **id** | Jamf tenant ID (the base URI) |
 
 #### Relationships
 
@@ -52,7 +52,7 @@ Representation of a Jamf computer group.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | The group id |
+| **id** | The group id |
 | name | Friendly name of the group |
 | description | Group description |
 | membership_count | Number of members reported by Jamf |
@@ -78,7 +78,7 @@ Representation of a Jamf mobile device group.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | The group id |
+| **id** | The group id |
 | name | Friendly name of the group |
 | description | Group description |
 | membership_count | Number of members reported by Jamf |
@@ -106,10 +106,10 @@ Representation of a Jamf-managed macOS computer inventory record.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Jamf computer inventory id |
+| **id** | Jamf computer inventory id |
 | udid | Device UDID |
-| name | Device hostname |
-| serial_number | Device serial number |
+| **name** | Device hostname |
+| **serial_number** | Device serial number |
 | model | Device model |
 | model_identifier | Model identifier |
 | platform | Platform reported by Jamf |
@@ -162,8 +162,8 @@ Representation of a Jamf-managed iPhone or iPad inventory record.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Jamf mobile device inventory id |
-| display_name | Device display name |
+| **id** | Jamf mobile device inventory id |
+| **display_name** | Device display name |
 | managed | Whether the device is managed |
 | supervised | Whether the device is supervised |
 | last_inventory_update_date | Last inventory update timestamp |
@@ -171,7 +171,7 @@ Representation of a Jamf-managed iPhone or iPad inventory record.
 | platform | Jamf device type |
 | os_version | OS version |
 | os_build | OS build |
-| serial_number | Device serial number |
+| **serial_number** | Device serial number |
 | model | Device model |
 | model_identifier | Model identifier |
 | activation_lock_enabled | Whether Activation Lock is enabled |
