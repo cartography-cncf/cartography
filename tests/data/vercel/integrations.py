@@ -1,0 +1,26 @@
+VERCEL_INTEGRATIONS = [
+    {
+        "id": "icfg_123",
+        "slug": "github",
+        "integrationId": "oac_github",
+        "status": "installed",
+        "scopes": ["read:repo", "write:deployment"],
+        "projectSelection": "selected",
+        "projects": ["prj_abc", "prj_def"],
+        "source": "marketplace",
+        "createdAt": 1640995200000,
+        "updatedAt": 1641081600000,
+    },
+    {
+        "id": "icfg_456",
+        "slug": "datadog",
+        "integrationId": "oac_datadog",
+        "status": "installed",
+        "scopes": ["read:metrics"],
+        "projectSelection": "all",
+        "projects": ["prj_abc", "prj_def"],
+        "source": "marketplace",
+        "createdAt": 1641000000000,
+        "updatedAt": 1641100000000,
+    },
+]
