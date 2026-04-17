@@ -256,7 +256,7 @@ jamf_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="os",
-                    node_field="platform",
+                    node_field="os",
                 ),
                 OntologyFieldMapping(
                     ontology_field="os_version",
