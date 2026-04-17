@@ -205,13 +205,30 @@ def test_sync_mobile_devices(mock_get, mock_groups_get, neo4j_session):
             "id",
             "display_name",
             "serial_number",
+            "os",
             "platform",
             "passcode_compliant",
             "username",
         ],
     ) == {
-        (9001, "Bart-iPhone-01", "IPHONESPRING001", "iPhone", True, "b.simpson"),
-        (9002, "Lisa-iPad-01", "IPADSPRING001", "iPad", False, "l.simpson"),
+        (
+            9001,
+            "Bart-iPhone-01",
+            "IPHONESPRING001",
+            "iOS",
+            "iPhone",
+            True,
+            "b.simpson",
+        ),
+        (
+            9002,
+            "Lisa-iPad-01",
+            "IPADSPRING001",
+            "iPadOS",
+            "iPad",
+            False,
+            "l.simpson",
+        ),
     }
 
     assert check_rels(

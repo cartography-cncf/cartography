@@ -628,6 +628,7 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
         CREATE (:JamfMobileDevice {
             id: 'jamf-mobile-1',
             display_name: 'Bart-iPhone-01',
+            os: 'iOS',
             platform: 'iPhone',
             os_version: '17.4.1',
             model: 'iPhone 15',
@@ -637,6 +638,7 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
         CREATE (:JamfMobileDevice {
             id: 'jamf-mobile-2',
             display_name: 'Lisa-iPad-01',
+            os: 'iPadOS',
             platform: 'iPad',
             os_version: '17.3',
             model: 'iPad Pro',
@@ -661,7 +663,7 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
     ) == {
         (
             "Bart-iPhone-01",
-            "iPhone",
+            "iOS",
             "17.4.1",
             "iPhone 15",
             "iPhone",
@@ -669,7 +671,7 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
         ),
         (
             "Lisa-iPad-01",
-            "iPad",
+            "iPadOS",
             "17.3",
             "iPad Pro",
             "iPad",
