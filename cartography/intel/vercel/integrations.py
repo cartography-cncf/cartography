@@ -39,11 +39,13 @@ def get(
     base_url: str,
     team_id: str,
 ) -> list[dict[str, Any]]:
+    # Vercel requires `view=account` on this endpoint, otherwise it returns 400.
     return paginated_get(
         api_session,
         f"{base_url}/v1/integrations/configurations",
         "configurations",
         team_id,
+        params={"view": "account"},
     )
 
 

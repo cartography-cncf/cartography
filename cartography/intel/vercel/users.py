@@ -24,6 +24,7 @@ def sync(
         common_job_parameters["BASE_URL"],
         common_job_parameters["TEAM_ID"],
     )
+    users = transform_users(users)
     load_users(
         neo4j_session,
         users,
@@ -31,6 +32,16 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
+    return users
+
+
+def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Vercel returns `joinedFrom` as a map (e.g. {"origin": "mail", ...});
+    # flatten to the origin string so Neo4j can store it as a scalar.
+    for user in users:
+        joined_from = user.get("joinedFrom")
+        if isinstance(joined_from, dict):
+            user["joinedFrom"] = joined_from.get("origin")
     return users
 
 

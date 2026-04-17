@@ -39,9 +39,10 @@ def get(
     base_url: str,
     team_id: str,
 ) -> list[dict[str, Any]]:
+    # Vercel's documented log-drains endpoint; returns a bare array.
     return paginated_get(
         api_session,
-        f"{base_url}/v1/drains",
+        f"{base_url}/v1/integrations/log-drains",
         "",
         team_id,
     )

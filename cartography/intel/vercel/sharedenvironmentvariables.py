@@ -44,7 +44,7 @@ def get(
     return paginated_get(
         api_session,
         f"{base_url}/v1/env",
-        "envs",
+        "data",
         team_id,
     )
 

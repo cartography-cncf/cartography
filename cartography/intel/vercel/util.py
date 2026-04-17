@@ -38,6 +38,14 @@ def paginated_get(
 
     while True:
         resp = api_session.get(url, params=request_params, timeout=_TIMEOUT)
+        # Some endpoints are plan-gated (e.g. access-groups is Enterprise-only);
+        # treat 403 as "feature unavailable" and return what we have so far.
+        if resp.status_code == 403:
+            logger.warning(
+                "Vercel returned 403 Forbidden for %s — skipping (likely plan-gated).",
+                url,
+            )
+            return all_results
         resp.raise_for_status()
         data = resp.json()
 
