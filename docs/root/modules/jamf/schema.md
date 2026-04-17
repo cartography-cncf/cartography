@@ -110,6 +110,7 @@ Representation of a Jamf-managed macOS computer inventory record.
 | udid | Device UDID |
 | **name** | Device hostname |
 | **serial_number** | Device serial number |
+| manufacturer | Device manufacturer |
 | model | Device model |
 | model_identifier | Model identifier |
 | platform | Platform reported by Jamf |
@@ -164,10 +165,13 @@ Representation of a Jamf-managed iPhone or iPad inventory record.
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Jamf mobile device inventory id |
 | **display_name** | Device display name |
+| hostname | Canonical hostname alias derived from `display_name` for ontology matching |
 | managed | Whether the device is managed |
 | supervised | Whether the device is supervised |
 | last_inventory_update_date | Last inventory update timestamp |
 | last_enrolled_date | Enrollment timestamp |
+| manufacturer | Device manufacturer |
+| os | Canonical OS family |
 | platform | Jamf device type |
 | os_version | OS version |
 | os_build | OS build |

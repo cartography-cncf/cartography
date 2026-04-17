@@ -18,6 +18,7 @@ class JamfComputerNodeProperties(CartographyNodeProperties):
     udid: PropertyRef = PropertyRef("udid")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
+    manufacturer: PropertyRef = PropertyRef("manufacturer")
     model: PropertyRef = PropertyRef("model")
     model_identifier: PropertyRef = PropertyRef("model_identifier")
     platform: PropertyRef = PropertyRef("platform")
