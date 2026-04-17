@@ -44,7 +44,7 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
         all_repos.extend(results)
 
         next_page = data.get("nextPage")
-        if not next_page:
+        if not next_page or not results:
             break
         page = next_page
 

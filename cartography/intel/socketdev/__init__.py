@@ -20,6 +20,7 @@ def start_socketdev_ingestion(
     """
     Main entry point for Socket.dev ingestion.
     Syncs organizations, repositories, dependencies, and security alerts.
+    Iterates over all organizations found in the account.
     """
     if not config.socketdev_token:
         logger.info(
@@ -28,46 +29,50 @@ def start_socketdev_ingestion(
         )
         return
 
-    common_job_parameters: dict = {
-        "UPDATE_TAG": config.update_tag,
-    }
-
-    # sync_organizations must be called first since it populates common_job_parameters
-    # with the org ID and slug, which are required by the other sync functions
-    sync_organizations(
+    organizations = sync_organizations(
         neo4j_session,
         config.socketdev_token,
         config.update_tag,
-        common_job_parameters,
     )
 
-    org_slug = common_job_parameters.get("ORG_SLUG")
-    if not org_slug:
+    if not organizations:
         logger.warning(
-            "No Socket.dev organization found. Skipping remaining sync jobs.",
+            "No Socket.dev organizations found. Skipping remaining sync jobs.",
         )
         return
 
-    sync_repositories(
-        neo4j_session,
-        config.socketdev_token,
-        org_slug,
-        config.update_tag,
-        common_job_parameters,
-    )
+    for org in organizations:
+        org_id = org["id"]
+        org_slug = org["slug"]
 
-    sync_dependencies(
-        neo4j_session,
-        config.socketdev_token,
-        org_slug,
-        config.update_tag,
-        common_job_parameters,
-    )
+        common_job_parameters: dict = {
+            "UPDATE_TAG": config.update_tag,
+            "ORG_ID": org_id,
+            "ORG_SLUG": org_slug,
+        }
 
-    sync_alerts(
-        neo4j_session,
-        config.socketdev_token,
-        org_slug,
-        config.update_tag,
-        common_job_parameters,
-    )
+        logger.info("Syncing Socket.dev data for org '%s'", org_slug)
+
+        sync_repositories(
+            neo4j_session,
+            config.socketdev_token,
+            org_slug,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        sync_dependencies(
+            neo4j_session,
+            config.socketdev_token,
+            org_slug,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        sync_alerts(
+            neo4j_session,
+            config.socketdev_token,
+            org_slug,
+            config.update_tag,
+            common_job_parameters,
+        )

@@ -70,11 +70,10 @@ def sync_organizations(
     neo4j_session: neo4j.Session,
     api_token: str,
     update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
-    Sync Socket.dev organizations. Populates common_job_parameters with
-    ORG_ID and ORG_SLUG from the first organization found.
+    Sync Socket.dev organizations.
+    Returns the list of transformed organizations for the caller to iterate over.
     """
     logger.info("Starting Socket.dev organizations sync")
     raw_response = get(api_token)
@@ -82,15 +81,11 @@ def sync_organizations(
 
     if not organizations:
         logger.warning("No Socket.dev organizations found.")
-        return
+        return []
 
     load_organizations(neo4j_session, organizations, update_tag)
-
-    # Use the first organization for subsequent syncs
-    org = organizations[0]
-    common_job_parameters["ORG_ID"] = org["id"]
-    common_job_parameters["ORG_SLUG"] = org["slug"]
     logger.info(
-        "Completed Socket.dev organizations sync, using org '%s'",
-        org["slug"],
+        "Completed Socket.dev organizations sync (%d orgs)",
+        len(organizations),
     )
+    return organizations

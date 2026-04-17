@@ -44,7 +44,7 @@ def get(api_token: str) -> list[dict[str, Any]]:
         rows = data.get("rows", [])
         all_deps.extend(rows)
 
-        if data.get("end", True):
+        if data.get("end", True) or not rows:
             break
         offset += len(rows)
 
@@ -59,9 +59,9 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     deps = []
     for dep in raw_deps:
-        name = dep.get("name", "")
-        version = dep.get("version", "")
-        repository = dep.get("repository", "")
+        name = dep["name"]
+        version = dep["version"]
+        repository = dep["repository"]
         dep_id = dep.get("id") or f"{name}|{version}|{repository}"
 
         deps.append(
