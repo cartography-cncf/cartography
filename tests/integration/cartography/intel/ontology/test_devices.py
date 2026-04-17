@@ -621,7 +621,7 @@ def test_load_ontology_devices_from_entra_intune_with_hostname_fallback(
 
 
 def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
-    """Jamf mobile devices should populate the fields explicitly provided by the mapping."""
+    """Jamf mobile devices should carry display-facing fields into the canonical Device."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
@@ -657,10 +657,24 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "Device",
-        ["os_version", "model", "platform", "serial_number"],
+        ["hostname", "os", "os_version", "model", "platform", "serial_number"],
     ) == {
-        ("17.4.1", "iPhone 15", "iPhone", "IPHONESPRING001"),
-        ("17.3", "iPad Pro", "iPad", "IPADSPRING001"),
+        (
+            "Bart-iPhone-01",
+            "iPhone",
+            "17.4.1",
+            "iPhone 15",
+            "iPhone",
+            "IPHONESPRING001",
+        ),
+        (
+            "Lisa-iPad-01",
+            "iPad",
+            "17.3",
+            "iPad Pro",
+            "iPad",
+            "IPADSPRING001",
+        ),
     }
 
     assert check_rels(

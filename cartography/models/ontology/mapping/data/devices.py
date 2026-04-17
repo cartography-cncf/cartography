@@ -251,6 +251,14 @@ jamf_mapping = OntologyMapping(
             node_label="JamfMobileDevice",
             fields=[
                 OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="display_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="platform",
+                ),
+                OntologyFieldMapping(
                     ontology_field="os_version",
                     node_field="os_version",
                 ),
