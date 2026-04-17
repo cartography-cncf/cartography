@@ -430,8 +430,8 @@ async def _get_application_assigned_groups(
     """
     output_application_groups = []
     query_parameters = {"limit": 200}
-    application_groups, resp = (
-        await okta_client.list_application_group_assignments(app_id, **query_parameters)
+    application_groups, resp = await okta_client.list_application_group_assignments(
+        app_id, **query_parameters
     )
     output_application_groups += application_groups
     while resp.has_next():

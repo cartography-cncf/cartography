@@ -66,10 +66,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    okta_client = OktaClient({
-        "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
-        "token": config.okta_api_key,
-    })
+    okta_client = OktaClient(
+        {
+            "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
+            "token": config.okta_api_key,
+        }
+    )
 
     organization.sync_okta_organization(neo4j_session, common_job_parameters)
     user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)

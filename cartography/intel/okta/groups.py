@@ -449,9 +449,7 @@ async def _get_okta_group_members(
     """
     member_list: list[OktaUser] = []
     query_parameters = {"limit": 1000}
-    group_users, resp = await okta_client.list_group_users(
-        group_id, **query_parameters
-    )
+    group_users, resp = await okta_client.list_group_users(group_id, **query_parameters)
     member_list += group_users
     while resp.has_next():
         group_users = await resp.next()

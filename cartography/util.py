@@ -1079,7 +1079,14 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
         awaitables complete. For web applications or other async contexts,
         prefer using await directly with asyncio.gather().
     """
-    return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("event loop is closed")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(asyncio.gather(*awaitables))
 
 
 def to_datetime(value: Any) -> Union[datetime, None]:
