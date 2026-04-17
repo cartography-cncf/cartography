@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ec2.snapshots import EBSSnapshotSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -28,8 +29,8 @@ def get_snapshots_in_use(
     WHERE v.region = $Region
     RETURN v.snapshotid as snapshot
     """
-    results = read_list_of_values_tx(
-        neo4j_session,
+    results = neo4j_session.execute_read(
+        read_list_of_values_tx,
         query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,
@@ -44,7 +45,7 @@ def get_snapshots(
     region: str,
     in_use_snapshot_ids: List[str],
 ) -> List[Dict]:
-    client = boto3_session.client("ec2", region_name=region)
+    client = create_boto3_client(boto3_session, "ec2", region_name=region)
     paginator = client.get_paginator("describe_snapshots")
     snapshots: List[Dict] = []
     for page in paginator.paginate(OwnerIds=["self"]):

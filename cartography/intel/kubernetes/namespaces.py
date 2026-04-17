@@ -43,7 +43,6 @@ def load_namespaces(
     cluster_name: str,
     cluster_id: str,
 ) -> None:
-    logger.info(f"Loading {len(namespaces)} kubernetes namespaces.")
     load(
         session,
         KubernetesNamespaceSchema(),

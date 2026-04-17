@@ -44,6 +44,7 @@ def test_load_tailscale_postureintegrations(mock_api, neo4j_session):
     # Assert PostureIntegrations exist
     expected_nodes = {
         ("pcBEPQVMpki7DEVEL", "falcon"),
+        ("pcBEPQVMpki7S1", "sentinelone"),
     }
     assert (
         check_nodes(neo4j_session, "TailscalePostureIntegration", ["id", "provider"])
@@ -53,6 +54,7 @@ def test_load_tailscale_postureintegrations(mock_api, neo4j_session):
     # Assert Devices are connected with Tailnet
     expected_rels = {
         ("pcBEPQVMpki7DEVEL", TEST_ORG),
+        ("pcBEPQVMpki7S1", TEST_ORG),
     }
     assert (
         check_rels(

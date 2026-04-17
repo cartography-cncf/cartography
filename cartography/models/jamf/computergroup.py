@@ -15,6 +15,8 @@ class JamfComputerGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
+    description: PropertyRef = PropertyRef("description")
+    membership_count: PropertyRef = PropertyRef("membership_count")
     is_smart: PropertyRef = PropertyRef("is_smart")
 
 

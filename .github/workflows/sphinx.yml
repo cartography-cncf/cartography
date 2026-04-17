@@ -24,6 +24,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+          persist-credentials: false
       # https://github.com/marketplace/actions/setup-python
       # ^-- This gives info on matrix testing.
       - name: Install Python
@@ -31,7 +32,7 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install uv
-        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -72,7 +73,7 @@ jobs:
           !contains(github.ref, env.DEFAULT_BRANCH)
         run: |
           set -x
-          brname="${{github.ref}}"
+          brname="$GITHUB_REF"
           brname="${brname##refs/heads/}"
           brdir=${brname//\//--}   # replace '/' with '--'
           rm -rf   _gh-pages/branch/${brdir}

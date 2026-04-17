@@ -62,6 +62,10 @@ def test_transform_secrets_happy_path():
     assert secret_with_rotation["Name"] == "test-secret-with-rotation"
     assert secret_with_rotation["RotationEnabled"] is True
     assert secret_with_rotation["Description"] == "A test secret with rotation enabled"
+    assert (
+        secret_with_rotation["KmsKeyId"]
+        == "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+    )
 
     # Test secret without rotation rules - should not have flattened property
     secret_no_rotation = transformed[1]

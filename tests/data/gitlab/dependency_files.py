@@ -23,6 +23,8 @@ GET_GITLAB_DEPENDENCY_FILES_RESPONSE = [
 ]
 
 TEST_PROJECT_URL = "https://gitlab.example.com/myorg/awesome-project"
+TEST_PROJECT_ID = 123
+TEST_GITLAB_URL = "https://gitlab.example.com"
 
 # Expected transformed dependency files output
 TRANSFORMED_DEPENDENCY_FILES = [
@@ -30,18 +32,21 @@ TRANSFORMED_DEPENDENCY_FILES = [
         "id": "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
         "path": "package.json",
         "filename": "package.json",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
         "id": "https://gitlab.example.com/myorg/awesome-project/blob/backend/requirements.txt",
         "path": "backend/requirements.txt",
         "filename": "requirements.txt",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
         "id": "https://gitlab.example.com/myorg/awesome-project/blob/services/api/go.mod",
         "path": "services/api/go.mod",
         "filename": "go.mod",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     },
 ]

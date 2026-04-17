@@ -5,6 +5,7 @@ import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.dependencies
 import tests.data.semgrep.deployment
+import tests.data.semgrep.sast
 import tests.data.semgrep.sca
 from demo.seeds.base import Seed
 
@@ -67,6 +68,11 @@ class SemgrepSeed(Seed):
         cartography.intel.semgrep.dependencies,
         "get_dependencies",
         side_effect=_mock_get_dependencies,
+    )
+    @patch.object(
+        cartography.intel.semgrep.findings,
+        "get_sast_findings",
+        return_value=tests.data.semgrep.sast.RAW_FINDINGS,
     )
     @patch.object(
         cartography.intel.semgrep.findings,

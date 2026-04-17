@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -15,7 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPArtifactRegistryContainerImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
-    uri: PropertyRef = PropertyRef("uri")
+    uri: PropertyRef = PropertyRef("uri", extra_index=True)
     digest: PropertyRef = PropertyRef("digest")
     tags: PropertyRef = PropertyRef("tags")
     image_size_bytes: PropertyRef = PropertyRef("image_size_bytes")
@@ -81,4 +83,32 @@ class GCPArtifactRegistryContainerImageSchema(CartographyNodeSchema):
         [
             GCPArtifactRegistryContainerImageToRepositoryRel(),
         ]
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            # Docker V2 manifest list (multi-arch)
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={
+                    "media_type": "application/vnd.docker.distribution.manifest.list.v2+json"
+                },
+            ),
+            # OCI image index (multi-arch)
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"media_type": "application/vnd.oci.image.index.v1+json"},
+            ),
+            # Docker V2 manifest (single image)
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={
+                    "media_type": "application/vnd.docker.distribution.manifest.v2+json"
+                },
+            ),
+            # OCI image manifest (single image)
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"media_type": "application/vnd.oci.image.manifest.v1+json"},
+            ),
+        ],
     )

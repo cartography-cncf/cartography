@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.secretsmanager.secret import SecretsManagerSecretSchema
 from cartography.models.aws.secretsmanager.secret_version import (
     SecretsManagerSecretVersionSchema,
@@ -24,7 +25,7 @@ stat_handler = get_stats_client(__name__)
 @timeit
 @aws_handle_regions
 def get_secret_list(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client("secretsmanager", region_name=region)
+    client = create_boto3_client(boto3_session, "secretsmanager", region_name=region)
     paginator = client.get_paginator("list_secrets")
     secrets: List[Dict] = []
     for page in paginator.paginate():
@@ -75,8 +76,6 @@ def load_secrets(
     Load transformed secrets into Neo4j using the data model.
     Expects data to already be transformed by transform_secrets().
     """
-    logger.info(f"Loading {len(data)} Secrets for region {region} into graph.")
-
     # Load using the schema-based approach
     load(
         neo4j_session,
@@ -111,7 +110,7 @@ def get_secret_versions(
     Note: list_secret_version_ids is not paginatable through boto3's paginator,
     so we implement manual pagination.
     """
-    client = boto3_session.client("secretsmanager", region_name=region)
+    client = create_boto3_client(boto3_session, "secretsmanager", region_name=region)
     next_token = None
     versions = []
 
@@ -151,8 +150,8 @@ def transform_secret_versions(
             "CreatedDate": dict_date_to_epoch(version, "CreatedDate"),
         }
 
-        if "KmsKeyId" in version and version["KmsKeyId"]:
-            transformed["KmsKeyId"] = version["KmsKeyId"]
+        if "KmsKeyIds" in version and version["KmsKeyIds"]:
+            transformed["kms_key_ids"] = version["KmsKeyIds"]
 
         if "Tags" in version and version["Tags"]:
             transformed["Tags"] = version["Tags"]
@@ -173,8 +172,6 @@ def load_secret_versions(
     """
     Load secret versions into Neo4j using the data model.
     """
-    logger.info(f"Loading {len(data)} Secret Versions for region {region} into graph.")
-
     load(
         neo4j_session,
         SecretsManagerSecretVersionSchema(),

@@ -20,6 +20,9 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("imageDigest")
+    architecture: PropertyRef = PropertyRef("architecture")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    architecture_source: PropertyRef = PropertyRef("architecture_source")
     runtime_id: PropertyRef = PropertyRef("runtimeId")
     last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)
     exit_code: PropertyRef = PropertyRef("exitCode")
@@ -86,6 +89,77 @@ class ECSContainerToECRImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSContainerToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGitLabContainerImageRel(CartographyRelSchema):
+    """
+    Relationship from ECSContainer to GitLabContainerImage.
+    Matches containers to GitLab registry images by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGitLabContainerImageRelProperties = (
+        ECSContainerToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryContainerImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+    """
+    Matches containers to GAR image artifacts by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGCPArtifactRegistryContainerImageRelProperties = (
+        ECSContainerToGCPArtifactRegistryContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryPlatformImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
+    """
+    Matches containers to GAR platform manifests by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGCPArtifactRegistryPlatformImageRelProperties = (
+        ECSContainerToGCPArtifactRegistryPlatformImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -97,5 +171,8 @@ class ECSContainerSchema(CartographyNodeSchema):
         [
             ECSContainerToTaskRel(),
             ECSContainerToECRImageRel(),
+            ECSContainerToGitLabContainerImageRel(),
+            ECSContainerToGCPArtifactRegistryContainerImageRel(),
+            ECSContainerToGCPArtifactRegistryPlatformImageRel(),
         ]
     )

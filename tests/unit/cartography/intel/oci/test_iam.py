@@ -55,11 +55,11 @@ def test_get_compartment_list_data_recurse():
         "oci.pagination.list_call_get_all_results",
         return_value=list_call_get_all_results,
     ):
-        compartment_list = {"Compartments": ""}
+        compartment_list = {"Compartments": []}
         compartment_id = "ocid1.compartment.oc1..aaaaaaaakl52gpiymzh46mx5gjrtqgdnzpbhwflj2il5h5r7awj5qlpo2vra"
         iam.get_compartment_list_data_recurse(iam_obj, compartment_list, compartment_id)
         # Test outcome: compartment_list should remain unchanged when no data is returned
-        assert compartment_list == {"Compartments": ""}
+        assert compartment_list == {"Compartments": []}
 
 
 def test_get_compartment_list_data():
@@ -69,7 +69,7 @@ def test_get_compartment_list_data():
     with patch(patch_func, return_value=JSON_OCI_OBJECT):
         output = iam.get_compartment_list_data(iam_obj, None)
         # Test outcome: verify output structure
-        assert output == {"Compartments": ""}
+        assert output == {"Compartments": []}
 
 
 def test_get_user_list_data():

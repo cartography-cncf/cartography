@@ -1,12 +1,11 @@
 import logging
 from dataclasses import asdict
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version
 from string import Template
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -17,6 +16,7 @@ from cartography.models.ontology.mapping import (
     get_semantic_label_mapping_from_node_schema,
 )
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +165,9 @@ def _build_ontology_field_statement_or_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -214,8 +215,9 @@ def _build_ontology_field_statement_nor_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for nor_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -231,6 +233,39 @@ def _build_ontology_field_statement_nor_boolean(
         node_property=f"_ont_{mapping_field.ontology_field}",
         property_condition=full_property_condition,
     )
+
+
+def _build_ontology_field_statement_mapping(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str | None:
+    """Maps provider-specific values to normalized ontology values using a Cypher CASE expression.
+
+    The mapping dict is provided in extra['map'] as {source_value: normalized_value}.
+    Unmapped values result in NULL (property not set).
+    """
+    value_map = mapping_field.extra.get("map")
+    if value_map is None:
+        logger.warning(
+            "mapping special handling requires 'map' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(value_map, dict):
+        logger.warning(
+            "mapping special handling 'map' in extra for field %s must be a dict",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    when_clauses = []
+    for source_val, normalized_val in value_map.items():
+        escaped_source = _escape_cypher_string(str(source_val))
+        escaped_normalized = _escape_cypher_string(str(normalized_val))
+        when_clauses.append(f'WHEN "{escaped_source}" THEN "{escaped_normalized}"')
+
+    case_expr = f"CASE {property_ref} " + " ".join(when_clauses) + " END"
+    return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
 
 
 def _build_ontology_node_properties_statement(
@@ -260,8 +295,12 @@ def _build_ontology_node_properties_statement(
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
-            # This should not occure due to unit test but failing gracefully
-            logger.warning(
+            # This is expected for schemas using the Composite Node Pattern,
+            # where multiple schema classes share the same node label but each
+            # only defines a subset of properties. The ontology mapping is
+            # looked up by label, so fields belonging to other schemas for the
+            # same label will not be present here.
+            logger.debug(
                 "Field '%s' not found in node properties for node schema %s",
                 mapping_field.node_field,
                 node_schema.__class__.__name__,
@@ -300,6 +339,12 @@ def _build_ontology_node_properties_statement(
             )
             if nor_boolean_statement:
                 set_clauses.append(nor_boolean_statement)
+        elif mapping_field.special_handling == "mapping":
+            mapping_statement = _build_ontology_field_statement_mapping(
+                mapping_field, node_propertyref
+            )
+            if mapping_statement:
+                set_clauses.append(mapping_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -370,10 +415,15 @@ def _build_node_properties_statement(
         ],
     )
 
-    # Set extra labels on the node if specified
+    # Set extra labels on the node if specified (excluding conditional labels)
     if extra_node_labels:
-        extra_labels = ":".join([label for label in extra_node_labels.labels])
-        set_clause += f",\n                i:{extra_labels}"
+        # Filter out ConditionalNodeLabel objects - only include string labels
+        string_labels = [
+            label for label in extra_node_labels.labels if isinstance(label, str)
+        ]
+        if string_labels:
+            extra_labels = ":".join(string_labels)
+            set_clause += f",\n                i:{extra_labels}"
     return set_clause
 
 
@@ -665,7 +715,6 @@ def _build_attach_sub_resource_statement(
 
     sub_resource_attach_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH (j:$SubResourceLabel{$MatchClause})
         WITH i, item, j WHERE j IS NOT NULL
         $RelMergeClause
@@ -695,7 +744,7 @@ def _build_attach_sub_resource_statement(
         MatchClause=_build_match_clause(sub_resource_link.target_node_matcher),
         RelMergeClause=rel_merge_clause,
         module_name=_get_module_from_schema(sub_resource_link),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         SubResourceRelLabel=sub_resource_link.rel_label,
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
@@ -760,7 +809,6 @@ def _build_attach_additional_links_statement(
 
     additional_links_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH ($node_var:$AddlLabel)
         WHERE
             $WhereClause
@@ -805,7 +853,7 @@ def _build_attach_additional_links_statement(
             rel_var=rel_var,
             RelMerge=rel_merge,
             module_name=_get_module_from_schema(link),
-            module_version=_get_cartography_version(),
+            module_version=get_cartography_version(),
             set_rel_properties_statement=_build_rel_properties_statement(
                 rel_var,
                 rel_props_as_dict,
@@ -887,7 +935,7 @@ def _build_attach_relationships_statement(
     query_template = Template(
         """
         WITH i, item
-        CALL {
+        CALL (i, item) {
             $attach_relationships_statement
         }
         """,
@@ -1099,7 +1147,7 @@ def build_ingestion_query(
         node_label=node_schema.label,
         dict_id_field=node_props.id,
         module_name=_get_module_from_schema(node_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_node_properties_statement=_build_node_properties_statement(
             node_props_as_dict,
             node_schema.extra_node_labels,
@@ -1114,6 +1162,161 @@ def build_ingestion_query(
         ),
     )
     return ingest_query
+
+
+def build_conditional_label_queries(
+    node_schema: CartographyNodeSchema,
+) -> list[str]:
+    """
+    Generate Neo4j queries to apply conditional labels to nodes.
+
+    Conditional labels are labels that are only applied to nodes matching specific conditions.
+    This function generates one query per ConditionalNodeLabel defined in the node schema's
+    extra_node_labels.
+
+    Args:
+        node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
+            conditional labels in its extra_node_labels property.
+
+    Returns:
+        list[str]: A list of Neo4j queries, one per conditional label. Each query matches
+            nodes of the schema's primary label that satisfy the conditions, and applies
+            the conditional label.
+
+    Examples:
+        >>> # Given a schema with a conditional label
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='AWSResource',
+        ...     extra_node_labels=ExtraNodeLabels([
+        ...         'Resource',
+        ...         ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
+        ...     ])
+        ... )
+        >>> queries = build_conditional_label_queries(node_schema)
+        >>> # Returns:
+        >>> # ['MATCH (n:AWSResource) WHERE n.severity = "high" SET n:Critical']
+
+    Note:
+        - Only ConditionalNodeLabel objects are processed; string labels are ignored
+        - Returns an empty list if no conditional labels are defined
+        - Values are escaped for Cypher string literals
+    """
+    if not node_schema.extra_node_labels:
+        return []
+
+    # Extract only ConditionalNodeLabel objects
+    conditional_labels = [
+        label
+        for label in node_schema.extra_node_labels.labels
+        if isinstance(label, ConditionalNodeLabel)
+    ]
+
+    if not conditional_labels:
+        return []
+
+    queries = []
+    sub_rel = node_schema.sub_resource_relationship
+
+    # Build the sub-resource matching clause if a sub_resource_relationship exists
+    # This scopes the queries to the current tenant to avoid affecting other tenants' nodes
+    if sub_rel:
+        # Build the relationship pattern based on direction
+        if sub_rel.direction == LinkDirection.INWARD:
+            # (node)<-[:REL]-(sub_resource)
+            rel_pattern = f"<-[:{sub_rel.rel_label}]-"
+        else:
+            # (node)-[:REL]->(sub_resource)
+            rel_pattern = f"-[:{sub_rel.rel_label}]->"
+
+        # Build the match clause for the sub-resource node
+        sub_match_clause = _build_match_clause(sub_rel.target_node_matcher)
+
+        # Scoped templates that filter by sub-resource
+        remove_template = Template(
+            """
+            MATCH (n:$node_label:$conditional_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
+            REMOVE n:$conditional_label
+            """,
+        )
+
+        set_template = Template(
+            """
+            MATCH (n:$node_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
+            WHERE $where_clause
+            SET n:$conditional_label
+            """,
+        )
+    else:
+        # Unscoped templates for global resources without a tenant relationship
+        remove_template = Template(
+            """
+            MATCH (n:$node_label:$conditional_label)
+            REMOVE n:$conditional_label
+            """,
+        )
+
+        set_template = Template(
+            """
+            MATCH (n:$node_label)
+            WHERE $where_clause
+            SET n:$conditional_label
+            """,
+        )
+
+    for cond_label in conditional_labels:
+        # Skip conditional labels with empty conditions - they would apply to all nodes,
+        # which should be done with a regular string label instead
+        if not cond_label.conditions:
+            logger.warning(
+                "ConditionalNodeLabel '%s' on node schema '%s' has empty conditions. "
+                "Skipping. Use a string label instead to apply a label to all nodes.",
+                cond_label.label,
+                node_schema.label,
+            )
+            continue
+
+        # Build WHERE clause from conditions
+        where_parts = []
+        for field_name, field_value in cond_label.conditions.items():
+            # Escape the value for Cypher string literal
+            escaped_value = _escape_cypher_string(str(field_value))
+            where_parts.append(f'n.{field_name} = "{escaped_value}"')
+
+        where_clause = " AND ".join(where_parts)
+
+        if sub_rel:
+            # Scoped queries
+            remove_query = remove_template.safe_substitute(
+                node_label=node_schema.label,
+                conditional_label=cond_label.label,
+                rel_pattern=rel_pattern,
+                sub_label=sub_rel.target_node_label,
+                sub_match_clause=sub_match_clause,
+            )
+            set_query = set_template.safe_substitute(
+                node_label=node_schema.label,
+                where_clause=where_clause,
+                conditional_label=cond_label.label,
+                rel_pattern=rel_pattern,
+                sub_label=sub_rel.target_node_label,
+                sub_match_clause=sub_match_clause,
+            )
+        else:
+            # Unscoped queries
+            remove_query = remove_template.safe_substitute(
+                node_label=node_schema.label,
+                conditional_label=cond_label.label,
+            )
+            set_query = set_template.safe_substitute(
+                node_label=node_schema.label,
+                where_clause=where_clause,
+                conditional_label=cond_label.label,
+            )
+
+        queries.append(remove_query)
+        queries.append(set_query)
+
+    return queries
 
 
 def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
@@ -1171,15 +1374,44 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
         ),
     ]
     if node_schema.extra_node_labels:
-        result.extend(
-            [
-                index_template.safe_substitute(
-                    TargetNodeLabel=label,
-                    TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+        for label in node_schema.extra_node_labels.labels:
+            if isinstance(label, str):
+                # Simple string label - create index on id and lastupdated
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+                    ),
                 )
-                for label in node_schema.extra_node_labels.labels
-            ],
-        )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="lastupdated",
+                    ),
+                )
+            elif isinstance(label, ConditionalNodeLabel):
+                # Conditional label - create index on the conditional label's id and lastupdated
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="id",
+                    ),
+                )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="lastupdated",
+                    ),
+                )
+                # Also create indexes on the condition fields for the primary node label
+                # to speed up the WHERE clause in the conditional label query
+                for condition_field in label.conditions.keys():
+                    result.append(
+                        index_template.safe_substitute(
+                            TargetNodeLabel=node_schema.label,
+                            TargetAttribute=condition_field,
+                        ),
+                    )
 
     # Next, for all relationships possible out of this node, ensure that indexes exist for all target nodes' properties
     # as specified in their TargetNodeMatchers.
@@ -1209,6 +1441,28 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
             if prop_ref.extra_index
         ],
     )
+
+    # Create indexes on _ont_ fields for semantic labels (extra node labels).
+    # When a node has a semantic label mapping, index all _ont_ fields on the extra label
+    # so that cross-provider queries on the semantic label are fast.
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
+    if ontology_mapping and node_schema.extra_node_labels:
+        for label in node_schema.extra_node_labels.labels:
+            label_name = label if isinstance(label, str) else label.label
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label_name,
+                    TargetAttribute="_ont_source",
+                ),
+            )
+            for mapping_field in ontology_mapping.fields:
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label_name,
+                        TargetAttribute=f"_ont_{mapping_field.ontology_field}",
+                    ),
+                )
+
     return result
 
 
@@ -1242,7 +1496,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1283,11 +1537,12 @@ def build_create_index_queries_for_matchlink(
             ),
         )
 
-    # Create a composite index for the relationship between the source and target nodes.
-    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    # Create a composite relationship index that matches the cleanup predicate shape.
+    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
+    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(
@@ -1413,32 +1668,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         target_match=target_match,
         rel=rel,
         module_name=_get_module_from_schema(rel_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
             rel_props_as_dict,
         ),
     )
-
-
-def _get_cartography_version() -> str:
-    """
-    Get the current version of the cartography package.
-
-    This function attempts to retrieve the version of the installed cartography package
-    using importlib.metadata. If the package is not found (typically in development
-    or testing environments), it returns 'dev' as a fallback.
-
-    Returns:
-        The version string of the cartography package, or 'dev' if not found
-    """
-    try:
-        return version("cartography")
-    except PackageNotFoundError:
-        # This can occured if the cartography package is not installed in the environment, typically in development or testing environments.
-        logger.warning("cartography package not found. Returning 'dev' version.")
-        # Fallback to reading the VERSION file if the package is not found
-        return "dev"
 
 
 def _get_module_from_schema(

@@ -9,6 +9,9 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.container_arch import normalize_architecture
+from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
@@ -26,6 +29,9 @@ MANIFEST_LIST_MEDIA_TYPES = {
 }
 
 
+REPO_BATCH_SIZE = 100
+
+
 @timeit
 @aws_handle_regions
 def get_ecr_repositories(
@@ -33,7 +39,7 @@ def get_ecr_repositories(
     region: str,
 ) -> List[Dict]:
     logger.info("Getting ECR repositories for region '%s'.", region)
-    client = boto3_session.client("ecr", region_name=region)
+    client = create_boto3_client(boto3_session, "ecr", region_name=region)
     paginator = client.get_paginator("describe_repositories")
     ecr_repositories: List[Dict] = []
     for page in paginator.paginate():
@@ -105,7 +111,11 @@ def _get_platform_specific_digests(
             {
                 "digest": digest,
                 "type": "attestation" if is_attestation else "image",
-                "architecture": architecture,
+                "architecture": (
+                    normalize_architecture(architecture)
+                    if architecture is not None
+                    else None
+                ),
                 "os": os_name,
                 "variant": platform_info.get("variant"),
                 "attestation_type": (
@@ -136,7 +146,7 @@ def get_ecr_repository_images(
         repository_name,
         region,
     )
-    client = boto3_session.client("ecr", region_name=region)
+    client = create_boto3_client(boto3_session, "ecr", region_name=region)
     list_paginator = client.get_paginator("list_images")
 
     # First pass: Collect all image details and track manifest list referenced digests
@@ -277,7 +287,11 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                         ecr_images_dict[manifest_digest] = {
                             "imageDigest": manifest_digest,
                             "type": manifest_img.get("type"),
-                            "architecture": manifest_img.get("architecture"),
+                            "architecture": (
+                                normalize_architecture(manifest_img.get("architecture"))
+                                if manifest_img.get("architecture") is not None
+                                else None
+                            ),
                             "os": manifest_img.get("os"),
                             "variant": manifest_img.get("variant"),
                             "attestation_type": manifest_img.get("attestation_type"),
@@ -324,7 +338,7 @@ def load_ecr_repository_images(
 
     load(
         neo4j_session,
-        ECRImageSchema(),
+        ECRImageBaseSchema(),
         ecr_images_list,
         lastupdated=aws_update_tag,
         Region=region,
@@ -377,7 +391,9 @@ def _get_image_data(
 
     # Sort repositories by name to ensure consistent processing order
     sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
-    to_synchronous(*[async_get_images(repo) for repo in sorted_repos])
+    for i in range(0, len(sorted_repos), REPO_BATCH_SIZE):
+        batch = sorted_repos[i : i + REPO_BATCH_SIZE]
+        to_synchronous(*[async_get_images(repo) for repo in batch])
 
     return image_data
 

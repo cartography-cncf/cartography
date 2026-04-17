@@ -3,6 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -17,10 +24,51 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
     go_version: PropertyRef = PropertyRef("go_version")
     compiler: PropertyRef = PropertyRef("compiler")
     platform: PropertyRef = PropertyRef("platform")
+    api_server_url: PropertyRef = PropertyRef("api_server_url")
+    kubeconfig_insecure_skip_tls_verify: PropertyRef = PropertyRef(
+        "kubeconfig_insecure_skip_tls_verify",
+    )
+    kubeconfig_has_certificate_authority_data: PropertyRef = PropertyRef(
+        "kubeconfig_has_certificate_authority_data",
+    )
+    kubeconfig_has_certificate_authority_file: PropertyRef = PropertyRef(
+        "kubeconfig_has_certificate_authority_file",
+    )
+    kubeconfig_ca_file_path: PropertyRef = PropertyRef("kubeconfig_ca_file_path")
+    kubeconfig_has_client_certificate: PropertyRef = PropertyRef(
+        "kubeconfig_has_client_certificate",
+    )
+    kubeconfig_has_client_key: PropertyRef = PropertyRef("kubeconfig_has_client_key")
+    kubeconfig_tls_configuration_status: PropertyRef = PropertyRef(
+        "kubeconfig_tls_configuration_status",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesClusterToEKSClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+class KubernetesClusterToEKSClusterRel(CartographyRelSchema):
+    target_node_label: str = "EKSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("external_id")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesClusterToEKSClusterRelProperties = (
+        KubernetesClusterToEKSClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class KubernetesClusterSchema(CartographyNodeSchema):
     label: str = "KubernetesCluster"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [KubernetesClusterToEKSClusterRel()]
+    )

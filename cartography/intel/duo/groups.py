@@ -47,7 +47,6 @@ def _load_groups(
     """
     Load the groups into the graph
     """
-    logger.info(f"Loading {len(groups)} duo groups")
     load(
         neo4j_session,
         DuoGroupSchema(),

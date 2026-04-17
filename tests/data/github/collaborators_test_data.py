@@ -11,6 +11,7 @@ COLLABORATORS_TEST_REPOS: list[dict[str, Any]] = [
         "url": "https://github.com/testorg/repo1",
         "directCollaborators": {"totalCount": 1},
         "outsideCollaborators": {"totalCount": 0},
+        "branchProtectionRules": {"nodes": []},
         # Minimal required fields
         "nameWithOwner": "testorg/repo1",
         "primaryLanguage": {"name": "Python"},
@@ -38,6 +39,7 @@ COLLABORATORS_TEST_REPOS: list[dict[str, Any]] = [
         "url": "https://github.com/testorg/repo2",
         "directCollaborators": {"totalCount": 1},
         "outsideCollaborators": {"totalCount": 0},
+        "branchProtectionRules": {"nodes": []},
         # Minimal required fields
         "nameWithOwner": "testorg/repo2",
         "primaryLanguage": {"name": "Python"},

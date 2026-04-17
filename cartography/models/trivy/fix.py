@@ -27,7 +27,7 @@ class TrivyFixToPackageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class TrivyFixToPackageRel(CartographyRelSchema):
-    target_node_label: str = "Package"
+    target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PackageId")},
     )

@@ -11,6 +11,10 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tailscale.utils import ACLParser
 from cartography.intel.tailscale.utils import role_to_group
+from cartography.models.tailscale.deviceposture import (
+    TailscaleDevicePostureConditionSchema,
+)
+from cartography.models.tailscale.deviceposture import TailscaleDevicePostureSchema
 from cartography.models.tailscale.group import TailscaleGroupSchema
 from cartography.models.tailscale.tag import TailscaleTagSchema
 from cartography.util import timeit
@@ -27,13 +31,13 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
     users: List[Dict[str, Any]],
-) -> None:
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     raw_acl = get(
         api_session,
         common_job_parameters["BASE_URL"],
         org,
     )
-    groups, tags = transform(raw_acl, users)
+    groups, tags, postures, posture_conditions = transform(raw_acl, users)
     load_groups(
         neo4j_session,
         groups,
@@ -46,7 +50,20 @@ def sync(
         org,
         common_job_parameters["UPDATE_TAG"],
     )
+    load_posture_conditions(
+        neo4j_session,
+        posture_conditions,
+        org,
+        common_job_parameters["UPDATE_TAG"],
+    )
+    load_postures(
+        neo4j_session,
+        postures,
+        org,
+        common_job_parameters["UPDATE_TAG"],
+    )
     cleanup(neo4j_session, common_job_parameters)
+    return postures, posture_conditions
 
 
 @timeit
@@ -66,7 +83,12 @@ def get(
 def transform(
     raw_acl: str,
     users: List[Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+]:
     transformed_groups: Dict[str, Dict[str, Any]] = {}
     transformed_tags: Dict[str, Dict[str, Any]] = {}
 
@@ -103,7 +125,13 @@ def transform(
                 }
             transformed_groups[g]["members"].append(user["loginName"])
 
-    return list(transformed_groups.values()), list(transformed_tags.values())
+    postures, posture_conditions = parser.get_postures()
+    return (
+        list(transformed_groups.values()),
+        list(transformed_tags.values()),
+        postures,
+        posture_conditions,
+    )
 
 
 @timeit
@@ -113,7 +141,6 @@ def load_groups(
     update_tag: str,
     org: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} Tailscale Groups to the graph")
     load(neo4j_session, TailscaleGroupSchema(), groups, lastupdated=update_tag, org=org)
 
 
@@ -124,10 +151,43 @@ def load_tags(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Tags to the graph")
     load(
         neo4j_session,
         TailscaleTagSchema(),
+        data,
+        lastupdated=update_tag,
+        org=org,
+    )
+
+
+@timeit
+def load_postures(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    org: str,
+    update_tag: int,
+) -> None:
+    logger.info(f"Loading {len(data)} Tailscale Device Postures to the graph")
+    load(
+        neo4j_session,
+        TailscaleDevicePostureSchema(),
+        data,
+        lastupdated=update_tag,
+        org=org,
+    )
+
+
+@timeit
+def load_posture_conditions(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    org: str,
+    update_tag: int,
+) -> None:
+    logger.info(f"Loading {len(data)} Tailscale Device Posture Conditions to the graph")
+    load(
+        neo4j_session,
+        TailscaleDevicePostureConditionSchema(),
         data,
         lastupdated=update_tag,
         org=org,
@@ -144,3 +204,11 @@ def cleanup(
     GraphJob.from_node_schema(TailscaleTagSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(
+        TailscaleDevicePostureConditionSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        TailscaleDevicePostureSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)

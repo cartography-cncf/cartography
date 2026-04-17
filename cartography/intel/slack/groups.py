@@ -1,4 +1,3 @@
-import logging
 from itertools import zip_longest
 from typing import Any
 
@@ -10,8 +9,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.slack.utils import slack_paginate
 from cartography.models.slack.group import SlackGroupSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -71,7 +68,6 @@ def load_groups(
     team_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %s Slack groups into Neo4j", len(data))
     load(
         neo4j_session,
         SlackGroupSchema(),

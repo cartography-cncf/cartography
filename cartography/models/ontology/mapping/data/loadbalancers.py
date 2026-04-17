@@ -8,6 +8,7 @@ from cartography.models.ontology.mapping.specs import OntologyRelMapping
 # lb_type - The type of load balancer (application, network, classic, etc.)
 # scheme - The scheme (internal or internet-facing)
 # dns_name - The DNS name/endpoint
+# ip_address - The IP address (for LBs that use IPs instead of DNS names)
 # region - The region/location
 
 aws_mapping = OntologyMapping(
@@ -72,6 +73,9 @@ gcp_mapping = OntologyMapping(
                     ontology_field="scheme", node_field="load_balancing_scheme"
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="ip_address", node_field="ip_address"
+                ),
                 # lb_type: not directly available, depends on backend service type
                 # dns_name: GCP uses IP addresses, not DNS names for forwarding rules
             ],

@@ -447,7 +447,6 @@ def load_team_repos(
     update_tag: int,
     organization_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub team-repos to the graph")
     load(
         neo4j_session,
         GitHubTeamSchema(),

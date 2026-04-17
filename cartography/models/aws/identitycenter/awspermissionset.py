@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -114,7 +115,10 @@ class AWSRoleToSSOUserMatchLink(CartographyRelSchema):
     # Standard CartographyRelSchema fields for AWSSSOUser as target
     target_node_label: str = "AWSSSOUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("UserId")},
+        {
+            "id": PropertyRef("UserId"),
+            "identity_store_id": PropertyRef("IdentityStoreId"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"
@@ -138,7 +142,10 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 
     target_node_label: str = "AWSSSOGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("GroupId")},
+        {
+            "id": PropertyRef("GroupId"),
+            "identity_store_id": PropertyRef("IdentityStoreId"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"
@@ -151,6 +158,7 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 class AWSPermissionSetSchema(CartographyNodeSchema):
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: AWSPermissionSetToAWSAccountRel = (
         AWSPermissionSetToAWSAccountRel()
     )

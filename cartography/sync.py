@@ -1,18 +1,15 @@
-import argparse
 import logging
 import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
 from typing import Callable
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
+import cartography.intel.aibom
 import cartography.intel.airbyte
 import cartography.intel.analysis
 import cartography.intel.anthropic
@@ -24,18 +21,20 @@ import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
 import cartography.intel.digitalocean
+import cartography.intel.docker_scout
 import cartography.intel.duo
-import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
+import cartography.intel.jumpcloud
 import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.microsoft
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.ontology
@@ -44,12 +43,17 @@ import cartography.intel.pagerduty
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
+import cartography.intel.sentry
 import cartography.intel.slack
 import cartography.intel.snipeit
 import cartography.intel.spacelift
+import cartography.intel.subimage
+import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
+import cartography.intel.ubuntu
 import cartography.intel.workday
+import cartography.intel.workos
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -65,7 +69,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
+        "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
@@ -81,20 +85,28 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
+        "jumpcloud": cartography.intel.jumpcloud.start_jumpcloud_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
         "workday": cartography.intel.workday.start_workday_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
+        "sentry": cartography.intel.sentry.start_sentry_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
+        "docker_scout": cartography.intel.docker_scout.start_docker_scout_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
+        "syft": cartography.intel.syft.start_syft_ingestion,
+        "aibom": cartography.intel.aibom.start_aibom_ingestion,
+        "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "workos": cartography.intel.workos.start_workos_ingestion,
+        "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
@@ -169,7 +181,7 @@ class Sync:
         """
         self._stages[name] = func
 
-    def add_stages(self, stages: List[Tuple[str, Callable]]) -> None:
+    def add_stages(self, stages: list[tuple[str, Callable]]) -> None:
         """
         Add multiple stages to the sync task in batch.
 
@@ -193,7 +205,7 @@ class Sync:
     def run(
         self,
         neo4j_driver: neo4j.Driver,
-        config: Union[Config, argparse.Namespace],
+        config: Config,
     ) -> int:
         """
         Execute all configured stages in the sync task sequentially.
@@ -291,7 +303,7 @@ class Sync:
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ("analysis", "create_indexes"):
+            if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)
@@ -332,7 +344,7 @@ class Sync:
         return available_modules
 
 
-def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
+def run_with_config(sync: Sync, config: Config) -> int:
     """
     Execute a sync task with comprehensive configuration and error handling.
 
@@ -386,11 +398,24 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    driver_kwargs = {}
+    optional_driver_kwargs = {
+        "max_connection_lifetime": config.neo4j_max_connection_lifetime,
+        "liveness_check_timeout": config.neo4j_liveness_check_timeout,
+        "connection_timeout": config.neo4j_connection_timeout,
+        "keep_alive": config.neo4j_keep_alive,
+        "max_transaction_retry_time": config.neo4j_max_transaction_retry_time,
+        "max_connection_pool_size": config.neo4j_max_connection_pool_size,
+        "connection_acquisition_timeout": config.neo4j_connection_acquisition_timeout,
+    }
+    for key, value in optional_driver_kwargs.items():
+        if value is not None:
+            driver_kwargs[key] = value
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
@@ -472,7 +497,7 @@ def build_default_sync() -> Sync:
     return sync
 
 
-def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
+def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
     """
     Parse and validate user-selected modules from comma-separated string.
 
@@ -496,12 +521,17 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
-    validated_modules: List[str] = []
+    # DEPRECATED: compatibility alias for legacy module selection. Remove in v1.0.0.
+    _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
+
+    validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
+        module = _MODULE_ALIASES.get(module, module)
 
         if module in TOP_LEVEL_MODULES.keys():
-            validated_modules.append(module)
+            if module not in validated_modules:
+                validated_modules.append(module)
         else:
             valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(

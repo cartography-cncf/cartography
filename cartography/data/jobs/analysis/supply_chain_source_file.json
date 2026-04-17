@@ -1,0 +1,10 @@
+{
+    "name": "Enrich PACKAGED_FROM with source_file from Image provenance",
+    "statements": [
+        {
+            "__comment": "Copy source_file from Image node to dockerfile_path on PACKAGED_FROM relationship where not already set",
+            "query": "MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL SET r.dockerfile_path = i.source_file",
+            "iterative": false
+        }
+    ]
+}

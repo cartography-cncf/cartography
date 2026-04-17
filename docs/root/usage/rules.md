@@ -46,20 +46,6 @@ Security isn't one-size-fits-all. For example:
 Our goal is to surface facts in context so you can decide what matters for your environment.
 
 
-## Available Rules
-
-Current rules include:
-
-- **mfa-missing** - User accounts missing multi-factor authentication
-- **object_storage_public** - Publicly accessible object storage (S3, Azure Storage)
-- **compute_instance_exposed** - Internet-exposed compute instances
-- **database_instance_exposed** - Publicly accessible databases
-- **delegation_boundary_modifiable** - Identity delegation surface
-- **identity_administration_privileges** - IAM administration privileges
-- **policy_administration_privileges** - Policy administration capabilities
-- **unmanaged_accounts** - Unmanaged cloud accounts
-- **workload_identity_admin_capabilities** - Workload identity escalation surface
-
 You can list all available rules and their details from the CLI, see [below](#list).
 
 
@@ -296,6 +282,18 @@ set -o history # turn shell history back on
 
 ## Usage
 
+### Framework filtering
+
+You can filter rules by compliance framework short name, optional scope, and optional revision:
+
+```bash
+# List all NIST AI RMF-mapped rules
+cartography-rules list --framework NIST-AI-RMF
+
+# Run all NIST AI RMF-mapped rules
+cartography-rules run all --framework NIST-AI-RMF
+```
+
 ### `list`
 #### See all available rules
 ```bash
@@ -369,7 +367,6 @@ cartography-rules run object_storage_public aws_s3_public
 ```bash
 cartography-rules run object_storage_public --no-experimental
 ```
-
 
 ### Authentication Options
 

@@ -1,0 +1,40 @@
+{
+  "name": "Kubernetes compute internet exposure",
+  "statements": [
+    {
+      "__comment": "Reset: Remove exposed_internet from KubernetesService for this cluster",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService) WHERE svc.exposed_internet IS NOT NULL REMOVE svc.exposed_internet, svc.exposed_internet_type",
+      "iterative": true
+    },
+    {
+      "__comment": "Reset: Remove exposed_internet from KubernetesPod for this cluster",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod) WHERE pod.exposed_internet IS NOT NULL REMOVE pod.exposed_internet, pod.exposed_internet_type",
+      "iterative": true
+    },
+    {
+      "__comment": "Reset: Remove exposed_internet from KubernetesContainer for this cluster",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer) WHERE c.exposed_internet IS NOT NULL REMOVE c.exposed_internet, c.exposed_internet_type",
+      "iterative": true
+    },
+    {
+      "__comment": "Set: KubernetesService exposed via Service type=LoadBalancer backed by internet-facing LB. NLB fallback handles runs where aws_ec2_asset_exposure did not execute.",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc WHERE svc.exposed_internet_type IS NULL OR NOT 'lb' IN svc.exposed_internet_type SET svc.exposed_internet = true, svc.exposed_internet_type = coalesce(svc.exposed_internet_type, []) + 'lb'",
+      "iterative": false
+    },
+    {
+      "__comment": "Set: KubernetesService exposed via Ingress backed by internet-facing LB",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService) WITH DISTINCT svc WHERE svc.exposed_internet_type IS NULL OR NOT 'lb' IN svc.exposed_internet_type SET svc.exposed_internet = true, svc.exposed_internet_type = coalesce(svc.exposed_internet_type, []) + 'lb'",
+      "iterative": false
+    },
+    {
+      "__comment": "Set: KubernetesPod exposed via exposed KubernetesService",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService{exposed_internet: true})-[:TARGETS]->(pod:KubernetesPod) WITH DISTINCT pod WHERE pod.exposed_internet_type IS NULL OR NOT 'lb' IN pod.exposed_internet_type SET pod.exposed_internet = true, pod.exposed_internet_type = coalesce(pod.exposed_internet_type, []) + 'lb'",
+      "iterative": false
+    },
+    {
+      "__comment": "Set: KubernetesContainer exposed via exposed KubernetesPod",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod{exposed_internet: true})-[:CONTAINS]->(c:KubernetesContainer) WITH DISTINCT c WHERE c.exposed_internet_type IS NULL OR NOT 'lb' IN c.exposed_internet_type SET c.exposed_internet = true, c.exposed_internet_type = coalesce(c.exposed_internet_type, []) + 'lb'",
+      "iterative": false
+    }
+  ]
+}

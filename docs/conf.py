@@ -51,6 +51,11 @@ templates_path = ["_templates"]
 # source_suffix = ['.rst', '.md']
 source_suffix = [".rst", ".md"]
 
+# Suffix appended to source filenames for "View page source" links.
+# Sphinx defaults to ".txt" which causes broken links (e.g. schema.md.txt).
+# Setting to empty string makes links point to the actual source files.
+html_sourcelink_suffix = ""
+
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 

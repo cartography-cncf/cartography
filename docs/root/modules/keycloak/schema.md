@@ -222,6 +222,8 @@ Represents a Keycloak client application that can request authentication and aut
 
 Represents a group of users in Keycloak that can be used for organizing users and assigning roles.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -317,6 +319,8 @@ Represents a user in the Keycloak realm with authentication and profile informat
 ### KeycloakRole
 
 Represents a role in Keycloak that defines permissions and can be assigned to users or groups.
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|

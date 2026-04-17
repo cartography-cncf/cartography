@@ -18,14 +18,14 @@ Detailed procedures are available in separate documents:
 
 | Procedure | Description |
 |-----------|-------------|
-| [Creating a New Module](docs/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
-| [Enriching the Ontology](docs/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
-| [Adding a New Node Type](docs/agents/add-node-type.md) | Advanced node schema properties and configurations |
-| [Adding a New Relationship](docs/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
-| [Adding Analysis Jobs](docs/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
-| [Creating Security Rules](docs/agents/create-rule.md) | Security rules, facts, and compliance conventions |
-| [Refactoring Legacy Code](docs/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
-| [Troubleshooting](docs/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
+| [Creating a New Module](docs/root/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
+| [Enriching the Ontology](docs/root/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
+| [Adding a New Node Type](docs/root/agents/add-node-type.md) | Advanced node schema properties and configurations |
+| [Adding a New Relationship](docs/root/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
+| [Adding Analysis Jobs](docs/root/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
+| [Creating Security Rules](docs/root/agents/create-rule.md) | Security rules, facts, and compliance conventions |
+| [Refactoring Legacy Code](docs/root/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
+| [Troubleshooting](docs/root/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
 
 ## AI Assistant Quick Reference
 
@@ -38,7 +38,7 @@ Detailed procedures are available in separate documents:
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
-- `cartography/cli.py` - Command-line argument definitions
+- `cartography/cli.py` - Typer-based CLI with organized help panels
 - `cartography/client/core/tx.py` - Core `load()` function
 - `cartography/graph/job.py` - Cleanup job utilities
 - `cartography/models/core/` - Base data model classes
@@ -54,7 +54,7 @@ from cartography.models.core.relationships import (
     make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
     make_source_node_matcher, SourceNodeMatcher,
 )
-from cartography.client.core.tx import load, load_matchlinks
+from cartography.client.core.tx import load, load_matchlinks, run_write_query
 from cartography.graph.job import GraphJob
 from cartography.util import timeit
 
@@ -78,6 +78,16 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Look at `tests/integration/cartography/intel/` for similar test patterns
 - Review `cartography/models/` for existing relationship patterns
 
+**Manual Write Queries:**
+- Prefer `load()` / `load_matchlinks()` for normal ingestion and `GraphJob` for cleanup.
+- If you must execute a handwritten write query, use `run_write_query()` instead of `neo4j_session.run()` so the write runs in a managed transaction with Cartography's retry handling.
+- Reserve direct `neo4j_session.run()` for read queries or intentional low-level paths that cannot use the managed write helpers.
+
+**Deprecation Conventions:**
+- For temporary compatibility shims, legacy aliases, and migration-only edges, add a code comment in the form `# DEPRECATED: ... will be removed in v1.0.0`.
+- Prefer comment-only deprecation markers for internal compatibility code that should stay quiet during normal runs.
+- Use runtime warnings or log warnings only when users are actively invoking a deprecated public module or API surface.
+
 ## Git and Pull Request Guidelines
 
 **Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
@@ -87,7 +97,7 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 git commit -s -m "feat(module): add new feature"
 ```
 
-**Pull Request Descriptions**: When creating a pull request, use the template at `.github/pull_request_template.md`.
+**Pull Request Descriptions**: All pull requests must follow the template at `.github/pull_request_template.md`. Update the PR description to match the template sections if they are missing or incomplete.
 
 ## Quick Start: Copy an Existing Module
 
@@ -97,7 +107,7 @@ The fastest way to get started is to copy the structure from an existing module:
 - **Complex module**: `cartography/intel/aws/ec2/instances.py` - Multiple relationships and data types
 - **Reference documentation**: `docs/root/dev/writing-intel-modules.md`
 
-For detailed step-by-step instructions, see [Creating a New Module](docs/agents/create-module.md).
+For detailed step-by-step instructions, see [Creating a New Module](docs/root/agents/create-module.md).
 
 ---
 
@@ -143,6 +153,22 @@ def load_entities(neo4j_session: neo4j.Session, data: list[dict],
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup job for MyResource")
     GraphJob.from_node_schema(YourSchema(), common_job_parameters).run(neo4j_session)
+```
+
+```python
+def cleanup_custom_relationships(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (n:YourNode)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+    )
 ```
 
 ### Required Node Properties

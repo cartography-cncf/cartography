@@ -168,6 +168,7 @@ class OktaGroupSchema(CartographyNodeSchema):
             OktaGroupToOktaAdminRoleRel(),  # DEPRECATED: backward compatibility
         ],
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
 
 
 @dataclass(frozen=True)

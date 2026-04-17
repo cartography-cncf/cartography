@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict
 from typing import List
@@ -10,6 +11,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.vertex.model import GCPVertexAIModelSchema
 from cartography.util import timeit
 
@@ -65,20 +68,24 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
         return locations
 
     except HttpError as e:
-        error_reason = e.resp.get("reason", "unknown")
-        if e.resp.status == 403:
+        category = classify_gcp_http_error(e)
+        if category in ("api_disabled", "forbidden"):
             logger.warning(
-                f"Access forbidden when trying to get Vertex AI locations for project {project_id}. "
+                "Access forbidden when trying to get Vertex AI locations for project %s. "
                 "Ensure the Vertex AI API is enabled and you have the necessary permissions.",
+                project_id,
             )
-        elif e.resp.status == 404:
+        elif category == "not_found":
             logger.warning(
-                f"Vertex AI locations not found for project {project_id}. "
+                "Vertex AI locations not found for project %s. "
                 "The Vertex AI API may not be enabled.",
+                project_id,
             )
         else:
             logger.error(
-                f"Error getting Vertex AI locations for project {project_id}: {error_reason}",
+                "Error getting Vertex AI locations for project %s: %s",
+                project_id,
+                summarize_gcp_http_error(e),
                 exc_info=True,
             )
         return []
@@ -151,6 +158,21 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
         artifact_uri = model.get("artifactUri")
         gcs_bucket_id = _extract_bucket_name_from_gcs_uri(artifact_uri)
 
+        # Neo4j properties cannot store maps; serialize map-like fields to JSON.
+        labels = model.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
+        training_pipeline = model.get("trainingPipeline")
+        training_pipeline_value: Optional[str]
+        if isinstance(training_pipeline, (dict, list)):
+            training_pipeline_value = json.dumps(training_pipeline)
+        elif isinstance(training_pipeline, str):
+            training_pipeline_value = training_pipeline
+        elif training_pipeline is None:
+            training_pipeline_value = None
+        else:
+            training_pipeline_value = str(training_pipeline)
+
         transformed_model = {
             "id": model.get("name"),  # Full resource name
             "name": model.get("name"),
@@ -163,8 +185,8 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
             "update_time": model.get("updateTime"),
             "artifact_uri": artifact_uri,
             "etag": model.get("etag"),
-            "labels": model.get("labels"),
-            "training_pipeline": model.get("trainingPipeline"),
+            "labels": labels_json,
+            "training_pipeline": training_pipeline_value,
             "gcs_bucket_id": gcs_bucket_id,  # For STORED_IN relationship
         }
 

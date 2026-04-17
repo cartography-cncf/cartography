@@ -7,15 +7,17 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.sagemaker.util import extract_bucket_name_from_s3_uri
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.model import AWSSageMakerModelSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_models(
     boto3_session: boto3.session.Session,
     region: str,
@@ -23,7 +25,7 @@ def get_models(
     """
     Get all SageMaker Models in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_models")
     models: list[dict[str, Any]] = []
 
@@ -138,30 +140,22 @@ def sync_models(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker Models for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker Models for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get models from AWS
-        models = get_models(boto3_session, region)
-
-        # Transform the data
-        transformed_models = transform_models(models, region)
-
-        # Load into Neo4j
-        load_models(
-            neo4j_session,
-            transformed_models,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old models
-    cleanup_models(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="models",
+        get_resources=get_models,
+        transform_resources=transform_models,
+        load_resources=load_models,
+        cleanup_resources=cleanup_models,
+    )

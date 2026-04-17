@@ -67,7 +67,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     okta_client = OktaClient({
-        "orgUrl": f"https://{config.okta_org_id}.okta.com",
+        "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
         "token": config.okta_api_key,
     })
 

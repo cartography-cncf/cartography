@@ -5,7 +5,7 @@ from typing import Optional
 
 import neo4j
 from azure.core.exceptions import HttpResponseError
-from azure.mgmt.resource import SubscriptionClient
+from azure.mgmt.resource.subscriptions import SubscriptionClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob

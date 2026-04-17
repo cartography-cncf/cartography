@@ -77,4 +77,4 @@ def get_gcp_container_images(
 
     RETURN DISTINCT location, tag, uri, repo_name, digest
     """
-    return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+    return neo4j_session.execute_read(read_list_of_tuples_tx, query)
