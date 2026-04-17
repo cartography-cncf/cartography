@@ -192,6 +192,36 @@ def test_start_aws_ingestion_prefers_explicit_ssm_secure_string_config(
     assert common_job_parameters["aws_ssm_ingest_secure_strings"] is False
 
 
+@mock.patch.dict(os.environ, {"AWS_SSM_INGEST_SECURE_STRINGS": "true"}, clear=False)
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_uses_env_for_ssm_secure_string_config_when_unset(
+    mock_perform_analysis,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    # Arrange
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_ssm_ingest_secure_strings=None,
+    )
+
+    # Act
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    # Assert
+    common_job_parameters = mock_perform_analysis.call_args.args[2]
+    assert common_job_parameters["aws_ssm_ingest_secure_strings"] is True
+
+
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")

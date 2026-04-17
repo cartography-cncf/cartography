@@ -124,6 +124,17 @@ def test_build_ssm_parameter_id_is_deterministic() -> None:
     )
 
 
+def test_build_ssm_parameter_id_matches_private_parameter_arn_shape() -> None:
+    assert (
+        _build_ssm_parameter_id(
+            "000000000000",
+            "eu-west-1",
+            "/my/app/config/db-host",
+        )
+        == "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host"
+    )
+
+
 def test_transform_ssm_parameters_sets_id_and_dates() -> None:
     transformed = transform_ssm_parameters(
         [

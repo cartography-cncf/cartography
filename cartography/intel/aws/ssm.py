@@ -204,6 +204,9 @@ def get_public_ssm_parameters_by_path(
                         region,
                     )
                     continue
+                # Public AWS-managed parameters are expected to be plain Strings.
+                # If SecureStrings are explicitly allowed, WithDecryption remains
+                # disabled here so values stay in the service-returned form.
                 ssm_parameters_data.append(parameter)
                 prefix_parameter_count += 1
         logger.info(
