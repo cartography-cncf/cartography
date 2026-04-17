@@ -15,8 +15,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class SSMParameterNodeProperties(CartographyNodeProperties):
 
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    id: PropertyRef = PropertyRef("ARN")
+    id: PropertyRef = PropertyRef("Id")
     name: PropertyRef = PropertyRef("Name")
+    value: PropertyRef = PropertyRef("Value")
     description: PropertyRef = PropertyRef("Description")
     type: PropertyRef = PropertyRef("Type")
     keyid: PropertyRef = PropertyRef("KeyId")

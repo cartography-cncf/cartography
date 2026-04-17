@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import traceback
 from typing import Any
 from typing import Dict
@@ -414,6 +415,17 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    aws_ssm_public_parameter_prefix_allowlist = (
+        config.aws_ssm_public_parameter_prefix_allowlist
+        if config.aws_ssm_public_parameter_prefix_allowlist is not None
+        else os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST")
+    )
+    aws_ssm_ingest_secure_strings = (
+        config.aws_ssm_ingest_secure_strings
+        if config.aws_ssm_ingest_secure_strings
+        else os.getenv("AWS_SSM_INGEST_SECURE_STRINGS", "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -421,6 +433,8 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
+        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
+        "aws_ssm_ingest_secure_strings": aws_ssm_ingest_secure_strings,
     }
     try:
         boto3_session = boto3.Session()

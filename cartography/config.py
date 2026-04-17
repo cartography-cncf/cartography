@@ -82,6 +82,12 @@ class Config:
     :type aws_tagging_api_cleanup_batch: int
     :param aws_tagging_api_cleanup_batch: Batch size for Resource Groups Tagging API cleanup. Controls how many
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
+    :type aws_ssm_public_parameter_prefix_allowlist: str
+    :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
+        prefixes to ingest (for example /aws/service/bottlerocket/). Optional.
+    :type aws_ssm_ingest_secure_strings: bool
+    :param aws_ssm_ingest_secure_strings: Whether to ingest SSM parameters with type SecureString. Defaults to False.
+        Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -305,6 +311,8 @@ class Config:
         aws_cloudtrail_management_events_lookback_hours=None,
         experimental_aws_inspector_batch=1000,
         aws_tagging_api_cleanup_batch=1000,
+        aws_ssm_public_parameter_prefix_allowlist=None,
+        aws_ssm_ingest_secure_strings=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -458,6 +466,10 @@ class Config:
         )
         self.experimental_aws_inspector_batch = experimental_aws_inspector_batch
         self.aws_tagging_api_cleanup_batch = aws_tagging_api_cleanup_batch
+        self.aws_ssm_public_parameter_prefix_allowlist = (
+            aws_ssm_public_parameter_prefix_allowlist
+        )
+        self.aws_ssm_ingest_secure_strings = aws_ssm_ingest_secure_strings
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id

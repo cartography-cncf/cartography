@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections.abc import Iterable
 from typing import Any
 from typing import Dict
 from typing import List
@@ -20,6 +21,35 @@ from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _build_ssm_parameter_id(
+    current_aws_account_id: str,
+    region: str,
+    parameter_name: str,
+) -> str:
+    parameter_path = parameter_name
+    if not parameter_path.startswith("/"):
+        parameter_path = f"/{parameter_path}"
+    return f"arn:aws:ssm:{region}:{current_aws_account_id}:parameter{parameter_path}"
+
+
+def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
+    if not raw_prefixes:
+        return []
+    prefixes = [prefix.strip() for prefix in raw_prefixes.split(",")]
+    prefixes = [prefix for prefix in prefixes if prefix]
+    normalized_prefixes: list[str] = []
+    for prefix in prefixes:
+        normalized_prefixes.append(prefix if prefix.endswith("/") else f"{prefix}/")
+    return normalized_prefixes
+
+
+def _parameter_matches_allowlist_prefixes(
+    parameter_name: str,
+    allowed_prefixes: Iterable[str],
+) -> bool:
+    return any(parameter_name.startswith(prefix) for prefix in allowed_prefixes)
 
 
 @timeit
@@ -123,11 +153,75 @@ def get_ssm_parameters(
     return ssm_parameters_data
 
 
+@timeit
+@aws_handle_regions
+def get_public_ssm_parameters_by_path(
+    boto3_session: boto3.session.Session,
+    region: str,
+    allowlist_prefixes: list[str],
+    ingest_secure_strings: bool,
+) -> List[Dict[str, Any]]:
+    if not allowlist_prefixes:
+        return []
+
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    ssm_parameters_data: List[Dict[str, Any]] = []
+    for prefix in allowlist_prefixes:
+        prefix_parameter_count = 0
+        next_token = None
+        while True:
+            params: Dict[str, Any] = {
+                "Path": prefix,
+                "Recursive": True,
+                "WithDecryption": False,
+                "MaxResults": 10,
+            }
+            if next_token:
+                params["NextToken"] = next_token
+            response = client.get_parameters_by_path(**params)
+            for parameter in response.get("Parameters", []):
+                parameter_name = parameter.get("Name", "")
+                if not _parameter_matches_allowlist_prefixes(
+                    parameter_name,
+                    allowlist_prefixes,
+                ):
+                    continue
+                if (
+                    not ingest_secure_strings
+                    and parameter.get("Type") == "SecureString"
+                ):
+                    logger.debug(
+                        "Skipping SecureString SSM parameter %s in region %s.",
+                        parameter_name,
+                        region,
+                    )
+                    continue
+                ssm_parameters_data.append(parameter)
+                prefix_parameter_count += 1
+            next_token = response.get("NextToken")
+            if not next_token:
+                break
+        logger.info(
+            "Fetched %d allowlisted public SSM parameters for prefix '%s' in region '%s'.",
+            prefix_parameter_count,
+            prefix,
+            region,
+        )
+    return ssm_parameters_data
+
+
 def transform_ssm_parameters(
     raw_parameters_data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     transformed_list: List[Dict[str, Any]] = []
     for param in raw_parameters_data:
+        param["Id"] = _build_ssm_parameter_id(
+            current_aws_account_id,
+            region,
+            param["Name"],
+        )
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
         # KMSKey uses shorter UUID as their primary id
@@ -226,6 +320,13 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    allowlist_prefixes = _normalize_allowlisted_prefixes(
+        common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+    )
+    ingest_secure_strings = common_job_parameters.get(
+        "aws_ssm_ingest_secure_strings",
+        False,
+    )
     for region in regions:
         logger.info(
             "Syncing SSM for region '%s' in account '%s'.",
@@ -254,7 +355,15 @@ def sync(
         )
 
         data = get_ssm_parameters(boto3_session, region)
-        data = transform_ssm_parameters(data)
+        if allowlist_prefixes:
+            public_parameters = get_public_ssm_parameters_by_path(
+                boto3_session,
+                region,
+                allowlist_prefixes,
+                ingest_secure_strings,
+            )
+            data.extend(public_parameters)
+        data = transform_ssm_parameters(data, region, current_aws_account_id)
         load_ssm_parameters(
             neo4j_session,
             data,
