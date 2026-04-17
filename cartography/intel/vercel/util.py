@@ -46,7 +46,9 @@ def paginated_get(
             all_results.extend(data)
             break
 
-        results = data.get(result_key, [])
+        # Strict access: surface endpoint/key mismatches instead of silently
+        # dropping data (see firewall bypass `rules` vs `result` bug).
+        results = data[result_key]
         all_results.extend(results)
 
         # Check for next page

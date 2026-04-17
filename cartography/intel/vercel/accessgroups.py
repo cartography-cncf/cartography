@@ -6,7 +6,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.vercel.util import _TIMEOUT
 from cartography.intel.vercel.util import paginated_get
 from cartography.models.vercel.accessgroup import VercelAccessGroupSchema
 from cartography.util import timeit
@@ -49,23 +48,21 @@ def get(
 
     for group in groups:
         group_id = group["accessGroupId"]
-        members_resp = api_session.get(
+        members = paginated_get(
+            api_session,
             f"{base_url}/v1/access-groups/{group_id}/members",
-            params={"teamId": team_id, "limit": "100"},
-            timeout=_TIMEOUT,
+            "members",
+            team_id,
         )
-        members_resp.raise_for_status()
-        group["member_ids"] = [m["uid"] for m in members_resp.json().get("members", [])]
+        group["member_ids"] = [m["uid"] for m in members]
 
-        projects_resp = api_session.get(
+        projects = paginated_get(
+            api_session,
             f"{base_url}/v1/access-groups/{group_id}/projects",
-            params={"teamId": team_id, "limit": "100"},
-            timeout=_TIMEOUT,
+            "projects",
+            team_id,
         )
-        projects_resp.raise_for_status()
-        group["project_ids"] = [
-            p["projectId"] for p in projects_resp.json().get("projects", [])
-        ]
+        group["project_ids"] = [p["projectId"] for p in projects]
 
     return groups
 

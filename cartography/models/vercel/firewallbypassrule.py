@@ -13,13 +13,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelFirewallBypassRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    # Note: Vercel's firewall bypass endpoint returns PascalCase field names.
+    id: PropertyRef = PropertyRef("Id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    domain: PropertyRef = PropertyRef("domain")
-    ip: PropertyRef = PropertyRef("ip")
-    note: PropertyRef = PropertyRef("note")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    actor_id: PropertyRef = PropertyRef("actorId")
+    domain: PropertyRef = PropertyRef("Domain")
+    ip: PropertyRef = PropertyRef("Ip")
+    note: PropertyRef = PropertyRef("Note")
+    action: PropertyRef = PropertyRef("Action")
+    created_at: PropertyRef = PropertyRef("CreatedAt")
+    actor_id: PropertyRef = PropertyRef("ActorId")
+    project_id_api: PropertyRef = PropertyRef("ProjectId")
+    is_project_rule: PropertyRef = PropertyRef("IsProjectRule")
 
 
 @dataclass(frozen=True)
@@ -51,7 +55,7 @@ class VercelFirewallBypassToUserRelProperties(CartographyRelProperties):
 class VercelFirewallBypassToUserRel(CartographyRelSchema):
     target_node_label: str = "VercelUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("actorId")},
+        {"id": PropertyRef("ActorId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CREATED_BY"

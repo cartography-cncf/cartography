@@ -45,7 +45,7 @@ def get(
     return paginated_get(
         api_session,
         f"{base_url}/v1/security/firewall/bypass",
-        "rules",
+        "result",
         team_id,
         params={"projectId": project_id},
     )
