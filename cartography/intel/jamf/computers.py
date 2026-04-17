@@ -70,7 +70,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         result.append(
             {
-                "id": device.get("id"),
+                "id": device["id"],
                 "udid": device.get("udid"),
                 "name": general.get("name"),
                 "platform": general.get("platform"),

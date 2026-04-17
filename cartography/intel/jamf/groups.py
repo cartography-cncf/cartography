@@ -58,8 +58,8 @@ def get(
         return [
             {
                 "groupDescription": None,
-                "groupJamfProId": group.get("id"),
-                "groupName": group.get("name"),
+                "groupJamfProId": group["id"],
+                "groupName": group["name"],
                 "groupType": "COMPUTER",
                 "membershipCount": None,
                 "smart": group.get("is_smart"),
@@ -68,8 +68,8 @@ def get(
         ] + [
             {
                 "groupDescription": None,
-                "groupJamfProId": group.get("id"),
-                "groupName": group.get("name"),
+                "groupJamfProId": group["id"],
+                "groupName": group["name"],
                 "groupType": "MOBILE",
                 "membershipCount": None,
                 "smart": group.get("is_smart"),
@@ -85,7 +85,7 @@ def transform(
     mobile_device_groups: list[dict[str, Any]] = []
     for group in api_result:
         transformed_group = {
-            "id": normalize_group_id(group.get("groupJamfProId")),
+            "id": normalize_group_id(group["groupJamfProId"]),
             "name": group.get("groupName"),
             "description": group.get("groupDescription"),
             "membership_count": group.get("membershipCount"),

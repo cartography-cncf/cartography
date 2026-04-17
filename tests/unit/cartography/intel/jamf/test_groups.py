@@ -1,9 +1,11 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 from cartography.intel.jamf.groups import get
+from cartography.intel.jamf.groups import transform
 
 
 @patch("cartography.intel.jamf.groups.get_paginated_jamf_results")
@@ -96,3 +98,15 @@ def test_get_legacy_fallback_skips_mobile_groups_when_classic_endpoint_missing(
             "smart": True,
         },
     ]
+
+
+def test_transform_requires_group_id() -> None:
+    with pytest.raises(KeyError, match="groupJamfProId"):
+        transform(
+            [
+                {
+                    "groupName": "Springfield Managed Macs",
+                    "groupType": "COMPUTER",
+                },
+            ],
+        )

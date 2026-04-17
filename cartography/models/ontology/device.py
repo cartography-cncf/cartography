@@ -390,21 +390,6 @@ class DeviceToJamfComputerHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
-@dataclass(frozen=True)
-class DeviceToJamfMobileDeviceHostnameMatchLink(CartographyRelSchema):
-    target_node_label: str = "JamfMobileDevice"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"display_name": PropertyRef("hostname")},
-    )
-    source_node_label: str = "Device"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"hostname": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
-
-
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
@@ -431,9 +416,4 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         DeviceToIntuneManagedDeviceHostnameMatchLink(),
     ),
     ("JamfComputer", "name", DeviceToJamfComputerHostnameMatchLink()),
-    (
-        "JamfMobileDevice",
-        "display_name",
-        DeviceToJamfMobileDeviceHostnameMatchLink(),
-    ),
 ]

@@ -139,6 +139,25 @@ def test_call_jamf_api_normalizes_trailing_slashes() -> None:
     )
 
 
+def test_call_jamf_api_appends_classic_api_path_for_plain_host() -> None:
+    mock_session = Mock()
+    mock_response = Mock()
+    mock_response.json.return_value = {"computer_groups": []}
+    mock_session.get.return_value = mock_response
+
+    call_jamf_api(
+        "/computergroups",
+        "https://test.jamfcloud.com",
+        mock_session,
+    )
+
+    mock_session.get.assert_called_once_with(
+        "https://test.jamfcloud.com/JSSResource/computergroups",
+        timeout=(60, 60),
+        params=None,
+    )
+
+
 def test_call_jamf_api_uses_instance_uri_for_modern_api_paths() -> None:
     mock_session = Mock()
     mock_response = Mock()

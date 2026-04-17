@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from typing import NoReturn
 
 import requests
 import requests.auth
@@ -26,9 +27,12 @@ def _get_jamf_instance_uri(jamf_base_uri: str) -> str:
 
 
 def _get_request_base_uri(jamf_base_uri: str, api_path: str) -> str:
+    normalized_uri = _normalize_jamf_base_uri(jamf_base_uri)
     if api_path.startswith("/api/"):
-        return _get_jamf_instance_uri(jamf_base_uri)
-    return _normalize_jamf_base_uri(jamf_base_uri)
+        return _get_jamf_instance_uri(normalized_uri)
+    if normalized_uri.endswith(_CLASSIC_API_PATH):
+        return normalized_uri
+    return f"{normalized_uri}{_CLASSIC_API_PATH}"
 
 
 def get_http_status_code(err: requests.HTTPError) -> int | None:
@@ -47,6 +51,11 @@ def normalize_group_id(value: Any) -> int | str | None:
     if isinstance(value, str) and value.isdigit():
         return int(value)
     return value
+
+
+def _raise_http_status(response: requests.Response) -> NoReturn:
+    response.raise_for_status()
+    raise RuntimeError("requests.Response.raise_for_status() unexpectedly returned")
 
 
 @timeit
@@ -88,14 +97,10 @@ def create_jamf_api_session(
         return session
 
     try:
-        response.raise_for_status()
+        _raise_http_status(response)
     except requests.HTTPError:
         session.close()
         raise
-
-    raise RuntimeError(
-        "Jamf auth token request failed without returning a handled status"
-    )
 
 
 @timeit
