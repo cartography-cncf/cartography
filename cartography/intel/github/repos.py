@@ -1745,6 +1745,24 @@ def cleanup_python_requirements(
 
 
 @timeit
+def cleanup_global_resources(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Clean up stale GitHub resources that are not scoped to a single organization.
+
+    These schemas use global cleanup semantics, so running them after each org sync can
+    delete data for orgs that have not been processed yet in the current sync cycle.
+    """
+    cleanup_github_repos(neo4j_session, common_job_parameters)
+    cleanup_github_languages(neo4j_session, common_job_parameters)
+    cleanup_github_owners(neo4j_session, common_job_parameters)
+    cleanup_github_collaborators(neo4j_session, common_job_parameters)
+    cleanup_python_requirements(neo4j_session, common_job_parameters)
+
+
+@timeit
 def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -1889,7 +1907,6 @@ def sync(
 
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
-    cleanup_github_repos(neo4j_session, common_job_parameters)
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -1899,10 +1916,6 @@ def sync(
         f"https://github.com/{organization}",
     )
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
-    cleanup_github_languages(neo4j_session, common_job_parameters)
-    cleanup_github_owners(neo4j_session, common_job_parameters)
-    cleanup_github_collaborators(neo4j_session, common_job_parameters)
-    cleanup_python_requirements(neo4j_session, common_job_parameters)
 
     # Collect repository URLs that have dependencies for cleanup
     repo_urls_with_dependencies = list(
