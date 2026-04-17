@@ -66,6 +66,7 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -90,6 +91,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -998,6 +1000,18 @@ class CLI:
                     help="JumpCloud organization ID used as the tenant identifier.",
                     rich_help_panel=PANEL_JUMPCLOUD,
                     hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Socket.dev Options
+            # =================================================================
+            socketdev_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--socketdev-token-env-var",
+                    help="Environment variable name containing Socket.dev API token.",
+                    rich_help_panel=PANEL_SOCKETDEV,
+                    hidden=PANEL_SOCKETDEV not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1957,6 +1971,16 @@ class CLI:
                     jumpcloud_api_key_env_var,
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read Socket.dev token
+            socketdev_token = None
+            if socketdev_token_env_var:
+                logger.debug(
+                    "Reading Socket.dev API token from environment variable %s",
+                    socketdev_token_env_var,
+                )
+                socketdev_token = os.environ.get(socketdev_token_env_var)
+
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2327,6 +2351,7 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,

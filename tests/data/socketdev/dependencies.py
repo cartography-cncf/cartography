@@ -1,0 +1,37 @@
+DEPENDENCIES_RESPONSE = {
+    "rows": [
+        {
+            "id": "dep-001",
+            "name": "lodash",
+            "type": "npm",
+            "version": "4.17.21",
+            "namespace": None,
+            "repository": "frontend-app",
+            "branch": "main",
+            "direct": True,
+        },
+        {
+            "id": "dep-002",
+            "name": "express",
+            "type": "npm",
+            "version": "4.18.2",
+            "namespace": None,
+            "repository": "backend-api",
+            "branch": "main",
+            "direct": True,
+        },
+        {
+            "id": "dep-003",
+            "name": "requests",
+            "type": "pypi",
+            "version": "2.31.0",
+            "namespace": None,
+            "repository": "backend-api",
+            "branch": "main",
+            "direct": False,
+        },
+    ],
+    "end": True,
+    "limit": 100,
+    "offset": 0,
+}

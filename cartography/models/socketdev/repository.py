@@ -1,0 +1,55 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class SocketDevRepositoryNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    slug: PropertyRef = PropertyRef("slug", extra_index=True)
+    description: PropertyRef = PropertyRef("description")
+    visibility: PropertyRef = PropertyRef("visibility")
+    archived: PropertyRef = PropertyRef("archived")
+    default_branch: PropertyRef = PropertyRef("default_branch")
+    homepage: PropertyRef = PropertyRef("homepage")
+    created_at: PropertyRef = PropertyRef("created_at")
+    updated_at: PropertyRef = PropertyRef("updated_at")
+
+
+@dataclass(frozen=True)
+class SocketDevOrgToRepositoryRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SocketDevOrganization)-[:RESOURCE]->(:SocketDevRepository)
+class SocketDevOrgToRepositoryRel(CartographyRelSchema):
+    target_node_label: str = "SocketDevOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: SocketDevOrgToRepositoryRelProperties = (
+        SocketDevOrgToRepositoryRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SocketDevRepositorySchema(CartographyNodeSchema):
+    label: str = "SocketDevRepository"
+    properties: SocketDevRepositoryNodeProperties = SocketDevRepositoryNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CodeRepository"])
+    sub_resource_relationship: SocketDevOrgToRepositoryRel = (
+        SocketDevOrgToRepositoryRel()
+    )
