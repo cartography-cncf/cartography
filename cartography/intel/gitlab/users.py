@@ -88,9 +88,9 @@ def get_commits(
 
 
 def transform_commit_activity(
-    commits_by_project: dict[str, list[dict[str, Any]]],
-    users_by_email: dict[str, str],
-    users_by_name: dict[str, str],
+    commits_by_project: dict[int, list[dict[str, Any]]],
+    users_by_email: dict[str, int],
+    users_by_name: dict[str, int],
     user_records: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
@@ -100,48 +100,46 @@ def transform_commit_activity(
     Takes existing user records and creates new records with commit properties added.
 
     Matching strategy:
-    1. Try to match by author_email first (more accurate)
-    2. Fall back to author_name if email not available or not found
+    1. Match by author_email first.
+    2. Fall back to author_name when email is unavailable or not exposed by the
+       GitLab members API for the current token/instance.
 
-    :param commits_by_project: Dict mapping project_url to list of commits
-    :param users_by_email: Dict mapping user email to user web_url
-    :param users_by_name: Dict mapping user display name to user web_url
+    :param commits_by_project: Dict mapping project_id to list of commits
+    :param users_by_email: Dict mapping user email to user ID
+    :param users_by_name: Dict mapping user display name to user ID
     :param user_records: Existing user records with all user properties
     :return: List of commit activity records (user data + commit properties)
     """
     # Build a lookup from web_url to user record for quick access
-    users_by_url = {record["web_url"]: record for record in user_records}
+    users_by_id = {record["id"]: record for record in user_records}
 
-    # Aggregate: (user_url, project_url) -> list of commit dates
-    activity: dict[tuple[str, str], list[str]] = {}
+    # Aggregate: (user_id, project_id) -> list of commit dates
+    activity: dict[tuple[int, int], list[str]] = {}
 
     # Track matching stats for logging
     email_matches = 0
     name_matches = 0
     no_matches = 0
 
-    for project_url, commits in commits_by_project.items():
+    for project_id, commits in commits_by_project.items():
         for commit in commits:
             committed_date = commit.get("committed_date")
             author_email = commit.get("author_email")
             author_name = commit.get("author_name")
-
             if not committed_date:
                 continue
 
-            # Try to match user by email first, then fall back to name
-            user_url = None
             if author_email and author_email in users_by_email:
-                user_url = users_by_email[author_email]
+                user_id = users_by_email[author_email]
                 email_matches += 1
             elif author_name and author_name in users_by_name:
-                user_url = users_by_name[author_name]
+                user_id = users_by_name[author_name]
                 name_matches += 1
             else:
                 no_matches += 1
                 continue
 
-            key = (user_url, project_url)
+            key = (user_id, project_id)
 
             if key not in activity:
                 activity[key] = []
@@ -154,7 +152,7 @@ def transform_commit_activity(
 
     # Build records by taking existing user data and adding commit properties
     records = []
-    for (user_url, project_url), dates in activity.items():
+    for (user_id, project_id), dates in activity.items():
         # Parse ISO dates to datetime objects for proper timezone-aware comparison
         commit_dates = [
             datetime.fromisoformat(date.replace("Z", "+00:00")) for date in dates
@@ -162,10 +160,10 @@ def transform_commit_activity(
 
         # Find the user record (may have multiple if they have group memberships)
         # Just take the first one since we only need the user properties
-        base_user_data = users_by_url.get(user_url)
+        base_user_data = users_by_id.get(user_id)
         if not base_user_data:
             logger.warning(
-                f"User {user_url} not found in user records, skipping commit activity"
+                f"User {user_id} not found in user records, skipping commit activity"
             )
             continue
 
@@ -176,7 +174,7 @@ def transform_commit_activity(
         # Create new record with user properties + commit properties
         record = {
             **base_user_data,  # Copy all user properties
-            "project_url": project_url,
+            "project_id": project_id,
             "commit_count": len(dates),
             "first_commit_date": first_date,
             "last_commit_date": last_date,
@@ -194,7 +192,8 @@ def transform_commit_activity(
 
 def transform_users_and_memberships(
     org_members: list[dict[str, Any]],
-    group_members_by_group: dict[str, list[dict[str, Any]]],
+    group_members_by_group: dict[int, list[dict[str, Any]]],
+    gitlab_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform raw GitLab user and membership data into the format expected by the schema.
@@ -207,14 +206,14 @@ def transform_users_and_memberships(
     user data but no group relationship fields.
     """
     # Track which users we've seen and their group memberships
-    user_memberships: dict[str, list[dict[str, Any]]] = {}
+    user_memberships: dict[int, list[dict[str, Any]]] = {}
 
     # Process organization members (these may or may not have group memberships)
     for member in org_members:
-        user_url = member.get("web_url")
+        user_id = member.get("id")
         username = member.get("username", "")
 
-        if not user_url:
+        if not user_id:
             continue
 
         # Skip bot users (group/project access tokens)
@@ -224,16 +223,16 @@ def transform_users_and_memberships(
             continue
 
         # Initialize user if not seen before
-        if user_url not in user_memberships:
-            user_memberships[user_url] = []
+        if user_id not in user_memberships:
+            user_memberships[user_id] = []
 
     # Process group memberships
-    for group_url, members in group_members_by_group.items():
+    for group_id, members in group_members_by_group.items():
         for member in members:
-            user_url = member.get("web_url")
+            user_id = member.get("id")
             username = member.get("username", "")
 
-            if not user_url:
+            if not user_id:
                 continue
 
             # Skip bot users (group/project access tokens)
@@ -242,8 +241,8 @@ def transform_users_and_memberships(
                 continue
 
             # Initialize user if not seen before
-            if user_url not in user_memberships:
-                user_memberships[user_url] = []
+            if user_id not in user_memberships:
+                user_memberships[user_id] = []
 
             # Add group membership
             access_level = member.get("access_level")
@@ -254,42 +253,44 @@ def transform_users_and_memberships(
             )
 
             membership = {
-                "web_url": user_url,  # User node id
+                "id": user_id,
+                "web_url": member.get("web_url"),
                 "username": member.get("username"),
                 "name": member.get("name"),
                 "state": member.get("state"),
                 "email": member.get("email"),
                 "is_admin": member.get("is_admin", False),
-                "group_url": group_url,  # Target for MEMBER_OF relationship
+                "group_id": group_id,
+                "gitlab_url": gitlab_url,
                 "role": role,
                 "access_level": access_level,
             }
-            user_memberships[user_url].append(membership)
+            user_memberships[user_id].append(membership)
 
     # Build final records: one record per user-group membership
     records: list[dict[str, Any]] = []
     users_without_groups = 0
 
-    for user_url, memberships in user_memberships.items():
+    for user_id, memberships in user_memberships.items():
         if memberships:
             # User has group memberships - add one record per membership
             records.extend(memberships)
         else:
             # User has no group memberships - add single record with just user data
             # Find user data from org_members
-            user_data = next(
-                (m for m in org_members if m.get("web_url") == user_url), None
-            )
+            user_data = next((m for m in org_members if m.get("id") == user_id), None)
             if user_data:
                 records.append(
                     {
-                        "web_url": user_url,  # User node id
+                        "id": user_id,
+                        "web_url": user_data.get("web_url"),
                         "username": user_data.get("username"),
                         "name": user_data.get("name"),
                         "state": user_data.get("state"),
                         "email": user_data.get("email"),
                         "is_admin": user_data.get("is_admin", False),
-                        # No group_url = no MEMBER_OF relationship created
+                        "gitlab_url": gitlab_url,
+                        # No group_id = no MEMBER_OF relationship created
                     }
                 )
                 users_without_groups += 1
@@ -306,7 +307,8 @@ def transform_users_and_memberships(
 def load_users(
     neo4j_session: neo4j.Session,
     user_records: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -317,13 +319,13 @@ def load_users(
     relationships when the required PropertyRef fields are missing from the data.
     Here, records contain group_url but not project_url, so only MEMBER_OF is created.
     """
-    logger.info(f"Loading {len(user_records)} user records for organization {org_url}")
     load(
         neo4j_session,
         GitLabUserSchema(),
         user_records,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -331,7 +333,8 @@ def load_users(
 def load_commit_activity(
     neo4j_session: neo4j.Session,
     activity_records: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -341,13 +344,13 @@ def load_commit_activity(
     skips relationships when the required PropertyRef fields are missing from the data.
     Here, records contain project_url but not group_url, so only COMMITTED_TO is created.
     """
-    logger.info(f"Loading {len(activity_records)} commit activity records")
     load(
         neo4j_session,
         GitLabUserSchema(),
         activity_records,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -355,13 +358,18 @@ def load_commit_activity(
 def cleanup_users(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab users from the graph for a specific organization.
     """
-    logger.info(f"Running GitLab users cleanup for organization {org_url}")
-    cleanup_params = {**common_job_parameters, "org_url": org_url}
+    logger.info(f"Running GitLab users cleanup for organization {org_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "org_id": org_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(GitLabUserSchema(), cleanup_params).run(neo4j_session)
 
 
@@ -405,21 +413,20 @@ def sync_gitlab_users(
         org_members = []
 
     # Fetch members for all descendant groups
-    group_members_by_group: dict[str, list[dict[str, Any]]] = {}
+    group_members_by_group: dict[int, list[dict[str, Any]]] = {}
     for group in groups:
         group_id = group.get("id")
-        group_url = group.get("web_url")
-        if not group_id or not group_url:
+        if not group_id:
             continue
 
         try:
             members = get_group_members(gitlab_url, token, group_id)
             if members:
-                group_members_by_group[group_url] = members
-                logger.debug(f"Fetched {len(members)} members for group {group_url}")
+                group_members_by_group[group_id] = members
+                logger.debug(f"Fetched {len(members)} members for group {group_id}")
         except Exception:
             logger.warning(
-                f"Failed to fetch members for group {group_url}", exc_info=True
+                f"Failed to fetch members for group {group_id}", exc_info=True
             )
             continue
 
@@ -428,22 +435,20 @@ def sync_gitlab_users(
     )
 
     # Transform users and memberships into records
-    user_records = transform_users_and_memberships(org_members, group_members_by_group)
+    user_records = transform_users_and_memberships(
+        org_members, group_members_by_group, gitlab_url
+    )
 
     if not user_records:
         logger.info(f"No users found for organization {org_name}")
         return
 
     # Load users and their group memberships into Neo4j
-    load_users(neo4j_session, user_records, org_url, update_tag)
+    load_users(neo4j_session, user_records, organization_id, gitlab_url, update_tag)
 
-    # Build email and name mappings for commit author matching
-    # Try email first (more accurate), fall back to name
-    users_by_email: dict[str, str] = {}
-    users_by_name: dict[str, str] = {}
-
-    # Track duplicate names for warning
-    duplicate_names: set[str] = set()
+    # Build email/name mappings for commit author matching.
+    users_by_email: dict[str, int] = {}
+    users_by_name: dict[str, int] = {}
 
     # Collect all members (org + groups) to process
     all_members = list(org_members)
@@ -451,9 +456,8 @@ def sync_gitlab_users(
         all_members.extend(members)
 
     for member in all_members:
-        name = member.get("name")
         email = member.get("email")
-        web_url = member.get("web_url")
+        user_id = member.get("id")
         username = member.get("username", "")
 
         # Skip bot users
@@ -461,47 +465,33 @@ def sync_gitlab_users(
             continue
 
         # Build email mapping (if email is available)
-        if email and web_url:
-            users_by_email[email] = web_url
-
-        # Build name mapping (always available as fallback)
-        if name and web_url:
-            # Check for duplicate names
-            if name in users_by_name and users_by_name[name] != web_url:
-                duplicate_names.add(name)
-            users_by_name[name] = web_url
-
-    # Warn about duplicate names (silent data loss risk)
-    if duplicate_names:
-        logger.warning(
-            f"Found {len(duplicate_names)} users with duplicate display names. "
-            "Commit matching by name may be inaccurate for these users. "
-            "Email matching will be attempted first."
-        )
+        if email and user_id:
+            users_by_email[email] = user_id
+        name = member.get("name")
+        if name and user_id:
+            users_by_name[name] = user_id
 
     logger.info(
-        f"Built commit author mappings: {len(users_by_email)} by email, "
-        f"{len(users_by_name)} by name"
+        "Built commit author mappings: %d by email, %d by name",
+        len(users_by_email),
+        len(users_by_name),
     )
 
     # Fetch commits for all projects to build commit activity
-    commits_by_project: dict[str, list[dict[str, Any]]] = {}
+    commits_by_project: dict[int, list[dict[str, Any]]] = {}
     for project in projects:
         project_id = project.get("id")
-        project_url = project.get("web_url")
-        if not project_id or not project_url:
+        if not project_id:
             continue
 
         try:
             commits = get_commits(gitlab_url, token, project_id, commits_since_days)
             if commits:
-                commits_by_project[project_url] = commits
-                logger.debug(
-                    f"Fetched {len(commits)} commits for project {project_url}"
-                )
+                commits_by_project[project_id] = commits
+                logger.debug(f"Fetched {len(commits)} commits for project {project_id}")
         except Exception:
             logger.warning(
-                f"Failed to fetch commits for project {project_url}", exc_info=True
+                f"Failed to fetch commits for project {project_id}", exc_info=True
             )
             continue
 
@@ -513,6 +503,12 @@ def sync_gitlab_users(
             commits_by_project, users_by_email, users_by_name, user_records
         )
         if activity_records:
-            load_commit_activity(neo4j_session, activity_records, org_url, update_tag)
+            load_commit_activity(
+                neo4j_session,
+                activity_records,
+                organization_id,
+                gitlab_url,
+                update_tag,
+            )
 
     logger.info("GitLab users sync completed")

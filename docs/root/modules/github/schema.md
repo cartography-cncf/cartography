@@ -4,6 +4,7 @@
 graph LR
 
 O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> B(GitHubBranch)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
@@ -117,6 +118,14 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   - **commit_count**: Number of commits made by the user to the repository in the last 30 days
   - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
   - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
+- GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).
+
+    ```
+    (SemgrepSASTFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSCAFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSecretsFinding)-[:FOUND_IN]->(GitHubRepository)
+    ```
 
 ### GitHubOrganization
 
@@ -295,6 +304,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
 Representation of a single GitHubBranch [ref object](https://developer.github.com/v4/object/ref). This node contains minimal data for a repository branch.
 
+GitHub branches are modeled as resources scoped to the parent GitHub organization and also linked to their repository via the `BRANCH` relationship.
 
 | Field | Description |
 |-------|--------------|
@@ -305,6 +315,12 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
 
 #### Relationships
+
+- GitHubOrganizations scope GitHubBranches as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranch)
+    ```
 
 - GitHubRepositories have GitHubBranches.
 
@@ -350,6 +366,7 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.
 
+ProgrammingLanguage nodes are shared globally across repositories and are linked from each repository with `:LANGUAGE`.
 
 | Field | Description |
 |-------|--------------|
@@ -461,6 +478,8 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
 or [setup.cfg](https://setuptools.pypa.io/en/latest/userguide/declarative_config.html) file.
 Within a setup.cfg file, cartography will load everything from `install_requires`, `setup_requires`, and `extras_require`.
+
+These nodes are also shared globally across repositories. Repository-specific version constraints stay on the `:REQUIRES` relationship via the `specifier` property.
 
 | Field | Description |
 |-------|-------------|

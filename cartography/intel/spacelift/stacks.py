@@ -82,8 +82,6 @@ def load_stacks(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(stacks_data)} Spacelift stacks")
-
 
 @timeit
 def cleanup_stacks(
@@ -115,5 +113,4 @@ def sync_stacks(
         account_id,
     )
     cleanup_stacks(neo4j_session, common_job_parameters)
-
-    logger.info(f"Synced {len(transformed_stacks)} Spacelift stacks")
+    logger.info("Synced Spacelift stacks for account %s", account_id)

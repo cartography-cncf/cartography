@@ -39,14 +39,14 @@ class GitLabProjectProvenancePackagedFromMatchLink(CartographyRelSchema):
     """
     MatchLink for SLSA provenance: (Image)-[:PACKAGED_FROM]->(GitLabProject).
 
-    Matches Image.source_uri to GitLabProject.id using the same project URL value.
+    Matches Image.source_uri to GitLabProject.web_url using the same project URL value.
     No pre-query needed: just pass the project URLs from the projects list.
     """
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("project_url"),
+            "web_url": PropertyRef("project_url"),
         }
     )
     source_node_label: str = "Image"
@@ -73,7 +73,7 @@ class GitLabProjectDockerfilePackagedFromMatchLink(CartographyRelSchema):
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("project_url"),
+            "web_url": PropertyRef("project_url"),
         }
     )
     source_node_label: str = "Image"

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -10,8 +9,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.account import CloudflareAccountSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -40,7 +37,6 @@ def load_accounts(
     data: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Cloudflare accounts into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareAccountSchema(),

@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.sentinelone.api import build_scope_params
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.intel.sentinelone.utils import get_application_id
 from cartography.intel.sentinelone.utils import get_application_version_id
@@ -19,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_application_data(
-    account_id: str, api_url: str, api_token: str
+    account_id: str,
+    api_url: str,
+    api_token: str,
+    site_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Get application data from SentinelOne API
@@ -29,14 +33,13 @@ def get_application_data(
     :return: A list of application data dictionaries
     """
     logger.info(f"Retrieving SentinelOne application data for account {account_id}")
+    params = build_scope_params(account_id=account_id, site_id=site_id)
+    params["limit"] = 1000
     applications = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/inventory",
         api_token=api_token,
-        params={
-            "accountIds": account_id,
-            "limit": 1000,
-        },
+        params=params,
     )
 
     logger.info(f"Retrieved {len(applications)} applications from SentinelOne")
@@ -45,7 +48,11 @@ def get_application_data(
 
 @timeit
 def get_application_installs(
-    app_inventory: list[dict[str, Any]], account_id: str, api_url: str, api_token: str
+    app_inventory: list[dict[str, Any]],
+    account_id: str,
+    api_url: str,
+    api_token: str,
+    site_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Get application installs from SentinelOne API
@@ -63,22 +70,25 @@ def get_application_installs(
 
     application_installs = []
     for i, app in enumerate(app_inventory):
-        logger.info(
+        logger.debug(
             f"Retrieving SentinelOne installs for {app.get('applicationName')} "
             f"{app.get('applicationVendor')} ({i + 1}/{len(app_inventory)})",
         )
         name = app["applicationName"]
         vendor = app["applicationVendor"]
-        app_installs = get_paginated_results(
-            api_url=api_url,
-            endpoint="/web/api/v2.1/application-management/inventory/endpoints",
-            api_token=api_token,
-            params={
-                "accountIds": account_id,
+        params = build_scope_params(account_id=account_id, site_id=site_id)
+        params.update(
+            {
                 "limit": 1000,
                 "applicationName": name,
                 "applicationVendor": vendor,
             },
+        )
+        app_installs = get_paginated_results(
+            api_url=api_url,
+            endpoint="/web/api/v2.1/application-management/inventory/endpoints",
+            api_token=api_token,
+            params=params,
         )
 
         # Replace applicationVendor and applicationName with original values
@@ -165,7 +175,6 @@ def load_application_data(
     :param update_tag: Update tag to set on the nodes
     :return: None
     """
-    logger.info(f"Loading {len(data)} SentinelOne applications into Neo4j")
     load(
         neo4j_session,
         S1ApplicationSchema(),
@@ -182,7 +191,6 @@ def load_application_versions(
     account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} SentinelOne application versions into Neo4j")
     load(
         neo4j_session,
         S1ApplicationVersionSchema(),
@@ -210,6 +218,8 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    *,
+    do_cleanup: bool = True,
 ) -> None:
     """
     Sync SentinelOne applications
@@ -221,10 +231,15 @@ def sync(
     account_id = str(common_job_parameters["S1_ACCOUNT_ID"])
     api_url = str(common_job_parameters["API_URL"])
     api_token = str(common_job_parameters["API_TOKEN"])
+    site_id = common_job_parameters.get("S1_SITE_ID")
 
-    applications = get_application_data(account_id, api_url, api_token)
+    applications = get_application_data(account_id, api_url, api_token, site_id)
     application_versions = get_application_installs(
-        applications, account_id, api_url, api_token
+        applications,
+        account_id,
+        api_url,
+        api_token,
+        site_id,
     )
     transformed_applications = transform_applications(applications)
     transformed_application_versions = transform_application_versions(
@@ -245,4 +260,5 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
 
-    cleanup(neo4j_session, common_job_parameters)
+    if do_cleanup:
+        cleanup(neo4j_session, common_job_parameters)

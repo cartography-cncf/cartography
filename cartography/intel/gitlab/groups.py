@@ -33,34 +33,25 @@ def get_groups(gitlab_url: str, token: str, org_id: int) -> list[dict[str, Any]]
 
 
 def transform_groups(
-    raw_groups: list[dict[str, Any]], org_url: str
+    raw_groups: list[dict[str, Any]], org_id: int, gitlab_url: str
 ) -> list[dict[str, Any]]:
     """
     Transform raw GitLab group data to match our schema.
     """
     transformed = []
 
-    # Build lookup map for parent URL resolution
-    id_to_web_url = {group.get("id"): group.get("web_url") for group in raw_groups}
-
     for group in raw_groups:
-        parent_id = group.get("parent_id")
-        web_url = group.get("web_url")
-
-        # Get parent group URL if this is a nested group
-        parent_group_url = id_to_web_url.get(parent_id) if parent_id else None
-
         transformed_group = {
-            "web_url": web_url,
+            "id": group.get("id"),
+            "web_url": group.get("web_url"),
             "name": group.get("name"),
             "path": group.get("path"),
             "full_path": group.get("full_path"),
             "description": group.get("description"),
             "visibility": group.get("visibility"),
-            "parent_id": parent_id,
+            "parent_id": group.get("parent_id"),
             "created_at": group.get("created_at"),
-            "org_url": org_url,
-            "parent_group_url": parent_group_url,
+            "gitlab_url": gitlab_url,
         }
         transformed.append(transformed_group)
 
@@ -72,19 +63,20 @@ def transform_groups(
 def load_groups(
     neo4j_session: neo4j.Session,
     groups: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
     Load GitLab groups into the graph for a specific organization.
     """
-    logger.info(f"Loading {len(groups)} groups for organization {org_url}")
     load(
         neo4j_session,
         GitLabGroupSchema(),
         groups,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -92,14 +84,19 @@ def load_groups(
 def cleanup_groups(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab groups from the graph for a specific organization.
     Uses cascade delete to also remove child projects and nested groups.
     """
-    logger.info(f"Running GitLab groups cleanup for organization {org_url}")
-    cleanup_params = {**common_job_parameters, "org_url": org_url}
+    logger.info(f"Running GitLab groups cleanup for organization {org_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "org_id": org_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(
         GitLabGroupSchema(), cleanup_params, cascade_delete=True
     ).run(neo4j_session)
@@ -140,10 +137,16 @@ def sync_gitlab_groups(
         return []
 
     # Transform to match our schema
-    transformed_groups = transform_groups(raw_groups, org_url)
+    transformed_groups = transform_groups(raw_groups, organization_id, gitlab_url)
 
     # Load into Neo4j
-    load_groups(neo4j_session, transformed_groups, org_url, update_tag)
+    load_groups(
+        neo4j_session,
+        transformed_groups,
+        organization_id,
+        gitlab_url,
+        update_tag,
+    )
 
     logger.info("GitLab groups sync completed")
     return raw_groups

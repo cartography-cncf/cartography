@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Tuple
 
@@ -14,7 +13,6 @@ from cartography.models.keycloak.organizationdomain import (
 )
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -117,7 +115,6 @@ def load_organizations(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Organizations (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakOrganizationSchema(),
@@ -134,9 +131,6 @@ def load_org_domains(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info(
-        "Loading %d Keycloak Organization Domains (%s) into Neo4j.", len(data), realm
-    )
     load(
         neo4j_session,
         KeycloakOrganizationDomainSchema(),

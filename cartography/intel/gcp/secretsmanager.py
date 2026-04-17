@@ -263,7 +263,6 @@ def load_secrets(
     """
     Load transformed secrets into Neo4j.
     """
-    logger.info(f"Loading {len(secrets)} secrets for project {project_id} into graph.")
     load(
         neo4j_session,
         GCPSecretManagerSecretSchema(),

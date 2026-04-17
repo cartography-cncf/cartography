@@ -226,9 +226,11 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
     ORDER BY a.name, i.region
     ```
 
-### GuardDutyFinding::Risk
+### GuardDutyFinding::Risk::SecurityIssue
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., SemgrepSASTFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|-------------|
@@ -274,7 +276,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
-### AWSInspectorFinding
+### AWSInspectorFinding::Risk
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
@@ -1988,6 +1990,14 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| metadatahttptokens | The EC2 metadata service token setting. `required` means IMDSv2 is required and IMDSv1 is disabled; `optional` means either IMDSv1 or IMDSv2 may be used. |
+| metadatahttpputresponsehoplimit | The maximum number of network hops that an IMDSv2 session token response can travel. |
+| metadatahttpendpoint | Indicates whether the instance metadata HTTP endpoint is enabled. |
+| metadatahttpprotocolipv6 | Indicates whether the IPv6 endpoint for the instance metadata service is enabled. |
+| metadatainstancetags | Indicates whether instance tags are exposed through the instance metadata service. |
+| imdsaccessmode | A derived helper field that normalizes the `metadatahttptokens` setting to `v2_only` or `v1_or_v2` for easier security queries. |
+| imdsv1enabled | A derived boolean that is `true` when IMDSv1 remains allowed on the instance. |
+| imdsv2required | A derived boolean that is `true` when the instance requires IMDSv2 and disables IMDSv1. |
 | eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 
 
@@ -2536,9 +2546,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -2783,6 +2796,11 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 - EKS Clusters belong to AWS Accounts.
     ```
     (AWSAccount)-[RESOURCE]->(EKSCluster)
+    ```
+
+- An EKS Cluster maps to the `KubernetesCluster` synced from the same control plane.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
     ```
 
 #### Example queries
@@ -3866,6 +3884,8 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 ### KMSKey
 
 Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIReference/API_KeyListEntry.html).
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |-------|-------------|
@@ -5093,9 +5113,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 ### EfsFileSystem
@@ -5230,6 +5253,31 @@ Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sn
 - SNS Topic Subscriptions are associated with SNS Topics.
     ```
     (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    ```
+
+### SESEmailIdentity
+
+Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SES email identity |
+| arn | The ARN of the SES email identity |
+| identity | The name of the email identity (domain or email address) |
+| identity\_type | The type of the identity, either `EMAIL_ADDRESS` or `DOMAIN` |
+| sending\_enabled | Whether email sending is enabled for this identity |
+| verification\_status | The verification status of the identity (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| dkim\_signing\_enabled | Whether DKIM signing is enabled for this identity |
+| dkim\_status | The DKIM authentication status (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| region | The AWS region where the SES email identity exists |
+
+#### Relationships
+
+- SES Email Identities are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SESEmailIdentity)
     ```
 
 ### S3AccountPublicAccessBlock

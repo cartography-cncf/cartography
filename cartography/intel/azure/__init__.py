@@ -24,6 +24,7 @@ from . import event_hub
 from . import event_hub_namespace
 from . import firewall
 from . import functions
+from . import group_containers
 from . import key_vaults
 from . import load_balancers
 from . import logic_apps
@@ -200,6 +201,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     container_instances.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    group_containers.sync_group_containers(
         neo4j_session,
         credentials,
         subscription_id,

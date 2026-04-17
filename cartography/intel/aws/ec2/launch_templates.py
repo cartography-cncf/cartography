@@ -7,14 +7,14 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.launch_template_versions import (
     LaunchTemplateVersionSchema,
 )
 from cartography.models.aws.ec2.launch_templates import LaunchTemplateSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ def get_launch_templates(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_launch_templates")
     templates: list[dict[str, Any]] = []
@@ -61,8 +61,8 @@ def get_launch_template_versions_by_template(
     launch_template_id: str,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
     )
     v_paginator = client.get_paginator("describe_launch_template_versions")
     template_versions = []
