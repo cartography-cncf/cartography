@@ -330,7 +330,7 @@ class GraphJob:
         cls,
         node_schema: CartographyNodeSchema,
         parameters: Dict[str, Any],
-        iterationsize: int = 100,
+        iterationsize: int = 10000,
         cascade_delete: bool = False,
     ) -> "GraphJob":
         """
@@ -352,7 +352,7 @@ class GraphJob:
                 Must include all parameters required by the generated queries.
                 Common parameters include UPDATE_TAG and sub-resource identifiers.
             iterationsize (int, optional): The number of items to process in each iteration.
-                Defaults to 100.
+                Defaults to 10000, matching Neo4j's recommendation for large deletes.
             cascade_delete (bool): If True, also delete all child nodes that have a
                 relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
                 Defaults to False to preserve existing behavior.
@@ -404,7 +404,7 @@ class GraphJob:
         sub_resource_label: str,
         sub_resource_id: str,
         update_tag: int,
-        iterationsize: int = 100,
+        iterationsize: int = 10000,
     ) -> "GraphJob":
         """
         Create a cleanup job for matchlink relationships.
@@ -421,7 +421,7 @@ class GraphJob:
             sub_resource_id (str): The ID of the sub-resource to scope cleanup to.
             update_tag (int): The update tag to identify stale relationships.
             iterationsize (int, optional): The number of items to process in each iteration.
-                Defaults to 100.
+                Defaults to 10000, matching Neo4j's recommendation for large deletes.
 
         Returns:
             GraphJob: A new GraphJob instance configured for matchlink cleanup.
@@ -433,7 +433,6 @@ class GraphJob:
             - For a given rel_schema, the fields used in the rel_schema.properties._sub_resource_label.name and
             rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
             - The rel_schema must have a source_node_matcher and target_node_matcher.
-            - The number of items to process in each iteration. Defaults to 100.
         """
         cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
         logger.debug("Cleanup query: %s", cleanup_link_query)
