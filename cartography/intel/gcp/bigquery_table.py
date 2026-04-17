@@ -1,17 +1,24 @@
 import logging
+import threading
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigquery.table import GCPBigQueryTableSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_BIGQUERY_TABLE_DETAIL_WORKERS = 10
 
 
 def _normalize_connection_id(connection_id: str | None) -> str | None:
@@ -143,6 +150,78 @@ def transform_tables(
     return transformed
 
 
+def _enrich_bigquery_tables_with_details(
+    client: Resource,
+    project_id: str,
+    dataset_id: str,
+    tables_raw: list[dict],
+    credentials: GoogleCredentials | None = None,
+    max_workers: int = _DEFAULT_BIGQUERY_TABLE_DETAIL_WORKERS,
+) -> None:
+    if len(tables_raw) < 2 or max_workers <= 1:
+        for table in tables_raw:
+            table_ref = table["tableReference"]
+            detail = get_bigquery_table_detail(
+                client,
+                project_id,
+                dataset_id,
+                table_ref["tableId"],
+            )
+            if detail is not None:
+                table.update(detail)
+        return
+
+    if credentials is None:
+        logger.debug(
+            "BigQuery table detail enrichment for %s:%s is using a shared client because no credentials were provided.",
+            project_id,
+            dataset_id,
+        )
+
+    thread_local = threading.local()
+
+    def _get_thread_client() -> Resource:
+        if credentials is None:
+            return client
+        thread_client = getattr(thread_local, "client", None)
+        if thread_client is None:
+            thread_client = build_client("bigquery", "v2", credentials=credentials)
+            thread_local.client = thread_client
+        return thread_client
+
+    def _fetch_table_detail(index: int, table_id: str) -> tuple[int, dict | None]:
+        detail = get_bigquery_table_detail(
+            _get_thread_client(),
+            project_id,
+            dataset_id,
+            table_id,
+        )
+        return index, detail
+
+    max_parallelism = min(max_workers, len(tables_raw))
+    with ThreadPoolExecutor(max_workers=max_parallelism) as executor:
+        future_to_index = {
+            executor.submit(
+                _fetch_table_detail,
+                index,
+                table["tableReference"]["tableId"],
+            ): index
+            for index, table in enumerate(tables_raw)
+        }
+        for completed, future in enumerate(as_completed(future_to_index), start=1):
+            index, detail = future.result()
+            if detail is not None:
+                tables_raw[index].update(detail)
+            if completed % 100 == 0 or completed == len(tables_raw):
+                logger.debug(
+                    "Fetched details for %d/%d tables in dataset %s:%s.",
+                    completed,
+                    len(tables_raw),
+                    project_id,
+                    dataset_id,
+                )
+
+
 @timeit
 def load_bigquery_tables(
     neo4j_session: neo4j.Session,
@@ -177,6 +256,7 @@ def sync_bigquery_tables(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    credentials: GoogleCredentials | None = None,
 ) -> None:
     logger.info("Syncing BigQuery tables for project %s.", project_id)
     all_tables_raw: list[tuple[list[dict], str]] = []
@@ -187,21 +267,13 @@ def sync_bigquery_tables(
 
         tables_raw = get_bigquery_tables(client, project_id, dataset_id)
         if tables_raw is not None:
-            # Enrich each table with details from tables.get
-            for i, table in enumerate(tables_raw):
-                table_ref = table["tableReference"]
-                tid = table_ref["tableId"]
-                detail = get_bigquery_table_detail(client, project_id, dataset_id, tid)
-                if detail is not None:
-                    table.update(detail)
-                if (i + 1) % 100 == 0:
-                    logger.debug(
-                        "Fetched details for %d/%d tables in dataset %s:%s.",
-                        i + 1,
-                        len(tables_raw),
-                        project_id,
-                        dataset_id,
-                    )
+            _enrich_bigquery_tables_with_details(
+                client,
+                project_id,
+                dataset_id,
+                tables_raw,
+                credentials=credentials,
+            )
             all_tables_raw.append((tables_raw, dataset_id))
 
     all_tables_transformed: list[dict] = []

@@ -1,4 +1,6 @@
 import logging
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
 from google.api_core.exceptions import PermissionDenied
@@ -26,6 +28,8 @@ from cartography.models.gcp.artifact_registry.language_package import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_ARTIFACT_REGISTRY_REPOSITORY_WORKERS = 10
 
 
 @timeit
@@ -772,6 +776,22 @@ def transform_image_manifests(
     return all_manifests
 
 
+def _get_repository_artifacts(
+    client: Resource,
+    repo_name: str,
+    repo_format: str,
+) -> tuple[str, str, list[dict] | None]:
+    handlers = FORMAT_HANDLERS.get(repo_format)
+    if handlers is None:
+        logger.debug(
+            f"No artifact handler for format {repo_format} in repository {repo_name}"
+        )
+        return repo_name, repo_format, []
+
+    get_func, _ = handlers
+    return repo_name, repo_format, get_func(client, repo_name)
+
+
 @timeit
 def sync_artifact_registry_artifacts(
     neo4j_session: neo4j.Session,
@@ -780,6 +800,7 @@ def sync_artifact_registry_artifacts(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    max_workers: int = _DEFAULT_ARTIFACT_REGISTRY_REPOSITORY_WORKERS,
 ) -> list[dict]:
     """
     Syncs GCP Artifact Registry artifacts for all repositories.
@@ -801,61 +822,71 @@ def sync_artifact_registry_artifacts(
     language_packages_transformed: list[dict] = []
     other_artifacts_transformed: list[dict] = []
 
+    candidate_repositories: list[tuple[str, str]] = []
     for repo in repositories:
         repo_name = repo.get("name")
         repo_format = repo.get("format")
+        if isinstance(repo_name, str) and isinstance(repo_format, str):
+            candidate_repositories.append((repo_name, repo_format))
 
-        if not repo_name or not repo_format:
-            continue
+    if candidate_repositories:
+        with ThreadPoolExecutor(
+            max_workers=min(max_workers, len(candidate_repositories)),
+        ) as executor:
+            futures = {
+                executor.submit(
+                    _get_repository_artifacts,
+                    client,
+                    repo_name,
+                    repo_format,
+                ): (repo_name, repo_format)
+                for repo_name, repo_format in candidate_repositories
+            }
+            for future in as_completed(futures):
+                repo_name, repo_format, artifacts_raw = future.result()
+                if artifacts_raw is None:
+                    continue
+                if not artifacts_raw:
+                    continue
 
-        handlers = FORMAT_HANDLERS.get(repo_format)
-        if handlers is None:
-            logger.debug(
-                f"No artifact handler for format {repo_format} in repository {repo_name}"
-            )
-            continue
+                handlers = FORMAT_HANDLERS.get(repo_format)
+                if handlers is None:
+                    continue
 
-        get_func, _ = handlers
-
-        artifacts_raw = get_func(client, repo_name)
-        if artifacts_raw is None:
-            # Skip this repository if API is not enabled or access denied
-            continue
-        if not artifacts_raw:
-            continue
-
-        # Route to appropriate collection based on format
-        if repo_format == "DOCKER":
-            # Split Docker format artifacts by artifact type
-            # Helm charts are stored as OCI artifacts and identified via artifactType or mediaType
-            for artifact in artifacts_raw:
-                artifact_type = artifact.get("artifactType", "")
-                media_type = artifact.get("mediaType", "")
-                if (
-                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
-                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
-                ):
-                    helm_charts_transformed.extend(
-                        transform_helm_charts([artifact], repo_name, project_id)
+                if repo_format == "DOCKER":
+                    for artifact in artifacts_raw:
+                        artifact_type = artifact.get("artifactType", "")
+                        media_type = artifact.get("mediaType", "")
+                        if (
+                            HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
+                            or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                        ):
+                            helm_charts_transformed.extend(
+                                transform_helm_charts(
+                                    [artifact],
+                                    repo_name,
+                                    project_id,
+                                )
+                            )
+                        else:
+                            docker_images_raw.append(artifact)
+                            docker_images_transformed.extend(
+                                transform_docker_images(
+                                    [artifact],
+                                    repo_name,
+                                    project_id,
+                                )
+                            )
+                elif repo_format in LANGUAGE_PACKAGE_FORMATS:
+                    _, transform_func = handlers
+                    language_packages_transformed.extend(
+                        transform_func(artifacts_raw, repo_name, project_id)
                     )
                 else:
-                    # Actual Docker images - collect raw for manifest extraction
-                    docker_images_raw.append(artifact)
-                    docker_images_transformed.extend(
-                        transform_docker_images([artifact], repo_name, project_id)
+                    _, transform_func = handlers
+                    other_artifacts_transformed.extend(
+                        transform_func(artifacts_raw, repo_name, project_id)
                     )
-        elif repo_format in LANGUAGE_PACKAGE_FORMATS:
-            # Use the format-specific transformer from FORMAT_HANDLERS
-            _, transform_func = handlers
-            language_packages_transformed.extend(
-                transform_func(artifacts_raw, repo_name, project_id)
-            )
-        else:
-            # APT, YUM, and any other formats use the unified schema
-            _, transform_func = handlers
-            other_artifacts_transformed.extend(
-                transform_func(artifacts_raw, repo_name, project_id)
-            )
 
     # Load Docker images with the dedicated schema
     if docker_images_transformed:

@@ -1,5 +1,7 @@
 import logging
 import re
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -17,10 +19,39 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_CLOUD_RUN_REVISION_WORKERS = 10
+
+
+def _get_revisions_for_service(client: Resource, service_name: str) -> list[dict]:
+    revisions: list[dict] = []
+    revisions_request = (
+        client.projects().locations().services().revisions().list(parent=service_name)
+    )
+
+    while revisions_request is not None:
+        revisions_response = gcp_api_execute_with_retry(revisions_request)
+        revisions.extend(revisions_response.get("revisions", []))
+        revisions_request = (
+            client.projects()
+            .locations()
+            .services()
+            .revisions()
+            .list_next(
+                previous_request=revisions_request,
+                previous_response=revisions_response,
+            )
+        )
+
+    return revisions
+
 
 @timeit
 def get_revisions(
-    client: Resource, project_id: str, location: str = "-"
+    client: Resource,
+    project_id: str,
+    location: str = "-",
+    services_raw: list[dict] | None = None,
+    max_workers: int = _DEFAULT_CLOUD_RUN_REVISION_WORKERS,
 ) -> list[dict] | None:
     """
     Gets GCP Cloud Run Revisions for a project and location.
@@ -33,52 +64,43 @@ def get_revisions(
         HttpError: For errors other than API disabled or permission denied
     """
     try:
-        revisions: list[dict] = []
-        # First, get all services so we can iterate through them to get revisions
-        # The v2 API doesn't support double wildcards for location and service
-        services_parent = f"projects/{project_id}/locations/{location}"
-        services_request = (
-            client.projects().locations().services().list(parent=services_parent)
-        )
-
-        while services_request is not None:
-            services_response = gcp_api_execute_with_retry(services_request)
-            services = services_response.get("services", [])
-
-            # For each service, get its revisions
-            for service in services:
-                service_name = service.get("name", "")
-                revisions_request = (
+        if services_raw is None:
+            services_parent = f"projects/{project_id}/locations/{location}"
+            services_request = (
+                client.projects().locations().services().list(parent=services_parent)
+            )
+            services_raw = []
+            while services_request is not None:
+                services_response = gcp_api_execute_with_retry(services_request)
+                services_raw.extend(services_response.get("services", []))
+                services_request = (
                     client.projects()
                     .locations()
                     .services()
-                    .revisions()
-                    .list(parent=service_name)
-                )
-
-                while revisions_request is not None:
-                    revisions_response = gcp_api_execute_with_retry(revisions_request)
-                    revisions.extend(revisions_response.get("revisions", []))
-                    revisions_request = (
-                        client.projects()
-                        .locations()
-                        .services()
-                        .revisions()
-                        .list_next(
-                            previous_request=revisions_request,
-                            previous_response=revisions_response,
-                        )
+                    .list_next(
+                        previous_request=services_request,
+                        previous_response=services_response,
                     )
-
-            services_request = (
-                client.projects()
-                .locations()
-                .services()
-                .list_next(
-                    previous_request=services_request,
-                    previous_response=services_response,
                 )
-            )
+
+        service_names = [
+            service.get("name", "") for service in services_raw if service.get("name")
+        ]
+        if not service_names:
+            return []
+
+        revisions: list[dict] = []
+        with ThreadPoolExecutor(
+            max_workers=min(max_workers, len(service_names)),
+        ) as executor:
+            futures = {
+                executor.submit(
+                    _get_revisions_for_service, client, service_name
+                ): service_name
+                for service_name in service_names
+            }
+            for future in as_completed(futures):
+                revisions.extend(future.result())
 
         return revisions
     except HttpError as e:
@@ -186,12 +208,17 @@ def sync_revisions(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    services_raw: list[dict] | None = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Revisions for a project.
     """
     logger.info(f"Syncing Cloud Run Revisions for project {project_id}.")
-    revisions_raw = get_revisions(client, project_id)
+    revisions_raw = get_revisions(
+        client,
+        project_id,
+        services_raw=services_raw,
+    )
 
     if revisions_raw is not None:
         if not revisions_raw:

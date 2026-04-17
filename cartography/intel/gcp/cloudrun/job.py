@@ -1,5 +1,6 @@
 import logging
 import re
+from collections.abc import Iterable
 from typing import Optional
 
 import neo4j
@@ -29,6 +30,7 @@ def get_jobs(
     project_id: str,
     location: str = "-",
     credentials: Optional[GoogleCredentials] = None,
+    locations: Iterable[str] | None = None,
 ) -> list[dict]:
     """
     Gets GCP Cloud Run Jobs for a project and location.
@@ -36,19 +38,21 @@ def get_jobs(
     jobs: list[dict] = []
     try:
         # Determine which locations to query
-        if location == "-":
+        if locations is not None:
+            location_names = set(locations)
+        elif location == "-":
             # Discover all Cloud Run locations for this project
-            locations = discover_cloud_run_locations(
+            location_names = discover_cloud_run_locations(
                 client,
                 project_id,
                 credentials=credentials,
             )
         else:
             # Query specific location
-            locations = {f"projects/{project_id}/locations/{location}"}
+            location_names = {f"projects/{project_id}/locations/{location}"}
 
         # Query jobs for each location
-        for loc_name in locations:
+        for loc_name in sorted(location_names):
             try:
                 request = client.projects().locations().jobs().list(parent=loc_name)
                 while request is not None:
@@ -167,12 +171,20 @@ def sync_jobs(
     update_tag: int,
     common_job_parameters: dict,
     credentials: Optional[GoogleCredentials] = None,
-) -> None:
+    locations: Iterable[str] | None = None,
+    jobs_raw: list[dict] | None = None,
+) -> list[dict]:
     """
     Syncs GCP Cloud Run Jobs for a project.
     """
     logger.info(f"Syncing Cloud Run Jobs for project {project_id}.")
-    jobs_raw = get_jobs(client, project_id, credentials=credentials)
+    if jobs_raw is None:
+        jobs_raw = get_jobs(
+            client,
+            project_id,
+            credentials=credentials,
+            locations=locations,
+        )
     if not jobs_raw:
         logger.info(f"No Cloud Run jobs found for project {project_id}.")
 
@@ -190,3 +202,5 @@ def sync_jobs(
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["project_id"] = project_id
     cleanup_jobs(neo4j_session, cleanup_job_params)
+
+    return jobs_raw

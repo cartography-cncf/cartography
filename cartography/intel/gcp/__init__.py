@@ -1,6 +1,8 @@
 import json
 import logging
 from collections import namedtuple
+from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -46,6 +48,7 @@ from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
 from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
+from cartography.intel.gcp.cloudrun import util as cloudrun_util
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -65,6 +68,8 @@ from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_ClientCache = dict[tuple[str, str], Any]
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
@@ -129,12 +134,39 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
         return set()
 
 
+def _get_cached_client(
+    client_cache: _ClientCache,
+    service: str,
+    version: str,
+    credentials: GoogleCredentials,
+) -> Resource:
+    cache_key = (service, version)
+    client = client_cache.get(cache_key)
+    if client is None:
+        client = build_client(service, version, credentials=credentials)
+        client_cache[cache_key] = client
+    return cast(Resource, client)
+
+
+def _get_cached_asset_client(
+    client_cache: _ClientCache,
+    credentials: GoogleCredentials,
+) -> AssetServiceClient:
+    cache_key = ("cloudasset", "grpc")
+    client = client_cache.get(cache_key)
+    if client is None:
+        client = build_asset_client(credentials=credentials)
+        client_cache[cache_key] = client
+    return cast(AssetServiceClient, client)
+
+
 def _sync_project_resources(
     neo4j_session: neo4j.Session,
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
     credentials: GoogleCredentials,
+    client_cache: _ClientCache,
     requested_syncs: Set[str] | None = None,
 ) -> None:
     """
@@ -165,15 +197,19 @@ def _sync_project_resources(
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
+    serviceusage_client = _get_cached_client(
+        client_cache,
+        "serviceusage",
+        "v1",
+        credentials,
+    )
 
     # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
-        enabled_services = _services_enabled_on_project(
-            build_client("serviceusage", "v1", credentials=credentials),
-            project_id,
-        )
+        project_services = _services_enabled_on_project(serviceusage_client, project_id)
+        enabled_services = project_services
 
         # If the user specified --gcp-requested-syncs, filter enabled_services
         # to only include the requested ones. This mirrors the AWS selective sync pattern.
@@ -192,7 +228,12 @@ def _sync_project_resources(
 
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
-            compute_cred = build_client("compute", "v1", credentials=credentials)
+            compute_cred = _get_cached_client(
+                client_cache,
+                "compute",
+                "v1",
+                credentials,
+            )
             compute.sync(
                 neo4j_session,
                 compute_cred,
@@ -203,7 +244,12 @@ def _sync_project_resources(
 
         if service_names.storage in enabled_services:
             logger.info("Syncing GCP project %s for Storage.", project_id)
-            storage_cred = build_client("storage", "v1", credentials=credentials)
+            storage_cred = _get_cached_client(
+                client_cache,
+                "storage",
+                "v1",
+                credentials,
+            )
             storage.sync_gcp_buckets(
                 neo4j_session,
                 storage_cred,
@@ -214,7 +260,12 @@ def _sync_project_resources(
 
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)
-            container_cred = build_client("container", "v1", credentials=credentials)
+            container_cred = _get_cached_client(
+                client_cache,
+                "container",
+                "v1",
+                credentials,
+            )
             gke.sync_gke_clusters(
                 neo4j_session,
                 container_cred,
@@ -225,7 +276,7 @@ def _sync_project_resources(
 
         if service_names.dns in enabled_services:
             logger.info("Syncing GCP project %s for DNS.", project_id)
-            dns_cred = build_client("dns", "v1", credentials=credentials)
+            dns_cred = _get_cached_client(client_cache, "dns", "v1", credentials)
             dns.sync(
                 neo4j_session,
                 dns_cred,
@@ -236,7 +287,12 @@ def _sync_project_resources(
 
         if service_names.gcf in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Functions.", project_id)
-            gcf_cred = build_client("cloudfunctions", "v1", credentials=credentials)
+            gcf_cred = _get_cached_client(
+                client_cache,
+                "cloudfunctions",
+                "v1",
+                credentials,
+            )
             gcf.sync(
                 neo4j_session,
                 gcf_cred,
@@ -247,7 +303,7 @@ def _sync_project_resources(
 
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
-            iam_cred = build_client("iam", "v1", credentials=credentials)
+            iam_cred = _get_cached_client(client_cache, "iam", "v1", credentials)
             iam.sync(
                 neo4j_session,
                 iam_cred,
@@ -258,7 +314,12 @@ def _sync_project_resources(
             iam_sync_succeeded = True
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
-            kms_cred = build_client("cloudkms", "v1", credentials=credentials)
+            kms_cred = _get_cached_client(
+                client_cache,
+                "cloudkms",
+                "v1",
+                credentials,
+            )
             kms.sync(
                 neo4j_session,
                 kms_cred,
@@ -276,10 +337,11 @@ def _sync_project_resources(
             # project-level service accounts and custom roles.
             # Lazily initialize the CAI REST client once and reuse it for all projects.
             if cai_rest_client is None:
-                cai_rest_client = build_client(
+                cai_rest_client = _get_cached_client(
+                    client_cache,
                     "cloudasset",
                     "v1",
-                    credentials=credentials,
+                    credentials,
                 )
 
             logger.info(
@@ -308,8 +370,11 @@ def _sync_project_resources(
                     raise
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
-            bigtable_client = build_client(
-                "bigtableadmin", "v2", credentials=credentials
+            bigtable_client = _get_cached_client(
+                client_cache,
+                "bigtableadmin",
+                "v2",
+                credentials,
             )
             instances_raw = bigtable_instance.sync_bigtable_instances(
                 neo4j_session,
@@ -361,8 +426,11 @@ def _sync_project_resources(
 
         if service_names.aiplatform in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
-            aiplatform_client = build_client(
-                "aiplatform", "v1", credentials=credentials
+            aiplatform_client = _get_cached_client(
+                client_cache,
+                "aiplatform",
+                "v1",
+                credentials,
             )
             sync_vertex_ai_models(
                 neo4j_session,
@@ -425,13 +493,7 @@ def _sync_project_resources(
         ):
             # Check if CAI is enabled (cached after first check on first project)
             if cai_enabled_on_first_project is None:
-                first_project_services = _services_enabled_on_project(
-                    build_client("serviceusage", "v1", credentials=credentials),
-                    project_id,
-                )
-                cai_enabled_on_first_project = (
-                    service_names.cai in first_project_services
-                )
+                cai_enabled_on_first_project = service_names.cai in project_services
                 if cai_enabled_on_first_project:
                     logger.info(
                         "CAI enabled, will sync policy bindings for all projects.",
@@ -446,8 +508,9 @@ def _sync_project_resources(
             if cai_enabled_on_first_project:
                 # Lazily initialize CAI gRPC client for policy bindings.
                 if cai_grpc_client is None:
-                    cai_grpc_client = build_asset_client(
-                        credentials=credentials,
+                    cai_grpc_client = _get_cached_asset_client(
+                        client_cache,
+                        credentials,
                     )
                 logger.info(
                     "Syncing IAM policies for GCP project %s.",
@@ -475,8 +538,11 @@ def _sync_project_resources(
 
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
-            cloud_sql_cred = build_client(
-                "sqladmin", "v1beta4", credentials=credentials
+            cloud_sql_cred = _get_cached_client(
+                client_cache,
+                "sqladmin",
+                "v1beta4",
+                credentials,
             )
 
             instances_raw = cloud_sql_instance.sync_sql_instances(
@@ -516,8 +582,11 @@ def _sync_project_resources(
 
         if service_names.secretsmanager in enabled_services:
             logger.info("Syncing GCP project %s for Secret Manager.", project_id)
-            secretsmanager_client = build_client(
-                "secretmanager", "v1", credentials=credentials
+            secretsmanager_client = _get_cached_client(
+                client_cache,
+                "secretmanager",
+                "v1",
+                credentials,
             )
             secretsmanager.sync(
                 neo4j_session,
@@ -529,8 +598,11 @@ def _sync_project_resources(
 
         if service_names.artifact_registry in enabled_services:
             logger.info("Syncing GCP project %s for Artifact Registry.", project_id)
-            artifact_registry_client = build_client(
-                "artifactregistry", "v1", credentials=credentials
+            artifact_registry_client = _get_cached_client(
+                client_cache,
+                "artifactregistry",
+                "v1",
+                credentials,
             )
             artifact_registry.sync(
                 neo4j_session,
@@ -543,13 +615,19 @@ def _sync_project_resources(
 
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            cloud_run_cred = build_client("run", "v2", credentials=credentials)
-            cloudrun_service.sync_services(
+            cloud_run_cred = _get_cached_client(client_cache, "run", "v2", credentials)
+            cloud_run_locations = cloudrun_util.discover_cloud_run_locations(
+                cloud_run_cred,
+                project_id,
+                credentials=credentials,
+            )
+            services_raw = cloudrun_service.sync_services(
                 neo4j_session,
                 cloud_run_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                locations=cloud_run_locations,
             )
             cloudrun_revision.sync_revisions(
                 neo4j_session,
@@ -557,14 +635,16 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                services_raw=services_raw,
             )
-            cloudrun_job.sync_jobs(
+            jobs_raw = cloudrun_job.sync_jobs(
                 neo4j_session,
                 cloud_run_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
                 credentials=credentials,
+                locations=cloud_run_locations,
             )
             cloudrun_execution.sync_executions(
                 neo4j_session,
@@ -573,32 +653,18 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
                 credentials=credentials,
+                jobs_raw=jobs_raw,
             )
 
         # Build the BigQuery v2 client once — used for datasets/tables/routines
         # and also for location discovery when syncing connections.
         bigquery_client = None
         if service_names.bigquery in enabled_services:
-            bigquery_client = build_client(
+            bigquery_client = _get_cached_client(
+                client_cache,
                 "bigquery",
                 "v2",
-                credentials=credentials,
-            )
-
-        if service_names.bigquery_connection in enabled_services:
-            logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
-            bigquery_conn_client = build_client(
-                "bigqueryconnection",
-                "v1",
-                credentials=credentials,
-            )
-            bigquery_connection.sync_bigquery_connections(
-                neo4j_session,
-                bigquery_conn_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                bigquery_client=bigquery_client,
+                credentials,
             )
 
         datasets_raw = None
@@ -612,6 +678,24 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        if service_names.bigquery_connection in enabled_services:
+            logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
+            bigquery_conn_client = _get_cached_client(
+                client_cache,
+                "bigqueryconnection",
+                "v1",
+                credentials,
+            )
+            bigquery_connection.sync_bigquery_connections(
+                neo4j_session,
+                bigquery_conn_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+                bigquery_client=bigquery_client,
+                datasets_raw=datasets_raw,
+            )
+
         if bigquery_client is not None and datasets_raw is not None:
             bigquery_table.sync_bigquery_tables(
                 neo4j_session,
@@ -620,6 +704,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
 
             bigquery_routine.sync_bigquery_routines(
@@ -690,6 +775,7 @@ def start_gcp_ingestion(
         "UPDATE_TAG": config.update_tag,
         "gcp_permission_relationships_file": config.gcp_permission_relationships_file,
     }
+    client_cache: _ClientCache = {}
 
     requested_syncs: Set[str] | None = None
     if config.gcp_requested_syncs:
@@ -800,6 +886,7 @@ def start_gcp_ingestion(
             config.update_tag,
             common_job_parameters,
             credentials=credentials,
+            client_cache=client_cache,
             requested_syncs=requested_syncs,
         )
 

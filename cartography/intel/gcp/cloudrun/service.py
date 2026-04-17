@@ -1,5 +1,6 @@
 import logging
 import re
+from collections.abc import Iterable
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -18,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(
-    client: Resource, project_id: str, location: str = "-"
+    client: Resource,
+    project_id: str,
+    locations: Iterable[str] | None = None,
 ) -> list[dict] | None:
     """
     Gets GCP Cloud Run Services for a project and location.
@@ -32,20 +35,29 @@ def get_services(
     """
     try:
         services: list[dict] = []
-        parent = f"projects/{project_id}/locations/{location}"
-        request = client.projects().locations().services().list(parent=parent)
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            services.extend(response.get("services", []))
-            request = (
-                client.projects()
-                .locations()
-                .services()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
+        for location in sorted(locations or []):
+            try:
+                request = client.projects().locations().services().list(parent=location)
+                while request is not None:
+                    response = gcp_api_execute_with_retry(request)
+                    services.extend(response.get("services", []))
+                    request = (
+                        client.projects()
+                        .locations()
+                        .services()
+                        .list_next(
+                            previous_request=request,
+                            previous_response=response,
+                        )
+                    )
+            except HttpError as e:
+                if e.resp.status == 403:
+                    logger.warning(
+                        "Permission denied listing Cloud Run services in %s. Skipping location.",
+                        location,
+                    )
+                    continue
+                raise
         return services
     except HttpError as e:
         if is_api_disabled_error(e):
@@ -133,12 +145,15 @@ def sync_services(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> None:
+    locations: Iterable[str] | None = None,
+    services_raw: list[dict] | None = None,
+) -> list[dict] | None:
     """
     Syncs GCP Cloud Run Services for a project.
     """
     logger.info(f"Syncing Cloud Run Services for project {project_id}.")
-    services_raw = get_services(client, project_id)
+    if services_raw is None:
+        services_raw = get_services(client, project_id, locations=locations)
 
     # Only load and cleanup if we successfully retrieved data (even if empty list).
     # If get() returned None due to API not enabled, skip both to preserve existing data.
@@ -160,3 +175,5 @@ def sync_services(
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["project_id"] = project_id
         cleanup_services(neo4j_session, cleanup_job_params)
+
+    return services_raw

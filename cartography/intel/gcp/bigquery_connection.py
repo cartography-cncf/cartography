@@ -14,7 +14,23 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _get_locations(bigquery_client: Resource, project_id: str) -> list[str]:
+def _get_locations_from_datasets(datasets_raw: list[dict] | None) -> list[str]:
+    default_locations = {"us", "eu"}
+    locations = set(default_locations)
+
+    for dataset in datasets_raw or []:
+        loc = dataset.get("location")
+        if loc:
+            locations.add(loc.lower())
+
+    return sorted(locations)
+
+
+def _get_locations(
+    bigquery_client: Resource,
+    project_id: str,
+    datasets_raw: list[dict] | None = None,
+) -> list[str]:
     """
     List available BigQuery locations for a project using the BigQuery v2 API.
 
@@ -28,13 +44,11 @@ def _get_locations(bigquery_client: Resource, project_id: str) -> list[str]:
 
     Returns a deduplicated list of location IDs (e.g., ["us", "eu", "us-central1"]).
     """
-    # Standard BigQuery multi-region and common regional locations.
-    # Connections can exist in any of these even without datasets.
-    # See https://cloud.google.com/bigquery/docs/locations
-    default_locations = {"us", "eu"}
+    if datasets_raw is not None:
+        return _get_locations_from_datasets(datasets_raw)
 
-    # Discover additional locations from existing datasets
-    locations: set[str] = set(default_locations)
+    # Discover additional locations from existing datasets.
+    locations = set(_get_locations_from_datasets(None))
     try:
         request = bigquery_client.datasets().list(projectId=project_id, all=True)
         while request is not None:
@@ -55,7 +69,7 @@ def _get_locations(bigquery_client: Resource, project_id: str) -> list[str]:
             e,
         )
 
-    return list(locations)
+    return sorted(locations)
 
 
 @timeit
@@ -63,6 +77,7 @@ def get_bigquery_connections(
     conn_client: Resource,
     project_id: str,
     bigquery_client: Resource | None = None,
+    datasets_raw: list[dict] | None = None,
 ) -> list[dict] | None:
     """
     Gets BigQuery connections for a project across all locations.
@@ -84,7 +99,9 @@ def get_bigquery_connections(
     Raises:
         HttpError: For errors other than API disabled or permission denied
     """
-    if bigquery_client is not None:
+    if datasets_raw is not None:
+        locations = _get_locations_from_datasets(datasets_raw)
+    elif bigquery_client is not None:
         locations = _get_locations(bigquery_client, project_id)
     else:
         locations = ["us", "eu"]
@@ -203,9 +220,15 @@ def sync_bigquery_connections(
     update_tag: int,
     common_job_parameters: dict,
     bigquery_client: Resource | None = None,
+    datasets_raw: list[dict] | None = None,
 ) -> None:
     logger.info("Syncing BigQuery connections for project %s.", project_id)
-    connections_raw = get_bigquery_connections(client, project_id, bigquery_client)
+    connections_raw = get_bigquery_connections(
+        client,
+        project_id,
+        bigquery_client,
+        datasets_raw,
+    )
 
     if connections_raw is not None:
         connections = transform_connections(connections_raw, project_id)
