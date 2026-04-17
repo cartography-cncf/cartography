@@ -92,6 +92,14 @@ def test_sync_rbac_end_to_end(
     _load_okta_groups(
         neo4j_session, TEST_OKTA_ORG_ID, MOCK_OKTA_GROUPS, TEST_UPDATE_TAG
     )
+    neo4j_session.run(
+        """
+        MERGE (role:AWSRole {arn: $arn})
+        SET role.id = $arn, role.lastupdated = $update_tag
+        """,
+        arn=KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS[0],
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act: Run the complete sync
     sync_kubernetes_rbac(
@@ -222,7 +230,13 @@ def test_sync_rbac_end_to_end(
         "arn",
         "ASSUMES_ROLE",
     )
-    assert actual_sa_to_aws_role_rels == set()
+    expected_sa_to_aws_role_rels = {
+        (
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[0],
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS[0],
+        ),
+    }
+    assert expected_sa_to_aws_role_rels.issubset(actual_sa_to_aws_role_rels)
 
     # Assert: Verify RoleBinding to ServiceAccount relationships
     expected_rb_to_sa_rels = {
