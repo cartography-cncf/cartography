@@ -2,6 +2,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 from typing import cast
+from unittest.mock import call
 from unittest.mock import MagicMock
 
 from cartography.intel.aws.ssm import _build_ssm_parameter_id
@@ -89,7 +90,21 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
             "Value": "1.30.5",
         },
     ]
-    assert client.get_parameters_by_path.call_count == 2
+    assert client.get_parameters_by_path.call_args_list == [
+        call(
+            Path="/aws/service/bottlerocket/",
+            Recursive=True,
+            WithDecryption=False,
+            MaxResults=10,
+        ),
+        call(
+            Path="/aws/service/bottlerocket/",
+            Recursive=True,
+            WithDecryption=False,
+            MaxResults=10,
+            NextToken="token-1",
+        ),
+    ]
 
 
 def test_build_ssm_parameter_id_is_deterministic() -> None:

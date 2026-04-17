@@ -191,8 +191,7 @@ def get_public_ssm_parameters_by_path(
                     and parameter.get("Type") == "SecureString"
                 ):
                     logger.debug(
-                        "Skipping SecureString SSM parameter %s in region %s.",
-                        parameter_name,
+                        "Skipping SecureString SSM parameter in region %s.",
                         region,
                     )
                     continue

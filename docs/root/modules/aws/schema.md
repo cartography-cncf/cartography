@@ -5383,10 +5383,11 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 |-------|-------------|
 | **firstseen**| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The ARN of the parameter |
+| **id** | A deterministic identifier built from the ingesting account ID, region, and parameter name. |
 | region | The region of the parameter. |
 | **arn** | The Amazon Resource Name (ARN) of the parameter. |
 | name | The parameter name. |
+| value | The parameter value. |
 | description | Description of the parameter actions. |
 | type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
 | keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |

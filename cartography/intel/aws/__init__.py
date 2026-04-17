@@ -422,7 +422,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
     aws_ssm_ingest_secure_strings = (
         config.aws_ssm_ingest_secure_strings
-        if config.aws_ssm_ingest_secure_strings
+        if config.aws_ssm_ingest_secure_strings is not None
         else os.getenv("AWS_SSM_INGEST_SECURE_STRINGS", "").strip().lower()
         in {"1", "true", "yes", "on"}
     )

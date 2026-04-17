@@ -85,9 +85,9 @@ class Config:
     :type aws_ssm_public_parameter_prefix_allowlist: str
     :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
         prefixes to ingest (for example /aws/service/bottlerocket/). Optional.
-    :type aws_ssm_ingest_secure_strings: bool
-    :param aws_ssm_ingest_secure_strings: Whether to ingest SSM parameters with type SecureString. Defaults to False.
-        Optional.
+    :type aws_ssm_ingest_secure_strings: bool | None
+    :param aws_ssm_ingest_secure_strings: Whether to ingest SSM parameters with type SecureString. If unset, falls
+        back to environment configuration. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -312,7 +312,7 @@ class Config:
         experimental_aws_inspector_batch=1000,
         aws_tagging_api_cleanup_batch=1000,
         aws_ssm_public_parameter_prefix_allowlist=None,
-        aws_ssm_ingest_secure_strings=False,
+        aws_ssm_ingest_secure_strings=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
