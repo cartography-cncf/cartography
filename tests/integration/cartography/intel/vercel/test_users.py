@@ -57,11 +57,26 @@ def test_load_vercel_users(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "VercelUser", ["id", "email"]) == expected_nodes
 
-    # Assert Users are connected with Team via MEMBER_OF
+    # Assert Users are connected with Team via RESOURCE (Team -RESOURCE-> User)
     expected_rels = {
         ("user_homer", TEST_TEAM_ID),
         ("user_marge", TEST_TEAM_ID),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "VercelUser",
+            "id",
+            "VercelTeam",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
+
+    # Assert Users are also connected with Team via MEMBER_OF
+    # (User -MEMBER_OF-> Team) carrying membership properties
     assert (
         check_rels(
             neo4j_session,

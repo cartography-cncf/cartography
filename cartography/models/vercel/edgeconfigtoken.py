@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -20,19 +21,38 @@ class VercelEdgeConfigTokenNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class VercelEdgeConfigTokenToTeamRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfigToken)
+class VercelEdgeConfigTokenToTeamRel(CartographyRelSchema):
+    target_node_label: str = "VercelTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: VercelEdgeConfigTokenToTeamRelProperties = (
+        VercelEdgeConfigTokenToTeamRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class VercelEdgeConfigTokenToEdgeConfigRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:VercelEdgeConfig)-[:RESOURCE]->(:VercelEdgeConfigToken)
+# (:VercelEdgeConfig)-[:HAS_TOKEN]->(:VercelEdgeConfigToken)
 class VercelEdgeConfigTokenToEdgeConfigRel(CartographyRelSchema):
     target_node_label: str = "VercelEdgeConfig"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("edge_config_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS_TOKEN"
     properties: VercelEdgeConfigTokenToEdgeConfigRelProperties = (
         VercelEdgeConfigTokenToEdgeConfigRelProperties()
     )
@@ -44,6 +64,9 @@ class VercelEdgeConfigTokenSchema(CartographyNodeSchema):
     properties: VercelEdgeConfigTokenNodeProperties = (
         VercelEdgeConfigTokenNodeProperties()
     )
-    sub_resource_relationship: VercelEdgeConfigTokenToEdgeConfigRel = (
-        VercelEdgeConfigTokenToEdgeConfigRel()
+    sub_resource_relationship: VercelEdgeConfigTokenToTeamRel = (
+        VercelEdgeConfigTokenToTeamRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [VercelEdgeConfigTokenToEdgeConfigRel()],
     )

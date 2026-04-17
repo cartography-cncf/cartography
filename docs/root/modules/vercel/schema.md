@@ -13,14 +13,17 @@ T -- RESOURCE --> LD(LogDrain)
 T -- RESOURCE --> N(SecureComputeNetwork)
 T -- RESOURCE --> AL(Alias)
 T -- RESOURCE --> EC(EdgeConfig)
+T -- RESOURCE --> DR(DNSRecord)
+T -- RESOURCE --> ECT(EdgeConfigToken)
+T -- RESOURCE --> U(User)
 P -- RESOURCE --> DP(Deployment)
 P -- RESOURCE --> EV(EnvironmentVariable)
 P -- HAS_DOMAIN --> D
 P -- RESOURCE --> FC(FirewallConfig)
 P -- RESOURCE --> FBR(FirewallBypassRule)
-D -- RESOURCE --> DR(DNSRecord)
-EC -- RESOURCE --> ECT(EdgeConfigToken)
-U(User) -- MEMBER_OF --> T
+D -- HAS_DNS_RECORD --> DR
+EC -- HAS_TOKEN --> ECT
+U -- MEMBER_OF --> T
 DP -- CREATED_BY --> U
 FBR -- CREATED_BY --> U
 EV -- REFERENCES --> EC
@@ -42,7 +45,7 @@ Represents a Vercel team (organization).
 
 | Field | Description |
 |-------|-------------|
-| id | Team ID. |
+| **id** | Team ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Team display name. |
@@ -51,13 +54,14 @@ Represents a Vercel team (organization).
 | avatar | URL of the team avatar. |
 
 #### Relationships
-- `VercelUser` is a `MEMBER_OF` the team.
+- Team members belong to the team. Each user also carries a `MEMBER_OF` relationship with membership properties (`role`, `confirmed`, `joined_from`).
     ```
+    (:VercelTeam)-[:RESOURCE]->(:VercelUser)
     (:VercelUser)-[:MEMBER_OF]->(:VercelTeam)
     ```
-- Projects, Domains, and other team resources belong to the team.
+- All Vercel resources belong to the team.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelProject | :VercelDomain | :VercelSharedEnvironmentVariable | :VercelIntegration | :VercelAccessGroup | :VercelAuthToken | :VercelWebhook | :VercelLogDrain | :VercelSecureComputeNetwork | :VercelAlias | :VercelEdgeConfig)
+    (:VercelTeam)-[:RESOURCE]->(:VercelProject | :VercelDomain | :VercelDNSRecord | :VercelSharedEnvironmentVariable | :VercelIntegration | :VercelAccessGroup | :VercelAuthToken | :VercelWebhook | :VercelLogDrain | :VercelSecureComputeNetwork | :VercelAlias | :VercelEdgeConfig | :VercelEdgeConfigToken)
     ```
 
 ### VercelUser
@@ -68,7 +72,7 @@ Represents a Vercel team member.
 
 | Field | Description |
 |-------|-------------|
-| id | User UID. |
+| **id** | User UID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | email | User email. |
@@ -80,8 +84,9 @@ Represents a Vercel team member.
 | confirmed | Whether the membership is confirmed. |
 
 #### Relationships
-- The user is a member of a team. The relationship carries the membership `role`, `confirmed`, and `joined_from` properties.
+- A user is both owned by the team (`RESOURCE`) and linked to it via `MEMBER_OF`. The `MEMBER_OF` relationship carries membership properties (`role`, `confirmed`, `joined_from`) that describe the user's role within that specific team.
     ```
+    (:VercelTeam)-[:RESOURCE]->(:VercelUser)
     (:VercelUser)-[:MEMBER_OF]->(:VercelTeam)
     ```
 
@@ -91,7 +96,7 @@ Represents a Vercel project.
 
 | Field | Description |
 |-------|-------------|
-| id | Project ID. |
+| **id** | Project ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Project name. |
@@ -126,7 +131,7 @@ Represents an individual deployment.
 
 | Field | Description |
 |-------|-------------|
-| id | Deployment UID. |
+| **id** | Deployment UID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Deployment name. |
@@ -158,7 +163,7 @@ Represents a domain owned by the team.
 
 | Field | Description |
 |-------|-------------|
-| id | Domain name (used as ID). |
+| **id** | Domain name (used as ID). |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Domain name. |
@@ -170,9 +175,13 @@ Represents a domain owned by the team.
 | bought_at | Timestamp the domain was purchased (ms). |
 
 #### Relationships
-- A domain belongs to a team and contains DNS records.
+- A domain belongs to a team.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelDomain)-[:RESOURCE]->(:VercelDNSRecord)
+    (:VercelTeam)-[:RESOURCE]->(:VercelDomain)
+    ```
+- A domain contains DNS records via `HAS_DNS_RECORD`.
+    ```
+    (:VercelDomain)-[:HAS_DNS_RECORD]->(:VercelDNSRecord)
     ```
 - Projects attach to domains via `HAS_DOMAIN`, which carries per-project configuration (`redirect`, `redirect_status_code`, `git_branch`, `verified`, `created_at`, `updated_at`, `project_domain_id`). Auto-generated `*.vercel.app` and external CNAMEd domains are also upserted as `VercelDomain` nodes via this relationship, without clobbering team-level domain fields.
     ```
@@ -187,7 +196,7 @@ Represents a DNS record on a Vercel-managed domain.
 
 | Field | Description |
 |-------|-------------|
-| id | Record ID. |
+| **id** | Record ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Record name. |
@@ -198,9 +207,10 @@ Represents a DNS record on a Vercel-managed domain.
 | created_at | Creation timestamp (ms). |
 
 #### Relationships
-- A DNS record belongs to a domain.
+- A DNS record belongs to the team and is contained in a domain via `HAS_DNS_RECORD`.
     ```
-    (:VercelDomain)-[:RESOURCE]->(:VercelDNSRecord)
+    (:VercelTeam)-[:RESOURCE]->(:VercelDNSRecord)
+    (:VercelDomain)-[:HAS_DNS_RECORD]->(:VercelDNSRecord)
     ```
 
 ### VercelEnvironmentVariable
@@ -209,7 +219,7 @@ Represents a per-project environment variable. The value is intentionally not st
 
 | Field | Description |
 |-------|-------------|
-| id | Env var ID. |
+| **id** | Env var ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | key | Variable name. |
@@ -237,7 +247,7 @@ Represents a team-level shared env var. The value is intentionally not stored.
 
 | Field | Description |
 |-------|-------------|
-| id | Env var ID. |
+| **id** | Env var ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | key | Variable name. |
@@ -258,7 +268,7 @@ Represents the WAF / firewall configuration for a project.
 
 | Field | Description |
 |-------|-------------|
-| id | Synthesized ID (`{project_id}_firewall`). |
+| **id** | Synthesized ID (`{project_id}_firewall`). |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | enabled | Whether the firewall is enabled. |
@@ -276,7 +286,7 @@ Represents a firewall bypass rule that weakens WAF protections.
 
 | Field | Description |
 |-------|-------------|
-| id | Rule ID. |
+| **id** | Rule ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | domain | Domain the rule applies to. |
@@ -297,7 +307,7 @@ Represents a third-party integration installed on the team.
 
 | Field | Description |
 |-------|-------------|
-| id | Integration ID. |
+| **id** | Integration ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | slug | Integration slug. |
@@ -324,7 +334,7 @@ Represents a team access group used for RBAC.
 
 | Field | Description |
 |-------|-------------|
-| id | Access group ID. |
+| **id** | Access group ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Access group name. |
@@ -351,7 +361,7 @@ Represents a Vercel API token.
 
 | Field | Description |
 |-------|-------------|
-| id | Token ID. |
+| **id** | Token ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Token name. |
@@ -373,7 +383,7 @@ Represents a team webhook endpoint.
 
 | Field | Description |
 |-------|-------------|
-| id | Webhook ID. |
+| **id** | Webhook ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | url | Destination URL. |
@@ -394,7 +404,7 @@ Represents a log delivery drain.
 
 | Field | Description |
 |-------|-------------|
-| id | Drain ID. |
+| **id** | Drain ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Drain name. |
@@ -418,7 +428,7 @@ Represents a Vercel Connect private network.
 
 | Field | Description |
 |-------|-------------|
-| id | Network ID. |
+| **id** | Network ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | name | Network name. |
@@ -439,7 +449,7 @@ Represents a URL alias pointing at a deployment.
 
 | Field | Description |
 |-------|-------------|
-| id | Alias UID. |
+| **id** | Alias UID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | alias | Alias hostname. |
@@ -460,7 +470,7 @@ Represents an edge configuration used to serve runtime data from the edge.
 
 | Field | Description |
 |-------|-------------|
-| id | Edge config ID. |
+| **id** | Edge config ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | slug | Edge config slug. |
@@ -471,9 +481,10 @@ Represents an edge configuration used to serve runtime data from the edge.
 | digest | Content digest. |
 
 #### Relationships
-- Edge configs belong to a team and own access tokens.
+- Edge configs belong to a team and expose access tokens via `HAS_TOKEN`.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfig)-[:RESOURCE]->(:VercelEdgeConfigToken)
+    (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfig)
+    (:VercelEdgeConfig)-[:HAS_TOKEN]->(:VercelEdgeConfigToken)
     ```
 
 ### VercelEdgeConfigToken
@@ -482,14 +493,15 @@ Represents a read token granting access to an edge config. The token value is in
 
 | Field | Description |
 |-------|-------------|
-| id | Token ID. |
+| **id** | Token ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | label | Token label. |
 | created_at | Creation timestamp (ms). |
 
 #### Relationships
-- Tokens belong to an edge config.
+- Tokens belong to the team and are exposed by an edge config via `HAS_TOKEN`.
     ```
-    (:VercelEdgeConfig)-[:RESOURCE]->(:VercelEdgeConfigToken)
+    (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfigToken)
+    (:VercelEdgeConfig)-[:HAS_TOKEN]->(:VercelEdgeConfigToken)
     ```

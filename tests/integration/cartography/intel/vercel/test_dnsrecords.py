@@ -23,6 +23,7 @@ def _ensure_local_neo4j_has_test_dns_records(neo4j_session):
     cartography.intel.vercel.dnsrecords.load_dns_records(
         neo4j_session,
         tests.data.vercel.dnsrecords.VERCEL_DNS_RECORDS,
+        TEST_TEAM_ID,
         TEST_DOMAIN_NAME,
         TEST_UPDATE_TAG,
     )
@@ -64,8 +65,27 @@ def test_load_vercel_dns_records(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "VercelDNSRecord", ["id"]) == expected_nodes
 
-    # Assert DNS Records are connected to Domain via RESOURCE (Domain -RESOURCE-> DNSRecord)
-    expected_rels = {
+    # Assert DNS Records are connected to Team via RESOURCE (Team -RESOURCE-> DNSRecord)
+    expected_team_rels = {
+        ("rec_123", TEST_TEAM_ID),
+        ("rec_456", TEST_TEAM_ID),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "VercelDNSRecord",
+            "id",
+            "VercelTeam",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_team_rels
+    )
+
+    # Assert DNS Records are connected to Domain via HAS_DNS_RECORD
+    # (Domain -HAS_DNS_RECORD-> DNSRecord)
+    expected_domain_rels = {
         ("rec_123", TEST_DOMAIN_NAME),
         ("rec_456", TEST_DOMAIN_NAME),
     }
@@ -76,8 +96,8 @@ def test_load_vercel_dns_records(mock_api, neo4j_session):
             "id",
             "VercelDomain",
             "id",
-            "RESOURCE",
+            "HAS_DNS_RECORD",
             rel_direction_right=False,
         )
-        == expected_rels
+        == expected_domain_rels
     )

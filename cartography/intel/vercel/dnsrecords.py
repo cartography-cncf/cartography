@@ -29,6 +29,7 @@ def sync(
     load_dns_records(
         neo4j_session,
         dns_records,
+        common_job_parameters["TEAM_ID"],
         domain_name,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -54,6 +55,7 @@ def get(
 def load_dns_records(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    team_id: str,
     domain_name: str,
     update_tag: int,
 ) -> None:
@@ -62,6 +64,7 @@ def load_dns_records(
         VercelDNSRecordSchema(),
         data,
         lastupdated=update_tag,
+        TEAM_ID=team_id,
         domain_name=domain_name,
     )
 

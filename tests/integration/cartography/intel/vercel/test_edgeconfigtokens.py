@@ -23,6 +23,7 @@ def _ensure_local_neo4j_has_test_edge_config_tokens(neo4j_session):
     cartography.intel.vercel.edgeconfigtokens.load_edge_config_tokens(
         neo4j_session,
         tests.data.vercel.edgeconfigtokens.VERCEL_EDGE_CONFIG_TOKENS,
+        TEST_TEAM_ID,
         TEST_EDGE_CONFIG_ID,
         TEST_UPDATE_TAG,
     )
@@ -64,7 +65,27 @@ def test_load_vercel_edge_config_tokens(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "VercelEdgeConfigToken", ["id"]) == expected_nodes
 
-    # Assert Edge Config Tokens are connected to VercelEdgeConfig via RESOURCE
+    # Assert Edge Config Tokens are connected to Team via RESOURCE
+    # (Team -RESOURCE-> Token)
+    expected_team_rels = {
+        ("ect_123", TEST_TEAM_ID),
+        ("ect_456", TEST_TEAM_ID),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "VercelEdgeConfigToken",
+            "id",
+            "VercelTeam",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_team_rels
+    )
+
+    # Assert Edge Config Tokens are connected to VercelEdgeConfig via HAS_TOKEN
+    # (EdgeConfig -HAS_TOKEN-> Token)
     expected_edge_config_rels = {
         ("ect_123", TEST_EDGE_CONFIG_ID),
         ("ect_456", TEST_EDGE_CONFIG_ID),
@@ -76,7 +97,7 @@ def test_load_vercel_edge_config_tokens(mock_api, neo4j_session):
             "id",
             "VercelEdgeConfig",
             "id",
-            "RESOURCE",
+            "HAS_TOKEN",
             rel_direction_right=False,
         )
         == expected_edge_config_rels

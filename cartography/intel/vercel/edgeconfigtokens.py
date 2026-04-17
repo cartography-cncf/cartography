@@ -29,6 +29,7 @@ def sync(
     load_edge_config_tokens(
         neo4j_session,
         tokens,
+        common_job_parameters["TEAM_ID"],
         edge_config_id,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -54,6 +55,7 @@ def get(
 def load_edge_config_tokens(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    team_id: str,
     edge_config_id: str,
     update_tag: int,
 ) -> None:
@@ -62,6 +64,7 @@ def load_edge_config_tokens(
         VercelEdgeConfigTokenSchema(),
         data,
         lastupdated=update_tag,
+        TEAM_ID=team_id,
         edge_config_id=edge_config_id,
     )
 
