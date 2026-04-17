@@ -233,10 +233,6 @@ jamf_mapping = OntologyMapping(
             node_label="JamfComputer",
             fields=[
                 OntologyFieldMapping(ontology_field="hostname", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="manufacturer",
-                    node_field="manufacturer",
-                ),
                 OntologyFieldMapping(ontology_field="os", node_field="os_name"),
                 OntologyFieldMapping(
                     ontology_field="os_version",
@@ -254,18 +250,6 @@ jamf_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="JamfMobileDevice",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname",
-                    node_field="hostname",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="manufacturer",
-                    node_field="manufacturer",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="os",
-                    node_field="os",
-                ),
                 OntologyFieldMapping(
                     ontology_field="os_version",
                     node_field="os_version",

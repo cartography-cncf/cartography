@@ -73,7 +73,6 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "id": device["id"],
                 "udid": device.get("udid"),
                 "name": general.get("name"),
-                "manufacturer": "Apple",
                 "platform": general.get("platform"),
                 "report_date": general.get("reportDate"),
                 "last_contact_time": general.get("lastContactTime"),

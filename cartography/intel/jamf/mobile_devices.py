@@ -59,13 +59,10 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "id": device["mobileDeviceId"],
                 "display_name": general.get("displayName"),
-                "hostname": general.get("displayName"),
                 "managed": general.get("managed"),
                 "supervised": general.get("supervised"),
                 "last_inventory_update_date": general.get("lastInventoryUpdateDate"),
                 "last_enrolled_date": general.get("lastEnrolledDate"),
-                "manufacturer": "Apple",
-                "os": "iOS",
                 "platform": device.get("deviceType"),
                 "os_version": general.get("osVersion"),
                 "os_build": general.get("osBuild"),
