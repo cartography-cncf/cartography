@@ -109,12 +109,15 @@ def cleanup(
 def sync_dependencies(
     neo4j_session: neo4j.Session,
     api_token: str,
-    org_slug: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync Socket.dev dependencies for the given organization.
+    Sync Socket.dev dependencies.
+
+    The dependencies search endpoint is not org-scoped — it returns all
+    dependencies visible to the API token. The caller is responsible for
+    providing the correct ORG_ID in common_job_parameters.
     """
     logger.info("Starting Socket.dev dependencies sync")
     raw_deps = get(api_token)

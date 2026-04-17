@@ -42,7 +42,6 @@ def test_sync_dependencies(mock_api, neo4j_session):
     cartography.intel.socketdev.dependencies.sync_dependencies(
         neo4j_session,
         "fake-token",
-        TEST_ORG_SLUG,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )

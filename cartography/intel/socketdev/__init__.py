@@ -61,14 +61,6 @@ def start_socketdev_ingestion(
             common_job_parameters,
         )
 
-        sync_dependencies(
-            neo4j_session,
-            config.socketdev_token,
-            org_slug,
-            config.update_tag,
-            common_job_parameters,
-        )
-
         sync_alerts(
             neo4j_session,
             config.socketdev_token,
@@ -76,3 +68,20 @@ def start_socketdev_ingestion(
             config.update_tag,
             common_job_parameters,
         )
+
+    # The dependencies search endpoint (POST /dependencies/search) is not
+    # org-scoped — it returns all dependencies visible to the API token.
+    # We sync it once and attach to the first organization to avoid
+    # duplicating the same dependency set across multiple orgs.
+    first_org = organizations[0]
+    dep_job_parameters: dict = {
+        "UPDATE_TAG": config.update_tag,
+        "ORG_ID": first_org["id"],
+        "ORG_SLUG": first_org["slug"],
+    }
+    sync_dependencies(
+        neo4j_session,
+        config.socketdev_token,
+        config.update_tag,
+        dep_job_parameters,
+    )
