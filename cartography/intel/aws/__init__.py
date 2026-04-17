@@ -266,14 +266,13 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    use_profile_for_session: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
 
     failed_account_ids = []
     exception_tracebacks = []
-
-    num_accounts = len(accounts)
 
     for profile_name, account_id in accounts.items():
         logger.info(
@@ -282,13 +281,14 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-            aioboto3_session = aioboto3.Session()
-        else:
+        if use_profile_for_session:
+            # Honor explicit profiles even for single-profile setups, so hub/spoke STS assume-role configs sync the spoke.
             boto3_session = boto3.Session(profile_name=profile_name)
             aioboto3_session = aioboto3.Session(profile_name=profile_name)
+        else:
+            # Default session keeps env-var-only credentials working when ~/.aws/config is absent (see #1042).
+            boto3_session = boto3.Session()
+            aioboto3_session = aioboto3.Session()
 
         _autodiscover_accounts(
             neo4j_session,
@@ -477,6 +477,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        use_profile_for_session=config.aws_sync_all_profiles,
     )
 
     if sync_successful:
