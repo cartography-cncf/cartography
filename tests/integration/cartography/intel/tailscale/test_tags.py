@@ -5,6 +5,8 @@ import requests
 import cartography.intel.tailscale.acls
 import cartography.intel.tailscale.devices
 import tests.data.tailscale.acls
+import tests.data.tailscale.devicepostureattributes
+import tests.data.tailscale.devices
 import tests.data.tailscale.users
 from tests.integration.cartography.intel.tailscale.test_tailnets import (
     _ensure_local_neo4j_has_test_tailnets,
@@ -29,7 +31,12 @@ TEST_ORG = "simpson.corp"
     "get",
     return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
 )
-def test_load_tailscale_tags(mock_devices, mock_acls, neo4j_session):
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_load_tailscale_tags(mock_attrs, mock_devices, mock_acls, neo4j_session):
     """
     Ensure that tags actually get loaded
     """

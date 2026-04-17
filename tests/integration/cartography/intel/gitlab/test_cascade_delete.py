@@ -15,7 +15,10 @@ from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790
+TEST_GITLAB_URL = "https://gitlab.example.com"
+TEST_ORG_ID = 100
 TEST_ORG_URL = "https://gitlab.example.com/myorg"
+TEST_PROJECT_ID = 123
 TEST_PROJECT_URL = "https://gitlab.example.com/myorg/test-project"
 
 
@@ -34,24 +37,28 @@ class TestProjectCascadeDelete:
         # Create organization
         neo4j_session.run(
             """
-            MERGE (o:GitLabOrganization {id: $org_url})
-            SET o.lastupdated = $tag
+            MERGE (o:GitLabOrganization {id: $org_id})
+            SET o.lastupdated = $tag, o.web_url = $org_url, o.gitlab_url = $gitlab_url
             """,
+            org_id=TEST_ORG_ID,
             org_url=TEST_ORG_URL,
+            gitlab_url=TEST_GITLAB_URL,
             tag=TEST_UPDATE_TAG_V2,  # Current tag - org is fresh
         )
 
         # Create stale project (old update tag)
         neo4j_session.run(
             """
-            MERGE (p:GitLabProject {id: $project_url})
-            SET p.lastupdated = $old_tag
+            MERGE (p:GitLabProject {id: $project_id})
+            SET p.lastupdated = $old_tag, p.web_url = $project_url, p.gitlab_url = $gitlab_url
             WITH p
-            MATCH (o:GitLabOrganization {id: $org_url})
+            MATCH (o:GitLabOrganization {id: $org_id})
             MERGE (o)-[:RESOURCE]->(p)
             """,
+            project_id=TEST_PROJECT_ID,
             project_url=TEST_PROJECT_URL,
-            org_url=TEST_ORG_URL,
+            org_id=TEST_ORG_ID,
+            gitlab_url=TEST_GITLAB_URL,
             old_tag=TEST_UPDATE_TAG,  # Old tag - project is stale
         )
 
@@ -59,24 +66,24 @@ class TestProjectCascadeDelete:
         # These simulate branches that weren't synced because the project was deleted
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (b:GitLabBranch {id: $branch_id})
             SET b.lastupdated = $old_tag, b.name = 'main'
             MERGE (p)-[:RESOURCE]->(b)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             branch_id=f"{TEST_PROJECT_URL}/tree/main",
             old_tag=TEST_UPDATE_TAG,
         )
 
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (b:GitLabBranch {id: $branch_id})
             SET b.lastupdated = $old_tag, b.name = 'develop'
             MERGE (p)-[:RESOURCE]->(b)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             branch_id=f"{TEST_PROJECT_URL}/tree/develop",
             old_tag=TEST_UPDATE_TAG,
         )
@@ -88,7 +95,8 @@ class TestProjectCascadeDelete:
         # Run cleanup with cascade_delete=True
         common_job_params = {
             "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-            "org_url": TEST_ORG_URL,
+            "org_id": TEST_ORG_ID,
+            "gitlab_url": TEST_GITLAB_URL,
         }
         GraphJob.from_node_schema(
             GitLabProjectSchema(), common_job_params, cascade_delete=True
@@ -112,36 +120,40 @@ class TestProjectCascadeDelete:
         # Create organization
         neo4j_session.run(
             """
-            MERGE (o:GitLabOrganization {id: $org_url})
-            SET o.lastupdated = $tag
+            MERGE (o:GitLabOrganization {id: $org_id})
+            SET o.lastupdated = $tag, o.web_url = $org_url, o.gitlab_url = $gitlab_url
             """,
+            org_id=TEST_ORG_ID,
             org_url=TEST_ORG_URL,
+            gitlab_url=TEST_GITLAB_URL,
             tag=TEST_UPDATE_TAG_V2,
         )
 
         # Create stale project
         neo4j_session.run(
             """
-            MERGE (p:GitLabProject {id: $project_url})
-            SET p.lastupdated = $old_tag
+            MERGE (p:GitLabProject {id: $project_id})
+            SET p.lastupdated = $old_tag, p.web_url = $project_url, p.gitlab_url = $gitlab_url
             WITH p
-            MATCH (o:GitLabOrganization {id: $org_url})
+            MATCH (o:GitLabOrganization {id: $org_id})
             MERGE (o)-[:RESOURCE]->(p)
             """,
+            project_id=TEST_PROJECT_ID,
             project_url=TEST_PROJECT_URL,
-            org_url=TEST_ORG_URL,
+            org_id=TEST_ORG_ID,
+            gitlab_url=TEST_GITLAB_URL,
             old_tag=TEST_UPDATE_TAG,  # Stale
         )
 
         # Create a stale branch (should be deleted)
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (b:GitLabBranch {id: $branch_id})
             SET b.lastupdated = $old_tag, b.name = 'stale-branch'
             MERGE (p)-[:RESOURCE]->(b)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             branch_id="stale-branch-id",
             old_tag=TEST_UPDATE_TAG,  # Stale
         )
@@ -149,12 +161,12 @@ class TestProjectCascadeDelete:
         # Create a fresh branch (should be preserved - maybe re-parented)
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (b:GitLabBranch {id: $branch_id})
             SET b.lastupdated = $current_tag, b.name = 'fresh-branch'
             MERGE (p)-[:RESOURCE]->(b)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             branch_id="fresh-branch-id",
             current_tag=TEST_UPDATE_TAG_V2,  # Current - should be preserved
         )
@@ -165,7 +177,8 @@ class TestProjectCascadeDelete:
         # Run cleanup with cascade_delete
         common_job_params = {
             "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-            "org_url": TEST_ORG_URL,
+            "org_id": TEST_ORG_ID,
+            "gitlab_url": TEST_GITLAB_URL,
         }
         GraphJob.from_node_schema(
             GitLabProjectSchema(), common_job_params, cascade_delete=True
@@ -188,36 +201,40 @@ class TestProjectCascadeDelete:
         # Create organization
         neo4j_session.run(
             """
-            MERGE (o:GitLabOrganization {id: $org_url})
-            SET o.lastupdated = $tag
+            MERGE (o:GitLabOrganization {id: $org_id})
+            SET o.lastupdated = $tag, o.web_url = $org_url, o.gitlab_url = $gitlab_url
             """,
+            org_id=TEST_ORG_ID,
             org_url=TEST_ORG_URL,
+            gitlab_url=TEST_GITLAB_URL,
             tag=TEST_UPDATE_TAG_V2,
         )
 
         # Create stale project
         neo4j_session.run(
             """
-            MERGE (p:GitLabProject {id: $project_url})
-            SET p.lastupdated = $old_tag
+            MERGE (p:GitLabProject {id: $project_id})
+            SET p.lastupdated = $old_tag, p.web_url = $project_url, p.gitlab_url = $gitlab_url
             WITH p
-            MATCH (o:GitLabOrganization {id: $org_url})
+            MATCH (o:GitLabOrganization {id: $org_id})
             MERGE (o)-[:RESOURCE]->(p)
             """,
+            project_id=TEST_PROJECT_ID,
             project_url=TEST_PROJECT_URL,
-            org_url=TEST_ORG_URL,
+            org_id=TEST_ORG_ID,
+            gitlab_url=TEST_GITLAB_URL,
             old_tag=TEST_UPDATE_TAG,
         )
 
         # Create child dependency file
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (df:GitLabDependencyFile {id: $dep_file_id})
             SET df.lastupdated = $old_tag, df.path = 'requirements.txt'
             MERGE (p)-[:RESOURCE]->(df)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             dep_file_id=f"{TEST_PROJECT_URL}/requirements.txt",
             old_tag=TEST_UPDATE_TAG,
         )
@@ -229,7 +246,8 @@ class TestProjectCascadeDelete:
         # Run cleanup with cascade_delete=True
         common_job_params = {
             "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-            "org_url": TEST_ORG_URL,
+            "org_id": TEST_ORG_ID,
+            "gitlab_url": TEST_GITLAB_URL,
         }
         GraphJob.from_node_schema(
             GitLabProjectSchema(), common_job_params, cascade_delete=True
@@ -251,36 +269,40 @@ class TestProjectCascadeDelete:
         # Create organization
         neo4j_session.run(
             """
-            MERGE (o:GitLabOrganization {id: $org_url})
-            SET o.lastupdated = $tag
+            MERGE (o:GitLabOrganization {id: $org_id})
+            SET o.lastupdated = $tag, o.web_url = $org_url, o.gitlab_url = $gitlab_url
             """,
+            org_id=TEST_ORG_ID,
             org_url=TEST_ORG_URL,
+            gitlab_url=TEST_GITLAB_URL,
             tag=TEST_UPDATE_TAG_V2,
         )
 
         # Create stale project
         neo4j_session.run(
             """
-            MERGE (p:GitLabProject {id: $project_url})
-            SET p.lastupdated = $old_tag
+            MERGE (p:GitLabProject {id: $project_id})
+            SET p.lastupdated = $old_tag, p.web_url = $project_url, p.gitlab_url = $gitlab_url
             WITH p
-            MATCH (o:GitLabOrganization {id: $org_url})
+            MATCH (o:GitLabOrganization {id: $org_id})
             MERGE (o)-[:RESOURCE]->(p)
             """,
+            project_id=TEST_PROJECT_ID,
             project_url=TEST_PROJECT_URL,
-            org_url=TEST_ORG_URL,
+            org_id=TEST_ORG_ID,
+            gitlab_url=TEST_GITLAB_URL,
             old_tag=TEST_UPDATE_TAG,
         )
 
         # Create child branch
         neo4j_session.run(
             """
-            MATCH (p:GitLabProject {id: $project_url})
+            MATCH (p:GitLabProject {id: $project_id})
             MERGE (b:GitLabBranch {id: $branch_id})
             SET b.lastupdated = $old_tag, b.name = 'main'
             MERGE (p)-[:RESOURCE]->(b)
             """,
-            project_url=TEST_PROJECT_URL,
+            project_id=TEST_PROJECT_ID,
             branch_id=f"{TEST_PROJECT_URL}/tree/main",
             old_tag=TEST_UPDATE_TAG,
         )
@@ -292,7 +314,8 @@ class TestProjectCascadeDelete:
         # Run cleanup WITHOUT cascade_delete (default behavior)
         common_job_params = {
             "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-            "org_url": TEST_ORG_URL,
+            "org_id": TEST_ORG_ID,
+            "gitlab_url": TEST_GITLAB_URL,
         }
         GraphJob.from_node_schema(
             GitLabProjectSchema(),

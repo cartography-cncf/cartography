@@ -19,9 +19,11 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.supply_chain import extract_container_parent_image
+from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
-from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
@@ -356,38 +358,12 @@ async def _extract_provenance_from_attestation(
     predicate = attestation_blob.get("predicate", {})
     result: dict[str, Any] = {}
 
-    # Extract parent image from SLSA provenance materials
-    materials = predicate.get("materials", [])
-    for material in materials:
-        uri = material.get("uri", "")
-        uri_l = uri.lower()
-        # Look for container image URIs that are NOT the dockerfile itself
-        is_container_ref = (
-            uri_l.startswith("pkg:docker/")
-            or uri_l.startswith("pkg:oci/")
-            or uri_l.startswith("oci://")
-        )
-        if is_container_ref and "dockerfile" not in uri_l:
-            digest_obj = material.get("digest", {})
-            sha256_digest = digest_obj.get("sha256")
-            if sha256_digest:
-                result["parent_image_uri"] = uri
-                result["parent_image_digest"] = f"sha256:{sha256_digest}"
-                break
+    result.update(extract_container_parent_image(predicate))
 
-    # Extract source info from BuildKit metadata VCS section
-    # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
-    metadata = predicate.get("metadata", {})
-    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
-    vcs = buildkit_metadata.get("vcs", {})
+    result.update(extract_image_source_provenance(predicate))
 
-    if vcs.get("source"):
-        result["source_uri"] = normalize_vcs_url(vcs["source"])
-    if vcs.get("revision"):
-        result["source_revision"] = vcs["revision"]
-
-    # Extract invocation info from environment
-    # Path: invocation.environment
+    # Prefer GitHub Actions env vars when present, otherwise fall back to the
+    # SLSA v1 builder URL.
     invocation = predicate.get("invocation", {})
     environment = invocation.get("environment", {})
 
@@ -405,17 +381,13 @@ async def _extract_provenance_from_attestation(
     if environment.get("github_run_number"):
         result["invocation_run_number"] = environment["github_run_number"]
 
-    # Extract source file (Dockerfile path) from invocation configSource
-    # Only meaningful when we also have source repository info
-    if "source_uri" in result:
-        config_source = invocation.get("configSource", {})
-        entry_point = config_source.get("entryPoint", "Dockerfile")
-        dockerfile_dir = (
-            (vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
-        )
-        result["source_file"] = (
-            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
-        )
+    if "invocation_uri" not in result:
+        run_details = predicate.get("runDetails", {})
+        builder_id = run_details.get("builder", {}).get("id", "")
+        if "github.com" in builder_id and "/actions/runs/" in builder_id:
+            parts = builder_id.split("/actions/runs/")
+            if len(parts) == 2:
+                result["invocation_uri"] = parts[0]
 
     if not result:
         logger.debug(
@@ -902,13 +874,24 @@ async def fetch_image_layers_async(
                     _process_child_manifest(manifest_ref)
                     for manifest_ref in doc.get("manifests", [])
                 ]
-                child_results = await asyncio.gather(*child_tasks)
+                child_results = await asyncio.gather(
+                    *child_tasks,
+                    return_exceptions=True,
+                )
 
                 # Merge results from successful child manifest processing
                 # Track attestation data by child digest for proper mapping
                 attestations_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
+                    if isinstance(result, ECRLayerFetchTransientError):
+                        logger.warning(
+                            "Skipping child manifest after transient error: %s",
+                            result,
+                        )
+                        continue
+                    if isinstance(result, BaseException):
+                        raise result
                     layer_data, hist_data, attest_data = result
                     if layer_data:
                         platform_layers.update(layer_data)
@@ -1190,8 +1173,8 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                async with aioboto3_session.client(
-                    "ecr", region_name=region
+                async with create_aioboto3_client(
+                    aioboto3_session, "ecr", region_name=region
                 ) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 

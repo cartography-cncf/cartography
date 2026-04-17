@@ -23,6 +23,7 @@ TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
+EK{{EncryptionKey}}
 PR{{PermissionRole}}
 NAC{{NetworkAccessControl}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -35,6 +36,9 @@ IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
+CT -- HAS_IMAGE --> IM
+CT -- HAS_IMAGE --> IML
+CT -- RESOLVED_IMAGE --> IM
 ```
 
 :::{note}
@@ -71,6 +75,11 @@ When mappings are applied, nodes automatically receive `_ont_*` properties with 
 - **Cross-module querying**: Use consistent field names across different modules
 - **Data normalization**: Access standardized field values regardless of source format
 - **Source tracking**: The `_ont_source` property indicates which module provided the data
+
+:::{important}
+Semantic-label queries should use the documented `_ont_*` field names directly, for example `_ont_name`, `_ont_region`, or `_ont_source`.
+If you still have queries using `_ont_id`, update them to the current field that represents that concept for the semantic label you are querying.
+:::
 
 ### User
 
@@ -168,14 +177,16 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| **id** | The unique identifier for the user. |
+| **id** | The unique identifier for the device. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
+| instance_id | Provider-specific instance identifier when available. |
+| manufacturer | Device manufacturer. |
 | os | OS running on the device. |
 | os_version | Version of the OS running on the device. |
 | model | Device model (e.g. ThinkPad Carbon X1 G11) |
-| platform | CPU architecture |
+| platform | Platform or device family reported by the source (e.g. `macOS`, `ios`). |
 | serial_number | Device serial number. |
 
 #### Relationships
@@ -234,6 +245,24 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
 
+### EncryptionKey
+
+```{note}
+EncryptionKey is a semantic label.
+```
+
+An encryption key represents a cryptographic key managed by a cloud key management service.
+It generalizes concepts like AWS KMS Keys, GCP Cloud KMS CryptoKeys, and Azure Key Vault Keys.
+Encryption keys are used for data encryption, signing, and other cryptographic operations.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the encryption key (REQUIRED). |
+| _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
+| _ont_enabled | Whether the encryption key is currently enabled. |
+| _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+
 ### ComputeInstance
 
 ```{note}
@@ -245,7 +274,6 @@ It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway 
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the instance. |
 | _ont_name | The name of the instance. |
 | _ont_region | The region or zone where the instance is located. |
 | _ont_public_ip_address | The public IP address of the instance. |
@@ -262,11 +290,10 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Container Instances, and GCP Cloud Run Revisions / Jobs.
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the container. |
 | _ont_name | The name of the container. |
 | _ont_image | The container image (e.g., nginx:latest). |
 | _ont_image_digest | The digest/SHA256 of the container image. |
@@ -276,6 +303,20 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+#### Relationships
+
+- `Container` references the image it was asked to run via `HAS_IMAGE` (created at ingest time by matching container runtime digest to image digest). The target may be either a single-platform `Image` or an `ImageManifestList`:
+    ```
+    (:Container)-[:HAS_IMAGE]->(:Image)
+    (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
+    ```
+- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
+    - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
+    ```
+    (:Container)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### ComputeCluster
@@ -289,7 +330,6 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the cluster. |
 | _ont_name | The name of the cluster. |
 | _ont_region | The region or location where the cluster is deployed. |
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |

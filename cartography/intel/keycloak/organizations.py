@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Tuple
 
@@ -14,7 +13,6 @@ from cartography.models.keycloak.organizationdomain import (
 )
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -99,18 +97,13 @@ def get(
             get_paginated(
                 api_session,
                 members_url,
-                params={"briefRepresentation": True},
             )
         )
         # Get Identity Providers
         idp_url = f"{base_url}/admin/realms/{realm}/organizations/{org['id']}/identity-providers"
-        org["_identity_providers"] = list(
-            get_paginated(
-                api_session,
-                idp_url,
-                params={"briefRepresentation": True},
-            )
-        )
+        req = api_session.get(idp_url, timeout=_TIMEOUT)
+        req.raise_for_status()
+        org["_identity_providers"] = list(req.json())
         result.append(org)
     return result
 
@@ -122,7 +115,6 @@ def load_organizations(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Organizations (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakOrganizationSchema(),
@@ -139,9 +131,6 @@ def load_org_domains(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info(
-        "Loading %d Keycloak Organization Domains (%s) into Neo4j.", len(data), realm
-    )
     load(
         neo4j_session,
         KeycloakOrganizationDomainSchema(),

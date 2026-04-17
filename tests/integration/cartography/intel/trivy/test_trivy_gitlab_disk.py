@@ -26,6 +26,11 @@ from tests.integration.cartography.intel.trivy.test_helpers import (
 )
 
 TEST_UPDATE_TAG = 123456789
+TEST_ORG_ID = 12345
+TEST_GITLAB_URL = "https://gitlab.example.com"
+TEST_REPOSITORIES = [
+    {"id": 1, "project_id": 1, "location": "registry.gitlab.com/myorg/app"}
+]
 
 
 def _cleanup_trivy_data(neo4j_session):
@@ -39,12 +44,16 @@ def _create_test_org(neo4j_session):
     """Create test GitLabOrganization node."""
     neo4j_session.run(
         """
-        MERGE (o:GitLabOrganization{id: $org_url})
+        MERGE (o:GitLabOrganization{id: $org_id})
         ON CREATE SET o.firstseen = timestamp()
         SET o.lastupdated = $update_tag,
-            o.name = 'myorg'
+            o.name = 'myorg',
+            o.web_url = $org_url,
+            o.gitlab_url = $gitlab_url
         """,
+        org_id=TEST_ORG_ID,
         org_url=TEST_ORG_URL,
+        gitlab_url=TEST_GITLAB_URL,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -86,7 +95,8 @@ def test_sync_trivy_gitlab(
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "org_url": TEST_ORG_URL,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     }
 
     # First sync GitLab container images
@@ -94,8 +104,8 @@ def test_sync_trivy_gitlab(
         neo4j_session,
         "https://gitlab.example.com",
         "fake-token",
-        TEST_ORG_URL,
-        [],  # repositories - not used since we're mocking get_container_images
+        TEST_ORG_ID,
+        TEST_REPOSITORIES,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -105,7 +115,7 @@ def test_sync_trivy_gitlab(
         neo4j_session,
         "https://gitlab.example.com",
         "fake-token",
-        TEST_ORG_URL,
+        TEST_ORG_ID,
         [],  # repositories - not used since we're mocking get_all_container_repository_tags
         TEST_UPDATE_TAG,
         common_job_parameters,
@@ -164,7 +174,8 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
 
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
-        "org_url": TEST_ORG_URL,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     }
 
     # Sync GitLab container images
@@ -180,8 +191,8 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
             neo4j_session,
             "https://gitlab.example.com",
             "fake-token",
-            TEST_ORG_URL,
-            [],
+            TEST_ORG_ID,
+            TEST_REPOSITORIES,
             TEST_UPDATE_TAG,
             common_job_parameters,
         )
@@ -196,7 +207,7 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
             neo4j_session,
             "https://gitlab.example.com",
             "fake-token",
-            TEST_ORG_URL,
+            TEST_ORG_ID,
             [],
             TEST_UPDATE_TAG,
             common_job_parameters,

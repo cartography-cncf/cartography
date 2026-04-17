@@ -63,7 +63,7 @@
 ```{include} ../modules/duo/schema.md
 ```
 
-```{include} ../modules/entra/schema.md
+```{include} ../modules/microsoft/schema.md
 ```
 
 ```{include} ../modules/gcp/schema.md
@@ -79,6 +79,9 @@
 ```
 
 ```{include} ../modules/gsuite/schema.md
+```
+
+```{include} ../modules/jumpcloud/schema.md
 ```
 
 ```{include} ../modules/jamf/schema.md
@@ -148,4 +151,7 @@
 ```
 
 ```{include} ../modules/workday/schema.md
+```
+
+```{include} ../modules/workos/schema.md
 ```

@@ -17,7 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPArtifactRegistryContainerImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
-    uri: PropertyRef = PropertyRef("uri")
+    uri: PropertyRef = PropertyRef("uri", extra_index=True)
     digest: PropertyRef = PropertyRef("digest")
     tags: PropertyRef = PropertyRef("tags")
     image_size_bytes: PropertyRef = PropertyRef("image_size_bytes")

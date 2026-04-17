@@ -15,9 +15,6 @@ aws_ecr_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECRImage",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(
                     ontology_field="architecture", node_field="architecture"
@@ -34,9 +31,6 @@ gcp_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GCPArtifactRegistryContainerImage",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(ontology_field="uri", node_field="uri"),
             ],
@@ -44,9 +38,6 @@ gcp_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GCPArtifactRegistryPlatformImage",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(
                     ontology_field="architecture", node_field="architecture"
@@ -63,9 +54,6 @@ gitlab_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GitLabContainerImage",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(ontology_field="uri", node_field="uri"),
                 OntologyFieldMapping(

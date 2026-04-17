@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.aws.iam import sync_root_principal
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ def get_account_from_arn(arn: str) -> str:
 
 
 def get_caller_identity(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client("sts")
+    client = create_boto3_client(boto3_session, "sts")
     return client.get_caller_identity()
 
 

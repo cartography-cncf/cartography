@@ -20,17 +20,18 @@ class GitLabOrganizationNodeProperties(CartographyNodeProperties):
     Organizations are top-level groups in GitLab's hierarchy.
     """
 
-    id: PropertyRef = PropertyRef("web_url")  # Unique identifier
+    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab group ID
     name: PropertyRef = PropertyRef("name", extra_index=True)  # Display name
     path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
     full_path: PropertyRef = PropertyRef(
         "full_path", extra_index=True
     )  # Full hierarchy path
+    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
     created_at: PropertyRef = PropertyRef("created_at")
     gitlab_url: PropertyRef = PropertyRef(
-        "gitlab_url"
+        "gitlab_url", extra_index=True
     )  # GitLab instance URL for scoped cleanup
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

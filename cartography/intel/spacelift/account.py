@@ -36,8 +36,6 @@ def load_account(
         lastupdated=update_tag,
     )
 
-    logger.info(f"Loaded Spacelift account: {account_data['id']}")
-
 
 @timeit
 def cleanup_account(
@@ -69,5 +67,5 @@ def sync_account(
 
     load_account(neo4j_session, account_data, common_job_parameters["UPDATE_TAG"])
     cleanup_account(neo4j_session, common_job_parameters)
-    logger.info(f"Synced Spacelift account: {account_id}")
+    logger.info("Synced Spacelift account %s", account_id)
     return account_id

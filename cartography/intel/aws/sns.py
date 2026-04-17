@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sns.topic import SNSTopicSchema
 from cartography.models.aws.sns.topic_subscription import SNSTopicSubscriptionSchema
 from cartography.stats import get_stats_client
@@ -26,7 +27,7 @@ def get_sns_topics(boto3_session: boto3.session.Session, region: str) -> List[Di
     """
     Get all SNS Topics for a region.
     """
-    client = boto3_session.client("sns", region_name=region)
+    client = create_boto3_client(boto3_session, "sns", region_name=region)
     paginator = client.get_paginator("list_topics")
     topics = []
     for page in paginator.paginate():
@@ -42,7 +43,7 @@ def get_topic_attributes(
     """
     Get attributes for an SNS Topic.
     """
-    client = boto3_session.client("sns", region_name=region)
+    client = create_boto3_client(boto3_session, "sns", region_name=region)
     try:
         return client.get_topic_attributes(TopicArn=topic_arn)
     except Exception as e:
@@ -98,8 +99,6 @@ def load_sns_topics(
     """
     Load SNS Topics information into the graph
     """
-    logger.info(f"Loading {len(data)} SNS topics for region {region} into graph.")
-
     load(
         neo4j_session,
         SNSTopicSchema(),
@@ -118,7 +117,7 @@ def get_subscriptions(
     """
     Get all SNS Topics Subscriptions for a region.
     """
-    client = boto3_session.client("sns", region_name=region)
+    client = create_boto3_client(boto3_session, "sns", region_name=region)
     paginator = client.get_paginator("list_subscriptions")
     subscriptions = []
     for page in paginator.paginate():

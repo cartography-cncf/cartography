@@ -36,7 +36,7 @@ class Config:
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
-    See https://neo4j.com/docs/api/python-driver/4.4/api.html#database. Optional.
+    See https://neo4j.com/docs/api/python-driver/5.26/api.html#database. Optional.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
@@ -107,7 +107,7 @@ class Config:
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
-    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
+    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
@@ -231,6 +231,8 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type sentinelone_site_ids: list[str]
+    :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -265,6 +267,10 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type workos_api_key: str
+    :param workos_api_key: WorkOS API key. Optional.
+    :type workos_client_id: str
+    :param workos_client_id: WorkOS client ID. Optional.
     :type sentry_token: str
     :param sentry_token: Sentry internal integration auth token. Optional.
     :type sentry_org: str
@@ -277,6 +283,10 @@ class Config:
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type jumpcloud_api_key: str
+    :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
+    :type jumpcloud_org_id: str
+    :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
     """
 
     def __init__(
@@ -391,6 +401,7 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        sentinelone_site_ids=None,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -408,6 +419,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        workos_api_key=None,
+        workos_client_id=None,
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
@@ -416,6 +429,8 @@ class Config:
         aibom_s3_prefix=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
+        jumpcloud_api_key=None,
+        jumpcloud_org_id=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -539,6 +554,7 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.sentinelone_site_ids = sentinelone_site_ids
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id
@@ -556,6 +572,8 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.workos_api_key = workos_api_key
+        self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
@@ -564,3 +582,5 @@ class Config:
         self.aibom_s3_prefix = aibom_s3_prefix
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
+        self.jumpcloud_api_key = jumpcloud_api_key
+        self.jumpcloud_org_id = jumpcloud_org_id

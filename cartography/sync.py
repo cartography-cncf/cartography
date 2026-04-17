@@ -23,17 +23,18 @@ import cartography.intel.cve
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
-import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
+import cartography.intel.jumpcloud
 import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.microsoft
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.ontology
@@ -52,6 +53,7 @@ import cartography.intel.tailscale
 import cartography.intel.trivy
 import cartography.intel.ubuntu
 import cartography.intel.workday
+import cartography.intel.workos
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -67,7 +69,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
+        "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
@@ -83,6 +85,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
+        "jumpcloud": cartography.intel.jumpcloud.start_jumpcloud_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
@@ -102,6 +105,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "workos": cartography.intel.workos.start_workos_ingestion,
         "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
@@ -299,7 +303,7 @@ class Sync:
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ("analysis", "create_indexes"):
+            if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)
@@ -517,12 +521,17 @@ def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
+    # DEPRECATED: compatibility alias for legacy module selection. Remove in v1.0.0.
+    _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
+
     validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
+        module = _MODULE_ALIASES.get(module, module)
 
         if module in TOP_LEVEL_MODULES.keys():
-            validated_modules.append(module)
+            if module not in validated_modules:
+                validated_modules.append(module)
         else:
             valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(

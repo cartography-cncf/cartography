@@ -1,6 +1,7 @@
 import base64
 import logging
 from typing import Any
+from typing import cast
 
 import neo4j
 import requests
@@ -25,19 +26,22 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE = 0.2
+
 
 @timeit
 def get_unmatched_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
-    org_url: str,
+    organization_id: int,
+    gitlab_url: str,
     update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query GitLab container images not yet matched by provenance in this sync iteration.
+    Query container images not yet matched by provenance in this sync iteration.
 
-    Scoped to the current GitLab organization via the graph path:
-    GitLabOrganization → RESOURCE → GitLabContainerRepository → HAS_TAG → Tag → REFERENCES → Image.
+    Uses the generic ontology labels and relationship labels so the same query works
+    for ECR and GitLab Container Registry.
 
     Returns one image per container repository (preferring 'latest' tag, then most recent).
     Excludes images that already have a PACKAGED_FROM relationship created in the current
@@ -45,27 +49,43 @@ def get_unmatched_gitlab_container_images_with_history(
     previous iterations are included so they can be re-matched before cleanup removes them.
 
     :param neo4j_session: Neo4j session
-    :param org_url: The GitLab organization URL to scope the query
+    :param organization_id: The GitLab organization numeric ID used for scoping
+    :param gitlab_url: The GitLab instance URL used to scope GitLab registry images
     :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
     query = """
-        MATCH (org:GitLabOrganization {id: $org_url})-[:RESOURCE]->(repo:GitLabContainerRepository)
-              -[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
-              -[:REFERENCES]->(img:GitLabContainerImage)
+        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
+          AND (
+              NOT repo:GitLabContainerRepository
+              OR exists(
+                  (:GitLabOrganization {id: $organization_id, gitlab_url: $gitlab_url})
+                  -[:RESOURCE]->(repo)
+              )
+          )
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
-        WITH repo, img, tag
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitLabOrganization'}]->())
+              OR exists((
+                  img
+              )-[:PACKAGED_FROM {
+                  _sub_resource_label: 'GitLabOrganization',
+                  _sub_resource_id: $organization_id
+              }]->())
+          )
+        WITH repo, img, repo_img
         ORDER BY
-            CASE WHEN tag.name = 'latest' THEN 0 ELSE 1 END,
-            tag.created_at DESC
+            CASE WHEN repo_img.name = 'latest' THEN 0 ELSE 1 END,
+            repo_img.created_at DESC
         WITH repo, collect({
             digest: img.digest,
-            uri: img.uri,
-            repository_location: repo.id,
-            tag: tag.name,
+            uri: repo_img.id,
+            repository_location: coalesce(repo.uri, repo.id),
+            project_id: repo.project_id,
+            tag: repo_img.name,
             layer_diff_ids: img.layer_diff_ids,
             type: img.type,
             architecture: img.architecture,
@@ -87,6 +107,7 @@ def get_unmatched_gitlab_container_images_with_history(
             best.digest AS digest,
             best.uri AS uri,
             best.repository_location AS repository_location,
+            best.project_id AS project_id,
             best.tag AS tag,
             best.layer_diff_ids AS layer_diff_ids,
             best.type AS type,
@@ -98,7 +119,12 @@ def get_unmatched_gitlab_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query, update_tag=update_tag, org_url=org_url)
+    result = neo4j_session.run(
+        query,
+        update_tag=update_tag,
+        organization_id=organization_id,
+        gitlab_url=gitlab_url,
+    )
     images = []
 
     for record in result:
@@ -116,12 +142,15 @@ def get_unmatched_gitlab_container_images_with_history(
                 architecture=record["architecture"],
                 os=record["os"],
                 layer_history=layer_history,
+                scope_keys=(
+                    {"gitlab_project_id": str(record["project_id"])}
+                    if record["project_id"] is not None
+                    else None
+                ),
             )
         )
 
-    logger.info(
-        f"Found {len(images)} GitLab container images with layer history (one per repository)"
-    )
+    logger.info(f"Found {len(images)} unmatched container images with layer history")
     return images
 
 
@@ -222,6 +251,8 @@ def _build_dockerfile_info(
         return None
     info["project_url"] = project_url
     info["project_name"] = project_name
+    if project.get("id") is not None:
+        info["scope_keys"] = {"gitlab_project_id": str(project["id"])}
     # Used by the shared matching algorithm
     info["source_repo_id"] = project_url
     return info
@@ -272,12 +303,66 @@ def get_dockerfiles_for_projects(
     return all_dockerfiles
 
 
+def build_singleton_dockerfile_fallback_matchlinks(
+    images: list[ContainerImage],
+    dockerfiles: list[dict[str, Any]],
+    matched_image_digests: set[str],
+) -> list[dict[str, Any]]:
+    """
+    Build low-confidence fallback matchlinks when a scoped project has exactly one Dockerfile.
+
+    This is GitLab-specific: container repositories map back to a GitLab project, so if a
+    project's registry image has no provenance match and command matching fails, a lone
+    Dockerfile in that same project is still a strong enough heuristic to preserve as a
+    fallback signal.
+    """
+    fallback_records: list[dict[str, Any]] = []
+
+    for image in images:
+        if image.digest in matched_image_digests:
+            continue
+        if not image.scope_keys:
+            continue
+
+        candidate_dockerfiles = [
+            df_info
+            for df_info in dockerfiles
+            if all(
+                df_info.get("scope_keys", {}).get(scope_name) == scope_value
+                for scope_name, scope_value in image.scope_keys.items()
+            )
+        ]
+
+        if len(candidate_dockerfiles) != 1:
+            continue
+
+        dockerfile = candidate_dockerfiles[0]
+        project_url = dockerfile.get("project_url")
+        if not project_url:
+            continue
+
+        fallback_records.append(
+            {
+                "image_digest": image.digest,
+                "project_url": project_url,
+                "match_method": "dockerfile_singleton_fallback",
+                "dockerfile_path": dockerfile.get("path"),
+                "confidence": GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE,
+                "matched_commands": 0,
+                "total_commands": 0,
+                "command_similarity": 0.0,
+            }
+        )
+
+    return fallback_records
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    organization_id: int,
     update_tag: int,
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
@@ -297,14 +382,14 @@ def sync(
     :param neo4j_session: Neo4j session for querying container images
     :param gitlab_url: The GitLab instance URL
     :param token: GitLab API token
-    :param org_url: The GitLab organization URL
+    :param organization_id: The GitLab organization numeric ID
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param projects: List of project dictionaries to search for Dockerfiles
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches
     """
-    logger.info("Starting supply chain sync for GitLab org %s", org_url)
+    logger.info("Starting supply chain sync for GitLab org %s", organization_id)
 
     # 1. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
     provenance_data = [
@@ -331,13 +416,14 @@ def sync(
             provenance_data,
             lastupdated=update_tag,
             _sub_resource_label="GitLabOrganization",
-            _sub_resource_id=org_url,
+            _sub_resource_id=organization_id,
         )
 
     # 2. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
     unmatched = get_unmatched_gitlab_container_images_with_history(
         neo4j_session,
-        org_url,
+        organization_id,
+        gitlab_url,
         update_tag,
         limit=image_limit,
     )
@@ -351,37 +437,47 @@ def sync(
                 dockerfiles,
                 min_confidence=min_match_confidence,
             )
-            if matches:
-                matchlink_data = transform_matches_for_matchlink(
-                    matches,
-                    "project_url",
-                )
-                if matchlink_data:
+            matchlink_data = transform_matches_for_matchlink(
+                matches,
+                "project_url",
+            )
+            fallback_matchlink_data = build_singleton_dockerfile_fallback_matchlinks(
+                unmatched,
+                dockerfiles,
+                {match.image_digest for match in matches},
+            )
+            all_dockerfile_matchlink_data = matchlink_data + fallback_matchlink_data
+            if all_dockerfile_matchlink_data:
+                if fallback_matchlink_data:
                     logger.info(
-                        "Loading %d dockerfile-based PACKAGED_FROM relationships",
-                        len(matchlink_data),
+                        "Adding %d singleton Dockerfile fallback PACKAGED_FROM relationship(s)",
+                        len(fallback_matchlink_data),
                     )
-                    load_matchlinks(
-                        neo4j_session,
-                        GitLabProjectDockerfilePackagedFromMatchLink(),
-                        matchlink_data,
-                        lastupdated=update_tag,
-                        _sub_resource_label="GitLabOrganization",
-                        _sub_resource_id=org_url,
-                    )
+                logger.info(
+                    "Loading %d dockerfile-based PACKAGED_FROM relationships",
+                    len(all_dockerfile_matchlink_data),
+                )
+                load_matchlinks(
+                    neo4j_session,
+                    GitLabProjectDockerfilePackagedFromMatchLink(),
+                    all_dockerfile_matchlink_data,
+                    lastupdated=update_tag,
+                    _sub_resource_label="GitLabOrganization",
+                    _sub_resource_id=organization_id,
+                )
 
     # 4. Cleanup stale relationships
     GraphJob.from_matchlink(
         GitLabProjectProvenancePackagedFromMatchLink(),
         "GitLabOrganization",
-        org_url,
+        cast(Any, organization_id),
         update_tag,
     ).run(neo4j_session)
 
     GraphJob.from_matchlink(
         GitLabProjectDockerfilePackagedFromMatchLink(),
         "GitLabOrganization",
-        org_url,
+        cast(Any, organization_id),
         update_tag,
     ).run(neo4j_session)
 
@@ -392,4 +488,4 @@ def sync(
         common_job_parameters,
     )
 
-    logger.info("Completed supply chain sync for GitLab org %s", org_url)
+    logger.info("Completed supply chain sync for GitLab org %s", organization_id)

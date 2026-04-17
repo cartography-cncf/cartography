@@ -14,11 +14,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.agent import AWSBedrockAgentSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,8 @@ def get_agents(
     This function first lists all agents, then gets detailed information for each agent
     """
     logger.info("Fetching Bedrock agents in region %s", region)
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "bedrock-agent",
         region_name=region,
         config=get_botocore_config(),
@@ -187,8 +188,7 @@ def load_agents(
     """
     Load agents into the graph database.
     """
-    logger.info("Loading %d Bedrock agents for region %s", len(data), region)
-
+    logger.info("Loading Bedrock agents for region %s", region)
     load(
         neo4j_session,
         AWSBedrockAgentSchema(),

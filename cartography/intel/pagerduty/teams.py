@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,8 +13,6 @@ from cartography.models.pagerduty.team_membership import (
     PagerDutyTeamMembershipMatchLink,
 )
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 # Sub-resource constants for MatchLinks cleanup
 SUB_RESOURCE_LABEL = "PagerDutyTeam"
@@ -66,7 +63,6 @@ def load_team_data(
     """
     Transform and load team information
     """
-    logger.info(f"Loading {len(data)} pagerduty teams.")
     load(neo4j_session, PagerDutyTeamSchema(), data, lastupdated=update_tag)
 
 
@@ -81,7 +77,6 @@ def load_team_memberships(
     This uses MatchLinks because the MEMBER_OF relationship has a 'role' property
     that varies per user-team pair (e.g., "manager", "responder").
     """
-    logger.info(f"Loading {len(data)} pagerduty team memberships.")
     load_matchlinks(
         neo4j_session,
         PagerDutyTeamMembershipMatchLink(),

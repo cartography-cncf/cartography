@@ -19,6 +19,9 @@ KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW = [
             uid="a1b2c3d4-5e6f-7890-abcd-ef1234567890",
             creation_timestamp=datetime.fromisoformat("2024-09-04T18:44:56+00:00"),
             resource_version="12345",
+            annotations={
+                "eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/demo-irsa-role",
+            },
         ),
         automount_service_account_token=True,
     ),
@@ -342,6 +345,12 @@ KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS = [
     "my-cluster-1/demo-ns/demo-sa",
     "my-cluster-1/demo-ns/another-sa",
     "my-cluster-1/test-ns/test-sa",
+]
+
+KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS = [
+    "arn:aws:iam::123456789012:role/demo-irsa-role",
+    None,
+    None,
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_IDS = [
