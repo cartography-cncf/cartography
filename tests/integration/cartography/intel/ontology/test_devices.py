@@ -618,3 +618,74 @@ def test_load_ontology_devices_from_entra_intune_with_hostname_fallback(
         "OBSERVED_AS",
         rel_direction_right=True,
     ) == {("entra-host-fallback", "entra-host-fallback")}
+
+
+def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
+    """Jamf mobile devices should carry display-facing fields into the canonical Device."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:JamfMobileDevice {
+            id: 'jamf-mobile-1',
+            display_name: 'Bart-iPhone-01',
+            platform: 'iPhone',
+            os_version: '17.4.1',
+            model: 'iPhone 15',
+            serial_number: 'IPHONESPRING001',
+            lastupdated: $update_tag
+        })
+        CREATE (:JamfMobileDevice {
+            id: 'jamf-mobile-2',
+            display_name: 'Lisa-iPad-01',
+            platform: 'iPad',
+            os_version: '17.3',
+            model: 'iPad Pro',
+            serial_number: 'IPADSPRING001',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["jamf"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "model", "platform", "serial_number"],
+    ) == {
+        (
+            "Bart-iPhone-01",
+            "iPhone",
+            "17.4.1",
+            "iPhone 15",
+            "iPhone",
+            "IPHONESPRING001",
+        ),
+        (
+            "Lisa-iPad-01",
+            "iPad",
+            "17.3",
+            "iPad Pro",
+            "iPad",
+            "IPADSPRING001",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "JamfMobileDevice",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {
+        ("IPHONESPRING001", "IPHONESPRING001"),
+        ("IPADSPRING001", "IPADSPRING001"),
+    }

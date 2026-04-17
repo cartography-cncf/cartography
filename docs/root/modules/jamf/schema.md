@@ -156,7 +156,7 @@ Representation of a Jamf-managed macOS computer inventory record.
 
 Representation of a Jamf-managed iPhone or iPad inventory record.
 
-> **Ontology Mapping**: `JamfMobileDevice` contributes to the `Device` ontology using serial number as the primary key and display name as a supplemental match strategy.
+> **Ontology Mapping**: `JamfMobileDevice` contributes to the `Device` ontology using serial number as the primary key while promoting Jamf `display_name` and `platform` into the canonical `Device` hostname and OS fields.
 
 | Field | Description |
 |-------|-------------|
