@@ -41,8 +41,21 @@ def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
     prefixes = [prefix for prefix in prefixes if prefix]
     normalized_prefixes: list[str] = []
     for prefix in prefixes:
-        normalized_prefixes.append(prefix if prefix.endswith("/") else f"{prefix}/")
+        normalized_prefix = prefix if prefix.endswith("/") else f"{prefix}/"
+        if normalized_prefix not in normalized_prefixes:
+            normalized_prefixes.append(normalized_prefix)
     return normalized_prefixes
+
+
+def _minimize_allowlisted_prefixes(prefixes: Iterable[str]) -> list[str]:
+    minimized_prefixes: list[str] = []
+    for prefix in sorted(prefixes, key=len):
+        if any(
+            prefix.startswith(existing_prefix) for existing_prefix in minimized_prefixes
+        ):
+            continue
+        minimized_prefixes.append(prefix)
+    return minimized_prefixes
 
 
 def _parameter_matches_allowlist_prefixes(
@@ -165,25 +178,21 @@ def get_public_ssm_parameters_by_path(
         return []
 
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    paginator = client.get_paginator("get_parameters_by_path")
     ssm_parameters_data: List[Dict[str, Any]] = []
-    for prefix in allowlist_prefixes:
+    for prefix in _minimize_allowlisted_prefixes(allowlist_prefixes):
         prefix_parameter_count = 0
-        next_token = None
-        while True:
-            params: Dict[str, Any] = {
-                "Path": prefix,
-                "Recursive": True,
-                "WithDecryption": False,
-                "MaxResults": 10,
-            }
-            if next_token:
-                params["NextToken"] = next_token
-            response = client.get_parameters_by_path(**params)
-            for parameter in response.get("Parameters", []):
+        for page in paginator.paginate(
+            Path=prefix,
+            Recursive=True,
+            WithDecryption=False,
+            PaginationConfig={"PageSize": 10},
+        ):
+            for parameter in page.get("Parameters", []):
                 parameter_name = parameter.get("Name", "")
                 if not _parameter_matches_allowlist_prefixes(
                     parameter_name,
-                    allowlist_prefixes,
+                    [prefix],
                 ):
                     continue
                 if (
@@ -197,9 +206,6 @@ def get_public_ssm_parameters_by_path(
                     continue
                 ssm_parameters_data.append(parameter)
                 prefix_parameter_count += 1
-            next_token = response.get("NextToken")
-            if not next_token:
-                break
         logger.info(
             "Fetched %d allowlisted public SSM parameters for prefix '%s' in region '%s'.",
             prefix_parameter_count,

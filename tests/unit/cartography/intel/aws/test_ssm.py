@@ -6,6 +6,7 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 
 from cartography.intel.aws.ssm import _build_ssm_parameter_id
+from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _parameter_matches_allowlist_prefixes
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
@@ -14,8 +15,18 @@ from cartography.intel.aws.ssm import transform_ssm_parameters
 
 def test_normalize_allowlisted_prefixes() -> None:
     assert _normalize_allowlisted_prefixes(
-        "/aws/service/bottlerocket/, /aws/service/eks/optimized-ami",
+        "/aws/service/bottlerocket/, /aws/service/eks/optimized-ami, /aws/service/bottlerocket/",
     ) == ["/aws/service/bottlerocket/", "/aws/service/eks/optimized-ami/"]
+
+
+def test_minimize_allowlisted_prefixes() -> None:
+    assert _minimize_allowlisted_prefixes(
+        [
+            "/aws/service/bottlerocket/",
+            "/aws/service/",
+            "/aws/service/eks/optimized-ami/",
+        ],
+    ) == ["/aws/service/"]
 
 
 def test_parameter_matches_allowlist_prefixes() -> None:
@@ -33,7 +44,8 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
     None
 ):
     client = MagicMock()
-    client.get_parameters_by_path.side_effect = [
+    paginator = MagicMock()
+    paginator.paginate.return_value = [
         {
             "Parameters": [
                 {
@@ -47,7 +59,6 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
                     "Value": "should-not-be-ingested",
                 },
             ],
-            "NextToken": "token-1",
         },
         {
             "Parameters": [
@@ -64,6 +75,7 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
             ],
         },
     ]
+    client.get_paginator.return_value = paginator
     boto3_session = MagicMock()
     boto3_session.client.return_value = client
 
@@ -90,19 +102,13 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
             "Value": "1.30.5",
         },
     ]
-    assert client.get_parameters_by_path.call_args_list == [
+    client.get_paginator.assert_called_once_with("get_parameters_by_path")
+    assert paginator.paginate.call_args_list == [
         call(
             Path="/aws/service/bottlerocket/",
             Recursive=True,
             WithDecryption=False,
-            MaxResults=10,
-        ),
-        call(
-            Path="/aws/service/bottlerocket/",
-            Recursive=True,
-            WithDecryption=False,
-            MaxResults=10,
-            NextToken="token-1",
+            PaginationConfig={"PageSize": 10},
         ),
     ]
 
