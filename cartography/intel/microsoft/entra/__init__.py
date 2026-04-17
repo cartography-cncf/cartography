@@ -2,10 +2,11 @@ import asyncio
 import logging
 
 import neo4j
-from azure.identity import ClientSecretCredential
-from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import get_cloud
+from cartography.intel.microsoft.clouds import MicrosoftCloud
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
@@ -20,6 +21,7 @@ from cartography.intel.microsoft.entra.users import get_tenant
 from cartography.intel.microsoft.entra.users import load_tenant
 from cartography.intel.microsoft.entra.users import sync_entra_users
 from cartography.intel.microsoft.entra.users import transform_tenant
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ async def sync_tenant(
     client_id: str,
     client_secret: str,
     update_tag: int,
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync tenant information as a prerequisite for all other Entra resource syncs.
@@ -41,15 +44,9 @@ async def sync_tenant(
     :param client_id: Azure application client ID
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
+    :param cloud: Microsoft sovereign cloud (commercial, usgov, etc.)
     """
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
 
     # Fetch tenant and load it
     tenant = await get_tenant(client)
@@ -81,6 +78,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
+    cloud = get_cloud(config.entra_cloud)
+    logger.info("Using Microsoft cloud %r for Entra sync", cloud.name)
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "TENANT_ID": config.entra_tenant_id,
@@ -94,6 +94,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_id,
             config.entra_client_secret,
             config.update_tag,
+            cloud,
         )
 
         # Run user sync
@@ -104,6 +105,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run group sync
@@ -114,6 +116,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run OU sync
@@ -124,6 +127,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run application sync
@@ -134,6 +138,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run service principals sync
@@ -144,6 +149,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run app role assignments sync
@@ -154,6 +160,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
+            cloud,
         )
 
         # Run federation sync (after all resources are synced)

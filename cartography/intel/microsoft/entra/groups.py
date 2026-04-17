@@ -3,13 +3,15 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.group import Group
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.group import EntraGroupSchema
 from cartography.util import timeit
@@ -133,14 +135,10 @@ async def sync_entra_groups(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """Sync Entra groups."""
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
-    )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
 
     # Collect groups in batches to avoid loading all at once
     groups_batch = []

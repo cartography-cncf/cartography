@@ -71,6 +71,9 @@ class Config:
     :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type entra_client_secret: str
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_cloud: str
+    :param entra_cloud: Microsoft sovereign cloud for Entra/Intune Graph API calls.
+        One of: commercial, usgov (GCC High / L4), usgov-dod (DoD / L5), china. Defaults to commercial.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -314,6 +317,7 @@ class Config:
         entra_tenant_id=None,
         entra_client_id=None,
         entra_client_secret=None,
+        entra_cloud=None,
         aws_requested_syncs=None,
         aws_guardduty_severity_threshold=None,
         analysis_job_directory=None,
@@ -467,6 +471,7 @@ class Config:
         self.entra_tenant_id = entra_tenant_id
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
+        self.entra_cloud = entra_cloud
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory

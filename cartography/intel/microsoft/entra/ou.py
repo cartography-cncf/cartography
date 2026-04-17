@@ -5,12 +5,14 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.ou import EntraOUSchema
 from cartography.util import timeit
@@ -99,19 +101,12 @@ async def sync_entra_ous(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync Entra OUs
     """
-    # Initialize Graph client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
 
     # Process OUs in batches
     batch_size = 100  # OUs are typically fewer than users/groups

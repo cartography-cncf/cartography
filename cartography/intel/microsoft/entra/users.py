@@ -4,13 +4,15 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
 from cartography.models.microsoft.entra.user import EntraUserSchema
@@ -225,6 +227,7 @@ async def sync_entra_users(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync Entra users and tenant information
@@ -234,17 +237,10 @@ async def sync_entra_users(
     :param client_secret: Entra application client secret
     :param update_tag: Timestamp used to determine data freshness
     :param common_job_parameters: dict of other job parameters to carry to sub-jobs
+    :param cloud: Microsoft sovereign cloud (commercial, usgov, etc.)
     :return: None
     """
-    # Initialize Graph client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    client = GraphServiceClient(
-        credential, scopes=["https://graph.microsoft.com/.default"]
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
 
     # Process users in batches to reduce memory consumption
     batch_size = (

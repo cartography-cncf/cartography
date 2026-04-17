@@ -2,11 +2,11 @@ import asyncio
 import logging
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
-from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.microsoft.clouds import get_cloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.intune.compliance_policies import (
     sync_compliance_policies,
 )
@@ -43,20 +43,20 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         return
 
+    cloud = get_cloud(config.entra_cloud)
+    logger.info("Using Microsoft cloud %r for Intune sync", cloud.name)
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "TENANT_ID": config.entra_tenant_id,
     }
 
     async def main() -> None:
-        credential = ClientSecretCredential(
-            tenant_id=config.entra_tenant_id,
-            client_id=config.entra_client_id,
-            client_secret=config.entra_client_secret,
-        )
-        intune_client = GraphServiceClient(
-            credential,
-            scopes=["https://graph.microsoft.com/.default"],
+        intune_client = build_graph_client(
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            cloud,
         )
 
         managed_devices_synced = False

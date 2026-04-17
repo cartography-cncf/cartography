@@ -3,7 +3,6 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.app_role_assignment_collection_response import (
     AppRoleAssignmentCollectionResponse,
@@ -13,10 +12,13 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
 from cartography.intel.microsoft.entra.applications import (
     APP_ROLE_ASSIGNMENTS_PAGE_SIZE,
 )
 from cartography.intel.microsoft.entra.applications import logger
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.app_role_assignment import (
     EntraAppRoleAssignmentSchema,
@@ -239,6 +241,7 @@ async def sync_app_role_assignments(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync Entra app role assignments to the graph.
@@ -249,18 +252,9 @@ async def sync_app_role_assignments(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :param cloud: Microsoft sovereign cloud (commercial, usgov, etc.)
     """
-    # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
     assignment_batch_size = 200  # Batch size for assignments
     assignments_batch = []
     total_assignment_count = 0

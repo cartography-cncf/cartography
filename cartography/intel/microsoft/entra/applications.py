@@ -5,12 +5,14 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph.generated.models.application import Application
 from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.application import EntraApplicationSchema
 from cartography.util import timeit
@@ -143,6 +145,7 @@ async def sync_entra_applications(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
@@ -153,18 +156,9 @@ async def sync_entra_applications(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
+    :param cloud: Microsoft sovereign cloud (commercial, usgov, etc.)
     """
-    # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
 
     # Step 1: Sync applications
     app_batch_size = 10  # Batch size for applications
