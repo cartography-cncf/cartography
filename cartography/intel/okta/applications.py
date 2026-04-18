@@ -12,6 +12,7 @@ from okta.models.application import Application as OktaApplication
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import collect_paginated
 from cartography.models.okta.application import OktaApplicationSchema
 from cartography.util import timeit
 
@@ -51,15 +52,7 @@ async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplicatio
     :param okta_client: An Okta client object
     :return: List of Okta applications
     """
-    output_applications = []
-    query_parameters = {"limit": 200}
-    applications, resp = await okta_client.list_applications(**query_parameters)
-    output_applications += applications
-    while resp.has_next():
-        applications = await resp.next()
-        output_applications += applications
-        logger.debug("Fetched %s applications", len(applications))
-    return output_applications
+    return await collect_paginated(okta_client.list_applications, limit=200)
 
 
 @timeit
@@ -401,18 +394,10 @@ async def _get_application_assigned_users(
     :param app_id: The application ID to fetch users for
     :return: List of Okta application user IDs
     """
-    output_application_users = []
-    query_parameters = {"limit": 500}
-    application_users, resp = await okta_client.list_application_users(
-        app_id, **query_parameters
+    application_users = await collect_paginated(
+        okta_client.list_application_users, limit=500, app_id=app_id
     )
-    output_application_users += application_users
-    while resp.has_next():
-        application_users = await resp.next()
-        output_application_users += application_users
-        logger.debug("Fetched %s application users", len(application_users))
-    output_application_users_ids = [user.id for user in output_application_users]
-    return output_application_users_ids
+    return [user.id for user in application_users]
 
 
 ####
@@ -428,15 +413,7 @@ async def _get_application_assigned_groups(
     :param app_id: The application ID to fetch groups for
     :return: List of Okta application group IDs
     """
-    output_application_groups = []
-    query_parameters = {"limit": 200}
-    application_groups, resp = await okta_client.list_application_group_assignments(
-        app_id, **query_parameters
+    application_groups = await collect_paginated(
+        okta_client.list_application_group_assignments, limit=200, app_id=app_id
     )
-    output_application_groups += application_groups
-    while resp.has_next():
-        application_groups = await resp.next()
-        output_application_groups += application_groups
-        logger.debug("Fetched %s application groups", len(application_groups))
-    output_application_group_ids = [group.id for group in output_application_groups]
-    return output_application_group_ids
+    return [group.id for group in application_groups]

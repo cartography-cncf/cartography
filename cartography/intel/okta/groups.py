@@ -15,6 +15,8 @@ from okta.models.user import User as OktaUser
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.group import OktaGroupRoleSchema
 from cartography.models.okta.group import OktaGroupRuleSchema
 from cartography.models.okta.group import OktaGroupSchema
@@ -81,15 +83,7 @@ async def _get_okta_groups(okta_client: OktaClient) -> list[OktaGroup]:
     :param okta_client: An Okta client object
     :return: List of Okta groups
     """
-    output_groups = []
-    query_parameters = {"limit": 200}
-    groups, resp = await okta_client.list_groups(**query_parameters)
-    output_groups += groups
-    while resp.has_next():
-        groups = await resp.next()
-        output_groups += groups
-        logger.debug("Fetched %s groups", len(groups))
-    return output_groups
+    return await collect_paginated(okta_client.list_groups, limit=200)
 
 
 @timeit
@@ -201,17 +195,9 @@ async def _get_okta_group_rules(okta_client: OktaClient) -> list[OktaGroupRule]:
     :return: List of Okta group rules
     """
 
-    output_group_rules: list[OktaGroupRule] = []
     # Note: The pagination limit for group rules is not officially documented by Okta.
     # Based on testing, the API accepts up to 200 per page (similar to other endpoints).
-    # We use 200 here as a safe default that aligns with other Okta API pagination limits.
-    query_parameters = {"limit": 200}
-    group_rules, resp = await okta_client.list_group_rules(**query_parameters)
-    output_group_rules += group_rules
-    while resp.has_next():
-        group_rules = await resp.next()
-        output_group_rules += group_rules
-    return output_group_rules
+    return await collect_paginated(okta_client.list_group_rules, limit=200)
 
 
 @timeit
@@ -364,7 +350,10 @@ async def _get_okta_group_roles(
     :return: List of Okta group rules
     """
     # This won't ever be paginated
-    group_roles, _ = await okta_client.list_group_assigned_roles(group_id)
+    group_roles, _, error = await okta_client.list_group_assigned_roles(group_id)
+    raise_for_okta_error(error, f"list_group_assigned_roles(group_id={group_id})")
+    if not group_roles:
+        return []
     # By default these objects won't cleanly include group_id
     # So we add it into the object since we have them here
     for group_role in group_roles:
@@ -447,12 +436,6 @@ async def _get_okta_group_members(
     :param group_id: The id of the group to look up membership for
     :return: List of Okta Users who are members of a group
     """
-    member_list: list[OktaUser] = []
-    query_parameters = {"limit": 1000}
-    group_users, resp = await okta_client.list_group_users(group_id, **query_parameters)
-    member_list += group_users
-    while resp.has_next():
-        group_users = await resp.next()
-        member_list += group_users
-        logger.debug("Loaded %s users for group %s", len(group_users), group_id)
-    return member_list
+    return await collect_paginated(
+        okta_client.list_group_users, limit=1000, group_id=group_id
+    )

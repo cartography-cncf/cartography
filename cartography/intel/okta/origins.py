@@ -11,6 +11,7 @@ from okta.models.trusted_origin import TrustedOrigin as OktaTrustedOrigin
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import collect_paginated
 from cartography.models.okta.origin import OktaTrustedOriginSchema
 from cartography.util import timeit
 
@@ -44,15 +45,7 @@ async def _get_okta_origins(okta_client: OktaClient) -> list[OktaTrustedOrigin]:
     :param okta_client: An Okta client object
     :return: List of Okta origins
     """
-    output_origins = []
-    query_parameters = {"limit": 200}
-    origins, resp = await okta_client.list_origins(**query_parameters)
-    output_origins += origins
-    while resp.has_next():
-        origins = await resp.next()
-        output_origins += origins
-        logger.debug("Fetched %s origins", len(origins))
-    return output_origins
+    return await collect_paginated(okta_client.list_trusted_origins, limit=200)
 
 
 @timeit

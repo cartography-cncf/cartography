@@ -12,6 +12,7 @@ from okta.models.authenticator_base import AuthenticatorBase as OktaAuthenticato
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.authenticator import OktaAuthenticatorSchema
 from cartography.util import timeit
 
@@ -49,8 +50,9 @@ async def _get_okta_authenticators(okta_client: OktaClient) -> list[OktaAuthenti
     :return: List of Okta authenticators
     """
 
-    authenticators, _ = await okta_client.list_authenticators()
-    return authenticators
+    authenticators, _, error = await okta_client.list_authenticators()
+    raise_for_okta_error(error, "list_authenticators")
+    return authenticators or []
 
 
 @timeit
@@ -63,7 +65,7 @@ def _transform_okta_authenticators(
     :return: List of authenticators dicts
     """
     transformed_authenticators: list[dict] = []
-    logger.info(f"Transforming {len(okta_authenticators)} Okta Authenticators")
+    logger.info("Transforming %s Okta Authenticators", len(okta_authenticators))
     for okta_authenticator in okta_authenticators:
         authenticator_props = {}
         authenticator_props["id"] = okta_authenticator.id
@@ -139,7 +141,7 @@ def _load_okta_authenticators(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(authenticator_list)} Okta Authenticators")
+    logger.info("Loading %s Okta Authenticators", len(authenticator_list))
 
     load(
         neo4j_session,

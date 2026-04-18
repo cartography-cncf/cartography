@@ -140,6 +140,11 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
 | dn | group dn |
 | windows_domain_qualified_name | windows domain name |
 | external_id | group foreign id |
+| created | When the group was created in Okta |
+| last_membership_updated | When group membership was last updated |
+| last_updated | When the group was last updated |
+| object_class | Okta object class (e.g. `okta:user_group`) |
+| group_type | Group type reported by Okta (e.g. `OKTA_GROUP`, `APP_GROUP`) |
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -158,7 +163,11 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
      ```
     (OktaUser)-[MEMBER_OF_OKTA_GROUP]->(OktaGroup)
     ```
- - An OktaGroup can be a member of an OktaAdministrationRole
+ - An OktaGroup can have an OktaGroupRole assigned to it
+     ```
+    (OktaGroup)-[HAS_ROLE]->(OktaGroupRole)
+    ```
+ - An OktaGroup can be a member of an OktaAdministrationRole (legacy label, kept for backward compatibility)
      ```
     (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
     ```

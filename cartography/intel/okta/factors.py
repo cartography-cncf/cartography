@@ -11,6 +11,7 @@ from okta.models.user_factor import UserFactor
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.factor import OktaUserFactorSchema
 from cartography.util import timeit
 
@@ -56,7 +57,8 @@ async def _get_okta_user_factors(
     :param user_id: The user ID to fetch factors for
     :return: List of Okta user factors
     """
-    factors, _ = await okta_client.list_factors(user_id)
+    factors, _, error = await okta_client.list_factors(user_id)
+    raise_for_okta_error(error, f"list_factors(user_id={user_id})")
     return factors or []
 
 
