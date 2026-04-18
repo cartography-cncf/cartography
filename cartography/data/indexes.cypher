@@ -33,8 +33,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:OktaUserFactor) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaUserFactor) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaTrustedOrigin) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaTrustedOrigin) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:OktaAdministrationRole) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:OktaAdministrationRole) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:ProgrammingLanguage) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:ProgrammingLanguage) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:PublicIpAddress) ON (n.ip);

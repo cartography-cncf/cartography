@@ -16,6 +16,7 @@ from okta.models.user import User as OktaUser
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.group import OktaGroupRoleSchema
 from cartography.models.okta.group import OktaGroupRuleSchema
@@ -52,15 +53,28 @@ def sync_okta_groups(
     # However, this endpoint is not currently supported in the Okta Python SDK.
     # When SDK support is added, this can be refactored to use a single API call
     # instead of iterating through each group.
-    group_roles = []
+    # Role endpoints require super-admin; soft-fail on E0000006 so sync continues.
+    # https://developer.okta.com/docs/reference/error-codes/
+    group_roles: list[OktaGroupRole] = []
     logger.info("Syncing Okta group roles")
-    for okta_group in groups:
-        group_roles += asyncio.run(_get_okta_group_roles(okta_client, okta_group.id))
-    transformed_group_roles = _transform_okta_group_roles(group_roles)
-    _load_okta_group_roles(
-        neo4j_session, transformed_group_roles, common_job_parameters
-    )
-    _cleanup_okta_group_roles(neo4j_session, common_job_parameters)
+    try:
+        for okta_group in groups:
+            group_roles += asyncio.run(
+                _get_okta_group_roles(okta_client, okta_group.id)
+            )
+        transformed_group_roles = _transform_okta_group_roles(group_roles)
+        _load_okta_group_roles(
+            neo4j_session, transformed_group_roles, common_job_parameters
+        )
+        _cleanup_okta_group_roles(neo4j_session, common_job_parameters)
+    except OktaApiError as exc:
+        if exc.error_code == "E0000006":
+            logger.warning(
+                "Unable to sync group roles - api token needs admin rights to pull admin roles data",
+            )
+            group_roles = []
+        else:
+            raise
 
     # Continue syncing groups, which need group roles at transform time
     transformed_groups = _transform_okta_groups(okta_client, groups, group_roles)

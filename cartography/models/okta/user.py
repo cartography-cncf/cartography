@@ -124,8 +124,6 @@ class OktaUserRoleSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[],
     )
-    # DEPRECATED: OktaAdministrationRole was the old shared label, kept for backward compatibility
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["OktaAdministrationRole"])
 
 
 @dataclass(frozen=True)
@@ -198,21 +196,6 @@ class OktaUserToOktaUserRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class OktaUserToOktaAdminRoleRel(CartographyRelSchema):
-    # DEPRECATED: Old relationship label, kept for backward compatibility
-    # (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
-    target_node_label: str = "OktaAdministrationRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("role_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "MEMBER_OF_OKTA_ROLE"
-    properties: OktaUserToOktaUserRoleRelProperties = (
-        OktaUserToOktaUserRoleRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class OktaUserSchema(CartographyNodeSchema):
     label: str = "OktaUser"
     properties: OktaUserNodeProperties = OktaUserNodeProperties()
@@ -223,6 +206,6 @@ class OktaUserSchema(CartographyNodeSchema):
         rels=[
             OktaUserToHumanRel(),
             OktaUserToOktaUserRoleRel(),
-            OktaUserToOktaAdminRoleRel(),  # DEPRECATED: backward compatibility
         ],
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])

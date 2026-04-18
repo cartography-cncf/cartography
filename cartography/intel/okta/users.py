@@ -15,6 +15,7 @@ from okta.models.user_type import UserType as OktaUserType
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.core.common import PropertyRef
 from cartography.models.okta.user import OktaUserRoleSchema
@@ -151,12 +152,25 @@ def sync_okta_users(
     logger.info("Syncing Okta users")
     users = asyncio.run(_get_okta_users(okta_client))
 
-    # Gather user roles using the bulk API to minimize API calls
-    # First get all users who have role assignments, then fetch their roles
-    user_roles = asyncio.run(_get_all_user_roles(okta_client))
-    transformed_user_roles = _transform_okta_user_roles(user_roles)
-    _load_okta_user_roles(neo4j_session, transformed_user_roles, common_job_parameters)
-    _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
+    # Gather user roles using the bulk API to minimize API calls.
+    # Role endpoints require super-admin; most tokens won't have it. When the
+    # API returns E0000006 we log and continue so the rest of the sync runs.
+    # https://developer.okta.com/docs/reference/error-codes/
+    user_roles: list[OktaUserRole] = []
+    try:
+        user_roles = asyncio.run(_get_all_user_roles(okta_client))
+        transformed_user_roles = _transform_okta_user_roles(user_roles)
+        _load_okta_user_roles(
+            neo4j_session, transformed_user_roles, common_job_parameters
+        )
+        _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
+    except OktaApiError as exc:
+        if exc.error_code == "E0000006":
+            logger.warning(
+                "Unable to sync user roles - api token needs admin rights to pull admin roles data",
+            )
+        else:
+            raise
 
     transformed_users = _transform_okta_users(users, user_roles)
     _load_okta_users(neo4j_session, transformed_users, common_job_parameters)

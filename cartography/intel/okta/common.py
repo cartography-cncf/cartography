@@ -7,6 +7,16 @@ from typing import Callable
 from okta.pagination import PaginationHelper
 
 
+class OktaApiError(RuntimeError):
+    """Okta API error that preserves the SDK error_code for callers."""
+
+    def __init__(self, context: str, error: Any) -> None:
+        self.context = context
+        self.error = error
+        self.error_code: str | None = getattr(error, "error_code", None)
+        super().__init__(f"Okta API error in {context}: {error}")
+
+
 async def collect_paginated(
     api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
     limit: int = 200,
@@ -24,9 +34,7 @@ async def collect_paginated(
     while True:
         data, response, error = await api_method(limit=limit, after=after, **kwargs)
         if error:
-            raise RuntimeError(
-                f"Okta API error in {api_method.__name__}: {error}",
-            )
+            raise OktaApiError(api_method.__name__, error)
         if data:
             items.extend(data)
         cursor = (
@@ -41,6 +49,6 @@ async def collect_paginated(
 
 
 def raise_for_okta_error(error: Any, context: str) -> None:
-    """Raise a RuntimeError if the Okta SDK returned an error object."""
+    """Raise an OktaApiError if the Okta SDK returned an error object."""
     if error:
-        raise RuntimeError(f"Okta API error in {context}: {error}")
+        raise OktaApiError(context, error)

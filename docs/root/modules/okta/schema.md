@@ -49,11 +49,6 @@ Representation of an [Okta Organization](https://developer.okta.com/docs/concept
     ```
     (OktaOrganization)-[RESOURCE]->(OktaTrustedOrigin)
     ```
-- An OktaOrganization has OktaAdministrationRoles
-
-    ```
-    (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
-    ```
 
 ### OktaUser
 
@@ -101,11 +96,6 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 - **OktaUser can be a member of OktaGroups**: Group membership for access control
     ```cypher
     (:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)
-    ```
-
-- **OktaUser can be a member of OktaAdministrationRoles**: Administrative role assignments
-    ```cypher
-    (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
     ```
 
 - **OktaUsers can have authentication factors**: Multi-factor authentication methods (SMS, TOTP, WebAuthn, etc.)
@@ -166,10 +156,6 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
  - An OktaGroup can have an OktaGroupRole assigned to it
      ```
     (OktaGroup)-[HAS_ROLE]->(OktaGroupRole)
-    ```
- - An OktaGroup can be a member of an OktaAdministrationRole (legacy label, kept for backward compatibility)
-     ```
-    (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
     ```
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
     ```
@@ -263,34 +249,6 @@ Representation of an [Okta Trusted Origin](https://developer.okta.com/docs/refer
 
     ```
     (OktaOrganization)-[RESOURCE]->(OktaTrustedOrigin)
-    ```
-
-### OktaAdministrationRole
-
-Representation of an [Okta Administration Role](https://developer.okta.com/docs/reference/api/roles/#role-object).
-
-| Field | Description |
-|-------|--------------|
-| id | role id mapped to the type |
-| type | role type |
-| label | role label |
-| firstseen| Timestamp of when a sync job first discovered this node |
-| lastupdated |  Timestamp of the last time the node was updated |
-
-#### Relationships
-
- - OktaUsers can be members of OktaAdministrationRoles
-     ```
-    (OktaUser)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
-    ```
- - An OktaGroup can be a member of an OktaAdministrationRolee
-     ```
-    (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
-    ```
-- An OktaOrganization contains OktaAdministrationRoles
-
-    ```
-    (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
     ```
 
 ### ReplyUri
