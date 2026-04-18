@@ -197,7 +197,6 @@ def load_users(
     org_data: Dict,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(user_data)} GitHub users to the graph")
     load(
         neo4j_session,
         node_schema,
@@ -214,7 +213,6 @@ def load_organization(
     org_data: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(org_data)} GitHub organization to the graph")
     load(
         neo4j_session,
         node_schema,

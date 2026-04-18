@@ -25,11 +25,15 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
     )
 
 
-def _mock_get_repo_images(boto3_session, region, repo_name):
-    return tests.data.aws.ecr.LIST_REPOSITORY_IMAGES.get(
-        f"000000000000.dkr.ecr.us-east-1.amazonaws.com/{repo_name}",
-        [],
-    )
+def _mock_get_ecr_repository_images(_boto3_session, _region, repository_name):
+    """Return image data based on repository name, not call order.
+
+    _get_image_data runs repositories concurrently in a threadpool,
+    so call order is non-deterministic. Using a function-based side_effect
+    ensures each repository always receives its own data.
+    """
+    repo_uri = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/{repository_name}"
+    return tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[repo_uri]
 
 
 @patch.object(
@@ -40,7 +44,7 @@ def _mock_get_repo_images(boto3_session, region, repo_name):
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repository_images",
-    side_effect=_mock_get_repo_images,
+    side_effect=_mock_get_ecr_repository_images,
 )
 def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     """

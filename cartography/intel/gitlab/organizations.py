@@ -58,7 +58,6 @@ def load_organizations(
     """
     Load GitLab organizations into the graph.
     """
-    logger.info(f"Loading {len(organizations)} organizations")
     load(
         neo4j_session,
         GitLabOrganizationSchema(),

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,7 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.subimage.module import SubImageModuleSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 
 
@@ -53,7 +51,6 @@ def load_modules(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d SubImage Modules into Neo4j.", len(data))
     load(
         neo4j_session,
         SubImageModuleSchema(),

@@ -376,7 +376,6 @@ def load_oidc_provider(
     """
     Load OIDC providers and their relationships to users and groups into Neo4j.
     """
-    logger.info(f"Loading {len(oidc_providers)} EKS OIDC providers")
     load(
         neo4j_session,
         KubernetesOIDCProviderSchema(),
@@ -398,8 +397,6 @@ def load_aws_auth_mappings(
     """
     Load Kubernetes Users/Groups with AWS Role and User relationships into Neo4j using schema-based loading.
     """
-    logger.info(f"Loading {len(users)} Kubernetes Users with AWS mappings")
-
     if users:
         load(
             neo4j_session,
@@ -409,8 +406,6 @@ def load_aws_auth_mappings(
             CLUSTER_ID=cluster_id,
             CLUSTER_NAME=cluster_name,
         )
-
-    logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
 
     if groups:
         load(
@@ -500,7 +495,6 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(access_entries)} EKS Access Entries")
     else:
         logger.info("No EKS Access Entries found for cluster")
 
@@ -522,7 +516,6 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(oidc_provider)} external OIDC provider")
     else:
         logger.info("No external OIDC provider found for cluster")
 

@@ -141,7 +141,6 @@ def load_detected_apps(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(apps)} Intune detected app entries")
     load(
         neo4j_session,
         IntuneDetectedAppSchema(),

@@ -509,7 +509,6 @@ def load_org_secrets(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub organization Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubOrgActionsSecretSchema(),
@@ -526,9 +525,6 @@ def load_org_variables(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(
-        f"Loading {len(data)} GitHub organization Actions variables to the graph"
-    )
     load(
         neo4j_session,
         GitHubOrgActionsVariableSchema(),
@@ -545,7 +541,6 @@ def load_workflows(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub workflows to the graph")
     load(
         neo4j_session,
         GitHubWorkflowSchema(),
@@ -562,7 +557,6 @@ def load_environments(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub environments to the graph")
     load(
         neo4j_session,
         GitHubEnvironmentSchema(),
@@ -579,7 +573,6 @@ def load_repo_secrets(
     update_tag: int,
     repo_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub repository Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubRepoActionsSecretSchema(),
@@ -596,7 +589,6 @@ def load_repo_variables(
     update_tag: int,
     repo_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub repository Actions variables to the graph")
     load(
         neo4j_session,
         GitHubRepoActionsVariableSchema(),
@@ -613,7 +605,6 @@ def load_env_secrets(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub environment Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubEnvActionsSecretSchema(),
@@ -630,9 +621,6 @@ def load_env_variables(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(
-        f"Loading {len(data)} GitHub environment Actions variables to the graph"
-    )
     load(
         neo4j_session,
         GitHubEnvActionsVariableSchema(),
@@ -649,7 +637,6 @@ def load_actions(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub Actions to the graph")
     load(
         neo4j_session,
         GitHubActionSchema(),

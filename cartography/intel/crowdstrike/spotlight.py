@@ -54,7 +54,6 @@ def load_vulnerability_data(
         ON CREATE SET hv.firstseen = timestamp()
         SET hv.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} crowdstrike spotlight vulnerabilities.")
     vulns = []
     cves = []
     for item in data:

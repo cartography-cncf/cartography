@@ -186,7 +186,6 @@ def load_projects(
     """
     Load GitLab projects into the graph for a specific organization.
     """
-    logger.info(f"Loading {len(projects)} projects for organization {org_url}")
     load(
         neo4j_session,
         GitLabProjectSchema(),
