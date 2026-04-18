@@ -15,13 +15,13 @@ DESCRIBE_SERVICES = [
             },
             "AutoDeploymentsEnabled": True,
             "AuthenticationConfiguration": {
-                "AccessRoleArn": "arn:aws:iam::123456789012:role/apprunner-access",
+                "AccessRoleArn": "arn:aws:iam::1234:role/cartography-read-only",
             },
         },
         "InstanceConfiguration": {
             "Cpu": "1 vCPU",
             "Memory": "2 GB",
-            "InstanceRoleArn": "arn:aws:iam::123456789012:role/apprunner-instance",
+            "InstanceRoleArn": "arn:aws:iam::1234:role/cartography-service",
         },
         "NetworkConfiguration": {
             "EgressConfiguration": {
@@ -48,13 +48,13 @@ DESCRIBE_SERVICES = [
             },
             "AutoDeploymentsEnabled": False,
             "AuthenticationConfiguration": {
-                "AccessRoleArn": "arn:aws:iam::123456789012:role/apprunner-access-2",
+                "AccessRoleArn": "arn:aws:iam::1234:role/cartography-read-only",
             },
         },
         "InstanceConfiguration": {
             "Cpu": "2 vCPU",
             "Memory": "4 GB",
-            "InstanceRoleArn": "arn:aws:iam::123456789012:role/apprunner-instance-2",
+            "InstanceRoleArn": "arn:aws:iam::1234:role/cartography-service",
         },
         "NetworkConfiguration": {
             "EgressConfiguration": {
@@ -62,6 +62,36 @@ DESCRIBE_SERVICES = [
             },
             "IngressConfiguration": {
                 "IsPubliclyAccessible": False,
+            },
+        },
+    },
+    {
+        "ServiceName": "my-code-service",
+        "ServiceId": "ghi789",
+        "ServiceArn": "arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",
+        "ServiceUrl": "ghi789.us-east-1.awsapprunner.com",
+        "CreatedAt": "2023-03-01T00:00:00Z",
+        "UpdatedAt": "2023-03-02T00:00:00Z",
+        "Status": "RUNNING",
+        "SourceConfiguration": {
+            "CodeRepository": {
+                "RepositoryUrl": "https://github.com/example/my-code-service",
+                "SourceCodeVersion": {"Type": "BRANCH", "Value": "main"},
+                "CodeConfiguration": {},
+            },
+            "AutoDeploymentsEnabled": True,
+        },
+        "InstanceConfiguration": {
+            "Cpu": "1 vCPU",
+            "Memory": "2 GB",
+            "InstanceRoleArn": "arn:aws:iam::1234:role/cartography-service",
+        },
+        "NetworkConfiguration": {
+            "EgressConfiguration": {
+                "EgressType": "DEFAULT",
+            },
+            "IngressConfiguration": {
+                "IsPubliclyAccessible": True,
             },
         },
     },
