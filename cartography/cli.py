@@ -66,6 +66,7 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_JFROG = "JFrog Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -90,6 +91,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "jfrog": PANEL_JFROG,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -998,6 +1000,36 @@ class CLI:
                     help="JumpCloud organization ID used as the tenant identifier.",
                     rich_help_panel=PANEL_JUMPCLOUD,
                     hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # JFrog Options
+            # =================================================================
+            jfrog_artifactory_base_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--jfrog-artifactory-base-url",
+                    help="JFrog Artifactory base URL (e.g. https://example.jfrog.io).",
+                    rich_help_panel=PANEL_JFROG,
+                    hidden=PANEL_JFROG not in visible_panels,
+                ),
+            ] = None,
+            jfrog_artifactory_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--jfrog-artifactory-token-env-var",
+                    help="Environment variable name containing JFrog Artifactory access token.",
+                    rich_help_panel=PANEL_JFROG,
+                    hidden=PANEL_JFROG not in visible_panels,
+                ),
+            ] = None,
+            jfrog_artifactory_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jfrog-artifactory-tenant-id",
+                    help="Tenant ID for JFrog Artifactory (defaults to base URL).",
+                    rich_help_panel=PANEL_JFROG,
+                    hidden=PANEL_JFROG not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1957,6 +1989,17 @@ class CLI:
                     jumpcloud_api_key_env_var,
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read JFrog Artifactory token
+            jfrog_artifactory_token = None
+            if jfrog_artifactory_token_env_var:
+                logger.debug(
+                    "Reading token for JFrog Artifactory from environment variable %s",
+                    jfrog_artifactory_token_env_var,
+                )
+                jfrog_artifactory_token = os.environ.get(
+                    jfrog_artifactory_token_env_var
+                )
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2327,6 +2370,9 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                jfrog_artifactory_base_url=jfrog_artifactory_base_url,
+                jfrog_artifactory_token=jfrog_artifactory_token,
+                jfrog_artifactory_tenant_id=jfrog_artifactory_tenant_id,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
