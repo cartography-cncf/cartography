@@ -65,7 +65,12 @@ async def _mock_get_all_manifests_async(
     "cartography.intel.gcp.artifact_registry.repository.get_artifact_registry_repositories",
     return_value=MOCK_REPOSITORIES,
 )
+@patch(
+    "cartography.intel.gcp.artifact_registry.build_artifact_registry_client",
+    return_value=MagicMock(name="artifact-registry-client"),
+)
 def test_sync_trivy_gcp(
+    mock_build_artifact_registry_client,
     mock_get_repositories,
     mock_get_manifests,
     mock_list_dir_scan_results,
@@ -142,3 +147,4 @@ def test_sync_trivy_gcp(
         expected_package_rels,
         expected_finding_rels,
     )
+    mock_build_artifact_registry_client.assert_called_once_with(mock_credentials)

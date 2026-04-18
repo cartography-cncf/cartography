@@ -22,6 +22,15 @@ MOCK_REPOSITORIES = [
         "updateTime": "2024-01-16T00:00:00Z",
     },
     {
+        "name": "projects/test-project/locations/us-central1/repositories/go-repo",
+        "format": "GO",
+        "mode": "STANDARD_REPOSITORY",
+        "description": "Go modules repository",
+        "sizeBytes": "128000",
+        "createTime": "2024-01-02T12:00:00Z",
+        "updateTime": "2024-01-16T12:00:00Z",
+    },
+    {
         "name": "projects/test-project/locations/us-east1/repositories/apt-repo",
         "format": "APT",
         "mode": "STANDARD_REPOSITORY",
@@ -98,6 +107,16 @@ MOCK_MAVEN_ARTIFACTS = [
         "version": "1.0.0",
         "createTime": "2024-01-05T00:00:00Z",
         "updateTime": "2024-01-05T00:00:00Z",
+    },
+]
+
+MOCK_GO_MODULES = [
+    {
+        "name": "projects/test-project/locations/us-central1/repositories/go-repo/packages/example.com%2Fmy-module/versions/v1.2.3",
+        "packageName": "example.com/my-module",
+        "version": "v1.2.3",
+        "createTime": "2024-01-05T12:00:00Z",
+        "updateTime": "2024-01-05T12:00:00Z",
     },
 ]
 

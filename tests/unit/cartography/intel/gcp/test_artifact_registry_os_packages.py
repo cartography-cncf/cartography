@@ -1,55 +1,93 @@
 from unittest.mock import MagicMock
 
+from google.cloud.artifactregistry_v1 import types
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
+from cartography.intel.gcp.artifact_registry.artifact import get_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
-from cartography.intel.gcp.util import GCP_API_NUM_RETRIES
+
+
+def _timestamp(value: str) -> Timestamp:
+    ts = Timestamp()
+    ts.FromJsonString(value)
+    return ts
 
 
 def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
     client = MagicMock()
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
+    package = types.Package(
+        name=f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}",
+        display_name=package_name,
+        create_time=_timestamp("2024-01-06T00:00:00Z"),
+        update_time=_timestamp("2024-01-06T00:00:00Z"),
     )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-
-    packages_request = MagicMock()
-    packages_request.execute.return_value = {
-        "packages": [
-            {
-                "name": f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}",
-                "displayName": package_name,
-            }
-        ]
-    }
-    packages.list.return_value = packages_request
-    packages.list_next.return_value = None
-
-    versions_request = MagicMock()
-    versions_request.execute.return_value = {
-        "versions": [
-            {
-                "name": f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}/versions/{version_name}",
-                "createTime": "2024-01-06T00:00:00Z",
-                "updateTime": "2024-01-06T00:00:00Z",
-            }
-        ]
-    }
-    versions.list.return_value = versions_request
-    versions.list_next.return_value = None
+    version = types.Version(
+        name=f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}/versions/{version_name}",
+        create_time=_timestamp("2024-01-06T00:00:00Z"),
+        update_time=_timestamp("2024-01-06T00:00:00Z"),
+    )
+    client.list_packages.return_value = [package]
+    client.list_versions.return_value = [version]
     return client
 
 
-def test_get_apt_artifacts_uses_packages_and_versions():
-    client = _make_os_package_client("curl", "7.88.1")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
+def test_get_docker_images_converts_sdk_messages_to_existing_dict_shape():
+    client = MagicMock()
+    client.list_docker_images.return_value = [
+        types.DockerImage(
+            name="projects/test-project/locations/us-central1/repositories/repo/dockerImages/my-app@sha256:abc123",
+            uri="us-central1-docker.pkg.dev/test-project/repo/my-app@sha256:abc123",
+            tags=["latest"],
+            image_size_bytes=123,
+            media_type="application/vnd.oci.image.index.v1+json",
+            upload_time=_timestamp("2024-01-10T00:00:00Z"),
+            build_time=_timestamp("2024-01-10T00:00:00Z"),
+            update_time=_timestamp("2024-01-10T00:00:00Z"),
+            image_manifests=[
+                types.ImageManifest(
+                    digest="sha256:def456",
+                    media_type="application/vnd.oci.image.manifest.v1+json",
+                    architecture="amd64",
+                    os="linux",
+                )
+            ],
+        )
+    ]
+
+    images = get_docker_images(
+        client,
+        "projects/test-project/locations/us-central1/repositories/repo",
     )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
+
+    assert images == [
+        {
+            "name": "projects/test-project/locations/us-central1/repositories/repo/dockerImages/my-app@sha256:abc123",
+            "uri": "us-central1-docker.pkg.dev/test-project/repo/my-app@sha256:abc123",
+            "tags": ["latest"],
+            "imageSizeBytes": "123",
+            "uploadTime": "2024-01-10T00:00:00Z",
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "buildTime": "2024-01-10T00:00:00Z",
+            "updateTime": "2024-01-10T00:00:00Z",
+            "imageManifests": [
+                {
+                    "digest": "sha256:def456",
+                    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                    "architecture": "amd64",
+                    "os": "linux",
+                }
+            ],
+        }
+    ]
+    client.list_docker_images.assert_called_once_with(
+        parent="projects/test-project/locations/us-central1/repositories/repo",
+    )
+
+
+def test_get_apt_artifacts_uses_generic_packages_and_versions():
+    client = _make_os_package_client("curl", "7.88.1")
 
     artifacts = get_apt_artifacts(
         client,
@@ -64,23 +102,16 @@ def test_get_apt_artifacts_uses_packages_and_versions():
             "packageName": "curl",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/curl",
     )
 
 
-def test_get_yum_artifacts_uses_packages_and_versions():
+def test_get_yum_artifacts_uses_generic_packages_and_versions():
     client = _make_os_package_client("bash", "5.2.26")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
-    )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
 
     artifacts = get_yum_artifacts(
         client,
@@ -95,23 +126,16 @@ def test_get_yum_artifacts_uses_packages_and_versions():
             "packageName": "bash",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/bash",
     )
 
 
-def test_get_go_modules_uses_packages_and_versions():
-    client = _make_os_package_client("example.com/foo", "v1.2.3")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
-    )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
+def test_get_go_modules_reconstructs_modules_from_generic_packages_and_versions():
+    client = _make_os_package_client("example.com%2Fpkg", "v1.2.3")
 
     modules = get_go_modules(
         client,
@@ -120,15 +144,16 @@ def test_get_go_modules_uses_packages_and_versions():
 
     assert modules == [
         {
-            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo/versions/v1.2.3",
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/example.com%2Fpkg/versions/v1.2.3",
+            "version": "v1.2.3",
             "createTime": "2024-01-06T00:00:00Z",
             "updateTime": "2024-01-06T00:00:00Z",
-            "packageName": "example.com/foo",
+            "packageName": "example.com/pkg",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com%2Fpkg",
     )

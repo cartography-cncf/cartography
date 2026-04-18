@@ -5,6 +5,9 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 
 from cartography.intel.gcp.artifact_registry.artifact import (
+    build_artifact_registry_client,
+)
+from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
 )
 from cartography.intel.gcp.artifact_registry.manifest import cleanup_manifests
@@ -52,11 +55,13 @@ def sync(
         common_job_parameters,
     )
 
+    artifact_registry_client = build_artifact_registry_client(credentials)
+
     # Sync artifacts for all repositories
     # This now returns transformed platform images from the imageManifests field
     platform_images = sync_artifact_registry_artifacts(
         neo4j_session,
-        client,
+        artifact_registry_client,
         repositories_raw,
         project_id,
         update_tag,

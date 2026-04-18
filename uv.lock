@@ -883,6 +883,7 @@ dependencies = [
     { name = "duo-client" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
+    { name = "google-cloud-artifact-registry" },
     { name = "google-cloud-asset" },
     { name = "google-cloud-resource-manager" },
     { name = "httpx" },
@@ -976,6 +977,7 @@ requires-dist = [
     { name = "duo-client", specifier = ">=5.5.0" },
     { name = "google-api-python-client", specifier = ">=2.0.0" },
     { name = "google-auth", specifier = ">=2.37.0" },
+    { name = "google-cloud-artifact-registry", specifier = ">=1.17.0" },
     { name = "google-cloud-asset", specifier = ">=1.0.0" },
     { name = "google-cloud-resource-manager", specifier = ">=1.14.2" },
     { name = "httpx", specifier = ">=0.24.0" },
@@ -1751,6 +1753,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ca/eb/f8dcd4e3c596733f872732b43836df6486fa09966ce5586443d4e9e288fb/google_cloud_access_context_manager-0.3.0.tar.gz", hash = "sha256:f3aa35c9225b7aaef85ecdacedcc1577789be8d458b7a41b6ad23b504786e5f9", size = 46643, upload-time = "2025-10-17T02:33:32.028Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/94/24b010493660dd55e2d9769ae7ef44164aebd7e1f4a9266cf9459affd687/google_cloud_access_context_manager-0.3.0-py3-none-any.whl", hash = "sha256:5d15ad51547f06c281e35f16b4ffcb3e98bb2d898b01470f88b94edfb2eeb0a3", size = 58852, upload-time = "2025-10-17T02:30:33.768Z" },
+]
+
+[[package]]
+name = "google-cloud-artifact-registry"
+version = "1.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpc-google-iam-v1" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/2b/24e6956789bc1244efb18143aa4f124e03d870228e5bfd065c04d38a4d6b/google_cloud_artifact_registry-1.21.0.tar.gz", hash = "sha256:546e51eb5d463a6e5c668be6727d14f8ec82bc798031398006b2213d703e184c", size = 315219, upload-time = "2026-03-30T22:50:38.875Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/8c/a5c68031728f38d3306bad5ac10c0ca670cbdf414db308ddefa2c47f2b34/google_cloud_artifact_registry-1.21.0-py3-none-any.whl", hash = "sha256:a07079035438fd0f2e7264d4318b388650495f011db575405c18c9881449025c", size = 250544, upload-time = "2026-03-30T22:48:49.345Z" },
 ]
 
 [[package]]
