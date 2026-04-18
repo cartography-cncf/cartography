@@ -2,8 +2,12 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.apprunner
+import cartography.intel.aws.iam
 import tests.data.aws.apprunner
 from cartography.intel.aws.apprunner import cleanup
+from cartography.intel.aws.iam import load_role_data
+from cartography.intel.aws.iam import transform_role_trust_policies
+from tests.data.aws.iam.roles import ROLES
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -11,6 +15,16 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
+
+
+def _seed_roles(neo4j_session):
+    transformed = transform_role_trust_policies(ROLES["Roles"], TEST_ACCOUNT_ID)
+    load_role_data(
+        neo4j_session,
+        transformed.role_data,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
@@ -37,8 +51,18 @@ def test_sync_apprunner_services_nodes(mock_get, neo4j_session):
     expected_nodes = {
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",),
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",),
+        ("arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",),
     }
     assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == expected_nodes
+
+    # Code-source services should populate code_repository_url; image-source ones populate image_identifier.
+    code_service_props = check_nodes(
+        neo4j_session, "AppRunnerService", ["arn", "code_repository_url"]
+    )
+    assert (
+        "arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",
+        "https://github.com/example/my-code-service",
+    ) in code_service_props
 
 
 @patch.object(
@@ -50,6 +74,7 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _seed_roles(neo4j_session)
 
     # Act
     cartography.intel.aws.apprunner.sync(
@@ -61,8 +86,8 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert
-    expected = {
+    # Assert: account owns each service
+    expected_account_rels = {
         (
             TEST_ACCOUNT_ID,
             "arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",
@@ -70,6 +95,10 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
         (
             TEST_ACCOUNT_ID,
             "arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",
         ),
     }
     assert (
@@ -81,8 +110,52 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
             "arn",
             "RESOURCE",
         )
-        == expected
+        == expected_account_rels
     )
+
+    # Assert: access role is linked for services with an AccessRoleArn
+    assert check_rels(
+        neo4j_session,
+        "AppRunnerService",
+        "arn",
+        "AWSRole",
+        "arn",
+        "USES_ACCESS_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",
+            "arn:aws:iam::1234:role/cartography-read-only",
+        ),
+        (
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",
+            "arn:aws:iam::1234:role/cartography-read-only",
+        ),
+    }
+
+    # Assert: instance role is linked for every service (enables iam:PassRole privesc traversal)
+    assert check_rels(
+        neo4j_session,
+        "AppRunnerService",
+        "arn",
+        "AWSRole",
+        "arn",
+        "USES_INSTANCE_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",
+            "arn:aws:iam::1234:role/cartography-service",
+        ),
+        (
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",
+            "arn:aws:iam::1234:role/cartography-service",
+        ),
+        (
+            "arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",
+            "arn:aws:iam::1234:role/cartography-service",
+        ),
+    }
 
 
 @patch.object(
@@ -116,6 +189,7 @@ def test_cleanup_apprunner(mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == {
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",),
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",),
+        ("arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",),
     }
     # [Pre-test] Assert that the unrelated EC2 instance exists
     assert check_rels(
