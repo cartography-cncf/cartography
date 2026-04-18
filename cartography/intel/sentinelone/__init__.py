@@ -130,8 +130,8 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         except requests.exceptions.HTTPError as exc:
             if not is_site_scope_http_error(exc):
                 raise
-            logger.info(
-                "SentinelOne token cannot enumerate accounts; falling back to site-scoped sync",
+            logger.warning(
+                "SentinelOne token cannot enumerate /accounts for a site-scoped user; continuing with site-scoped sync fallback",
             )
             scopes = sync_site_scoped_accounts(
                 neo4j_session,

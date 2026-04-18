@@ -108,7 +108,7 @@ digitalocean_mapping = OntologyMapping(
 
 # Entra (formerly Azure AD)
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraTenant",
@@ -389,7 +389,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "digitalocean": digitalocean_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "googleworkspace": googleworkspace_mapping,

@@ -88,9 +88,6 @@ def load_agents(
     :param update_tag: Update tag for tracking data freshness
     :return: None
     """
-    logger.info(
-        f"Loading {len(data)} SentinelOne agents into Neo4j for account {account_id}"
-    )
     load(
         neo4j_session,
         S1AgentSchema(),

@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.intel.sentinelone.api import call_sentinelone_api
+from cartography.intel.sentinelone.api import is_site_scope_http_error
 from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
 
@@ -36,6 +37,7 @@ def get_accounts(
         api_url=api_url,
         endpoint="web/api/v2.1/accounts",
         api_token=api_token,
+        passthrough_exceptions=is_site_scope_http_error,
     )
 
     accounts_data = response["data"]
@@ -209,8 +211,6 @@ def load_accounts(
         firstseen=update_tag,
     )
 
-    logger.info(f"Loaded {len(accounts_data)} SentinelOne account nodes")
-
 
 @timeit
 def sync_accounts(
@@ -246,7 +246,6 @@ def sync_accounts(
     )
 
     synced_account_ids = [account["id"] for account in transformed_accounts]
-    logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids
 
 

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -10,8 +9,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.zone import CloudflareZoneSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -46,7 +43,6 @@ def load_zones(
     account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Cloudflare zones into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareZoneSchema(),

@@ -112,7 +112,6 @@ def load_directory_groups(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS directory groups into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectoryGroupSchema(),

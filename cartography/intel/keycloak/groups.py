@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,8 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.keycloak.util import get_paginated
 from cartography.models.keycloak.group import KeycloakGroupSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -107,7 +104,6 @@ def load_groups(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Groups (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakGroupSchema(),

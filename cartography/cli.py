@@ -74,6 +74,7 @@ MODULE_PANELS = {
     "aws": PANEL_AWS,
     "azure": PANEL_AZURE,
     "entra": PANEL_ENTRA,
+    "microsoft": PANEL_ENTRA,
     "gcp": PANEL_GCP,
     "oci": PANEL_OCI,
     "okta": PANEL_OKTA,
@@ -790,7 +791,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--jamf-base-uri",
-                    help="Jamf base URI, e.g. https://hostname.com/JSSResource.",
+                    help="Jamf base URI, e.g. https://hostname.jamfcloud.com.",
                     rich_help_panel=PANEL_JAMF,
                     hidden=PANEL_JAMF not in visible_panels,
                 ),

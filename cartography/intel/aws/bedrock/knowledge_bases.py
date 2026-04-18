@@ -138,8 +138,6 @@ def load_knowledge_bases(
     """
     Load knowledge bases into the graph database.
     """
-    logger.info("Loading %d Bedrock knowledge bases for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockKnowledgeBaseSchema(),

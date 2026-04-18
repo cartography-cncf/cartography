@@ -77,8 +77,6 @@ def load_worker_pools(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(worker_pools_data)} Spacelift worker pools")
-
 
 @timeit
 def cleanup_worker_pools(
@@ -127,5 +125,4 @@ def sync_worker_pools(
 
     # 4. CLEANUP - Remove stale data
     cleanup_worker_pools(neo4j_session, common_job_parameters)
-
-    logger.info(f"Synced {len(transformed_worker_pools)} Spacelift worker pools")
+    logger.info("Synced Spacelift worker pools for account %s", account_id)

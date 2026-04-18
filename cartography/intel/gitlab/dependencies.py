@@ -301,7 +301,9 @@ def _parse_cyclonedx_sbom(
 
 def transform_dependencies(
     raw_dependencies: list[dict[str, Any]],
+    project_id: int,
     project_url: str,
+    gitlab_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform raw dependency data to match our schema.
@@ -323,7 +325,9 @@ def transform_dependencies(
             "name": name,
             "version": version,
             "package_manager": package_manager,
+            "project_id": project_id,
             "project_url": project_url,
+            "gitlab_url": gitlab_url,
         }
 
         if manifest_id:
@@ -339,19 +343,20 @@ def transform_dependencies(
 def load_dependencies(
     neo4j_session: neo4j.Session,
     dependencies: list[dict[str, Any]],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
     Load GitLab dependencies into the graph for a specific project.
     """
-    logger.info(f"Loading {len(dependencies)} dependencies for project {project_url}")
     load(
         neo4j_session,
         GitLabDependencySchema(),
         dependencies,
         lastupdated=update_tag,
-        project_url=project_url,
+        project_id=project_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -359,13 +364,18 @@ def load_dependencies(
 def cleanup_dependencies(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab dependencies from the graph for a specific project.
     """
-    logger.info(f"Running GitLab dependencies cleanup for project {project_url}")
-    cleanup_params = {**common_job_parameters, "project_url": project_url}
+    logger.info(f"Running GitLab dependencies cleanup for project {project_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "project_id": project_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(GitLabDependencySchema(), cleanup_params).run(
         neo4j_session
     )
@@ -419,7 +429,7 @@ def sync_gitlab_dependencies(
                 logger.debug(f"No dependency files found for project {project_name}")
                 continue
             transformed_files = transform_dependency_files(
-                raw_dependency_files, project_url
+                raw_dependency_files, project_id, project_url, gitlab_url
             )
 
         if not transformed_files:
@@ -438,14 +448,23 @@ def sync_gitlab_dependencies(
             logger.debug(f"No dependencies found for project {project_name}")
             continue
 
-        transformed_dependencies = transform_dependencies(raw_dependencies, project_url)
+        transformed_dependencies = transform_dependencies(
+            raw_dependencies,
+            project_id,
+            project_url,
+            gitlab_url,
+        )
 
         logger.debug(
             f"Found {len(transformed_dependencies)} dependencies in project {project_name}"
         )
 
         load_dependencies(
-            neo4j_session, transformed_dependencies, project_url, update_tag
+            neo4j_session,
+            transformed_dependencies,
+            project_id,
+            gitlab_url,
+            update_tag,
         )
 
     logger.info("GitLab dependencies sync completed")

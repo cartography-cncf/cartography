@@ -76,8 +76,6 @@ def load_secrets(
     Load transformed secrets into Neo4j using the data model.
     Expects data to already be transformed by transform_secrets().
     """
-    logger.info(f"Loading {len(data)} Secrets for region {region} into graph.")
-
     # Load using the schema-based approach
     load(
         neo4j_session,
@@ -174,8 +172,6 @@ def load_secret_versions(
     """
     Load secret versions into Neo4j using the data model.
     """
-    logger.info(f"Loading {len(data)} Secret Versions for region {region} into graph.")
-
     load(
         neo4j_session,
         SecretsManagerSecretVersionSchema(),
