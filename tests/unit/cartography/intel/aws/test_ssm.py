@@ -5,7 +5,6 @@ from typing import cast
 from unittest.mock import call
 from unittest.mock import MagicMock
 
-from cartography.intel.aws.ssm import _build_ssm_parameter_id
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _parameter_matches_allowlist_prefixes
@@ -113,44 +112,21 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
     ]
 
 
-def test_build_ssm_parameter_id_is_deterministic() -> None:
-    assert _build_ssm_parameter_id(
-        "000000000000",
-        "us-west-2",
-        "/aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id",
-    ) == (
-        "arn:aws:ssm:us-west-2:000000000000:parameter"
-        "/aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id"
-    )
-
-
-def test_build_ssm_parameter_id_matches_private_parameter_arn_shape() -> None:
-    assert (
-        _build_ssm_parameter_id(
-            "000000000000",
-            "eu-west-1",
-            "/my/app/config/db-host",
-        )
-        == "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host"
-    )
-
-
-def test_transform_ssm_parameters_sets_id_and_dates() -> None:
+def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
     transformed = transform_ssm_parameters(
         [
             {
                 "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
+                "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
                 "Type": "String",
                 "Version": 3,
                 "Value": "ami-abc123",
                 "LastModifiedDate": datetime(2025, 1, 2, tzinfo=timezone.utc),
             }
         ],
-        "us-east-1",
-        "000000000000",
     )
-    assert transformed[0]["Id"] == (
-        "arn:aws:ssm:us-east-1:000000000000:parameter"
-        "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id"
+    assert transformed[0]["ARN"] == (
+        "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/"
+        "aws-k8s-1.30/x86_64/latest/image_id"
     )
     assert transformed[0]["LastModifiedDate"] == 1735776000

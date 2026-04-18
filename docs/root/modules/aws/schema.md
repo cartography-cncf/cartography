@@ -5383,7 +5383,7 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 |-------|-------------|
 | **firstseen**| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | A deterministic identifier built from the ingesting account ID, region, and parameter name. |
+| **id** | The AWS parameter ARN. |
 | region | The region of the parameter. |
 | **arn** | The Amazon Resource Name (ARN) of the parameter. |
 | name | The parameter name. |
@@ -5402,10 +5402,12 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 
 #### Relationships
 
-- SSMParameter is a resource under the AWS Account.
+- Private SSMParameters discovered from `describe_parameters` are resources under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(SSMParameter)
     ```
+
+- AWS-managed public SSMParameters discovered from allowlisted `/aws/service/...` paths are shared regional nodes and are not attached to an AWSAccount.
 
 - SecureString SSMParameters may be encrypted by an AWS KMS Key.
     ```

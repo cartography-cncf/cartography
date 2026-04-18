@@ -84,7 +84,8 @@ class Config:
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
     :type aws_ssm_public_parameter_prefix_allowlist: str
     :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
-        prefixes to ingest (for example /aws/service/bottlerocket/). Optional.
+        prefixes to ingest (for example /aws/service/bottlerocket/). Defaults to the Bottlerocket and EKS optimized
+        AMI public namespaces when unset. Set to an empty string to disable public SSM parameter ingestion. Optional.
     :type aws_ssm_ingest_secure_strings: bool | None
     :param aws_ssm_ingest_secure_strings: Whether to ingest SSM parameters with type SecureString. If unset, falls
         back to environment configuration. Optional.

@@ -123,9 +123,15 @@ def test_sync_multiple_accounts(
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
 @mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 def test_start_aws_ingestion(
     mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
     mock_orgs,
     mock_boto3,
@@ -156,10 +162,13 @@ def test_start_aws_ingestion(
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
             "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
             "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
-            "aws_ssm_public_parameter_prefix_allowlist": None,
+            "aws_ssm_public_parameter_prefix_allowlist": (
+                cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+            ),
             "aws_ssm_ingest_secure_strings": False,
         },
     )
+    mock_sync_shared_public_ssm_parameters.assert_called_once()
 
 
 @mock.patch.dict(os.environ, {"AWS_SSM_INGEST_SECURE_STRINGS": "true"}, clear=False)
@@ -167,9 +176,15 @@ def test_start_aws_ingestion(
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
 @mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 def test_start_aws_ingestion_prefers_explicit_ssm_secure_string_config(
     mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
     mock_orgs,
     mock_boto3,
@@ -197,9 +212,15 @@ def test_start_aws_ingestion_prefers_explicit_ssm_secure_string_config(
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
 @mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 def test_start_aws_ingestion_uses_env_for_ssm_secure_string_config_when_unset(
     mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
     mock_orgs,
     mock_boto3,
@@ -220,6 +241,74 @@ def test_start_aws_ingestion_uses_env_for_ssm_secure_string_config_when_unset(
     # Assert
     common_job_parameters = mock_perform_analysis.call_args.args[2]
     assert common_job_parameters["aws_ssm_ingest_secure_strings"] is True
+
+
+@mock.patch.dict(os.environ, {}, clear=False)
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
+    mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_ssm_public_parameter_prefix_allowlist=None,
+    )
+
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    common_job_parameters = mock_perform_analysis.call_args.args[2]
+    assert (
+        common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"]
+        == cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+    )
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_allows_disabling_public_ssm_allowlist_with_empty_string(
+    mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_ssm_public_parameter_prefix_allowlist="",
+    )
+
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    common_job_parameters = mock_perform_analysis.call_args.args[2]
+    assert common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] == ""
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

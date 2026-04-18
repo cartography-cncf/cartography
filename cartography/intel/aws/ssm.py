@@ -15,6 +15,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
+from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
 from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
@@ -22,16 +23,9 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-
-def _build_ssm_parameter_id(
-    current_aws_account_id: str,
-    region: str,
-    parameter_name: str,
-) -> str:
-    parameter_path = parameter_name
-    if not parameter_path.startswith("/"):
-        parameter_path = f"/{parameter_path}"
-    return f"arn:aws:ssm:{region}:{current_aws_account_id}:parameter{parameter_path}"
+DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST = (
+    "/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/"
+)
 
 
 def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
@@ -220,16 +214,9 @@ def get_public_ssm_parameters_by_path(
 
 def transform_ssm_parameters(
     raw_parameters_data: List[Dict[str, Any]],
-    region: str,
-    current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     transformed_list: List[Dict[str, Any]] = []
     for param in raw_parameters_data:
-        param["Id"] = _build_ssm_parameter_id(
-            current_aws_account_id,
-            region,
-            param["Name"],
-        )
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
         # KMSKey uses shorter UUID as their primary id
@@ -302,6 +289,22 @@ def load_ssm_parameters(
 
 
 @timeit
+def load_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        PublicSSMParameterSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+    )
+
+
+@timeit
 def cleanup_ssm(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -320,6 +323,17 @@ def cleanup_ssm(
 
 
 @timeit
+def cleanup_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(
+        PublicSSMParameterSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -328,13 +342,6 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    allowlist_prefixes = _normalize_allowlisted_prefixes(
-        common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
-    )
-    ingest_secure_strings = common_job_parameters.get(
-        "aws_ssm_ingest_secure_strings",
-        False,
-    )
     for region in regions:
         logger.info(
             "Syncing SSM for region '%s' in account '%s'.",
@@ -363,15 +370,7 @@ def sync(
         )
 
         data = get_ssm_parameters(boto3_session, region)
-        if allowlist_prefixes:
-            public_parameters = get_public_ssm_parameters_by_path(
-                boto3_session,
-                region,
-                allowlist_prefixes,
-                ingest_secure_strings,
-            )
-            data.extend(public_parameters)
-        data = transform_ssm_parameters(data, region, current_aws_account_id)
+        data = transform_ssm_parameters(data)
         load_ssm_parameters(
             neo4j_session,
             data,
@@ -381,3 +380,47 @@ def sync(
         )
 
     cleanup_ssm(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_public_parameters(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    allowlist_prefixes = _normalize_allowlisted_prefixes(
+        common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+    )
+    if not allowlist_prefixes:
+        logger.info(
+            "Skipping AWS-managed public SSM parameter sync because the allowlist is empty."
+        )
+        cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
+        return
+
+    ingest_secure_strings = common_job_parameters.get(
+        "aws_ssm_ingest_secure_strings",
+        False,
+    )
+    for region in regions:
+        logger.info(
+            "Syncing shared public SSM parameters for region '%s'.",
+            region,
+        )
+        data = get_public_ssm_parameters_by_path(
+            boto3_session,
+            region,
+            allowlist_prefixes,
+            ingest_secure_strings,
+        )
+        data = transform_ssm_parameters(data)
+        load_public_ssm_parameters(
+            neo4j_session,
+            data,
+            region,
+            update_tag,
+        )
+
+    cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
