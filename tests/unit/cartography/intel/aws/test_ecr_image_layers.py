@@ -7,6 +7,7 @@ import httpx
 import pytest
 from botocore.exceptions import ClientError
 
+import cartography.intel.aws.ecr_image_layers as ecr_layers
 import tests.data.aws.ecr as test_data
 from cartography.intel.aws.ecr_image_layers import batch_get_manifest
 from cartography.intel.aws.ecr_image_layers import ECRLayerFetchTransientError
@@ -289,9 +290,10 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert image_attestation_map == {}
 
 
-def test_fetch_image_layers_async_skips_manifest_list_image_when_child_fetch_fails(
+def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
     mocker,
 ):
+    """A transient child failure should not poison the whole manifest list."""
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -336,10 +338,93 @@ def test_fetch_image_layers_async_skips_manifest_list_image_when_child_fetch_fai
         )
     )
 
-    assert image_layers_data == {}
-    assert image_digest_map == {}
-    assert history_by_diff_id == {}
+    assert f"{repo_uri}:manifest-list" in image_layers_data
+    assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
+    assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
+
+
+@pytest.mark.asyncio
+async def test_extract_provenance_from_attestation_supports_slsa_v1():
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = (
+        {
+            "layers": [
+                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:intoto"}
+            ]
+        },
+        "application/vnd.oci.image.manifest.v1+json",
+    )
+    attestation_blob = {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "predicate": {
+            "buildDefinition": {
+                "resolvedDependencies": [
+                    {
+                        "uri": "pkg:docker/111111111111.dkr.ecr.us-east-1.amazonaws.com/example-base@v1?platform=linux%2Famd64",
+                        "digest": {
+                            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                    },
+                    {
+                        "uri": "pkg:docker/docker/dockerfile@1.9",
+                        "digest": {
+                            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        },
+                    },
+                ],
+                "externalParameters": {
+                    "configSource": {"path": "Dockerfile.custom"},
+                },
+            },
+            "runDetails": {
+                "builder": {
+                    "id": "https://github.com/exampleco/example-repo/actions/runs/123456789/attempts/1",
+                },
+                "metadata": {
+                    "buildkit_metadata": {
+                        "vcs": {
+                            "source": "https://github.com/exampleco/example-repo",
+                            "revision": "abcdef0123456789abcdef0123456789abcdef01",
+                            "localdir:dockerfile": "services/backend",
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    original_batch_get_manifest = ecr_layers.batch_get_manifest
+    original_get_blob = ecr_layers.get_blob_json_via_presigned
+    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
+    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
+
+    try:
+        result = await ecr_layers._extract_provenance_from_attestation(
+            mock_ecr_client,
+            "example-repository",
+            "sha256:attestation",
+            mock_http_client,
+        )
+    finally:
+        ecr_layers.batch_get_manifest = original_batch_get_manifest
+        ecr_layers.get_blob_json_via_presigned = original_get_blob
+
+    assert result is not None
+    assert (
+        result["parent_image_uri"]
+        == "pkg:docker/111111111111.dkr.ecr.us-east-1.amazonaws.com/example-base@v1?platform=linux%2Famd64"
+    )
+    assert (
+        result["parent_image_digest"]
+        == "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    assert result["source_uri"] == "https://github.com/exampleco/example-repo"
+    assert result["source_revision"] == "abcdef0123456789abcdef0123456789abcdef01"
+    assert result["invocation_uri"] == "https://github.com/exampleco/example-repo"
+    assert result["source_file"] == "services/backend/Dockerfile.custom"
 
 
 def test_transform_layers_creates_graph_structure():

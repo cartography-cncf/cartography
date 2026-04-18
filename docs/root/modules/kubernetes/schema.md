@@ -93,6 +93,7 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes pod |
 | deletion\_timestamp | Timestamp of the deletion time of the Kubernetes pod |
 | **namespace** | The Kubernetes namespace where this pod is deployed |
+| service\_account\_name | Name of the ServiceAccount used by the pod. Derived from `pod.spec.service_account_name` and defaults to `default` when unset. |
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
@@ -102,6 +103,11 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
+- `KubernetesPod` uses a `KubernetesServiceAccount`.
+    ```
+    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    ```
+
 - `KubernetesPod` has `KubernetesContainer`.
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
@@ -282,6 +288,11 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 - `KubernetesServiceAccount` is contained in a `KubernetesNamespace`.
     ```
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` is used by a `KubernetesPod`.
+    ```
+    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesServiceAccount` is used as a subject in `KubernetesRoleBinding`.

@@ -7,6 +7,7 @@ from cartography.intel.aws.identitycenter import (
 )
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import get_user_permissionsets
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 
 
 def test_get_permission_sets_access_denied():
@@ -37,7 +38,11 @@ def test_get_permission_sets_access_denied():
     assert result == []
 
     # Verify our mocks were called as expected
-    mock_session.client.assert_called_once_with("sso-admin", region_name="us-east-1")
+    mock_session.client.assert_called_once_with(
+        "sso-admin",
+        region_name="us-east-1",
+        config=get_botocore_config(),
+    )
     mock_client.get_paginator.assert_called_once_with("list_permission_sets")
     mock_paginator.paginate.assert_called_once_with(
         InstanceArn="arn:aws:sso:::instance/test",
@@ -75,7 +80,11 @@ def test_get_role_assignments_access_denied():
     assert result == []
 
     # Verify our mocks were called as expected
-    mock_session.client.assert_called_once_with("sso-admin", region_name="us-east-1")
+    mock_session.client.assert_called_once_with(
+        "sso-admin",
+        region_name="us-east-1",
+        config=get_botocore_config(),
+    )
     mock_client.get_paginator.assert_called_once_with(
         "list_account_assignments_for_principal",
     )
@@ -93,6 +102,21 @@ def test_is_permission_set_sync_unsupported_error():
             "Error": {
                 "Code": "ValidationException",
                 "Message": "The operation is not supported for this Identity Center instance",
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    assert _is_permission_set_sync_unsupported_error(error)
+
+
+def test_is_permission_set_sync_unsupported_error_for_account_instance_message():
+    """Test support for AWS account-instance specific unsupported error wording."""
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "This operation is not supported for account instances of IAM Identity Center.",
             },
         },
         operation_name="ListPermissionSets",

@@ -11,6 +11,7 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
 from cartography.models.aws.lambda_function.event_source_mapping import (
     AWSLambdaEventSourceMappingSchema,
@@ -29,7 +30,7 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     """
     Create an Lambda boto3 client and grab all the lambda functions.
     """
-    client = boto3_session.client("lambda", region_name=region)
+    client = create_boto3_client(boto3_session, "lambda", region_name=region)
     paginator = client.get_paginator("list_functions")
     lambda_functions = []
     for page in paginator.paginate():
@@ -147,7 +148,7 @@ def get_lambda_permissions(
     """
     Get Lambda permissions for the given functions in the specified region.
     """
-    client = boto3_session.client("lambda", region_name=region)
+    client = create_boto3_client(boto3_session, "lambda", region_name=region)
     all_permissions = {}
     for function in lambda_functions:
         function_name = function["FunctionName"]
@@ -383,7 +384,7 @@ def sync(
         )
 
         # Create Lambda client for sub-entity requests
-        client = boto3_session.client("lambda", region_name=region)
+        client = create_boto3_client(boto3_session, "lambda", region_name=region)
 
         # Sync all sub-entities
         sync_aliases(

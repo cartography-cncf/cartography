@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.apigatewayv2.apigatewayv2 import APIGatewayV2APISchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -19,7 +20,7 @@ def get_apigatewayv2_apis(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client("apigatewayv2", region_name=region)
+    client = create_boto3_client(boto3_session, "apigatewayv2", region_name=region)
     paginator = client.get_paginator("get_apis")
     apis: list[dict[str, Any]] = []
     for page in paginator.paginate():

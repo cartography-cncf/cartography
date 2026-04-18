@@ -52,7 +52,7 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         "ref": "_default",
         "dedup": "true",
     }
-    logger.info(f"Retrieving Semgrep SCA vulns for deployment '{deployment_slug}'.")
+    logger.info("Retrieving Semgrep SCA vulns for deployment '%s'.", deployment_slug)
     while has_more:
 
         try:
@@ -66,7 +66,8 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
             data = response.json()
         except (ReadTimeout, HTTPError):
             logger.warning(
-                f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...",
+                "Failed to retrieve Semgrep SCA vulns for page %d. Retrying...",
+                page,
             )
             retries += 1
             if retries >= _MAX_RETRIES:
@@ -75,13 +76,13 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         vulns = data["findings"]
         has_more = len(vulns) > 0
         if page % 10 == 0:
-            logger.info(f"Processed page {page} of Semgrep SCA vulnerabilities.")
+            logger.info("Processed page %d of Semgrep SCA vulnerabilities.", page)
         all_vulns.extend(vulns)
         retries = 0
         page += 1
         request_data["page"] = page
 
-    logger.info(f"Retrieved {len(all_vulns)} Semgrep SCA vulns in {page} pages.")
+    logger.info("Retrieved %d Semgrep SCA vulns in %d pages.", len(all_vulns), page)
     return all_vulns
 
 
@@ -140,6 +141,7 @@ def transform_sca_vulns(
         package = vuln["found_dependency"]["package"]
         sca_vuln["id"] = vuln["id"]
         sca_vuln["repositoryName"] = repository_name
+        sca_vuln["repositoryUrl"] = vuln["repository"]["url"]
         sca_vuln["branch"] = vuln["ref"]
         sca_vuln["ruleId"] = rule_id
         sca_vuln["title"] = package + ":" + vulnerability_class
@@ -207,7 +209,7 @@ def load_semgrep_sca_vulns(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.debug(f"Loading {len(vulns)} SemgrepSCAFinding objects into the graph.")
+    logger.debug("Loading %d SemgrepSCAFinding objects into the graph.", len(vulns))
     load(
         neo4j_session,
         SemgrepSCAFindingSchema(),
@@ -243,7 +245,9 @@ def get_sast_findings(
         "ref": "_default",
         "dedup": "true",
     }
-    logger.info(f"Retrieving Semgrep SAST findings for deployment '{deployment_slug}'.")
+    logger.info(
+        "Retrieving Semgrep SAST findings for deployment '%s'.", deployment_slug
+    )
     while has_more:
         try:
             response = requests.get(
@@ -256,7 +260,8 @@ def get_sast_findings(
             data = response.json()
         except (ReadTimeout, HTTPError):
             logger.warning(
-                f"Failed to retrieve Semgrep SAST findings for page {page}. Retrying...",
+                "Failed to retrieve Semgrep SAST findings for page %d. Retrying...",
+                page,
             )
             retries += 1
             if retries >= _MAX_RETRIES:
@@ -265,13 +270,15 @@ def get_sast_findings(
         findings = data["findings"]
         has_more = len(findings) > 0
         if page % 10 == 0:
-            logger.info(f"Processed page {page} of Semgrep SAST findings.")
+            logger.info("Processed page %d of Semgrep SAST findings.", page)
         all_findings.extend(findings)
         retries = 0
         page += 1
         request_data["page"] = page
 
-    logger.info(f"Retrieved {len(all_findings)} Semgrep SAST findings in {page} pages.")
+    logger.info(
+        "Retrieved %d Semgrep SAST findings in %d pages.", len(all_findings), page
+    )
     return all_findings
 
 
@@ -289,6 +296,7 @@ def transform_sast_findings(
         rule_id = finding["rule"]["name"]
         sast_finding["id"] = finding["id"]
         sast_finding["repositoryName"] = repository_name
+        sast_finding["repositoryUrl"] = finding["repository"]["url"]
         sast_finding["branch"] = finding["ref"]
         sast_finding["ruleId"] = rule_id
         sast_finding["title"] = rule_id
@@ -323,7 +331,7 @@ def load_semgrep_sast_findings(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.debug(f"Loading {len(findings)} SemgrepSASTFinding objects into the graph.")
+    logger.debug("Loading %d SemgrepSASTFinding objects into the graph.", len(findings))
     load(
         neo4j_session,
         SemgrepSASTFindingSchema(),
@@ -340,7 +348,7 @@ def load_semgrep_sca_usages(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.debug(f"Loading {len(usages)} SemgrepSCALocation objects into the graph.")
+    logger.debug("Loading %d SemgrepSCALocation objects into the graph.", len(usages))
     load(
         neo4j_session,
         SemgrepSCALocationSchema(),
@@ -390,7 +398,7 @@ def load_semgrep_finding_assistants(
     update_tag: int,
 ) -> None:
     logger.debug(
-        f"Loading {len(assistants)} SemgrepFindingAssistant objects into the graph."
+        "Loading %d SemgrepFindingAssistant objects into the graph.", len(assistants)
     )
     load(
         neo4j_session,
