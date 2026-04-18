@@ -73,6 +73,9 @@ def sync_okta_groups(
                 "Unable to sync group roles - api token needs admin rights to pull admin roles data",
             )
             group_roles = []
+            # Still run cleanup so stale roles from a previously privileged
+            # token don't linger and overstate admin access.
+            _cleanup_okta_group_roles(neo4j_session, common_job_parameters)
         else:
             raise
 
@@ -281,6 +284,7 @@ def _transform_okta_group_rules(
         # These rules may have optional exclusions for people
         if (
             okta_group_rule.conditions
+            and hasattr(okta_group_rule.conditions, "people")
             and okta_group_rule.conditions.people
             and hasattr(okta_group_rule.conditions.people, "users")
             and okta_group_rule.conditions.people.users
@@ -298,8 +302,19 @@ def _transform_okta_group_rules(
             group_rule_props["inclusions"] = None
 
         transformed_group_rules.append(group_rule_props)
-        # Create an entry for each group rule and for each group_id
-        for group_id in okta_group_rule.actions.assign_user_to_groups.group_ids:
+        # Create an entry for each group rule and for each group_id.
+        # Rules may have non-assignment actions (or no actions), so every
+        # level must be guarded.
+        actions = okta_group_rule.actions
+        assign_user_to_groups = (
+            getattr(actions, "assign_user_to_groups", None) if actions else None
+        )
+        group_ids = (
+            getattr(assign_user_to_groups, "group_ids", None)
+            if assign_user_to_groups
+            else None
+        ) or []
+        for group_id in group_ids:
             match_group = {
                 **group_rule_props,
                 "group_id": group_id,

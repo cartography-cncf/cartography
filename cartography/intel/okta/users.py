@@ -169,6 +169,9 @@ def sync_okta_users(
             logger.warning(
                 "Unable to sync user roles - api token needs admin rights to pull admin roles data",
             )
+            # Still run cleanup so stale roles from a previously privileged
+            # token don't linger and overstate admin access.
+            _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
         else:
             raise
 
