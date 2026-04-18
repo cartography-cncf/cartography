@@ -107,7 +107,7 @@ class Config:
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
-    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
+    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string

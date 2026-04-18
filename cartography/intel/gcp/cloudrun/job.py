@@ -12,7 +12,10 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
 from cartography.intel.gcp.labels import sync_labels
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
@@ -95,13 +98,10 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(2) if name_match else None
 
-        # Get container image from template.template.containers[0].image
-        container_image = None
         template = job.get("template", {})
         task_template = template.get("template", {})
         containers = task_template.get("containers", [])
-        if containers and len(containers) > 0:
-            container_image = containers[0].get("image")
+        image_metadata = extract_container_image_metadata(containers)
 
         # Get service account email from template.template.serviceAccount
         service_account_email = task_template.get("serviceAccount")
@@ -111,7 +111,14 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
                 "id": full_name,
                 "name": short_name,
                 "location": location,
-                "container_image": container_image,
+                "container_image": image_metadata["container_image"],
+                "container_images": image_metadata["container_images"],
+                "image_digest": image_metadata["image_digest"],
+                "image_digests": image_metadata["image_digests"],
+                # Cloud Run only supports x86_64 (amd64); ARM workloads are not supported
+                "architecture": "amd64",
+                "architecture_normalized": normalize_architecture("amd64"),
+                "architecture_source": ARCH_SOURCE_PLATFORM_REQUIREMENT,
                 "service_account_email": service_account_email,
                 "project_id": project_id,
                 "labels": job.get("labels", {}),
