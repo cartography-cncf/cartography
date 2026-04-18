@@ -58,12 +58,6 @@
       "iterative": true,
       "iterationsize": 100,
       "__comment__": "Delete Stale ReplyUri relationships"
-    },
-    {
-      "query": "MATCH (:AWSRole)<-[r:CAN_ASSUME_ROLE]-(:Human) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete Stale Human to AWSRole CAN_ASSUME_ROLE relationship"
     }
   ],
   "name": "Okta intel module cleanup"

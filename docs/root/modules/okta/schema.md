@@ -82,12 +82,6 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
     (:OktaOrganization)-[:RESOURCE]->(:OktaUser)
     ```
 
-- **OktaUser is an identity for a Human**: Links Okta identities to Human entities (matched by email)
-    ```cypher
-    (:Human)-[:IDENTITY_OKTA]->(:OktaUser)
-    ```
-    This relationship allows tracking the same person across multiple identity systems. The Human node is automatically created based on the OktaUser's email address.
-
 - **OktaUsers are assigned OktaApplications**: Tracks which applications a user has access to
     ```cypher
     (:OktaUser)-[:APPLICATION]->(:OktaApplication)

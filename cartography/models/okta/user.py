@@ -160,23 +160,6 @@ class OktaUserToOktaOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class OktaUserToHumanRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:OktaUser)<-[:IDENTITY_OKTA]-(:Human)
-class OktaUserToHumanRel(CartographyRelSchema):
-    target_node_label: str = "Human"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"email": PropertyRef("email")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "IDENTITY_OKTA"
-    properties: OktaUserToHumanRelProperties = OktaUserToHumanRelProperties()
-
-
-@dataclass(frozen=True)
 class OktaUserToOktaUserRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -204,7 +187,6 @@ class OktaUserSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            OktaUserToHumanRel(),
             OktaUserToOktaUserRoleRel(),
         ],
     )

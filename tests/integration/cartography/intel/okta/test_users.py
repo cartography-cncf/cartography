@@ -105,10 +105,6 @@ def test_sync_okta_users(mock_get_users, mock_get_roles, neo4j_session):
     )
     assert actual_org_rels == expected_org_rels
 
-    # Note: IDENTITY_OKTA relationships to Human nodes are only created if
-    # Human nodes with matching emails already exist (from Workday or other
-    # identity sources). The OktaUserToHumanRel uses OPTIONAL MATCH.
-
 
 @patch.object(
     cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock

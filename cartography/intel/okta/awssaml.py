@@ -125,30 +125,6 @@ def _load_okta_group_to_aws_roles(
     )
 
 
-@timeit
-def _load_human_can_assume_role(
-    neo4j_session: neo4j.Session,
-    okta_update_tag: int,
-) -> None:
-    """
-    Add the CAN_ASSUME_ROLE relationship between Humans and the AWSRoles they can assume
-    :param neo4j_session: session with the Neo4j server
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :return: Nothing
-    """
-    ingest_statement = """
-    MATCH (role:AWSRole)<-[:ALLOWED_BY]-(:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)-[:IDENTITY_OKTA]-(human:Human)
-    MERGE (human)-[r:CAN_ASSUME_ROLE]->(role)
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_statement,
-        okta_update_tag=okta_update_tag,
-    )
-
-
 def get_awssso_okta_groups(
     neo4j_session: neo4j.Session,
     okta_org_id: str,
@@ -285,7 +261,6 @@ def sync_okta_aws_saml(
         mapping_regex,
     )
     _load_okta_group_to_aws_roles(neo4j_session, group_to_role_mapping, okta_update_tag)
-    _load_human_can_assume_role(neo4j_session, okta_update_tag)
 
     sso_okta_groups = get_awssso_okta_groups(neo4j_session, okta_org_id)
     group_to_ssorole_mapping = query_for_okta_to_awssso_role_mapping(
