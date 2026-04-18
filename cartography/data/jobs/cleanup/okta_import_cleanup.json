@@ -48,16 +48,34 @@
       "__comment__": "Delete stale OktaOrganization"
     },
     {
+      "query": "MATCH (h:Human)-[:IDENTITY_OKTA]->(:OktaUser) MATCH (h)-[r:CAN_ASSUME_ROLE]->(:AWSRole) WITH DISTINCT r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100,
+      "__comment__": "Migration: drop deprecated Okta-sourced (:Human)-[:CAN_ASSUME_ROLE]->(:AWSRole) edges; scoped via the :IDENTITY_OKTA provenance marker so non-Okta producers of CAN_ASSUME_ROLE are left untouched. Must run before the IDENTITY_OKTA cleanup below"
+    },
+    {
       "query": "MATCH (:Human)-[r:IDENTITY_OKTA]->(:OktaUser) WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
       "__comment__": "Migration: drop deprecated (:Human)-[:IDENTITY_OKTA]->(:OktaUser) edges left over from pre-refactor graphs"
     },
     {
-      "query": "MATCH (:Human)-[r:CAN_ASSUME_ROLE]->(:AWSRole) WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "query": "MATCH (:OktaUser)-[r:MEMBER_OF_OKTA_ROLE]->() WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Migration: drop deprecated Okta-sourced (:Human)-[:CAN_ASSUME_ROLE]->(:AWSRole) edges left over from pre-refactor graphs"
+      "__comment__": "Migration: drop deprecated (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->() edges, replaced by :HAS_ROLE to OktaUserRole"
+    },
+    {
+      "query": "MATCH (:OktaGroup)-[r:MEMBER_OF_OKTA_ROLE]->() WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100,
+      "__comment__": "Migration: drop deprecated (:OktaGroup)-[:MEMBER_OF_OKTA_ROLE]->() edges, replaced by :HAS_ROLE to OktaGroupRole"
+    },
+    {
+      "query": "MATCH (n:OktaAdministrationRole) WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 100,
+      "__comment__": "Migration: drop deprecated OktaAdministrationRole nodes, replaced by OktaUserRole/OktaGroupRole"
     }
   ],
   "name": "Okta intel module cleanup"
