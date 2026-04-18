@@ -6,7 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.apprunner import AppRunnerServiceSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -20,25 +20,15 @@ def get_apprunner_services(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "apprunner",
-        region_name=region,
-        config=get_botocore_config(),
-    )
+    client = create_boto3_client(boto3_session, "apprunner", region_name=region)
+    paginator = client.get_paginator("list_services")
     services: list[dict[str, Any]] = []
-    kwargs: dict[str, Any] = {}
-    while True:
-        response = client.list_services(**kwargs)
-        services.extend(response.get("ServiceSummaryList", []))
-        next_token = response.get("NextToken")
-        if not next_token:
-            break
-        kwargs["NextToken"] = next_token
+    for page in paginator.paginate():
+        services.extend(page.get("ServiceSummaryList", []))
 
     described_services: list[dict[str, Any]] = []
     for service in services:
-        service_arn = service["ServiceArn"]
-        desc_response = client.describe_service(ServiceArn=service_arn)
+        desc_response = client.describe_service(ServiceArn=service["ServiceArn"])
         described_services.append(desc_response["Service"])
     return described_services
 
@@ -56,7 +46,9 @@ def transform_apprunner_services(
 
         source_config = svc.get("SourceConfiguration", {})
         image_repo = source_config.get("ImageRepository", {})
+        code_repo = source_config.get("CodeRepository", {})
         svc["ImageIdentifier"] = image_repo.get("ImageIdentifier")
+        svc["CodeRepositoryUrl"] = code_repo.get("RepositoryUrl")
         svc["AutoDeploymentsEnabled"] = source_config.get("AutoDeploymentsEnabled")
         auth_config = source_config.get("AuthenticationConfiguration", {})
         svc["AccessRoleArn"] = auth_config.get("AccessRoleArn")
