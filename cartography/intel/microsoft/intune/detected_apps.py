@@ -169,19 +169,33 @@ async def sync_detected_apps(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    apps_batch: list[DetectedApp] = []
-    batch_size = 500
+    transformed_batch: list[dict[str, Any]] = []
+    batch_size = 50
+    app_count = 0
+    row_count = 0
 
     async for app in get_detected_apps(client):
-        apps_batch.append(app)
+        transformed_batch.extend(transform_detected_apps([app]))
+        app_count += 1
 
-        if len(apps_batch) >= batch_size:
-            transformed = transform_detected_apps(apps_batch)
-            load_detected_apps(neo4j_session, transformed, tenant_id, update_tag)
-            apps_batch.clear()
+        if len(transformed_batch) >= batch_size:
+            load_detected_apps(neo4j_session, transformed_batch, tenant_id, update_tag)
+            row_count += len(transformed_batch)
+            logger.info(
+                "sync_detected_apps: loaded %d rows from %d apps so far",
+                row_count,
+                app_count,
+            )
+            transformed_batch.clear()
 
-    if apps_batch:
-        transformed = transform_detected_apps(apps_batch)
-        load_detected_apps(neo4j_session, transformed, tenant_id, update_tag)
+    if transformed_batch:
+        load_detected_apps(neo4j_session, transformed_batch, tenant_id, update_tag)
+        row_count += len(transformed_batch)
+
+    logger.info(
+        "sync_detected_apps: finished — %d total rows from %d apps",
+        row_count,
+        app_count,
+    )
 
     cleanup(neo4j_session, common_job_parameters)
