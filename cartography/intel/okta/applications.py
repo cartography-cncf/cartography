@@ -14,6 +14,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
 from cartography.models.okta.application import OktaApplicationSchema
+from cartography.models.okta.reply_uri import OktaReplyUriSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,9 @@ def sync_okta_applications(
         neo4j_session, transformed_applications, common_job_parameters
     )
     _cleanup_okta_applications(neo4j_session, common_job_parameters)
+    reply_uris = _transform_okta_reply_uris(applications)
+    _load_okta_reply_uris(neo4j_session, reply_uris, common_job_parameters)
+    _cleanup_okta_reply_uris(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -69,45 +73,48 @@ def _transform_okta_applications(
     transformed_applications: list[OktaApplication] = []
     logger.info("Transforming %s Okta applications", len(okta_applications))
     for okta_application in okta_applications:
-        application_props = {}
+        application_props: dict[str, Any] = {}
         application_props["id"] = okta_application.id
+        # Sparse app types (bookmarks, SWA, ...) can have any of the nested
+        # sub-objects set to None, so every level must be guarded to avoid
+        # aborting the whole sync on one atypical app.
+        accessibility = okta_application.accessibility
         application_props["accessibility_error_redirect_url"] = (
-            okta_application.accessibility.error_redirect_url
+            accessibility.error_redirect_url if accessibility else None
         )
         application_props["accessibility_login_redirect_url"] = (
-            okta_application.accessibility.login_redirect_url
+            accessibility.login_redirect_url if accessibility else None
         )
         application_props["accessibility_self_service"] = (
-            okta_application.accessibility.self_service
+            accessibility.self_service if accessibility else None
         )
 
         application_props["created"] = okta_application.created
-        application_props["credentials_signing_kid"] = (
-            okta_application.credentials.signing.kid
-        )
+        credentials = okta_application.credentials
+        signing = credentials.signing if credentials else None
+        application_props["credentials_signing_kid"] = signing.kid if signing else None
         application_props["credentials_signing_last_rotated"] = (
-            okta_application.credentials.signing.last_rotated
+            signing.last_rotated if signing else None
         )
         application_props["credentials_signing_next_rotation"] = (
-            okta_application.credentials.signing.next_rotation
+            signing.next_rotation if signing else None
         )
         application_props["credentials_signing_rotation_mode"] = (
-            okta_application.credentials.signing.rotation_mode
+            signing.rotation_mode if signing else None
         )
-        application_props["credentials_signing_use"] = (
-            okta_application.credentials.signing.use
-        )
+        application_props["credentials_signing_use"] = signing.use if signing else None
+        user_name_template = credentials.user_name_template if credentials else None
         application_props["credentials_user_name_template_push_status"] = (
-            okta_application.credentials.user_name_template.push_status
+            user_name_template.push_status if user_name_template else None
         )
         application_props["credentials_user_name_template_suffix"] = (
-            okta_application.credentials.user_name_template.suffix
+            user_name_template.suffix if user_name_template else None
         )
         application_props["credentials_user_name_template_template"] = (
-            okta_application.credentials.user_name_template.template
+            user_name_template.template if user_name_template else None
         )
         application_props["credentials_user_name_template_type"] = (
-            okta_application.credentials.user_name_template.type
+            user_name_template.type if user_name_template else None
         )
         application_props["features"] = okta_application.features
         application_props["label"] = okta_application.label
@@ -117,67 +124,64 @@ def _transform_okta_applications(
         # Other licensing models may have different attributes (e.g., unlimited, per-user).
         # We extract seat_count when available; other licensing attributes can be added
         # as needed based on specific application requirements.
-        if hasattr(okta_application.licensing, "seat_count"):
-            application_props["licensing_seat_count"] = (
-                okta_application.licensing.seat_count
-            )
-        else:
-            application_props["licensing_seat_count"] = None
+        licensing = okta_application.licensing
+        application_props["licensing_seat_count"] = (
+            getattr(licensing, "seat_count", None) if licensing else None
+        )
         application_props["name"] = okta_application.name
+        settings = okta_application.settings
+        settings_app = settings.app if settings else None
         application_props["settings_app_acs_url"] = (
-            okta_application.settings.app.acs_url
+            settings_app.acs_url if settings_app else None
         )
         application_props["settings_app_button_field"] = (
-            okta_application.settings.app.button_field
+            settings_app.button_field if settings_app else None
         )
         application_props["settings_app_login_url_regex"] = (
-            okta_application.settings.app.login_url_regex
+            settings_app.login_url_regex if settings_app else None
         )
         application_props["settings_app_org_name"] = (
-            okta_application.settings.app.org_name
+            settings_app.org_name if settings_app else None
         )
         application_props["settings_app_password_field"] = (
-            okta_application.settings.app.password_field
+            settings_app.password_field if settings_app else None
         )
-        application_props["settings_app_url"] = okta_application.settings.app.url
+        application_props["settings_app_url"] = (
+            settings_app.url if settings_app else None
+        )
         application_props["settings_app_username_field"] = (
-            okta_application.settings.app.username_field
+            settings_app.username_field if settings_app else None
         )
         application_props["settings_app_implicit_assignment"] = (
-            okta_application.settings.implicit_assignment
+            settings.implicit_assignment if settings else None
         )
         application_props["settings_app_inline_hook_id"] = (
-            okta_application.settings.inline_hook_id
+            settings.inline_hook_id if settings else None
         )
+        notifications = settings.notifications if settings else None
+        vpn = notifications.vpn if notifications else None
+        network = vpn.network if vpn else None
         application_props["settings_notifications_vpn_help_url"] = (
-            okta_application.settings.notifications.vpn.help_url
+            vpn.help_url if vpn else None
         )
         application_props["settings_notifications_vpn_message"] = (
-            okta_application.settings.notifications.vpn.message
+            vpn.message if vpn else None
         )
         application_props["settings_notifications_vpn_network_connection"] = (
-            okta_application.settings.notifications.vpn.network.connection
+            network.connection if network else None
         )
-        application_props["settings_notifications_vpn_network_exclude"] = json.dumps(
-            okta_application.settings.notifications.vpn.network.exclude
+        application_props["settings_notifications_vpn_network_exclude"] = (
+            json.dumps(network.exclude) if network else None
         )
-        application_props["settings_notifications_vpn_network_include"] = json.dumps(
-            okta_application.settings.notifications.vpn.network.include
+        application_props["settings_notifications_vpn_network_include"] = (
+            json.dumps(network.include) if network else None
         )
-        if hasattr(okta_application.settings.notes, "admin"):
-            application_props["settings_notes_admin"] = (
-                okta_application.settings.notes.admin
-            )
-        if hasattr(okta_application.settings.notes, "enduser"):
-            application_props["settings_notes_enduser"] = (
-                okta_application.settings.notes.enduser
-            )
+        notes = settings.notes if settings else None
+        application_props["settings_notes_admin"] = getattr(notes, "admin", None)
+        application_props["settings_notes_enduser"] = getattr(notes, "enduser", None)
         # Parse SAML sign-on configuration if present
-        if (
-            hasattr(okta_application.settings, "sign_on")
-            and okta_application.settings.sign_on
-        ):
-            sign_on = okta_application.settings.sign_on
+        sign_on = getattr(settings, "sign_on", None) if settings else None
+        if sign_on:
             # Common SAML sign-on properties
             if hasattr(sign_on, "default_relay_state"):
                 application_props["settings_sign_on_default_relay_state"] = (
@@ -242,58 +246,53 @@ def _transform_okta_applications(
                     sign_on.authn_context_class_ref
                 )
         # oauth_client, sometimes this doesn't exist, sometimes its None
-        if (
-            hasattr(okta_application.settings, "oauth_client")
-            and okta_application.settings.oauth_client
-        ):
+        oauth_client = getattr(settings, "oauth_client", None) if settings else None
+        if oauth_client:
+            application_type = getattr(oauth_client, "application_type", None)
             application_props["settings_oauth_client_application_type"] = (
-                okta_application.settings.oauth_client.application_type.value
+                application_type.value if application_type else None
             )
-
             application_props["settings_oauth_client_client_uri"] = (
-                okta_application.settings.oauth_client.client_uri
+                oauth_client.client_uri
             )
+            consent_method = getattr(oauth_client, "consent_method", None)
             application_props["settings_oauth_client_consent_method"] = (
-                okta_application.settings.oauth_client.consent_method.value
+                consent_method.value if consent_method else None
             )
             application_props["settings_oauth_client_grant_Type"] = [
-                grant_type.value
-                for grant_type in okta_application.settings.oauth_client.grant_types
+                grant_type.value for grant_type in (oauth_client.grant_types or [])
             ]
+            idp_initiated_login = getattr(oauth_client, "idp_initiated_login", None)
             application_props[
                 "settings_oauth_client_idp_initiated_login_default_scope"
-            ] = json.dumps(
-                okta_application.settings.oauth_client.idp_initiated_login.default_scope
+            ] = (
+                json.dumps(idp_initiated_login.default_scope)
+                if idp_initiated_login
+                else None
             )
             application_props["settings_oauth_client_idp_initiated_login_mode"] = (
-                okta_application.settings.oauth_client.idp_initiated_login.mode
+                idp_initiated_login.mode if idp_initiated_login else None
             )
             application_props["settings_oauth_client_initiate_login_uri"] = (
-                okta_application.settings.oauth_client.initiate_login_uri
+                oauth_client.initiate_login_uri
             )
-            application_props["settings_oauth_client_logo_uri"] = (
-                okta_application.settings.oauth_client.logo_uri
-            )
+            application_props["settings_oauth_client_logo_uri"] = oauth_client.logo_uri
             application_props["settings_oauth_client_policy_uri"] = (
-                okta_application.settings.oauth_client.policy_uri
+                oauth_client.policy_uri
             )
             application_props["settings_oauth_client_post_logout_redirect_uris"] = (
-                json.dumps(
-                    okta_application.settings.oauth_client.post_logout_redirect_uris
-                )
+                json.dumps(oauth_client.post_logout_redirect_uris)
             )
             application_props["settings_oauth_client_redirect_uris"] = json.dumps(
-                okta_application.settings.oauth_client.redirect_uris
+                oauth_client.redirect_uris
             )
             application_props["settings_oauth_client_response_types"] = [
                 response_type.value
-                for response_type in okta_application.settings.oauth_client.response_types
+                for response_type in (oauth_client.response_types or [])
             ]
-            application_props["settings_oauth_client_tos_uri"] = (
-                okta_application.settings.oauth_client.tos_uri
-            )
+            application_props["settings_oauth_client_tos_uri"] = oauth_client.tos_uri
             application_props["settings_oauth_client_wildcard_redirect"] = (
-                okta_application.settings.oauth_client.wildcard_redirect
+                oauth_client.wildcard_redirect
             )
         # This value can also be None, in which case it has no value
         if okta_application.sign_on_mode:
@@ -304,21 +303,22 @@ def _transform_okta_applications(
             okta_application.status.value if okta_application.status else None
         )
         application_props["activated"] = okta_application.activated
-        # This returns a dict of somewhat poorly defined value
-        # best to treat it as a json blob
-        application_props["visibility_app_links"] = json.dumps(
-            okta_application.visibility.app_links
+        visibility = okta_application.visibility
+        # visibility.app_links is a dict of poorly defined shape, treat as JSON blob.
+        application_props["visibility_app_links"] = (
+            json.dumps(visibility.app_links) if visibility else None
         )
         application_props["visibility_auto_launch"] = (
-            okta_application.visibility.auto_launch
+            visibility.auto_launch if visibility else None
         )
         application_props["visibility_auto_submit_toolbar"] = (
-            okta_application.visibility.auto_submit_toolbar
+            visibility.auto_submit_toolbar if visibility else None
         )
-        # This is an `ApplicationVisibilityHide` model but its
-        # really a dict but we'll present it as JSON
-        application_props["visibility_hide"] = json.dumps(
-            okta_application.visibility.hide.as_dict()
+        # visibility.hide is an ApplicationVisibilityHide model that behaves
+        # like a dict; stored as JSON.
+        hide = visibility.hide if visibility else None
+        application_props["visibility_hide"] = (
+            json.dumps(hide.as_dict()) if hide else None
         )
         transformed_applications.append(application_props)
         # Add user assignments
@@ -417,3 +417,57 @@ async def _get_application_assigned_groups(
         okta_client.list_application_group_assignments, limit=200, app_id=app_id
     )
     return [group.id for group in application_groups]
+
+
+####
+# ReplyUri
+####
+
+
+@timeit
+def _transform_okta_reply_uris(
+    okta_applications: list[OktaApplication],
+) -> list[dict[str, Any]]:
+    """
+    Extract OAuth redirect URIs per application into ReplyUri records.
+    """
+    reply_uris: list[dict[str, Any]] = []
+    for okta_application in okta_applications:
+        settings = okta_application.settings
+        oauth_client = getattr(settings, "oauth_client", None) if settings else None
+        if not oauth_client:
+            continue
+        for redirect_uri in oauth_client.redirect_uris or []:
+            reply_uris.append(
+                {
+                    "id": redirect_uri,
+                    "uri": redirect_uri,
+                    "application_id": okta_application.id,
+                }
+            )
+    return reply_uris
+
+
+@timeit
+def _load_okta_reply_uris(
+    neo4j_session: neo4j.Session,
+    reply_uri_list: list[dict[str, Any]],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    logger.info("Loading %s Okta ReplyUris", len(reply_uri_list))
+    load(
+        neo4j_session,
+        OktaReplyUriSchema(),
+        reply_uri_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
+    )
+
+
+@timeit
+def _cleanup_okta_reply_uris(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(OktaReplyUriSchema(), common_job_parameters).run(
+        neo4j_session
+    )

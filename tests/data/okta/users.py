@@ -4,13 +4,19 @@ from okta.models.user import User
 
 
 class MockUserProfile:
-    """A mock profile object that properly supports __dict__ access."""
+    """
+    Mock profile object mirroring okta.models.user_profile.UserProfile.
+
+    The real pydantic model exposes snake_case attributes (first_name,
+    last_name); tests must match that shape so the ontology mapping
+    (which reads first_name / last_name) is actually exercised.
+    """
 
     def __init__(self):
         self.login = "test@lyft.com"
         self.email = "test@lyft.com"
-        self.lastName = "LastName"
-        self.firstName = "firstName"
+        self.last_name = "LastName"
+        self.first_name = "firstName"
 
 
 def create_test_user():

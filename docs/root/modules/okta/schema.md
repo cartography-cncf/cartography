@@ -195,7 +195,7 @@ Representation of an [Okta Application](https://developer.okta.com/docs/referenc
 - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```
 
 ### OktaUserFactor
@@ -253,7 +253,6 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
 |-------|--------------|
 | id | uri the app can send the reply to |
 | uri | uri the app can send the reply to |
-| valid | is the DNS of the reply uri valid. Invalid replyuris can lead to oath phishing |
 | firstseen| Timestamp of when a sync job first discovered this node |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -262,5 +261,5 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
  - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```

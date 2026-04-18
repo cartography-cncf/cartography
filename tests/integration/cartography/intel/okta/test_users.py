@@ -33,22 +33,22 @@ def test_sync_okta_users(mock_get_users, mock_get_roles, neo4j_session):
     test_user_1.id = "user-001"
     test_user_1.profile.email = "alice@example.com"
     test_user_1.profile.login = "alice@example.com"
-    test_user_1.profile.firstName = "Alice"
-    test_user_1.profile.lastName = "Smith"
+    test_user_1.profile.first_name = "Alice"
+    test_user_1.profile.last_name = "Smith"
 
     test_user_2 = create_test_user()
     test_user_2.id = "user-002"
     test_user_2.profile.email = "bob@example.com"
     test_user_2.profile.login = "bob@example.com"
-    test_user_2.profile.firstName = "Bob"
-    test_user_2.profile.lastName = "Johnson"
+    test_user_2.profile.first_name = "Bob"
+    test_user_2.profile.last_name = "Johnson"
 
     test_user_3 = create_test_user()
     test_user_3.id = "user-003"
     test_user_3.profile.email = "charlie@example.com"
     test_user_3.profile.login = "charlie@example.com"
-    test_user_3.profile.firstName = "Charlie"
-    test_user_3.profile.lastName = "Brown"
+    test_user_3.profile.first_name = "Charlie"
+    test_user_3.profile.last_name = "Brown"
 
     # Mock the API calls
     mock_get_users.return_value = [test_user_1, test_user_2, test_user_3]
@@ -84,7 +84,7 @@ def test_sync_okta_users(mock_get_users, mock_get_roles, neo4j_session):
         ("user-003", "Charlie", "Brown", "charlie@example.com"),
     }
     actual_users = check_nodes(
-        neo4j_session, "OktaUser", ["id", "firstName", "lastName", "email"]
+        neo4j_session, "OktaUser", ["id", "first_name", "last_name", "email"]
     )
     assert actual_users == expected_users
 
@@ -123,8 +123,8 @@ def test_sync_okta_users_with_optional_fields(
     test_user.id = "user-minimal"
     test_user.profile.email = "minimal@example.com"
     test_user.profile.login = "minimal@example.com"
-    test_user.profile.firstName = "Minimal"
-    test_user.profile.lastName = "User"
+    test_user.profile.first_name = "Minimal"
+    test_user.profile.last_name = "User"
     # Set optional fields to None
     test_user.activated = None
     test_user.last_login = None
@@ -185,8 +185,8 @@ def test_sync_okta_users_updates_existing(
         MERGE (o:OktaOrganization{id: $ORG_ID})
         SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-existing'})
-        SET u.firstName = 'OldFirstName',
-            u.lastName = 'OldLastName',
+        SET u.first_name = 'OldFirstName',
+            u.last_name = 'OldLastName',
             u.email = 'old@example.com',
             u.lastupdated = 111111
         """,
@@ -199,8 +199,8 @@ def test_sync_okta_users_updates_existing(
     test_user.id = "user-existing"
     test_user.profile.email = "updated@example.com"
     test_user.profile.login = "updated@example.com"
-    test_user.profile.firstName = "UpdatedFirst"
-    test_user.profile.lastName = "UpdatedLast"
+    test_user.profile.first_name = "UpdatedFirst"
+    test_user.profile.last_name = "UpdatedLast"
 
     mock_get_users.return_value = [test_user]
 
@@ -218,15 +218,15 @@ def test_sync_okta_users_updates_existing(
     result = neo4j_session.run(
         """
         MATCH (u:OktaUser{id: 'user-existing'})
-        RETURN u.firstName as firstName, u.lastName as lastName,
+        RETURN u.first_name as first_name, u.last_name as last_name,
                u.email as email, u.lastupdated as lastupdated
         """,
     )
     users = [dict(r) for r in result]
     assert len(users) == 1  # Should be only one user, not a duplicate
     user_data = users[0]
-    assert user_data["firstName"] == "UpdatedFirst"
-    assert user_data["lastName"] == "UpdatedLast"
+    assert user_data["first_name"] == "UpdatedFirst"
+    assert user_data["last_name"] == "UpdatedLast"
     assert user_data["email"] == "updated@example.com"
     assert user_data["lastupdated"] == TEST_UPDATE_TAG
 
