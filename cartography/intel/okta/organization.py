@@ -32,9 +32,14 @@ def _load_organization(
     """
     Load the host node into the graph
     """
+    # The Okta API has no separate tenant "name" field: the org slug
+    # (e.g. "lyft") is what identifies the tenant, so we mirror it into
+    # the name property to satisfy the ontology Tenant mapping.
+    org_id = common_job_parameters["OKTA_ORG_ID"]
     data = [
         {
-            "id": common_job_parameters["OKTA_ORG_ID"],
+            "id": org_id,
+            "name": org_id,
         },
     ]
     load(
