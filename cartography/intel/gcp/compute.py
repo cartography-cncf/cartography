@@ -18,6 +18,7 @@ from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
@@ -84,7 +85,7 @@ def get_zones_in_project(
                 summarize_gcp_http_error(e),
             )
             return None
-        elif category == "forbidden":
+        elif is_permission_denied_error(e):
             logger.info(
                 (
                     "Your GCP identity does not have the compute.zones.list permission for project %s; "
@@ -121,6 +122,11 @@ def get_gcp_instance_responses(
             res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
+            # Intentional widening vs. the old check (reason in {"backendError",
+            # "rateLimitExceeded", "internalError"}): classify_gcp_http_error covers
+            # 429, generic 500/502/504, and 403-quota responses in addition to the
+            # original three reasons. After gcp_api_execute_with_retry has already
+            # retried all of these, skipping the zone is the right fallback.
             if classify_gcp_http_error(e) == "transient":
                 logger.warning(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",

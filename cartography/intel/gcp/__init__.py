@@ -315,7 +315,6 @@ def _sync_project_resources(
                     # Skipping the fallback is intentional: if we cannot see IAM data
                     # via CAI, we must leave iam_sync_succeeded=False so cleanup does
                     # not delete previously ingested IAM resources for this project.
-                    # iam_sync_succeeded stays False - don't run cleanup for this project
                 else:
                     raise
         if service_names.bigtable in enabled_services:
