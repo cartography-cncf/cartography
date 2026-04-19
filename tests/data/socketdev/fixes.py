@@ -1,10 +1,10 @@
 FIXES_RESPONSE = {
     "fixDetails": {
-        "CVE-2024-0001": {
+        "GHSA-xxxx-yyyy-zzzz": {
             "type": "fixFound",
             "value": {
                 "ghsa": "GHSA-xxxx-yyyy-zzzz",
-                "cve": "CVE-2024-0001",
+                "cve": None,
                 "advisoryDetails": None,
                 "fixDetails": {
                     "fixes": [

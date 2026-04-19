@@ -58,14 +58,6 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     repos = []
     for repo in raw_repos:
-        # DEBUG: print raw repo structure to understand API format
-        if not repos:
-            import json
-
-            print("=== RAW REPO SAMPLE ===")
-            print(json.dumps(repo, indent=2, default=str))
-            print("========================")
-
         # default_branch can be a dict {"name": "main", "type": ...} or a string
         default_branch = repo.get("default_branch")
         if isinstance(default_branch, dict):

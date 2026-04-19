@@ -187,6 +187,10 @@ def sync_fixes(
         cve_id = alert.get("cve_id")
         if cve_id:
             alerts_by_vuln[cve_id] = alert_id
+        # Index by GHSA ID — often the primary identifier when cveId is null
+        ghsa_id = alert.get("ghsa_id")
+        if ghsa_id:
+            alerts_by_vuln[ghsa_id] = alert_id
         # Also index by the alert key which may contain GHSA or other vuln IDs
         key = alert.get("key")
         if key:

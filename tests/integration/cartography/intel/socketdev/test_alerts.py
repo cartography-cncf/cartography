@@ -100,10 +100,12 @@ def test_sync_alerts(mock_api, neo4j_session):
     # Assert: Vulnerability-specific fields are populated
     result = neo4j_session.run(
         "MATCH (a:SocketDevAlert {id: 'alert-001'}) "
-        "RETURN a.cve_id AS cve_id, a.cvss_score AS cvss_score, "
+        "RETURN a.cve_id AS cve_id, a.ghsa_id AS ghsa_id, "
+        "a.cvss_score AS cvss_score, "
         "a.is_kev AS is_kev, a.epss_score AS epss_score",
     ).single()
-    assert result["cve_id"] == "CVE-2024-0001"
+    assert result["cve_id"] is None
+    assert result["ghsa_id"] == "GHSA-xxxx-yyyy-zzzz"
     assert result["cvss_score"] == 9.8
     assert result["is_kev"] is True
     assert result["epss_score"] == 0.85

@@ -59,17 +59,16 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     deps = []
     for dep in raw_deps:
-        # DEBUG: print raw dependency structure to understand API format
-        if not deps:
-            import json
-
-            print("=== RAW DEPENDENCY SAMPLE ===")
-            print(json.dumps(dep, indent=2, default=str))
-            print("==============================")
-
         name = dep["name"]
         version = dep["version"]
-        repository = dep["repository"]
+        # repository is "workspace/slug" (e.g. "goodenoughlabs/infra"),
+        # extract just the slug to match SocketDevRepository.slug
+        raw_repository = dep["repository"]
+        repository = (
+            raw_repository.rsplit("/", 1)[-1]
+            if "/" in raw_repository
+            else raw_repository
+        )
         dep_id = dep.get("id") or f"{name}|{version}|{repository}"
 
         deps.append(

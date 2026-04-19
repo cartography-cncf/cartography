@@ -63,7 +63,7 @@ def test_sync_fixes(mock_api, neo4j_session):
 
     # Assert: Fix nodes exist
     expected_fix_nodes = {
-        ("CVE-2024-0001|pkg:npm/lodash@4.17.21|4.17.22", "4.17.22", "fixFound"),
+        ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", "4.17.22", "fixFound"),
     }
     assert (
         check_nodes(
@@ -82,7 +82,7 @@ def test_sync_fixes(mock_api, neo4j_session):
 
     # Assert: Fix is connected to Organization
     expected_org_rels = {
-        ("CVE-2024-0001|pkg:npm/lodash@4.17.21|4.17.22", TEST_ORG_ID),
+        ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -99,7 +99,7 @@ def test_sync_fixes(mock_api, neo4j_session):
 
     # Assert: Fix APPLIES_TO Alert
     expected_alert_rels = {
-        ("CVE-2024-0001|pkg:npm/lodash@4.17.21|4.17.22", "alert-001"),
+        ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", "alert-001"),
     }
     assert (
         check_rels(
@@ -116,7 +116,7 @@ def test_sync_fixes(mock_api, neo4j_session):
 
     # Assert: Dependency SHOULD_UPDATE_TO Fix
     expected_dep_rels = {
-        ("dep-001", "CVE-2024-0001|pkg:npm/lodash@4.17.21|4.17.22"),
+        ("dep-001", "GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22"),
     }
     assert (
         check_rels(
