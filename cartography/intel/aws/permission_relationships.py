@@ -34,7 +34,7 @@ def evaluate_clause(clause: str, match: str) -> bool:
         [bool] -- True if the clause matched, False otherwise
     """
     if match is None:
-        return False
+        raise ValueError("match must not be None")
     result = compile_regex(clause).fullmatch(match)
     return result is not None
 

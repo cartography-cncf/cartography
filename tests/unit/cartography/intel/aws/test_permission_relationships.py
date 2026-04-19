@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.aws import permission_relationships
 
 GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
@@ -502,7 +504,8 @@ def test_multiple_comma():
 
 
 def test_evaluate_clause_with_none_match():
-    assert not permission_relationships.evaluate_clause("*", None)
+    with pytest.raises(ValueError, match="match must not be None"):
+        permission_relationships.evaluate_clause("*", None)
 
 
 def test_permission_file_load():
