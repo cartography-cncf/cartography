@@ -48,10 +48,8 @@ def _build_dependency_id(
 ) -> str | None:
     """
     Try to find the matching SocketDevDependency ID for a PURL.
-    Falls back to a name|version|repo composite key.
+    The lookup is keyed by "name|version|repo_slug" to avoid cross-repo mislinks.
     """
-    # dep_lookup maps "name|version" -> dependency_id
-    # Parse name and version from PURL: pkg:npm/lodash@4.17.21
     try:
         # Strip scheme "pkg:"
         without_scheme = purl.split(":", 1)[1] if ":" in purl else purl
@@ -64,18 +62,15 @@ def _build_dependency_id(
         else:
             name = path_part
             version = ""
-        lookup_key = f"{name}|{version}"
-        if lookup_key in dep_lookup:
-            return dep_lookup[lookup_key]
-        # Fallback: construct composite ID matching dependency transform
-        return f"{name}|{version}|{repo_slug}"
+        lookup_key = f"{name}|{version}|{repo_slug}"
+        return dep_lookup.get(lookup_key)
     except (IndexError, ValueError):
         return None
 
 
 def transform(
     raw_response: dict[str, Any],
-    alerts_by_vuln: dict[str, str],
+    alerts_by_vuln: dict[tuple[str, str], str],
     repo_slug: str,
     dep_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -84,9 +79,9 @@ def transform(
 
     Args:
         raw_response: Raw API response from the fixes endpoint.
-        alerts_by_vuln: Mapping of vulnerability ID (CVE/GHSA) -> alert ID.
+        alerts_by_vuln: Mapping of (vulnerability_id, repo_slug) -> alert ID.
         repo_slug: Repository slug for dependency ID resolution.
-        dep_lookup: Mapping of "name|version" -> dependency ID.
+        dep_lookup: Mapping of "name|version|repo_slug" -> dependency ID.
     """
     fixes = []
     fix_details = raw_response.get("fixDetails", {})
@@ -100,7 +95,8 @@ def transform(
         fix_info = value.get("fixDetails", {})
         fix_entries = fix_info.get("fixes", [])
 
-        alert_id = alerts_by_vuln.get(vuln_id)
+        # Look up alert scoped to this repo to avoid cross-repo mislinks
+        alert_id = alerts_by_vuln.get((vuln_id, repo_slug))
 
         for fix_entry in fix_entries:
             purl = fix_entry.get("purl", "")
@@ -174,36 +170,40 @@ def sync_fixes(
     """
     logger.info("Starting Socket.dev fixes sync")
 
-    # Build lookup: vulnerability ID (CVE/GHSA) -> alert ID
-    alerts_by_vuln: dict[str, str] = {}
+    # Build lookup: (vulnerability_id, repo_slug) -> alert ID
+    # Scoped by repo to avoid linking a fix to the wrong alert when the same
+    # CVE/GHSA affects multiple repos.
+    alerts_by_vuln: dict[tuple[str, str], str] = {}
     # Collect all repo slugs that have alerts
     repo_slugs: set[str] = set()
     for alert in alerts:
         alert_id = alert["id"]
         repo_slug_val = alert.get("repo_slug")
-        if repo_slug_val:
-            repo_slugs.add(repo_slug_val)
-        # Index by CVE ID if available
+        if not repo_slug_val:
+            continue
+        repo_slugs.add(repo_slug_val)
+        # Index by (vuln_id, repo_slug) for each known identifier
         cve_id = alert.get("cve_id")
         if cve_id:
-            alerts_by_vuln[cve_id] = alert_id
-        # Index by GHSA ID — often the primary identifier when cveId is null
+            alerts_by_vuln[(cve_id, repo_slug_val)] = alert_id
         ghsa_id = alert.get("ghsa_id")
         if ghsa_id:
-            alerts_by_vuln[ghsa_id] = alert_id
-        # Also index by the alert key which may contain GHSA or other vuln IDs
+            alerts_by_vuln[(ghsa_id, repo_slug_val)] = alert_id
         key = alert.get("key")
         if key:
-            alerts_by_vuln[key] = alert_id
+            alerts_by_vuln[(key, repo_slug_val)] = alert_id
 
     if not repo_slugs:
         logger.info("No alerts with repository info found, skipping fixes sync")
         return
 
-    # Build dependency lookup: "name|version" -> dependency ID
+    # Build dependency lookup: "name|version|repo_slug" -> dependency ID
+    # Scoped by repo to avoid cross-linking when identical packages exist
+    # across repos.
     dep_lookup: dict[str, str] = {}
     for dep in dependencies:
-        key = f"{dep['name']}|{dep['version']}"
+        repo = dep.get("repository", "")
+        key = f"{dep['name']}|{dep['version']}|{repo}"
         dep_lookup[key] = dep["id"]
 
     all_fixes: list[dict[str, Any]] = []
@@ -212,21 +212,13 @@ def sync_fixes(
             "Fetching fixes for repo '%s'",
             repo_slug_val,
         )
-        try:
-            # Use "*" to fetch fixes for all vulnerabilities in the repo
-            raw_response = get(
-                api_token,
-                org_slug,
-                repo_slug_val,
-                "*",
-            )
-        except Exception:
-            logger.warning(
-                "Failed to fetch fixes for repo '%s', skipping",
-                repo_slug_val,
-                exc_info=True,
-            )
-            continue
+        # Use "*" to fetch fixes for all vulnerabilities in the repo
+        raw_response = get(
+            api_token,
+            org_slug,
+            repo_slug_val,
+            "*",
+        )
 
         fixes = transform(raw_response, alerts_by_vuln, repo_slug_val, dep_lookup)
         all_fixes.extend(fixes)

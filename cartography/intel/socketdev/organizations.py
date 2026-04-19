@@ -39,12 +39,12 @@ def transform(raw_response: dict[str, Any]) -> list[dict[str, Any]]:
     """
     orgs = []
     organizations = raw_response.get("organizations", {})
-    for org_key, org_data in organizations.items():
+    for _org_key, org_data in organizations.items():
         orgs.append(
             {
-                "id": org_data.get("id", org_key),
+                "id": org_data["id"],
                 "name": org_data.get("name"),
-                "slug": org_data.get("slug", org_key),
+                "slug": org_data["slug"],
                 "plan": org_data.get("plan"),
                 "image": org_data.get("image"),
             },
