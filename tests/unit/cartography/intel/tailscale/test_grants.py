@@ -9,10 +9,8 @@ Covers:
   - autogroup:self destinations
   - Wildcard sources and destinations
   - Mixed capabilities (ip, app, srcPosture)
-- Edge cases: empty grants, unknown users, self-loops, deduplication
+- Edge cases: empty grants, unknown users, self-loops, aggregation
 """
-
-import json
 
 from cartography.intel.tailscale.grants import resolve_access
 from cartography.intel.tailscale.grants import transform
@@ -620,10 +618,10 @@ class TestResolveAccessTagSource:
 
 
 class TestResolveAccessDeduplication:
-    """Tests for deduplication logic."""
+    """Tests for aggregation logic (granted_by accumulates grant IDs)."""
 
-    def test_user_access_deduplicated(self) -> None:
-        """Same user-device pair from multiple grants is deduplicated."""
+    def test_multiple_grants_aggregated(self) -> None:
+        """Same user-device pair from multiple grants aggregates grant IDs."""
         grants = [
             {
                 "id": "grant:0",
@@ -653,12 +651,14 @@ class TestResolveAccessDeduplication:
             },
         ]
         user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
-        # Should be deduplicated: only one entry per (user, device) pair
-        user_pairs = [(a["user_login_name"], a["device_id"]) for a in user_access]
-        assert len(user_pairs) == len(set(user_pairs))
+        # tag:web devices: dev-1, dev-4
+        # Each pair should have both grant IDs
+        for entry in user_access:
+            if entry["user_login_name"] == "alice@ex.com":
+                assert entry["granted_by"] == ["grant:0", "grant:1"]
 
-    def test_user_via_direct_and_group_deduplicated(self) -> None:
-        """User appearing both directly and via group membership is deduplicated."""
+    def test_user_via_direct_and_group_aggregated(self) -> None:
+        """User appearing both directly and via group membership aggregates grants."""
         grants = [
             {
                 "id": "grant:0",
@@ -676,13 +676,39 @@ class TestResolveAccessDeduplication:
         ]
         user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         # alice is both a direct source AND a member of group:admin
-        # Should only appear once per device
-        alice_devices = [
-            a["device_id"]
-            for a in user_access
-            if a["user_login_name"] == "alice@ex.com"
+        # Same grant, so granted_by should still be ["grant:0"] (no duplicate)
+        alice_entries = [
+            a for a in user_access if a["user_login_name"] == "alice@ex.com"
         ]
-        assert len(alice_devices) == len(set(alice_devices))
+        for entry in alice_entries:
+            assert entry["granted_by"] == ["grant:0"]
+
+    def test_same_grant_not_duplicated_in_granted_by(self) -> None:
+        """Same grant ID is not added twice to granted_by."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": ["group:admin"],  # alice is also member
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        alice_dev1 = [
+            a
+            for a in user_access
+            if a["user_login_name"] == "alice@ex.com" and a["device_id"] == "dev-1"
+        ]
+        assert len(alice_dev1) == 1
+        # grant:0 appears only once even though alice is both direct and via group
+        assert alice_dev1[0]["granted_by"] == ["grant:0"]
 
 
 class TestResolveAccessEdgeCases:
@@ -722,7 +748,7 @@ class TestResolveAccessEdgeCases:
         assert user_access == []
 
     def test_grant_ip_rules_stored_on_relationship(self) -> None:
-        """IP rules are serialized and stored on the access relationship."""
+        """Granted_by stores the list of grant IDs that justify access."""
         grants = [
             {
                 "id": "grant:0",
@@ -739,14 +765,10 @@ class TestResolveAccessEdgeCases:
             },
         ]
         user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
-        assert user_access[0]["ip_rules"] == json.dumps(
-            ["tcp:443", "tcp:8080"],
-            sort_keys=True,
-        )
-        assert user_access[0]["grant_id"] == "grant:0"
+        assert user_access[0]["granted_by"] == ["grant:0"]
 
     def test_grant_without_ip_rules(self) -> None:
-        """Grant with empty ip_rules stores None."""
+        """Grant with empty ip_rules still produces granted_by."""
         grants = [
             {
                 "id": "grant:0",
@@ -763,7 +785,7 @@ class TestResolveAccessEdgeCases:
             },
         ]
         user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
-        assert user_access[0]["ip_rules"] is None
+        assert user_access[0]["granted_by"] == ["grant:0"]
 
     def test_tag_destination_with_port_suffix_stripped(self) -> None:
         """Tag destination like 'tag:web:443' resolves to tag:web devices."""

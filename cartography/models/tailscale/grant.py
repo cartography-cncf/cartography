@@ -146,8 +146,7 @@ class TailscaleGrantAccessRelProperties(CartographyRelProperties):
         set_in_kwargs=True,
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    grant_id: PropertyRef = PropertyRef("grant_id")
-    ip_rules: PropertyRef = PropertyRef("ip_rules")
+    granted_by: PropertyRef = PropertyRef("granted_by")
 
 
 @dataclass(frozen=True)

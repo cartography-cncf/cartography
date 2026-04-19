@@ -226,15 +226,12 @@ def resolve_access(
     all_user_logins = {u["loginName"] for u in users}
     user_to_devices = _build_user_to_devices_map(devices)
 
-    user_access: List[Dict[str, Any]] = []
-    group_access: List[Dict[str, Any]] = []
-    device_access: List[Dict[str, Any]] = []
+    user_access: Dict[tuple[str, str], List[str]] = {}
+    group_access: Dict[tuple[str, str], List[str]] = {}
+    device_access: Dict[tuple[str, str], List[str]] = {}
 
     for grant in grants:
         grant_id = grant["id"]
-        ip_rules = (
-            json.dumps(grant["ip_rules"], sort_keys=True) if grant["ip_rules"] else None
-        )
 
         has_self_destination = _has_autogroup_self(grant["destinations"])
 
@@ -253,62 +250,27 @@ def resolve_access(
                 continue
             # Standard destinations
             for device_id in dest_device_ids:
-                user_access.append(
-                    {
-                        "user_login_name": user_login,
-                        "device_id": device_id,
-                        "grant_id": grant_id,
-                        "ip_rules": ip_rules,
-                    },
-                )
+                _add_access(user_access, (user_login, device_id), grant_id)
             # autogroup:self — user can access their own devices
             if has_self_destination:
                 for device_id in user_to_devices.get(user_login, []):
-                    user_access.append(
-                        {
-                            "user_login_name": user_login,
-                            "device_id": device_id,
-                            "grant_id": grant_id,
-                            "ip_rules": ip_rules,
-                        },
-                    )
+                    _add_access(user_access, (user_login, device_id), grant_id)
 
         # --- Source: groups/autogroups ---
         for group_id in grant["source_groups"]:
             # Create group-to-device access links
             for device_id in dest_device_ids:
-                group_access.append(
-                    {
-                        "group_id": group_id,
-                        "device_id": device_id,
-                        "grant_id": grant_id,
-                        "ip_rules": ip_rules,
-                    },
-                )
+                _add_access(group_access, (group_id, device_id), grant_id)
 
             # Resolve individual user access through group membership
             members = group_members.get(group_id, set())
             for user_login in members:
                 for device_id in dest_device_ids:
-                    user_access.append(
-                        {
-                            "user_login_name": user_login,
-                            "device_id": device_id,
-                            "grant_id": grant_id,
-                            "ip_rules": ip_rules,
-                        },
-                    )
+                    _add_access(user_access, (user_login, device_id), grant_id)
                 # autogroup:self — each group member can access their own devices
                 if has_self_destination:
                     for device_id in user_to_devices.get(user_login, []):
-                        user_access.append(
-                            {
-                                "user_login_name": user_login,
-                                "device_id": device_id,
-                                "grant_id": grant_id,
-                                "ip_rules": ip_rules,
-                            },
-                        )
+                        _add_access(user_access, (user_login, device_id), grant_id)
 
         # --- Source: tags (device-to-device access) ---
         for source_tag in grant["source_tags"]:
@@ -318,29 +280,35 @@ def resolve_access(
                     # Avoid self-loops
                     if source_device_id == device_id:
                         continue
-                    device_access.append(
-                        {
-                            "source_device_id": source_device_id,
-                            "device_id": device_id,
-                            "grant_id": grant_id,
-                            "ip_rules": ip_rules,
-                        },
+                    _add_access(
+                        device_access,
+                        (source_device_id, device_id),
+                        grant_id,
                     )
 
-    # Deduplicate: keep unique pairs with the first grant seen
-    user_access = _deduplicate_access(user_access, "user_login_name")
-    group_access = _deduplicate_access(group_access, "group_id")
-    device_access = _deduplicate_access(device_access, "source_device_id")
+    # Convert aggregated dicts to lists for load_matchlinks
+    user_access_list = [
+        {"user_login_name": k[0], "device_id": k[1], "granted_by": v}
+        for k, v in user_access.items()
+    ]
+    group_access_list = [
+        {"group_id": k[0], "device_id": k[1], "granted_by": v}
+        for k, v in group_access.items()
+    ]
+    device_access_list = [
+        {"source_device_id": k[0], "device_id": k[1], "granted_by": v}
+        for k, v in device_access.items()
+    ]
 
     logger.info(
         "Resolved %d user access links, %d group access links, "
         "and %d device access links from %d grants",
-        len(user_access),
-        len(group_access),
-        len(device_access),
+        len(user_access_list),
+        len(group_access_list),
+        len(device_access_list),
         len(grants),
     )
-    return user_access, group_access, device_access
+    return user_access_list, group_access_list, device_access_list
 
 
 def _build_tag_to_devices_map(
@@ -421,16 +389,13 @@ def _resolve_destination_devices(
     return dest_device_ids
 
 
-def _deduplicate_access(
-    access_list: List[Dict[str, Any]],
-    source_key: str,
-) -> List[Dict[str, Any]]:
-    """Deduplicate access entries, keeping the first occurrence per (source, device) pair."""
-    seen: set[tuple[str, str]] = set()
-    result: List[Dict[str, Any]] = []
-    for entry in access_list:
-        key = (entry[source_key], entry["device_id"])
-        if key not in seen:
-            seen.add(key)
-            result.append(entry)
-    return result
+def _add_access(
+    access_map: Dict[tuple[str, str], List[str]],
+    key: tuple[str, str],
+    grant_id: str,
+) -> None:
+    """Add a grant_id to the access map, aggregating multiple grants per pair."""
+    if key not in access_map:
+        access_map[key] = [grant_id]
+    elif grant_id not in access_map[key]:
+        access_map[key].append(grant_id)
