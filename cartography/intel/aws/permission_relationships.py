@@ -33,6 +33,8 @@ def evaluate_clause(clause: str, match: str) -> bool:
     Returns:
         [bool] -- True if the clause matched, False otherwise
     """
+    if match is None:
+        return False
     result = compile_regex(clause).fullmatch(match)
     return result is not None
 
@@ -173,7 +175,6 @@ def principal_allowed_on_resource(
         )
 
         if explicit_deny:
-
             return False
         if not granted and allowed:
             granted = True
@@ -295,6 +296,7 @@ def get_resource_arns(
     get_resource_query = Template(
         """
     MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
+    WHERE resource.arn IS NOT NULL
     return resource.arn as arn
     """,
     )

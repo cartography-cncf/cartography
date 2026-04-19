@@ -380,7 +380,7 @@ def test_full_policy_explicit_allow():
         "ListAllow": [
             {
                 "action": [
-                    "s3:listobject" "dynamodb:query",
+                    "s3:listobjectdynamodb:query",
                 ],
                 "resource": [
                     "*",
@@ -413,7 +413,7 @@ def test_full_multiple_principal():
             "ListAllow": [
                 {
                     "action": [
-                        "s3:listobject" "dynamodb:query",
+                        "s3:listobjectdynamodb:query",
                     ],
                     "resource": [
                         "*",
@@ -499,6 +499,10 @@ def test_multiple_comma():
         ["S3:GetObject"],
         "arn:aws:s3:::testbucket",
     )
+
+
+def test_evaluate_clause_with_none_match():
+    assert not permission_relationships.evaluate_clause("*", None)
 
 
 def test_permission_file_load():
