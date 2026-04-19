@@ -58,6 +58,11 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     repos = []
     for repo in raw_repos:
+        # default_branch can be a dict {"name": "main", "type": ...} or a string
+        default_branch = repo.get("default_branch")
+        if isinstance(default_branch, dict):
+            default_branch = default_branch.get("name")
+
         repos.append(
             {
                 "id": repo["id"],
@@ -66,7 +71,7 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "description": repo.get("description"),
                 "visibility": repo.get("visibility"),
                 "archived": repo.get("archived"),
-                "default_branch": repo.get("default_branch"),
+                "default_branch": default_branch,
                 "homepage": repo.get("homepage"),
                 "created_at": repo.get("created_at"),
                 "updated_at": repo.get("updated_at"),

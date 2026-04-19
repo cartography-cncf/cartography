@@ -7,7 +7,7 @@ REPOSITORIES_RESPONSE = {
             "description": "Main frontend application",
             "visibility": "private",
             "archived": False,
-            "default_branch": "main",
+            "default_branch": {"name": "main", "type": None},
             "homepage": "https://example.com",
             "created_at": "2024-01-15T10:30:00Z",
             "updated_at": "2024-06-01T14:22:00Z",
