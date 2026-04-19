@@ -74,12 +74,14 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         # Build normalized_id for cross-tool matching with Package ontology node
         pkg_type = dep.get("type")
-        namespace = dep.get("namespace") or ""
-        normalized_id = make_normalized_package_id(
-            name=name,
-            version=version,
-            pkg_type=pkg_type,
-        )
+        namespace = dep.get("namespace") or None
+        # Build a PURL to leverage full normalization including namespace
+        # (avoids collisions for scoped packages like @types/node vs node)
+        purl = None
+        if pkg_type and name and version:
+            ns_part = f"{namespace}/" if namespace else ""
+            purl = f"pkg:{pkg_type}/{ns_part}{name}@{version}"
+        normalized_id = make_normalized_package_id(purl=purl)
 
         deps.append(
             {

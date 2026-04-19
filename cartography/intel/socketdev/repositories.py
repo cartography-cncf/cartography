@@ -64,9 +64,9 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
             default_branch = default_branch.get("name")
 
         # Build fullname from workspace/slug for ontology matching
-        workspace = repo.get("workspace", "")
-        slug = repo.get("slug", "")
-        fullname = f"{workspace}/{slug}" if workspace else slug
+        workspace = repo.get("workspace")
+        slug = repo.get("slug")
+        fullname = f"{workspace}/{slug}" if workspace and slug else slug
 
         repos.append(
             {
