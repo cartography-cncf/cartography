@@ -34,16 +34,17 @@ def get(api_token: str) -> dict[str, Any]:
 def transform(raw_response: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Transform the organizations response into a flat list of dicts.
-    The API returns { organizations: { slug: { id, name, plan, ... } } }.
+    The API returns { organizations: { org_id: { id, name, slug, plan, ... } } }.
+    The dict key is the org ID, not the slug.
     """
     orgs = []
     organizations = raw_response.get("organizations", {})
-    for slug, org_data in organizations.items():
+    for org_key, org_data in organizations.items():
         orgs.append(
             {
-                "id": org_data["id"],
+                "id": org_data.get("id", org_key),
                 "name": org_data.get("name"),
-                "slug": slug,
+                "slug": org_data.get("slug", org_key),
                 "plan": org_data.get("plan"),
                 "image": org_data.get("image"),
             },
