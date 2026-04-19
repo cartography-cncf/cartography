@@ -72,6 +72,16 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     alerts = []
     for alert in raw_alerts:
+        # DEBUG: print raw alert structure to understand API format
+        if not alerts:
+            import json
+
+            print("=== RAW ALERT SAMPLE ===")
+            print(json.dumps(alert, indent=2, default=str))
+            print("=== RAW LOCATIONS ===")
+            print(json.dumps(alert.get("locations", []), indent=2, default=str))
+            print("========================")
+
         # Extract vulnerability fields if present
         vuln = alert.get("vulnerability") or {}
         # Extract first location entry if present
