@@ -59,6 +59,14 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     deps = []
     for dep in raw_deps:
+        # DEBUG: print raw dependency structure to understand API format
+        if not deps:
+            import json
+
+            print("=== RAW DEPENDENCY SAMPLE ===")
+            print(json.dumps(dep, indent=2, default=str))
+            print("==============================")
+
         name = dep["name"]
         version = dep["version"]
         repository = dep["repository"]

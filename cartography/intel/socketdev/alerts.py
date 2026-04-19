@@ -68,26 +68,24 @@ def _flatten_field(value: Any) -> Any:
 def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform raw alert data for ingestion.
-    Flattens vulnerability and location fields into the top-level dict.
+    Flattens vulnerability, location, repository, and artifact fields
+    from the nested API response into a flat dict.
     """
     alerts = []
     for alert in raw_alerts:
-        # DEBUG: print raw alert structure to understand API format
-        if not alerts:
-            import json
-
-            print("=== RAW ALERT SAMPLE ===")
-            print(json.dumps(alert, indent=2, default=str))
-            print("=== RAW LOCATIONS ===")
-            print(json.dumps(alert.get("locations", []), indent=2, default=str))
-            print("========================")
-
         # Extract vulnerability fields if present
         vuln = alert.get("vulnerability") or {}
         # Extract first location entry if present
         locations = alert.get("locations") or []
         location = locations[0] if locations else {}
+        # Repository is a nested object inside location
+        repo = location.get("repository") or {}
         artifact = location.get("artifact") or {}
+
+        # Resolve GHSA IDs — cveId is often null, ghsaIds has the identifier
+        ghsa_ids = vuln.get("ghsaIds") or []
+        cve_id = vuln.get("cveId")
+        ghsa_id = ghsa_ids[0] if ghsa_ids else None
 
         alerts.append(
             {
@@ -104,7 +102,8 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "updatedAt": alert.get("updatedAt"),
                 "clearedAt": alert.get("clearedAt"),
                 # Vulnerability fields
-                "cve_id": vuln.get("cveId"),
+                "cve_id": cve_id,
+                "ghsa_id": ghsa_id,
                 "cvss_score": vuln.get("cvssScore"),
                 "epss_score": vuln.get("epssScore"),
                 "epss_percentile": vuln.get("epssPercentile"),
@@ -114,7 +113,7 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ),
                 # Location fields
                 "action": location.get("action"),
-                "repo_slug": location.get("repoSlug"),
+                "repo_slug": repo.get("slug"),
                 "branch": _flatten_field(location.get("branch")),
                 "artifact_name": _flatten_field(artifact.get("name")),
                 "artifact_version": _flatten_field(artifact.get("version")),

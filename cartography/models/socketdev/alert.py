@@ -29,6 +29,7 @@ class SocketDevAlertNodeProperties(CartographyNodeProperties):
     cleared_at: PropertyRef = PropertyRef("clearedAt")
     # Vulnerability fields (populated when category == "vulnerability")
     cve_id: PropertyRef = PropertyRef("cve_id")
+    ghsa_id: PropertyRef = PropertyRef("ghsa_id", extra_index=True)
     cvss_score: PropertyRef = PropertyRef("cvss_score")
     epss_score: PropertyRef = PropertyRef("epss_score")
     epss_percentile: PropertyRef = PropertyRef("epss_percentile")
