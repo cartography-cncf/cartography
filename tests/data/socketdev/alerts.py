@@ -37,7 +37,7 @@ ALERTS_RESPONSE = {
                     "fullScanId": "scan-001",
                     "repoSlug": "frontend-app",
                     "repoFullName": "acme-corp/frontend-app",
-                    "branch": "main",
+                    "branch": {"name": "main", "type": None},
                     "artifact": {
                         "name": "lodash",
                         "version": "4.17.21",

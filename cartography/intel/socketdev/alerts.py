@@ -54,6 +54,17 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
     return all_alerts
 
 
+def _flatten_field(value: Any) -> Any:
+    """
+    Flatten a field that may be a nested dict with a 'name' key.
+    The Socket.dev API sometimes returns objects like {"name": "main", "type": null}
+    where a plain string is expected. Extract the name if so.
+    """
+    if isinstance(value, dict):
+        return value.get("name")
+    return value
+
+
 def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform raw alert data for ingestion.
@@ -88,16 +99,16 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "epss_score": vuln.get("epssScore"),
                 "epss_percentile": vuln.get("epssPercentile"),
                 "is_kev": vuln.get("isKev"),
-                "first_patched_version": vuln.get(
-                    "firstPatchedVersionIdentifier",
+                "first_patched_version": _flatten_field(
+                    vuln.get("firstPatchedVersionIdentifier"),
                 ),
                 # Location fields
                 "action": location.get("action"),
                 "repo_slug": location.get("repoSlug"),
-                "branch": location.get("branch"),
-                "artifact_name": artifact.get("name"),
-                "artifact_version": artifact.get("version"),
-                "artifact_type": artifact.get("type"),
+                "branch": _flatten_field(location.get("branch")),
+                "artifact_name": _flatten_field(artifact.get("name")),
+                "artifact_version": _flatten_field(artifact.get("version")),
+                "artifact_type": _flatten_field(artifact.get("type")),
             },
         )
     return alerts
