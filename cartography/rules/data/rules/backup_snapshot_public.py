@@ -4,7 +4,6 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 
-
 _aws_ebs_snapshot_public = Fact(
     id="aws_ebs_snapshot_public",
     name="AWS public EBS snapshots",
@@ -30,6 +29,7 @@ _aws_ebs_snapshot_public = Fact(
     """,
     cypher_count_query="""
     MATCH (snapshot:EBSSnapshot)
+    WHERE snapshot.ispublic = true
     RETURN COUNT(snapshot) AS count
     """,
     module=Module.AWS,
@@ -60,6 +60,7 @@ _aws_rds_snapshot_public = Fact(
     """,
     cypher_count_query="""
     MATCH (snapshot:RDSSnapshot)
+    WHERE snapshot.ispublic = true
     RETURN COUNT(snapshot) AS count
     """,
     module=Module.AWS,
@@ -81,7 +82,8 @@ backup_snapshot_public = Rule(
     id="backup_snapshot_public",
     name="Public Backup Snapshot Exposure",
     description=(
-        "Publicly accessible AWS backup snapshots, including EBS snapshots and manual RDS snapshots."
+        "Publicly accessible AWS backup snapshots, including EBS snapshots and "
+        "manual RDS snapshots."
     ),
     output_model=BackupSnapshotPublic,
     facts=(

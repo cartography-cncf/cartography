@@ -19,18 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def _snapshot_is_public(client: Any, snapshot_id: str) -> bool:
-    try:
-        response = client.describe_snapshot_attribute(
-            SnapshotId=snapshot_id,
-            Attribute="createVolumePermission",
-        )
-    except ClientError as e:
-        logger.warning(
-            "Failed to retrieve createVolumePermission for EBS snapshot '%s'. Continuing anyway. Error - %s",
-            snapshot_id,
-            e,
-        )
-        return False
+    response = client.describe_snapshot_attribute(
+        SnapshotId=snapshot_id,
+        Attribute="createVolumePermission",
+    )
 
     for permission in response.get("CreateVolumePermissions", []):
         if permission.get("Group") == "all":
