@@ -80,7 +80,19 @@ def get_snapshots(
 
     for snapshot in snapshots:
         if snapshot.get("OwnerId") == current_aws_account_id:
-            snapshot["Public"] = _snapshot_is_public(client, snapshot["SnapshotId"])
+            try:
+                snapshot["Public"] = _snapshot_is_public(
+                    client,
+                    snapshot["SnapshotId"],
+                )
+            except ClientError as e:
+                logger.warning(
+                    "Failed to retrieve createVolumePermission for EBS snapshot '%s'. "
+                    "Continuing without public visibility. Error - %s",
+                    snapshot["SnapshotId"],
+                    e,
+                )
+                snapshot["Public"] = None
         else:
             snapshot["Public"] = None
 
