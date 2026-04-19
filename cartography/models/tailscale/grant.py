@@ -188,3 +188,24 @@ class TailscaleGroupToDeviceAccessMatchLink(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_ACCESS"
     properties: TailscaleGrantAccessRelProperties = TailscaleGrantAccessRelProperties()
+
+
+@dataclass(frozen=True)
+class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
+    """MatchLink: (:TailscaleDevice)-[:CAN_ACCESS]->(:TailscaleDevice)
+
+    Represents resolved effective access from a tagged device (source) to
+    another device (destination) via a grant where the source is a tag.
+    """
+
+    source_node_label: str = "TailscaleDevice"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_device_id")},
+    )
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("device_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_ACCESS"
+    properties: TailscaleGrantAccessRelProperties = TailscaleGrantAccessRelProperties()

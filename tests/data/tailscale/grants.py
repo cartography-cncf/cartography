@@ -46,5 +46,17 @@ TAILSCALE_ACL_FILE_WITH_GRANTS = """
             "ip": ["tcp:22", "tcp:443"],
             "srcPosture": ["posture:healthySentinelOne"],
         },
+        {
+            // Grant 3: tag:byod devices can access all devices (device-to-device)
+            "src": ["tag:byod"],
+            "dst": ["*"],
+            "ip": ["tcp:443"],
+        },
+        {
+            // Grant 4: group:employees can access autogroup:self (own devices)
+            "src": ["group:employees"],
+            "dst": ["autogroup:self"],
+            "ip": ["*:*"],
+        },
     ],
 }"""

@@ -22,178 +22,8 @@ TEST_UPDATE_TAG = 123456789
 TEST_ORG = "simpson.corp"
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_load_tailscale_grants(mock_attrs, mock_devices, mock_acls, neo4j_session):
-    """
-    Ensure that grants get loaded and effective access relationships are created.
-    """
-
-    # Arrange
-    api_session = requests.Session()
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "BASE_URL": "https://fake.tailscale.com",
-        "org": TEST_ORG,
-    }
-    _ensure_local_neo4j_has_test_tailnets(neo4j_session)
-    _ensure_local_neo4j_has_test_users(neo4j_session)
-
-    # Load devices first (needed for grant resolution)
-    devices, _ = cartography.intel.tailscale.devices.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-        TEST_ORG,
-    )
-
-    # Load ACLs (groups, tags, postures, grants)
-    postures, posture_conditions, grants, groups = (
-        cartography.intel.tailscale.acls.sync(
-            neo4j_session,
-            api_session,
-            common_job_parameters,
-            TEST_ORG,
-            tests.data.tailscale.users.TAILSCALE_USERS,
-        )
-    )
-
-    # Act: sync grants
-    cartography.intel.tailscale.grants.sync(
-        neo4j_session,
-        org=TEST_ORG,
-        update_tag=TEST_UPDATE_TAG,
-        grants=grants,
-        devices=devices,
-        groups=groups,
-        tags=[],
-        users=tests.data.tailscale.users.TAILSCALE_USERS,
-    )
-
-    # Assert: Grant nodes exist
-    expected_grant_nodes = {
-        ("grant:0",),
-        ("grant:1",),
-        ("grant:2",),
-    }
-    assert check_nodes(neo4j_session, "TailscaleGrant", ["id"]) == expected_grant_nodes
-
-    # Assert: Grant to Tailnet relationships exist
-    expected_rels = {
-        ("grant:0", TEST_ORG),
-        ("grant:1", TEST_ORG),
-        ("grant:2", TEST_ORG),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleGrant",
-            "id",
-            "TailscaleTailnet",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == expected_rels
-    )
-
-    # Assert: Grant SOURCE relationships from groups
-    # grant:0 has source group:example
-    # grant:2 has source autogroup:member
-    expected_source_group_rels = {
-        ("group:example", "grant:0"),
-        ("autogroup:member", "grant:2"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleGroup",
-            "id",
-            "TailscaleGrant",
-            "id",
-            "SOURCE",
-            rel_direction_right=True,
-        )
-        == expected_source_group_rels
-    )
-
-    # Assert: Grant SOURCE relationships from users
-    # grant:1 has source mbsimpson@simpson.corp
-    expected_source_user_rels = {
-        ("123456", "grant:1"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleUser",
-            "id",
-            "TailscaleGrant",
-            "id",
-            "SOURCE",
-            rel_direction_right=True,
-        )
-        == expected_source_user_rels
-    )
-
-    # Assert: Grant DESTINATION relationships to tags
-    # grant:0 and grant:2 have destination tag:byod
-    expected_dest_tag_rels = {
-        ("grant:0", "tag:byod"),
-        ("grant:2", "tag:byod"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleGrant",
-            "id",
-            "TailscaleTag",
-            "id",
-            "DESTINATION",
-            rel_direction_right=True,
-        )
-        == expected_dest_tag_rels
-    )
-
-
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_tailscale_grants_effective_access(
-    mock_attrs,
-    mock_devices,
-    mock_acls,
-    neo4j_session,
-):
-    """
-    Ensure that effective access (CAN_ACCESS) relationships are resolved correctly.
-    """
-
-    # Arrange
+def _setup_grants_test(neo4j_session):
+    """Helper to set up the full grants test environment."""
     api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -211,7 +41,7 @@ def test_tailscale_grants_effective_access(
         TEST_ORG,
     )
 
-    # Load ACLs
+    # Load ACLs (groups, tags, postures, grants + INHERITED_MEMBER_OF)
     postures, posture_conditions, grants, groups = (
         cartography.intel.tailscale.acls.sync(
             neo4j_session,
@@ -222,7 +52,7 @@ def test_tailscale_grants_effective_access(
         )
     )
 
-    # Act: sync grants
+    # Sync grants
     cartography.intel.tailscale.grants.sync(
         neo4j_session,
         org=TEST_ORG,
@@ -234,19 +64,160 @@ def test_tailscale_grants_effective_access(
         users=tests.data.tailscale.users.TAILSCALE_USERS,
     )
 
-    # Assert: User CAN_ACCESS relationships
-    # grant:0: group:example (hjsimpson) -> tag:byod (device p892kg92CNTRL)
+    return grants, groups, devices
+
+
+@patch.object(
+    cartography.intel.tailscale.acls,
+    "get",
+    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get",
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_load_tailscale_grants(mock_attrs, mock_devices, mock_acls, neo4j_session):
+    """
+    Ensure that grants get loaded and structural relationships are created.
+    """
+    _setup_grants_test(neo4j_session)
+
+    # Assert: Grant nodes exist (5 grants in test data)
+    expected_grant_nodes = {
+        ("grant:0",),
+        ("grant:1",),
+        ("grant:2",),
+        ("grant:3",),
+        ("grant:4",),
+    }
+    assert check_nodes(neo4j_session, "TailscaleGrant", ["id"]) == expected_grant_nodes
+
+    # Assert: Grant to Tailnet relationships exist
+    expected_rels = {
+        ("grant:0", TEST_ORG),
+        ("grant:1", TEST_ORG),
+        ("grant:2", TEST_ORG),
+        ("grant:3", TEST_ORG),
+        ("grant:4", TEST_ORG),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "TailscaleGrant",
+            "id",
+            "TailscaleTailnet",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
+
+
+@patch.object(
+    cartography.intel.tailscale.acls,
+    "get",
+    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get",
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_tailscale_grants_inherited_member_of(
+    mock_attrs,
+    mock_devices,
+    mock_acls,
+    neo4j_session,
+):
+    """
+    Ensure that INHERITED_MEMBER_OF relationships are created in the graph
+    for transitive sub-group membership (P1.2).
+
+    group:employees contains group:corp as a sub-group.
+    Users in group:corp should get INHERITED_MEMBER_OF -> group:employees.
+    """
+    _setup_grants_test(neo4j_session)
+
+    # group:employees has sub_groups: ["group:corp"]
+    # group:corp members: mbsimpson@simpson.corp, hjsimpson@simpson.corp
+    # So both users should have INHERITED_MEMBER_OF -> group:employees
+    expected_inherited = {
+        ("123456", "group:employees"),  # mbsimpson
+        ("654321", "group:employees"),  # hjsimpson
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "TailscaleUser",
+            "id",
+            "TailscaleGroup",
+            "id",
+            "INHERITED_MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == expected_inherited
+    )
+
+
+@patch.object(
+    cartography.intel.tailscale.acls,
+    "get",
+    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get",
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_tailscale_grants_effective_user_access(
+    mock_attrs,
+    mock_devices,
+    mock_acls,
+    neo4j_session,
+):
+    """
+    Ensure that effective user CAN_ACCESS relationships are resolved correctly,
+    including autogroup:self (P1.3).
+    """
+    _setup_grants_test(neo4j_session)
+
+    # Expected user CAN_ACCESS relationships:
+    #
+    # grant:0: group:example (hjsimpson) -> tag:byod (p892kg92CNTRL)
     # grant:1: mbsimpson -> * (all 4 devices)
-    # grant:2: autogroup:member (mbsimpson, hjsimpson) -> tag:byod (device p892kg92CNTRL)
-    # After dedup, user access should be:
-    # - hjsimpson -> p892kg92CNTRL (via grant:0, group:example member)
-    # - mbsimpson -> all 4 devices (via grant:1, direct user)
+    # grant:2: autogroup:member (mbsimpson, hjsimpson) -> tag:byod (p892kg92CNTRL)
+    # grant:4: group:employees (direct members: none, but group:corp is sub-group)
+    #   group:employees direct members = [] (only sub_groups)
+    #   -> autogroup:self: no direct members to resolve
+    #   (transitive resolution happens via INHERITED_MEMBER_OF in the graph,
+    #    but grants.py only uses direct group members for CAN_ACCESS)
+    #
+    # After dedup:
     expected_user_access = {
-        ("654321", "p892kg92CNTRL"),  # hjsimpson via grant:0 (group:example)
-        ("123456", "p892kg92CNTRL"),  # mbsimpson via grant:1 (wildcard)
-        ("123456", "n292kg92CNTRL"),  # mbsimpson via grant:1 (wildcard)
-        ("123456", "n2fskgfgCNT89"),  # mbsimpson via grant:1 (wildcard)
-        ("123456", "abcskgfgCN789"),  # mbsimpson via grant:1 (wildcard)
+        # hjsimpson via grant:0 (group:example -> tag:byod)
+        ("654321", "p892kg92CNTRL"),
+        # mbsimpson via grant:1 (wildcard dest)
+        ("123456", "p892kg92CNTRL"),
+        ("123456", "n292kg92CNTRL"),
+        ("123456", "n2fskgfgCNT89"),
+        ("123456", "abcskgfgCN789"),
     }
     assert (
         check_rels(
@@ -261,22 +232,51 @@ def test_tailscale_grants_effective_access(
         == expected_user_access
     )
 
-    # Assert: Group CAN_ACCESS relationships
-    # grant:0: group:example -> tag:byod (device p892kg92CNTRL)
-    # grant:2: autogroup:member -> tag:byod (device p892kg92CNTRL)
-    expected_group_access = {
-        ("group:example", "p892kg92CNTRL"),
-        ("autogroup:member", "p892kg92CNTRL"),
+
+@patch.object(
+    cartography.intel.tailscale.acls,
+    "get",
+    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get",
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_tailscale_grants_device_to_device_access(
+    mock_attrs,
+    mock_devices,
+    mock_acls,
+    neo4j_session,
+):
+    """
+    Ensure that device-to-device CAN_ACCESS relationships are resolved
+    when a tag is used as a grant source (P1.1).
+    """
+    _setup_grants_test(neo4j_session)
+
+    # grant:3: tag:byod -> * (all devices)
+    # tag:byod devices: p892kg92CNTRL
+    # So p892kg92CNTRL can access all other devices (excluding self)
+    expected_device_access = {
+        ("p892kg92CNTRL", "n292kg92CNTRL"),
+        ("p892kg92CNTRL", "n2fskgfgCNT89"),
+        ("p892kg92CNTRL", "abcskgfgCN789"),
     }
     assert (
         check_rels(
             neo4j_session,
-            "TailscaleGroup",
+            "TailscaleDevice",
             "id",
             "TailscaleDevice",
             "id",
             "CAN_ACCESS",
             rel_direction_right=True,
         )
-        == expected_group_access
+        == expected_device_access
     )

@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.models.tailscale.grant import TailscaleDeviceToDeviceAccessMatchLink
 from cartography.models.tailscale.grant import TailscaleGrantSchema
 from cartography.models.tailscale.grant import TailscaleGroupToDeviceAccessMatchLink
 from cartography.models.tailscale.grant import TailscaleUserToDeviceAccessMatchLink
@@ -35,7 +36,7 @@ def sync(
 
     This module:
     1. Loads TailscaleGrant nodes with their source/destination relationships
-    2. Resolves effective access by computing which users/groups can access
+    2. Resolves effective access by computing which users/groups/devices can access
        which devices based on grant rules and tag/group membership
     """
     logger.info("Starting Tailscale Grants sync")
@@ -43,21 +44,25 @@ def sync(
     transformed_grants = transform(grants)
     load_grants(neo4j_session, transformed_grants, org, update_tag)
 
-    user_access, group_access = resolve_access(
+    user_access, group_access, device_access = resolve_access(
         grants,
         devices,
         groups,
         tags,
         users,
     )
-    load_access(neo4j_session, org, update_tag, user_access, group_access)
+    load_access(
+        neo4j_session, org, update_tag, user_access, group_access, device_access
+    )
     cleanup(neo4j_session, org, update_tag)
 
     logger.info(
-        "Completed Tailscale Grants sync: %d grants, %d user access links, %d group access links",
+        "Completed Tailscale Grants sync: %d grants, "
+        "%d user access links, %d group access links, %d device access links",
         len(transformed_grants),
         len(user_access),
         len(group_access),
+        len(device_access),
     )
 
 
@@ -124,6 +129,7 @@ def load_access(
     update_tag: int,
     user_access: List[Dict[str, Any]],
     group_access: List[Dict[str, Any]],
+    device_access: List[Dict[str, Any]],
 ) -> None:
     if user_access:
         load_matchlinks(
@@ -140,6 +146,16 @@ def load_access(
             neo4j_session,
             TailscaleGroupToDeviceAccessMatchLink(),
             group_access,
+            lastupdated=update_tag,
+            _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
+            _sub_resource_id=org,
+        )
+
+    if device_access:
+        load_matchlinks(
+            neo4j_session,
+            TailscaleDeviceToDeviceAccessMatchLink(),
+            device_access,
             lastupdated=update_tag,
             _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
             _sub_resource_id=org,
@@ -171,6 +187,12 @@ def cleanup(
         org,
         update_tag,
     ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TailscaleDeviceToDeviceAccessMatchLink(),
+        MATCHLINK_SUB_RESOURCE_LABEL,
+        org,
+        update_tag,
+    ).run(neo4j_session)
 
 
 def resolve_access(
@@ -179,25 +201,34 @@ def resolve_access(
     groups: List[Dict[str, Any]],
     tags: List[Dict[str, Any]],
     users: List[Dict[str, Any]],
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Resolve effective access from grants.
 
-    For each grant, determine which users and groups can access which devices
-    based on the grant's source/destination selectors and the current state
-    of groups, tags, and devices.
+    For each grant, determine which users, groups, and devices can access which
+    devices based on the grant's source/destination selectors and the current
+    state of groups, tags, and devices.
+
+    Handles:
+    - Direct user sources (email in src)
+    - Group/autogroup sources (direct members only; transitive membership is
+      resolved via INHERITED_MEMBER_OF in the graph by acls.py)
+    - Tag sources (device-to-device access)
+    - autogroup:self destinations (user's own devices)
 
     Returns:
-        A tuple of (user_access, group_access) where each is a list of dicts
-        suitable for load_matchlinks().
+        A tuple of (user_access, group_access, device_access) where each is a
+        list of dicts suitable for load_matchlinks().
     """
     # Build lookup structures
     tag_to_devices = _build_tag_to_devices_map(devices)
     group_members = _build_group_members_map(groups)
     all_device_ids = {d["nodeId"] for d in devices}
     all_user_logins = {u["loginName"] for u in users}
+    user_to_devices = _build_user_to_devices_map(devices)
 
     user_access: List[Dict[str, Any]] = []
     group_access: List[Dict[str, Any]] = []
+    device_access: List[Dict[str, Any]] = []
 
     for grant in grants:
         grant_id = grant["id"]
@@ -205,7 +236,9 @@ def resolve_access(
             json.dumps(grant["ip_rules"], sort_keys=True) if grant["ip_rules"] else None
         )
 
-        # Resolve destination devices
+        has_self_destination = _has_autogroup_self(grant["destinations"])
+
+        # Resolve destination devices (excluding autogroup:self which is per-source)
         dest_device_ids = _resolve_destination_devices(
             grant,
             tag_to_devices,
@@ -214,13 +247,11 @@ def resolve_access(
             devices,
         )
 
-        if not dest_device_ids:
-            continue
-
-        # Resolve source users (direct user references in grant)
+        # --- Source: direct users ---
         for user_login in grant["source_users"]:
             if user_login not in all_user_logins:
                 continue
+            # Standard destinations
             for device_id in dest_device_ids:
                 user_access.append(
                     {
@@ -230,8 +261,19 @@ def resolve_access(
                         "ip_rules": ip_rules,
                     },
                 )
+            # autogroup:self — user can access their own devices
+            if has_self_destination:
+                for device_id in user_to_devices.get(user_login, []):
+                    user_access.append(
+                        {
+                            "user_login_name": user_login,
+                            "device_id": device_id,
+                            "grant_id": grant_id,
+                            "ip_rules": ip_rules,
+                        },
+                    )
 
-        # Resolve source groups
+        # --- Source: groups/autogroups ---
         for group_id in grant["source_groups"]:
             # Create group-to-device access links
             for device_id in dest_device_ids:
@@ -244,7 +286,7 @@ def resolve_access(
                     },
                 )
 
-            # Also resolve individual user access through group membership
+            # Resolve individual user access through group membership
             members = group_members.get(group_id, set())
             for user_login in members:
                 for device_id in dest_device_ids:
@@ -256,18 +298,49 @@ def resolve_access(
                             "ip_rules": ip_rules,
                         },
                     )
+                # autogroup:self — each group member can access their own devices
+                if has_self_destination:
+                    for device_id in user_to_devices.get(user_login, []):
+                        user_access.append(
+                            {
+                                "user_login_name": user_login,
+                                "device_id": device_id,
+                                "grant_id": grant_id,
+                                "ip_rules": ip_rules,
+                            },
+                        )
 
-    # Deduplicate: keep unique (user, device) pairs with the first grant seen
+        # --- Source: tags (device-to-device access) ---
+        for source_tag in grant["source_tags"]:
+            source_device_ids = tag_to_devices.get(source_tag, [])
+            for source_device_id in source_device_ids:
+                for device_id in dest_device_ids:
+                    # Avoid self-loops
+                    if source_device_id == device_id:
+                        continue
+                    device_access.append(
+                        {
+                            "source_device_id": source_device_id,
+                            "device_id": device_id,
+                            "grant_id": grant_id,
+                            "ip_rules": ip_rules,
+                        },
+                    )
+
+    # Deduplicate: keep unique pairs with the first grant seen
     user_access = _deduplicate_access(user_access, "user_login_name")
     group_access = _deduplicate_access(group_access, "group_id")
+    device_access = _deduplicate_access(device_access, "source_device_id")
 
     logger.info(
-        "Resolved %d user access links and %d group access links from %d grants",
+        "Resolved %d user access links, %d group access links, "
+        "and %d device access links from %d grants",
         len(user_access),
         len(group_access),
+        len(device_access),
         len(grants),
     )
-    return user_access, group_access
+    return user_access, group_access, device_access
 
 
 def _build_tag_to_devices_map(
@@ -291,6 +364,26 @@ def _build_group_members_map(
     return group_members
 
 
+def _build_user_to_devices_map(
+    devices: List[Dict[str, Any]],
+) -> Dict[str, List[str]]:
+    """Build a mapping from user login name to list of their device IDs."""
+    user_to_devices: Dict[str, List[str]] = {}
+    for device in devices:
+        user = device.get("user")
+        if user:
+            user_to_devices.setdefault(user, []).append(device["nodeId"])
+    return user_to_devices
+
+
+def _has_autogroup_self(destinations: List[str]) -> bool:
+    """Check if any destination is autogroup:self."""
+    for dst in destinations:
+        if dst == "autogroup:self" or dst.startswith("autogroup:self:"):
+            return True
+    return False
+
+
 def _resolve_destination_devices(
     grant: Dict[str, Any],
     tag_to_devices: Dict[str, List[str]],
@@ -298,16 +391,24 @@ def _resolve_destination_devices(
     all_device_ids: set[str],
     devices: List[Dict[str, Any]],
 ) -> set[str]:
-    """Resolve which devices are targeted by a grant's destinations."""
+    """Resolve which devices are targeted by a grant's destinations.
+
+    Note: autogroup:self is handled separately per-source in resolve_access().
+    """
     dest_device_ids: set[str] = set()
 
     for dst in grant["destinations"]:
         if dst == "*" or dst == "*:*":
             # Wildcard: all devices
             dest_device_ids.update(all_device_ids)
+        elif dst == "autogroup:self" or dst.startswith("autogroup:self:"):
+            # Handled per-source in resolve_access()
+            pass
         elif dst.startswith("tag:"):
             # Tag selector: find devices with this tag
-            tag_id = dst.split(":")[0] + ":" + dst.split(":")[1].rstrip(":*")
+            # Handle "tag:web:443" format by stripping port suffix
+            parts = dst.split(":")
+            tag_id = parts[0] + ":" + parts[1]
             devices_with_tag = tag_to_devices.get(tag_id, [])
             dest_device_ids.update(devices_with_tag)
         elif dst.startswith("group:") or dst.startswith("autogroup:"):
@@ -316,10 +417,6 @@ def _resolve_destination_devices(
             for device in devices:
                 if device.get("user") in members:
                     dest_device_ids.add(device["nodeId"])
-        elif dst.startswith("autogroup:self"):
-            # autogroup:self means the source's own devices - skip for now
-            # as this requires per-user resolution
-            pass
 
     return dest_device_ids
 
