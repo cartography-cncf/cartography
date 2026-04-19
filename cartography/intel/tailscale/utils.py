@@ -130,6 +130,72 @@ class ACLParser:
             )
         return result
 
+    def get_grants(self) -> List[Dict[str, Any]]:
+        """
+        Get all grants from the ACL/policy file.
+
+        Tailscale grants define access rules with sources, destinations,
+        and capabilities (network and/or application layer).
+
+        :return: list of grants with parsed source/destination selectors
+        """
+        result: List[Dict[str, Any]] = []
+        grants = self.data.get("grants", [])
+        for index, grant in enumerate(grants):
+            sources = grant.get("src", [])
+            destinations = grant.get("dst", [])
+
+            # Classify sources
+            source_users: List[str] = []
+            source_groups: List[str] = []
+            source_tags: List[str] = []
+            for src in sources:
+                if src.startswith("group:") or src.startswith("autogroup:"):
+                    source_groups.append(src)
+                elif src.startswith("tag:"):
+                    source_tags.append(src)
+                elif src == "*":
+                    source_groups.append("autogroup:member")
+                else:
+                    # Treat as user email
+                    source_users.append(src)
+
+            # Classify destinations
+            destination_tags: List[str] = []
+            destination_groups: List[str] = []
+            destination_hosts: List[str] = []
+            for dst in destinations:
+                if dst.startswith("tag:"):
+                    destination_tags.append(dst)
+                elif dst.startswith("group:") or dst.startswith("autogroup:"):
+                    destination_groups.append(dst)
+                else:
+                    destination_hosts.append(dst)
+
+            # Parse capabilities
+            ip_rules = grant.get("ip", [])
+            app_capabilities = grant.get("app", {})
+            src_posture = grant.get("srcPosture", [])
+
+            grant_id = f"grant:{index}"
+            result.append(
+                {
+                    "id": grant_id,
+                    "sources": sources,
+                    "destinations": destinations,
+                    "source_users": source_users,
+                    "source_groups": source_groups,
+                    "source_tags": source_tags,
+                    "destination_tags": destination_tags,
+                    "destination_groups": destination_groups,
+                    "destination_hosts": destination_hosts,
+                    "ip_rules": ip_rules,
+                    "app_capabilities": app_capabilities,
+                    "src_posture": src_posture,
+                },
+            )
+        return result
+
     def get_postures(
         self,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:

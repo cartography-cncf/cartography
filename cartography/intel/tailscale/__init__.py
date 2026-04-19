@@ -7,6 +7,7 @@ from urllib3 import Retry
 
 import cartography.intel.tailscale.acls
 import cartography.intel.tailscale.devices
+import cartography.intel.tailscale.grants
 import cartography.intel.tailscale.postureintegrations
 import cartography.intel.tailscale.postureresolution
 import cartography.intel.tailscale.tailnets
@@ -64,7 +65,7 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         org=config.tailscale_org,
     )
 
-    _, device_posture_attributes = cartography.intel.tailscale.devices.sync(
+    devices, device_posture_attributes = cartography.intel.tailscale.devices.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
@@ -78,12 +79,14 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         org=config.tailscale_org,
     )
 
-    postures, posture_conditions = cartography.intel.tailscale.acls.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-        org=config.tailscale_org,
-        users=users,
+    postures, posture_conditions, grants, groups = (
+        cartography.intel.tailscale.acls.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+            org=config.tailscale_org,
+            users=users,
+        )
     )
 
     cartography.intel.tailscale.postureresolution.sync(
@@ -93,4 +96,15 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         postures=postures,
         posture_conditions=posture_conditions,
         device_posture_attributes=device_posture_attributes,
+    )
+
+    cartography.intel.tailscale.grants.sync(
+        neo4j_session,
+        org=config.tailscale_org,
+        update_tag=config.update_tag,
+        grants=grants,
+        devices=devices,
+        groups=groups,
+        tags=[],  # Tags are resolved from device data directly
+        users=users,
     )

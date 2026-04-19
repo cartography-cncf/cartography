@@ -31,13 +31,18 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
     users: List[Dict[str, Any]],
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+]:
     raw_acl = get(
         api_session,
         common_job_parameters["BASE_URL"],
         org,
     )
-    groups, tags, postures, posture_conditions = transform(raw_acl, users)
+    groups, tags, postures, posture_conditions, grants = transform(raw_acl, users)
     load_groups(
         neo4j_session,
         groups,
@@ -63,7 +68,7 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
-    return postures, posture_conditions
+    return postures, posture_conditions, grants, groups
 
 
 @timeit
@@ -84,6 +89,7 @@ def transform(
     raw_acl: str,
     users: List[Dict[str, Any]],
 ) -> Tuple[
+    List[Dict[str, Any]],
     List[Dict[str, Any]],
     List[Dict[str, Any]],
     List[Dict[str, Any]],
@@ -126,11 +132,13 @@ def transform(
             transformed_groups[g]["members"].append(user["loginName"])
 
     postures, posture_conditions = parser.get_postures()
+    grants = parser.get_grants()
     return (
         list(transformed_groups.values()),
         list(transformed_tags.values()),
         postures,
         posture_conditions,
+        grants,
     )
 
 
