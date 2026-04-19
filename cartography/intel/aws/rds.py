@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -23,6 +24,34 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+
+def _rds_snapshot_is_public(client: Any, snapshot: Dict[str, Any]) -> bool:
+    if snapshot.get("SnapshotType") != "manual":
+        return False
+
+    try:
+        response = client.describe_db_snapshot_attributes(
+            DBSnapshotIdentifier=snapshot["DBSnapshotIdentifier"],
+        )
+    except ClientError as e:
+        logger.warning(
+            "Failed to retrieve attributes for RDS snapshot '%s'. Continuing anyway. Error - %s",
+            snapshot.get("DBSnapshotIdentifier"),
+            e,
+        )
+        return False
+
+    attributes = response.get("DBSnapshotAttributesResult", {}).get(
+        "DBSnapshotAttributes",
+        [],
+    )
+    for attribute in attributes:
+        if attribute.get("AttributeName") != "restore":
+            continue
+        if "all" in attribute.get("AttributeValues", []):
+            return True
+    return False
 
 
 @timeit
@@ -114,6 +143,8 @@ def get_rds_snapshot_data(
     """
     client = create_boto3_client(boto3_session, "rds", region_name=region)
     snapshots = list(aws_paginate(client, "describe_db_snapshots", "DBSnapshots"))
+    for snapshot in snapshots:
+        snapshot["Public"] = _rds_snapshot_is_public(client, snapshot)
     return snapshots
 
 

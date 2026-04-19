@@ -18,6 +18,26 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _snapshot_is_public(client: Any, snapshot_id: str) -> bool:
+    try:
+        response = client.describe_snapshot_attribute(
+            SnapshotId=snapshot_id,
+            Attribute="createVolumePermission",
+        )
+    except ClientError as e:
+        logger.warning(
+            "Failed to retrieve createVolumePermission for EBS snapshot '%s'. Continuing anyway. Error - %s",
+            snapshot_id,
+            e,
+        )
+        return False
+
+    for permission in response.get("CreateVolumePermissions", []):
+        if permission.get("Group") == "all":
+            return True
+    return False
+
+
 @timeit
 def get_snapshots_in_use(
     neo4j_session: neo4j.Session,
@@ -44,6 +64,7 @@ def get_snapshots(
     boto3_session: boto3.session.Session,
     region: str,
     in_use_snapshot_ids: List[str],
+    current_aws_account_id: str,
 ) -> List[Dict]:
     client = create_boto3_client(boto3_session, "ec2", region_name=region)
     paginator = client.get_paginator("describe_snapshots")
@@ -65,6 +86,12 @@ def get_snapshots(
             else:
                 raise
 
+    for snapshot in snapshots:
+        if snapshot.get("OwnerId") == current_aws_account_id:
+            snapshot["Public"] = _snapshot_is_public(client, snapshot["SnapshotId"])
+        else:
+            snapshot["Public"] = None
+
     return snapshots
 
 
@@ -75,6 +102,8 @@ def transform_snapshots(snapshots: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             {
                 "SnapshotId": snap["SnapshotId"],
                 "Description": snap.get("Description"),
+                "OwnerId": snap.get("OwnerId"),
+                "Public": snap.get("Public"),
                 "Encrypted": snap.get("Encrypted"),
                 "Progress": snap.get("Progress"),
                 "StartTime": snap.get("StartTime"),
@@ -138,7 +167,12 @@ def sync_ebs_snapshots(
             region,
             current_aws_account_id,
         )
-        raw_data = get_snapshots(boto3_session, region, snapshots_in_use)
+        raw_data = get_snapshots(
+            boto3_session,
+            region,
+            snapshots_in_use,
+            current_aws_account_id,
+        )
         transformed_data = transform_snapshots(raw_data)
         load_snapshots(
             neo4j_session,
