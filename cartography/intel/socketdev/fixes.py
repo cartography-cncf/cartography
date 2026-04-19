@@ -176,19 +176,24 @@ def sync_fixes(
 
     # Build lookup: vulnerability ID (CVE/GHSA) -> alert ID
     alerts_by_vuln: dict[str, str] = {}
-    # Build lookup: repo_slug -> set of vulnerability IDs
-    vuln_ids_by_repo: dict[str, set[str]] = {}
+    # Collect all repo slugs that have alerts
+    repo_slugs: set[str] = set()
     for alert in alerts:
-        cve_id = alert.get("cve_id")
         alert_id = alert["id"]
         repo_slug_val = alert.get("repo_slug")
+        if repo_slug_val:
+            repo_slugs.add(repo_slug_val)
+        # Index by CVE ID if available
+        cve_id = alert.get("cve_id")
         if cve_id:
             alerts_by_vuln[cve_id] = alert_id
-            if repo_slug_val:
-                vuln_ids_by_repo.setdefault(repo_slug_val, set()).add(cve_id)
+        # Also index by the alert key which may contain GHSA or other vuln IDs
+        key = alert.get("key")
+        if key:
+            alerts_by_vuln[key] = alert_id
 
-    if not vuln_ids_by_repo:
-        logger.info("No vulnerability alerts with CVE IDs found, skipping fixes sync")
+    if not repo_slugs:
+        logger.info("No alerts with repository info found, skipping fixes sync")
         return
 
     # Build dependency lookup: "name|version" -> dependency ID
@@ -198,18 +203,18 @@ def sync_fixes(
         dep_lookup[key] = dep["id"]
 
     all_fixes: list[dict[str, Any]] = []
-    for repo_slug_val, vuln_ids in vuln_ids_by_repo.items():
+    for repo_slug_val in repo_slugs:
         logger.debug(
-            "Fetching fixes for repo '%s' (%d vulnerabilities)",
+            "Fetching fixes for repo '%s'",
             repo_slug_val,
-            len(vuln_ids),
         )
         try:
+            # Use "*" to fetch fixes for all vulnerabilities in the repo
             raw_response = get(
                 api_token,
                 org_slug,
                 repo_slug_val,
-                ",".join(vuln_ids),
+                "*",
             )
         except Exception:
             logger.warning(
