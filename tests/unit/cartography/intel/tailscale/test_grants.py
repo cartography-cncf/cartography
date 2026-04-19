@@ -52,7 +52,8 @@ class TestACLParserGetGrants:
         grants = acl.get_grants()
         assert len(grants) == 1
         grant = grants[0]
-        assert grant["id"] == "grant:0"
+        assert grant["id"].startswith("grant:")
+        assert len(grant["id"]) == len("grant:") + 12  # 12 hex chars
         assert grant["sources"] == ["alice@example.com"]
         assert grant["destinations"] == ["tag:web"]
         assert grant["source_users"] == ["alice@example.com"]
@@ -204,8 +205,8 @@ class TestACLParserGetGrants:
             "posture:managedDevice",
         ]
 
-    def test_multiple_grants_indexed(self) -> None:
-        """Multiple grants get sequential IDs."""
+    def test_multiple_grants_have_unique_stable_ids(self) -> None:
+        """Multiple grants get unique stable IDs based on content hash."""
         acl = ACLParser(
             """
             {
@@ -219,9 +220,42 @@ class TestACLParserGetGrants:
         )
         grants = acl.get_grants()
         assert len(grants) == 3
-        assert grants[0]["id"] == "grant:0"
-        assert grants[1]["id"] == "grant:1"
-        assert grants[2]["id"] == "grant:2"
+        ids = [g["id"] for g in grants]
+        # All IDs are unique
+        assert len(set(ids)) == 3
+        # All IDs have the correct format
+        for grant_id in ids:
+            assert grant_id.startswith("grant:")
+            assert len(grant_id) == len("grant:") + 12
+
+    def test_grant_id_stable_across_reordering(self) -> None:
+        """Grant IDs are stable regardless of order in the file."""
+        acl1 = ACLParser(
+            """
+            {
+                "grants": [
+                    {"src": ["group:a"], "dst": ["tag:b"], "ip": ["tcp:80"]},
+                    {"src": ["group:c"], "dst": ["tag:d"], "ip": ["tcp:443"]}
+                ]
+            }
+            """,
+        )
+        acl2 = ACLParser(
+            """
+            {
+                "grants": [
+                    {"src": ["group:c"], "dst": ["tag:d"], "ip": ["tcp:443"]},
+                    {"src": ["group:a"], "dst": ["tag:b"], "ip": ["tcp:80"]}
+                ]
+            }
+            """,
+        )
+        grants1 = acl1.get_grants()
+        grants2 = acl2.get_grants()
+        # Same grants in different order should produce same IDs
+        ids1 = {g["id"] for g in grants1}
+        ids2 = {g["id"] for g in grants2}
+        assert ids1 == ids2
 
     def test_grant_without_ip_or_app(self) -> None:
         """Grant with neither ip nor app still parses (both default to empty)."""

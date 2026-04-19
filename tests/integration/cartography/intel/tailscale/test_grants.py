@@ -15,7 +15,6 @@ from tests.integration.cartography.intel.tailscale.test_tailnets import (
 from tests.integration.cartography.intel.tailscale.test_users import (
     _ensure_local_neo4j_has_test_users,
 )
-from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -84,40 +83,53 @@ def _setup_grants_test(neo4j_session):
 )
 def test_load_tailscale_grants(mock_attrs, mock_devices, mock_acls, neo4j_session):
     """
-    Ensure that grants get loaded and structural relationships are created.
+    Ensure that grants get loaded with stable hash-based IDs and
+    structural relationships are created.
     """
     _setup_grants_test(neo4j_session)
 
-    # Assert: Grant nodes exist (5 grants in test data)
-    expected_grant_nodes = {
-        ("grant:0",),
-        ("grant:1",),
-        ("grant:2",),
-        ("grant:3",),
-        ("grant:4",),
-    }
-    assert check_nodes(neo4j_session, "TailscaleGrant", ["id"]) == expected_grant_nodes
-
-    # Assert: Grant to Tailnet relationships exist
-    expected_rels = {
-        ("grant:0", TEST_ORG),
-        ("grant:1", TEST_ORG),
-        ("grant:2", TEST_ORG),
-        ("grant:3", TEST_ORG),
-        ("grant:4", TEST_ORG),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleGrant",
-            "id",
-            "TailscaleTailnet",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == expected_rels
+    # Assert: 5 Grant nodes exist with stable hash IDs
+    result = neo4j_session.run(
+        "MATCH (g:TailscaleGrant) RETURN g.id AS id",
     )
+    grant_ids = {r["id"] for r in result}
+    assert len(grant_ids) == 5
+    for grant_id in grant_ids:
+        assert grant_id.startswith("grant:")
+        assert len(grant_id) == len("grant:") + 12
+
+    # Assert: All grants are connected to the Tailnet
+    result = neo4j_session.run(
+        """
+        MATCH (t:TailscaleTailnet {id: $org})-[:RESOURCE]->(g:TailscaleGrant)
+        RETURN count(g) AS cnt
+        """,
+        org=TEST_ORG,
+    )
+    assert result.single()["cnt"] == 5
+
+    # Assert: SOURCE relationships from groups exist
+    # grant with src=group:example, grant with src=autogroup:member,
+    # grant with src=group:employees
+    expected_source_groups = {"group:example", "autogroup:member", "group:employees"}
+    result = neo4j_session.run(
+        """
+        MATCH (g:TailscaleGroup)-[:SOURCE]->(grant:TailscaleGrant)
+        RETURN g.id AS group_id
+        """,
+    )
+    actual_source_groups = {r["group_id"] for r in result}
+    assert actual_source_groups == expected_source_groups
+
+    # Assert: DESTINATION relationships to tags exist (tag:byod from 2 grants)
+    result = neo4j_session.run(
+        """
+        MATCH (grant:TailscaleGrant)-[:DESTINATION]->(t:TailscaleTag)
+        RETURN t.id AS tag_id, count(grant) AS cnt
+        """,
+    )
+    tag_rels = {(r["tag_id"], r["cnt"]) for r in result}
+    assert ("tag:byod", 2) in tag_rels
 
 
 @patch.object(
@@ -144,9 +156,6 @@ def test_tailscale_grants_inherited_member_of(
     """
     Ensure that INHERITED_MEMBER_OF relationships are created in the graph
     for transitive sub-group membership (P1.2).
-
-    group:employees contains group:corp as a sub-group.
-    Users in group:corp should get INHERITED_MEMBER_OF -> group:employees.
     """
     _setup_grants_test(neo4j_session)
 
@@ -193,27 +202,14 @@ def test_tailscale_grants_effective_user_access(
     neo4j_session,
 ):
     """
-    Ensure that effective user CAN_ACCESS relationships are resolved correctly,
-    including autogroup:self (P1.3).
+    Ensure that effective user CAN_ACCESS relationships are resolved correctly.
     """
     _setup_grants_test(neo4j_session)
 
-    # Expected user CAN_ACCESS relationships:
-    #
-    # grant:0: group:example (hjsimpson) -> tag:byod (p892kg92CNTRL)
-    # grant:1: mbsimpson -> * (all 4 devices)
-    # grant:2: autogroup:member (mbsimpson, hjsimpson) -> tag:byod (p892kg92CNTRL)
-    # grant:4: group:employees (direct members: none, but group:corp is sub-group)
-    #   group:employees direct members = [] (only sub_groups)
-    #   -> autogroup:self: no direct members to resolve
-    #   (transitive resolution happens via INHERITED_MEMBER_OF in the graph,
-    #    but grants.py only uses direct group members for CAN_ACCESS)
-    #
-    # After dedup:
     expected_user_access = {
-        # hjsimpson via grant:0 (group:example -> tag:byod)
+        # hjsimpson via group:example -> tag:byod
         ("654321", "p892kg92CNTRL"),
-        # mbsimpson via grant:1 (wildcard dest)
+        # mbsimpson via wildcard dest
         ("123456", "p892kg92CNTRL"),
         ("123456", "n292kg92CNTRL"),
         ("123456", "n2fskgfgCNT89"),
@@ -260,9 +256,7 @@ def test_tailscale_grants_device_to_device_access(
     """
     _setup_grants_test(neo4j_session)
 
-    # grant:3: tag:byod -> * (all devices)
-    # tag:byod devices: p892kg92CNTRL
-    # So p892kg92CNTRL can access all other devices (excluding self)
+    # tag:byod -> * : p892kg92CNTRL can access all other devices
     expected_device_access = {
         ("p892kg92CNTRL", "n292kg92CNTRL"),
         ("p892kg92CNTRL", "n2fskgfgCNT89"),
@@ -280,3 +274,49 @@ def test_tailscale_grants_device_to_device_access(
         )
         == expected_device_access
     )
+
+
+@patch.object(
+    cartography.intel.tailscale.acls,
+    "get",
+    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get",
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+)
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_tailscale_grants_granted_by_aggregation(
+    mock_attrs,
+    mock_devices,
+    mock_acls,
+    neo4j_session,
+):
+    """
+    Ensure that granted_by on CAN_ACCESS relationships aggregates
+    multiple grant IDs when several grants give access to the same pair.
+    """
+    _setup_grants_test(neo4j_session)
+
+    # mbsimpson -> p892kg92CNTRL is granted by:
+    # - the wildcard grant (src: mbsimpson, dst: *)
+    # - the autogroup:member -> tag:byod grant (mbsimpson is member)
+    result = neo4j_session.run(
+        """
+        MATCH (u:TailscaleUser {login_name: 'mbsimpson@simpson.corp'})
+              -[r:CAN_ACCESS]->(d:TailscaleDevice {id: 'p892kg92CNTRL'})
+        RETURN r.granted_by AS granted_by
+        """,
+    )
+    record = result.single()
+    granted_by = list(record["granted_by"])
+    # Should have at least 2 grants (wildcard + autogroup:member -> tag:byod)
+    assert len(granted_by) >= 2
+    # All should be valid grant IDs
+    for grant_id in granted_by:
+        assert grant_id.startswith("grant:")

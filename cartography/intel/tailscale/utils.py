@@ -137,11 +137,17 @@ class ACLParser:
         Tailscale grants define access rules with sources, destinations,
         and capabilities (network and/or application layer).
 
+        Each grant is assigned a stable ID based on a hash of its content
+        (src + dst + ip + app + srcPosture), so reordering grants in the
+        policy file does not change their identity.
+
         :return: list of grants with parsed source/destination selectors
         """
+        import hashlib
+
         result: List[Dict[str, Any]] = []
         grants = self.data.get("grants", [])
-        for index, grant in enumerate(grants):
+        for grant in grants:
             sources = grant.get("src", [])
             destinations = grant.get("dst", [])
 
@@ -177,7 +183,24 @@ class ACLParser:
             app_capabilities = grant.get("app", {})
             src_posture = grant.get("srcPosture", [])
 
-            grant_id = f"grant:{index}"
+            # Compute stable ID from grant content
+            hash_input = json.dumps(
+                {
+                    "src": sorted(sources),
+                    "dst": sorted(destinations),
+                    "ip": sorted(ip_rules),
+                    "app": app_capabilities,
+                    "srcPosture": sorted(src_posture),
+                },
+                sort_keys=True,
+            )
+            grant_id = (
+                "grant:"
+                + hashlib.sha256(
+                    hash_input.encode(),
+                ).hexdigest()[:12]
+            )
+
             result.append(
                 {
                     "id": grant_id,
