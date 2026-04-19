@@ -266,7 +266,7 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
-    use_profile_for_session: bool = False,
+    use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
@@ -281,14 +281,11 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if use_profile_for_session:
-            # Honor explicit profiles even for single-profile setups, so hub/spoke STS assume-role configs sync the spoke.
-            boto3_session = boto3.Session(profile_name=profile_name)
-            aioboto3_session = aioboto3.Session(profile_name=profile_name)
-        else:
-            # Default session keeps env-var-only credentials working when ~/.aws/config is absent (see #1042).
-            boto3_session = boto3.Session()
-            aioboto3_session = aioboto3.Session()
+        # When use_explicit_profile is set, honor configured profiles (hub/spoke STS assume-role configs, #1142/#1185).
+        # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -477,7 +474,9 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
-        use_profile_for_session=config.aws_sync_all_profiles,
+        # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
+        # stays decoupled from the CLI option should the two ever diverge.
+        use_explicit_profile=config.aws_sync_all_profiles,
     )
 
     if sync_successful:
