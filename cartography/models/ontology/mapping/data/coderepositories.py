@@ -68,35 +68,7 @@ gitlab_mapping = OntologyMapping(
     ],
 )
 
-socketdev_mapping = OntologyMapping(
-    module_name="socketdev",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="SocketDevRepository",
-            fields=[
-                OntologyFieldMapping(ontology_field="name", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
-                ),
-                OntologyFieldMapping(ontology_field="url", node_field="homepage"),
-                OntologyFieldMapping(
-                    ontology_field="default_branch", node_field="default_branch"
-                ),
-                # Socket.dev uses 'visibility' (private, public)
-                OntologyFieldMapping(
-                    ontology_field="public",
-                    node_field="visibility",
-                    special_handling="equal_boolean",
-                    extra={"values": ["public"]},
-                ),
-                OntologyFieldMapping(ontology_field="archived", node_field="archived"),
-            ],
-        ),
-    ],
-)
-
 CODEREPOSITORIES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "gitlab": gitlab_mapping,
-    "socketdev": socketdev_mapping,
 }

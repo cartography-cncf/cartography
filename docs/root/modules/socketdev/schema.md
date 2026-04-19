@@ -40,8 +40,6 @@ Represents a Socket.dev [Organization](https://docs.socket.dev/reference), the t
 
 Represents a repository monitored by Socket.dev for supply chain security.
 
-> **Ontology Mapping**: This node has the extra label `CodeRepository` to enable cross-platform queries for code repositories across different systems (e.g., GitHubRepository, GitLabProject).
-
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -49,6 +47,7 @@ Represents a repository monitored by Socket.dev for supply chain security.
 | **id** | Unique repository identifier |
 | **name** | Repository name |
 | **slug** | Repository slug |
+| **fullname** | Full path including workspace (e.g. "goodenoughlabs/infra") |
 | description | Repository description |
 | visibility | Repository visibility (public or private) |
 | archived | Whether the repository is archived |
@@ -63,6 +62,12 @@ Represents a repository monitored by Socket.dev for supply chain security.
 
     ```
     (SocketDevOrganization)-[RESOURCE]->(SocketDevRepository)
+    ```
+
+- A SocketDevRepository monitors a CodeRepository (cross-module link via `_ont_fullname`)
+
+    ```
+    (SocketDevRepository)-[MONITORS]->(CodeRepository)
     ```
 
 - A SocketDevRepository has SocketDevDependency's
@@ -81,6 +86,8 @@ Represents a repository monitored by Socket.dev for supply chain security.
 
 Represents an open-source dependency tracked by Socket.dev across the organization's repositories.
 
+> **Ontology Mapping**: This node has the extra label `Dependency`. It is linked to the abstract `Package` ontology node via `(:Package)-[:DETECTED_AS]->(:SocketDevDependency)` using the `normalized_id` field for cross-tool matching with Trivy and Syft.
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -90,6 +97,7 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
 | version | Package version |
 | ecosystem | Package ecosystem (e.g. npm, pypi, maven, golang) |
 | namespace | Package namespace (if applicable) |
+| **normalized_id** | Normalized package ID for cross-tool matching (format: `type\|name\|version`) |
 | direct | Whether this is a direct dependency (true) or transitive (false) |
 | repo_slug | Repository slug where the dependency was found |
 
@@ -105,6 +113,12 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
 
     ```
     (SocketDevDependency)-[FOUND_IN]->(SocketDevRepository)
+    ```
+
+- A Package is detected as a SocketDevDependency (ontology link, defined in Package model)
+
+    ```
+    (Package)-[DETECTED_AS]->(SocketDevDependency)
     ```
 
 ### SocketDevAlert

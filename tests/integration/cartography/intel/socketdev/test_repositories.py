@@ -50,13 +50,13 @@ def test_sync_repositories(mock_api, neo4j_session):
         == expected_org_nodes
     )
 
-    # Assert: Repositories exist
+    # Assert: Repositories exist with fullname
     expected_repo_nodes = {
-        ("repo-001", "frontend-app"),
-        ("repo-002", "backend-api"),
+        ("repo-001", "frontend-app", "acme-corp/frontend-app"),
+        ("repo-002", "backend-api", "acme-corp/backend-api"),
     }
     assert (
-        check_nodes(neo4j_session, "SocketDevRepository", ["id", "slug"])
+        check_nodes(neo4j_session, "SocketDevRepository", ["id", "slug", "fullname"])
         == expected_repo_nodes
     )
 

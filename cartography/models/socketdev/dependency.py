@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -19,6 +20,7 @@ class SocketDevDependencyNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("version")
     ecosystem: PropertyRef = PropertyRef("type")
     namespace: PropertyRef = PropertyRef("namespace")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     direct: PropertyRef = PropertyRef("direct")
     repo_slug: PropertyRef = PropertyRef("repository")
 
@@ -65,6 +67,7 @@ class SocketDevDependencyToRepoRel(CartographyRelSchema):
 class SocketDevDependencySchema(CartographyNodeSchema):
     label: str = "SocketDevDependency"
     properties: SocketDevDependencyNodeProperties = SocketDevDependencyNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Dependency"])
     sub_resource_relationship: SocketDevOrgToDependencyRel = (
         SocketDevOrgToDependencyRel()
     )

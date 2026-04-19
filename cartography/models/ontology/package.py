@@ -51,6 +51,18 @@ class PackageToSyftPackageRel(CartographyRelSchema):
     properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
+# (:Package)-[:DETECTED_AS]->(:SocketDevDependency)
+@dataclass(frozen=True)
+class PackageToSocketDevDependencyRel(CartographyRelSchema):
+    target_node_label: str = "SocketDevDependency"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class PackageToECRImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
@@ -140,6 +152,7 @@ class PackageSchema(CartographyNodeSchema):
         rels=[
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
+            PackageToSocketDevDependencyRel(),
             PackageToECRImageRel(),
             PackageToGCPArtifactRegistryContainerImageRel(),
             PackageToGCPArtifactRegistryPlatformImageRel(),

@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.socketdev.dependency import SocketDevDependencySchema
 from cartography.util import timeit
 
@@ -71,13 +72,23 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
         dep_id = dep.get("id") or f"{name}|{version}|{repository}"
 
+        # Build normalized_id for cross-tool matching with Package ontology node
+        pkg_type = dep.get("type")
+        namespace = dep.get("namespace") or ""
+        normalized_id = make_normalized_package_id(
+            name=name,
+            version=version,
+            pkg_type=pkg_type,
+        )
+
         deps.append(
             {
                 "id": dep_id,
                 "name": name,
                 "version": version,
-                "type": dep.get("type"),
-                "namespace": dep.get("namespace"),
+                "type": pkg_type,
+                "namespace": namespace,
+                "normalized_id": normalized_id,
                 "repository": repository,
                 "direct": dep.get("direct"),
             },
