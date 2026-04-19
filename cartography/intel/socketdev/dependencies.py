@@ -111,13 +111,15 @@ def sync_dependencies(
     api_token: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync Socket.dev dependencies.
 
     The dependencies search endpoint is not org-scoped — it returns all
     dependencies visible to the API token. The caller is responsible for
     providing the correct ORG_ID in common_job_parameters.
+
+    Returns the transformed dependencies list for downstream use (e.g. fixes sync).
     """
     logger.info("Starting Socket.dev dependencies sync")
     raw_deps = get(api_token)
@@ -126,3 +128,4 @@ def sync_dependencies(
     load_dependencies(neo4j_session, dependencies, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Socket.dev dependencies sync")
+    return dependencies

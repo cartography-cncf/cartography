@@ -155,3 +155,46 @@ Represents a security alert from Socket.dev. Alerts cover vulnerabilities (CVE),
     ```
     (SocketDevAlert)-[FOUND_IN]->(SocketDevRepository)
     ```
+
+- A SocketDevAlert has SocketDevFix's
+
+    ```
+    (SocketDevFix)-[APPLIES_TO]->(SocketDevAlert)
+    ```
+
+### SocketDevFix
+
+Represents an available fix for a vulnerability alert. Modeled after the Trivy `TrivyFix` pattern, linking alerts to their remediation actions.
+
+> **Ontology Mapping**: This node has the extra label `Fix` to enable cross-platform queries for vulnerability fixes (e.g., TrivyFix).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique fix identifier (vulnerability_id\|purl\|fixed_version) |
+| purl | Package URL of the affected package (e.g. pkg:npm/lodash@4.17.21) |
+| fixed_version | Version that fixes the vulnerability |
+| update_type | Type of version update required: patch, minor, major, or unknown |
+| **vulnerability_id** | CVE or GHSA identifier this fix addresses |
+| **fix_type** | Fix availability: fixFound or partialFixFound |
+
+#### Relationships
+
+- A SocketDevFix belongs to a SocketDevOrganization
+
+    ```
+    (SocketDevOrganization)-[RESOURCE]->(SocketDevFix)
+    ```
+
+- A SocketDevFix applies to a SocketDevAlert
+
+    ```
+    (SocketDevFix)-[APPLIES_TO]->(SocketDevAlert)
+    ```
+
+- A SocketDevDependency should update to a SocketDevFix
+
+    ```
+    (SocketDevDependency)-[SHOULD_UPDATE_TO]->(SocketDevFix)
+    ```

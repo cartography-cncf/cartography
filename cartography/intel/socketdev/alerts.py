@@ -148,9 +148,10 @@ def sync_alerts(
     org_slug: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync Socket.dev alerts for the given organization.
+    Returns the transformed alerts list for downstream use (e.g. fixes sync).
     """
     logger.info("Starting Socket.dev alerts sync")
     raw_alerts = get(api_token, org_slug)
@@ -159,3 +160,4 @@ def sync_alerts(
     load_alerts(neo4j_session, alerts, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Socket.dev alerts sync")
+    return alerts
