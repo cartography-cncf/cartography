@@ -2,12 +2,16 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.intel.gcp.artifact_registry import sync
+from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_maven_artifacts
+from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artifacts
+from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_HELM_CHARTS
 from tests.data.gcp.artifact_registry import MOCK_MAVEN_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_REPOSITORIES
+from tests.data.gcp.artifact_registry import MOCK_YUM_ARTIFACTS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -19,9 +23,13 @@ TEST_DOCKER_REPO_ID = (
 TEST_MAVEN_REPO_ID = (
     "projects/test-project/locations/us-central1/repositories/maven-repo"
 )
+TEST_APT_REPO_ID = "projects/test-project/locations/us-east1/repositories/apt-repo"
+TEST_YUM_REPO_ID = "projects/test-project/locations/us-east1/repositories/yum-repo"
 TEST_DOCKER_IMAGE_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123"
 TEST_HELM_CHART_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789"
 TEST_MAVEN_ARTIFACT_ID = "projects/test-project/locations/us-central1/repositories/maven-repo/mavenArtifacts/com.example:my-lib:1.0.0"
+TEST_APT_ARTIFACT_ID = "projects/test-project/locations/us-east1/repositories/apt-repo/packages/curl/versions/7.88.1"
+TEST_YUM_ARTIFACT_ID = "projects/test-project/locations/us-east1/repositories/yum-repo/packages/bash/versions/5.2.26"
 TEST_PLATFORM_IMAGE_AMD64_ID = f"{TEST_DOCKER_IMAGE_ID}@sha256:def456"
 TEST_PLATFORM_IMAGE_ARM64_ID = f"{TEST_DOCKER_IMAGE_ID}@sha256:ghi789"
 
@@ -42,11 +50,21 @@ def _mock_get_maven_artifacts(client, repo_name):
     return MOCK_MAVEN_ARTIFACTS
 
 
+def _mock_get_apt_artifacts(client, repo_name):
+    return MOCK_APT_ARTIFACTS
+
+
+def _mock_get_yum_artifacts(client, repo_name):
+    return MOCK_YUM_ARTIFACTS
+
+
 @patch(
     "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
     {
         "DOCKER": (_mock_get_docker_images, transform_docker_images),
         "MAVEN": (_mock_get_maven_artifacts, transform_maven_artifacts),
+        "APT": (_mock_get_apt_artifacts, transform_apt_artifacts),
+        "YUM": (_mock_get_yum_artifacts, transform_yum_artifacts),
     },
 )
 @patch(
@@ -79,6 +97,8 @@ def test_sync_artifact_registry(
     assert check_nodes(neo4j_session, "GCPArtifactRegistryRepository", ["id"]) == {
         (TEST_DOCKER_REPO_ID,),
         (TEST_MAVEN_REPO_ID,),
+        (TEST_APT_REPO_ID,),
+        (TEST_YUM_REPO_ID,),
     }
 
     # Assert: Check container image nodes
@@ -94,6 +114,12 @@ def test_sync_artifact_registry(
     # Assert: Check language package nodes (Maven artifact)
     assert check_nodes(neo4j_session, "GCPArtifactRegistryLanguagePackage", ["id"]) == {
         (TEST_MAVEN_ARTIFACT_ID,),
+    }
+
+    # Assert: Check generic artifact nodes (APT and YUM artifacts)
+    assert check_nodes(neo4j_session, "GCPArtifactRegistryGenericArtifact", ["id"]) == {
+        (TEST_APT_ARTIFACT_ID,),
+        (TEST_YUM_ARTIFACT_ID,),
     }
 
     # Assert: Check platform image nodes
@@ -113,6 +139,8 @@ def test_sync_artifact_registry(
     ) == {
         (TEST_PROJECT_ID, TEST_DOCKER_REPO_ID),
         (TEST_PROJECT_ID, TEST_MAVEN_REPO_ID),
+        (TEST_PROJECT_ID, TEST_APT_REPO_ID),
+        (TEST_PROJECT_ID, TEST_YUM_REPO_ID),
     }
 
     # Assert: Check GCPProject -> GCPArtifactRegistryContainerImage relationships
@@ -164,6 +192,32 @@ def test_sync_artifact_registry(
         "id",
         "CONTAINS",
     ) == {(TEST_MAVEN_REPO_ID, TEST_MAVEN_ARTIFACT_ID)}
+
+    # Assert: Check GCPProject -> GCPArtifactRegistryGenericArtifact relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPArtifactRegistryGenericArtifact",
+        "id",
+        "RESOURCE",
+    ) == {
+        (TEST_PROJECT_ID, TEST_APT_ARTIFACT_ID),
+        (TEST_PROJECT_ID, TEST_YUM_ARTIFACT_ID),
+    }
+
+    # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryGenericArtifact relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryRepository",
+        "id",
+        "GCPArtifactRegistryGenericArtifact",
+        "id",
+        "CONTAINS",
+    ) == {
+        (TEST_APT_REPO_ID, TEST_APT_ARTIFACT_ID),
+        (TEST_YUM_REPO_ID, TEST_YUM_ARTIFACT_ID),
+    }
 
     # Assert: Check GCPArtifactRegistryContainerImage -> GCPArtifactRegistryPlatformImage relationships
     assert check_rels(

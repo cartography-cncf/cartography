@@ -185,6 +185,8 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 
 Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v1/).
 
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
+
 | Field      | Description                                             |
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
@@ -224,6 +226,39 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
     ```
 
 
+### Label::GCPLabel
+
+Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
+
+> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+
+Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
+
+| Field         | Description                                                                                                 |
+|---------------|-------------------------------------------------------------------------------------------------------------|
+| firstseen     | Timestamp of when a sync job first discovered this node                                                     |
+| lastupdated   | Timestamp of the last time the node was updated                                                             |
+| id            | The ID of the label. Takes the form `{resource_id}:{key}:{value}`.                                         |
+| key           | The key of the label.                                                                                       |
+| value         | The value of the label.                                                                                     |
+| resource_type | The Cartography node label of the resource this label is attached to (e.g. `GCPBucket`, `GCPInstance`).     |
+
+#### Relationships
+
+- GCP resources can be labeled with GCPLabels.
+
+    ```
+    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[LABELED]->(GCPLabel)
+    ```
+
+- GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPLabel)
+    ```
+
+
 ### GCPInstance
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
@@ -240,8 +275,8 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | instancename     | The name of the instance, e.g. "my-instance" |
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
-| exposed_internet | Set to True  with `exposed_internet_type = 'direct'` if there is an 'allow' IPRule attached to one of the instance's ingress firewalls with the following conditions:  The 'allow' IpRule allows traffic from one or more TCP ports, and the 'allow' IpRule is not superceded by a 'deny' IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and 'deny' rules of the same priority are applied ahead of 'allow' rules) |
-| exposed_internet_type | A string indicating the type of internet exposure. Currently only `'direct'` is supported (exposed via firewall rules). Set by the `gcp_compute_asset_inet_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/gcp_compute_asset_inet_exposure.json). |
+| exposed_internet | Set to `true` if the instance is internet-exposed via either path: (1) `'direct'` — the instance has a public IP and an ingress firewall rule allowing traffic from 0.0.0.0/0 with no higher-priority deny rule blocking it, or (2) `'gcp_lb'` — the instance is behind an external-facing GCPBackendService via the InstanceGroup chain. Set by the `gcp_compute_exposure` scoped analysis job. |
+| exposed_internet_type | A string indicating the type of internet exposure: `'direct'` (exposed via firewall rules + public IP) or `'gcp_lb'` (exposed via an external load balancer). |
 | status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
 #### Relationships
 
@@ -293,6 +328,11 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     MATCH (fw:GCPFirewall{direction: 'INGRESS', has_target_service_accounts: False}})
     WHERE NOT (fw)-[TARGET_TAG]->(GCPNetworkTag)
     MATCH (GCPInstance)-[MEMBER_OF_GCP_VPC]->(GCPVpc)-[RESOURCE]->(fw)
+    ```
+
+- GCPBackendServices expose GCPInstances. Created by the `gcp_lb_exposure` scoped analysis job when the backend service is external-facing.
+    ```
+    (GCPBackendService)-[:EXPOSE]->(GCPInstance)
     ```
 
 ### GCPNetworkTag
@@ -507,6 +547,8 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
 | Field                       | Description |
 | --------------------------- | ----------- |
 | firstseen                   | Timestamp of when a sync job first discovered this node |
@@ -530,13 +572,13 @@ Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/referen
 - Firewalls define rules that allow traffic
 
     ```
-    (GcpIpRule)-[ALLOWED_BY]->(GCPFirewall)
+    (GCPIpRule)-[ALLOWED_BY]->(GCPFirewall)
     ```
 
 - Firewalls define rules that deny traffic
 
     ```
-    (GcpIpRule)-[DENIED_BY]->(GCPFirewall)
+    (GCPIpRule)-[DENIED_BY]->(GCPFirewall)
     ```
 
 - GCP Firewalls can be labeled with tags to direct traffic to or deny traffic to labeled GCPInstances
@@ -586,6 +628,8 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 | self_link             | Server-defined URL for the resource                                                                                                                  |
 | subnetwork            | A partial resource URI of the subnetwork this Forwarding Rule belongs to                                                                             |
 | target                | A partial resource URI of the target resource to receive the traffic                                                                                 |
+| exposed_internet      | Set to `true` if `load_balancing_scheme` is `EXTERNAL` or `EXTERNAL_MANAGED`. Set by the `gcp_compute_exposure` scoped analysis job.                 |
+| exposed_internet_type | Set to `'direct'` when the forwarding rule is external-facing.                                                                                       |
 
 #### Relationships
 
@@ -604,6 +648,8 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 ### GKECluster
 
 Representation of a GCP [GKE Cluster](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/).
+
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, KubernetesCluster).
 
 | Field                      | Description                                                                                                                                                                                                       |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -648,9 +694,11 @@ Representation of a GCP [GKE Cluster](https://cloud.google.com/kubernetes-engine
     ```
 
 
-### IpRule::IpPermissionInbound::GCPIpRule
+### GCPIpRule::IpPermissionInbound::IpRule
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+A GCPIpRule node represents an inbound GCP firewall IP rule. It carries semantic labels for compatibility with generic inbound rule queries.
+
+> **Ontology Mapping**: This node has the extra labels `IpPermissionInbound` and `IpRule` to preserve semantic compatibility.
 
 | Field       | Description                                                 |
 | ----------- | ----------------------------------------------------------- |
@@ -663,27 +711,29 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 #### Relationships
 
-- GCP Firewall rules are defined on IpRange objects.
+- GCP firewall rules are defined on GCPIpRange objects.
 
 	```
-	(GCPIpRule, IpRule, IpPermissionInbound)<-[MEMBER_OF_IP_RULE)-(:IpRange)
+	(GCPIpRange)-[MEMBER_OF_IP_RULE]->(GCPIpRule)
 	```
 
 - Firewalls define rules that allow traffic
 
     ```
-    (GcpIpRule)-[ALLOWED_BY]->(GCPFirewall)
+    (GCPIpRule)-[ALLOWED_BY]->(GCPFirewall)
     ```
 
 - Firewalls define rules that deny traffic
 
     ```
-    (GcpIpRule)-[DENIED_BY]->(GCPFirewall)
+    (GCPIpRule)-[DENIED_BY]->(GCPFirewall)
     ```
 
-### IpRange
+### GCPIpRange::IpRange
 
 Representation of an IP range or subnet.
+
+> **Ontology Mapping**: This node has the extra label `IpRange` to preserve cross-platform semantics for generic IP ranges.
 
 | Field       | Description                                                              |
 | ----------- | ------------------------------------------------------------------------ |
@@ -693,15 +743,17 @@ Representation of an IP range or subnet.
 
 #### Relationships
 
-- GCP Firewall rules are defined on IpRange objects.
+- GCPIpRanges are members of GCPIpRules.
 
 	```
-	(GCPIpRule, IpRule, IpPermissionInbound)<-[MEMBER_OF_IP_RULE)-(:IpRange)
+	(GCPIpRange)-[MEMBER_OF_IP_RULE]->(GCPIpRule)
 	```
 
 ### GCPServiceAccount
 
 Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts).
+
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., KubernetesServiceAccount, OpenAIServiceAccount, ScalewayApplication).
 
 | Field          | Description                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------- |
@@ -725,6 +777,8 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 ### GCPRole
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 Roles exist at different levels in the GCP hierarchy and are synced separately:
 - **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
@@ -792,6 +846,8 @@ Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/r
 ### GCPCryptoKey
 
 Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |---|---|
@@ -1514,7 +1570,7 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 |-------|-------------|
 | **id** | Full resource name of the Docker image |
 | name | The short name of the image |
-| uri | The URI of the image |
+| **uri** | The URI of the image |
 | digest | The image digest (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |
@@ -1742,8 +1798,14 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
 | name | Short name of the service |
 | location | The GCP location where the service is deployed |
-| container_image | The container image for the service |
-| service_account_email | The email of the service account used by this service |
+| description | User-provided description of the service |
+| uri | Default URL serving the service |
+| latest_ready_revision | Full resource name of the latest ready revision for this service |
+| ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
+| exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
+| exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
+
+Cloud Run services can split traffic across multiple revisions, so exact runtime image prerequisites are modeled on `GCPCloudRunRevision` rather than directly on the service node.
 
 #### Relationships
 
@@ -1760,6 +1822,8 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 
 Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container workloads (alongside `KubernetesContainer`, `ECSContainer`, `AzureGroupContainer`, etc.). Cloud Run revisions participate in the `RESOLVED_IMAGE` analysis job.
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -1767,9 +1831,16 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 | **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
 | name | Short name of the revision |
 | service | Full resource name of the parent service |
-| container_image | The container image for this revision |
+| container_image | First container image reference retained for compatibility; use `container_images` for all containers |
+| container_images | List of all container image references for this revision, including sidecars |
+| image_digest | First container digest retained for compatibility; use `image_digests` for all container digests |
+| image_digests | List of all container digests for this revision, used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this revision |
 | log_uri | URI to Cloud Logging for this revision |
+| project_id | The GCP project ID this revision belongs to |
 
 #### Relationships
 
@@ -1785,12 +1856,22 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     ```
     (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
+  - GCPCloudRunRevisions are linked to the image reference recorded in Cloud Run metadata. Matches on `image_digests`, so this can point to either a single-image manifest or a multi-architecture image index depending on what Cloud Run stores.
+    ```
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    ```
+  - GCPCloudRunRevisions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunRevision)-[:RESOLVED_IMAGE]->(Image)
+    ```
 
 ### GCPCloudRunJob
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
 
-> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+> **Ontology Mapping**: This node has the extra labels `Function` and `Container`. `Function` enables cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction). `Container` enables cross-platform container-workload queries (alongside `KubernetesContainer`, `ECSContainer`, etc.) and makes Cloud Run jobs participate in the `RESOLVED_IMAGE` analysis job. Cloud Run jobs legitimately inhabit both categories — they are container images run as on-demand functions.
 
 | Field | Description |
 |---|---|
@@ -1799,8 +1880,15 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 | **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
 | name | Short name of the job |
 | location | The GCP location where the job is deployed |
-| container_image | The container image for the job |
+| container_image | First container image reference retained for compatibility; use `container_images` for all containers |
+| container_images | List of all container image references for this job, including sidecars |
+| image_digest | First container digest retained for compatibility; use `image_digests` for all container digests |
+| image_digests | List of all container digests for this job, used to link to image registry nodes |
+| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this job |
+| project_id | The GCP project ID this job belongs to |
 
 #### Relationships
 
@@ -1815,6 +1903,16 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
   - GCPCloudRunJobs use GCPServiceAccounts.
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+  - GCPCloudRunJobs are linked to the image reference recorded in Cloud Run metadata. Matches on `image_digests`, so this can point to either a single-image manifest or a multi-architecture image index depending on what Cloud Run stores.
+    ```
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    ```
+  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunExecution
@@ -1842,4 +1940,251 @@ Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/
   - GCPCloudRunJobs have GCPCloudRunExecutions.
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+
+### GCPBackendService
+
+Representation of a GCP [Backend Service](https://cloud.google.com/compute/docs/reference/rest/v1/backendServices). Backend services direct traffic to backend instance groups or other backends, and are a core component of the GCP load balancing stack.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this backend service (e.g., `projects/{project}/global/backendServices/{name}`) |
+| partial_uri | Same as `id` |
+| name | The name of the backend service |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this backend service belongs to |
+| region | The region of this backend service, or `null` for global backend services |
+| description | An optional description of this backend service |
+| load_balancing_scheme | The load balancing scheme (e.g., `EXTERNAL`, `EXTERNAL_MANAGED`, `INTERNAL`, `INTERNAL_MANAGED`) |
+| protocol | The protocol this backend service uses (e.g., `HTTP`, `HTTPS`, `TCP`, `SSL`) |
+| port | The port for the backend service |
+| port_name | A named port on a backend instance group |
+| timeout_sec | Backend service timeout in seconds |
+| security_policy | The full URL of the Cloud Armor security policy attached to this backend service |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPBackendServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBackendService)
+    ```
+  - GCPBackendServices route traffic to GCPInstanceGroups.
+    ```
+    (GCPBackendService)-[:ROUTES_TO]->(GCPInstanceGroup)
+    ```
+  - GCPCloudArmorPolicies protect GCPBackendServices.
+    ```
+    (GCPCloudArmorPolicy)-[:PROTECTS]->(GCPBackendService)
+    ```
+  - GCPBackendServices expose GCPInstances. Created by the `gcp_lb_exposure` scoped analysis job.
+    ```
+    (GCPBackendService)-[:EXPOSE]->(GCPInstance)
+    ```
+
+### GCPInstanceGroup
+
+Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroups). Instance groups are collections of VM instances that can be managed together and serve as backends for load balancing.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this instance group (e.g., `projects/{project}/zones/{zone}/instanceGroups/{name}`) |
+| partial_uri | Same as `id` |
+| **name** | The name of the instance group (indexed) |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this instance group belongs to |
+| zone | The zone of this instance group |
+| region | The region of this instance group (for regional instance groups) |
+| description | An optional description of this instance group |
+| network | The partial URI of the VPC network this instance group belongs to |
+| subnetwork | The partial URI of the subnet this instance group belongs to |
+| size | The number of instances in this instance group |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPInstanceGroups are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPInstanceGroup)
+    ```
+  - GCPInstanceGroups have member GCPInstances.
+    ```
+    (GCPInstanceGroup)-[:HAS_MEMBER]->(GCPInstance)
+    ```
+  - GCPBackendServices route traffic to GCPInstanceGroups.
+    ```
+    (GCPBackendService)-[:ROUTES_TO]->(GCPInstanceGroup)
+    ```
+
+### GCPCloudArmorPolicy
+
+Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this policy (e.g., `projects/{project}/global/securityPolicies/{name}`) |
+| partial_uri | Same as `id` |
+| name | The name of the security policy |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this policy belongs to |
+| description | An optional description of this security policy |
+| policy_type | The type of the security policy (e.g., `CLOUD_ARMOR`) |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPCloudArmorPolicies are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudArmorPolicy)
+    ```
+  - GCPCloudArmorPolicies protect GCPBackendServices.
+    ```
+    (GCPCloudArmorPolicy)-[:PROTECTS]->(GCPBackendService)
+    ```
+
+### GCPBigQueryDataset
+
+Represents a GCP BigQuery Dataset.
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database resources across different systems.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The dataset identifier in `project_id:dataset_id` format |
+| dataset_id | The short dataset ID |
+| friendly_name | User-friendly name for the dataset |
+| description | Description of the dataset |
+| location | Geographic location of the dataset (e.g., US, EU) |
+| creation_time | Creation time of the dataset |
+| last_modified_time | Last modification time of the dataset |
+| default_table_expiration_ms | Default expiration time for tables in milliseconds |
+| default_partition_expiration_ms | Default expiration time for partitions in milliseconds |
+
+#### Relationships
+
+  - GCPBigQueryDatasets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryDataset)
+    ```
+
+### GCPBigQueryTable
+
+Represents a GCP BigQuery Table, View, or Materialized View.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The table identifier in `project_id:dataset_id.table_id` format |
+| table_id | The short table ID |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
+| type | Table type: TABLE, VIEW, MATERIALIZED_VIEW, or EXTERNAL |
+| creation_time | Creation time of the table |
+| expiration_time | Expiration time of the table, if set |
+| num_bytes | Size of the table in bytes |
+| num_long_term_bytes | Size of long-term storage in bytes |
+| num_rows | Number of rows in the table |
+| description | Description of the table |
+| friendly_name | User-friendly name for the table |
+| connection_id | The BigQuery connection resource name used by external tables |
+
+#### Relationships
+
+  - GCPBigQueryTables are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryTable)
+    ```
+  - GCPBigQueryDatasets contain GCPBigQueryTables.
+    ```
+    (GCPBigQueryDataset)-[:HAS_TABLE]->(GCPBigQueryTable)
+    ```
+  - GCPBigQueryTables can use a GCPBigQueryConnection for external data.
+    ```
+    (GCPBigQueryTable)-[:USES_CONNECTION]->(GCPBigQueryConnection)
+    ```
+
+### GCPBigQueryRoutine
+
+Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued function).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The routine identifier in `project_id:dataset_id.routine_id` format |
+| routine_id | The short routine ID |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
+| routine_type | Type: SCALAR_FUNCTION, PROCEDURE, or TABLE_VALUED_FUNCTION |
+| language | Language of the routine (e.g., SQL, JAVASCRIPT) |
+| creation_time | Creation time of the routine |
+| last_modified_time | Last modification time of the routine |
+| connection_id | The BigQuery connection resource name used by remote functions |
+
+#### Relationships
+
+  - GCPBigQueryRoutines are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryRoutine)
+    ```
+  - GCPBigQueryDatasets contain GCPBigQueryRoutines.
+    ```
+    (GCPBigQueryDataset)-[:HAS_ROUTINE]->(GCPBigQueryRoutine)
+    ```
+  - GCPBigQueryRoutines can use a GCPBigQueryConnection for remote functions.
+    ```
+    (GCPBigQueryRoutine)-[:USES_CONNECTION]->(GCPBigQueryConnection)
+    ```
+
+### GCPBigQueryConnection
+
+Represents a GCP BigQuery Connection (external data source connection).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The connection resource name |
+| name | The full resource name of the connection |
+| friendly_name | User-friendly name for the connection |
+| description | Description of the connection |
+| connection_type | Type of connection (e.g., cloudSql, spark, aws, azure) |
+| creation_time | Creation time of the connection |
+| last_modified_time | Last modification time of the connection |
+| has_credential | Whether the connection has a credential configured |
+| cloud_sql_instance_id | The Cloud SQL instance ID for cloudSql connections (format: `project:region:instance`) |
+| aws_role_arn | The IAM role ARN for aws connections |
+| azure_app_client_id | The federated application client ID for azure connections |
+| service_account_id | The service account email for cloudResource connections |
+
+#### Relationships
+
+  - GCPBigQueryConnections are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryConnection)
+    ```
+  - GCPBigQueryConnections of type cloudSql connect to GCPCloudSQLInstances.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_TO]->(GCPCloudSQLInstance)
+    ```
+  - GCPBigQueryConnections of type aws connect with AWSRoles.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(AWSRole)
+    ```
+  - GCPBigQueryConnections of type azure connect with EntraServicePrincipals.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(EntraServicePrincipal)
+    ```
+  - GCPBigQueryConnections of type cloudResource connect with GCPServiceAccounts.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(GCPServiceAccount)
     ```

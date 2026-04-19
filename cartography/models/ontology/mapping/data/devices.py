@@ -8,9 +8,10 @@ bigfix_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="BigfixComputer",
+            eligible_for_source=False,
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="computername", required=True
+                    ontology_field="hostname", node_field="computername"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
             ],
@@ -23,22 +24,33 @@ crowdstrike_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="CrowdstrikeHost",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(ontology_field="os", node_field="platform_name"),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="model", node_field="system_product_name"
                 ),
                 OntologyFieldMapping(
                     ontology_field="platform", node_field="platform_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="instance_id", node_field="instance_id"
                 ),
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on CrowdstrikeHost email matching canonical User email",
+            query="MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(host.email) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND toLower(u.email) = host_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
         ),
     ],
 )
@@ -47,9 +59,10 @@ duo_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="DuoEndpoint",
+            eligible_for_source=False,
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name", required=True
+                    ontology_field="hostname", node_field="device_name"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os_family"),
                 OntologyFieldMapping(
@@ -60,10 +73,9 @@ duo_mapping = OntologyMapping(
         ),
         OntologyNodeMapping(
             node_label="DuoPhone",
+            eligible_for_source=False,
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="name", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
             ],
@@ -72,12 +84,12 @@ duo_mapping = OntologyMapping(
     rels=[
         OntologyRelMapping(
             __comment__="Link Device to User based on DuoUser-DuoPhone relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
         OntologyRelMapping(
             __comment__="Link Device to User based on DuoUser-DuoEndpoint relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
     ],
@@ -89,10 +101,12 @@ kandji_mapping = OntologyMapping(
             node_label="KandjiDevice",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name", required=True
+                    ontology_field="hostname", node_field="device_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
@@ -109,11 +123,9 @@ snipeit_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SnipeitAsset",
             fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial"
+                    ontology_field="serial_number", node_field="serial", required=True
                 ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
             ],
@@ -122,7 +134,7 @@ snipeit_mapping = OntologyMapping(
     rels=[
         OntologyRelMapping(
             __comment__="Link Device to User based on SnipeitUser-SnipeitAsset relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         )
     ],
@@ -133,17 +145,20 @@ tailscale_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="TailscaleDevice",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
             ],
         ),
     ],
     rels=[
         OntologyRelMapping(
             __comment__="Link Device to User based on TailscaleUser-TailscaleDevice relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         )
     ],
@@ -155,9 +170,7 @@ googleworkspace_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GoogleWorkspaceDevice",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
                 ),
@@ -166,7 +179,9 @@ googleworkspace_mapping = OntologyMapping(
                     ontology_field="manufacturer", node_field="manufacturer"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="platform", node_field="device_type"
@@ -177,9 +192,145 @@ googleworkspace_mapping = OntologyMapping(
     rels=[
         OntologyRelMapping(
             __comment__="Link Device to User based on GoogleWorkspaceUser-GoogleWorkspaceDevice relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         )
+    ],
+)
+
+sentinelone_mapping = OntologyMapping(
+    module_name="sentinelone",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="S1Agent",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="computer_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="os_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_revision",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
+jamf_mapping = OntologyMapping(
+    module_name="jamf",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JamfComputer",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
+                OntologyFieldMapping(ontology_field="os", node_field="os_name"),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="JamfMobileDevice",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="display_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="os",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
+    ],
+)
+
+entra_mapping = OntologyMapping(
+    module_name="microsoft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="IntuneManagedDevice",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="device_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="operating_system",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="model",
+                    node_field="model",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
     ],
 )
 
@@ -187,8 +338,12 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "duo": duo_mapping,
+    "microsoft": entra_mapping,
     "googleworkspace": googleworkspace_mapping,
+    "jumpcloud": jumpcloud_mapping,
+    "jamf": jamf_mapping,
     "kandji": kandji_mapping,
+    "sentinelone": sentinelone_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
 }

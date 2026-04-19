@@ -1,4 +1,6 @@
+import json
 import typing
+from base64 import b64encode
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -8,12 +10,99 @@ from unittest.mock import patch
 
 import pytest
 from requests import Response
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
+
+
+@patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
+@patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch("cartography.intel.github.users.cleanup")
+@patch("cartography.intel.github.supply_chain.sync")
+@patch("cartography.intel.github.repos.get", return_value=[])
+@patch("cartography.intel.github.commits.sync_github_commits")
+@patch("cartography.intel.github._get_repos_from_graph", return_value=[])
+@patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.teams.sync_github_teams")
+@patch("cartography.intel.github.repos.sync")
+@patch("cartography.intel.github.users.sync")
+@patch("cartography.intel.github.make_credential", side_effect=["token-1", "token-2"])
+def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
+    mock_make_credential: Mock,
+    mock_users_sync: Mock,
+    mock_repos_sync: Mock,
+    mock_teams_sync: Mock,
+    mock_actions_sync: Mock,
+    mock_get_repos_from_graph: Mock,
+    mock_sync_github_commits: Mock,
+    mock_get_repos: Mock,
+    mock_supply_chain_sync: Mock,
+    mock_users_cleanup: Mock,
+    mock_cleanup_global_resources: Mock,
+    mock_cleanup_orphaned_branches: Mock,
+) -> None:
+    github_config = {
+        "organization": [
+            {"name": "org-1", "url": "https://api.github.com/graphql"},
+            {"name": "org-2", "url": "https://api.github.com/graphql"},
+        ],
+    }
+    config = Mock(
+        github_config=b64encode(json.dumps(github_config).encode()).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+
+    from cartography.intel.github import start_github_ingestion
+
+    neo4j_session = Mock()
+    start_github_ingestion(neo4j_session, config)
+
+    assert mock_users_sync.call_count == 2
+    assert mock_repos_sync.call_count == 2
+    mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
+    mock_cleanup_global_resources.assert_called_once_with(
+        neo4j_session,
+        {"UPDATE_TAG": 123},
+    )
+    mock_cleanup_orphaned_branches.assert_called_once_with(
+        neo4j_session,
+        {"UPDATE_TAG": 123},
+    )
+    assert mock_supply_chain_sync.call_count == 0
+
+
+@patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
+@patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch("cartography.intel.github.users.cleanup")
+@patch("cartography.intel.github.make_credential")
+def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
+    mock_make_credential: Mock,
+    mock_users_cleanup: Mock,
+    mock_cleanup_global_resources: Mock,
+    mock_cleanup_orphaned_branches: Mock,
+) -> None:
+    github_config: dict[str, list[dict[str, str]]] = {"organization": []}
+    config = Mock(
+        github_config=b64encode(json.dumps(github_config).encode()).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+
+    from cartography.intel.github import start_github_ingestion
+
+    neo4j_session = Mock()
+    start_github_ingestion(neo4j_session, config)
+
+    mock_make_credential.assert_not_called()
+    mock_users_cleanup.assert_not_called()
+    mock_cleanup_global_resources.assert_not_called()
+    mock_cleanup_orphaned_branches.assert_not_called()
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -80,6 +169,155 @@ def test_fetch_all_reduces_count_on_502(
     assert mock_fetch_page.call_count == 2
     assert mock_fetch_page.call_args_list[0][1]["count"] == 50
     assert mock_fetch_page.call_args_list[1][1]["count"] == 25
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_retries_connection_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        RequestsConnectionError("connection reset by peer"),
+        response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    assert mock_fetch_page.call_count == 2
+    mock_sleep.assert_called_once_with(2)
+
+
+@typing.no_type_check
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_honors_retry_after_for_403(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response_403 = Response()
+    response_403.status_code = 403
+    response_403.headers["retry-after"] = "65"
+    response_403._content = b'{"message":"You have exceeded a secondary rate limit."}'
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        HTTPError("forbidden", response=response_403),
+        success_response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    assert mock_fetch_page.call_count == 2
+    mock_sleep.assert_called_once_with(65)
+
+
+@typing.no_type_check
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+@patch("cartography.intel.github.util.datetime")
+def test_fetch_all_waits_for_rate_limit_reset_on_403(
+    mock_datetime: Mock,
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    mock_datetime.fromtimestamp = datetime.fromtimestamp
+    now = datetime(
+        year=2040,
+        month=1,
+        day=1,
+        hour=19,
+        minute=0,
+        second=0,
+        tzinfo=tz.utc,
+    )
+    mock_datetime.now = Mock(return_value=now)
+    response_403 = Response()
+    response_403.status_code = 403
+    response_403.headers["x-ratelimit-remaining"] = "0"
+    response_403.headers["x-ratelimit-reset"] = str(
+        int((now + timedelta(minutes=2)).timestamp()),
+    )
+    response_403._content = b'{"message":"API rate limit exceeded"}'
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        HTTPError("forbidden", response=response_403),
+        success_response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    mock_sleep.assert_called_once_with(timedelta(minutes=3).seconds)
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rest_rate_limit_sleep")
+@patch("cartography.intel.github.util.requests.get")
+def test_fetch_all_rest_api_pages_retries_connection_errors(
+    mock_requests_get: Mock,
+    mock_handle_rest_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    success_response = Mock(
+        json=Mock(return_value={"items": [{"id": 1}]}),
+        headers={},
+    )
+    success_response.raise_for_status = Mock()
+    mock_requests_get.side_effect = [
+        RequestsConnectionError("connection aborted"),
+        success_response,
+    ]
+
+    result = fetch_all_rest_api_pages(
+        "token", "https://api.github.com", "/endpoint", "items"
+    )
+
+    assert result == [{"id": 1}]
+    assert mock_requests_get.call_count == 2
+    assert mock_handle_rest_rate_limit_sleep.call_count == 2
+    mock_sleep.assert_called_once_with(2)
 
 
 @typing.no_type_check

@@ -6,17 +6,19 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.notebook_instance import (
     AWSSageMakerNotebookInstanceSchema,
 )
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_notebook_instances(
     boto3_session: boto3.session.Session,
     region: str,
@@ -24,7 +26,7 @@ def get_notebook_instances(
     """
     Get all SageMaker Notebook Instances in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_notebook_instances")
     notebook_instances: list[dict[str, Any]] = []
 
@@ -121,33 +123,22 @@ def sync_notebook_instances(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker Notebook Instances for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker Notebook Instances for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get notebook instances from AWS
-        notebook_instances = get_notebook_instances(boto3_session, region)
-
-        # Transform the data
-        transformed_instances = transform_notebook_instances(
-            notebook_instances,
-            region,
-        )
-
-        # Load into Neo4j
-        load_notebook_instances(
-            neo4j_session,
-            transformed_instances,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old notebook instances
-    cleanup_notebook_instances(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="notebook_instances",
+        get_resources=get_notebook_instances,
+        transform_resources=transform_notebook_instances,
+        load_resources=load_notebook_instances,
+        cleanup_resources=cleanup_notebook_instances,
+    )

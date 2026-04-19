@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
 from typing import Any
-
-import dockerfile as dockerfile_pkg
 
 logger = logging.getLogger(__name__)
 
@@ -172,9 +171,6 @@ def normalize_command(cmd: str | None) -> str:
     # Lowercase first for consistent matching
     cmd = cmd.lower()
 
-    # Remove Dockerfile instruction prefixes
-    cmd = re.sub(r"^(run|copy|add)\s+", "", cmd)
-
     # Remove shell prefix added by Docker
     cmd = re.sub(r"^/bin/sh -c\s+", "", cmd)
     cmd = re.sub(r"^#\(nop\)\s+", "", cmd)  # BuildKit nop marker
@@ -189,8 +185,33 @@ def normalize_command(cmd: str | None) -> str:
     cmd = re.sub(r"\s*#.*$", "", cmd)
 
     # Normalize whitespace
-    cmd = " ".join(cmd.split())
+    cmd = " ".join(cmd.split()).strip()
+    if not cmd:
+        return ""
 
+    copy_add_match = re.match(r"^(copy|add)\s+(.+)$", cmd)
+    if copy_add_match:
+        instruction = copy_add_match.group(1)
+        remainder = copy_add_match.group(2)
+
+        # OCI history often looks like:
+        #   copy file:<hash> in /dest/
+        #   add dir:<hash> in /dest/
+        oci_copy_add = re.match(r"^(?:file|dir):\S+\s+in\s+(.+)$", remainder)
+        if oci_copy_add:
+            destination = oci_copy_add.group(1).strip()
+            return f"{instruction}_in {destination}"
+
+        # Dockerfile shell form: COPY src dest
+        # Keep only the destination so it becomes comparable to OCI history.
+        parts = remainder.split()
+        if parts:
+            destination = parts[-1]
+            return f"{instruction}_in {destination}"
+
+    # Remove Dockerfile RUN prefix after shell/buildkit cleanup so shell-wrapped
+    # history and raw Dockerfile instructions normalize the same way.
+    cmd = re.sub(r"^run\s+", "", cmd)
     return cmd.strip()
 
 
@@ -308,27 +329,90 @@ def _parse_base_image_reference(from_value: str) -> tuple[str, str | None, str |
 
 
 def _parse_instructions(content: str) -> list[DockerfileInstruction]:
-    """Parse Dockerfile content into a list of instructions."""
-    return _parse_with_dockerfile_package(content)
+    """Parse Dockerfile instructions using a lightweight in-repo parser.
 
-
-def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
-    """Parse using the dockerfile package for accurate parsing.
-
-    :raises Exception: If parsing fails (e.g., invalid Dockerfile syntax)
+    This parser intentionally focuses on extracting instruction/value pairs needed
+    for supply-chain matching instead of fully implementing Dockerfile grammar.
     """
-    instructions = []
-    parsed = dockerfile_pkg.parse_string(content)
-    for cmd in parsed:
-        value = " ".join(cmd.value) if cmd.value else ""
+    lines = content.splitlines()
+    instructions: list[DockerfileInstruction] = []
+    i = 0
+
+    while i < len(lines):
+        current_line = lines[i]
+        stripped = current_line.strip()
+
+        # Ignore empty lines and full-line comments (including parser directives).
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+
+        start_line = i + 1
+        logical_line = stripped
+
+        # Join continued lines ending with an unescaped backslash.
+        while _has_line_continuation(logical_line) and i + 1 < len(lines):
+            logical_line = logical_line.rstrip()[:-1].strip()
+            i += 1
+            # NOTE: We currently keep comment-only continuation lines in the value.
+            # This is a known simplification vs Docker's full parser behavior.
+            logical_line = f"{logical_line} {lines[i].strip()}"
+
+        cmd, value = _split_instruction(logical_line)
+        if cmd is None:
+            i += 1
+            continue
+
+        heredoc_delimiter = _extract_heredoc_delimiter(value)
+        if heredoc_delimiter:
+            i += 1
+            found_terminator = False
+            while i < len(lines):
+                line = lines[i]
+                if line.strip() == heredoc_delimiter:
+                    found_terminator = True
+                    break
+                value = f"{value}\n{line}"
+                i += 1
+            if not found_terminator:
+                logger.warning(
+                    "Unterminated Dockerfile heredoc delimiter '%s' while parsing.",
+                    heredoc_delimiter,
+                )
+
         instructions.append(
             DockerfileInstruction(
-                cmd=cmd.cmd,
+                cmd=cmd,
                 value=value,
-                line_number=cmd.start_line,
+                line_number=start_line,
             )
         )
+        i += 1
+
     return instructions
+
+
+def _has_line_continuation(line: str) -> bool:
+    stripped = line.rstrip()
+    trailing_backslashes = len(stripped) - len(stripped.rstrip("\\"))
+    return trailing_backslashes % 2 == 1
+
+
+def _split_instruction(line: str) -> tuple[str | None, str]:
+    match = re.match(r"^([A-Za-z]+)(?:\s+(.*))?$", line.strip())
+    if not match:
+        return None, ""
+    cmd = match.group(1).upper()
+    value = (match.group(2) or "").strip()
+    return cmd, value
+
+
+def _extract_heredoc_delimiter(value: str) -> str | None:
+    # Docker heredoc form: <<EOF or <<-EOF (including quoted delimiters).
+    match = re.search(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1", value)
+    if match:
+        return match.group(2)
+    return None
 
 
 def _parse_stages(content: str) -> list[DockerfileStage]:
@@ -404,7 +488,9 @@ def _match_commands_to_dockerfile(
             command_similarity=0.0,
         )
 
-    df_commands = [instr.normalized_value for instr in df_instructions]
+    df_commands = [
+        normalize_command(f"{instr.cmd} {instr.value}") for instr in df_instructions
+    ]
 
     n_df_commands = len(df_commands)
     if len(image_commands) > n_df_commands:
@@ -456,6 +542,7 @@ class ContainerImage:
     architecture: str | None
     os: str | None
     layer_history: list[dict[str, Any]]
+    scope_keys: dict[str, str] | None = None
 
 
 @dataclass
@@ -484,14 +571,12 @@ def match_images_to_dockerfiles(
     :param min_confidence: Minimum confidence threshold for matches
     :return: List of ImageDockerfileMatch objects
     """
-    parsed_dockerfiles: list[ParsedDockerfile] = []
-    dockerfile_info_map: dict[str, dict[str, Any]] = {}
+    parsed_dockerfiles: list[tuple[ParsedDockerfile, dict[str, Any]]] = []
 
     for df_info in dockerfiles:
         try:
             parsed = parse(df_info["content"])
-            dockerfile_info_map[parsed.content_hash] = df_info
-            parsed_dockerfiles.append(parsed)
+            parsed_dockerfiles.append((parsed, df_info))
         except Exception as e:
             logger.warning("Failed to parse dockerfile %s: %s", df_info.get("path"), e)
 
@@ -524,13 +609,41 @@ def match_images_to_dockerfiles(
             )
             continue
 
+        candidate_dockerfiles = parsed_dockerfiles
+        if image.scope_keys:
+            candidate_dockerfiles = [
+                (parsed, df_info)
+                for parsed, df_info in parsed_dockerfiles
+                if all(
+                    df_info.get("scope_keys", {}).get(scope_name) == scope_value
+                    for scope_name, scope_value in image.scope_keys.items()
+                )
+            ]
+            if not candidate_dockerfiles:
+                logger.debug(
+                    "No Dockerfiles scoped to %s for image %s:%s",
+                    image.scope_keys,
+                    image.display_name,
+                    image.tag,
+                )
+                continue
+
         df_matches = find_best_dockerfile_matches(
-            image_commands, parsed_dockerfiles, min_confidence
+            image_commands,
+            [parsed for parsed, _ in candidate_dockerfiles],
+            min_confidence,
         )
 
         if df_matches:
             best_match = df_matches[0]
-            df_info = dockerfile_info_map.get(best_match.dockerfile.content_hash, {})
+            df_info = next(
+                (
+                    candidate_info
+                    for parsed, candidate_info in candidate_dockerfiles
+                    if parsed is best_match.dockerfile
+                ),
+                {},
+            )
 
             matches.append(
                 ImageDockerfileMatch(
@@ -678,6 +791,146 @@ def normalize_vcs_url(url: str) -> str:
         normalized = normalized[:-4]
 
     return normalized
+
+
+def unwrap_attestation_predicate(predicate: Any) -> dict[str, Any] | None:
+    """
+    Normalize a predicate payload into the actual SLSA predicate object.
+
+    Attestation blobs can contain:
+    - an in-toto statement where `predicate` is already the predicate dict
+    - a DSSE/cosign envelope where `predicate.Data` contains a serialized statement
+    """
+    if not isinstance(predicate, dict):
+        return None
+
+    dsse_data = predicate.get("Data")
+    if isinstance(dsse_data, str):
+        try:
+            decoded = json.loads(dsse_data)
+        except ValueError:
+            logger.debug("Failed to decode nested attestation predicate Data")
+            return None
+
+        if isinstance(decoded, dict):
+            nested_predicate = decoded.get("predicate")
+            return nested_predicate if isinstance(nested_predicate, dict) else None
+
+    return predicate
+
+
+def get_slsa_dependency_list(predicate: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Return the dependency list across supported SLSA predicate shapes.
+
+    Supports:
+    - SLSA v0.2: predicate.materials
+    - SLSA v1: predicate.buildDefinition.resolvedDependencies
+    """
+    dependency_list = predicate.get("materials", [])
+    if dependency_list:
+        return dependency_list
+
+    build_def = predicate.get("buildDefinition", {})
+    return build_def.get("resolvedDependencies", [])
+
+
+def extract_container_parent_image(predicate: dict[str, Any]) -> dict[str, str]:
+    """
+    Extract the parent/base container image reference from SLSA dependencies.
+
+    Supports both SLSA v0.2 `materials` and SLSA v1 `resolvedDependencies`.
+    Returns the first container image dependency that is not the Dockerfile frontend.
+    """
+    for dependency in get_slsa_dependency_list(predicate):
+        if not isinstance(dependency, dict):
+            continue
+
+        uri = str(dependency.get("uri", ""))
+        uri_l = uri.lower()
+        is_container_ref = (
+            uri_l.startswith("pkg:docker/")
+            or uri_l.startswith("pkg:oci/")
+            or uri_l.startswith("oci://")
+        )
+        if not is_container_ref or "dockerfile" in uri_l:
+            continue
+
+        digest = dependency.get("digest", {})
+        if not isinstance(digest, dict):
+            continue
+
+        sha256_digest = digest.get("sha256")
+        if sha256_digest:
+            return {
+                "parent_image_uri": uri,
+                "parent_image_digest": f"sha256:{sha256_digest}",
+            }
+
+    return {}
+
+
+def extract_image_source_provenance(predicate: dict[str, Any]) -> dict[str, str]:
+    """
+    Extract provider-agnostic image provenance source fields from a SLSA predicate.
+
+    Returns any of:
+    - source_uri
+    - source_revision
+    - source_file
+    """
+    result: dict[str, str] = {}
+
+    metadata = predicate.get("metadata", {})
+    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
+    vcs = buildkit_metadata.get("vcs", {})
+    if not vcs:
+        run_details = predicate.get("runDetails", {})
+        run_metadata = run_details.get("metadata", {})
+        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
+
+    build_def = predicate.get("buildDefinition", {})
+    external_parameters = build_def.get("externalParameters", {})
+    resolved_dependencies = get_slsa_dependency_list(predicate)
+
+    source_uri = vcs.get("source") or external_parameters.get("source")
+    if source_uri:
+        result["source_uri"] = normalize_vcs_url(str(source_uri))
+
+    source_revision = vcs.get("revision")
+    if not source_revision:
+        for dependency in resolved_dependencies:
+            if not isinstance(dependency, dict):
+                continue
+            digest = dependency.get("digest", {})
+            if not isinstance(digest, dict):
+                continue
+            git_commit = digest.get("gitCommit")
+            if git_commit:
+                source_revision = git_commit
+                break
+    if source_revision:
+        result["source_revision"] = str(source_revision)
+
+    invocation = predicate.get("invocation", {})
+    config_source = invocation.get("configSource", {})
+    entry_point = config_source.get("entryPoint", "")
+    if not entry_point:
+        entry_point = external_parameters.get("entryPoint", "")
+    if not entry_point:
+        entry_point = external_parameters.get("configSource", {}).get("path", "")
+    if not entry_point:
+        entry_point = "Dockerfile"
+
+    if "source_uri" in result:
+        dockerfile_dir = (
+            str(vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
+        )
+        result["source_file"] = (
+            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else str(entry_point)
+        )
+
+    return result
 
 
 def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:

@@ -28,7 +28,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
-   | **Administration** | Read | Recommended | Collaborators, branch protection rules. Without this, Cartography logs warnings and skips this data. |
+   | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
@@ -74,10 +74,21 @@ Some data requires elevated permissions. Without these, Cartography will log war
 
 | Data | Requirement |
 |------|-------------|
-| **Collaborators** | The token owner must be an **Organization Owner** or have **Admin access** on the repositories. For fine-grained PATs, also add **Administration: Read**. |
-| **Branch protection rules** | Same as collaborators - requires admin-level access. |
+| **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
+| **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
+
+### Alternative: GitHub App Authentication
+
+GitHub App authentication provides better security through short-lived tokens and granular, installation-scoped permissions. Use this instead of PATs when you need app-level (not user-level) access.
+
+1. [Create a GitHub App](https://docs.github.com/en/apps/creating-github-apps) with the same repository and organization permissions listed above.
+2. Install the App on your target organization(s).
+3. Note the **Client ID** (from the App's settings page) and the **Installation ID** (from the URL when viewing the installation: `https://github.com/organizations/{org}/settings/installations/{installation_id}`).
+4. Generate and download a **private key** from the App's settings page.
+
+Then configure Cartography with the App credentials instead of a PAT (see Step 2 below).
 
 ### Step 2: Configure Cartography
 
@@ -109,6 +120,24 @@ Cartography accepts GitHub credentials as a base64-encoded JSON configuration. T
     encoded = base64.b64encode(json.dumps(config).encode()).decode()
     print(encoded)
     ```
+
+For **GitHub App authentication**, use this format instead:
+
+    ```python
+    config = {
+        "organization": [
+            {
+                "client_id": "Iv1.abc123def456",
+                "private_key": open("your-app.private-key.pem").read(),
+                "installation_id": "12345678",
+                "url": "https://api.github.com/graphql",
+                "name": "your-org-name",
+            },
+        ]
+    }
+    ```
+
+You can mix PAT and App authentication across organizations in the same config.
 
 2. Set the encoded value as an environment variable:
 
@@ -145,7 +174,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 
 | Issue | Solution |
 |-------|----------|
-| `FORBIDDEN` warnings for collaborators | The token owner needs Organization Owner or Admin access on repos. |
+| `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |

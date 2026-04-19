@@ -78,7 +78,6 @@ def _load(
     """
     Load the data into the database
     """
-    logger.info(f"Loading {len(data)} items for {Schema.label}")
     load(
         neo4j_session,
         Schema(),

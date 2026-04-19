@@ -42,6 +42,24 @@ class AzureLoadBalancerFrontendIPToLBRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureLoadBalancerFrontendIPToPublicIPRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureLoadBalancerFrontendIPToPublicIPRel(CartographyRelSchema):
+    target_node_label: str = "AzurePublicIPAddress"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("public_ip_address_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: AzureLoadBalancerFrontendIPToPublicIPRelProperties = (
+        AzureLoadBalancerFrontendIPToPublicIPRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -71,5 +89,6 @@ class AzureLoadBalancerFrontendIPSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureLoadBalancerFrontendIPToLBRel(),
+            AzureLoadBalancerFrontendIPToPublicIPRel(),
         ]
     )

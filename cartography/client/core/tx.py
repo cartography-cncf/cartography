@@ -19,11 +19,11 @@ from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
+from cartography.helpers import backoff_handler
+from cartography.helpers import batch
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.stats import get_stats_client
-from cartography.util import backoff_handler
-from cartography.util import batch
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -892,5 +892,16 @@ def load_matchlinks(
 
     # Emit metrics for loaded relationships
     rel_count = len(dict_list)
-    stat_handler.incr(f"relationship.{rel_schema.rel_label.lower()}.loaded", rel_count)
-    logger.info("Loaded %d %s relationships", rel_count, rel_schema.rel_label)
+    src_label = (rel_schema.source_node_label or "unknown").lower()
+    tgt_label = rel_schema.target_node_label.lower()
+    stat_handler.incr(
+        f"relationship.{src_label}.{rel_schema.rel_label.lower()}.{tgt_label}.loaded",
+        rel_count,
+    )
+    logger.info(
+        "Loaded %d (%s)-[%s]->(%s) relationships",
+        rel_count,
+        rel_schema.source_node_label,
+        rel_schema.rel_label,
+        rel_schema.target_node_label,
+    )

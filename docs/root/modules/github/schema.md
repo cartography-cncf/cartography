@@ -4,9 +4,11 @@
 graph LR
 
 O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> B(GitHubBranch)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> A(GitHubAction)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -23,6 +25,8 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+W -- USES_ACTION --> A(GitHubAction)
+W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
@@ -115,6 +119,14 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
   - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
+- GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).
+
+    ```
+    (SemgrepSASTFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSCAFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSecretsFinding)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
@@ -165,6 +177,7 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -291,6 +304,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
 Representation of a single GitHubBranch [ref object](https://developer.github.com/v4/object/ref). This node contains minimal data for a repository branch.
 
+GitHub branches are modeled as resources scoped to the parent GitHub organization and also linked to their repository via the `BRANCH` relationship.
 
 | Field | Description |
 |-------|--------------|
@@ -301,6 +315,12 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
 
 #### Relationships
+
+- GitHubOrganizations scope GitHubBranches as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranch)
+    ```
 
 - GitHubRepositories have GitHubBranches.
 
@@ -346,6 +366,7 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.
 
+ProgrammingLanguage nodes are shared globally across repositories and are linked from each repository with `:LANGUAGE`.
 
 | Field | Description |
 |-------|--------------|
@@ -409,6 +430,10 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+| version | Exact version if pinned (e.g., `"18.2.0"`). `null` for ranges or unpinned dependencies. |
+| type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
+| purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
 #### Relationships
 
@@ -454,6 +479,8 @@ Representation of a Python library as listed in a [requirements.txt](https://pip
 or [setup.cfg](https://setuptools.pypa.io/en/latest/userguide/declarative_config.html) file.
 Within a setup.cfg file, cartography will load everything from `install_requires`, `setup_requires`, and `extras_require`.
 
+These nodes are also shared globally across repositories. Repository-specific version constraints stay on the `:REQUIRES` relationship via the `specifier` property.
+
 | Field | Description |
 |-------|-------------|
 |**id**|The [canonicalized](https://packaging.pypa.io/en/latest/utils/#packaging.utils.canonicalize_name) name of the library. If the library was pinned in a requirements file using the `==` operator, then `id` has the form ``{canonical name}\|{pinned_version}``.|
@@ -492,6 +519,20 @@ Represents a GitHub Actions workflow definition file in a repository.
 | **created_at** | Timestamp when the workflow was created |
 | **updated_at** | Timestamp when the workflow was last updated |
 | **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
+| **trigger_events** | List of events that trigger the workflow (e.g., `push`, `pull_request`, `schedule`) |
+| **permissions_actions** | Permission level for the `actions` scope |
+| **permissions_contents** | Permission level for the `contents` scope |
+| **permissions_packages** | Permission level for the `packages` scope |
+| **permissions_pull_requests** | Permission level for the `pull-requests` scope |
+| **permissions_issues** | Permission level for the `issues` scope |
+| **permissions_deployments** | Permission level for the `deployments` scope |
+| **permissions_statuses** | Permission level for the `statuses` scope |
+| **permissions_checks** | Permission level for the `checks` scope |
+| **permissions_id_token** | Permission level for the `id-token` scope |
+| **permissions_security_events** | Permission level for the `security-events` scope |
+| **env_vars** | List of top-level environment variable names defined in the workflow |
+| **job_count** | Number of jobs defined in the workflow |
+| **has_reusable_workflow_calls** | Whether the workflow calls reusable workflows |
 
 #### Relationships
 
@@ -501,6 +542,18 @@ Represents a GitHub Actions workflow definition file in a repository.
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
     ```
 
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubWorkflows reference GitHubActionsSecrets (detected via `${{ secrets.NAME }}` patterns in the YAML).
+
+    ```
+    (GitHubWorkflow)-[:REFERENCES_SECRET]->(GitHubActionsSecret)
+    ```
+
 - Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
 
     ```
@@ -508,6 +561,37 @@ Represents a GitHub Actions workflow definition file in a repository.
     ```
 
     Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
+
+
+### GitHubAction
+
+Represents a third-party GitHub Action used in workflows, parsed from workflow YAML `uses` references.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format `{org}:{raw_uses}` (e.g., `my-org:actions/checkout@v4`) |
+| **owner** | Owner of the action repository (e.g., `actions`, `docker`), or `None` for local actions |
+| **name** | Name of the action (e.g., `checkout`, `setup-node`, `./.github/actions/my-action`) |
+| **version** | Version reference (tag, branch, or SHA), or `None` for docker/local actions |
+| **is_pinned** | Whether the action is pinned to a full 40-character SHA commit hash |
+| **is_local** | Whether the action is a local action (path starting with `./`) |
+| **full_name** | Full name of the action (e.g., `actions/checkout`) |
+
+#### Relationships
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubOrganizations are sub-resources for GitHubActions (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubAction)
+    ```
 
 
 ### GitHubEnvironment

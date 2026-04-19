@@ -132,6 +132,8 @@ Represents a User in Scaleway.
 
 Represents a Group in Scaleway.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
 | id          | ID of the Group                              |
@@ -160,6 +162,8 @@ Represents a Group in Scaleway.
 ### ScalewayApplication
 
 Represents an Application (Service Account) in Scaleway
+
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
 
 | Field       | Description                                  |
 |-------------|----------------------------------------------|

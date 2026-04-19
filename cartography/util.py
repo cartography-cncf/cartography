@@ -7,7 +7,6 @@ from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
 from importlib.resources import read_text
-from itertools import islice
 from string import Template
 from typing import Any
 from typing import Awaitable
@@ -27,9 +26,12 @@ import backoff
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
+from cartography import helpers
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -56,8 +58,18 @@ def is_service_control_policy_explicit_deny(
 
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
-DEFAULT_BATCH_SIZE = 1000
 DEFAULT_MAX_PAGES = 10000
+
+
+def backoff_handler(details: Dict) -> None:
+    """
+    Compatibility wrapper for cartography.helpers.backoff_handler.
+
+    Internal callers should import this helper from cartography.helpers.
+    This wrapper preserves the long-standing cartography.util API for
+    external callers.
+    """
+    helpers.backoff_handler(details)
 
 
 def run_analysis_job(
@@ -547,65 +559,6 @@ If not, then the AWS datatype somehow does not have this key.""",
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 # fix for AWS TooManyRequestsException
-# https://github.com/cartography-cncf/cartography/issues/297
-# https://github.com/cartography-cncf/cartography/issues/243
-# https://github.com/cartography-cncf/cartography/issues/65
-# https://github.com/cartography-cncf/cartography/issues/25
-
-
-def backoff_handler(details: Dict) -> None:
-    """
-    Log backoff retry attempts for monitoring and debugging.
-
-    This handler function is called by the backoff decorator when retries
-    are being performed. It provides visibility into retry patterns and
-    helps with debugging API rate limiting or connectivity issues.
-
-    Args:
-        details: Dictionary containing backoff information including:
-                - wait: Number of seconds to wait before retry
-                - tries: Number of attempts made so far
-                - target: The function being retried
-
-    Examples:
-        The function is typically used automatically by backoff decorators:
-        >>> @backoff.on_exception(
-        ...     backoff.expo,
-        ...     Exception,
-        ...     on_backoff=backoff_handler
-        ... )
-        ... def api_call():
-        ...     # Make API call that might fail
-        ...     pass
-
-    Note:
-        This function logs at WARNING level to ensure visibility of retry
-        operations in standard logging configurations. The message includes
-        timing information and function identification for debugging.
-        The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a retry is triggered immediately).
-        Format the message defensively so logging never raises.
-    """
-    wait = details.get("wait")
-    if isinstance(wait, (int, float)):
-        wait_display = f"{wait:0.1f}"
-    elif wait is None:
-        wait_display = "unknown"
-    else:
-        wait_display = str(wait)
-
-    tries = details.get("tries")
-    tries_display = str(tries) if tries is not None else "unknown"
-
-    target = details.get("target", "<unknown>")
-
-    logger.warning(
-        "Backing off %s seconds after %s tries. Calling function %s",
-        wait_display,
-        tries_display,
-        target,
-    )
-
-
 # Error codes that indicate a service is unavailable in a region or blocked by policies
 AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "AccessDenied",
@@ -618,6 +571,48 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnrecognizedClientException",
     "InternalServerErrorException",
 ]
+
+AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS = (
+    "not supported in the called region",
+    "not supported in this region",
+    "unsupported in this region",
+)
+
+
+def _is_region_unsupported_unknown_operation(
+    error_code: Optional[str],
+    error_message: Optional[str],
+) -> bool:
+    """
+    Return True for UnknownOperationException errors that explicitly indicate regional unavailability.
+    """
+    if error_code != "UnknownOperationException" or not error_message:
+        return False
+    lowered = error_message.lower()
+    return any(
+        snippet in lowered for snippet in AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS
+    )
+
+
+def is_aws_region_skippable_client_error(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """
+    Return True when a ClientError indicates regional unavailability or regional access denial.
+
+    This is the shared classification used by AWS sync code that needs to decide
+    whether a regional failure should degrade to a regional skip instead of
+    failing the account-level sync.
+    """
+    error_code = error.response.get("Error", {}).get("Code")
+    error_message = error.response.get("Error", {}).get("Message")
+    return (
+        _is_region_unsupported_unknown_operation(
+            error_code,
+            error_message,
+        )
+        or error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES
+    )
 
 
 # TODO Move this to cartography.intel.aws.util.common
@@ -662,6 +657,9 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         For these errors, a warning is logged and an empty list is returned.
         Other errors are re-raised normally.
 
+        UnknownOperationException is only skipped when the error message
+        explicitly indicates the operation is unsupported in the requested region.
+
         The decorator includes retry logic with exponential backoff (max 600 seconds)
         for handling transient AWS API errors and rate limiting.
 
@@ -687,6 +685,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as e:
             error_code = e.response.get("Error", {}).get("Code")
+            error_message = e.response.get("Error", {}).get("Message")
             if error_code == "InvalidToken":
                 raise RuntimeError(
                     "AWS returned an InvalidToken error. Configure regional STS endpoints by "
@@ -694,9 +693,9 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                     "'sts_regional_endpoints = regional' to your AWS config file."
                 ) from e
             # The account is not authorized to use this service in this region
-            # so we can continue without raising an exception
-            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
-                error_message = e.response.get("Error", {}).get("Message")
+            # or the service is unavailable in the region, so we can continue
+            # without raising an exception.
+            if is_aws_region_skippable_client_error(e):
                 if is_service_control_policy_explicit_deny(e):
                     logger.warning(
                         "Service control policy denied access while calling %s: %s",
@@ -716,6 +715,12 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             logger.warning(
                 "Encountered an EndpointConnectionError. This means that the AWS "
                 "resource is not available in this region. Skipping.",
+            )
+            return []
+        except (ConnectTimeoutError, ReadTimeoutError):
+            logger.warning(
+                "Encountered a timeout while calling a regional AWS endpoint. "
+                "Skipping this region.",
             )
             return []
 
@@ -884,40 +889,18 @@ def camel_to_snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
-def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]]:
+def batch(
+    items: Iterable,
+    size: int = helpers.DEFAULT_BATCH_SIZE,
+) -> Iterable[List[Any]]:
     """
-    Split an iterable into batches of specified size.
+    Compatibility wrapper for cartography.helpers.batch.
 
-    This utility function takes any iterable and yields lists of items
-    in batches of the specified size. This is useful for processing
-    large datasets in manageable chunks, especially when working with
-    APIs that have limits on batch operations.
-
-    Args:
-        items: The iterable to split into batches.
-        size: The maximum size of each batch. Defaults to DEFAULT_BATCH_SIZE.
-
-    Yields:
-        Lists containing up to 'size' items from the original iterable.
-        The last batch may contain fewer items if the total count is
-        not evenly divisible by the batch size.
-
-    Examples:
-        Basic batching:
-        >>> list(batch([1, 2, 3, 4, 5, 6, 7, 8], size=3))
-        [[1, 2, 3], [4, 5, 6], [7, 8]]
-
-    Note:
-        The function uses itertools.islice for memory-efficient processing
-        of large iterables. It doesn't load the entire iterable into memory
-        at once, making it suitable for processing very large datasets.
-
-        The DEFAULT_BATCH_SIZE is optimized for typical Neo4j operations
-        but can be adjusted based on specific use cases and constraints.
+    Internal callers should import this helper from cartography.helpers.
+    This wrapper preserves the long-standing cartography.util API for
+    external callers.
     """
-    it = iter(items)
-    while chunk := list(islice(it, size)):
-        yield chunk
+    return helpers.batch(items, size)
 
 
 def is_throttling_exception(exc: Exception) -> bool:
@@ -1030,7 +1013,11 @@ def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaita
             raise
 
     # don't use @backoff as decorator, to preserve typing
-    wrapped = backoff.on_exception(backoff.expo, CartographyThrottlingException)(
+    wrapped = backoff.on_exception(
+        backoff.expo,
+        CartographyThrottlingException,
+        max_time=300,
+    )(
         wrapper,
     )
     call = partial(wrapped, *args, **kwargs)

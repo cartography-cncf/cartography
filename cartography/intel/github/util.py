@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import time
@@ -12,15 +13,102 @@ import requests
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+
+
+def _resolve_token(token: Any) -> str:
+    """Resolve a token string or GitHubCredential to a plain token string."""
+    if isinstance(token, str):
+        return token
+    result: str = token.get_token()
+    return result
+
+
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 # Search API has a stricter rate limit (30 requests/minute for authenticated users)
 _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
+# HTTP status codes that are safe to retry with exponential backoff
+_TRANSIENT_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 
 class PaginatedGraphqlData(NamedTuple):
     nodes: list[dict[str, Any]]
     edges: list[dict[str, Any]]
+
+
+def _extract_error_message(response: requests.Response) -> str:
+    """Extract a readable error message from a GitHub API response."""
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.text
+
+    if isinstance(payload, dict):
+        message = payload.get("message")
+        if isinstance(message, str):
+            return message
+        errors = payload.get("errors")
+        if isinstance(errors, list):
+            parts = []
+            for error in errors:
+                if isinstance(error, dict):
+                    error_message = error.get("message")
+                    if isinstance(error_message, str):
+                        parts.append(error_message)
+            if parts:
+                return "; ".join(parts)
+    return response.text
+
+
+def _get_rate_limit_reset_sleep_seconds(response: requests.Response) -> int | None:
+    """Return seconds to sleep until the primary rate limit resets, if available."""
+    remaining = response.headers.get("x-ratelimit-remaining")
+    reset = response.headers.get("x-ratelimit-reset")
+    if remaining != "0" or not reset:
+        return None
+
+    try:
+        reset_at = datetime.fromtimestamp(int(reset), tz=tz.utc)
+    except ValueError:
+        return None
+
+    now = datetime.now(tz.utc)
+    sleep_duration = reset_at - now + timedelta(minutes=1)
+    return max(0, int(sleep_duration.total_seconds()))
+
+
+def _get_retry_sleep_seconds_for_http_error(
+    err: requests.exceptions.HTTPError,
+    retry: int,
+) -> int:
+    """
+    Return a retry delay for HTTP errors, honoring GitHub rate-limit guidance for 403/429.
+    """
+    response = err.response
+    default_sleep_seconds: int = int(2**retry)
+    if response is None:
+        return int(default_sleep_seconds)
+
+    if response.status_code not in (403, 429):
+        return int(default_sleep_seconds)
+
+    retry_after = response.headers.get("retry-after")
+    if retry_after:
+        try:
+            return max(0, int(retry_after))
+        except ValueError:
+            pass
+
+    reset_sleep_seconds = _get_rate_limit_reset_sleep_seconds(response)
+    if reset_sleep_seconds is not None:
+        return reset_sleep_seconds
+
+    message = _extract_error_message(response).lower()
+    if "secondary rate limit" in message or "abuse detection" in message:
+        # GitHub recommends waiting at least one minute before retrying.
+        return int(max(60, default_sleep_seconds))
+
+    return int(default_sleep_seconds)
 
 
 def handle_rate_limit_sleep(token: str) -> None:
@@ -30,7 +118,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     """
     response = requests.get(
         "https://api.github.com/rate_limit",
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
     )
     response.raise_for_status()
     response_json = response.json()
@@ -59,7 +147,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
     :param api_url: the URL to call for the API
     :return: query results json
     """
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"Bearer {_resolve_token(token)}"}
     try:
         response = requests.post(
             api_url,
@@ -143,6 +231,7 @@ def fetch_all(
     org_data: dict[str, Any] = {}
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
+    null_resource_retry = 0
 
     while has_next_page:
         exc: Any = None
@@ -173,6 +262,9 @@ def fetch_all(
         except requests.exceptions.ChunkedEncodingError as err:
             retry += 1
             exc = err
+        except requests.exceptions.ConnectionError as err:
+            retry += 1
+            exc = err
 
         if retry >= retries:
             logger.error(
@@ -182,7 +274,29 @@ def fetch_all(
             )
             raise exc
         elif retry > 0:
-            time.sleep(2**retry)
+            sleep_seconds = 2**retry
+            if isinstance(exc, requests.exceptions.HTTPError):
+                sleep_seconds = _get_retry_sleep_seconds_for_http_error(exc, retry)
+                response = exc.response
+                status_code = (
+                    response.status_code if response is not None else "unknown"
+                )
+                message = (
+                    _extract_error_message(response)
+                    if response is not None
+                    else str(exc)
+                )
+                logger.warning(
+                    "GitHub: HTTP %s while retrieving resource `%s` for org `%s`; retry %d/%d in %s seconds. Message: %s",
+                    status_code,
+                    resource_type,
+                    organization,
+                    retry,
+                    retries,
+                    sleep_seconds,
+                    message,
+                )
+            time.sleep(sleep_seconds)
             continue
 
         if "data" not in resp:
@@ -194,9 +308,39 @@ def fetch_all(
             has_next_page = False
             continue
 
+        if resp["data"].get("organization") is None:
+            errors = resp.get("errors", [])
+            error_messages = "; ".join(e.get("message", "") for e in errors)
+            raise ValueError(
+                f"Didn't get any organization data for '{organization}': {error_messages}",
+            )
+
         resource = resp["data"]["organization"][resource_type]
         if resource_inner_type:
             resource = resp["data"]["organization"][resource_type][resource_inner_type]
+
+        if resource is None:
+            null_resource_retry += 1
+            if null_resource_retry >= retries:
+                raise ValueError(
+                    f"Got null resource for organization: {organization}, resource_type: {resource_type}, "
+                    f"resource_inner_type: {resource_inner_type} after {null_resource_retry} retries. "
+                    f"This may indicate a GitHub API timeout on a nested field.",
+                )
+            logger.warning(
+                "Got null resource for organization: %s, resource_type: %s, resource_inner_type: %s. "
+                "Retrying (%d/%d).",
+                organization,
+                resource_type,
+                resource_inner_type,
+                null_resource_retry,
+                retries,
+            )
+            time.sleep(2**null_resource_retry)
+            continue
+
+        # Successful non-null resource; reset null-resource retry counter.
+        null_resource_retry = 0
 
         # Allow for paginating both nodes and edges fields of the GitHub GQL structure.
         data.nodes.extend(resource.get("nodes", []))
@@ -247,7 +391,7 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     rate_limit_url = f"{base_url}/rate_limit"
     response = requests.get(
         rate_limit_url,
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
@@ -287,14 +431,15 @@ def fetch_all_rest_api_pages(
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     retry = 0
 
     while url:
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)
@@ -320,6 +465,9 @@ def fetch_all_rest_api_pages(
             retry += 1
             exc = err
         except requests.exceptions.ChunkedEncodingError as err:
+            retry += 1
+            exc = err
+        except requests.exceptions.ConnectionError as err:
             retry += 1
             exc = err
 
@@ -363,6 +511,7 @@ def call_github_rest_api(
     token: str,
     api_url: str = "https://api.github.com",
     params: dict[str, Any] | None = None,
+    retries: int = 5,
 ) -> dict[str, Any]:
     """
     Calls the GitHub REST API and returns the JSON response.
@@ -371,8 +520,9 @@ def call_github_rest_api(
     :param token: The OAuth token for authentication
     :param api_url: The GitHub API URL (GraphQL or REST base URL - will be converted as needed)
     :param params: Optional query parameters for the request
+    :param retries: Number of retries to perform on transient errors.
     :return: The JSON response as a dictionary
-    :raises requests.exceptions.HTTPError: If the request fails
+    :raises requests.exceptions.HTTPError: If the request fails with a non-transient error or after all retries
     """
     # Use the helper to get correct REST API base URL (handles GitHub Enterprise correctly)
     base_url = (
@@ -381,44 +531,124 @@ def call_github_rest_api(
         else api_url.rstrip("/")
     )
 
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
     url = f"{base_url}{endpoint}"
+    last_exc: Any = None
+
+    for attempt in range(max(retries, 1)):
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        try:
+            response = requests.get(
+                url, headers=headers, params=params, timeout=_TIMEOUT
+            )
+
+            # Handle rate limiting for Search API
+            if "X-RateLimit-Remaining" in response.headers:
+                remaining = int(response.headers["X-RateLimit-Remaining"])
+                # Check if this is a search endpoint (stricter limits)
+                is_search = "/search/" in endpoint
+                threshold = (
+                    _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
+                    if is_search
+                    else _REST_RATE_LIMIT_REMAINING_THRESHOLD
+                )
+
+                if remaining < threshold:
+                    reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
+                    if reset_timestamp:
+                        reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
+                        now = datetime.now(tz.utc)
+                        sleep_duration = (
+                            reset_at - now + timedelta(seconds=10)
+                        )  # Add buffer
+                        if sleep_duration.total_seconds() > 0:
+                            logger.warning(
+                                f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
+                                f"sleeping until reset at {reset_at} for {sleep_duration}",
+                            )
+                            time.sleep(sleep_duration.total_seconds())
+
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+
+        except requests.exceptions.Timeout as err:
+            last_exc = err
+        except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code not in _TRANSIENT_STATUS_CODES
+            ):
+                raise
+            last_exc = err
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as err:
+            last_exc = err
+
+        logger.warning(
+            "GitHub REST API: transient error for '%s' (attempt %d/%d): %s",
+            url,
+            attempt + 1,
+            retries,
+            last_exc,
+        )
+        if attempt < retries - 1:
+            time.sleep(2 ** (attempt + 1))
+
+    logger.error(
+        "GitHub REST API: Could not retrieve %s after %d retries. Raising exception.",
+        url,
+        retries,
+        exc_info=True,
+    )
+    raise last_exc
+
+
+def get_file_content(
+    token: str,
+    owner: str,
+    repo: str,
+    path: str,
+    ref: str = "HEAD",
+    base_url: str = "https://api.github.com",
+) -> str | None:
+    """
+    Download the content of a file from a GitHub repository using the Contents API.
+
+    :param token: The GitHub API token
+    :param owner: The repository owner
+    :param repo: The repository name
+    :param path: The path to the file within the repository
+    :param ref: The git reference (branch, tag, or commit SHA) to get the file from
+    :param base_url: The base URL for the GitHub API
+    :return: The file content as a string, or None if retrieval fails
+    """
+    endpoint = f"/repos/{owner}/{repo}/contents/{path}"
+    params: dict[str, Any] = {"ref": ref}
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=_TIMEOUT)
-    except requests.exceptions.Timeout:
-        logger.warning("GitHub REST API: requests.get('%s') timed out.", url)
+        response = call_github_rest_api(endpoint, token, base_url, params)
+
+        # The content is base64 encoded
+        if response.get("encoding") == "base64":
+            content_b64 = response.get("content", "")
+            # GitHub returns content with newlines for readability, remove them
+            content_b64 = content_b64.replace("\n", "")
+            content = base64.b64decode(content_b64).decode("utf-8")
+            return content
+
+        # If not base64 encoded, try to get raw content
+        return response.get("content")
+
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            logger.debug("File not found: %s/%s/%s", owner, repo, path)
+            return None
         raise
-
-    # Handle rate limiting for Search API
-    if "X-RateLimit-Remaining" in response.headers:
-        remaining = int(response.headers["X-RateLimit-Remaining"])
-        # Check if this is a search endpoint (stricter limits)
-        is_search = "/search/" in endpoint
-        threshold = (
-            _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
-            if is_search
-            else _REST_RATE_LIMIT_REMAINING_THRESHOLD
-        )
-
-        if remaining < threshold:
-            reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
-            if reset_timestamp:
-                reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
-                now = datetime.now(tz.utc)
-                sleep_duration = reset_at - now + timedelta(seconds=10)  # Add buffer
-                if sleep_duration.total_seconds() > 0:
-                    logger.warning(
-                        f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
-                        f"sleeping until reset at {reset_at} for {sleep_duration}",
-                    )
-                    time.sleep(sleep_duration.total_seconds())
-
-    response.raise_for_status()
-    result: dict[str, Any] = response.json()
-    return result

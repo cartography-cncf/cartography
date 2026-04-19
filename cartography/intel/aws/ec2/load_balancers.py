@@ -5,17 +5,17 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.load_balancer_listeners import ELBListenerSchema
 from cartography.models.aws.ec2.load_balancers import LoadBalancerSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
-from .util import get_botocore_config
-
 logger = logging.getLogger(__name__)
 
 
-# TODO: Remove this migration function when releasing v1
+# DEPRECATED: Remove this migration function when releasing v1
 def _migrate_legacy_loadbalancer_labels(neo4j_session: neo4j.Session) -> None:
     """One-time migration: relabel LoadBalancer → AWSLoadBalancer."""
     check_query = """
@@ -147,8 +147,8 @@ def transform_load_balancer_data(
 def get_loadbalancer_data(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict]:
-    client = boto3_session.client(
-        "elb", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "elb", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_load_balancers")
     elbs: list[dict] = []

@@ -8,9 +8,6 @@ aws_ecs_container_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECSContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="arn", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -35,9 +32,6 @@ kubernetes_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KubernetesContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -46,7 +40,7 @@ kubernetes_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="state", node_field="status_state"),
                 # cpu: Not exposed as a direct field in KubernetesContainer node
                 # memory: Not exposed as a direct field in KubernetesContainer node
-                # region: Not exposed as a direct field in KubernetesContainer node
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(
                     ontology_field="namespace", node_field="namespace"
                 ),
@@ -62,9 +56,6 @@ azure_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureContainerInstance",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 # image: Not exposed as a direct field in AzureContainerInstance node (image info is in nested container properties)
                 # image_digest: Not exposed as a direct field in AzureContainerInstance node

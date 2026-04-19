@@ -29,8 +29,8 @@ def test_normalize_removes_shell_prefix():
 
 def test_normalize_removes_instruction_prefix():
     assert normalize_command("RUN pip install flask") == "pip install flask"
-    assert normalize_command("COPY . /app") == ". /app"
-    assert normalize_command("ADD file.tar /opt") == "file.tar /opt"
+    assert normalize_command("COPY . /app") == "copy_in /app"
+    assert normalize_command("ADD file.tar /opt") == "add_in /opt"
 
 
 def test_normalize_removes_buildkit_prefix():
@@ -46,6 +46,16 @@ def test_normalize_removes_buildkit_mount():
 def test_normalize_removes_nop_marker():
     cmd = "#(nop) WORKDIR /app"
     assert normalize_command(cmd) == "workdir /app"
+
+
+def test_normalize_oci_copy_history_to_destination():
+    cmd = "/bin/sh -c #(nop) COPY file:abc123 in /usr/local/bin/ "
+    assert normalize_command(cmd) == "copy_in /usr/local/bin/"
+
+
+def test_normalize_oci_add_history_to_destination():
+    cmd = "/bin/sh -c #(nop) ADD dir:abc123 in /scripts/ "
+    assert normalize_command(cmd) == "add_in /scripts/"
 
 
 def test_normalize_removes_inline_comments():
@@ -130,6 +140,66 @@ def test_parse_to_dict():
     assert data["stage_count"] == 1
     assert data["layer_count"] == 1
     assert data["final_base_image"] == "python"
+
+
+def test_parse_multiline_continuation():
+    content = """
+FROM python:3.11
+RUN apt-get update \\
+    && apt-get install -y curl
+COPY . /app
+"""
+    df = parse(content)
+
+    assert df.stage_count == 1
+    assert df.layer_creating_instruction_count == 2  # RUN + COPY
+    run_instruction = next(i for i in df.final_stage.instructions if i.cmd == "RUN")
+    assert "apt-get install -y curl" in run_instruction.value
+
+
+def test_parse_multiline_continuation_three_lines():
+    content = """
+FROM python:3.11
+RUN apt-get update \\
+    && apt-get install -y curl \\
+    && apt-get clean
+"""
+    df = parse(content)
+
+    run_instruction = next(i for i in df.final_stage.instructions if i.cmd == "RUN")
+    assert "apt-get install -y curl" in run_instruction.value
+    assert "apt-get clean" in run_instruction.value
+
+
+def test_parse_skips_heredoc_body_when_parsing_instructions():
+    content = """
+FROM python:3.11
+RUN <<EOF
+FROM alpine
+echo hello
+EOF
+COPY . /app
+"""
+    df = parse(content)
+
+    assert df.stage_count == 1
+    assert df.final_base_image == "python"
+    assert df.layer_creating_instruction_count == 2  # RUN + COPY
+
+
+def test_parse_skips_quoted_heredoc_body_when_parsing_instructions():
+    content = """
+FROM python:3.11
+RUN <<'EOF'
+FROM alpine
+echo hello
+EOF
+"""
+    df = parse(content)
+
+    assert df.stage_count == 1
+    assert df.final_base_image == "python"
+    assert df.layer_creating_instruction_count == 1  # RUN only
 
 
 # =============================================================================

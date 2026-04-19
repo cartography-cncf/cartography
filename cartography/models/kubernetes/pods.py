@@ -19,11 +19,13 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
     namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
+    service_account_name: PropertyRef = PropertyRef("service_account_name")
     labels: PropertyRef = PropertyRef("labels")
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
     node: PropertyRef = PropertyRef("node")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -106,6 +108,46 @@ class KubernetesPodToSecretEnvRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPodToKubernetesNodeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+class KubernetesPodToKubernetesNodeRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("node_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_ON"
+    properties: KubernetesPodToKubernetesNodeRelProperties = (
+        KubernetesPodToKubernetesNodeRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+class KubernetesPodToServiceAccountRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("service_account_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SERVICE_ACCOUNT"
+    properties: KubernetesPodToServiceAccountRelProperties = (
+        KubernetesPodToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     label: str = "KubernetesPod"
     properties: KubernetesPodNodeProperties = KubernetesPodNodeProperties()
@@ -115,6 +157,8 @@ class KubernetesPodSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesPodToKubernetesNamespaceRel(),
+            KubernetesPodToKubernetesNodeRel(),
+            KubernetesPodToServiceAccountRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),
         ]

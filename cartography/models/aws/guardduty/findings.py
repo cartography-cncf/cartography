@@ -21,6 +21,8 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     severity: PropertyRef = PropertyRef("severity")
     confidence: PropertyRef = PropertyRef("confidence")
+    createdat: PropertyRef = PropertyRef("createdat")
+    updatedat: PropertyRef = PropertyRef("updatedat")
     eventfirstseen: PropertyRef = PropertyRef("eventfirstseen")
     eventlastseen: PropertyRef = PropertyRef("eventlastseen")
     accountid: PropertyRef = PropertyRef("accountid")
@@ -108,7 +110,7 @@ class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
 class GuardDutyFindingSchema(CartographyNodeSchema):
     label: str = "GuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()
     )

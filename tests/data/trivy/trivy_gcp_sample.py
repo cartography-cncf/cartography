@@ -106,6 +106,32 @@ TRIVY_GCP_SAMPLE = {
                     "LastModifiedDate": "2024-03-15T00:00:00Z",
                 },
             ],
+            "Packages": [
+                {
+                    "ID": "openssl@3.0.15-1~deb12u1",
+                    "Name": "openssl",
+                    "Version": "3.0.15-1~deb12u1",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/openssl@3.0.15-1~deb12u1?arch=amd64&distro=debian-12.8",
+                    },
+                },
+                {
+                    "ID": "curl@7.88.1-10+deb12u5",
+                    "Name": "curl",
+                    "Version": "7.88.1-10+deb12u5",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/curl@7.88.1-10+deb12u5?arch=amd64&distro=debian-12.8",
+                    },
+                },
+                {
+                    "ID": "libc6@2.36-9+deb12u4",
+                    "Name": "libc6",
+                    "Version": "2.36-9+deb12u4",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/libc6@2.36-9+deb12u4?arch=amd64&distro=debian-12.8",
+                    },
+                },
+            ],
         },
     ],
 }

@@ -3,6 +3,7 @@ from unittest.mock import patch
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.deployment
+import tests.data.semgrep.sast
 import tests.data.semgrep.sca
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
@@ -22,10 +23,174 @@ from tests.integration.util import check_rels
 )
 @patch.object(
     cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=tests.data.semgrep.sast.RAW_FINDINGS,
+)
+def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_session):
+    # Arrange
+    create_github_repos(neo4j_session)
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+    }
+
+    # Act
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    with patch.object(
+        cartography.intel.semgrep.findings,
+        "get_sca_vulns",
+        return_value=[],
+    ):
+        sync_findings(
+            neo4j_session,
+            semgrep_app_token,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    # Assert nodes
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        [
+            "id",
+            "rule_id",
+            "repository",
+            "repository_url",
+            "branch",
+            "severity",
+            "confidence",
+            "triage_status",
+            "fix_status",
+        ],
+    ) == {
+        (
+            tests.data.semgrep.sast.SAST_FINDING_ID,
+            "python.lang.security.audit.sqli.formatted-sql-query",
+            "simpsoncorp/sample_repo",
+            "https://github.com/simpsoncorp/sample_repo",
+            "main",
+            "HIGH",
+            "HIGH",
+            "untriaged",
+            "open",
+        ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id", "file_path", "start_line", "start_col", "end_line", "end_col"],
+    ) == {
+        (
+            tests.data.semgrep.sast.SAST_FINDING_ID,
+            "src/api/auth.py",
+            42,
+            10,
+            42,
+            65,
+        ),
+    }
+
+    # Assert deployment relationship
+    assert check_rels(
+        neo4j_session,
+        "SemgrepDeployment",
+        "id",
+        "SemgrepSASTFinding",
+        "id",
+        "RESOURCE",
+    ) == {
+        (
+            "123456",
+            tests.data.semgrep.sast.SAST_FINDING_ID,
+        ),
+    }
+
+    # Assert GitHub repo relationship
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "SemgrepSASTFinding",
+        "id",
+        "FOUND_IN",
+        rel_direction_right=False,
+    ) == {
+        (
+            "https://github.com/simpsoncorp/sample_repo",
+            tests.data.semgrep.sast.SAST_FINDING_ID,
+        ),
+    }
+
+    expected_assistant_id = (
+        f"semgrep-assistant-{tests.data.semgrep.sast.SAST_FINDING_ID}"
+    )
+
+    # Assert assistant node
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepFindingAssistant",
+        [
+            "id",
+            "autotriage_verdict",
+            "autotriage_reason",
+            "component_tag",
+            "component_risk",
+            "guidance_summary",
+            "rule_explanation_summary",
+        ],
+    ) == {
+        (
+            expected_assistant_id,
+            "true_positive",
+            "",
+            "user data",
+            "high",
+            "Use parameterized queries instead of string concatenation.",
+            "User input directly concatenated into SQL query",
+        ),
+    }
+
+    # Assert HAS_ASSISTANT relationship
+    assert check_rels(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        "id",
+        "SemgrepFindingAssistant",
+        "id",
+        "HAS_ASSISTANT",
+    ) == {
+        (
+            tests.data.semgrep.sast.SAST_FINDING_ID,
+            expected_assistant_id,
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+def test_sync_findings(
+    mock_get_sca_vulns, mock_get_sast_findings, mock_get_deployment, neo4j_session
+):
     # Arrange
     create_github_repos(neo4j_session)
     create_dependency_nodes(neo4j_session)
@@ -63,6 +228,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "id",
             "lastupdated",
             "repository",
+            "repository_url",
             "branch",
             "rule_id",
             "summary",
@@ -85,6 +251,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
         "simpsoncorp/sample_repo",
+        "https://github.com/simpsoncorp/sample_repo",
         "main",
         "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
         "moment:Denial-of-Service (DoS)",
@@ -106,6 +273,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         tests.data.semgrep.sca.VULN_ID_UNKNOWN,
         TEST_UPDATE_TAG,
         "simpsoncorp/sample_repo",
+        "https://github.com/simpsoncorp/sample_repo",
         "main",
         "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
         "moment:Denial-of-Service (DoS)",
@@ -183,18 +351,18 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     assert check_rels(
         neo4j_session,
         "GitHubRepository",
-        "fullname",
+        "id",
         "SemgrepSCAFinding",
         "id",
         "FOUND_IN",
         rel_direction_right=False,
     ) == {
         (
-            "simpsoncorp/sample_repo",
+            "https://github.com/simpsoncorp/sample_repo",
             tests.data.semgrep.sca.VULN_ID,
         ),
         (
-            "simpsoncorp/sample_repo",
+            "https://github.com/simpsoncorp/sample_repo",
             tests.data.semgrep.sca.VULN_ID_UNKNOWN,
         ),
     }

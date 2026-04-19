@@ -62,6 +62,35 @@ def test_sync_with_empty_source_list(neo4j_session):
     assert user_count == 2
 
 
+def test_sync_accepts_entra_as_alias_for_microsoft_useraccounts(neo4j_session):
+    """Legacy 'entra' source names should still resolve to Microsoft user accounts."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    neo4j_session.run(
+        """
+        CREATE (:UserAccount {
+            id: 'msft-user-1',
+            _ont_source: 'microsoft',
+            _ont_email: 'homer@simpson.corp',
+            _ont_fullname: 'Homer Simpson',
+            _ont_firstname: 'Homer',
+            _ont_lastname: 'Simpson',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.users.sync(
+        neo4j_session, ["entra"], TEST_UPDATE_TAG, {"UPDATE_TAG": TEST_UPDATE_TAG}
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "User",
+        ["email", "firstname", "lastname"],
+    ) == {("homer@simpson.corp", "Homer", "Simpson")}
+
+
 @patch.object(
     cartography.intel.ontology.users,
     "get_source_nodes_from_graph",
@@ -132,3 +161,65 @@ def test_load_ontology_users_integration(mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_rels == expected_rels
+
+
+def test_cleanup_removes_stale_custom_user_relationships(neo4j_session):
+    """User cleanup should delete stale custom ontology-derived relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    neo4j_session.run(
+        """
+        MERGE (u:User:Ontology {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'hjsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (acct:UserAccount {id: 'acct-1'})
+        SET acct.email = 'hjsimpson@simpson.corp'
+        MERGE (u)-[fresh_has_account:HAS_ACCOUNT]->(acct)
+        SET fresh_has_account.lastupdated = $update_tag
+
+        MERGE (sso:AWSSSOUser {id: 'sso-1'})
+        MERGE (u)-[stale_sso:HAS_ACCOUNT]->(sso)
+        SET stale_sso.lastupdated = $stale_tag
+
+        MERGE (gh:GitHubUser {id: 'github-1'})
+        MERGE (u)-[stale_github:HAS_ACCOUNT]->(gh)
+        SET stale_github.lastupdated = $stale_tag
+
+        MERGE (key:AccountAccessKey:APIKey {id: 'key-1'})
+        MERGE (u)-[stale_key:OWNS]->(key)
+        SET stale_key.lastupdated = $stale_tag
+
+        MERGE (app:GoogleWorkspaceOAuthApp:ThirdPartyApp {id: 'app-1'})
+        MERGE (u)-[stale_auth:AUTHORIZED]->(app)
+        SET stale_auth.lastupdated = $stale_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+    )
+
+    cartography.intel.ontology.users.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    stale_custom_rel_count = neo4j_session.run(
+        """
+        MATCH (:User {id: 'hjsimpson@simpson.corp'})-[r]->()
+        WHERE (type(r) = 'HAS_ACCOUNT' AND endNode(r):AWSSSOUser)
+           OR (type(r) = 'HAS_ACCOUNT' AND endNode(r):GitHubUser)
+           OR (type(r) = 'OWNS' AND endNode(r):APIKey)
+           OR (type(r) = 'AUTHORIZED' AND endNode(r):ThirdPartyApp)
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert stale_custom_rel_count == 0
+
+    fresh_useraccount_rel_count = neo4j_session.run(
+        """
+        MATCH (:User {id: 'hjsimpson@simpson.corp'})-[r:HAS_ACCOUNT]->(:UserAccount {id: 'acct-1'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert fresh_useraccount_rel_count == 1

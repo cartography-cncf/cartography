@@ -6,13 +6,13 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.vpc import AWSVpcSchema
 from cartography.models.aws.ec2.vpc_cidr import AWSIPv4CidrBlockSchema
 from cartography.models.aws.ec2.vpc_cidr import AWSIPv6CidrBlockSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,8 @@ def get_ec2_vpcs(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -90,7 +91,6 @@ def load_ec2_vpcs(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vpcs)} EC2 VPCs for region '{region}' into graph.")
     # https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
     # {
     #     "Vpcs": [

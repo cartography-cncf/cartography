@@ -13,6 +13,22 @@ def test_cli():
     sync.run.assert_called_once()
 
 
+def test_cli_neo4j_liveness_check_timeout():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--neo4j-liveness-check-timeout",
+            "60",
+        ],
+    )
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.neo4j_liveness_check_timeout == 60
+
+
 def test_cli_version(capsys):
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")

@@ -20,6 +20,8 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.s3.acl import S3AclSchema
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
@@ -40,6 +42,8 @@ from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+BUCKET_BATCH_SIZE = 50
 
 
 # Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
@@ -66,15 +70,28 @@ MaybeFailed = Union[Optional[Dict], _FetchFailed]
 
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
-    client = boto3_session.client("s3")
+    client = create_boto3_client(
+        boto3_session,
+        "s3",
+        config=get_botocore_config(max_pool_connections=50),
+    )
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
     for bucket in buckets["Buckets"]:
         try:
-            bucket["Region"] = client.get_bucket_location(Bucket=bucket["Name"])[
-                "LocationConstraint"
-            ]
+            resp = client.head_bucket(Bucket=bucket["Name"])
+            bucket["Region"] = resp.get("BucketRegion") or resp["ResponseMetadata"][
+                "HTTPHeaders"
+            ].get("x-amz-bucket-region")
         except ClientError as e:
+            region = (
+                e.response.get("ResponseMetadata", {})
+                .get("HTTPHeaders", {})
+                .get("x-amz-bucket-region")
+            )
+            if region:
+                bucket["Region"] = region
+                continue
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
                 bucket["Region"] = None
@@ -130,12 +147,14 @@ def get_s3_bucket_details(
     ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
-        # Note: bucket['Region'] is sometimes None because
-        # client.get_bucket_location() does not return a location constraint for buckets
-        # in us-east-1 region
         client = s3_regional_clients.get(bucket["Region"])
         if not client:
-            client = boto3_session.client("s3", bucket["Region"])
+            client = create_boto3_client(
+                boto3_session,
+                "s3",
+                region_name=bucket["Region"],
+                config=get_botocore_config(max_pool_connections=50),
+            )
             s3_regional_clients[bucket["Region"]] = client
         (
             acl,
@@ -165,10 +184,13 @@ def get_s3_bucket_details(
             bucket_logging,
         )
 
-    bucket_details = to_synchronous(
-        *[_get_bucket_detail(bucket) for bucket in bucket_data["Buckets"]],
-    )
-    yield from bucket_details
+    buckets = bucket_data["Buckets"]
+    for i in range(0, len(buckets), BUCKET_BATCH_SIZE):
+        batch = buckets[i : i + BUCKET_BATCH_SIZE]
+        bucket_details = to_synchronous(
+            *[_get_bucket_detail(bucket) for bucket in batch],
+        )
+        yield from bucket_details
 
 
 @timeit
@@ -1249,7 +1271,11 @@ def _sync_s3_notifications(
     Sync S3 bucket notification configurations to Neo4j.
     """
     logger.info("Syncing S3 bucket notifications")
-    s3_client = boto3_session.client("s3")
+    s3_client = create_boto3_client(
+        boto3_session,
+        "s3",
+        config=get_botocore_config(max_pool_connections=BUCKET_BATCH_SIZE),
+    )
     notifications = []
 
     for bucket in bucket_data["Buckets"]:
@@ -1270,7 +1296,6 @@ def _sync_s3_notifications(
             )
             continue
 
-    logger.info(f"Loading {len(notifications)} S3 bucket notifications into Neo4j")
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 

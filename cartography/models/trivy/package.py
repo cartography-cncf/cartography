@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -23,6 +22,9 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     # Additional fields from Trivy scan results
     purl: PropertyRef = PropertyRef("PURL")
     pkg_id: PropertyRef = PropertyRef("PkgID")
+    # Normalized ID for cross-tool matching (format: {type}|{namespace/}{normalized_name}|{version})
+    # Namespace included when present (e.g., deb packages). Uses PEP 503 normalization for Python.
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -95,9 +97,8 @@ class TrivyPackageToFindingRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyPackageSchema(CartographyNodeSchema):
-    label: str = "Package"
+    label: str = "TrivyPackage"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["TrivyPackage"])
     properties: TrivyPackageNodeProperties = TrivyPackageNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

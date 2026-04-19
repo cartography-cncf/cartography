@@ -1,8 +1,16 @@
+from copy import deepcopy
+from unittest.mock import patch
+
+import cartography.intel.github.repos
+from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import transform
+from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
 
@@ -204,8 +212,10 @@ def test_transform_includes_branch_protection_rules():
 
 
 def test_transform_prefers_dependency_graph_over_requirements_txt():
-    repo = GET_REPOS[2]
+    repo = dict(GET_REPOS[2])
     repo_url = repo["url"]
+    # Simulate what sync() does: inject dep manifests fetched separately
+    repo["dependencyGraphManifests"] = DEP_MANIFESTS_BY_URL[repo_url]
 
     result = transform(
         [repo],
@@ -238,3 +248,209 @@ def test_transform_uses_requirements_when_dependency_graph_missing():
     # No dependency graph data, so requirements parsing should run
     requirement_names = {req["name"] for req in result["python_requirements"]}
     assert {"cartography", "httplib2", "jinja2", "lxml"}.issubset(requirement_names)
+
+
+def test_merge_repos_with_privileged_details_merges_by_url():
+    base_repos = deepcopy(GET_REPOS[:2])
+    for repo in base_repos:
+        repo.pop("directCollaborators", None)
+        repo.pop("outsideCollaborators", None)
+        repo.pop("branchProtectionRules", None)
+
+    privileged_repo_data = {
+        base_repos[0]["url"]: {
+            "directCollaborators": {"totalCount": 0},
+            "outsideCollaborators": {"totalCount": 0},
+            "branchProtectionRules": {"nodes": []},
+        },
+        "https://github.com/simpsoncorp/non_matching_repo": {
+            "directCollaborators": {"totalCount": 99},
+            "outsideCollaborators": {"totalCount": 99},
+            "branchProtectionRules": {"nodes": []},
+        },
+    }
+
+    merged_repos, merged_repo_count, missing_repo_count = (
+        _merge_repos_with_privileged_details(base_repos, privileged_repo_data)
+    )
+
+    assert merged_repo_count == 1
+    assert missing_repo_count == 1
+    assert merged_repos[0]["directCollaborators"] == {"totalCount": 0}
+    assert merged_repos[0]["outsideCollaborators"] == {"totalCount": 0}
+    assert merged_repos[0]["branchProtectionRules"] == {"nodes": []}
+    assert "directCollaborators" not in merged_repos[1]
+    assert "outsideCollaborators" not in merged_repos[1]
+    assert "branchProtectionRules" not in merged_repos[1]
+    # Ensure input repos are not mutated by merge.
+    assert "directCollaborators" not in base_repos[0]
+
+
+def test_repos_need_privileged_details_when_fields_missing():
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("directCollaborators", None)
+    repo.pop("outsideCollaborators", None)
+    repo.pop("branchProtectionRules", None)
+
+    assert _repos_need_privileged_details([repo]) is True
+
+
+def test_repos_need_privileged_details_when_fields_present():
+    assert _repos_need_privileged_details([GET_REPOS[0], GET_REPOS[2]]) is False
+
+
+def test_build_branch_data_includes_owner_org_id():
+    transformed_repo = {
+        "id": "https://github.com/simpsoncorp/sample_repo",
+        "defaultbranch": "main",
+        "defaultbranchid": "branch_ref_id==",
+        "owner_org_id": "https://github.com/simpsoncorp",
+    }
+
+    assert _build_branch_data([transformed_repo]) == [
+        {
+            "id": "branch_ref_id==",
+            "name": "main",
+            "repo_id": "https://github.com/simpsoncorp/sample_repo",
+            "owner_org_id": "https://github.com/simpsoncorp",
+        }
+    ]
+
+
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
+@patch.object(cartography.intel.github.repos, "cleanup_python_requirements")
+@patch.object(cartography.intel.github.repos, "cleanup_github_collaborators")
+@patch.object(cartography.intel.github.repos, "cleanup_github_owners")
+@patch.object(cartography.intel.github.repos, "cleanup_github_languages")
+@patch.object(cartography.intel.github.repos, "cleanup_github_branches")
+@patch.object(cartography.intel.github.repos, "cleanup_github_repos")
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[])
+def test_sync_cleans_up_branches_when_org_has_no_repos(
+    mock_get,
+    mock_get_dep_manifests,
+    mock_get_repo_collaborators,
+    mock_load,
+    mock_cleanup_github_repos,
+    mock_cleanup_github_branches,
+    mock_cleanup_github_languages,
+    mock_cleanup_github_owners,
+    mock_cleanup_github_collaborators,
+    mock_cleanup_python_requirements,
+    mock_cleanup_github_dependencies,
+    mock_cleanup_github_manifests,
+    mock_cleanup_branch_protection_rules,
+):
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    mock_cleanup_github_repos.assert_not_called()
+    mock_cleanup_github_branches.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "https://github.com/example-org",
+    )
+    mock_cleanup_github_languages.assert_not_called()
+    mock_cleanup_github_owners.assert_not_called()
+    mock_cleanup_github_collaborators.assert_not_called()
+    mock_cleanup_python_requirements.assert_not_called()
+    mock_cleanup_github_dependencies.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
+    )
+    mock_cleanup_github_manifests.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
+    )
+    mock_cleanup_branch_protection_rules.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
+    )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    side_effect=ValueError("privileged fetch failed"),
+)
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
+@patch.object(cartography.intel.github.repos, "cleanup_python_requirements")
+@patch.object(cartography.intel.github.repos, "cleanup_github_collaborators")
+@patch.object(cartography.intel.github.repos, "cleanup_github_owners")
+@patch.object(cartography.intel.github.repos, "cleanup_github_languages")
+@patch.object(cartography.intel.github.repos, "cleanup_github_branches")
+@patch.object(cartography.intel.github.repos, "cleanup_github_repos")
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get")
+def test_sync_continues_when_privileged_fetch_fails(
+    mock_get,
+    mock_get_repo_collaborators,
+    mock_load,
+    mock_cleanup_github_repos,
+    mock_cleanup_github_branches,
+    mock_cleanup_github_languages,
+    mock_cleanup_github_owners,
+    mock_cleanup_github_collaborators,
+    mock_cleanup_python_requirements,
+    mock_cleanup_github_dependencies,
+    mock_cleanup_github_manifests,
+    mock_cleanup_branch_protection_rules,
+    mock_get_privileged,
+):
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("directCollaborators", None)
+    repo.pop("outsideCollaborators", None)
+    repo.pop("branchProtectionRules", None)
+    mock_get.return_value = [repo]
+
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    mock_get_privileged.assert_called_once_with(
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+    assert mock_get_repo_collaborators.call_count == 2
+    mock_load.assert_called_once()
+    mock_cleanup_github_repos.assert_not_called()
+    mock_cleanup_github_branches.assert_called_once()
+    mock_cleanup_github_languages.assert_not_called()
+    mock_cleanup_github_owners.assert_not_called()
+    mock_cleanup_github_collaborators.assert_not_called()
+    mock_cleanup_python_requirements.assert_not_called()
+    mock_cleanup_github_dependencies.assert_called_once()
+    mock_cleanup_github_manifests.assert_called_once()
+    mock_cleanup_branch_protection_rules.assert_called_once()

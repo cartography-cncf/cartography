@@ -137,6 +137,7 @@ def test_start_aws_ingestion(
         update_tag=TEST_UPDATE_TAG,
         aws_sync_all_profiles=True,
         experimental_aws_inspector_batch=100,
+        aws_tagging_api_cleanup_batch=1000,
     )
 
     # Act
@@ -153,6 +154,7 @@ def test_start_aws_ingestion(
             "aws_guardduty_severity_threshold": None,
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
             "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
+            "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
         },
     )
 
@@ -326,7 +328,7 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 1
+    assert mock_analysis.call_count == 3
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

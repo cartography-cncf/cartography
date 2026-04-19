@@ -2,6 +2,7 @@ from cartography.graph.querybuilder import _build_ontology_field_statement_equal
 from cartography.graph.querybuilder import (
     _build_ontology_field_statement_invert_boolean,
 )
+from cartography.graph.querybuilder import _build_ontology_field_statement_mapping
 from cartography.graph.querybuilder import _build_ontology_field_statement_or_boolean
 from cartography.graph.querybuilder import _build_ontology_field_statement_static_value
 from cartography.graph.querybuilder import _build_ontology_field_statement_to_boolean
@@ -427,4 +428,101 @@ def test_build_ontology_field_statement_static_value_string_with_backslash():
 
     # Assert
     expected = 'i._ont_path = "C:\\\\Users\\\\test"'
+    assert result == expected
+
+
+def test_build_ontology_field_statement_mapping():
+    """
+    Test _build_ontology_field_statement_mapping function with valid map.
+    Maps provider-specific values to normalized ontology values via CASE expression.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="type",
+        node_field="role_type",
+        special_handling="mapping",
+        extra={
+            "map": {"BASIC": "builtin", "PREDEFINED": "builtin", "CUSTOM": "custom"}
+        },
+    )
+    property_ref = PropertyRef("role_type")
+
+    # Act
+    result = _build_ontology_field_statement_mapping(mapping_field, property_ref)
+
+    # Assert
+    expected = (
+        "i._ont_type = CASE item.role_type "
+        'WHEN "BASIC" THEN "builtin" '
+        'WHEN "PREDEFINED" THEN "builtin" '
+        'WHEN "CUSTOM" THEN "custom" '
+        "END"
+    )
+    assert result == expected
+
+
+def test_build_ontology_field_statement_mapping_missing_map():
+    """
+    Test _build_ontology_field_statement_mapping when 'map' is missing in extra.
+    Should return None and log a warning.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="type",
+        node_field="role_type",
+        special_handling="mapping",
+        extra={},
+    )
+    property_ref = PropertyRef("role_type")
+
+    # Act
+    result = _build_ontology_field_statement_mapping(mapping_field, property_ref)
+
+    # Assert
+    assert result is None
+
+
+def test_build_ontology_field_statement_mapping_invalid_map_type():
+    """
+    Test _build_ontology_field_statement_mapping when 'map' is not a dict.
+    Should return None and log a warning.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="type",
+        node_field="role_type",
+        special_handling="mapping",
+        extra={"map": ["BASIC", "builtin"]},
+    )
+    property_ref = PropertyRef("role_type")
+
+    # Act
+    result = _build_ontology_field_statement_mapping(mapping_field, property_ref)
+
+    # Assert
+    assert result is None
+
+
+def test_build_ontology_field_statement_mapping_with_special_chars():
+    """
+    Test _build_ontology_field_statement_mapping with values containing special characters.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="category",
+        node_field="raw_category",
+        special_handling="mapping",
+        extra={"map": {'say "hello"': "greeting"}},
+    )
+    property_ref = PropertyRef("raw_category")
+
+    # Act
+    result = _build_ontology_field_statement_mapping(mapping_field, property_ref)
+
+    # Assert
+    expected = (
+        "i._ont_category = CASE item.raw_category "
+        'WHEN "say \\"hello\\"" THEN "greeting" '
+        "END"
+    )
     assert result == expected

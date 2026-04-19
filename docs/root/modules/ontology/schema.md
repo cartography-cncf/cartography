@@ -10,21 +10,35 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+UG{{UserGroup}}
+SA{{ServiceAccount}}
+CERT{{Certificate}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
+CL{{ComputeCluster}}
 DB{{Database}}
+DZ{{DNSZone}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
+EK{{EncryptionKey}}
+PR{{PermissionRole}}
+NAC{{NetworkAccessControl}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
+PKG(Package) -- DEPLOYED --> IM{{Image}}
+PKG -- DEPENDS_ON --> PKG
+F[TrivyImageFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
-IT -- IMAGE --> IM{{Image}}
+IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
+CT -- HAS_IMAGE --> IM
+CT -- HAS_IMAGE --> IML
+CT -- RESOLVED_IMAGE --> IM
 ```
 
 :::{note}
@@ -61,6 +75,11 @@ When mappings are applied, nodes automatically receive `_ont_*` properties with 
 - **Cross-module querying**: Use consistent field names across different modules
 - **Data normalization**: Access standardized field values regardless of source format
 - **Source tracking**: The `_ont_source` property indicates which module provided the data
+
+:::{important}
+Semantic-label queries should use the documented `_ont_*` field names directly, for example `_ont_name`, `_ont_region`, or `_ont_source`.
+If you still have queries using `_ont_id`, update them to the current field that represents that concept for the semantic label you are querying.
+:::
 
 ### User
 
@@ -124,6 +143,30 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_source | Source of the data. |
 
 
+### UserGroup
+
+```{note}
+UserGroup is a semantic label.
+```
+
+A user group represents a logical grouping of users or resources within a cloud provider or SaaS platform.
+Groups are a key part of the identity graph and enable attack path analysis through group membership relationships.
+Unlike the abstract `User` node, `UserGroup` is a semantic label applied to concrete group nodes from different modules, enabling unified queries across platforms.
+
+Common group concepts across platforms include:
+- **Cloud IAM**: AWS IAM Groups, AWS SSO Groups, OCI Groups, Scaleway Groups
+- **Identity Providers**: Entra Groups, Okta Groups, Keycloak Groups, Google Workspace Groups, GSuite Groups
+- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams
+- **Network/Device**: Duo Groups, Tailscale Groups
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the group (REQUIRED). |
+| _ont_description | Description of the group. |
+| _ont_email | Email address associated with the group (for mail-enabled groups). |
+| _ont_source | Source of the data. |
+
+
 ### Device
 
 ```{note}
@@ -134,14 +177,16 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| **id** | The unique identifier for the user. |
+| **id** | The unique identifier for the device. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
+| instance_id | Provider-specific instance identifier when available. |
+| manufacturer | Device manufacturer. |
 | os | OS running on the device. |
 | os_version | Version of the OS running on the device. |
 | model | Device model (e.g. ThinkPad Carbon X1 G11) |
-| platform | CPU architecture |
+| platform | Platform or device family reported by the source (e.g. `macOS`, `ios`). |
 | serial_number | Device serial number. |
 
 #### Relationships
@@ -200,6 +245,24 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
 
+### EncryptionKey
+
+```{note}
+EncryptionKey is a semantic label.
+```
+
+An encryption key represents a cryptographic key managed by a cloud key management service.
+It generalizes concepts like AWS KMS Keys, GCP Cloud KMS CryptoKeys, and Azure Key Vault Keys.
+Encryption keys are used for data encryption, signing, and other cryptographic operations.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the encryption key (REQUIRED). |
+| _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
+| _ont_enabled | Whether the encryption key is currently enabled. |
+| _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+
 ### ComputeInstance
 
 ```{note}
@@ -211,7 +274,6 @@ It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway 
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the instance. |
 | _ont_name | The name of the instance. |
 | _ont_region | The region or zone where the instance is located. |
 | _ont_public_ip_address | The public IP address of the instance. |
@@ -228,11 +290,10 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Container Instances, and GCP Cloud Run Revisions / Jobs.
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the container. |
 | _ont_name | The name of the container. |
 | _ont_image | The container image (e.g., nginx:latest). |
 | _ont_image_digest | The digest/SHA256 of the container image. |
@@ -242,6 +303,38 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+#### Relationships
+
+- `Container` references the image it was asked to run via `HAS_IMAGE` (created at ingest time by matching container runtime digest to image digest). The target may be either a single-platform `Image` or an `ImageManifestList`:
+    ```
+    (:Container)-[:HAS_IMAGE]->(:Image)
+    (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
+    ```
+- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
+    - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
+    ```
+    (:Container)-[:RESOLVED_IMAGE]->(:Image)
+    ```
+
+
+### ComputeCluster
+
+```{note}
+ComputeCluster is a semantic label.
+```
+
+A compute cluster represents a managed container orchestration or data processing environment across cloud providers.
+It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR clusters, Azure Kubernetes Service clusters, GCP GKE clusters, and native Kubernetes clusters.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the cluster. |
+| _ont_region | The region or location where the cluster is deployed. |
+| _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
+| _ont_endpoint | The API endpoint or FQDN for the cluster. |
+| _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
 
 
 ### ThirdPartyApp
@@ -271,6 +364,22 @@ OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keyclo
     ```
 
 
+### DNSZone
+
+```{note}
+DNSZone is a semantic label.
+```
+
+A DNS zone represents a managed DNS zone across different cloud providers and DNS services.
+It generalizes concepts like AWS Route 53 Hosted Zones, GCP Cloud DNS Zones, and Cloudflare Zones.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The DNS zone name or domain (REQUIRED). |
+| _ont_public | Whether the zone is publicly accessible (boolean). |
+| _ont_source | Source of the data. |
+
+
 ### Database
 
 ```{note}
@@ -289,6 +398,29 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_port | The port number the database listens on. |
 | _ont_db_encrypted | Whether the database storage is encrypted. |
 | _ont_db_location | The physical location/region of the database. |
+
+
+### PermissionRole
+
+```{note}
+PermissionRole is a semantic label.
+```
+
+A permission role represents an IAM role or permission role that can be assumed by principals across different cloud providers and identity platforms.
+It generalizes concepts like AWS IAM Roles, AWS Permission Sets, Azure Role Definitions, GCP IAM Roles, Keycloak Roles, Kubernetes Roles/ClusterRoles, Cloudflare Roles, and OCI Policies.
+
+Common role concepts across platforms include:
+- **Cloud IAM**: AWS IAM Roles, AWS Permission Sets, Azure Role Definitions, GCP IAM Roles, OCI Policies
+- **Container Orchestration**: Kubernetes Roles, Kubernetes ClusterRoles
+- **Identity Providers**: Keycloak Roles
+- **SaaS Platforms**: Cloudflare Roles
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the role (REQUIRED). |
+| _ont_type | Whether the role is builtin or custom (e.g., "builtin", "custom"). |
+| _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
+| _ont_source | Source of the data. |
 
 
 ### ObjectStorage
@@ -332,6 +464,45 @@ Common tenant concepts across platforms include:
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
 
 
+### ServiceAccount
+
+```{note}
+ServiceAccount is a semantic label.
+```
+
+A service account represents a non-human identity used for automation and inter-service communication.
+Unlike user accounts, service accounts are designed for programmatic access and workload identity.
+
+Common service account concepts across platforms include:
+- **Cloud Providers**: GCP Service Accounts, AWS Service Principals
+- **Container Orchestration**: Kubernetes Service Accounts
+- **SaaS Platforms**: OpenAI Service Accounts, Scaleway Applications
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the service account (REQUIRED). |
+| _ont_email | Email address associated with the service account. |
+| _ont_active | Whether the service account is active. |
+| _ont_source | Source of the data. |
+
+
+### Certificate
+
+```{note}
+Certificate is a semantic label.
+```
+
+A certificate represents a managed TLS/SSL certificate used for securing communications.
+It generalizes concepts like AWS ACM Certificates, AWS IAM Server Certificates, and Azure Key Vault Certificates.
+
+| Field | Description |
+|-------|-------------|
+| _ont_domain | Domain name or certificate name (REQUIRED). |
+| _ont_expiry | Expiration date/time of the certificate. |
+| _ont_issuer | Certificate issuer. |
+| _ont_source | Source of the data. |
+
+
 ### Function
 
 ```{note}
@@ -369,6 +540,22 @@ It generalizes concepts like GitHub Repositories and GitLab Projects.
 | _ont_default_branch | The default branch name (e.g., "main", "master"). |
 | _ont_public | Whether the repository is publicly accessible. |
 | _ont_archived | Whether the repository is archived (read-only). |
+
+
+### NetworkAccessControl
+
+```{note}
+NetworkAccessControl is a semantic label.
+```
+
+A network access control represents a security group, firewall rule, or network policy that controls network access across different cloud providers.
+It generalizes concepts like AWS EC2 Security Groups, GCP Firewall Rules, Azure Network Security Groups, Azure Firewalls, and GCP Cloud Armor Policies.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the security group or firewall (REQUIRED). |
+| _ont_direction | Traffic direction (e.g., INGRESS, EGRESS), if applicable. |
+| _ont_source | Source of the data. |
 
 
 ### LoadBalancer
@@ -438,6 +625,49 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
     ```
 
 
+### Package
+
+```{note}
+Package is an abstract ontology node.
+```
+
+A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
+Package nodes are deduplicated by their `id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| name | Name of the package. |
+| version | Version of the package. |
+| type | Package ecosystem type (e.g., npm, pypi, deb). |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`). |
+
+#### Relationships
+
+- `Package` is linked to one or many source nodes that detected it:
+    ```
+    (:Package)-[:DETECTED_AS]->(:TrivyPackage)
+    (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    ```
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
+    ```
+- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    ```
+- `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
+    ```
+    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
+- `Package` can depend on other packages (propagated from SyftPackage):
+    ```
+    (:Package)-[:DEPENDS_ON]->(:Package)
+    ```
+
 ### ContainerRegistry
 
 ```{note}
@@ -493,6 +723,13 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 | _ont_architecture | CPU architecture (e.g., "amd64", "arm64"). |
 | _ont_os | Operating system (e.g., "linux", "windows"). |
 | _ont_variant | Architecture variant (e.g., "v8" for ARM). |
+
+#### Relationships
+
+- `Image` can be linked to the public base image identified by Docker Scout:
+    ```
+    (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
 
 
 ### ImageAttestation

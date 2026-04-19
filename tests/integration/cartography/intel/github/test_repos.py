@@ -3,6 +3,7 @@ from unittest.mock import patch
 import cartography.intel.github.repos
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
+from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
@@ -19,6 +20,11 @@ FAKE_API_KEY = "asdf"
 
 @patch.object(
     cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get",
     return_value=GET_REPOS,
 )
@@ -26,7 +32,9 @@ FAKE_API_KEY = "asdf"
     cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_repos(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
     """
     Test that GitHub repos sync correctly, creating proper nodes and relationships.
     """
@@ -125,6 +133,11 @@ def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
 
 @patch.object(
     cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get",
     return_value=GET_REPOS,
 )
@@ -133,7 +146,7 @@ def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_repo_collaborators(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
 ):
     """
     Test that GitHub repo collaborators sync correctly with proper relationships.
@@ -296,6 +309,11 @@ def test_sync_github_repo_collaborators(
 
 @patch.object(
     cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get",
     return_value=GET_REPOS,
 )
@@ -303,7 +321,9 @@ def test_sync_github_repo_collaborators(
     cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_dependencies(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
     """
     Test that GitHub dependencies from dependency graph are correctly synced.
     """
@@ -365,7 +385,32 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
         actual_repo_dependency_relationships
     )
 
+    # Assert - Verify new ontology fields (normalized_id, version, type, purl)
+    expected_ontology_fields = {
+        (react_id, "npm|react|18.2.0", "18.2.0", "npm", "pkg:npm/react@18.2.0"),
+        (lodash_id, None, None, None, None),
+        (django_id, "pypi|django|4.2.0", "4.2.0", "pypi", "pkg:pypi/django@4.2.0"),
+        (
+            spring_core_id,
+            "maven|org.springframework/spring-core|5.3.21",
+            "5.3.21",
+            "maven",
+            "pkg:maven/org.springframework/spring-core@5.3.21",
+        ),
+    }
+    actual_ontology_fields = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "normalized_id", "version", "type", "purl"],
+    )
+    assert expected_ontology_fields.issubset(actual_ontology_fields)
 
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
 @patch.object(
     cartography.intel.github.repos,
     "get",
@@ -375,7 +420,9 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
     cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_manifests(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
     """
     Test that GitHub dependency manifests are correctly synced.
     """
@@ -461,6 +508,11 @@ def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
 
 @patch.object(
     cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get",
     return_value=GET_REPOS,
 )
@@ -469,7 +521,7 @@ def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_branch_protection_rules(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
 ):
     """
     Test that GitHub branch protection rules are correctly synced.
@@ -532,10 +584,15 @@ def test_sync_github_branch_protection_rules(
     )
 
 
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value={},
+)
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
 def test_sync_collaborators_per_repo(
-    mock_repo_collaborators, mock_get_repos, neo4j_session
+    mock_repo_collaborators, mock_get_repos, mock_get_dep_manifests, neo4j_session
 ):
     """
     Test that collaborators are synced correctly per repository.
@@ -640,6 +697,11 @@ def test_sync_collaborators_per_repo(
 
 @patch.object(
     cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get",
     return_value=GET_REPOS,
 )
@@ -648,7 +710,7 @@ def test_sync_collaborators_per_repo(
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_python_requirements(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
 ):
     """
     Test that Python requirements from requirements.txt and setup.cfg are synced.

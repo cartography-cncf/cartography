@@ -165,8 +165,9 @@ def _build_ontology_field_statement_or_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -214,8 +215,9 @@ def _build_ontology_field_statement_nor_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for nor_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -231,6 +233,39 @@ def _build_ontology_field_statement_nor_boolean(
         node_property=f"_ont_{mapping_field.ontology_field}",
         property_condition=full_property_condition,
     )
+
+
+def _build_ontology_field_statement_mapping(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str | None:
+    """Maps provider-specific values to normalized ontology values using a Cypher CASE expression.
+
+    The mapping dict is provided in extra['map'] as {source_value: normalized_value}.
+    Unmapped values result in NULL (property not set).
+    """
+    value_map = mapping_field.extra.get("map")
+    if value_map is None:
+        logger.warning(
+            "mapping special handling requires 'map' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(value_map, dict):
+        logger.warning(
+            "mapping special handling 'map' in extra for field %s must be a dict",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    when_clauses = []
+    for source_val, normalized_val in value_map.items():
+        escaped_source = _escape_cypher_string(str(source_val))
+        escaped_normalized = _escape_cypher_string(str(normalized_val))
+        when_clauses.append(f'WHEN "{escaped_source}" THEN "{escaped_normalized}"')
+
+    case_expr = f"CASE {property_ref} " + " ".join(when_clauses) + " END"
+    return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
 
 
 def _build_ontology_node_properties_statement(
@@ -260,8 +295,12 @@ def _build_ontology_node_properties_statement(
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
-            # This should not occure due to unit test but failing gracefully
-            logger.warning(
+            # This is expected for schemas using the Composite Node Pattern,
+            # where multiple schema classes share the same node label but each
+            # only defines a subset of properties. The ontology mapping is
+            # looked up by label, so fields belonging to other schemas for the
+            # same label will not be present here.
+            logger.debug(
                 "Field '%s' not found in node properties for node schema %s",
                 mapping_field.node_field,
                 node_schema.__class__.__name__,
@@ -300,6 +339,12 @@ def _build_ontology_node_properties_statement(
             )
             if nor_boolean_statement:
                 set_clauses.append(nor_boolean_statement)
+        elif mapping_field.special_handling == "mapping":
+            mapping_statement = _build_ontology_field_statement_mapping(
+                mapping_field, node_propertyref
+            )
+            if mapping_statement:
+                set_clauses.append(mapping_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -670,7 +715,6 @@ def _build_attach_sub_resource_statement(
 
     sub_resource_attach_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH (j:$SubResourceLabel{$MatchClause})
         WITH i, item, j WHERE j IS NOT NULL
         $RelMergeClause
@@ -765,7 +809,6 @@ def _build_attach_additional_links_statement(
 
     additional_links_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH ($node_var:$AddlLabel)
         WHERE
             $WhereClause
@@ -892,7 +935,7 @@ def _build_attach_relationships_statement(
     query_template = Template(
         """
         WITH i, item
-        CALL {
+        CALL (i, item) {
             $attach_relationships_statement
         }
         """,
@@ -1333,19 +1376,31 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     if node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
             if isinstance(label, str):
-                # Simple string label - create index on id
+                # Simple string label - create index on id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label,
                         TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
                     ),
                 )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="lastupdated",
+                    ),
+                )
             elif isinstance(label, ConditionalNodeLabel):
-                # Conditional label - create index on the conditional label's id
+                # Conditional label - create index on the conditional label's id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label.label,
                         TargetAttribute="id",
+                    ),
+                )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="lastupdated",
                     ),
                 )
                 # Also create indexes on the condition fields for the primary node label
@@ -1386,6 +1441,28 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
             if prop_ref.extra_index
         ],
     )
+
+    # Create indexes on _ont_ fields for semantic labels (extra node labels).
+    # When a node has a semantic label mapping, index all _ont_ fields on the extra label
+    # so that cross-provider queries on the semantic label are fast.
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
+    if ontology_mapping and node_schema.extra_node_labels:
+        for label in node_schema.extra_node_labels.labels:
+            label_name = label if isinstance(label, str) else label.label
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label_name,
+                    TargetAttribute="_ont_source",
+                ),
+            )
+            for mapping_field in ontology_mapping.fields:
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label_name,
+                        TargetAttribute=f"_ont_{mapping_field.ontology_field}",
+                    ),
+                )
+
     return result
 
 
@@ -1419,7 +1496,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1460,11 +1537,12 @@ def build_create_index_queries_for_matchlink(
             ),
         )
 
-    # Create a composite index for the relationship between the source and target nodes.
-    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    # Create a composite relationship index that matches the cleanup predicate shape.
+    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
+    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(

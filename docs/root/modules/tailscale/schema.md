@@ -5,6 +5,8 @@ graph LR
 A(Tailnet) -- RESOURCE --> U(User)
 A -- RESOURCE --> D(Device)
 A -- RESOURCE --> PI(PostureIntegration)
+A -- RESOURCE --> DP(DevicePosture)
+A -- RESOURCE --> DPC(DevicePostureCondition)
 A -- RESOURCE --> G(Group)
 A -- RESOURCE --> T(Tag)
 U -- OWNS --> D
@@ -13,6 +15,10 @@ G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
 D -- TAGGED --> T
+DP -- HAS_CONDITION --> DPC
+DPC -- REQUIRES --> PI
+D -- CONFORMS_TO --> DPC
+D -- CONFORMS_TO --> DP
 ```
 
 ### TailscaleTailnet
@@ -36,12 +42,14 @@ Settings for a tailnet (aka Tenant).
 | posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
-- `User`, `Device`, `PostureIntegration`, `Group`, `Tag` belong to a `Tailnet`.
+- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag` belong to a `Tailnet`.
     ```
     (:TailscaleTailnet)-[:RESOURCE]->(
         :TailscaleUser,
         :TailscaleDevice,
         :TailscalePostureIntegration,
+        :TailscaleDevicePosture,
+        :TailscaleDevicePostureCondition,
         :TailscaleGroup,
         :Tailscale:Tag
     )
@@ -118,8 +126,42 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 | client_connectivity_mapping_varies_by_dest_ip | 'true' if the host's NAT mappings vary based on the destination IP. |
 | tailnet_lock_error | Indicates an issue with the tailnet lock node-key signature on this device.<br/>This field is only populated when tailnet lock is enabled. |
 | tailnet_lock_key | The node's tailnet lock key.<br/>Every node generates a tailnet lock key (so the value will be present) even if tailnet lock is not enabled.<br/>Learn more about tailnet lock at https://tailscale.com/kb/1226/. |
+| serial_number | The first serial number from posture identity, if available |
 | posture_identity_serial_numbers | Posture identification collection |
 | posture_identity_disabled |  Device posture identification collection enabled |
+| posture_node_os | Device posture value for `node:os`. |
+| posture_node_os_version | Device posture value for `node:osVersion`. |
+| posture_node_ts_auto_update | Device posture value for `node:tsAutoUpdate`. |
+| posture_node_ts_release_track | Device posture value for `node:tsReleaseTrack`. |
+| posture_node_ts_state_encrypted | Device posture value for `node:tsStateEncrypted`. |
+| posture_node_ts_version | Device posture value for `node:tsVersion`. |
+| posture_ip_country | Device posture value for `ip:country`. |
+| posture_falcon_zta_score | Device posture value for `falcon:ztaScore`. |
+| posture_sentinelone_operational_state | Device posture value for `sentinelOne:operationalState`. |
+| posture_sentinelone_active_threats | Device posture value for `sentinelOne:activeThreats`. |
+| posture_sentinelone_agent_version | Device posture value for `sentinelOne:agentVersion`. |
+| posture_sentinelone_encrypted_applications | Device posture value for `sentinelOne:encryptedApplications`. |
+| posture_sentinelone_firewall_enabled | Device posture value for `sentinelOne:firewallEnabled`. |
+| posture_sentinelone_infected | Device posture value for `sentinelOne:infected`. |
+| posture_kolide_auth_state | Device posture value for `kolide:authState`. |
+| posture_fleet_present | Device posture value for `fleet:present`. |
+| posture_fleet_policies | List of `fleetPolicy:*` posture keys present on the device. |
+| posture_huntress_defender_status | Device posture value for `huntress:defenderStatus`. |
+| posture_huntress_defender_policy_status | Device posture value for `huntress:defenderPolicyStatus`. |
+| posture_huntress_firewall_status | Device posture value for `huntress:firewallStatus`. |
+| posture_kandji_mdm_enabled | Device posture value for `kandji:mdmEnabled`. |
+| posture_kandji_agent_installed | Device posture value for `kandji:agentInstalled`. |
+| posture_jamfpro_remote_managed | Device posture value for `jamfPro:remoteManaged`. |
+| posture_jamfpro_supervised | Device posture value for `jamfPro:supervised`. |
+| posture_jamfpro_firewall_enabled | Device posture value for `jamfPro:firewallEnabled`. |
+| posture_jamfpro_file_vault_status | Device posture value for `jamfPro:fileVaultStatus`. |
+| posture_jamfpro_sip_enabled | Device posture value for `jamfPro:SIPEnabled`. |
+| posture_intune_compliance_state | Device posture value for `intune:complianceState`. |
+| posture_intune_azure_ad_registered | Device posture value for `intune:azureADRegistered`. |
+| posture_intune_device_registration_state | Device posture value for `intune:deviceRegistrationState`. |
+| posture_intune_is_supervised | Device posture value for `intune:isSupervised`. |
+| posture_intune_is_encrypted | Device posture value for `intune:isEncrypted`. |
+| posture_intune_managed_device_owner_type | Device posture value for `intune:managedDeviceOwnerType`. |
 
 
 #### Relationships
@@ -134,6 +176,67 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 - `Devices` are tagged with `Tag`
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
+    ```
+- `Devices` can conform to posture conditions and full postures.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+
+
+### TailscaleDevicePosture
+
+Logical posture policy blocks defined in the ACL.
+
+| Field | Description |
+|-------|-------------|
+| id | Posture ID from the ACL, for example `posture:healthySentinelOneMac`. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | Posture name without the `posture:` prefix. |
+| description | Human-readable description generated from the ACL conditions. |
+
+#### Relationships
+- `DevicePosture` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevicePosture)
+    ```
+- `DevicePosture` is composed of one or more `DevicePostureCondition` nodes.
+    ```
+    (:TailscaleDevicePosture)-[:HAS_CONDITION]->(:TailscaleDevicePostureCondition)
+    ```
+- `Devices` can conform to the full posture.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+
+
+### TailscaleDevicePostureCondition
+
+Atomic posture assertions extracted from ACL posture definitions.
+
+| Field | Description |
+|-------|-------------|
+| id | Stable condition identifier derived from the posture ID and condition index. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | The posture attribute being evaluated, for example `sentinelOne:infected` or `node:os`. |
+| provider | The provider/namespace inferred from the attribute, for example `sentinelone` or `node`. |
+| operator | Comparison operator such as `==`, `IN`, or `IS SET`. |
+| value | Expected comparison value serialized as a string. |
+
+#### Relationships
+- `DevicePostureCondition` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevicePostureCondition)
+    ```
+- `DevicePostureCondition` can require a configured posture integration.
+    ```
+    (:TailscaleDevicePostureCondition)-[:REQUIRES]->(:TailscalePostureIntegration)
+    ```
+- `Devices` can conform to individual conditions, enabling partial compliance analysis.
+    ```
+    (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
     ```
 
 
@@ -167,6 +270,8 @@ A configured PostureIntegration.
 ### TailscaleGroup
 
 A group in Tailscale (either `group` or `autogroup`).
+
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|-------------|
