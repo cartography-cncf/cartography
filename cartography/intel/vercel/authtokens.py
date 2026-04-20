@@ -66,11 +66,14 @@ def get(
     base_url: str,
     team_id: str,
 ) -> list[dict[str, Any]]:
+    # /v6/user/tokens is user-scoped and rejects `teamId` with 400; team scope
+    # is represented inside each token's `scopes` array and applied during
+    # transform.
     return paginated_get(
         api_session,
         f"{base_url}/v6/user/tokens",
         "tokens",
-        team_id,
+        None,
     )
 
 

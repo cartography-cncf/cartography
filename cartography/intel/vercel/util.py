@@ -15,7 +15,7 @@ def paginated_get(
     api_session: requests.Session,
     url: str,
     result_key: str,
-    team_id: str,
+    team_id: str | None,
     params: dict[str, Any] | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
@@ -26,13 +26,17 @@ def paginated_get(
     :param url: Full URL of the API endpoint
     :param result_key: JSON key containing the result list (e.g., "projects", "deployments").
         Pass empty string for endpoints that return a bare array.
-    :param team_id: Vercel team ID for teamId query param
+    :param team_id: Vercel team ID for teamId query param. Pass None for
+        user-scoped endpoints that reject `teamId` with 400 (e.g.
+        /v6/user/tokens).
     :param params: Additional query parameters
     :param limit: Page size
     :return: Combined list of all results across all pages
     """
     all_results: list[dict[str, Any]] = []
-    request_params: dict[str, Any] = {"teamId": team_id, "limit": limit}
+    request_params: dict[str, Any] = {"limit": limit}
+    if team_id is not None:
+        request_params["teamId"] = team_id
     if params:
         request_params.update(params)
 
