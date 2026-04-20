@@ -1505,6 +1505,10 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 |state| The operational state of the Function App (e.g., Running, Stopped). |
 |default_host_name| The default hostname of the Function App. |
 |https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
+|is_container| `true` when the Function App is deployed from a container image (linuxFxVersion prefixed with `DOCKER|`); `false` for code-based runtimes. |
+|image_uri| Container image reference parsed from `linuxFxVersion` (without the `DOCKER|` prefix). Populated only when `is_container=true`. |
+|image_digest| Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
+|architecture_normalized| Canonical architecture for container-based Function Apps. Function Apps do not expose host architecture; Linux container plans are assumed to run on `amd64`. |
 
 #### Relationships
 
@@ -1516,6 +1520,18 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 - Azure Function Apps can be tagged with Azure Tags.
     ```cypher
     (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
+- Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
+    ```cypher
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    ```
+
+- Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```cypher
+    (AzureFunctionApp)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AzureAppService

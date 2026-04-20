@@ -8,6 +8,8 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # memory - Memory allocated to the function (in MB)
 # timeout - Timeout for function execution (in seconds)
 # deployment_type - The deployment type: "code" for source code functions, "container" for container-based
+# image - Container image URI (for container-based deployments)
+# image_digest - Digest of the container image (for container-based deployments)
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -21,6 +23,14 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
                 OntologyFieldMapping(ontology_field="memory", node_field="memory"),
                 OntologyFieldMapping(ontology_field="timeout", node_field="timeout"),
+                # AWS Lambda PackageType is "Zip" (code) or "Image" (container).
+                # When "Image", image_uri and image_digest are populated from Code.ImageUri.
+                OntologyFieldMapping(ontology_field="image", node_field="image_uri"),
+                OntologyFieldMapping(
+                    ontology_field="image_digest", node_field="image_digest"
+                ),
+                # deployment_type is set statically; ontology consumers can differentiate
+                # code vs container Lambdas via the _ont_image / _ont_image_digest being populated.
                 OntologyFieldMapping(
                     ontology_field="deployment_type",
                     node_field="",
@@ -81,6 +91,13 @@ gcp_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "container"},
                 ),
+                # Cloud Run Jobs always run a container image; expose it for cross-cloud queries.
+                OntologyFieldMapping(
+                    ontology_field="image", node_field="container_image"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="image_digest", node_field="image_digest"
+                ),
                 # runtime: not applicable for container-based functions
                 # memory: not available in GCPCloudRunJob
                 # timeout: not available in GCPCloudRunJob
@@ -97,6 +114,12 @@ azure_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
+                ),
+                # Function Apps can be code-based or container-based; image_uri is populated only
+                # for DOCKER|... linuxFxVersion configurations.
+                OntologyFieldMapping(ontology_field="image", node_field="image_uri"),
+                OntologyFieldMapping(
+                    ontology_field="image_digest", node_field="image_digest"
                 ),
                 OntologyFieldMapping(
                     ontology_field="deployment_type",

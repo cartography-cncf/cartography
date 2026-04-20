@@ -12,6 +12,8 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image import parse_image_uri
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
 from cartography.models.aws.lambda_function.event_source_mapping import (
     AWSLambdaEventSourceMappingSchema,
@@ -59,6 +61,21 @@ def transform_lambda_functions(
         permission_data = permissions_by_arn[function_arn]
         transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
         transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
+
+        # Container-image functions expose a resolved image URI via Code.ImageUri.
+        # Parsing both the URI and its digest allows RESOLVED_IMAGE to link Lambdas
+        # to registry image nodes the same way Cloud Run / Azure Container workloads do.
+        code = function_data.get("Code") or {}
+        image_uri, image_digest = parse_image_uri(
+            code.get("ResolvedImageUri") or code.get("ImageUri")
+        )
+        transformed_function["image_uri"] = image_uri
+        transformed_function["image_digest"] = image_digest
+
+        architectures = function_data.get("Architectures") or []
+        transformed_function["architecture_normalized"] = (
+            normalize_architecture(architectures[0]) if architectures else None
+        )
 
         transformed_functions.append(transformed_function)
 

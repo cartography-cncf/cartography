@@ -1822,7 +1822,7 @@ Cloud Run services can split traffic across multiple revisions, so exact runtime
 
 Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container workloads (alongside `KubernetesContainer`, `ECSContainer`, `AzureGroupContainer`, etc.). Cloud Run revisions participate in the `RESOLVED_IMAGE` analysis job.
+> **Ontology Mapping**: `GCPCloudRunRevision` is an internal versioning artifact of a `GCPCloudRunService` (not a standalone user-visible entity) and carries **no ontology label of its own**. `RESOLVED_IMAGE` is produced on the parent `GCPCloudRunService` (which is a `Function`) by traversing `HAS_REVISION`. See [Function](../../ontology/schema.md#function).
 
 | Field | Description |
 |---|---|
@@ -1862,16 +1862,17 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
-  - GCPCloudRunRevisions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunRevisions do **not** directly carry `RESOLVED_IMAGE`. The resolved image is attached to the parent `GCPCloudRunService` (which is a `Function`) by traversing `HAS_REVISION` in the analysis job — Revision is treated as an internal versioning artifact of the Service. See [Function](../../ontology/schema.md#function) for the full semantics.
     ```
-    (GCPCloudRunRevision)-[:RESOLVED_IMAGE]->(Image)
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)-[:HAS_IMAGE]->(Image)
+    (GCPCloudRunService)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunJob
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
 
-> **Ontology Mapping**: This node has the extra labels `Function` and `Container`. `Function` enables cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction). `Container` enables cross-platform container-workload queries (alongside `KubernetesContainer`, `ECSContainer`, etc.) and makes Cloud Run jobs participate in the `RESOLVED_IMAGE` analysis job. Cloud Run jobs legitimately inhabit both categories — they are container images run as on-demand functions.
+> **Ontology Mapping**: This node has the extra label `Function` (for cross-platform serverless-function queries alongside `AWSLambda`, `AzureFunctionApp`, `GCPCloudFunction`, `GCPCloudRunService`). Cloud Run Jobs are container-based functions — `_ont_image` / `_ont_image_digest` are populated and the node participates in `RESOLVED_IMAGE`.
 
 | Field | Description |
 |---|---|
@@ -1910,7 +1911,7 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
-  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Function](../../ontology/schema.md#function) for the full semantics.
     ```
     (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
     ```
