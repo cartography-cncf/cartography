@@ -1506,6 +1506,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 |default_host_name| The default hostname of the Function App. |
 |https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
 |is_container| `true` when the Function App is deployed from a container image (linuxFxVersion prefixed with `DOCKER|`); `false` for code-based runtimes. |
+|deployment_type| `"container"` when the Function App runs a container image, `"code"` otherwise. Derived from `is_container`. |
 |image_uri| Container image reference parsed from `linuxFxVersion` (without the `DOCKER|` prefix). Populated only when `is_container=true`. |
 |image_digest| Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
 |architecture_normalized| Canonical architecture for container-based Function Apps. Function Apps do not expose host architecture; Linux container plans are assumed to run on `amd64`. |

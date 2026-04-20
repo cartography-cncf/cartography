@@ -58,25 +58,30 @@ def test_sync_function_apps(mock_get, mock_fetch_configs, neo4j_session):
     actual_nodes = check_nodes(neo4j_session, "AzureFunctionApp", ["id", "name"])
     assert actual_nodes == expected_nodes
 
-    # Assert: container-based function app has image fields populated.
+    # Assert: container-based function app has image fields populated,
+    # and the Function ontology sees deployment_type correctly ("container" vs "code").
     assert check_nodes(
         neo4j_session,
         "AzureFunctionApp",
         [
             "id",
             "is_container",
+            "deployment_type",
             "image_uri",
             "image_digest",
             "architecture_normalized",
+            "_ont_deployment_type",
         ],
     ) == {
-        (TEST_FUNCTIONAPP_CODE_ID, False, None, None, None),
+        (TEST_FUNCTIONAPP_CODE_ID, False, "code", None, None, None, "code"),
         (
             TEST_FUNCTIONAPP_CONTAINER_ID,
             True,
+            "container",
             TEST_FUNCTIONAPP_IMAGE_URI,
             TEST_FUNCTIONAPP_IMAGE_DIGEST,
             "amd64",
+            "container",
         ),
     }
 

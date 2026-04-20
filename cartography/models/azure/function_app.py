@@ -26,6 +26,7 @@ class AzureFunctionAppProperties(CartographyNodeProperties):
     default_host_name: PropertyRef = PropertyRef("default_host_name")
     https_only: PropertyRef = PropertyRef("https_only")
     is_container: PropertyRef = PropertyRef("is_container")
+    deployment_type: PropertyRef = PropertyRef("deployment_type")
     image_uri: PropertyRef = PropertyRef("image_uri")
     image_digest: PropertyRef = PropertyRef("image_digest")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")

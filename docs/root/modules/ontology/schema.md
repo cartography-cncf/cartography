@@ -522,7 +522,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
-| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; Cloud Run Service/Job are always `container`; GCP Cloud Functions are always `code`. |
 | _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`, Cloud Run Jobs). |
 | _ont_image_digest | Content-addressable digest (`sha256:...`) of the container image, when the reference is digest-pinned. |
 

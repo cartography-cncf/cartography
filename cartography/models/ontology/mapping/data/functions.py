@@ -29,13 +29,16 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="image_digest"
                 ),
-                # deployment_type is set statically; ontology consumers can differentiate
-                # code vs container Lambdas via the _ont_image / _ont_image_digest being populated.
                 OntologyFieldMapping(
                     ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "code"},
+                    node_field="packagetype",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "Zip": "code",
+                            "Image": "container",
+                        },
+                    },
                 ),
             ],
         ),
@@ -123,9 +126,7 @@ azure_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "code"},
+                    node_field="deployment_type",
                 ),
                 # runtime: not available in AzureFunctionApp
                 # memory: not available in AzureFunctionApp

@@ -812,7 +812,14 @@ def test_container_image_lambda_has_image_and_resolved_image(
     assert check_nodes(
         neo4j_session,
         "AWSLambda",
-        ["id", "packagetype", "image_uri", "image_digest", "architecture_normalized"],
+        [
+            "id",
+            "packagetype",
+            "image_uri",
+            "image_digest",
+            "architecture_normalized",
+            "_ont_deployment_type",
+        ],
     ) == {
         (
             TEST_CONTAINER_LAMBDA_ARN,
@@ -820,6 +827,7 @@ def test_container_image_lambda_has_image_and_resolved_image(
             TEST_LAMBDA_IMAGE_URI,
             TEST_LAMBDA_IMAGE_DIGEST,
             "arm64",
+            "container",
         ),
     }
 

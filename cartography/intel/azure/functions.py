@@ -152,6 +152,7 @@ def transform_function_apps(
                 "default_host_name": app.get("default_host_name"),
                 "https_only": app.get("https_only"),
                 "is_container": is_container,
+                "deployment_type": "container" if is_container else "code",
                 "image_uri": image_uri,
                 "image_digest": image_digest,
                 "architecture_normalized": architecture_normalized,
