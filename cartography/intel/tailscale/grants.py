@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 from typing import Any
@@ -280,6 +281,7 @@ def resolve_access(
     all_device_ids = {d["nodeId"] for d in devices}
     all_user_logins = {u["loginName"] for u in users}
     user_to_devices = _build_user_to_devices_map(devices)
+    ip_to_devices = _build_ip_to_devices_map(devices)
     service_ids = {f"svc:{s.get('name', '')}" for s in (services or [])}
 
     user_access: Dict[tuple[str, str], List[str]] = {}
@@ -300,6 +302,7 @@ def resolve_access(
             group_members,
             all_device_ids,
             devices,
+            ip_to_devices,
         )
 
         # Resolve destination services
@@ -424,6 +427,20 @@ def _build_user_to_devices_map(
     return user_to_devices
 
 
+def _build_ip_to_devices_map(
+    devices: List[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Build a mapping from IP address string to device ID.
+
+    Each device can have multiple addresses (IPv4 + IPv6).
+    """
+    ip_to_device: Dict[str, str] = {}
+    for device in devices:
+        for addr in device.get("addresses", []):
+            ip_to_device[addr] = device["nodeId"]
+    return ip_to_device
+
+
 def _has_autogroup_self(destinations: List[str]) -> bool:
     """Check if any destination is autogroup:self."""
     for dst in destinations:
@@ -438,6 +455,7 @@ def _resolve_destination_devices(
     group_members: Dict[str, set[str]],
     all_device_ids: set[str],
     devices: List[Dict[str, Any]],
+    ip_to_devices: Dict[str, str] | None = None,
 ) -> set[str]:
     """Resolve which devices are targeted by a grant's destinations.
 
@@ -469,8 +487,47 @@ def _resolve_destination_devices(
             for device in devices:
                 if device.get("user") in members:
                     dest_device_ids.add(device["nodeId"])
+        else:
+            # Try to resolve as IP address or CIDR range
+            matched = _resolve_ip_destination(dst, ip_to_devices or {})
+            dest_device_ids.update(matched)
 
     return dest_device_ids
+
+
+def _resolve_ip_destination(
+    dst: str,
+    ip_to_devices: Dict[str, str],
+) -> set[str]:
+    """Resolve an IP address or CIDR range to device IDs.
+
+    Supports:
+    - Exact IP: "100.64.0.1" -> device with that address
+    - CIDR range: "100.64.0.0/24" -> all devices with addresses in that range
+    """
+    matched: set[str] = set()
+
+    try:
+        network = ipaddress.ip_network(dst, strict=False)
+    except ValueError:
+        # Not a valid IP or CIDR — ignore
+        return matched
+
+    if network.num_addresses == 1:
+        # Single IP (e.g., "100.64.0.1" or "100.64.0.1/32")
+        device_id = ip_to_devices.get(str(network.network_address))
+        if device_id:
+            matched.add(device_id)
+    else:
+        # CIDR range — check all device IPs against the network
+        for ip_str, device_id in ip_to_devices.items():
+            try:
+                if ipaddress.ip_address(ip_str) in network:
+                    matched.add(device_id)
+            except ValueError:
+                continue
+
+    return matched
 
 
 def _resolve_destination_services(

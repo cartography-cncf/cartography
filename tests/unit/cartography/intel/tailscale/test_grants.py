@@ -1000,3 +1000,232 @@ class TestResolveAccessServiceDestination:
         assert ("alice@ex.com", "dev-1") in device_pairs  # tag:web device
         svc_pairs = {(a["user_login_name"], a["service_id"]) for a in user_svc}
         assert svc_pairs == {("alice@ex.com", "svc:database")}
+
+
+# ============================================================================
+# IP/CIDR destination tests
+# ============================================================================
+
+
+# Devices with explicit IP addresses for IP resolution tests
+DEVICES_WITH_IPS = [
+    {
+        "nodeId": "dev-1",
+        "user": "alice@ex.com",
+        "tags": [],
+        "addresses": ["100.64.0.1", "fd7a:115c:a1e0::1"],
+    },
+    {
+        "nodeId": "dev-2",
+        "user": "alice@ex.com",
+        "tags": [],
+        "addresses": ["100.64.0.2"],
+    },
+    {"nodeId": "dev-3", "user": "bob@ex.com", "tags": [], "addresses": ["100.64.1.10"]},
+    {"nodeId": "dev-4", "user": "bob@ex.com", "tags": [], "addresses": []},
+]
+
+
+class TestResolveAccessIPDestination:
+    """Tests for IP/CIDR destination resolution."""
+
+    def test_exact_ip_destination(self) -> None:
+        """Exact IP destination resolves to the device with that address."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["100.64.0.1"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["100.64.0.1"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        assert user_pairs == {("alice@ex.com", "dev-1")}
+
+    def test_cidr_destination(self) -> None:
+        """CIDR range destination resolves to all devices in the range."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["100.64.0.0/24"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["100.64.0.0/24"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        # 100.64.0.0/24 includes 100.64.0.1 (dev-1) and 100.64.0.2 (dev-2)
+        # but NOT 100.64.1.10 (dev-3)
+        assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-2")}
+
+    def test_cidr_slash32_destination(self) -> None:
+        """/32 CIDR resolves to exactly one device."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["100.64.1.10/32"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["100.64.1.10/32"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        assert user_pairs == {("alice@ex.com", "dev-3")}
+
+    def test_ipv6_destination(self) -> None:
+        """IPv6 address destination resolves correctly."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["fd7a:115c:a1e0::1"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["fd7a:115c:a1e0::1"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        assert user_pairs == {("alice@ex.com", "dev-1")}
+
+    def test_nonexistent_ip_ignored(self) -> None:
+        """IP not matching any device produces no access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["10.0.0.99"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["10.0.0.99"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        assert user_access == []
+
+    def test_invalid_destination_ignored(self) -> None:
+        """Non-IP, non-selector destination is silently ignored."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["not-an-ip-or-selector"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["not-an-ip-or-selector"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        assert user_access == []
+
+    def test_wide_cidr_matches_all(self) -> None:
+        """Wide CIDR /8 matches all devices with 100.x.x.x addresses."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["100.0.0.0/8"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["100.0.0.0/8"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES_WITH_IPS,
+            GROUPS,
+            [],
+            USERS,
+        )
+        user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        # All 3 devices with 100.x addresses: dev-1, dev-2, dev-3
+        assert user_pairs == {
+            ("alice@ex.com", "dev-1"),
+            ("alice@ex.com", "dev-2"),
+            ("alice@ex.com", "dev-3"),
+        }
