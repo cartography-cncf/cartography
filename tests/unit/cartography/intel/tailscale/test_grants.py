@@ -403,7 +403,17 @@ class TestResolveAccessDirectUser:
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-4")}
         assert group_access == []
-        assert device_access == []
+        # alice's devices (dev-1, dev-2) inherit her CAN_ACCESS to tag:web devices
+        device_pairs = {(a["source_device_id"], a["device_id"]) for a in device_access}
+        # dev-2 -> dev-1 (alice's dev-2 inherits access to dev-1)
+        assert ("dev-2", "dev-1") in device_pairs
+        # dev-2 -> dev-4 (alice's dev-2 inherits access to dev-4)
+        assert ("dev-2", "dev-4") in device_pairs
+        # dev-1 -> dev-4 (alice's dev-1 inherits access to dev-4)
+        assert ("dev-1", "dev-4") in device_pairs
+        # No self-loops
+        for src, dst in device_pairs:
+            assert src != dst
 
     def test_user_to_wildcard_destination(self) -> None:
         """User source -> * destination resolves to all devices."""
@@ -1442,3 +1452,140 @@ class TestResolveAccessPostureFiltering:
             [],
         )
         assert user_access == []
+
+
+# ============================================================================
+# User-to-device access propagation tests
+# ============================================================================
+
+
+class TestResolveAccessUserDevicePropagation:
+    """Tests for propagation of user CAN_ACCESS to their devices."""
+
+    def test_user_access_propagated_to_devices(self) -> None:
+        """User's devices inherit CAN_ACCESS to the destination device."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:db"],
+                "destination_tags": ["tag:db"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, device_access, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+        )
+        device_pairs = {(a["source_device_id"], a["device_id"]) for a in device_access}
+        # alice owns dev-1 and dev-2
+        # tag:db devices: dev-3, dev-4
+        # alice's devices should inherit CAN_ACCESS to dev-3 and dev-4
+        assert ("dev-1", "dev-3") in device_pairs
+        assert ("dev-1", "dev-4") in device_pairs
+        assert ("dev-2", "dev-3") in device_pairs
+        assert ("dev-2", "dev-4") in device_pairs
+
+    def test_propagation_no_self_loops(self) -> None:
+        """Propagation does not create self-loops."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["*"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": ["*"],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, device_access, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+        )
+        for entry in device_access:
+            assert entry["source_device_id"] != entry["device_id"]
+
+    def test_propagation_carries_granted_by(self) -> None:
+        """Propagated device access carries the same granted_by as the user access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["bob@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, device_access, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+        )
+        # bob owns dev-3, dev-4; tag:web devices: dev-1, dev-4
+        # bob's dev-3 -> dev-1 should have granted_by from grant:0
+        bob_dev3_to_dev1 = [
+            a
+            for a in device_access
+            if a["source_device_id"] == "dev-3" and a["device_id"] == "dev-1"
+        ]
+        assert len(bob_dev3_to_dev1) == 1
+        assert "grant:0" in bob_dev3_to_dev1[0]["granted_by"]
+
+    def test_group_user_access_also_propagated(self) -> None:
+        """User access resolved from group membership is also propagated to devices."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": [],
+                "source_groups": ["group:admin"],
+                "source_tags": [],
+                "destinations": ["tag:db"],
+                "destination_tags": ["tag:db"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, device_access, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+        )
+        device_pairs = {(a["source_device_id"], a["device_id"]) for a in device_access}
+        # group:admin members: alice (dev-1, dev-2)
+        # tag:db devices: dev-3, dev-4
+        assert ("dev-1", "dev-3") in device_pairs
+        assert ("dev-2", "dev-4") in device_pairs

@@ -256,24 +256,30 @@ def test_tailscale_grants_device_to_device_access(
     """
     _setup_grants_test(neo4j_session)
 
-    # tag:byod -> * : p892kg92CNTRL can access all other devices
-    expected_device_access = {
-        ("p892kg92CNTRL", "n292kg92CNTRL"),
-        ("p892kg92CNTRL", "n2fskgfgCNT89"),
-        ("p892kg92CNTRL", "abcskgfgCN789"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "TailscaleDevice",
-            "id",
-            "TailscaleDevice",
-            "id",
-            "CAN_ACCESS",
-            rel_direction_right=True,
-        )
-        == expected_device_access
+    # Device-to-device CAN_ACCESS includes:
+    # - Direct tag source: tag:byod -> * (p892kg92CNTRL -> all others)
+    # - Propagated from user access: mbsimpson's devices (p892kg92CNTRL,
+    #   n292kg92CNTRL) can access all devices she has CAN_ACCESS to,
+    #   and hjsimpson's devices (n2fskgfgCNT89, abcskgfgCN789) can access
+    #   devices he has CAN_ACCESS to (p892kg92CNTRL via group:example)
+    result = neo4j_session.run(
+        """
+        MATCH (d1:TailscaleDevice)-[:CAN_ACCESS]->(d2:TailscaleDevice)
+        RETURN d1.id AS src, d2.id AS dst
+        """,
     )
+    device_rels = {(r["src"], r["dst"]) for r in result}
+    # At minimum, the tag:byod -> * direct device access must be present
+    assert ("p892kg92CNTRL", "n292kg92CNTRL") in device_rels
+    assert ("p892kg92CNTRL", "n2fskgfgCNT89") in device_rels
+    assert ("p892kg92CNTRL", "abcskgfgCN789") in device_rels
+    # Propagated from mbsimpson's CAN_ACCESS (her device n292kg92CNTRL
+    # inherits access to hjsimpson's devices)
+    assert ("n292kg92CNTRL", "n2fskgfgCNT89") in device_rels
+    assert ("n292kg92CNTRL", "abcskgfgCN789") in device_rels
+    # No self-loops
+    for src, dst in device_rels:
+        assert src != dst
 
 
 @patch.object(

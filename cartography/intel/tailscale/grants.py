@@ -380,6 +380,20 @@ def resolve_access(
                         grant_id,
                     )
 
+    # Propagate user access to device-to-device access:
+    # If a user CAN_ACCESS a device, then all the user's devices
+    # CAN_ACCESS that device too (for exhaustive device→device queries).
+    for (user_login, dest_device_id), grant_ids in user_access.items():
+        for source_device_id in user_to_devices.get(user_login, []):
+            if source_device_id == dest_device_id:
+                continue
+            for grant_id in grant_ids:
+                _add_access(
+                    device_access,
+                    (source_device_id, dest_device_id),
+                    grant_id,
+                )
+
     # Convert aggregated dicts to lists for load_matchlinks
     user_access_list = [
         {"user_login_name": k[0], "device_id": k[1], "granted_by": v}
