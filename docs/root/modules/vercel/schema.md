@@ -30,6 +30,7 @@ EV -- REFERENCES --> EC
 I -- CONFIGURED_FOR --> P
 AG -- HAS_MEMBER --> U
 AG -- HAS_ACCESS_TO --> P
+AT -- OWNED_BY --> U
 W -- WATCHES --> P
 LD -- MONITORS --> P
 N -- CONNECTS --> P
@@ -350,7 +351,7 @@ Represents a team access group used for RBAC.
     ```
 - An access group grants access to projects. The `HAS_ACCESS_TO` relationship carries a `role` property (`ADMIN`, `PROJECT_DEVELOPER`, `PROJECT_VIEWER`, or `PROJECT_GUEST`) describing the per-project privilege level.
     ```
-    (:VercelAccessGroup)-[:HAS_ACCESS_TO {role}]->(:VercelProject)
+    (:VercelAccessGroup)-[:HAS_ACCESS_TO]->(:VercelProject)
     ```
 
 ### VercelAuthToken
@@ -447,7 +448,7 @@ Represents a Vercel Connect private network.
     ```
 - Networks attach to projects per environment. The `CONNECTS` relationship carries an `environments` list (e.g. `["production", "preview"]`) and a `passive_environments` list with the subset of those environments where the network is configured as a passive (failover) attachment.
     ```
-    (:VercelSecureComputeNetwork)-[:CONNECTS {environments, passive_environments}]->(:VercelProject)
+    (:VercelSecureComputeNetwork)-[:CONNECTS]->(:VercelProject)
     ```
 
 ### VercelAlias

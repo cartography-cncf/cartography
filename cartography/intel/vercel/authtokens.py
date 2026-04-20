@@ -50,11 +50,14 @@ def sync(
 
 @timeit
 def get_caller_id(api_session: requests.Session, base_url: str) -> str:
+    # /v2/user keys the caller's identifier as `id`, while the team-members
+    # endpoint keys the same identifier as `uid`. Accept either so the value
+    # still matches the VercelUser node id.
     resp = api_session.get(f"{base_url}/v2/user", timeout=_TIMEOUT)
     resp.raise_for_status()
     body = resp.json()
     user = body.get("user", body)
-    return user["uid"]
+    return user.get("id") or user["uid"]
 
 
 @timeit
