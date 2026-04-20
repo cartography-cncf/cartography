@@ -128,6 +128,7 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         api_session,
         common_job_parameters,
+        projects,
     )
     cartography.intel.vercel.aliases.sync(
         neo4j_session,

@@ -6,8 +6,9 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -19,7 +20,6 @@ class VercelSecureComputeNetworkNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef("region")
     status: PropertyRef = PropertyRef("status")
     created_at: PropertyRef = PropertyRef("createdAt")
-    project_ids: PropertyRef = PropertyRef("project_ids")
 
 
 @dataclass(frozen=True)
@@ -42,14 +42,24 @@ class VercelNetworkToTeamRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class VercelNetworkToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    environments: PropertyRef = PropertyRef("environments")
+    passive_environments: PropertyRef = PropertyRef("passive_environments")
 
 
 @dataclass(frozen=True)
-# (:VercelSecureComputeNetwork)-[:CONNECTS]->(:VercelProject)
+# (:VercelSecureComputeNetwork)-[:CONNECTS {environments, passive_environments}]->(:VercelProject)
 class VercelNetworkToProjectRel(CartographyRelSchema):
     target_node_label: str = "VercelProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_ids", one_to_many=True)},
+        {"id": PropertyRef("projectId")},
+    )
+    source_node_label: str = "VercelSecureComputeNetwork"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("networkId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONNECTS"
@@ -65,6 +75,3 @@ class VercelSecureComputeNetworkSchema(CartographyNodeSchema):
         VercelSecureComputeNetworkNodeProperties()
     )
     sub_resource_relationship: VercelNetworkToTeamRel = VercelNetworkToTeamRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [VercelNetworkToProjectRel()],
-    )

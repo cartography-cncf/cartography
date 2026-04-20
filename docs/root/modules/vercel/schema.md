@@ -159,8 +159,6 @@ Represents an individual deployment.
 
 Represents a domain owned by the team.
 
-> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
-
 | Field | Description |
 |-------|-------------|
 | **id** | Domain name (used as ID). |
@@ -344,13 +342,15 @@ Represents a team access group used for RBAC.
 | projects_count | Number of projects. |
 | is_dsync_managed | Whether the group is managed via directory sync. |
 | member_ids | List of user IDs. |
-| project_ids | List of project IDs. |
 
 #### Relationships
-- An access group groups users and projects.
+- An access group groups users.
     ```
     (:VercelTeam)-[:RESOURCE]->(:VercelAccessGroup)-[:HAS_MEMBER]->(:VercelUser)
-    (:VercelAccessGroup)-[:HAS_ACCESS_TO]->(:VercelProject)
+    ```
+- An access group grants access to projects. The `HAS_ACCESS_TO` relationship carries a `role` property (`ADMIN`, `PROJECT_DEVELOPER`, `PROJECT_VIEWER`, or `PROJECT_GUEST`) describing the per-project privilege level.
+    ```
+    (:VercelAccessGroup)-[:HAS_ACCESS_TO {role}]->(:VercelProject)
     ```
 
 ### VercelAuthToken
@@ -372,9 +372,13 @@ Represents a Vercel API token.
 | expires_at | Expiration timestamp (ms). |
 
 #### Relationships
-- Auth tokens belong to a team.
+- Auth tokens are scoped to a team (only tokens whose scopes include the synced team are ingested).
     ```
     (:VercelTeam)-[:RESOURCE]->(:VercelAuthToken)
+    ```
+- Auth tokens are owned by the user that created them (the API caller).
+    ```
+    (:VercelAuthToken)-[:OWNED_BY]->(:VercelUser)
     ```
 
 ### VercelWebhook
@@ -435,12 +439,15 @@ Represents a Vercel Connect private network.
 | region | AWS region. |
 | status | Network status. |
 | created_at | Creation timestamp (ms). |
-| project_ids | List of connected project IDs. |
 
 #### Relationships
-- Networks belong to a team and connect specific projects.
+- Networks belong to a team.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelSecureComputeNetwork)-[:CONNECTS]->(:VercelProject)
+    (:VercelTeam)-[:RESOURCE]->(:VercelSecureComputeNetwork)
+    ```
+- Networks attach to projects per environment. The `CONNECTS` relationship carries an `environments` list (e.g. `["production", "preview"]`) and a `passive_environments` list with the subset of those environments where the network is configured as a passive (failover) attachment.
+    ```
+    (:VercelSecureComputeNetwork)-[:CONNECTS {environments, passive_environments}]->(:VercelProject)
     ```
 
 ### VercelAlias

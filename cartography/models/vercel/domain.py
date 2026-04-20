@@ -4,7 +4,6 @@ from typing import Optional
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -48,7 +47,6 @@ class VercelDomainToTeamRel(CartographyRelSchema):
 class VercelDomainSchema(CartographyNodeSchema):
     label: str = "VercelDomain"
     properties: VercelDomainNodeProperties = VercelDomainNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSZone"])
     sub_resource_relationship: VercelDomainToTeamRel = VercelDomainToTeamRel()
 
 
@@ -67,7 +65,6 @@ class VercelDomainFromProjectProperties(CartographyNodeProperties):
 class VercelDomainFromProjectSchema(CartographyNodeSchema):
     label: str = "VercelDomain"
     properties: VercelDomainFromProjectProperties = VercelDomainFromProjectProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSZone"])
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
 

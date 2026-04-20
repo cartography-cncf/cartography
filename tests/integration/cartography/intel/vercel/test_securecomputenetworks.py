@@ -1,4 +1,3 @@
-from typing import cast
 from unittest.mock import patch
 
 import requests
@@ -19,23 +18,6 @@ TEST_TEAM_ID = "team_abc123"
 TEST_BASE_URL = "https://api.fake-vercel.com"
 
 
-# The sync function transforms raw API data by setting
-# n["project_ids"] = [p["id"] for p in n.get("projects", [])].
-# The stored data already has "project_ids" directly, so we construct a
-# raw-shaped payload for the mocked `get` that the sync can transform.
-def _build_raw_networks() -> list[dict]:
-    raw = []
-    for n in tests.data.vercel.securecomputenetworks.VERCEL_SECURE_COMPUTE_NETWORKS:
-        entry = {k: v for k, v in n.items() if k != "project_ids"}
-        project_ids = cast(list, n["project_ids"])
-        entry["projects"] = [{"id": pid} for pid in project_ids]
-        raw.append(entry)
-    return raw
-
-
-_RAW_NETWORKS = _build_raw_networks()
-
-
 def _ensure_local_neo4j_has_test_networks(neo4j_session):
     cartography.intel.vercel.securecomputenetworks.load_networks(
         neo4j_session,
@@ -48,11 +30,13 @@ def _ensure_local_neo4j_has_test_networks(neo4j_session):
 @patch.object(
     cartography.intel.vercel.securecomputenetworks,
     "get",
-    return_value=_RAW_NETWORKS,
+    return_value=tests.data.vercel.securecomputenetworks.VERCEL_RAW_NETWORKS,
 )
 def test_load_vercel_secure_compute_networks(mock_api, neo4j_session):
     """
-    Ensure that secure compute networks actually get loaded and connected
+    Ensure networks are loaded, and that per-project attachments carry the
+    per-environment scope and passive mode derived from
+    project.connectConfigurations.
     """
 
     # Arrange
@@ -70,6 +54,7 @@ def test_load_vercel_secure_compute_networks(mock_api, neo4j_session):
         neo4j_session,
         api_session,
         common_job_parameters,
+        tests.data.vercel.securecomputenetworks.VERCEL_PROJECTS_WITH_CONNECT_CONFIG,
     )
 
     # Assert Networks exist
@@ -100,20 +85,37 @@ def test_load_vercel_secure_compute_networks(mock_api, neo4j_session):
         == expected_team_rels
     )
 
-    # Assert Networks are connected to VercelProject via CONNECTS
-    expected_project_rels = {
-        ("scn_123", "prj_abc"),
-        ("scn_456", "prj_abc"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "VercelSecureComputeNetwork",
-            "id",
-            "VercelProject",
-            "id",
-            "CONNECTS",
-            rel_direction_right=True,
-        )
-        == expected_project_rels
+    # Assert CONNECTS rels carry environments + passive_environments
+    result = neo4j_session.run(
+        """
+        MATCH (n:VercelSecureComputeNetwork)-[r:CONNECTS]->(p:VercelProject)
+        RETURN n.id AS network_id,
+               p.id AS project_id,
+               r.environments AS environments,
+               r.passive_environments AS passive_environments
+        """
     )
+    actual = {
+        (
+            record["network_id"],
+            record["project_id"],
+            tuple(sorted(record["environments"])),
+            tuple(sorted(record["passive_environments"])),
+        )
+        for record in result
+    }
+    expected = {
+        (
+            "scn_123",
+            "prj_abc",
+            ("preview", "production"),
+            ("preview",),
+        ),
+        (
+            "scn_456",
+            "prj_abc",
+            ("development",),
+            (),
+        ),
+    }
+    assert actual == expected

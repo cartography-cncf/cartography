@@ -12,6 +12,8 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_TIMEOUT = (60, 60)
+
 
 @timeit
 def sync(
@@ -19,9 +21,22 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
+    # Vercel only exposes tokens for the authenticated caller (no team-tokens
+    # endpoint). We fetch the caller identity first so we can anchor tokens to
+    # the owning VercelUser, and we keep only tokens whose scopes include the
+    # current team.
+    caller_id = get_caller_id(
+        api_session,
+        common_job_parameters["BASE_URL"],
+    )
     tokens = get(
         api_session,
         common_job_parameters["BASE_URL"],
+        common_job_parameters["TEAM_ID"],
+    )
+    tokens = transform_tokens(
+        tokens,
+        caller_id,
         common_job_parameters["TEAM_ID"],
     )
     load_auth_tokens(
@@ -34,6 +49,15 @@ def sync(
 
 
 @timeit
+def get_caller_id(api_session: requests.Session, base_url: str) -> str:
+    resp = api_session.get(f"{base_url}/v2/user", timeout=_TIMEOUT)
+    resp.raise_for_status()
+    body = resp.json()
+    user = body.get("user", body)
+    return user["uid"]
+
+
+@timeit
 def get(
     api_session: requests.Session,
     base_url: str,
@@ -41,10 +65,27 @@ def get(
 ) -> list[dict[str, Any]]:
     return paginated_get(
         api_session,
-        f"{base_url}/v5/user/tokens",
+        f"{base_url}/v6/user/tokens",
         "tokens",
         team_id,
     )
+
+
+def transform_tokens(
+    tokens: list[dict[str, Any]],
+    caller_id: str,
+    team_id: str,
+) -> list[dict[str, Any]]:
+    # Keep only tokens whose scopes include the current team (covers both
+    # team-only and user+team mixed scopes). Purely user-scoped tokens leak
+    # no team context and are dropped.
+    filtered: list[dict[str, Any]] = []
+    for token in tokens:
+        scopes = token.get("scopes") or []
+        if any(s.get("type") == "team" and s.get("teamId") == team_id for s in scopes):
+            token["owner_id"] = caller_id
+            filtered.append(token)
+    return filtered
 
 
 @timeit

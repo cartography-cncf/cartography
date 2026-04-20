@@ -33,11 +33,12 @@ def _ensure_local_neo4j_has_test_access_groups(neo4j_session):
 @patch.object(
     cartography.intel.vercel.accessgroups,
     "get",
-    return_value=tests.data.vercel.accessgroups.VERCEL_ACCESS_GROUPS,
+    return_value=tests.data.vercel.accessgroups.VERCEL_RAW_ACCESS_GROUPS,
 )
 def test_load_vercel_access_groups(mock_api, neo4j_session):
     """
-    Ensure that access groups actually get loaded and connected
+    Ensure that access groups actually get loaded and connected, and that the
+    per-project role is stored on the HAS_ACCESS_TO relationship.
     """
 
     # Arrange
@@ -102,20 +103,19 @@ def test_load_vercel_access_groups(mock_api, neo4j_session):
         == expected_user_rels
     )
 
-    # Assert Access Groups are connected to VercelProject via HAS_ACCESS_TO
-    expected_project_rels = {
-        ("ag_123", "prj_abc"),
-        ("ag_456", "prj_abc"),
+    # Assert Access Groups are connected to VercelProject via HAS_ACCESS_TO,
+    # and the per-project role is captured on the relationship.
+    expected_project_role_rels = {
+        ("ag_123", "prj_abc", "PROJECT_DEVELOPER"),
+        ("ag_456", "prj_abc", "ADMIN"),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "VercelAccessGroup",
-            "id",
-            "VercelProject",
-            "id",
-            "HAS_ACCESS_TO",
-            rel_direction_right=True,
-        )
-        == expected_project_rels
+    result = neo4j_session.run(
+        """
+        MATCH (g:VercelAccessGroup)-[r:HAS_ACCESS_TO]->(p:VercelProject)
+        RETURN g.id AS group_id, p.id AS project_id, r.role AS role
+        """
     )
+    actual_project_role_rels = {
+        (record["group_id"], record["project_id"], record["role"]) for record in result
+    }
+    assert actual_project_role_rels == expected_project_role_rels
