@@ -1892,9 +1892,7 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 
 ### AzureContainerInstance
 
-Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
-
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., ECSContainer, KubernetesContainer).
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureGroupContainer](#azuregroupcontainer)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
 |**id**| The full resource ID of the Container Instance. |
 |name| The name of the Container Instance. |
