@@ -2,6 +2,7 @@ import json
 import logging
 from collections import namedtuple
 from typing import Any
+from typing import Callable
 from typing import cast
 from typing import Dict
 from typing import List
@@ -138,66 +139,32 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
         return set()
 
 
+def _get_cached(
+    client_cache: _ClientCache,
+    key: tuple[str, str],
+    factory: Callable[[], Any],
+) -> Any:
+    client = client_cache.get(key)
+    if client is None:
+        client = factory()
+        client_cache[key] = client
+    return client
+
+
 def _get_cached_client(
     client_cache: _ClientCache,
     service: str,
     version: str,
     credentials: GoogleCredentials,
 ) -> Resource:
-    cache_key = (service, version)
-    client = client_cache.get(cache_key)
-    if client is None:
-        client = build_client(service, version, credentials=credentials)
-        client_cache[cache_key] = client
-    return cast(Resource, client)
-
-
-def _get_cached_asset_client(
-    client_cache: _ClientCache,
-    credentials: GoogleCredentials,
-) -> AssetServiceClient:
-    cache_key = ("cloudasset", "grpc")
-    client = client_cache.get(cache_key)
-    if client is None:
-        client = build_asset_client(credentials=credentials)
-        client_cache[cache_key] = client
-    return cast(AssetServiceClient, client)
-
-
-def _get_cached_cloud_run_clients(
-    client_cache: _ClientCache,
-    credentials: GoogleCredentials,
-) -> CloudRunClients:
-    cache_key = ("run-gapic", "v2")
-    client = client_cache.get(cache_key)
-    if client is None:
-        client = build_cloud_run_clients(credentials=credentials)
-        client_cache[cache_key] = client
-    return cast(CloudRunClients, client)
-
-
-def _get_cached_bigquery_gapic_client(
-    client_cache: _ClientCache,
-    credentials: GoogleCredentials,
-) -> Any:
-    cache_key = ("bigquery-gapic", "v1")
-    client = client_cache.get(cache_key)
-    if client is None:
-        client = build_bigquery_client(credentials=credentials)
-        client_cache[cache_key] = client
-    return client
-
-
-def _get_cached_bigquery_connection_gapic_client(
-    client_cache: _ClientCache,
-    credentials: GoogleCredentials,
-) -> Any:
-    cache_key = ("bigqueryconnection-gapic", "v1")
-    client = client_cache.get(cache_key)
-    if client is None:
-        client = build_bigquery_connection_client(credentials=credentials)
-        client_cache[cache_key] = client
-    return client
+    return cast(
+        Resource,
+        _get_cached(
+            client_cache,
+            (service, version),
+            lambda: build_client(service, version, credentials=credentials),
+        ),
+    )
 
 
 def _sync_project_resources(
@@ -249,17 +216,18 @@ def _sync_project_resources(
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
         project_services = _services_enabled_on_project(serviceusage_client, project_id)
-        enabled_services = project_services
 
-        # If the user specified --gcp-requested-syncs, filter enabled_services
-        # to only include the requested ones. This mirrors the AWS selective sync pattern.
+        # If the user specified --gcp-requested-syncs, filter to only include the
+        # requested ones. This mirrors the AWS selective sync pattern.
         if requested_syncs is not None:
             requested_service_apis = {
                 getattr(service_names, r)
                 for r in requested_syncs
                 if hasattr(service_names, r)
             }
-            enabled_services = enabled_services & requested_service_apis
+            enabled_services = project_services & requested_service_apis
+        else:
+            enabled_services = project_services
 
         # Track whether IAM sync succeeded for this project.
         # Only run IAM cleanup if sync succeeded to avoid deleting valid data
@@ -548,9 +516,13 @@ def _sync_project_resources(
             if cai_enabled_on_first_project:
                 # Lazily initialize CAI gRPC client for policy bindings.
                 if cai_grpc_client is None:
-                    cai_grpc_client = _get_cached_asset_client(
-                        client_cache,
-                        credentials,
+                    cai_grpc_client = cast(
+                        AssetServiceClient,
+                        _get_cached(
+                            client_cache,
+                            ("cloudasset", "grpc"),
+                            lambda: build_asset_client(credentials=credentials),
+                        ),
                     )
                 logger.info(
                     "Syncing IAM policies for GCP project %s.",
@@ -655,9 +627,13 @@ def _sync_project_resources(
 
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            cloud_run_clients = _get_cached_cloud_run_clients(
-                client_cache,
-                credentials,
+            cloud_run_clients = cast(
+                CloudRunClients,
+                _get_cached(
+                    client_cache,
+                    ("run-gapic", "v2"),
+                    lambda: build_cloud_run_clients(credentials=credentials),
+                ),
             )
             cloud_run_locations = cloudrun_util.discover_cloud_run_locations(
                 project_id,
@@ -709,14 +685,13 @@ def _sync_project_resources(
                         jobs_client=cloud_run_clients.jobs,
                     )
 
-        # Build the BigQuery clients once. The GAPIC client is used for datasets,
-        # tables, and connections. The discovery client remains only for routines.
         bigquery_gapic_client = None
         bigquery_routine_client = None
         if service_names.bigquery in enabled_services:
-            bigquery_gapic_client = _get_cached_bigquery_gapic_client(
+            bigquery_gapic_client = _get_cached(
                 client_cache,
-                credentials,
+                ("bigquery-gapic", "v1"),
+                lambda: build_bigquery_client(credentials=credentials),
             )
             bigquery_routine_client = _get_cached_client(
                 client_cache,
@@ -739,9 +714,10 @@ def _sync_project_resources(
 
         if service_names.bigquery_connection in enabled_services:
             logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
-            bigquery_conn_client = _get_cached_bigquery_connection_gapic_client(
+            bigquery_conn_client = _get_cached(
                 client_cache,
-                credentials,
+                ("bigqueryconnection-gapic", "v1"),
+                lambda: build_bigquery_connection_client(credentials=credentials),
             )
             bigquery_connection.sync_bigquery_connections(
                 neo4j_session,

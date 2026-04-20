@@ -34,9 +34,6 @@ def get_bigquery_datasets(
     Returns:
         list[dict]: List of BigQuery datasets (empty list if project has no datasets)
         None: If the BigQuery API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     try:
         dataset_items = list(client.list_datasets(project=project_id, include_all=True))

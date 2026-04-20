@@ -51,9 +51,6 @@ def get_bigquery_tables(
     Returns:
         list[dict]: List of BigQuery tables (empty list if dataset has no tables)
         None: If the BigQuery API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     try:
         dataset_ref = f"{project_id}.{dataset_id}"
@@ -139,25 +136,7 @@ def _enrich_bigquery_tables_with_details(
     credentials: GoogleCredentials | None = None,
     max_workers: int = _DEFAULT_BIGQUERY_TABLE_DETAIL_WORKERS,
 ) -> None:
-    if len(tables_raw) < 2 or max_workers <= 1:
-        for table in tables_raw:
-            table_ref = table["tableReference"]
-            detail = get_bigquery_table_detail(
-                client,
-                project_id,
-                dataset_id,
-                table_ref["tableId"],
-            )
-            if detail is not None:
-                table.update(detail)
-        return
-
-    if credentials is None:
-        logger.debug(
-            "BigQuery table detail enrichment for %s:%s is falling back to sequential fetches because no credentials were provided for thread-local clients.",
-            project_id,
-            dataset_id,
-        )
+    if len(tables_raw) < 2 or max_workers <= 1 or credentials is None:
         for table in tables_raw:
             table_ref = table["tableReference"]
             detail = get_bigquery_table_detail(

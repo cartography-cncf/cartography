@@ -51,9 +51,6 @@ def get_revisions(
     Returns:
         list[dict]: List of Cloud Run revisions (empty list if project has no revisions)
         None: If the Cloud Run Admin API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     if services_raw is None:
         if services_client is None:

@@ -1,6 +1,7 @@
 import logging
 
 import neo4j
+from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import PermissionDenied
 from google.cloud.bigquery import Client as BigQueryClient
 from google.cloud.bigquery_connection_v1 import ConnectionServiceClient
@@ -54,7 +55,7 @@ def _get_locations(
         dataset_items = list(
             bigquery_client.list_datasets(project=project_id, include_all=True)
         )
-    except Exception as e:  # pragma: no cover - best-effort fallback
+    except GoogleAPICallError as e:  # pragma: no cover - best-effort fallback
         logger.debug(
             "Could not list datasets to discover BigQuery connection locations for project %s - %s. "
             "Using default locations only.",
@@ -71,7 +72,7 @@ def _get_locations(
             loc = dataset.location
             if loc:
                 locations.add(loc.lower())
-        except Exception as e:  # pragma: no cover - best-effort fallback
+        except GoogleAPICallError as e:  # pragma: no cover - best-effort fallback
             logger.debug(
                 "Could not retrieve dataset detail to discover locations for %s.%s - %s. "
                 "Continuing.",
@@ -147,9 +148,6 @@ def get_bigquery_connections(
     Returns:
         list[dict]: List of BigQuery connections
         None: If the API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     if datasets_raw is not None:
         locations = _get_locations_from_datasets(datasets_raw)

@@ -11,10 +11,10 @@ from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.artifactregistry_v1.types import Package
-from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
@@ -41,19 +41,9 @@ def build_artifact_registry_client(
     return ArtifactRegistryClient(credentials=credentials)
 
 
-def _proto_to_dict(message: object) -> dict:
-    proto = getattr(message, "_pb", None)
-    if proto is None:
-        raise TypeError(f"Expected protobuf-backed message, got {type(message)!r}")
-    return MessageToDict(proto)
-
-
-def _extract_package_name(package: Package | dict) -> str:
-    if isinstance(package, dict):
-        raw_name = package.get("displayName") or package.get("name", "")
-    else:
-        package_dict = _proto_to_dict(package)
-        raw_name = package_dict.get("displayName") or package_dict.get("name", "")
+def _extract_package_name(package: Package) -> str:
+    package_dict = proto_message_to_dict(package)
+    raw_name = package_dict.get("displayName") or package_dict.get("name", "")
     return unquote(raw_name.split("/packages/")[-1]) if raw_name else ""
 
 
@@ -65,7 +55,7 @@ def _list_package_versions(
     for package in client.list_packages(parent=repository_name):
         package_name = _extract_package_name(package)
         for version in client.list_versions(parent=package.name):
-            version_data = _proto_to_dict(version)
+            version_data = proto_message_to_dict(version)
             version_data["packageName"] = package_name
             artifacts.append(version_data)
     return artifacts
@@ -87,7 +77,7 @@ def get_docker_images(
     """
     try:
         return [
-            _proto_to_dict(image)
+            proto_message_to_dict(image)
             for image in client.list_docker_images(parent=repository_name)
         ]
     except PermissionDenied:
@@ -114,7 +104,7 @@ def get_maven_artifacts(
     """
     try:
         return [
-            _proto_to_dict(artifact)
+            proto_message_to_dict(artifact)
             for artifact in client.list_maven_artifacts(parent=repository_name)
         ]
     except PermissionDenied:
@@ -141,7 +131,7 @@ def get_npm_packages(
     """
     try:
         return [
-            _proto_to_dict(package)
+            proto_message_to_dict(package)
             for package in client.list_npm_packages(parent=repository_name)
         ]
     except PermissionDenied:
@@ -167,7 +157,7 @@ def get_python_packages(
     """
     try:
         return [
-            _proto_to_dict(package)
+            proto_message_to_dict(package)
             for package in client.list_python_packages(parent=repository_name)
         ]
     except PermissionDenied:

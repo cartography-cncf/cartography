@@ -28,9 +28,6 @@ def get_services(
     Returns:
         list[dict]: List of Cloud Run services (empty list if project has no services)
         None: If the Cloud Run Admin API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     services: list[dict] = []
     queried_any_location = False
