@@ -42,6 +42,7 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
 
 
 @timeit
+@aws_handle_regions
 def get_lambda_image_uris(
     boto3_session: boto3.session.Session,
     lambda_functions: List[Dict],
@@ -52,6 +53,10 @@ def get_lambda_image_uris(
     resolve ImageUri / ResolvedImageUri. list_functions does not return the
     Code.ImageUri field, so this per-function call is required for image-based
     Lambdas only. Returns a map of function_arn -> {"ImageUri", "ResolvedImageUri"}.
+
+    A failure on a single function is logged and skipped (matching the existing
+    per-function pattern used by get_lambda_permission_policy) so one transient
+    SDK error does not abort the whole region's Lambda sync.
     """
     client = create_boto3_client(boto3_session, "lambda", region_name=region)
     image_uris: Dict[str, Dict[str, str | None]] = {}
@@ -61,7 +66,7 @@ def get_lambda_image_uris(
         function_arn = function_data["FunctionArn"]
         try:
             response = client.get_function(FunctionName=function_arn)
-        except botocore.exceptions.ClientError as e:
+        except Exception as e:
             logger.warning("Failed to get image URI for Lambda %s: %s", function_arn, e)
             continue
         code = response.get("Code") or {}
