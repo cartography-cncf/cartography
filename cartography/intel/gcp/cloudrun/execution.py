@@ -1,5 +1,6 @@
 import logging
 import re
+import threading
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -14,6 +15,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.models.gcp.cloudrun.execution import GCPCloudRunExecutionSchema
 from cartography.util import timeit
@@ -104,18 +106,46 @@ def get_executions(
         if not job_names:
             return []
 
-        executions: list[dict] = []
+        if len(job_names) < 2 or max_workers <= 1:
+            executions: list[dict] = []
+            for job_name in job_names:
+                executions.extend(_get_executions_for_job(client, job_name))
+            return executions
+
+        if credentials is None:
+            logger.debug(
+                "Cloud Run execution fetch for project %s is falling back to sequential requests because no credentials were provided for thread-local clients.",
+                project_id,
+            )
+            executions = []
+            for job_name in job_names:
+                executions.extend(_get_executions_for_job(client, job_name))
+            return executions
+
+        thread_local = threading.local()
+
+        def _get_thread_client() -> Resource:
+            thread_client = getattr(thread_local, "client", None)
+            if thread_client is None:
+                thread_client = build_client("run", "v2", credentials=credentials)
+                thread_local.client = thread_client
+            return thread_client
+
+        def _fetch_executions(job_name: str) -> list[dict]:
+            return _get_executions_for_job(_get_thread_client(), job_name)
+
+        threaded_executions: list[dict] = []
         with ThreadPoolExecutor(
             max_workers=min(max_workers, len(job_names)),
         ) as executor:
             futures = {
-                executor.submit(_get_executions_for_job, client, job_name): job_name
+                executor.submit(_fetch_executions, job_name): job_name
                 for job_name in job_names
             }
             for future in as_completed(futures):
-                executions.extend(future.result())
+                threaded_executions.extend(future.result())
 
-        return executions
+        return threaded_executions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
             f"Failed to get Cloud Run executions for project {project_id} due to permissions or auth error: {e}",

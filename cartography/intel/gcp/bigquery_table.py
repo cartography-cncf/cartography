@@ -173,16 +173,25 @@ def _enrich_bigquery_tables_with_details(
 
     if credentials is None:
         logger.debug(
-            "BigQuery table detail enrichment for %s:%s is using a shared client because no credentials were provided.",
+            "BigQuery table detail enrichment for %s:%s is falling back to sequential fetches because no credentials were provided for thread-local clients.",
             project_id,
             dataset_id,
         )
+        for table in tables_raw:
+            table_ref = table["tableReference"]
+            detail = get_bigquery_table_detail(
+                client,
+                project_id,
+                dataset_id,
+                table_ref["tableId"],
+            )
+            if detail is not None:
+                table.update(detail)
+        return
 
     thread_local = threading.local()
 
     def _get_thread_client() -> Resource:
-        if credentials is None:
-            return client
         thread_client = getattr(thread_local, "client", None)
         if thread_client is None:
             thread_client = build_client("bigquery", "v2", credentials=credentials)

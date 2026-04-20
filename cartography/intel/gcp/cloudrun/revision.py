@@ -1,9 +1,11 @@
 import logging
 import re
+import threading
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
@@ -11,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
@@ -52,6 +55,7 @@ def get_revisions(
     location: str = "-",
     services_raw: list[dict] | None = None,
     max_workers: int = _DEFAULT_CLOUD_RUN_REVISION_WORKERS,
+    credentials: GoogleCredentials | None = None,
 ) -> list[dict] | None:
     """
     Gets GCP Cloud Run Revisions for a project and location.
@@ -89,20 +93,46 @@ def get_revisions(
         if not service_names:
             return []
 
-        revisions: list[dict] = []
+        if len(service_names) < 2 or max_workers <= 1:
+            revisions: list[dict] = []
+            for service_name in service_names:
+                revisions.extend(_get_revisions_for_service(client, service_name))
+            return revisions
+
+        if credentials is None:
+            logger.debug(
+                "Cloud Run revision fetch for project %s is falling back to sequential requests because no credentials were provided for thread-local clients.",
+                project_id,
+            )
+            revisions = []
+            for service_name in service_names:
+                revisions.extend(_get_revisions_for_service(client, service_name))
+            return revisions
+
+        thread_local = threading.local()
+
+        def _get_thread_client() -> Resource:
+            thread_client = getattr(thread_local, "client", None)
+            if thread_client is None:
+                thread_client = build_client("run", "v2", credentials=credentials)
+                thread_local.client = thread_client
+            return thread_client
+
+        def _fetch_revisions(service_name: str) -> list[dict]:
+            return _get_revisions_for_service(_get_thread_client(), service_name)
+
+        threaded_revisions: list[dict] = []
         with ThreadPoolExecutor(
             max_workers=min(max_workers, len(service_names)),
         ) as executor:
             futures = {
-                executor.submit(
-                    _get_revisions_for_service, client, service_name
-                ): service_name
+                executor.submit(_fetch_revisions, service_name): service_name
                 for service_name in service_names
             }
             for future in as_completed(futures):
-                revisions.extend(future.result())
+                threaded_revisions.extend(future.result())
 
-        return revisions
+        return threaded_revisions
     except HttpError as e:
         if is_api_disabled_error(e):
             logger.warning(
@@ -209,6 +239,7 @@ def sync_revisions(
     update_tag: int,
     common_job_parameters: dict,
     services_raw: list[dict] | None = None,
+    credentials: GoogleCredentials | None = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Revisions for a project.
@@ -218,6 +249,7 @@ def sync_revisions(
         client,
         project_id,
         services_raw=services_raw,
+        credentials=credentials,
     )
 
     if revisions_raw is not None:

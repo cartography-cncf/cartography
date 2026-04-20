@@ -636,6 +636,7 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
                 services_raw=services_raw,
+                credentials=credentials,
             )
             jobs_raw = cloudrun_job.sync_jobs(
                 neo4j_session,
