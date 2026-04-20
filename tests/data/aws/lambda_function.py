@@ -386,14 +386,25 @@ LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE = [
         "Version": "$LATEST",
         "PackageType": "Image",
         "Architectures": ["arm64"],
-        "Code": {
-            "ImageUri": TEST_LAMBDA_IMAGE_URI,
-            "ResolvedImageUri": TEST_LAMBDA_IMAGE_URI,
-        },
+        # list_functions does NOT return the Code field. ImageUri is only
+        # available via a per-function GetFunction call; see the corresponding
+        # GetFunction mock below.
         "TracingConfig": {"Mode": "PassThrough"},
         "RevisionId": "container-rev-1",
     },
 ]
+
+
+# Mock GetFunction response for the container-image Lambda. Only PackageType=Image
+# Lambdas are passed to get_lambda_image_uris in practice.
+GET_FUNCTION_CONTAINER_IMAGE = {
+    "Configuration": LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE[0],
+    "Code": {
+        "RepositoryType": "ECR",
+        "ImageUri": TEST_LAMBDA_IMAGE_URI,
+        "ResolvedImageUri": TEST_LAMBDA_IMAGE_URI,
+    },
+}
 
 
 LIST_LAMBDA_PERMISSIONS = {

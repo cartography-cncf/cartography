@@ -296,6 +296,7 @@ def test_load_lambda_functions(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -342,6 +343,7 @@ def test_load_lambda_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -480,6 +482,7 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -588,6 +591,7 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -687,6 +691,7 @@ def test_load_lambda_layers_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -739,6 +744,16 @@ TEST_CONTAINER_LAMBDA_ARN = (
 
 @patch.object(
     cartography.intel.aws.lambda_function,
+    "get_lambda_image_uris",
+    return_value={
+        TEST_CONTAINER_LAMBDA_ARN: {
+            "ImageUri": TEST_LAMBDA_IMAGE_URI,
+            "ResolvedImageUri": TEST_LAMBDA_IMAGE_URI,
+        },
+    },
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
     "get_lambda_permissions",
     return_value={
         TEST_CONTAINER_LAMBDA_ARN: {
@@ -767,6 +782,7 @@ def test_container_image_lambda_has_image_and_resolved_image(
     _mock_aliases,
     _mock_lambda_data,
     _mock_permissions,
+    _mock_image_uris,
     neo4j_session,
 ):
     """A PackageType=Image Lambda should get image_uri/image_digest populated,
