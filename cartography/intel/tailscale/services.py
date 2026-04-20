@@ -1,8 +1,6 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 import requests
@@ -21,9 +19,9 @@ _TIMEOUT = 30
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     org: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Sync Tailscale Services.
 
@@ -47,7 +45,7 @@ def get(
     api_session: requests.Session,
     base_url: str,
     org: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Fetch services from the Tailscale API.
 
     GET /api/v2/tailnet/{tailnet}/services
@@ -57,12 +55,12 @@ def get(
         timeout=_TIMEOUT,
     )
     req.raise_for_status()
-    return req.json().get("vipServices", [])
+    return req.json()["vipServices"]
 
 
 def transform(
-    raw_services: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    raw_services: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Transform raw API data into the format expected by the data model.
 
     - Extracts IPv4/IPv6 from the addrs list
@@ -70,9 +68,9 @@ def transform(
     - Normalizes tags to match TailscaleTag IDs (tag:xxx)
     - Builds the id as svc:<name> to match the grant selector format
     """
-    transformed: List[Dict[str, Any]] = []
+    transformed: list[dict[str, Any]] = []
     for service in raw_services:
-        name = service.get("name", "")
+        name = service["name"]
         addrs = service.get("addrs", [])
         tags = service.get("tags", [])
 
@@ -94,7 +92,7 @@ def transform(
 @timeit
 def load_services(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -111,7 +109,7 @@ def load_services(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(
         TailscaleServiceSchema(),

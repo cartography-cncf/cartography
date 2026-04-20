@@ -2,8 +2,6 @@ import ipaddress
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 
@@ -28,13 +26,13 @@ def sync(
     neo4j_session: neo4j.Session,
     org: str,
     update_tag: int,
-    grants: List[Dict[str, Any]],
-    devices: List[Dict[str, Any]],
-    groups: List[Dict[str, Any]],
-    tags: List[Dict[str, Any]],
-    users: List[Dict[str, Any]],
-    services: List[Dict[str, Any]] | None = None,
-    posture_matches: List[Dict[str, str]] | None = None,
+    grants: list[dict[str, Any]],
+    devices: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
+    tags: list[dict[str, Any]],
+    users: list[dict[str, Any]],
+    services: list[dict[str, Any]] | None = None,
+    posture_matches: list[dict[str, str]] | None = None,
 ) -> None:
     """
     Sync Tailscale Grants and resolve effective access relationships.
@@ -86,12 +84,12 @@ def sync(
     )
 
 
-def transform(grants: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform(grants: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform grants for loading into Neo4j.
 
     Serializes list/dict fields to JSON strings for storage as node properties.
     """
-    transformed: List[Dict[str, Any]] = []
+    transformed: list[dict[str, Any]] = []
     for grant in grants:
         transformed.append(
             {
@@ -128,7 +126,7 @@ def transform(grants: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 @timeit
 def load_grants(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -147,11 +145,11 @@ def load_access(
     neo4j_session: neo4j.Session,
     org: str,
     update_tag: int,
-    user_access: List[Dict[str, Any]],
-    group_access: List[Dict[str, Any]],
-    device_access: List[Dict[str, Any]],
-    user_svc_access: List[Dict[str, Any]] | None = None,
-    group_svc_access: List[Dict[str, Any]] | None = None,
+    user_access: list[dict[str, Any]],
+    group_access: list[dict[str, Any]],
+    device_access: list[dict[str, Any]],
+    user_svc_access: list[dict[str, Any]] | None = None,
+    group_svc_access: list[dict[str, Any]] | None = None,
 ) -> None:
     if user_access:
         load_matchlinks(
@@ -246,19 +244,19 @@ def cleanup(
 
 
 def resolve_access(
-    grants: List[Dict[str, Any]],
-    devices: List[Dict[str, Any]],
-    groups: List[Dict[str, Any]],
-    tags: List[Dict[str, Any]],
-    users: List[Dict[str, Any]],
-    services: List[Dict[str, Any]] | None = None,
-    posture_matches: List[Dict[str, str]] | None = None,
+    grants: list[dict[str, Any]],
+    devices: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
+    tags: list[dict[str, Any]],
+    users: list[dict[str, Any]],
+    services: list[dict[str, Any]] | None = None,
+    posture_matches: list[dict[str, str]] | None = None,
 ) -> tuple[
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
     """Resolve effective access from grants.
 
@@ -290,17 +288,19 @@ def resolve_access(
     ip_to_devices = _build_ip_to_devices_map(devices)
     service_ids = {f"svc:{s.get('name', '')}" for s in (services or [])}
     device_postures = _build_device_postures_map(posture_matches or [])
-    user_postures = _build_user_postures_map(user_to_devices, device_postures)
 
-    user_access: Dict[tuple[str, str], List[str]] = {}
-    group_access: Dict[tuple[str, str], List[str]] = {}
-    device_access: Dict[tuple[str, str], List[str]] = {}
-    user_svc_access: Dict[tuple[str, str], List[str]] = {}
-    group_svc_access: Dict[tuple[str, str], List[str]] = {}
+    user_access: dict[tuple[str, str], list[str]] = {}
+    group_access: dict[tuple[str, str], list[str]] = {}
+    device_access: dict[tuple[str, str], list[str]] = {}
+    user_svc_access: dict[tuple[str, str], list[str]] = {}
+    group_svc_access: dict[tuple[str, str], list[str]] = {}
+    # Track posture requirements per grant for device propagation filtering
+    grant_postures: dict[str, set[str]] = {}
 
     for grant in grants:
         grant_id = grant["id"]
         required_postures = set(grant.get("src_posture", []))
+        grant_postures[grant_id] = required_postures
 
         has_self_destination = _has_autogroup_self(grant["destinations"])
 
@@ -327,7 +327,8 @@ def resolve_access(
             if not _user_meets_posture(
                 user_login,
                 required_postures,
-                user_postures,
+                user_to_devices,
+                device_postures,
             ):
                 continue
             for device_id in dest_device_ids:
@@ -350,7 +351,8 @@ def resolve_access(
                 if not _user_meets_posture(
                     user_login,
                     required_postures,
-                    user_postures,
+                    user_to_devices,
+                    device_postures,
                 ):
                     continue
                 for device_id in dest_device_ids:
@@ -381,13 +383,21 @@ def resolve_access(
                     )
 
     # Propagate user access to device-to-device access:
-    # If a user CAN_ACCESS a device, then all the user's devices
-    # CAN_ACCESS that device too (for exhaustive device→device queries).
+    # If a user CAN_ACCESS a device, then the user's devices that meet
+    # the grant's posture requirements also get CAN_ACCESS.
     for (user_login, dest_device_id), grant_ids in user_access.items():
         for source_device_id in user_to_devices.get(user_login, []):
             if source_device_id == dest_device_id:
                 continue
             for grant_id in grant_ids:
+                # Only propagate if the source device meets the grant's posture
+                required = grant_postures.get(grant_id, set())
+                if not _device_meets_posture(
+                    source_device_id,
+                    required,
+                    device_postures,
+                ):
+                    continue
                 _add_access(
                     device_access,
                     (source_device_id, dest_device_id),
@@ -436,10 +446,10 @@ def resolve_access(
 
 
 def _build_tag_to_devices_map(
-    devices: List[Dict[str, Any]],
-) -> Dict[str, List[str]]:
+    devices: list[dict[str, Any]],
+) -> dict[str, list[str]]:
     """Build a mapping from tag ID to list of device IDs."""
-    tag_to_devices: Dict[str, List[str]] = {}
+    tag_to_devices: dict[str, list[str]] = {}
     for device in devices:
         for tag in device.get("tags", []):
             tag_to_devices.setdefault(tag, []).append(device["nodeId"])
@@ -447,20 +457,20 @@ def _build_tag_to_devices_map(
 
 
 def _build_group_members_map(
-    groups: List[Dict[str, Any]],
-) -> Dict[str, set[str]]:
+    groups: list[dict[str, Any]],
+) -> dict[str, set[str]]:
     """Build a mapping from group ID to set of member login names."""
-    group_members: Dict[str, set[str]] = {}
+    group_members: dict[str, set[str]] = {}
     for group in groups:
         group_members[group["id"]] = set(group.get("members", []))
     return group_members
 
 
 def _build_user_to_devices_map(
-    devices: List[Dict[str, Any]],
-) -> Dict[str, List[str]]:
+    devices: list[dict[str, Any]],
+) -> dict[str, list[str]]:
     """Build a mapping from user login name to list of their device IDs."""
-    user_to_devices: Dict[str, List[str]] = {}
+    user_to_devices: dict[str, list[str]] = {}
     for device in devices:
         user = device.get("user")
         if user:
@@ -469,13 +479,13 @@ def _build_user_to_devices_map(
 
 
 def _build_ip_to_devices_map(
-    devices: List[Dict[str, Any]],
-) -> Dict[str, str]:
+    devices: list[dict[str, Any]],
+) -> dict[str, str]:
     """Build a mapping from IP address string to device ID.
 
     Each device can have multiple addresses (IPv4 + IPv6).
     """
-    ip_to_device: Dict[str, str] = {}
+    ip_to_device: dict[str, str] = {}
     for device in devices:
         for addr in device.get("addresses", []):
             ip_to_device[addr] = device["nodeId"]
@@ -483,10 +493,10 @@ def _build_ip_to_devices_map(
 
 
 def _build_device_postures_map(
-    posture_matches: List[Dict[str, str]],
-) -> Dict[str, set[str]]:
+    posture_matches: list[dict[str, str]],
+) -> dict[str, set[str]]:
     """Build a mapping from device ID to set of posture IDs it conforms to."""
-    device_postures: Dict[str, set[str]] = {}
+    device_postures: dict[str, set[str]] = {}
     for match in posture_matches:
         device_postures.setdefault(match["device_id"], set()).add(
             match["posture_id"],
@@ -494,43 +504,29 @@ def _build_device_postures_map(
     return device_postures
 
 
-def _build_user_postures_map(
-    user_to_devices: Dict[str, List[str]],
-    device_postures: Dict[str, set[str]],
-) -> Dict[str, set[str]]:
-    """Build a mapping from user login to the union of postures across all their devices.
-
-    A user meets a posture requirement if at least one of their devices
-    conforms to all required postures.
-    """
-    user_postures: Dict[str, set[str]] = {}
-    for user_login, device_ids in user_to_devices.items():
-        all_postures: set[str] = set()
-        for device_id in device_ids:
-            all_postures.update(device_postures.get(device_id, set()))
-        user_postures[user_login] = all_postures
-    return user_postures
-
-
 def _user_meets_posture(
     user_login: str,
     required_postures: set[str],
-    user_postures: Dict[str, set[str]],
+    user_to_devices: dict[str, list[str]],
+    device_postures: dict[str, set[str]],
 ) -> bool:
     """Check if a user meets posture requirements.
 
-    Returns True if no posture is required, or if the user has at least
-    one device conforming to all required postures.
+    Returns True if no posture is required, or if at least one of the
+    user's devices individually conforms to ALL required postures.
     """
     if not required_postures:
         return True
-    return required_postures.issubset(user_postures.get(user_login, set()))
+    for device_id in user_to_devices.get(user_login, []):
+        if required_postures.issubset(device_postures.get(device_id, set())):
+            return True
+    return False
 
 
 def _device_meets_posture(
     device_id: str,
     required_postures: set[str],
-    device_postures: Dict[str, set[str]],
+    device_postures: dict[str, set[str]],
 ) -> bool:
     """Check if a device meets posture requirements.
 
@@ -542,7 +538,7 @@ def _device_meets_posture(
     return required_postures.issubset(device_postures.get(device_id, set()))
 
 
-def _has_autogroup_self(destinations: List[str]) -> bool:
+def _has_autogroup_self(destinations: list[str]) -> bool:
     """Check if any destination is autogroup:self."""
     for dst in destinations:
         if dst == "autogroup:self" or dst.startswith("autogroup:self:"):
@@ -551,12 +547,12 @@ def _has_autogroup_self(destinations: List[str]) -> bool:
 
 
 def _resolve_destination_devices(
-    grant: Dict[str, Any],
-    tag_to_devices: Dict[str, List[str]],
-    group_members: Dict[str, set[str]],
+    grant: dict[str, Any],
+    tag_to_devices: dict[str, list[str]],
+    group_members: dict[str, set[str]],
     all_device_ids: set[str],
-    devices: List[Dict[str, Any]],
-    ip_to_devices: Dict[str, str] | None = None,
+    devices: list[dict[str, Any]],
+    ip_to_devices: dict[str, str] | None = None,
 ) -> set[str]:
     """Resolve which devices are targeted by a grant's destinations.
 
@@ -598,7 +594,7 @@ def _resolve_destination_devices(
 
 def _resolve_ip_destination(
     dst: str,
-    ip_to_devices: Dict[str, str],
+    ip_to_devices: dict[str, str],
 ) -> set[str]:
     """Resolve an IP address or CIDR range to device IDs.
 
@@ -632,7 +628,7 @@ def _resolve_ip_destination(
 
 
 def _resolve_destination_services(
-    destinations: List[str],
+    destinations: list[str],
     service_ids: set[str],
 ) -> set[str]:
     """Resolve which services are targeted by a grant's destinations."""
@@ -644,7 +640,7 @@ def _resolve_destination_services(
 
 
 def _add_access(
-    access_map: Dict[tuple[str, str], List[str]],
+    access_map: dict[tuple[str, str], list[str]],
     key: tuple[str, str],
     grant_id: str,
 ) -> None:

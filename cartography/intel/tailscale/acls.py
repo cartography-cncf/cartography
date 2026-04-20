@@ -53,6 +53,9 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
         org,
     )
+    # Clean stale group nodes/edges before computing transitive membership,
+    # so INHERITED_MEMBER_OF is based only on current MEMBER_OF edges.
+    cleanup_groups(neo4j_session, common_job_parameters)
     # Compute and load inherited (transitive) group membership
     inherited_members = get_inherited_member_relationships(neo4j_session, org)
     load_inherited_members(
@@ -266,12 +269,20 @@ def load_inherited_members(
 
 
 @timeit
+def cleanup_groups(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """Clean stale group nodes and edges before computing transitive membership."""
+    GraphJob.from_node_schema(TailscaleGroupSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(TailscaleGroupSchema(), common_job_parameters).run(
-        neo4j_session
-    )
     GraphJob.from_matchlink(
         TailscaleUserToGroupInheritedMemberMatchLink(),
         "TailscaleTailnet",
