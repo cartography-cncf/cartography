@@ -1,22 +1,22 @@
 import logging
 import re
-import threading
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
+from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.run_v2 import RevisionsClient
+from google.cloud.run_v2 import ServicesClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
-from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.cloudrun.service import get_services
+from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.cloudrun.revision import GCPCloudRunRevisionSchema
 from cartography.util import timeit
 
@@ -25,37 +25,25 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CLOUD_RUN_REVISION_WORKERS = 10
 
 
-def _get_revisions_for_service(client: Resource, service_name: str) -> list[dict]:
-    revisions: list[dict] = []
-    revisions_request = (
-        client.projects().locations().services().revisions().list(parent=service_name)
-    )
-
-    while revisions_request is not None:
-        revisions_response = gcp_api_execute_with_retry(revisions_request)
-        revisions.extend(revisions_response.get("revisions", []))
-        revisions_request = (
-            client.projects()
-            .locations()
-            .services()
-            .revisions()
-            .list_next(
-                previous_request=revisions_request,
-                previous_response=revisions_response,
-            )
-        )
-
-    return revisions
+def _get_revisions_for_service(
+    client: RevisionsClient,
+    service_name: str,
+) -> list[dict]:
+    return [
+        proto_message_to_dict(revision)
+        for revision in client.list_revisions(parent=service_name)
+    ]
 
 
 @timeit
 def get_revisions(
-    client: Resource,
+    client: RevisionsClient,
     project_id: str,
     location: str = "-",
     services_raw: list[dict] | None = None,
     max_workers: int = _DEFAULT_CLOUD_RUN_REVISION_WORKERS,
     credentials: GoogleCredentials | None = None,
+    services_client: ServicesClient | None = None,
 ) -> list[dict] | None:
     """
     Gets GCP Cloud Run Revisions for a project and location.
@@ -67,81 +55,61 @@ def get_revisions(
     Raises:
         HttpError: For errors other than API disabled or permission denied
     """
-    try:
+    if services_raw is None:
+        if services_client is None:
+            raise ValueError(
+                "services_client is required when services_raw is not provided."
+            )
+        if location == "-":
+            locations = discover_cloud_run_locations(
+                project_id,
+                credentials=credentials,
+            )
+            if locations is None:
+                return None
+        else:
+            locations = {f"projects/{project_id}/locations/{location}"}
+        services_raw = get_services(
+            services_client,
+            project_id,
+            locations=locations,
+        )
         if services_raw is None:
-            services_parent = f"projects/{project_id}/locations/{location}"
-            services_request = (
-                client.projects().locations().services().list(parent=services_parent)
-            )
-            services_raw = []
-            while services_request is not None:
-                services_response = gcp_api_execute_with_retry(services_request)
-                services_raw.extend(services_response.get("services", []))
-                services_request = (
-                    client.projects()
-                    .locations()
-                    .services()
-                    .list_next(
-                        previous_request=services_request,
-                        previous_response=services_response,
-                    )
-                )
-
-        service_names = [
-            service.get("name", "") for service in services_raw if service.get("name")
-        ]
-        if not service_names:
-            return []
-
-        if len(service_names) < 2 or max_workers <= 1:
-            revisions: list[dict] = []
-            for service_name in service_names:
-                revisions.extend(_get_revisions_for_service(client, service_name))
-            return revisions
-
-        if credentials is None:
-            logger.debug(
-                "Cloud Run revision fetch for project %s is falling back to sequential requests because no credentials were provided for thread-local clients.",
-                project_id,
-            )
-            revisions = []
-            for service_name in service_names:
-                revisions.extend(_get_revisions_for_service(client, service_name))
-            return revisions
-
-        thread_local = threading.local()
-
-        def _get_thread_client() -> Resource:
-            thread_client = getattr(thread_local, "client", None)
-            if thread_client is None:
-                thread_client = build_client("run", "v2", credentials=credentials)
-                thread_local.client = thread_client
-            return thread_client
-
-        def _fetch_revisions(service_name: str) -> list[dict]:
-            return _get_revisions_for_service(_get_thread_client(), service_name)
-
-        threaded_revisions: list[dict] = []
-        with ThreadPoolExecutor(
-            max_workers=min(max_workers, len(service_names)),
-        ) as executor:
-            futures = {
-                executor.submit(_fetch_revisions, service_name): service_name
-                for service_name in service_names
-            }
-            for future in as_completed(futures):
-                threaded_revisions.extend(future.result())
-
-        return threaded_revisions
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve Cloud Run revisions on project %s due to permissions "
-                "issues or API not enabled. Skipping sync to preserve existing data.",
-                project_id,
-            )
             return None
-        raise
+
+    service_names = [
+        service.get("name", "") for service in services_raw if service.get("name")
+    ]
+    if not service_names:
+        return []
+
+    if len(service_names) < 2 or max_workers <= 1:
+        revisions: list[dict] = []
+        for service_name in service_names:
+            revisions.extend(_get_revisions_for_service(client, service_name))
+        return revisions
+
+    threaded_revisions: list[dict] = []
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(service_names)),
+    ) as executor:
+        futures = {
+            executor.submit(
+                _get_revisions_for_service, client, service_name
+            ): service_name
+            for service_name in service_names
+        }
+        for future in as_completed(futures):
+            try:
+                threaded_revisions.extend(future.result())
+            except PermissionDenied:
+                logger.warning(
+                    "Permission denied listing Cloud Run revisions for service %s. Skipping service.",
+                    futures[future],
+                )
+                continue
+
+    return threaded_revisions
 
 
 def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dict]:
@@ -167,7 +135,10 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         # Construct the full service resource name for the relationship
         service_full_name = None
         if location and service_short_name:
-            service_full_name = f"projects/{project_id}/locations/{location}/services/{service_short_name}"
+            service_full_name = (
+                f"projects/{project_id}/locations/{location}/services/"
+                f"{service_short_name}"
+            )
 
         containers = revision.get("containers", [])
         image_metadata = extract_container_image_metadata(containers)
@@ -234,12 +205,13 @@ def cleanup_revisions(
 @timeit
 def sync_revisions(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: RevisionsClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
     services_raw: list[dict] | None = None,
     credentials: GoogleCredentials | None = None,
+    services_client: ServicesClient | None = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Revisions for a project.
@@ -250,6 +222,7 @@ def sync_revisions(
         project_id,
         services_raw=services_raw,
         credentials=credentials,
+        services_client=services_client,
     )
 
     if revisions_raw is not None:

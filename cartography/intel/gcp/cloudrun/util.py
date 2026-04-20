@@ -3,15 +3,13 @@ Utility functions for GCP Cloud Run intel module.
 """
 
 import logging
+from collections.abc import Mapping
 from typing import Optional
 from typing import TypedDict
 
 from google.auth.credentials import Credentials as GoogleCredentials
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
 
-from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.clients import build_authorized_session
 
 logger = logging.getLogger(__name__)
 
@@ -59,95 +57,70 @@ def extract_container_image_metadata(
 
 
 def discover_cloud_run_locations(
-    client: Resource,
     project_id: str,
     credentials: Optional[GoogleCredentials] = None,
-) -> set[str]:
+) -> set[str] | None:
     """
     Discovers GCP locations with Cloud Run resources.
 
-    Uses the v1 API's locations.list() method to get all available Cloud Run regions.
-    This ensures we don't miss regions that only have jobs (no services).
-    Falls back to discovering via services list if the v1 API call fails.
+    Uses the Cloud Run v1 ``projects.locations.list`` endpoint directly via an
+    authorized session. The GAPIC v2 clients do not expose a locations client,
+    but this avoids the discovery client while still using the official API.
     """
     try:
-        # Use v1 API's locations.list() to get all Cloud Run regions.
-        # Prefer caller-provided credentials to avoid accidental fallback to ADC.
-        resolved_credentials = credentials or get_gcp_credentials()
-        v1_client = build_client("run", "v1", credentials=resolved_credentials)
-
-        parent = f"projects/{project_id}"
-        request = v1_client.projects().locations().list(name=parent)
-
-        locations_set = set()
-        while request is not None:
-            response = request.execute()
-            for location in response.get("locations", []):
-                location_name = location.get(
-                    "name"
-                )  # e.g., projects/foo/locations/us-central1
-                if location_name:
-                    # Normalize location name: ensure it has the 'projects/' prefix
-                    # The v1 API may return 'project-id/locations/region' without the prefix
-                    if not location_name.startswith("projects/"):
-                        location_name = f"projects/{location_name}"
-                    locations_set.add(location_name)
-            request = (
-                v1_client.projects()
-                .locations()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-
-        if locations_set:
-            logger.debug(
-                f"Discovered {len(locations_set)} Cloud Run locations via v1 API"
-            )
-            return locations_set
-        else:
-            logger.warning(
-                "v1 API returned no locations, falling back to service-based discovery"
-            )
-
-    except (HttpError, RuntimeError) as e:
-        # Fall back to service-based discovery for HTTP/API failures and when
-        # the v1 helper cannot initialize credentials in non-ADC environments.
+        session = build_authorized_session(credentials=credentials)
+    except RuntimeError as e:
         logger.warning(
-            f"Could not discover locations via v1 API: {e}. "
-            f"Falling back to discovery via services list.",
+            "Could not initialize credentials for Cloud Run location discovery on project %s - %s. "
+            "Skipping Cloud Run sync to preserve existing data.",
+            project_id,
+            e,
         )
-
-    # Fallback: discover locations by extracting them from service resource names
-    logger.debug("Using service-based discovery for Cloud Run locations")
-    services_parent = f"projects/{project_id}/locations/-"
-    services_request = (
-        client.projects().locations().services().list(parent=services_parent)
-    )
+        return None
 
     locations_set = set()
-    while services_request is not None:
-        services_response = services_request.execute()
-        services = services_response.get("services", [])
+    next_page_token: str | None = None
+    url = f"https://run.googleapis.com/v1/projects/{project_id}/locations"
 
-        # Extract unique locations from service resource names
-        # Format: projects/{project}/locations/{location}/services/{service}
-        for service in services:
-            service_name = service.get("name", "")
-            parts = service_name.split("/")
-            if len(parts) >= 4:
-                # Reconstruct the location resource name: projects/{project}/locations/{location}
-                locations_set.add(f"projects/{parts[1]}/locations/{parts[3]}")
-
-        services_request = (
-            client.projects()
-            .locations()
-            .services()
-            .list_next(
-                previous_request=services_request,
-                previous_response=services_response,
+    while True:
+        params = {}
+        if next_page_token:
+            params["pageToken"] = next_page_token
+        response = session.get(url, params=params or None, timeout=120)
+        if response.status_code in (403, 404):
+            logger.warning(
+                "Could not discover Cloud Run locations on project %s - HTTP %s. "
+                "Skipping Cloud Run sync to preserve existing data.",
+                project_id,
+                response.status_code,
             )
-        )
+            return None
+        response.raise_for_status()
+
+        payload = response.json()
+        if not isinstance(payload, Mapping):
+            raise TypeError(
+                f"Unexpected Cloud Run locations payload type: {type(payload)!r}"
+            )
+
+        for location in payload.get("locations", []):
+            if not isinstance(location, Mapping):
+                continue
+            location_name = location.get("name")
+            if not isinstance(location_name, str) or not location_name:
+                continue
+            if not location_name.startswith("projects/"):
+                location_name = f"projects/{location_name}"
+            locations_set.add(location_name)
+
+        next_page_token = payload.get("nextPageToken")
+        if not isinstance(next_page_token, str) or not next_page_token:
+            break
+
+    logger.debug(
+        "Discovered %d Cloud Run locations via v1 locations API on project %s.",
+        len(locations_set),
+        project_id,
+    )
 
     return locations_set

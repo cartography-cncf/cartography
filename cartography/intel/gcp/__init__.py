@@ -42,7 +42,11 @@ from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
+from cartography.intel.gcp.clients import build_bigquery_client
+from cartography.intel.gcp.clients import build_bigquery_connection_client
 from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.clients import build_cloud_run_clients
+from cartography.intel.gcp.clients import CloudRunClients
 from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
 from cartography.intel.gcp.cloudrun import job as cloudrun_job
@@ -158,6 +162,42 @@ def _get_cached_asset_client(
         client = build_asset_client(credentials=credentials)
         client_cache[cache_key] = client
     return cast(AssetServiceClient, client)
+
+
+def _get_cached_cloud_run_clients(
+    client_cache: _ClientCache,
+    credentials: GoogleCredentials,
+) -> CloudRunClients:
+    cache_key = ("run-gapic", "v2")
+    client = client_cache.get(cache_key)
+    if client is None:
+        client = build_cloud_run_clients(credentials=credentials)
+        client_cache[cache_key] = client
+    return cast(CloudRunClients, client)
+
+
+def _get_cached_bigquery_gapic_client(
+    client_cache: _ClientCache,
+    credentials: GoogleCredentials,
+) -> Any:
+    cache_key = ("bigquery-gapic", "v1")
+    client = client_cache.get(cache_key)
+    if client is None:
+        client = build_bigquery_client(credentials=credentials)
+        client_cache[cache_key] = client
+    return client
+
+
+def _get_cached_bigquery_connection_gapic_client(
+    client_cache: _ClientCache,
+    credentials: GoogleCredentials,
+) -> Any:
+    cache_key = ("bigqueryconnection-gapic", "v1")
+    client = client_cache.get(cache_key)
+    if client is None:
+        client = build_bigquery_connection_client(credentials=credentials)
+        client_cache[cache_key] = client
+    return client
 
 
 def _sync_project_resources(
@@ -615,53 +655,70 @@ def _sync_project_resources(
 
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            cloud_run_cred = _get_cached_client(client_cache, "run", "v2", credentials)
+            cloud_run_clients = _get_cached_cloud_run_clients(
+                client_cache,
+                credentials,
+            )
             cloud_run_locations = cloudrun_util.discover_cloud_run_locations(
-                cloud_run_cred,
                 project_id,
                 credentials=credentials,
             )
-            services_raw = cloudrun_service.sync_services(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                locations=cloud_run_locations,
-            )
-            cloudrun_revision.sync_revisions(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                services_raw=services_raw,
-                credentials=credentials,
-            )
-            jobs_raw = cloudrun_job.sync_jobs(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                credentials=credentials,
-                locations=cloud_run_locations,
-            )
-            cloudrun_execution.sync_executions(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                credentials=credentials,
-                jobs_raw=jobs_raw,
-            )
+            if cloud_run_locations is None:
+                logger.warning(
+                    "Skipping Cloud Run sync for project %s because location discovery failed.",
+                    project_id,
+                )
+            else:
+                services_raw = cloudrun_service.sync_services(
+                    neo4j_session,
+                    cloud_run_clients.services,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=cloud_run_locations,
+                )
+                if services_raw is not None:
+                    cloudrun_revision.sync_revisions(
+                        neo4j_session,
+                        cloud_run_clients.revisions,
+                        project_id,
+                        gcp_update_tag,
+                        common_job_parameters,
+                        services_raw=services_raw,
+                        credentials=credentials,
+                        services_client=cloud_run_clients.services,
+                    )
+                jobs_raw = cloudrun_job.sync_jobs(
+                    neo4j_session,
+                    cloud_run_clients.jobs,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    credentials=credentials,
+                    locations=cloud_run_locations,
+                )
+                if jobs_raw is not None:
+                    cloudrun_execution.sync_executions(
+                        neo4j_session,
+                        cloud_run_clients.executions,
+                        project_id,
+                        gcp_update_tag,
+                        common_job_parameters,
+                        credentials=credentials,
+                        jobs_raw=jobs_raw,
+                        jobs_client=cloud_run_clients.jobs,
+                    )
 
-        # Build the BigQuery v2 client once — used for datasets/tables/routines
-        # and also for location discovery when syncing connections.
-        bigquery_client = None
+        # Build the BigQuery clients once. The GAPIC client is used for datasets,
+        # tables, and connections. The discovery client remains only for routines.
+        bigquery_gapic_client = None
+        bigquery_routine_client = None
         if service_names.bigquery in enabled_services:
-            bigquery_client = _get_cached_client(
+            bigquery_gapic_client = _get_cached_bigquery_gapic_client(
+                client_cache,
+                credentials,
+            )
+            bigquery_routine_client = _get_cached_client(
                 client_cache,
                 "bigquery",
                 "v2",
@@ -669,22 +726,21 @@ def _sync_project_resources(
             )
 
         datasets_raw = None
-        if bigquery_client is not None:
+        if bigquery_gapic_client is not None:
             logger.info("Syncing GCP project %s for BigQuery.", project_id)
             datasets_raw = bigquery_dataset.sync_bigquery_datasets(
                 neo4j_session,
-                bigquery_client,
+                bigquery_gapic_client,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
 
         if service_names.bigquery_connection in enabled_services:
             logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
-            bigquery_conn_client = _get_cached_client(
+            bigquery_conn_client = _get_cached_bigquery_connection_gapic_client(
                 client_cache,
-                "bigqueryconnection",
-                "v1",
                 credentials,
             )
             bigquery_connection.sync_bigquery_connections(
@@ -693,14 +749,14 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
-                bigquery_client=bigquery_client,
+                bigquery_client=bigquery_gapic_client,
                 datasets_raw=datasets_raw,
             )
 
-        if bigquery_client is not None and datasets_raw is not None:
+        if bigquery_gapic_client is not None and datasets_raw is not None:
             bigquery_table.sync_bigquery_tables(
                 neo4j_session,
-                bigquery_client,
+                bigquery_gapic_client,
                 datasets_raw,
                 project_id,
                 gcp_update_tag,
@@ -708,14 +764,15 @@ def _sync_project_resources(
                 credentials=credentials,
             )
 
-            bigquery_routine.sync_bigquery_routines(
-                neo4j_session,
-                bigquery_client,
-                datasets_raw,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            if bigquery_routine_client is not None:
+                bigquery_routine.sync_bigquery_routines(
+                    neo4j_session,
+                    bigquery_routine_client,
+                    datasets_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         # Clean up project-level IAM resources (service accounts and project roles)
         # Only run cleanup if IAM sync succeeded to avoid deleting valid data

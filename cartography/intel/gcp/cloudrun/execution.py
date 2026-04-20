@@ -1,6 +1,5 @@
 import logging
 import re
-import threading
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -8,15 +7,13 @@ from typing import Optional
 import neo4j
 from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.run_v2 import ExecutionsClient
+from google.cloud.run_v2 import JobsClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.cloudrun.job import get_jobs
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.cloudrun.execution import GCPCloudRunExecutionSchema
 from cartography.util import timeit
 
@@ -25,38 +22,26 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CLOUD_RUN_EXECUTION_WORKERS = 10
 
 
-def _get_executions_for_job(client: Resource, job_name: str) -> list[dict]:
-    executions: list[dict] = []
-    executions_request = (
-        client.projects().locations().jobs().executions().list(parent=job_name)
-    )
-
-    while executions_request is not None:
-        executions_response = executions_request.execute()
-        executions.extend(executions_response.get("executions", []))
-        executions_request = (
-            client.projects()
-            .locations()
-            .jobs()
-            .executions()
-            .list_next(
-                previous_request=executions_request,
-                previous_response=executions_response,
-            )
-        )
-
-    return executions
+def _get_executions_for_job(
+    client: ExecutionsClient,
+    job_name: str,
+) -> list[dict]:
+    return [
+        proto_message_to_dict(execution)
+        for execution in client.list_executions(parent=job_name)
+    ]
 
 
 @timeit
 def get_executions(
-    client: Resource,
+    client: ExecutionsClient,
     project_id: str,
     location: str = "-",
     credentials: Optional[GoogleCredentials] = None,
     jobs_raw: list[dict] | None = None,
     max_workers: int = _DEFAULT_CLOUD_RUN_EXECUTION_WORKERS,
-) -> list[dict]:
+    jobs_client: JobsClient | None = None,
+) -> list[dict] | None:
     """
     Gets GCP Cloud Run Executions for a project and location.
 
@@ -65,92 +50,53 @@ def get_executions(
     2. For each location, get all jobs
     3. For each job, get all executions
     """
-    try:
-        if jobs_raw is None:
-            if location == "-":
-                locations = discover_cloud_run_locations(
-                    client,
-                    project_id,
-                    credentials=credentials,
-                )
-            else:
-                locations = {f"projects/{project_id}/locations/{location}"}
-
-            jobs_raw = []
-            for loc_name in sorted(locations):
-                try:
-                    jobs_request = (
-                        client.projects().locations().jobs().list(parent=loc_name)
-                    )
-                    while jobs_request is not None:
-                        jobs_response = jobs_request.execute()
-                        jobs_raw.extend(jobs_response.get("jobs", []))
-                        jobs_request = (
-                            client.projects()
-                            .locations()
-                            .jobs()
-                            .list_next(
-                                previous_request=jobs_request,
-                                previous_response=jobs_response,
-                            )
-                        )
-                except HttpError as e:
-                    if e.resp.status == 403:
-                        logger.warning(
-                            f"Permission denied listing Cloud Run jobs/executions in {loc_name}. Skipping location.",
-                        )
-                        continue
-                    raise
-
-        job_names = [job.get("name", "") for job in jobs_raw if job.get("name")]
-        if not job_names:
-            return []
-
-        if len(job_names) < 2 or max_workers <= 1:
-            executions: list[dict] = []
-            for job_name in job_names:
-                executions.extend(_get_executions_for_job(client, job_name))
-            return executions
-
-        if credentials is None:
-            logger.debug(
-                "Cloud Run execution fetch for project %s is falling back to sequential requests because no credentials were provided for thread-local clients.",
-                project_id,
-            )
-            executions = []
-            for job_name in job_names:
-                executions.extend(_get_executions_for_job(client, job_name))
-            return executions
-
-        thread_local = threading.local()
-
-        def _get_thread_client() -> Resource:
-            thread_client = getattr(thread_local, "client", None)
-            if thread_client is None:
-                thread_client = build_client("run", "v2", credentials=credentials)
-                thread_local.client = thread_client
-            return thread_client
-
-        def _fetch_executions(job_name: str) -> list[dict]:
-            return _get_executions_for_job(_get_thread_client(), job_name)
-
-        threaded_executions: list[dict] = []
-        with ThreadPoolExecutor(
-            max_workers=min(max_workers, len(job_names)),
-        ) as executor:
-            futures = {
-                executor.submit(_fetch_executions, job_name): job_name
-                for job_name in job_names
-            }
-            for future in as_completed(futures):
-                threaded_executions.extend(future.result())
-
-        return threaded_executions
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Cloud Run executions for project {project_id} due to permissions or auth error: {e}",
+    if jobs_raw is None:
+        if jobs_client is None:
+            raise ValueError("jobs_client is required when jobs_raw is not provided.")
+        jobs_raw = get_jobs(
+            jobs_client,
+            project_id,
+            location=location,
+            credentials=credentials,
         )
-        raise
+        if jobs_raw is None:
+            return None
+
+    job_names = [job.get("name", "") for job in jobs_raw if job.get("name")]
+    if not job_names:
+        return []
+
+    if len(job_names) < 2 or max_workers <= 1:
+        executions: list[dict] = []
+        for job_name in job_names:
+            try:
+                executions.extend(_get_executions_for_job(client, job_name))
+            except PermissionDenied:
+                logger.warning(
+                    "Permission denied listing Cloud Run executions for job %s. Skipping job.",
+                    job_name,
+                )
+        return executions
+
+    threaded_executions: list[dict] = []
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(job_names)),
+    ) as executor:
+        futures = {
+            executor.submit(_get_executions_for_job, client, job_name): job_name
+            for job_name in job_names
+        }
+        for future in as_completed(futures):
+            try:
+                threaded_executions.extend(future.result())
+            except PermissionDenied:
+                logger.warning(
+                    "Permission denied listing Cloud Run executions for job %s. Skipping job.",
+                    futures[future],
+                )
+                continue
+
+    return threaded_executions
 
 
 def transform_executions(executions_data: list[dict], project_id: str) -> list[dict]:
@@ -232,12 +178,13 @@ def cleanup_executions(
 @timeit
 def sync_executions(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ExecutionsClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
     credentials: Optional[GoogleCredentials] = None,
     jobs_raw: list[dict] | None = None,
+    jobs_client: JobsClient | None = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Executions for a project.
@@ -248,13 +195,15 @@ def sync_executions(
         project_id,
         credentials=credentials,
         jobs_raw=jobs_raw,
+        jobs_client=jobs_client,
     )
-    if not executions_raw:
-        logger.info(f"No Cloud Run executions found for project {project_id}.")
+    if executions_raw is not None:
+        if not executions_raw:
+            logger.info(f"No Cloud Run executions found for project {project_id}.")
 
-    executions = transform_executions(executions_raw, project_id)
-    load_executions(neo4j_session, executions, project_id, update_tag)
+        executions = transform_executions(executions_raw, project_id)
+        load_executions(neo4j_session, executions, project_id, update_tag)
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["project_id"] = project_id
-    cleanup_executions(neo4j_session, cleanup_job_params)
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["project_id"] = project_id
+        cleanup_executions(neo4j_session, cleanup_job_params)

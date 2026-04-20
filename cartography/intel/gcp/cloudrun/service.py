@@ -3,14 +3,13 @@ import re
 from collections.abc import Iterable
 
 import neo4j
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.api_core.exceptions import PermissionDenied
+from google.cloud.run_v2 import ServicesClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
 from cartography.util import timeit
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(
-    client: Resource,
+    client: ServicesClient,
     project_id: str,
     locations: Iterable[str] | None = None,
 ) -> list[dict] | None:
@@ -33,41 +32,32 @@ def get_services(
     Raises:
         HttpError: For errors other than API disabled or permission denied
     """
-    try:
-        services: list[dict] = []
-        for location in sorted(locations or []):
-            try:
-                request = client.projects().locations().services().list(parent=location)
-                while request is not None:
-                    response = gcp_api_execute_with_retry(request)
-                    services.extend(response.get("services", []))
-                    request = (
-                        client.projects()
-                        .locations()
-                        .services()
-                        .list_next(
-                            previous_request=request,
-                            previous_response=response,
-                        )
-                    )
-            except HttpError as e:
-                if e.resp.status == 403:
-                    logger.warning(
-                        "Permission denied listing Cloud Run services in %s. Skipping location.",
-                        location,
-                    )
-                    continue
-                raise
-        return services
-    except HttpError as e:
-        if is_api_disabled_error(e):
+    services: list[dict] = []
+    queried_any_location = False
+    had_permission_denied = False
+
+    for location in sorted(locations or []):
+        try:
+            pager = client.list_services(parent=location)
+            queried_any_location = True
+            services.extend(proto_message_to_dict(service) for service in pager)
+        except PermissionDenied:
+            had_permission_denied = True
             logger.warning(
-                "Could not retrieve Cloud Run services on project %s due to permissions "
-                "issues or API not enabled. Skipping sync to preserve existing data.",
-                project_id,
+                "Permission denied listing Cloud Run services in %s. Skipping location.",
+                location,
             )
-            return None
-        raise
+            continue
+
+    if had_permission_denied and not queried_any_location:
+        logger.warning(
+            "Could not retrieve Cloud Run services on project %s due to permissions "
+            "issues. Skipping sync to preserve existing data.",
+            project_id,
+        )
+        return None
+
+    return services
 
 
 def transform_services(services_data: list[dict], project_id: str) -> list[dict]:
@@ -141,7 +131,7 @@ def cleanup_services(
 @timeit
 def sync_services(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ServicesClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,

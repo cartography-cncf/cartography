@@ -1,13 +1,14 @@
 import logging
 
 import neo4j
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.api_core.exceptions import PermissionDenied
+from google.cloud.bigquery import Client as BigQueryClient
+from google.cloud.bigquery_connection_v1 import ConnectionServiceClient
+from google.cloud.bigquery_connection_v1.types import Connection
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.bigquery.connection import GCPBigQueryConnectionSchema
 from cartography.util import timeit
 
@@ -27,7 +28,7 @@ def _get_locations_from_datasets(datasets_raw: list[dict] | None) -> list[str]:
 
 
 def _get_locations(
-    bigquery_client: Resource,
+    bigquery_client: BigQueryClient,
     project_id: str,
     datasets_raw: list[dict] | None = None,
 ) -> list[str]:
@@ -50,33 +51,84 @@ def _get_locations(
     # Discover additional locations from existing datasets.
     locations = set(_get_locations_from_datasets(None))
     try:
-        request = bigquery_client.datasets().list(projectId=project_id, all=True)
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            for ds in response.get("datasets", []):
-                loc = ds.get("location")
-                if loc:
-                    locations.add(loc.lower())
-            request = bigquery_client.datasets().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
-    except HttpError as e:
+        dataset_items = list(
+            bigquery_client.list_datasets(project=project_id, include_all=True)
+        )
+    except Exception as e:  # pragma: no cover - best-effort fallback
         logger.debug(
-            "Could not list datasets to discover locations for project %s - %s. "
+            "Could not list datasets to discover BigQuery connection locations for project %s - %s. "
             "Using default locations only.",
             project_id,
             e,
         )
+        return sorted(locations)
+
+    for dataset_item in dataset_items:
+        try:
+            dataset = bigquery_client.get_dataset(
+                f"{dataset_item.project}.{dataset_item.dataset_id}"
+            )
+            loc = dataset.location
+            if loc:
+                locations.add(loc.lower())
+        except Exception as e:  # pragma: no cover - best-effort fallback
+            logger.debug(
+                "Could not retrieve dataset detail to discover locations for %s.%s - %s. "
+                "Continuing.",
+                dataset_item.project,
+                dataset_item.dataset_id,
+                e,
+            )
 
     return sorted(locations)
 
 
+def _connection_to_dict(connection: Connection) -> dict:
+    connection_type = connection._pb.WhichOneof("properties")
+    cloud_sql = connection.cloud_sql
+    aws = connection.aws
+    azure = connection.azure
+    cloud_resource = connection.cloud_resource
+    connection_dict = proto_message_to_dict(connection)
+    data = {
+        "name": connection.name,
+        "friendlyName": connection.friendly_name or None,
+        "description": connection.description or None,
+        "creationTime": (
+            str(connection.creation_time)
+            if connection.creation_time
+            else connection_dict.get("creationTime")
+        ),
+        "lastModifiedTime": (
+            str(connection.last_modified_time)
+            if connection.last_modified_time
+            else connection_dict.get("lastModifiedTime")
+        ),
+        "hasCredential": connection.has_credential,
+    }
+    if connection_type == "cloud_sql" and cloud_sql.instance_id:
+        data["cloudSql"] = {"instanceId": cloud_sql.instance_id}
+    elif connection_type == "aws" and aws.access_role.iam_role_id:
+        data["aws"] = {"accessRole": {"iamRoleId": aws.access_role.iam_role_id}}
+    elif connection_type == "azure" and azure.federated_application_client_id:
+        data["azure"] = {
+            "federatedApplicationClientId": azure.federated_application_client_id,
+        }
+    elif connection_type == "cloud_resource" and cloud_resource.service_account_id:
+        data["cloudResource"] = {"serviceAccountId": cloud_resource.service_account_id}
+    elif connection_type == "spark":
+        data["spark"] = connection_dict.get("spark", {})
+    elif connection_type == "cloud_spanner":
+        data["cloudSpanner"] = connection_dict.get("cloudSpanner", {})
+
+    return data
+
+
 @timeit
 def get_bigquery_connections(
-    conn_client: Resource,
+    conn_client: ConnectionServiceClient,
     project_id: str,
-    bigquery_client: Resource | None = None,
+    bigquery_client: BigQueryClient | None = None,
     datasets_raw: list[dict] | None = None,
 ) -> list[dict] | None:
     """
@@ -107,40 +159,32 @@ def get_bigquery_connections(
         locations = ["us", "eu"]
 
     connections: list[dict] = []
+    queried_any_location = False
+    had_permission_denied = False
     for location in locations:
         parent = f"projects/{project_id}/locations/{location}"
         try:
-            request = (
-                conn_client.projects()
-                .locations()
-                .connections()
-                .list(
-                    parent=parent,
-                )
+            pager = conn_client.list_connections(parent=parent)
+            queried_any_location = True
+            connections.extend(_connection_to_dict(connection) for connection in pager)
+        except PermissionDenied as e:
+            had_permission_denied = True
+            logger.warning(
+                "Could not retrieve BigQuery connections for %s/%s - %s. "
+                "Skipping location.",
+                project_id,
+                location,
+                e,
             )
-            while request is not None:
-                response = gcp_api_execute_with_retry(request)
-                connections.extend(response.get("connections", []))
-                request = (
-                    conn_client.projects()
-                    .locations()
-                    .connections()
-                    .list_next(
-                        previous_request=request,
-                        previous_response=response,
-                    )
-                )
-        except HttpError as e:
-            if is_api_disabled_error(e) or e.resp.status in (403, 404):
-                logger.warning(
-                    "Could not retrieve BigQuery connections for %s/%s - %s. "
-                    "Skipping location.",
-                    project_id,
-                    location,
-                    e,
-                )
-                continue
-            raise
+            continue
+
+    if had_permission_denied and not queried_any_location:
+        logger.warning(
+            "Could not retrieve BigQuery connections on project %s due to permissions "
+            "issues. Skipping sync to preserve existing data.",
+            project_id,
+        )
+        return None
 
     return connections
 
@@ -215,11 +259,11 @@ def cleanup_bigquery_connections(
 @timeit
 def sync_bigquery_connections(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ConnectionServiceClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-    bigquery_client: Resource | None = None,
+    bigquery_client: BigQueryClient | None = None,
     datasets_raw: list[dict] | None = None,
 ) -> None:
     logger.info("Syncing BigQuery connections for project %s.", project_id)

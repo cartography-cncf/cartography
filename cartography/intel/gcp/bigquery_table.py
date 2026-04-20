@@ -4,15 +4,14 @@ from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
+from google.api_core.exceptions import Forbidden
+from google.api_core.exceptions import NotFound
 from google.auth.credentials import Credentials as GoogleCredentials
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.bigquery import Client
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.clients import build_bigquery_client
 from cartography.models.gcp.bigquery.table import GCPBigQueryTableSchema
 from cartography.util import timeit
 
@@ -42,7 +41,7 @@ def _normalize_connection_id(connection_id: str | None) -> str | None:
 
 @timeit
 def get_bigquery_tables(
-    client: Resource,
+    client: Client,
     project_id: str,
     dataset_id: str,
 ) -> list[dict] | None:
@@ -57,31 +56,21 @@ def get_bigquery_tables(
         HttpError: For errors other than API disabled or permission denied
     """
     try:
-        tables: list[dict] = []
-        request = client.tables().list(projectId=project_id, datasetId=dataset_id)
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            tables.extend(response.get("tables", []))
-            request = client.tables().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
-        return tables
-    except HttpError as e:
-        if is_api_disabled_error(e) or e.resp.status in (403, 404):
-            logger.warning(
-                "Could not retrieve BigQuery tables for dataset %s:%s - %s. Skipping.",
-                project_id,
-                dataset_id,
-                e,
-            )
-            return None
-        raise
+        dataset_ref = f"{project_id}.{dataset_id}"
+        return [table.to_api_repr() for table in client.list_tables(dataset_ref)]
+    except (Forbidden, NotFound) as e:
+        logger.warning(
+            "Could not retrieve BigQuery tables for dataset %s:%s - %s. Skipping.",
+            project_id,
+            dataset_id,
+            e,
+        )
+        return None
 
 
 @timeit
 def get_bigquery_table_detail(
-    client: Resource,
+    client: Client,
     project_id: str,
     dataset_id: str,
     table_id: str,
@@ -97,27 +86,19 @@ def get_bigquery_table_detail(
         dict: The full table resource
         None: If the table could not be retrieved
 
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
     """
     try:
-        request = client.tables().get(
-            projectId=project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
+        table_ref = f"{project_id}.{dataset_id}.{table_id}"
+        return client.get_table(table_ref).to_api_repr()
+    except (Forbidden, NotFound) as e:
+        logger.warning(
+            "Could not retrieve BigQuery table detail for %s:%s.%s - %s. Skipping.",
+            project_id,
+            dataset_id,
+            table_id,
+            e,
         )
-        return gcp_api_execute_with_retry(request)
-    except HttpError as e:
-        if is_api_disabled_error(e) or e.resp.status in (403, 404):
-            logger.warning(
-                "Could not retrieve BigQuery table detail for %s:%s.%s - %s. Skipping.",
-                project_id,
-                dataset_id,
-                table_id,
-                e,
-            )
-            return None
-        raise
+        return None
 
 
 def transform_tables(
@@ -151,7 +132,7 @@ def transform_tables(
 
 
 def _enrich_bigquery_tables_with_details(
-    client: Resource,
+    client: Client,
     project_id: str,
     dataset_id: str,
     tables_raw: list[dict],
@@ -191,10 +172,10 @@ def _enrich_bigquery_tables_with_details(
 
     thread_local = threading.local()
 
-    def _get_thread_client() -> Resource:
+    def _get_thread_client() -> Client:
         thread_client = getattr(thread_local, "client", None)
         if thread_client is None:
-            thread_client = build_client("bigquery", "v2", credentials=credentials)
+            thread_client = build_bigquery_client(credentials=credentials)
             thread_local.client = thread_client
         return thread_client
 
@@ -260,7 +241,7 @@ def cleanup_bigquery_tables(
 @timeit
 def sync_bigquery_tables(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: Client,
     datasets: list[dict],
     project_id: str,
     update_tag: int,

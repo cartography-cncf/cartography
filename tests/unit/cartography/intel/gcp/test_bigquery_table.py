@@ -21,7 +21,9 @@ def test_enrich_bigquery_tables_with_details_falls_back_to_sequential_without_cr
             "cartography.intel.gcp.bigquery_table.get_bigquery_table_detail",
             side_effect=_mock_get_bigquery_table_detail,
         ),
-        patch("cartography.intel.gcp.bigquery_table.build_client") as mock_build_client,
+        patch(
+            "cartography.intel.gcp.bigquery_table.build_bigquery_client"
+        ) as mock_build_client,
     ):
         _enrich_bigquery_tables_with_details(
             shared_client,
@@ -56,7 +58,7 @@ def test_enrich_bigquery_tables_with_details_uses_thread_local_clients_when_cred
             side_effect=_mock_get_bigquery_table_detail,
         ),
         patch(
-            "cartography.intel.gcp.bigquery_table.build_client",
+            "cartography.intel.gcp.bigquery_table.build_bigquery_client",
             return_value=MagicMock(name="thread-bigquery-client"),
         ) as mock_build_client,
     ):

@@ -8,11 +8,13 @@ including both network-level errors and HTTP 5xx server errors.
 import json
 import logging
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
 import backoff
 from google.api_core.exceptions import ServerError
+from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,23 @@ GCP_QUOTA_EXCEEDED_REASONS = frozenset(
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
+
+
+def proto_message_to_dict(
+    message: object,
+    *,
+    preserving_proto_field_name: bool = False,
+) -> dict[str, Any]:
+    proto = getattr(message, "_pb", None)
+    if proto is None:
+        raise TypeError(f"Expected protobuf-backed message, got {type(message)!r}")
+    return cast(
+        dict[str, Any],
+        MessageToDict(
+            proto,
+            preserving_proto_field_name=preserving_proto_field_name,
+        ),
+    )
 
 
 def is_retryable_gcp_http_error(exc: Exception) -> bool:

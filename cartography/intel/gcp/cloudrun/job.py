@@ -6,10 +6,7 @@ from typing import Optional
 import neo4j
 from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.run_v2 import JobsClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -18,6 +15,7 @@ from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
 
@@ -26,63 +24,56 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_jobs(
-    client: Resource,
+    client: JobsClient,
     project_id: str,
     location: str = "-",
     credentials: Optional[GoogleCredentials] = None,
     locations: Iterable[str] | None = None,
-) -> list[dict]:
+) -> list[dict] | None:
     """
     Gets GCP Cloud Run Jobs for a project and location.
     """
     jobs: list[dict] = []
-    try:
-        # Determine which locations to query
-        if locations is not None:
-            location_names = set(locations)
-        elif location == "-":
-            # Discover all Cloud Run locations for this project
-            location_names = discover_cloud_run_locations(
-                client,
-                project_id,
-                credentials=credentials,
-            )
-        else:
-            # Query specific location
-            location_names = {f"projects/{project_id}/locations/{location}"}
+    location_names: set[str]
 
-        # Query jobs for each location
-        for loc_name in sorted(location_names):
-            try:
-                request = client.projects().locations().jobs().list(parent=loc_name)
-                while request is not None:
-                    response = request.execute()
-                    jobs.extend(response.get("jobs", []))
-                    request = (
-                        client.projects()
-                        .locations()
-                        .jobs()
-                        .list_next(
-                            previous_request=request,
-                            previous_response=response,
-                        )
-                    )
-            except HttpError as e:
-                # Only skip 403 permission errors (e.g., restricted regions)
-                # Re-raise other errors (429, 500, etc.) to surface systemic failures
-                if e.resp.status == 403:
-                    logger.warning(
-                        f"Permission denied listing Cloud Run jobs in {loc_name}. Skipping location.",
-                    )
-                    continue
-                raise
-
-        return jobs
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Cloud Run jobs for project {project_id} due to permissions or auth error: {e}",
+    if locations is not None:
+        location_names = set(locations)
+    elif location == "-":
+        discovered_locations = discover_cloud_run_locations(
+            project_id,
+            credentials=credentials,
         )
-        raise
+        if discovered_locations is None:
+            return None
+        location_names = discovered_locations
+    else:
+        location_names = {f"projects/{project_id}/locations/{location}"}
+
+    queried_any_location = False
+    had_permission_denied = False
+
+    for loc_name in sorted(location_names):
+        try:
+            pager = client.list_jobs(parent=loc_name)
+            queried_any_location = True
+            jobs.extend(proto_message_to_dict(job) for job in pager)
+        except PermissionDenied:
+            had_permission_denied = True
+            logger.warning(
+                "Permission denied listing Cloud Run jobs in %s. Skipping location.",
+                loc_name,
+            )
+            continue
+
+    if had_permission_denied and not queried_any_location:
+        logger.warning(
+            "Could not retrieve Cloud Run jobs on project %s due to permissions issues. "
+            "Skipping sync to preserve existing data.",
+            project_id,
+        )
+        return None
+
+    return jobs
 
 
 def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
@@ -166,14 +157,14 @@ def cleanup_jobs(
 @timeit
 def sync_jobs(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: JobsClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
     credentials: Optional[GoogleCredentials] = None,
     locations: Iterable[str] | None = None,
     jobs_raw: list[dict] | None = None,
-) -> list[dict]:
+) -> list[dict] | None:
     """
     Syncs GCP Cloud Run Jobs for a project.
     """
@@ -185,22 +176,24 @@ def sync_jobs(
             credentials=credentials,
             locations=locations,
         )
-    if not jobs_raw:
-        logger.info(f"No Cloud Run jobs found for project {project_id}.")
 
-    jobs = transform_jobs(jobs_raw, project_id)
-    load_jobs(neo4j_session, jobs, project_id, update_tag)
-    sync_labels(
-        neo4j_session,
-        jobs,
-        "cloud_run_job",
-        project_id,
-        update_tag,
-        common_job_parameters,
-    )
+    if jobs_raw is not None:
+        if not jobs_raw:
+            logger.info(f"No Cloud Run jobs found for project {project_id}.")
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["project_id"] = project_id
-    cleanup_jobs(neo4j_session, cleanup_job_params)
+        jobs = transform_jobs(jobs_raw, project_id)
+        load_jobs(neo4j_session, jobs, project_id, update_tag)
+        sync_labels(
+            neo4j_session,
+            jobs,
+            "cloud_run_job",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
+
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["project_id"] = project_id
+        cleanup_jobs(neo4j_session, cleanup_job_params)
 
     return jobs_raw
