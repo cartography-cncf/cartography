@@ -392,10 +392,6 @@ Represents an API key used for programmatic access to WorkOS resources.
     ```
     (WorkOSOrganization)-[:OWNS]->(WorkOSAPIKey)
     ```
-- `User` owns `APIKey`
-    ```
-    (WorkOSUser)-[:OWNS]->(WorkOSAPIKey)
-    ```
 
 
 ### WorkOSApplication
