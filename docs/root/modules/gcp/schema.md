@@ -1462,7 +1462,7 @@ Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-
 - GCPPrincipals with appropriate permissions can read GCP Secret Manager secrets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
 
     ```
-    (GCPPrincipal)-[CAN_READ]->(GCPSecretManagerSecret)
+    (GCPPrincipal)-[:CAN_READ]->(GCPSecretManagerSecret)
     ```
 
 ### GCPSecretManagerSecretVersion
