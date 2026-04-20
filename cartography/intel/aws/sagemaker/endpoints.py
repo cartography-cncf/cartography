@@ -6,16 +6,17 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.endpoint import AWSSageMakerEndpointSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_endpoints(
     boto3_session: boto3.session.Session,
     region: str,
@@ -108,30 +109,22 @@ def sync_endpoints(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker Endpoints for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker Endpoints for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get endpoints from AWS
-        endpoints = get_endpoints(boto3_session, region)
-
-        # Transform the data
-        transformed_endpoints = transform_endpoints(endpoints, region)
-
-        # Load into Neo4j
-        load_endpoints(
-            neo4j_session,
-            transformed_endpoints,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old endpoints
-    cleanup_endpoints(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="endpoints",
+        get_resources=get_endpoints,
+        transform_resources=transform_endpoints,
+        load_resources=load_endpoints,
+        cleanup_resources=cleanup_endpoints,
+    )

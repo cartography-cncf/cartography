@@ -361,10 +361,30 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
         "example-org",
     )
 
+    mock_cleanup_github_repos.assert_not_called()
     mock_cleanup_github_branches.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
         "https://github.com/example-org",
+    )
+    mock_cleanup_github_languages.assert_not_called()
+    mock_cleanup_github_owners.assert_not_called()
+    mock_cleanup_github_collaborators.assert_not_called()
+    mock_cleanup_python_requirements.assert_not_called()
+    mock_cleanup_github_dependencies.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
+    )
+    mock_cleanup_github_manifests.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
+    )
+    mock_cleanup_branch_protection_rules.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [],
     )
 
 
@@ -425,12 +445,12 @@ def test_sync_continues_when_privileged_fetch_fails(
     )
     assert mock_get_repo_collaborators.call_count == 2
     mock_load.assert_called_once()
-    mock_cleanup_github_repos.assert_called_once()
+    mock_cleanup_github_repos.assert_not_called()
     mock_cleanup_github_branches.assert_called_once()
-    mock_cleanup_github_languages.assert_called_once()
-    mock_cleanup_github_owners.assert_called_once()
-    mock_cleanup_github_collaborators.assert_called_once()
-    mock_cleanup_python_requirements.assert_called_once()
+    mock_cleanup_github_languages.assert_not_called()
+    mock_cleanup_github_owners.assert_not_called()
+    mock_cleanup_github_collaborators.assert_not_called()
+    mock_cleanup_python_requirements.assert_not_called()
     mock_cleanup_github_dependencies.assert_called_once()
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()

@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.aws import permission_relationships
 
 GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
@@ -380,7 +382,7 @@ def test_full_policy_explicit_allow():
         "ListAllow": [
             {
                 "action": [
-                    "s3:listobject" "dynamodb:query",
+                    "s3:listobjectdynamodb:query",
                 ],
                 "resource": [
                     "*",
@@ -413,7 +415,7 @@ def test_full_multiple_principal():
             "ListAllow": [
                 {
                     "action": [
-                        "s3:listobject" "dynamodb:query",
+                        "s3:listobjectdynamodb:query",
                     ],
                     "resource": [
                         "*",
@@ -499,6 +501,11 @@ def test_multiple_comma():
         ["S3:GetObject"],
         "arn:aws:s3:::testbucket",
     )
+
+
+def test_evaluate_clause_with_none_match():
+    with pytest.raises(ValueError, match="match must not be None"):
+        permission_relationships.evaluate_clause("*", None)
 
 
 def test_permission_file_load():

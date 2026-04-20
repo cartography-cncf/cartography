@@ -19,6 +19,8 @@ class DeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("serial_number")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
+    instance_id: PropertyRef = PropertyRef("instance_id")
+    manufacturer: PropertyRef = PropertyRef("manufacturer")
     os: PropertyRef = PropertyRef("os")
     os_version: PropertyRef = PropertyRef("os_version")
     model: PropertyRef = PropertyRef("model")
@@ -149,6 +151,28 @@ class DeviceToIntuneManagedDeviceBySerialRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DeviceToJamfComputerBySerialRel(CartographyRelSchema):
+    target_node_label: str = "JamfComputer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "JamfMobileDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+@dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
@@ -166,6 +190,8 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
             DeviceToS1AgentBySerialRel(),
             DeviceToIntuneManagedDeviceBySerialRel(),
+            DeviceToJamfComputerBySerialRel(),
+            DeviceToJamfMobileDeviceBySerialRel(),
         ],
     )
 
@@ -351,6 +377,21 @@ class DeviceToIntuneManagedDeviceHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
+@dataclass(frozen=True)
+class DeviceToJamfComputerHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "JamfComputer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
@@ -376,4 +417,5 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         "device_name",
         DeviceToIntuneManagedDeviceHostnameMatchLink(),
     ),
+    ("JamfComputer", "name", DeviceToJamfComputerHostnameMatchLink()),
 ]

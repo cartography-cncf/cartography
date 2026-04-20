@@ -29,7 +29,10 @@ def get_branches(gitlab_url: str, token: str, project_id: int) -> list[dict[str,
 
 
 def transform_branches(
-    raw_branches: list[dict[str, Any]], project_url: str
+    raw_branches: list[dict[str, Any]],
+    project_id: int,
+    project_url: str,
+    gitlab_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform raw GitLab branch data to match our schema.
@@ -50,8 +53,9 @@ def transform_branches(
             "protected": branch.get("protected", False),
             "default": branch.get("default", False),
             "web_url": branch.get("web_url"),
-            # Relationship fields
-            "project_url": project_url,  # For RESOURCE relationship to GitLabProject
+            "project_id": project_id,
+            "project_url": project_url,
+            "gitlab_url": gitlab_url,
         }
         transformed.append(transformed_branch)
 
@@ -63,7 +67,8 @@ def transform_branches(
 def load_branches(
     neo4j_session: neo4j.Session,
     branches: list[dict[str, Any]],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -74,7 +79,8 @@ def load_branches(
         GitLabBranchSchema(),
         branches,
         lastupdated=update_tag,
-        project_url=project_url,
+        project_id=project_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -82,13 +88,18 @@ def load_branches(
 def cleanup_branches(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab branches from the graph for a specific project.
     """
-    logger.info(f"Running GitLab branches cleanup for project {project_url}")
-    cleanup_params = {**common_job_parameters, "project_url": project_url}
+    logger.info(f"Running GitLab branches cleanup for project {project_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "project_id": project_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(GitLabBranchSchema(), cleanup_params).run(neo4j_session)
 
 
@@ -122,13 +133,21 @@ def sync_gitlab_branches(
             continue
 
         # Transform to match our schema
-        transformed_branches = transform_branches(raw_branches, project_url)
+        transformed_branches = transform_branches(
+            raw_branches, project_id, project_url, gitlab_url
+        )
 
         logger.info(
             f"Found {len(transformed_branches)} branches in project {project_name}"
         )
 
         # Load branches for this project
-        load_branches(neo4j_session, transformed_branches, project_url, update_tag)
+        load_branches(
+            neo4j_session,
+            transformed_branches,
+            project_id,
+            gitlab_url,
+            update_tag,
+        )
 
     logger.info("GitLab branches sync completed")

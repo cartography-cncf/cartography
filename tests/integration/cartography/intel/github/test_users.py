@@ -181,6 +181,8 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
         TEST_GITHUB_URL,
         TEST_GITHUB_ORG,
     )
+    cartography.intel.github.users.cleanup(neo4j_session, {"UPDATE_TAG": 200})
+
     # Assert that Marge is no longer an ADMIN of the GitHub org and the admin is now Homer
     assert check_rels(
         neo4j_session,
