@@ -97,7 +97,7 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         )
     )
 
-    cartography.intel.tailscale.postureresolution.sync(
+    posture_matches = cartography.intel.tailscale.postureresolution.sync(
         neo4j_session,
         org=config.tailscale_org,
         update_tag=config.update_tag,
@@ -116,4 +116,5 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         tags=[],  # Tags are resolved from device data directly
         users=users,
         services=services,
+        posture_matches=posture_matches,
     )

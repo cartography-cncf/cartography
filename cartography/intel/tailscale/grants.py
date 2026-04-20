@@ -34,6 +34,7 @@ def sync(
     tags: List[Dict[str, Any]],
     users: List[Dict[str, Any]],
     services: List[Dict[str, Any]] | None = None,
+    posture_matches: List[Dict[str, str]] | None = None,
 ) -> None:
     """
     Sync Tailscale Grants and resolve effective access relationships.
@@ -41,7 +42,8 @@ def sync(
     This module:
     1. Loads TailscaleGrant nodes with their source/destination relationships
     2. Resolves effective access by computing which users/groups/devices can access
-       which devices and services based on grant rules and tag/group membership
+       which devices and services based on grant rules, tag/group membership,
+       and posture compliance
     """
     logger.info("Starting Tailscale Grants sync")
 
@@ -56,6 +58,7 @@ def sync(
             tags,
             users,
             services or [],
+            posture_matches or [],
         )
     )
     load_access(
@@ -249,6 +252,7 @@ def resolve_access(
     tags: List[Dict[str, Any]],
     users: List[Dict[str, Any]],
     services: List[Dict[str, Any]] | None = None,
+    posture_matches: List[Dict[str, str]] | None = None,
 ) -> tuple[
     List[Dict[str, Any]],
     List[Dict[str, Any]],
@@ -269,6 +273,8 @@ def resolve_access(
     - Tag sources (device-to-device access)
     - autogroup:self destinations (user's own devices)
     - svc:xxx destinations (Tailscale Services)
+    - IP/CIDR destinations (matched against device addresses)
+    - srcPosture filtering (only sources with compliant devices get access)
 
     Returns:
         A tuple of (user_access, group_access, device_access,
@@ -283,6 +289,8 @@ def resolve_access(
     user_to_devices = _build_user_to_devices_map(devices)
     ip_to_devices = _build_ip_to_devices_map(devices)
     service_ids = {f"svc:{s.get('name', '')}" for s in (services or [])}
+    device_postures = _build_device_postures_map(posture_matches or [])
+    user_postures = _build_user_postures_map(user_to_devices, device_postures)
 
     user_access: Dict[tuple[str, str], List[str]] = {}
     group_access: Dict[tuple[str, str], List[str]] = {}
@@ -292,6 +300,7 @@ def resolve_access(
 
     for grant in grants:
         grant_id = grant["id"]
+        required_postures = set(grant.get("src_posture", []))
 
         has_self_destination = _has_autogroup_self(grant["destinations"])
 
@@ -315,6 +324,12 @@ def resolve_access(
         for user_login in grant["source_users"]:
             if user_login not in all_user_logins:
                 continue
+            if not _user_meets_posture(
+                user_login,
+                required_postures,
+                user_postures,
+            ):
+                continue
             for device_id in dest_device_ids:
                 _add_access(user_access, (user_login, device_id), grant_id)
             if has_self_destination:
@@ -332,6 +347,12 @@ def resolve_access(
 
             members = group_members.get(group_id, set())
             for user_login in members:
+                if not _user_meets_posture(
+                    user_login,
+                    required_postures,
+                    user_postures,
+                ):
+                    continue
                 for device_id in dest_device_ids:
                     _add_access(user_access, (user_login, device_id), grant_id)
                 if has_self_destination:
@@ -344,6 +365,12 @@ def resolve_access(
         for source_tag in grant["source_tags"]:
             source_device_ids = tag_to_devices.get(source_tag, [])
             for source_device_id in source_device_ids:
+                if not _device_meets_posture(
+                    source_device_id,
+                    required_postures,
+                    device_postures,
+                ):
+                    continue
                 for device_id in dest_device_ids:
                     if source_device_id == device_id:
                         continue
@@ -439,6 +466,66 @@ def _build_ip_to_devices_map(
         for addr in device.get("addresses", []):
             ip_to_device[addr] = device["nodeId"]
     return ip_to_device
+
+
+def _build_device_postures_map(
+    posture_matches: List[Dict[str, str]],
+) -> Dict[str, set[str]]:
+    """Build a mapping from device ID to set of posture IDs it conforms to."""
+    device_postures: Dict[str, set[str]] = {}
+    for match in posture_matches:
+        device_postures.setdefault(match["device_id"], set()).add(
+            match["posture_id"],
+        )
+    return device_postures
+
+
+def _build_user_postures_map(
+    user_to_devices: Dict[str, List[str]],
+    device_postures: Dict[str, set[str]],
+) -> Dict[str, set[str]]:
+    """Build a mapping from user login to the union of postures across all their devices.
+
+    A user meets a posture requirement if at least one of their devices
+    conforms to all required postures.
+    """
+    user_postures: Dict[str, set[str]] = {}
+    for user_login, device_ids in user_to_devices.items():
+        all_postures: set[str] = set()
+        for device_id in device_ids:
+            all_postures.update(device_postures.get(device_id, set()))
+        user_postures[user_login] = all_postures
+    return user_postures
+
+
+def _user_meets_posture(
+    user_login: str,
+    required_postures: set[str],
+    user_postures: Dict[str, set[str]],
+) -> bool:
+    """Check if a user meets posture requirements.
+
+    Returns True if no posture is required, or if the user has at least
+    one device conforming to all required postures.
+    """
+    if not required_postures:
+        return True
+    return required_postures.issubset(user_postures.get(user_login, set()))
+
+
+def _device_meets_posture(
+    device_id: str,
+    required_postures: set[str],
+    device_postures: Dict[str, set[str]],
+) -> bool:
+    """Check if a device meets posture requirements.
+
+    Returns True if no posture is required, or if the device conforms
+    to all required postures.
+    """
+    if not required_postures:
+        return True
+    return required_postures.issubset(device_postures.get(device_id, set()))
 
 
 def _has_autogroup_self(destinations: List[str]) -> bool:

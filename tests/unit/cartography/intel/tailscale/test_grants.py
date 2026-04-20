@@ -1229,3 +1229,216 @@ class TestResolveAccessIPDestination:
             ("alice@ex.com", "dev-2"),
             ("alice@ex.com", "dev-3"),
         }
+
+
+# ============================================================================
+# srcPosture filtering tests
+# ============================================================================
+
+
+# Posture matches: alice's dev-1 conforms to posture:healthy,
+# bob's dev-3 conforms to posture:healthy and posture:managed
+POSTURE_MATCHES = [
+    {"device_id": "dev-1", "posture_id": "posture:healthy"},
+    {"device_id": "dev-3", "posture_id": "posture:healthy"},
+    {"device_id": "dev-3", "posture_id": "posture:managed"},
+]
+
+
+class TestResolveAccessPostureFiltering:
+    """Tests for srcPosture filtering in resolve_access."""
+
+    def test_no_posture_no_filtering(self) -> None:
+        """Grant without srcPosture applies to all sources."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com", "bob@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            POSTURE_MATCHES,
+        )
+        user_logins = {a["user_login_name"] for a in user_access}
+        assert "alice@ex.com" in user_logins
+        assert "bob@ex.com" in user_logins
+
+    def test_posture_filters_non_compliant_user(self) -> None:
+        """User without any compliant device is filtered out."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com", "bob@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": ["posture:managed"],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            POSTURE_MATCHES,
+        )
+        user_logins = {a["user_login_name"] for a in user_access}
+        # bob has dev-3 which conforms to posture:managed
+        assert "bob@ex.com" in user_logins
+        # alice has dev-1 which only conforms to posture:healthy, not posture:managed
+        assert "alice@ex.com" not in user_logins
+
+    def test_posture_requires_all_postures(self) -> None:
+        """srcPosture with multiple entries requires all to be met."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com", "bob@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": ["posture:healthy", "posture:managed"],
+            },
+        ]
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            POSTURE_MATCHES,
+        )
+        user_logins = {a["user_login_name"] for a in user_access}
+        # bob has dev-3 which conforms to both posture:healthy and posture:managed
+        assert "bob@ex.com" in user_logins
+        # alice's dev-1 only has posture:healthy
+        assert "alice@ex.com" not in user_logins
+
+    def test_posture_filters_group_members(self) -> None:
+        """srcPosture filters individual group members, not the group itself."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": [],
+                "source_groups": ["group:eng"],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": ["posture:managed"],
+            },
+        ]
+        user_access, group_access, _, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            POSTURE_MATCHES,
+        )
+        # Group itself still gets CAN_ACCESS (posture doesn't filter groups)
+        group_pairs = {(a["group_id"], a["device_id"]) for a in group_access}
+        assert len(group_pairs) > 0
+        # But only bob (who meets posture:managed) gets individual user access
+        user_logins = {a["user_login_name"] for a in user_access}
+        assert "bob@ex.com" in user_logins
+        assert "alice@ex.com" not in user_logins
+
+    def test_posture_filters_device_sources(self) -> None:
+        """srcPosture filters device sources in device-to-device access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": [],
+                "source_groups": [],
+                "source_tags": ["tag:web"],
+                "destinations": ["tag:db"],
+                "destination_tags": ["tag:db"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": ["posture:healthy"],
+            },
+        ]
+        _, _, device_access, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            POSTURE_MATCHES,
+        )
+        source_ids = {a["source_device_id"] for a in device_access}
+        # dev-1 has tag:web and conforms to posture:healthy -> passes
+        assert "dev-1" in source_ids
+        # dev-4 has tag:web but no posture matches at all -> filtered out
+        assert "dev-4" not in source_ids
+
+    def test_no_posture_matches_blocks_all_with_posture_requirement(self) -> None:
+        """If no posture_matches are provided but grant requires posture, no access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": [],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": ["posture:healthy"],
+            },
+        ]
+        # No posture_matches -> nobody meets the requirement
+        user_access, _, _, _, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            [],
+            [],
+        )
+        assert user_access == []

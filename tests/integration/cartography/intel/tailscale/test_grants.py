@@ -305,7 +305,8 @@ def test_tailscale_grants_granted_by_aggregation(
 
     # mbsimpson -> p892kg92CNTRL is granted by:
     # - the wildcard grant (src: mbsimpson, dst: *)
-    # - the autogroup:member -> tag:byod grant (mbsimpson is member)
+    # Note: the autogroup:member -> tag:byod grant has srcPosture so
+    # it is filtered out (no posture_matches loaded in this test)
     result = neo4j_session.run(
         """
         MATCH (u:TailscaleUser {login_name: 'mbsimpson@simpson.corp'})
@@ -315,8 +316,8 @@ def test_tailscale_grants_granted_by_aggregation(
     )
     record = result.single()
     granted_by = list(record["granted_by"])
-    # Should have at least 2 grants (wildcard + autogroup:member -> tag:byod)
-    assert len(granted_by) >= 2
+    # At least 1 grant (the wildcard one; posture-gated grant is filtered)
+    assert len(granted_by) >= 1
     # All should be valid grant IDs
     for grant_id in granted_by:
         assert grant_id.startswith("grant:")
