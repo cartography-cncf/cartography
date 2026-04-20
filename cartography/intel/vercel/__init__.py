@@ -7,7 +7,6 @@ from urllib3 import Retry
 
 import cartography.intel.vercel.accessgroups
 import cartography.intel.vercel.aliases
-import cartography.intel.vercel.authtokens
 import cartography.intel.vercel.deployments
 import cartography.intel.vercel.dnsrecords
 import cartography.intel.vercel.domains
@@ -105,11 +104,6 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
     )
     cartography.intel.vercel.accessgroups.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-    )
-    cartography.intel.vercel.authtokens.sync(
         neo4j_session,
         api_session,
         common_job_parameters,

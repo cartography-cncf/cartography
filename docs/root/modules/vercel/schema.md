@@ -7,7 +7,6 @@ T -- RESOURCE --> D(Domain)
 T -- RESOURCE --> SEV(SharedEnvironmentVariable)
 T -- RESOURCE --> I(Integration)
 T -- RESOURCE --> AG(AccessGroup)
-T -- RESOURCE --> AT(AuthToken)
 T -- RESOURCE --> W(Webhook)
 T -- RESOURCE --> LD(LogDrain)
 T -- RESOURCE --> N(SecureComputeNetwork)
@@ -30,7 +29,6 @@ EV -- REFERENCES --> EC
 I -- CONFIGURED_FOR --> P
 AG -- HAS_MEMBER --> U
 AG -- HAS_ACCESS_TO --> P
-AT -- OWNED_BY --> U
 W -- WATCHES --> P
 LD -- MONITORS --> P
 N -- CONNECTS --> P
@@ -62,7 +60,7 @@ Represents a Vercel team (organization).
     ```
 - All Vercel resources belong to the team.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelProject | :VercelDomain | :VercelDNSRecord | :VercelSharedEnvironmentVariable | :VercelIntegration | :VercelAccessGroup | :VercelAuthToken | :VercelWebhook | :VercelLogDrain | :VercelSecureComputeNetwork | :VercelAlias | :VercelEdgeConfig | :VercelEdgeConfigToken)
+    (:VercelTeam)-[:RESOURCE]->(:VercelProject | :VercelDomain | :VercelDNSRecord | :VercelSharedEnvironmentVariable | :VercelIntegration | :VercelAccessGroup | :VercelWebhook | :VercelLogDrain | :VercelSecureComputeNetwork | :VercelAlias | :VercelEdgeConfig | :VercelEdgeConfigToken)
     ```
 
 ### VercelUser
@@ -352,34 +350,6 @@ Represents a team access group used for RBAC.
 - An access group grants access to projects. The `HAS_ACCESS_TO` relationship carries a `role` property (`ADMIN`, `PROJECT_DEVELOPER`, `PROJECT_VIEWER`, or `PROJECT_GUEST`) describing the per-project privilege level.
     ```
     (:VercelAccessGroup)-[:HAS_ACCESS_TO]->(:VercelProject)
-    ```
-
-### VercelAuthToken
-
-Represents a Vercel API token.
-
-> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API credentials across different systems.
-
-| Field | Description |
-|-------|-------------|
-| **id** | Token ID. |
-| firstseen | Timestamp of when a sync job first created this node. |
-| lastupdated | Timestamp of the last time the node was updated. |
-| name | Token name. |
-| type | Token type (oauth2, pat). |
-| origin | Token origin. |
-| active_at | Last use timestamp (ms). |
-| created_at | Creation timestamp (ms). |
-| expires_at | Expiration timestamp (ms). |
-
-#### Relationships
-- Auth tokens are scoped to a team (only tokens whose scopes include the synced team are ingested).
-    ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelAuthToken)
-    ```
-- Auth tokens are owned by the user that created them (the API caller).
-    ```
-    (:VercelAuthToken)-[:OWNED_BY]->(:VercelUser)
     ```
 
 ### VercelWebhook
