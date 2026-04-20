@@ -80,6 +80,9 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
         # Get latest ready revision - the v2 API returns the full resource name
         latest_ready_revision = service.get("latestReadyRevision")
 
+        # Get service account email from template.serviceAccount (v2 API)
+        service_account_email = service.get("template", {}).get("serviceAccount")
+
         transformed.append(
             {
                 "id": full_name,
@@ -88,6 +91,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
                 "location": location,
                 "uri": service.get("uri"),
                 "latest_ready_revision": latest_ready_revision,
+                "service_account_email": service_account_email,
                 "ingress": service.get("ingress"),
                 "project_id": project_id,
                 "labels": service.get("labels", {}),
