@@ -208,3 +208,43 @@ class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_ACCESS"
     properties: TailscaleGrantAccessRelProperties = TailscaleGrantAccessRelProperties()
+
+
+@dataclass(frozen=True)
+class TailscaleUserToServiceAccessMatchLink(CartographyRelSchema):
+    """MatchLink: (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
+
+    Represents resolved effective access from a user to a service via a grant.
+    """
+
+    source_node_label: str = "TailscaleUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"login_name": PropertyRef("user_login_name")},
+    )
+    target_node_label: str = "TailscaleService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("service_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_ACCESS"
+    properties: TailscaleGrantAccessRelProperties = TailscaleGrantAccessRelProperties()
+
+
+@dataclass(frozen=True)
+class TailscaleGroupToServiceAccessMatchLink(CartographyRelSchema):
+    """MatchLink: (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
+
+    Represents resolved effective access from a group to a service via a grant.
+    """
+
+    source_node_label: str = "TailscaleGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("group_id")},
+    )
+    target_node_label: str = "TailscaleService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("service_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_ACCESS"
+    properties: TailscaleGrantAccessRelProperties = TailscaleGrantAccessRelProperties()

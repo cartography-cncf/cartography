@@ -169,12 +169,15 @@ class ACLParser:
             # Classify destinations
             destination_tags: List[str] = []
             destination_groups: List[str] = []
+            destination_services: List[str] = []
             destination_hosts: List[str] = []
             for dst in destinations:
                 if dst.startswith("tag:"):
                     destination_tags.append(dst)
                 elif dst.startswith("group:") or dst.startswith("autogroup:"):
                     destination_groups.append(dst)
+                elif dst.startswith("svc:"):
+                    destination_services.append(dst)
                 else:
                     destination_hosts.append(dst)
 
@@ -211,6 +214,7 @@ class ACLParser:
                     "source_tags": source_tags,
                     "destination_tags": destination_tags,
                     "destination_groups": destination_groups,
+                    "destination_services": destination_services,
                     "destination_hosts": destination_hosts,
                     "ip_rules": ip_rules,
                     "app_capabilities": app_capabilities,

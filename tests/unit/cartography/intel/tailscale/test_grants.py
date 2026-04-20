@@ -392,7 +392,7 @@ class TestResolveAccessDirectUser:
                 "src_posture": [],
             },
         ]
-        user_access, group_access, device_access = resolve_access(
+        user_access, group_access, device_access, _, _ = resolve_access(
             grants,
             DEVICES,
             GROUPS,
@@ -422,7 +422,7 @@ class TestResolveAccessDirectUser:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         assert user_pairs == {
             ("alice@ex.com", "dev-1"),
@@ -448,7 +448,7 @@ class TestResolveAccessDirectUser:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         assert user_access == []
 
     def test_user_to_autogroup_self(self) -> None:
@@ -468,7 +468,7 @@ class TestResolveAccessDirectUser:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         # alice owns dev-1 and dev-2
         assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-2")}
@@ -494,7 +494,7 @@ class TestResolveAccessGroup:
                 "src_posture": [],
             },
         ]
-        user_access, group_access, _ = resolve_access(
+        user_access, group_access, _, _, _ = resolve_access(
             grants,
             DEVICES,
             GROUPS,
@@ -531,7 +531,7 @@ class TestResolveAccessGroup:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         # alice owns dev-1, dev-2; bob owns dev-3, dev-4
         assert user_pairs == {
@@ -558,7 +558,7 @@ class TestResolveAccessGroup:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         # group:admin members: alice -> devices dev-1, dev-2
         assert user_pairs == {
@@ -587,7 +587,7 @@ class TestResolveAccessTagSource:
                 "src_posture": [],
             },
         ]
-        _, _, device_access = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        _, _, device_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         device_pairs = {(a["source_device_id"], a["device_id"]) for a in device_access}
         # tag:web devices: dev-1, dev-4
         # tag:db devices: dev-3, dev-4
@@ -616,7 +616,7 @@ class TestResolveAccessTagSource:
                 "src_posture": [],
             },
         ]
-        _, _, device_access = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        _, _, device_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         device_pairs = {(a["source_device_id"], a["device_id"]) for a in device_access}
         # tag:db devices: dev-3, dev-4
         # Each can access all others (excluding self)
@@ -646,7 +646,7 @@ class TestResolveAccessTagSource:
                 "src_posture": [],
             },
         ]
-        _, _, device_access = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        _, _, device_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         for entry in device_access:
             assert entry["source_device_id"] != entry["device_id"]
 
@@ -684,7 +684,7 @@ class TestResolveAccessDeduplication:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         # tag:web devices: dev-1, dev-4
         # Each pair should have both grant IDs
         for entry in user_access:
@@ -708,7 +708,7 @@ class TestResolveAccessDeduplication:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         # alice is both a direct source AND a member of group:admin
         # Same grant, so granted_by should still be ["grant:0"] (no duplicate)
         alice_entries = [
@@ -734,7 +734,7 @@ class TestResolveAccessDeduplication:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         alice_dev1 = [
             a
             for a in user_access
@@ -750,7 +750,7 @@ class TestResolveAccessEdgeCases:
 
     def test_empty_grants(self) -> None:
         """No grants produces no access."""
-        user_access, group_access, device_access = resolve_access(
+        user_access, group_access, device_access, _, _ = resolve_access(
             [],
             DEVICES,
             GROUPS,
@@ -778,7 +778,7 @@ class TestResolveAccessEdgeCases:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         assert user_access == []
 
     def test_grant_ip_rules_stored_on_relationship(self) -> None:
@@ -798,7 +798,7 @@ class TestResolveAccessEdgeCases:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         assert user_access[0]["granted_by"] == ["grant:0"]
 
     def test_grant_without_ip_rules(self) -> None:
@@ -818,7 +818,7 @@ class TestResolveAccessEdgeCases:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         assert user_access[0]["granted_by"] == ["grant:0"]
 
     def test_tag_destination_with_port_suffix_stripped(self) -> None:
@@ -838,7 +838,165 @@ class TestResolveAccessEdgeCases:
                 "src_posture": [],
             },
         ]
-        user_access, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+        user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
         user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
         # tag:web devices: dev-1, dev-4
         assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-4")}
+
+
+# ============================================================================
+# Service destination tests
+# ============================================================================
+
+
+SERVICES = [
+    {"name": "web-server"},
+    {"name": "database"},
+]
+
+
+class TestACLParserServiceDestination:
+    """Tests for svc:xxx parsing in ACLParser."""
+
+    def test_svc_destination_classified(self) -> None:
+        """svc:xxx in dst is classified as destination_services."""
+        acl = ACLParser(
+            '{"grants": [{"src": ["group:eng"], "dst": ["svc:web-server"], "ip": ["tcp:443"]}]}',
+        )
+        grants = acl.get_grants()
+        assert grants[0]["destination_services"] == ["svc:web-server"]
+        assert grants[0]["destination_tags"] == []
+        assert grants[0]["destination_hosts"] == []
+
+    def test_mixed_svc_and_tag_destinations(self) -> None:
+        """svc: and tag: in the same dst are classified separately."""
+        acl = ACLParser(
+            '{"grants": [{"src": ["*"], "dst": ["svc:db", "tag:web"], "ip": ["*:*"]}]}',
+        )
+        grants = acl.get_grants()
+        assert grants[0]["destination_services"] == ["svc:db"]
+        assert grants[0]["destination_tags"] == ["tag:web"]
+
+
+class TestResolveAccessServiceDestination:
+    """Tests for svc:xxx resolution in resolve_access."""
+
+    def test_user_to_service(self) -> None:
+        """User source -> svc:xxx creates user-to-service access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["svc:web-server"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": ["svc:web-server"],
+                "destination_hosts": [],
+                "ip_rules": ["tcp:443"],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, _, user_svc, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            SERVICES,
+        )
+        svc_pairs = {(a["user_login_name"], a["service_id"]) for a in user_svc}
+        assert svc_pairs == {("alice@ex.com", "svc:web-server")}
+
+    def test_group_to_service(self) -> None:
+        """Group source -> svc:xxx creates group and user service access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": [],
+                "source_groups": ["group:admin"],
+                "source_tags": [],
+                "destinations": ["svc:database"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": ["svc:database"],
+                "destination_hosts": [],
+                "ip_rules": ["tcp:5432"],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, _, user_svc, group_svc = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            SERVICES,
+        )
+        group_pairs = {(a["group_id"], a["service_id"]) for a in group_svc}
+        assert group_pairs == {("group:admin", "svc:database")}
+        # group:admin members: alice
+        user_pairs = {(a["user_login_name"], a["service_id"]) for a in user_svc}
+        assert user_pairs == {("alice@ex.com", "svc:database")}
+
+    def test_unknown_service_ignored(self) -> None:
+        """svc:xxx not in the services list produces no access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["svc:nonexistent"],
+                "destination_tags": [],
+                "destination_groups": [],
+                "destination_services": ["svc:nonexistent"],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        _, _, _, user_svc, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            SERVICES,
+        )
+        assert user_svc == []
+
+    def test_mixed_device_and_service_destinations(self) -> None:
+        """Grant with both tag: and svc: destinations creates both types of access."""
+        grants = [
+            {
+                "id": "grant:0",
+                "source_users": ["alice@ex.com"],
+                "source_groups": [],
+                "source_tags": [],
+                "destinations": ["tag:web", "svc:database"],
+                "destination_tags": ["tag:web"],
+                "destination_groups": [],
+                "destination_services": ["svc:database"],
+                "destination_hosts": [],
+                "ip_rules": [],
+                "app_capabilities": {},
+                "src_posture": [],
+            },
+        ]
+        user_access, _, _, user_svc, _ = resolve_access(
+            grants,
+            DEVICES,
+            GROUPS,
+            [],
+            USERS,
+            SERVICES,
+        )
+        device_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+        assert ("alice@ex.com", "dev-1") in device_pairs  # tag:web device
+        svc_pairs = {(a["user_login_name"], a["service_id"]) for a in user_svc}
+        assert svc_pairs == {("alice@ex.com", "svc:database")}

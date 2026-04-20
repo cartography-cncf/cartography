@@ -12,7 +12,9 @@ from cartography.graph.job import GraphJob
 from cartography.models.tailscale.grant import TailscaleDeviceToDeviceAccessMatchLink
 from cartography.models.tailscale.grant import TailscaleGrantSchema
 from cartography.models.tailscale.grant import TailscaleGroupToDeviceAccessMatchLink
+from cartography.models.tailscale.grant import TailscaleGroupToServiceAccessMatchLink
 from cartography.models.tailscale.grant import TailscaleUserToDeviceAccessMatchLink
+from cartography.models.tailscale.grant import TailscaleUserToServiceAccessMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ def sync(
     groups: List[Dict[str, Any]],
     tags: List[Dict[str, Any]],
     users: List[Dict[str, Any]],
+    services: List[Dict[str, Any]] | None = None,
 ) -> None:
     """
     Sync Tailscale Grants and resolve effective access relationships.
@@ -37,32 +40,45 @@ def sync(
     This module:
     1. Loads TailscaleGrant nodes with their source/destination relationships
     2. Resolves effective access by computing which users/groups/devices can access
-       which devices based on grant rules and tag/group membership
+       which devices and services based on grant rules and tag/group membership
     """
     logger.info("Starting Tailscale Grants sync")
 
     transformed_grants = transform(grants)
     load_grants(neo4j_session, transformed_grants, org, update_tag)
 
-    user_access, group_access, device_access = resolve_access(
-        grants,
-        devices,
-        groups,
-        tags,
-        users,
+    user_access, group_access, device_access, user_svc_access, group_svc_access = (
+        resolve_access(
+            grants,
+            devices,
+            groups,
+            tags,
+            users,
+            services or [],
+        )
     )
     load_access(
-        neo4j_session, org, update_tag, user_access, group_access, device_access
+        neo4j_session,
+        org,
+        update_tag,
+        user_access,
+        group_access,
+        device_access,
+        user_svc_access,
+        group_svc_access,
     )
     cleanup(neo4j_session, org, update_tag)
 
     logger.info(
         "Completed Tailscale Grants sync: %d grants, "
-        "%d user access links, %d group access links, %d device access links",
+        "%d user→device, %d group→device, %d device→device, "
+        "%d user→service, %d group→service",
         len(transformed_grants),
         len(user_access),
         len(group_access),
         len(device_access),
+        len(user_svc_access),
+        len(group_svc_access),
     )
 
 
@@ -130,6 +146,8 @@ def load_access(
     user_access: List[Dict[str, Any]],
     group_access: List[Dict[str, Any]],
     device_access: List[Dict[str, Any]],
+    user_svc_access: List[Dict[str, Any]] | None = None,
+    group_svc_access: List[Dict[str, Any]] | None = None,
 ) -> None:
     if user_access:
         load_matchlinks(
@@ -140,7 +158,6 @@ def load_access(
             _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
             _sub_resource_id=org,
         )
-
     if group_access:
         load_matchlinks(
             neo4j_session,
@@ -150,12 +167,29 @@ def load_access(
             _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
             _sub_resource_id=org,
         )
-
     if device_access:
         load_matchlinks(
             neo4j_session,
             TailscaleDeviceToDeviceAccessMatchLink(),
             device_access,
+            lastupdated=update_tag,
+            _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
+            _sub_resource_id=org,
+        )
+    if user_svc_access:
+        load_matchlinks(
+            neo4j_session,
+            TailscaleUserToServiceAccessMatchLink(),
+            user_svc_access,
+            lastupdated=update_tag,
+            _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
+            _sub_resource_id=org,
+        )
+    if group_svc_access:
+        load_matchlinks(
+            neo4j_session,
+            TailscaleGroupToServiceAccessMatchLink(),
+            group_svc_access,
             lastupdated=update_tag,
             _sub_resource_label=MATCHLINK_SUB_RESOURCE_LABEL,
             _sub_resource_id=org,
@@ -193,6 +227,18 @@ def cleanup(
         org,
         update_tag,
     ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TailscaleUserToServiceAccessMatchLink(),
+        MATCHLINK_SUB_RESOURCE_LABEL,
+        org,
+        update_tag,
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TailscaleGroupToServiceAccessMatchLink(),
+        MATCHLINK_SUB_RESOURCE_LABEL,
+        org,
+        update_tag,
+    ).run(neo4j_session)
 
 
 def resolve_access(
@@ -201,12 +247,19 @@ def resolve_access(
     groups: List[Dict[str, Any]],
     tags: List[Dict[str, Any]],
     users: List[Dict[str, Any]],
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    services: List[Dict[str, Any]] | None = None,
+) -> tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+]:
     """Resolve effective access from grants.
 
     For each grant, determine which users, groups, and devices can access which
-    devices based on the grant's source/destination selectors and the current
-    state of groups, tags, and devices.
+    devices and services based on the grant's source/destination selectors and
+    the current state of groups, tags, devices, and services.
 
     Handles:
     - Direct user sources (email in src)
@@ -214,10 +267,12 @@ def resolve_access(
       resolved via INHERITED_MEMBER_OF in the graph by acls.py)
     - Tag sources (device-to-device access)
     - autogroup:self destinations (user's own devices)
+    - svc:xxx destinations (Tailscale Services)
 
     Returns:
-        A tuple of (user_access, group_access, device_access) where each is a
-        list of dicts suitable for load_matchlinks().
+        A tuple of (user_access, group_access, device_access,
+        user_svc_access, group_svc_access) where each is a list of dicts
+        suitable for load_matchlinks().
     """
     # Build lookup structures
     tag_to_devices = _build_tag_to_devices_map(devices)
@@ -225,17 +280,20 @@ def resolve_access(
     all_device_ids = {d["nodeId"] for d in devices}
     all_user_logins = {u["loginName"] for u in users}
     user_to_devices = _build_user_to_devices_map(devices)
+    service_ids = {f"svc:{s.get('name', '')}" for s in (services or [])}
 
     user_access: Dict[tuple[str, str], List[str]] = {}
     group_access: Dict[tuple[str, str], List[str]] = {}
     device_access: Dict[tuple[str, str], List[str]] = {}
+    user_svc_access: Dict[tuple[str, str], List[str]] = {}
+    group_svc_access: Dict[tuple[str, str], List[str]] = {}
 
     for grant in grants:
         grant_id = grant["id"]
 
         has_self_destination = _has_autogroup_self(grant["destinations"])
 
-        # Resolve destination devices (excluding autogroup:self which is per-source)
+        # Resolve destination devices (excluding autogroup:self and svc:)
         dest_device_ids = _resolve_destination_devices(
             grant,
             tag_to_devices,
@@ -244,40 +302,46 @@ def resolve_access(
             devices,
         )
 
+        # Resolve destination services
+        dest_service_ids = _resolve_destination_services(
+            grant["destinations"],
+            service_ids,
+        )
+
         # --- Source: direct users ---
         for user_login in grant["source_users"]:
             if user_login not in all_user_logins:
                 continue
-            # Standard destinations
             for device_id in dest_device_ids:
                 _add_access(user_access, (user_login, device_id), grant_id)
-            # autogroup:self — user can access their own devices
             if has_self_destination:
                 for device_id in user_to_devices.get(user_login, []):
                     _add_access(user_access, (user_login, device_id), grant_id)
+            for svc_id in dest_service_ids:
+                _add_access(user_svc_access, (user_login, svc_id), grant_id)
 
         # --- Source: groups/autogroups ---
         for group_id in grant["source_groups"]:
-            # Create group-to-device access links
             for device_id in dest_device_ids:
                 _add_access(group_access, (group_id, device_id), grant_id)
+            for svc_id in dest_service_ids:
+                _add_access(group_svc_access, (group_id, svc_id), grant_id)
 
-            # Resolve individual user access through group membership
             members = group_members.get(group_id, set())
             for user_login in members:
                 for device_id in dest_device_ids:
                     _add_access(user_access, (user_login, device_id), grant_id)
-                # autogroup:self — each group member can access their own devices
                 if has_self_destination:
                     for device_id in user_to_devices.get(user_login, []):
                         _add_access(user_access, (user_login, device_id), grant_id)
+                for svc_id in dest_service_ids:
+                    _add_access(user_svc_access, (user_login, svc_id), grant_id)
 
         # --- Source: tags (device-to-device access) ---
         for source_tag in grant["source_tags"]:
             source_device_ids = tag_to_devices.get(source_tag, [])
             for source_device_id in source_device_ids:
                 for device_id in dest_device_ids:
-                    # Avoid self-loops
                     if source_device_id == device_id:
                         continue
                     _add_access(
@@ -299,16 +363,32 @@ def resolve_access(
         {"source_device_id": k[0], "device_id": k[1], "granted_by": v}
         for k, v in device_access.items()
     ]
+    user_svc_access_list = [
+        {"user_login_name": k[0], "service_id": k[1], "granted_by": v}
+        for k, v in user_svc_access.items()
+    ]
+    group_svc_access_list = [
+        {"group_id": k[0], "service_id": k[1], "granted_by": v}
+        for k, v in group_svc_access.items()
+    ]
 
     logger.info(
-        "Resolved %d user access links, %d group access links, "
-        "and %d device access links from %d grants",
+        "Resolved %d user→device, %d group→device, %d device→device, "
+        "%d user→service, %d group→service from %d grants",
         len(user_access_list),
         len(group_access_list),
         len(device_access_list),
+        len(user_svc_access_list),
+        len(group_svc_access_list),
         len(grants),
     )
-    return user_access_list, group_access_list, device_access_list
+    return (
+        user_access_list,
+        group_access_list,
+        device_access_list,
+        user_svc_access_list,
+        group_svc_access_list,
+    )
 
 
 def _build_tag_to_devices_map(
@@ -362,6 +442,7 @@ def _resolve_destination_devices(
     """Resolve which devices are targeted by a grant's destinations.
 
     Note: autogroup:self is handled separately per-source in resolve_access().
+    Note: svc:xxx is handled by _resolve_destination_services().
     """
     dest_device_ids: set[str] = set()
 
@@ -371,6 +452,9 @@ def _resolve_destination_devices(
             dest_device_ids.update(all_device_ids)
         elif dst == "autogroup:self" or dst.startswith("autogroup:self:"):
             # Handled per-source in resolve_access()
+            pass
+        elif dst.startswith("svc:"):
+            # Handled by _resolve_destination_services()
             pass
         elif dst.startswith("tag:"):
             # Tag selector: find devices with this tag
@@ -387,6 +471,18 @@ def _resolve_destination_devices(
                     dest_device_ids.add(device["nodeId"])
 
     return dest_device_ids
+
+
+def _resolve_destination_services(
+    destinations: List[str],
+    service_ids: set[str],
+) -> set[str]:
+    """Resolve which services are targeted by a grant's destinations."""
+    dest_services: set[str] = set()
+    for dst in destinations:
+        if dst.startswith("svc:") and dst in service_ids:
+            dest_services.add(dst)
+    return dest_services
 
 
 def _add_access(
