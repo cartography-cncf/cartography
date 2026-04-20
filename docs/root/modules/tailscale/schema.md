@@ -9,16 +9,29 @@ A -- RESOURCE --> DP(DevicePosture)
 A -- RESOURCE --> DPC(DevicePostureCondition)
 A -- RESOURCE --> G(Group)
 A -- RESOURCE --> T(Tag)
+A -- RESOURCE --> Grant(Grant)
+A -- RESOURCE --> S(Service)
 U -- OWNS --> D
 U -- MEMBER_OF --> G
+U -- INHERITED_MEMBER_OF --> G
 G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
 D -- TAGGED --> T
+S -- TAGGED --> T
 DP -- HAS_CONDITION --> DPC
 DPC -- REQUIRES --> PI
 D -- CONFORMS_TO --> DPC
 D -- CONFORMS_TO --> DP
+U -- SOURCE --> Grant
+G -- SOURCE --> Grant
+Grant -- DESTINATION --> T
+Grant -- DESTINATION --> G
+U -- CAN_ACCESS --> D
+U -- CAN_ACCESS --> S
+G -- CAN_ACCESS --> D
+G -- CAN_ACCESS --> S
+D -- CAN_ACCESS --> D
 ```
 
 ### TailscaleTailnet
@@ -42,7 +55,7 @@ Settings for a tailnet (aka Tenant).
 | posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
-- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag` belong to a `Tailnet`.
+- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag`, `Grant`, `Service` belong to a `Tailnet`.
     ```
     (:TailscaleTailnet)-[:RESOURCE]->(
         :TailscaleUser,
@@ -51,7 +64,9 @@ Settings for a tailnet (aka Tenant).
         :TailscaleDevicePosture,
         :TailscaleDevicePostureCondition,
         :TailscaleGroup,
-        :Tailscale:Tag
+        :TailscaleTag,
+        :TailscaleGrant,
+        :TailscaleService
     )
     ```
 
@@ -92,9 +107,22 @@ Representation of a user within a tailnet.
     ```
     (:TailscaleUser)-[:MEMBER_OF]->(:TailscaleGroup)
     ```
+- `Users` are transitively member of a parent `Group` (resolved from sub-group hierarchy)
+    ```
+    (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
+    ```
 - `Users` own a `Tag`
     ```
     (:TailscaleUser)-[:OWNS]->(:TailscaleTag)
+    ```
+- `Users` can access `Devices` and `Services` (resolved from grants)
+    ```
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleDevice)
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
+- `Users` are sources of `Grants`
+    ```
+    (:TailscaleUser)-[:SOURCE]->(:TailscaleGrant)
     ```
 
 
@@ -181,6 +209,10 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
     ```
     (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
     (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+- `Devices` can access other `Devices` (resolved from grants and user access propagation)
+    ```
+    (:TailscaleDevice)-[:CAN_ACCESS]->(:TailscaleDevice)
     ```
 
 
@@ -293,9 +325,22 @@ A group in Tailscale (either `group` or `autogroup`).
     ```
     (:TailscaleGroup)-[:MEMBER_OF]->(:TailscaleGroup)
     ```
+- `Users` are transitively member of a parent `Group`
+    ```
+    (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
+    ```
 - `Group` own a `Tag`
     ```
     (:TailscaleGroup)-[:OWNS]->(:TailscaleTag)
+    ```
+- `Groups` can access `Devices` and `Services` (resolved from grants)
+    ```
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleDevice)
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
+- `Groups` are sources of `Grants`
+    ```
+    (:TailscaleGroup)-[:SOURCE]->(:TailscaleGrant)
     ```
 
 ### TailscaleTag
