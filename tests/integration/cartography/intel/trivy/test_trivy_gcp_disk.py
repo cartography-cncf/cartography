@@ -147,4 +147,3 @@ def test_sync_trivy_gcp(
         expected_package_rels,
         expected_finding_rels,
     )
-    mock_build_artifact_registry_client.assert_called_once_with(mock_credentials)

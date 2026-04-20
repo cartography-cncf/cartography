@@ -36,8 +36,9 @@ def get_services(
     for location in sorted(locations or []):
         try:
             pager = client.list_services(parent=location)
+            location_services = [proto_message_to_dict(service) for service in pager]
+            services.extend(location_services)
             queried_any_location = True
-            services.extend(proto_message_to_dict(service) for service in pager)
         except PermissionDenied:
             had_permission_denied = True
             logger.warning(

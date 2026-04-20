@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud.run_v2 import ExecutionsClient
 from google.cloud.run_v2 import JobsClient
@@ -69,13 +68,7 @@ def get_executions(
     if len(job_names) < 2 or max_workers <= 1:
         executions: list[dict] = []
         for job_name in job_names:
-            try:
-                executions.extend(_get_executions_for_job(client, job_name))
-            except PermissionDenied:
-                logger.warning(
-                    "Permission denied listing Cloud Run executions for job %s. Skipping job.",
-                    job_name,
-                )
+            executions.extend(_get_executions_for_job(client, job_name))
         return executions
 
     threaded_executions: list[dict] = []
@@ -87,14 +80,7 @@ def get_executions(
             for job_name in job_names
         }
         for future in as_completed(futures):
-            try:
-                threaded_executions.extend(future.result())
-            except PermissionDenied:
-                logger.warning(
-                    "Permission denied listing Cloud Run executions for job %s. Skipping job.",
-                    futures[future],
-                )
-                continue
+            threaded_executions.extend(future.result())
 
     return threaded_executions
 

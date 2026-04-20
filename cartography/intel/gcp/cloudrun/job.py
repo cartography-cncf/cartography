@@ -55,8 +55,9 @@ def get_jobs(
     for loc_name in sorted(location_names):
         try:
             pager = client.list_jobs(parent=loc_name)
+            location_jobs = [proto_message_to_dict(job) for job in pager]
+            jobs.extend(location_jobs)
             queried_any_location = True
-            jobs.extend(proto_message_to_dict(job) for job in pager)
         except PermissionDenied:
             had_permission_denied = True
             logger.warning(

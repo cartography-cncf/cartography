@@ -4,7 +4,6 @@ from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud.run_v2 import RevisionsClient
 from google.cloud.run_v2 import ServicesClient
@@ -97,14 +96,7 @@ def get_revisions(
             for service_name in service_names
         }
         for future in as_completed(futures):
-            try:
-                threaded_revisions.extend(future.result())
-            except PermissionDenied:
-                logger.warning(
-                    "Permission denied listing Cloud Run revisions for service %s. Skipping service.",
-                    futures[future],
-                )
-                continue
+            threaded_revisions.extend(future.result())
 
     return threaded_revisions
 

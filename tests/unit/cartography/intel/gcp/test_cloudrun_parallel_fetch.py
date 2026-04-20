@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from google.api_core.exceptions import PermissionDenied
+
 from cartography.intel.gcp.cloudrun.execution import get_executions
 from cartography.intel.gcp.cloudrun.revision import get_revisions
 
@@ -113,3 +116,41 @@ def test_get_executions_can_fetch_jobs_when_not_prefetched():
 
     assert executions == [{"name": "job-1/execution"}]
     mock_get_jobs.assert_called_once()
+
+
+def test_get_revisions_permission_denied_bubbles():
+    shared_client = MagicMock(name="shared-run-revisions-client")
+    services_raw = [{"name": "service-1"}, {"name": "service-2"}]
+
+    with (
+        patch(
+            "cartography.intel.gcp.cloudrun.revision._get_revisions_for_service",
+            side_effect=PermissionDenied("denied"),
+        ),
+        pytest.raises(PermissionDenied),
+    ):
+        get_revisions(
+            shared_client,
+            "test-project",
+            services_raw=services_raw,
+            max_workers=4,
+        )
+
+
+def test_get_executions_permission_denied_bubbles():
+    shared_client = MagicMock(name="shared-run-executions-client")
+    jobs_raw = [{"name": "job-1"}, {"name": "job-2"}]
+
+    with (
+        patch(
+            "cartography.intel.gcp.cloudrun.execution._get_executions_for_job",
+            side_effect=PermissionDenied("denied"),
+        ),
+        pytest.raises(PermissionDenied),
+    ):
+        get_executions(
+            shared_client,
+            "test-project",
+            jobs_raw=jobs_raw,
+            max_workers=4,
+        )

@@ -2,6 +2,7 @@ import logging
 
 import neo4j
 from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.cloud.bigquery import Client as BigQueryClient
 from google.cloud.bigquery_connection_v1 import ConnectionServiceClient
@@ -163,8 +164,20 @@ def get_bigquery_connections(
         parent = f"projects/{project_id}/locations/{location}"
         try:
             pager = conn_client.list_connections(parent=parent)
+            location_connections = [
+                _connection_to_dict(connection) for connection in pager
+            ]
+            connections.extend(location_connections)
             queried_any_location = True
-            connections.extend(_connection_to_dict(connection) for connection in pager)
+        except NotFound as e:
+            logger.warning(
+                "Could not retrieve BigQuery connections for %s/%s - %s. "
+                "Skipping location.",
+                project_id,
+                location,
+                e,
+            )
+            continue
         except PermissionDenied as e:
             had_permission_denied = True
             logger.warning(

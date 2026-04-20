@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Optional
 from typing import TypedDict
 
+import requests
 from google.auth.credentials import Credentials as GoogleCredentials
 
 from cartography.intel.gcp.clients import build_authorized_session
@@ -69,14 +70,12 @@ def discover_cloud_run_locations(
     """
     try:
         session = build_authorized_session(credentials=credentials)
-    except RuntimeError as e:
-        logger.warning(
-            "Could not initialize credentials for Cloud Run location discovery on project %s - %s. "
-            "Skipping Cloud Run sync to preserve existing data.",
+    except RuntimeError:
+        logger.exception(
+            "Could not initialize credentials for Cloud Run location discovery on project %s.",
             project_id,
-            e,
         )
-        return None
+        raise
 
     locations_set = set()
     next_page_token: str | None = None
@@ -86,7 +85,16 @@ def discover_cloud_run_locations(
         params = {}
         if next_page_token:
             params["pageToken"] = next_page_token
-        response = session.get(url, params=params or None, timeout=120)
+        try:
+            response = session.get(url, params=params or None, timeout=120)
+        except requests.RequestException as e:
+            logger.warning(
+                "Could not discover Cloud Run locations on project %s - %s. "
+                "Skipping Cloud Run sync to preserve existing data.",
+                project_id,
+                e,
+            )
+            return None
         if response.status_code in (403, 404):
             logger.warning(
                 "Could not discover Cloud Run locations on project %s - HTTP %s. "
@@ -95,7 +103,16 @@ def discover_cloud_run_locations(
                 response.status_code,
             )
             return None
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.warning(
+                "Could not discover Cloud Run locations on project %s - %s. "
+                "Skipping Cloud Run sync to preserve existing data.",
+                project_id,
+                e,
+            )
+            return None
 
         payload = response.json()
         if not isinstance(payload, Mapping):

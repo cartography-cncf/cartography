@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+import requests
+
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 
 
@@ -42,6 +45,30 @@ def test_discover_cloud_run_locations_returns_none_on_permission_denied():
     mock_response = MagicMock()
     mock_response.status_code = 403
     mock_session.get.return_value = mock_response
+
+    with patch(
+        "cartography.intel.gcp.cloudrun.util.build_authorized_session",
+        return_value=mock_session,
+    ):
+        result = discover_cloud_run_locations(project_id="test-project")
+
+    assert result is None
+
+
+def test_discover_cloud_run_locations_raises_on_credential_init_failure():
+    with (
+        patch(
+            "cartography.intel.gcp.cloudrun.util.build_authorized_session",
+            side_effect=RuntimeError("boom"),
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        discover_cloud_run_locations(project_id="test-project")
+
+
+def test_discover_cloud_run_locations_returns_none_on_request_failure():
+    mock_session = MagicMock()
+    mock_session.get.side_effect = requests.RequestException("boom")
 
     with patch(
         "cartography.intel.gcp.cloudrun.util.build_authorized_session",
