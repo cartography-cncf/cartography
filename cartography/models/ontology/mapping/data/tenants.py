@@ -400,6 +400,23 @@ socketdev_mapping = OntologyMapping(
     ],
 )
 
+# Vercel
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -421,4 +438,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "spacelift": spacelift_mapping,
     "socketdev": socketdev_mapping,
     "workos": workos_tenants_mapping,
+    "vercel": vercel_mapping,
 }

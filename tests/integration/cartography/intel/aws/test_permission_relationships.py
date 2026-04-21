@@ -46,6 +46,18 @@ ROLE_POLICY_DATA = {
     }
 }
 
+SSM_ROLE_POLICY_DATA = {
+    "arn:aws:iam::000000000000:role/TestReadRole": {
+        "SSMSessionPolicy": [
+            {
+                "Effect": "Allow",
+                "Action": ["ssm:StartSession"],
+                "Resource": ["*"],
+            }
+        ]
+    }
+}
+
 
 def test_permission_relationships_with_iam_integration(neo4j_session):
     """
@@ -80,7 +92,6 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
             "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
         ),
     ):
-
         # Call sync_roles to create the complete IAM structure
         common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
         cartography.intel.aws.iam.sync_roles(
@@ -129,3 +140,71 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
     assert (
         actual_rels == expected_rels
     ), f"Expected CAN_READ relationship not found. Got: {actual_rels}"
+
+
+def test_permission_relationships_skips_resources_without_arn(neo4j_session):
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    neo4j_session.run(
+        """
+        MATCH (aws:AWSAccount{id: $AccountId})
+        MERGE (ec2:EC2Instance{id: 'i-1234567890abcdef0'})<-[:RESOURCE]-(aws)
+        SET ec2.lastupdated = $UpdateTag
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+
+    with (
+        patch(
+            "cartography.intel.aws.iam.get_role_list_data",
+            return_value=SIMPLE_ROLE_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_policy_data",
+            return_value=SSM_ROLE_POLICY_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
+        ),
+        patch(
+            "cartography.intel.aws.permission_relationships.parse_permission_relationships_file",
+            return_value=[
+                {
+                    "target_label": "EC2Instance",
+                    "permissions": ["ssm:StartSession"],
+                    "relationship_name": "SSM_FULL_ACCESS",
+                },
+            ],
+        ),
+    ):
+        common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
+        cartography.intel.aws.iam.sync_roles(
+            neo4j_session,
+            MagicMock(),
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        cartography.intel.aws.permission_relationships.sync(
+            neo4j_session,
+            None,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {
+                "permission_relationships_file": "dummy-path.yaml",
+            },
+        )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "EC2Instance",
+        "id",
+        "SSM_FULL_ACCESS",
+    )
+
+    assert actual_rels == set()

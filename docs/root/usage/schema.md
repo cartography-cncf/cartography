@@ -153,6 +153,9 @@
 ```{include} ../modules/ubuntu/schema.md
 ```
 
+```{include} ../modules/vercel/schema.md
+```
+
 ```{include} ../modules/workday/schema.md
 ```
 

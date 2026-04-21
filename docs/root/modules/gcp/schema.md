@@ -1459,6 +1459,12 @@ Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-
     (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
     ```
 
+- GCPPrincipals with appropriate permissions can read GCP Secret Manager secrets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[:CAN_READ]->(GCPSecretManagerSecret)
+    ```
+
 ### GCPSecretManagerSecretVersion
 
 Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
@@ -1781,6 +1787,7 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
+    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
     Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
 ```
@@ -1801,6 +1808,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | description | User-provided description of the service |
 | uri | Default URL serving the service |
 | latest_ready_revision | Full resource name of the latest ready revision for this service |
+| service_account_email | The email of the service account configured on the service template (used by new revisions created from this service) |
 | ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
 | exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
@@ -1816,6 +1824,10 @@ Cloud Run services can split traffic across multiple revisions, so exact runtime
   - GCPCloudRunServices have GCPCloudRunRevisions.
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunServices use GCPServiceAccounts.
+    ```
+    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunRevision

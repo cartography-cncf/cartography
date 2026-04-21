@@ -226,6 +226,54 @@ sentinelone_mapping = OntologyMapping(
     ],
 )
 
+jamf_mapping = OntologyMapping(
+    module_name="jamf",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JamfComputer",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
+                OntologyFieldMapping(ontology_field="os", node_field="os_name"),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="JamfMobileDevice",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="display_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="os",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 jumpcloud_mapping = OntologyMapping(
     module_name="jumpcloud",
     nodes=[
@@ -293,6 +341,7 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "googleworkspace": googleworkspace_mapping,
     "jumpcloud": jumpcloud_mapping,
+    "jamf": jamf_mapping,
     "kandji": kandji_mapping,
     "sentinelone": sentinelone_mapping,
     "snipeit": snipeit_mapping,
