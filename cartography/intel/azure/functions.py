@@ -1,9 +1,6 @@
 import logging
 import re
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import neo4j
 from azure.core.exceptions import ClientAuthenticationError
@@ -32,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_function_apps(credentials: Credentials, subscription_id: str) -> List[Dict]:
+def get_function_apps(credentials: Credentials, subscription_id: str) -> list[dict]:
     """
     Get a list of Function Apps from the given Azure subscription.
     """
@@ -66,7 +63,7 @@ def get_function_apps(credentials: Credentials, subscription_id: str) -> List[Di
         return []
 
 
-def _parse_resource_id(resource_id: str | None) -> Tuple[str | None, str | None]:
+def _parse_resource_id(resource_id: str | None) -> tuple[str | None, str | None]:
     if not resource_id:
         return None, None
     match = _RESOURCE_ID_RE.match(resource_id)
@@ -85,15 +82,15 @@ def _linux_fx_version_is_container(linux_fx_version: str | None) -> bool:
 
 @timeit
 def fetch_function_app_configurations(
-    client: WebSiteManagementClient, apps: List[Dict]
-) -> Dict[str, Dict[str, Any]]:
+    client: WebSiteManagementClient, apps: list[dict]
+) -> dict[str, dict[str, Any]]:
     """
     For each function app, fetch its site configuration to read linuxFxVersion
     (where container image references live). Returns a map keyed by the app's
     resource id. Apps whose config cannot be fetched are skipped rather than
     failing the whole sync; their image fields will simply be absent.
     """
-    configurations: Dict[str, Dict[str, Any]] = {}
+    configurations: dict[str, dict[str, Any]] = {}
     for app in apps:
         resource_id = app.get("id")
         if not isinstance(resource_id, str):
@@ -115,33 +112,46 @@ def fetch_function_app_configurations(
 
 @timeit
 def transform_function_apps(
-    function_apps_response: List[Dict],
-    configurations: Dict[str, Dict[str, Any]] | None = None,
-) -> List[Dict]:
+    function_apps_response: list[dict],
+    configurations: dict[str, dict[str, Any]] | None = None,
+) -> list[dict]:
     """
     Transform the raw API response to the dictionary structure that the model expects.
     """
     configurations = configurations or {}
-    transformed_apps: List[Dict[str, Any]] = []
+    transformed_apps: list[dict[str, Any]] = []
     for app in function_apps_response:
         # We only want to ingest resources that are explicitly function apps.
         if "functionapp" in app.get("kind", ""):
             app_id = app.get("id")
-            site_config = (
-                configurations.get(app_id, {}) if isinstance(app_id, str) else {}
+            # Distinguish "config fetched and has no DOCKER| marker" (genuine code
+            # deployment) from "config fetch failed" (unknown). Silently defaulting
+            # to "code" on a transient Azure error would misclassify container apps.
+            site_config: dict[str, Any] | None = (
+                configurations.get(app_id) if isinstance(app_id, str) else None
             )
-            linux_fx_version = site_config.get("linux_fx_version") or site_config.get(
-                "linuxFxVersion"
-            )
-            is_container = _linux_fx_version_is_container(linux_fx_version)
-            image_uri, image_digest = (
-                parse_image_uri(linux_fx_version) if is_container else (None, None)
-            )
-            architecture_normalized: str | None = None
-            if is_container:
-                # Function Apps do not expose host architecture; we only know that
-                # Linux container plans default to amd64 today.
-                architecture_normalized = normalize_architecture("amd64")
+            if site_config is not None:
+                linux_fx_version = site_config.get(
+                    "linux_fx_version"
+                ) or site_config.get("linuxFxVersion")
+                is_container: bool | None = _linux_fx_version_is_container(
+                    linux_fx_version
+                )
+                image_uri, image_digest = (
+                    parse_image_uri(linux_fx_version) if is_container else (None, None)
+                )
+                architecture_normalized: str | None = None
+                if is_container:
+                    # Function Apps do not expose host architecture; we only know
+                    # that Linux container plans default to amd64 today.
+                    architecture_normalized = normalize_architecture("amd64")
+                deployment_type: str | None = "container" if is_container else "code"
+            else:
+                is_container = None
+                deployment_type = None
+                image_uri = None
+                image_digest = None
+                architecture_normalized = None
 
             transformed_app = {
                 "id": app.get("id"),
@@ -152,7 +162,7 @@ def transform_function_apps(
                 "default_host_name": app.get("default_host_name"),
                 "https_only": app.get("https_only"),
                 "is_container": is_container,
-                "deployment_type": "container" if is_container else "code",
+                "deployment_type": deployment_type,
                 "image_uri": image_uri,
                 "image_digest": image_digest,
                 "architecture_normalized": architecture_normalized,
@@ -165,7 +175,7 @@ def transform_function_apps(
 @timeit
 def load_function_apps(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     subscription_id: str,
     update_tag: int,
 ) -> None:
@@ -185,7 +195,7 @@ def load_function_apps(
 def load_function_app_tags(
     neo4j_session: neo4j.Session,
     subscription_id: str,
-    apps: List[Dict],
+    apps: list[dict],
     update_tag: int,
 ) -> None:
     """
@@ -203,7 +213,7 @@ def load_function_app_tags(
 
 @timeit
 def cleanup_function_apps(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict
+    neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
     Run the cleanup job for Azure Function Apps.
@@ -215,7 +225,7 @@ def cleanup_function_apps(
 
 @timeit
 def cleanup_function_app_tags(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict
+    neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
     Runs cleanup job for Azure Function App tags.
@@ -231,7 +241,7 @@ def sync(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     The main sync function for Azure Function Apps.
