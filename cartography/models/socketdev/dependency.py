@@ -23,6 +23,7 @@ class SocketDevDependencyNodeProperties(CartographyNodeProperties):
     normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     direct: PropertyRef = PropertyRef("direct")
     repo_slug: PropertyRef = PropertyRef("repository")
+    repo_fullname: PropertyRef = PropertyRef("repository_fullname")
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,7 @@ class SocketDevDependencyToRepoRelProperties(CartographyRelProperties):
 class SocketDevDependencyToRepoRel(CartographyRelSchema):
     target_node_label: str = "SocketDevRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"slug": PropertyRef("repository")},
+        {"fullname": PropertyRef("repository_fullname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FOUND_IN"

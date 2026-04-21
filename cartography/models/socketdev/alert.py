@@ -38,6 +38,7 @@ class SocketDevAlertNodeProperties(CartographyNodeProperties):
     # Location fields (from first location entry)
     action: PropertyRef = PropertyRef("action")
     repo_slug: PropertyRef = PropertyRef("repo_slug")
+    repo_fullname: PropertyRef = PropertyRef("repo_fullname")
     branch: PropertyRef = PropertyRef("branch")
     artifact_name: PropertyRef = PropertyRef("artifact_name")
     artifact_version: PropertyRef = PropertyRef("artifact_version")
@@ -71,7 +72,7 @@ class SocketDevAlertToRepoRelProperties(CartographyRelProperties):
 class SocketDevAlertToRepoRel(CartographyRelSchema):
     target_node_label: str = "SocketDevRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"slug": PropertyRef("repo_slug")},
+        {"fullname": PropertyRef("repo_fullname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FOUND_IN"

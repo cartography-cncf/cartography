@@ -100,6 +100,7 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
 | **normalized_id** | Normalized package ID for cross-tool matching (format: `type\|name\|version`) |
 | direct | Whether this is a direct dependency (true) or transitive (false) |
 | repo_slug | Repository slug where the dependency was found |
+| repo_fullname | Full repository path where the dependency was found (e.g. `goodenoughlabs/infra`) |
 
 #### Relationships
 
@@ -151,6 +152,7 @@ Represents a security alert from Socket.dev. Alerts cover vulnerabilities (CVE),
 | first_patched_version | First version that fixes the vulnerability |
 | action | Alert action from security policy (error, warn, monitor, ignore) |
 | repo_slug | Repository slug where the alert was found |
+| repo_fullname | Full repository path where the alert was found (e.g. `goodenoughlabs/infra`) |
 | branch | Branch where the alert was found |
 | artifact_name | Affected package name |
 | artifact_version | Affected package version |

@@ -114,6 +114,7 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 # Location fields
                 "action": location.get("action"),
                 "repo_slug": repo.get("slug"),
+                "repo_fullname": repo.get("fullName"),
                 "branch": _flatten_field(location.get("branch")),
                 "artifact_name": _flatten_field(artifact.get("name")),
                 "artifact_version": _flatten_field(artifact.get("version")),

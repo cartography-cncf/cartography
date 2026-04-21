@@ -82,9 +82,9 @@ def test_sync_dependencies(mock_api, neo4j_session):
 
     # Assert: Dependencies are connected to Repositories
     expected_repo_rels = {
-        ("dep-001", "frontend-app"),
-        ("dep-002", "backend-api"),
-        ("dep-003", "backend-api"),
+        ("dep-001", "acme-corp/frontend-app"),
+        ("dep-002", "acme-corp/backend-api"),
+        ("dep-003", "acme-corp/backend-api"),
     }
     assert (
         check_rels(
@@ -92,7 +92,7 @@ def test_sync_dependencies(mock_api, neo4j_session):
             "SocketDevDependency",
             "id",
             "SocketDevRepository",
-            "slug",
+            "fullname",
             "FOUND_IN",
             rel_direction_right=True,
         )
