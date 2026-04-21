@@ -297,7 +297,7 @@ class TestTransform:
     """Tests for grants transform function."""
 
     def test_transform_serializes_lists(self) -> None:
-        """Transform serializes list/dict fields to JSON strings."""
+        """Transform keeps list fields native and serializes only dict fields."""
         grants = [
             {
                 "id": "grant:0",
@@ -313,9 +313,9 @@ class TestTransform:
             },
         ]
         result = transform(grants)
-        assert result[0]["sources"] == '["group:eng"]'
-        assert result[0]["destinations"] == '["tag:web"]'
-        assert result[0]["ip_rules"] == '["tcp:443"]'
+        assert result[0]["sources"] == ["group:eng"]
+        assert result[0]["destinations"] == ["tag:web"]
+        assert result[0]["ip_rules"] == ["tcp:443"]
         assert result[0]["app_capabilities"] is None  # empty dict -> None
         assert result[0]["src_posture"] is None  # empty list -> None
 
@@ -339,7 +339,7 @@ class TestTransform:
         assert result[0]["source_users"] == ["alice@ex.com"]
         assert result[0]["destination_tags"] == ["tag:db"]
         assert result[0]["app_capabilities"] == '{"cap": "val"}'
-        assert result[0]["src_posture"] == '["posture:x"]'
+        assert result[0]["src_posture"] == ["posture:x"]
 
 
 # ============================================================================

@@ -87,24 +87,21 @@ def sync(
 def transform(grants: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform grants for loading into Neo4j.
 
-    Serializes list/dict fields to JSON strings for storage as node properties.
+    Keeps list-of-string fields as native Neo4j lists and serializes only
+    nested dict fields that cannot be represented directly as scalar properties.
     """
     transformed: list[dict[str, Any]] = []
     for grant in grants:
         transformed.append(
             {
                 "id": grant["id"],
-                "sources": json.dumps(grant["sources"], sort_keys=True),
-                "destinations": json.dumps(grant["destinations"], sort_keys=True),
+                "sources": grant["sources"],
+                "destinations": grant["destinations"],
                 "source_groups": grant["source_groups"],
                 "source_users": grant["source_users"],
                 "destination_tags": grant["destination_tags"],
                 "destination_groups": grant["destination_groups"],
-                "ip_rules": (
-                    json.dumps(grant["ip_rules"], sort_keys=True)
-                    if grant["ip_rules"]
-                    else None
-                ),
+                "ip_rules": grant["ip_rules"] or None,
                 "app_capabilities": (
                     json.dumps(
                         grant["app_capabilities"],
@@ -113,11 +110,7 @@ def transform(grants: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     if grant["app_capabilities"]
                     else None
                 ),
-                "src_posture": (
-                    json.dumps(grant["src_posture"], sort_keys=True)
-                    if grant["src_posture"]
-                    else None
-                ),
+                "src_posture": grant["src_posture"] or None,
             },
         )
     return transformed

@@ -205,6 +205,82 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
     ```
+
+
+### TailscaleGrant
+
+A grant rule from the Tailscale ACL/policy file. Grants define access rules with sources, destinations, and capabilities.
+
+| Field | Description |
+|-------|-------------|
+| id | Stable content-hash ID (eg. `grant:a1b2c3d4e5f6`). Computed from the grant's src, dst, ip, app, and srcPosture fields. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| sources | Native list of source selectors (users, groups, tags). |
+| destinations | Native list of destination selectors (tags, groups, services, IPs). |
+| ip_rules | Native list of network capabilities (eg. `["tcp:443"]`). |
+| app_capabilities | JSON-serialized dict of application capabilities. |
+| src_posture | Native list of required posture policies for sources. |
+
+#### Relationships
+- `Grant` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleGrant)
+    ```
+- `Users` and `Groups` are sources of a `Grant`.
+    ```
+    (:TailscaleUser)-[:SOURCE]->(:TailscaleGrant)
+    (:TailscaleGroup)-[:SOURCE]->(:TailscaleGrant)
+    ```
+- `Grants` target `Tags` and `Groups` as destinations.
+    ```
+    (:TailscaleGrant)-[:DESTINATION]->(:TailscaleTag)
+    (:TailscaleGrant)-[:DESTINATION]->(:TailscaleGroup)
+    ```
+
+#### Resolved Access (CAN_ACCESS)
+
+Effective access relationships are resolved from grants and loaded as MatchLinks. The `granted_by` property on `CAN_ACCESS` is a list of grant IDs that justify the access.
+
+```
+(:TailscaleUser)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+(:TailscaleUser)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleService)
+(:TailscaleGroup)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+(:TailscaleGroup)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleService)
+(:TailscaleDevice)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+```
+
+
+### TailscaleService
+
+A Tailscale Service published in the tailnet. Services are named resources backed by one or more device hosts, accessible via stable MagicDNS names.
+
+| Field | Description |
+|-------|-------------|
+| id | Service ID in grant selector format (eg. `svc:web-server`). |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| name | The unique name of the service. |
+| comment | An optional description for the service. |
+| ipv4_address | The IPv4 address assigned to the service. |
+| ipv6_address | The IPv6 address assigned to the service. |
+| ports | Native list of protocol:port pairs (eg. `["tcp:443"]`). |
+| tags | JSON-serialized list of tags associated with the service. |
+
+#### Relationships
+- `Service` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleService)
+    ```
+- `Services` are tagged with `Tags`.
+    ```
+    (:TailscaleService)-[:TAGGED]->(:TailscaleTag)
+    ```
+- `Users` and `Groups` can access `Services` (resolved from grants).
+    ```
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
 - `Devices` can conform to posture conditions and full postures.
     ```
     (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
