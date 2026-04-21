@@ -452,10 +452,16 @@ def _build_tag_to_devices_map(
 def _build_group_members_map(
     groups: list[dict[str, Any]],
 ) -> dict[str, set[str]]:
-    """Build a mapping from group ID to set of member login names."""
+    """Build a mapping from group ID to effective member login names.
+
+    Uses `effective_members` when present so nested groups are expanded
+    transitively before grant resolution.
+    """
     group_members: dict[str, set[str]] = {}
     for group in groups:
-        group_members[group["id"]] = set(group.get("members", []))
+        group_members[group["id"]] = set(
+            group.get("effective_members", group.get("members", [])),
+        )
     return group_members
 
 

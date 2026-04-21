@@ -209,6 +209,9 @@ def test_tailscale_grants_effective_user_access(
     expected_user_access = {
         # hjsimpson via group:example -> tag:byod
         ("654321", "p892kg92CNTRL"),
+        # hjsimpson via transitive group:employees -> autogroup:self
+        ("654321", "n2fskgfgCNT89"),
+        ("654321", "abcskgfgCN789"),
         # mbsimpson via wildcard dest
         ("123456", "p892kg92CNTRL"),
         ("123456", "n292kg92CNTRL"),

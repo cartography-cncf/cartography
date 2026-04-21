@@ -415,6 +415,47 @@ def test_resolve_access_group__group_destination_resolves_to_member_devices() ->
     assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-2")}
 
 
+def test_resolve_access_group__transitive_group_members_are_used() -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": [],
+            "source_groups": ["group:all"],
+            "source_tags": [],
+            "destinations": ["tag:db"],
+            "destination_tags": ["tag:db"],
+            "destination_groups": [],
+            "destination_hosts": [],
+            "ip_rules": [],
+            "app_capabilities": {},
+            "src_posture": [],
+        }
+    ]
+    groups = [
+        (
+            {
+                **group,
+                "effective_members": ["alice@ex.com", "bob@ex.com"],
+            }
+            if group["id"] == "group:all"
+            else group
+        )
+        for group in GROUPS
+    ]
+    user_access, group_access, _, _, _ = resolve_access(
+        grants, DEVICES, groups, [], USERS
+    )
+    group_pairs = {(a["group_id"], a["device_id"]) for a in group_access}
+    assert group_pairs == {("group:all", "dev-3"), ("group:all", "dev-4")}
+    user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
+    assert user_pairs == {
+        ("alice@ex.com", "dev-3"),
+        ("alice@ex.com", "dev-4"),
+        ("bob@ex.com", "dev-3"),
+        ("bob@ex.com", "dev-4"),
+    }
+
+
 def test_resolve_access_tag_source__tag_source_to_tag_destination() -> None:
     grants = [
         {

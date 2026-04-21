@@ -50,11 +50,7 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
         org,
     )
-    # Clean stale group nodes/edges before computing transitive membership,
-    # so INHERITED_MEMBER_OF is based only on current MEMBER_OF edges.
-    cleanup_groups(neo4j_session, common_job_parameters)
-    # Compute and load inherited (transitive) group membership
-    inherited_members = get_inherited_member_relationships(neo4j_session, org)
+    inherited_members = build_inherited_member_relationships(groups)
     load_inherited_members(
         neo4j_session,
         inherited_members,
@@ -143,6 +139,13 @@ def transform(
                 }
             transformed_groups[g]["members"].append(user["loginName"])
 
+    for group in transformed_groups.values():
+        group["members"] = sorted(set(group["members"]))
+
+    effective_members = build_effective_group_members(list(transformed_groups.values()))
+    for group_id, members in effective_members.items():
+        transformed_groups[group_id]["effective_members"] = sorted(members)
+
     postures, posture_conditions = parser.get_postures()
     grants = parser.get_grants()
     return (
@@ -214,35 +217,61 @@ def load_posture_conditions(
     )
 
 
-@timeit
-def get_inherited_member_relationships(
-    neo4j_session: neo4j.Session,
-    org: str,
+def build_effective_group_members(
+    groups: list[dict[str, Any]],
+) -> dict[str, set[str]]:
+    """Compute transitive effective user membership for each group in Python."""
+    direct_members_by_group = {
+        group["id"]: set(group.get("members", [])) for group in groups
+    }
+    subgroups_by_group = {
+        group["id"]: list(group.get("sub_groups", [])) for group in groups
+    }
+    memo: dict[str, set[str]] = {}
+
+    def _resolve(group_id: str, visiting: set[str]) -> set[str]:
+        if group_id in memo:
+            return memo[group_id]
+        if group_id in visiting:
+            return set()
+        visiting.add(group_id)
+        members = set(direct_members_by_group.get(group_id, set()))
+        for subgroup_id in subgroups_by_group.get(group_id, []):
+            members.update(_resolve(subgroup_id, visiting))
+        visiting.remove(group_id)
+        memo[group_id] = members
+        return members
+
+    return {group["id"]: _resolve(group["id"], set()) for group in groups}
+
+
+def build_inherited_member_relationships(
+    groups: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    """
-    Query Neo4j to find User -> INHERITED_MEMBER_OF -> Group relationships.
-
-    Finds users who are indirectly members of groups through the group hierarchy:
-    User -[:MEMBER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
-
-    Returns list of relationship data for load_matchlinks():
-    [
-        {"user_login_name": "user@example.com", "group_id": "group:parent"},
-        ...
-    ]
-    """
-    query = """
-        MATCH (t:TailscaleTailnet {id: $ORG})-[:RESOURCE]->(u:TailscaleUser),
-              (u)-[:MEMBER_OF]->(g1:TailscaleGroup)-[:MEMBER_OF*1..]->(g2:TailscaleGroup)
-        RETURN DISTINCT u.login_name AS user_login_name, g2.id AS group_id
-    """
-    result = neo4j_session.run(query, ORG=org)
-    relationships = [dict(record) for record in result]
+    """Build User -> INHERITED_MEMBER_OF -> Group rows from in-memory groups."""
+    effective_members = build_effective_group_members(groups)
+    subgroups_by_group = {
+        group["id"]: list(group.get("sub_groups", [])) for group in groups
+    }
+    inherited_rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for group in groups:
+        group_id = group["id"]
+        inherited_users: set[str] = set()
+        for subgroup_id in subgroups_by_group.get(group_id, []):
+            inherited_users.update(effective_members.get(subgroup_id, set()))
+        for user_login_name in sorted(inherited_users):
+            key = (user_login_name, group_id)
+            if key not in seen:
+                seen.add(key)
+                inherited_rows.append(
+                    {"user_login_name": user_login_name, "group_id": group_id},
+                )
     logger.info(
-        "Found %d User INHERITED_MEMBER_OF Group relationships",
-        len(relationships),
+        "Built %d User INHERITED_MEMBER_OF Group relationships",
+        len(inherited_rows),
     )
-    return relationships
+    return inherited_rows
 
 
 @timeit
@@ -266,20 +295,12 @@ def load_inherited_members(
 
 
 @timeit
-def cleanup_groups(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    """Clean stale group nodes and edges before computing transitive membership."""
-    GraphJob.from_node_schema(TailscaleGroupSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-
-
-@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
+    GraphJob.from_node_schema(TailscaleGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_matchlink(
         TailscaleUserToGroupInheritedMemberMatchLink(),
         "TailscaleTailnet",
