@@ -132,6 +132,9 @@
 ```{include} ../modules/snipeit/schema.md
 ```
 
+```{include} ../modules/socketdev/schema.md
+```
+
 ```{include} ../modules/syft/schema.md
 ```
 

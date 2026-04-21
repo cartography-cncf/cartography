@@ -368,6 +368,45 @@ LIST_LAYERS = [
     },
 ]
 
+TEST_LAMBDA_IMAGE_DIGEST = (
+    "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+)
+TEST_LAMBDA_IMAGE_URI = f"123456789012.dkr.ecr.us-west-2.amazonaws.com/my-repo:prod@{TEST_LAMBDA_IMAGE_DIGEST}"
+
+LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE = [
+    {
+        "FunctionName": "container-function",
+        "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:container-function",
+        "Role": "arn:aws:iam::000000000000:role/sample-role",
+        "CodeSize": 0,
+        "Description": "Container image Lambda",
+        "Timeout": 30,
+        "MemorySize": 512,
+        "LastModified": "2026-01-01T00:00:00.000+0000",
+        "Version": "$LATEST",
+        "PackageType": "Image",
+        "Architectures": ["arm64"],
+        # list_functions does NOT return the Code field. ImageUri is only
+        # available via a per-function GetFunction call; see the corresponding
+        # GetFunction mock below.
+        "TracingConfig": {"Mode": "PassThrough"},
+        "RevisionId": "container-rev-1",
+    },
+]
+
+
+# Mock GetFunction response for the container-image Lambda. Only PackageType=Image
+# Lambdas are passed to get_lambda_image_uris in practice.
+GET_FUNCTION_CONTAINER_IMAGE = {
+    "Configuration": LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE[0],
+    "Code": {
+        "RepositoryType": "ECR",
+        "ImageUri": TEST_LAMBDA_IMAGE_URI,
+        "ResolvedImageUri": TEST_LAMBDA_IMAGE_URI,
+    },
+}
+
+
 LIST_LAMBDA_PERMISSIONS = {
     "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1": {
         "AnonymousAccess": False,

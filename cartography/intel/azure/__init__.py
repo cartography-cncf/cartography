@@ -380,6 +380,15 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
 
+        # DEPRECATED: compatibility migration for AzureContainerInstance :Container
+        # labels. The group no longer carries the ontology label (the individual
+        # AzureGroupContainer does). Remove in v1.0.0.
+        run_analysis_job(
+            "azure_container_instance_label_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
         try:
             for sub in subscriptions:
                 common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
