@@ -4,12 +4,14 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.service_principal import ServicePrincipal
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.clouds import COMMERCIAL
+from cartography.intel.microsoft.clouds import MicrosoftCloud
+from cartography.intel.microsoft.entra.utils import build_graph_client
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
@@ -176,6 +178,7 @@ async def sync_service_principals(
     client_secret: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cloud: MicrosoftCloud = COMMERCIAL,
 ) -> None:
     """
     Sync Entra service principals to the graph.
@@ -186,18 +189,9 @@ async def sync_service_principals(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :param cloud: Microsoft sovereign cloud (commercial, usgov, etc.)
     """
-    # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-
-    client = GraphServiceClient(
-        credential,
-        scopes=["https://graph.microsoft.com/.default"],
-    )
+    client = build_graph_client(tenant_id, client_id, client_secret, cloud)
     service_principals_batch = []
     batch_size = 50  # Batch size for service principals
     total_count = 0

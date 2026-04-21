@@ -2,6 +2,7 @@
 
 
 ```{toctree}
+config
 schema
 ```
 
@@ -13,4 +14,4 @@ The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and
 
 `microsoft` is the canonical top-level module name. `entra` remains accepted as a backward-compatible alias for module selection and ontology source configuration during the migration.
 
-See the [configuration docs](../../modules/entra/config) and [schema](schema) for details.
+Supports commercial, GCC High / DoD (US Government), and China sovereign clouds — see [config](config) for details.

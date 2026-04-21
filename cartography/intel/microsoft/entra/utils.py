@@ -4,14 +4,42 @@ from typing import Callable
 
 import backoff
 import httpx
+from azure.identity import ClientSecretCredential
+from msgraph import GraphServiceClient
 
 from cartography.helpers import backoff_handler
+from cartography.intel.microsoft.clouds import MicrosoftCloud
 
 logger = logging.getLogger(__name__)
 
 # Transient transport errors that are safe to retry (HTTP/2 resets, connection drops, etc.)
 TRANSIENT_EXCEPTIONS = (httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
 MAX_RETRIES = 3
+
+
+def build_graph_client(
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+    cloud: MicrosoftCloud,
+) -> GraphServiceClient:
+    """Construct a Graph client wired to the given sovereign cloud.
+
+    The msgraph SDK defaults to the commercial `graph.microsoft.com`
+    endpoint; to target GCC High / DoD / China we must override both the
+    AAD authority (for token acquisition) and the request adapter's
+    `base_url` (for all Graph calls). See
+    https://github.com/microsoftgraph/msgraph-sdk-python/blob/main/docs/national-clouds.md.
+    """
+    credential = ClientSecretCredential(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+        authority=cloud.authority,
+    )
+    client = GraphServiceClient(credential, scopes=[cloud.graph_scope])
+    client.request_adapter.base_url = cloud.graph_base_url
+    return client
 
 
 async def call_with_retries(

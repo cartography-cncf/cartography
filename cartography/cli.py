@@ -610,6 +610,19 @@ class CLI:
                     hidden=PANEL_ENTRA not in visible_panels,
                 ),
             ] = None,
+            entra_cloud: Annotated[
+                str | None,
+                typer.Option(
+                    "--entra-cloud",
+                    help=(
+                        "Microsoft sovereign cloud for Entra/Intune Graph API calls. "
+                        "One of: commercial (default), usgov (GCC High / L4), "
+                        "usgov-dod (DoD / L5), china."
+                    ),
+                    rich_help_panel=PANEL_ENTRA,
+                    hidden=PANEL_ENTRA not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # GCP Options
             # =================================================================
@@ -2351,6 +2364,7 @@ class CLI:
                 entra_tenant_id=entra_tenant_id,
                 entra_client_id=entra_client_id,
                 entra_client_secret=entra_client_secret,
+                entra_cloud=entra_cloud,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
