@@ -1,0 +1,10 @@
+{
+  "statements": [
+    {
+      "__comment__": "AzureContainerInstance is the container *group* resource and no longer carries :Container (the individual AzureGroupContainer does). Strip stale :Container from pre-migration groups.",
+      "query": "MATCH (n:AzureContainerInstance:Container) REMOVE n:Container",
+      "iterative": false
+    }
+  ],
+  "name": "Azure container instance ontology label migration"
+}

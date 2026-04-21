@@ -123,7 +123,7 @@ class CloudRunJobToArtifactRegistryContainerImageRel(CartographyRelSchema):
 class GCPCloudRunJobSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJob"
     properties: GCPCloudRunJobProperties = GCPCloudRunJobProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function", "Container"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
     sub_resource_relationship: ProjectToCloudRunJobRel = ProjectToCloudRunJobRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
