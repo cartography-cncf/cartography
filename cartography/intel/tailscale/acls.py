@@ -220,29 +220,30 @@ def load_posture_conditions(
 def build_effective_group_members(
     groups: list[dict[str, Any]],
 ) -> dict[str, set[str]]:
-    """Compute transitive effective user membership for each group in Python."""
-    direct_members_by_group = {
+    """Compute transitive effective user membership for each group in Python.
+
+    Uses a fixed-point expansion so cyclic subgroup relationships converge to the
+    union of all reachable direct members instead of undercounting membership.
+    """
+    effective_members: dict[str, set[str]] = {
         group["id"]: set(group.get("members", [])) for group in groups
     }
     subgroups_by_group = {
         group["id"]: list(group.get("sub_groups", [])) for group in groups
     }
-    memo: dict[str, set[str]] = {}
 
-    def _resolve(group_id: str, visiting: set[str]) -> set[str]:
-        if group_id in memo:
-            return memo[group_id]
-        if group_id in visiting:
-            return set()
-        visiting.add(group_id)
-        members = set(direct_members_by_group.get(group_id, set()))
-        for subgroup_id in subgroups_by_group.get(group_id, []):
-            members.update(_resolve(subgroup_id, visiting))
-        visiting.remove(group_id)
-        memo[group_id] = members
-        return members
+    changed = True
+    while changed:
+        changed = False
+        for group_id, subgroup_ids in subgroups_by_group.items():
+            members = effective_members.setdefault(group_id, set())
+            before = len(members)
+            for subgroup_id in subgroup_ids:
+                members.update(effective_members.get(subgroup_id, set()))
+            if len(members) != before:
+                changed = True
 
-    return {group["id"]: _resolve(group["id"], set()) for group in groups}
+    return effective_members
 
 
 def build_inherited_member_relationships(
