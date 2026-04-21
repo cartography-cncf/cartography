@@ -103,23 +103,32 @@ def test_get_yum_artifacts_uses_packages_and_versions():
     )
 
 
-def test_get_go_modules_uses_retry_helper():
-    client = MagicMock()
+def test_get_go_modules_uses_packages_and_versions():
+    client = _make_os_package_client("example.com/foo", "v1.2.3")
     repositories = (
         client.projects.return_value.locations.return_value.repositories.return_value
     )
-    request = MagicMock()
-    next_request = MagicMock()
-    repositories.goModules.return_value.list.return_value = request
-    repositories.goModules.return_value.list_next.side_effect = [next_request, None]
-    request.execute.return_value = {"goModules": [{"name": "module-1"}]}
-    next_request.execute.return_value = {"goModules": [{"name": "module-2"}]}
+    packages = repositories.packages.return_value
+    versions = packages.versions.return_value
+    packages_request = packages.list.return_value
+    versions_request = versions.list.return_value
 
     modules = get_go_modules(
         client,
         "projects/test-project/locations/us-east1/repositories/repo",
     )
 
-    assert modules == [{"name": "module-1"}, {"name": "module-2"}]
-    request.execute.assert_called_once_with(num_retries=GCP_API_NUM_RETRIES)
-    next_request.execute.assert_called_once_with(num_retries=GCP_API_NUM_RETRIES)
+    assert modules == [
+        {
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo/versions/v1.2.3",
+            "createTime": "2024-01-06T00:00:00Z",
+            "updateTime": "2024-01-06T00:00:00Z",
+            "packageName": "example.com/foo",
+        }
+    ]
+    packages_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
+    )
+    versions_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
+    )
