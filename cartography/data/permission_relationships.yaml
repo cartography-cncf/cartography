@@ -61,3 +61,8 @@
   permissions:
   - ecs:ExecuteCommand
   relationship_name: CAN_EXECUTE_COMMAND
+# Map principals that can execute CloudFormation stacks.
+- target_label: CloudFormationStack
+  permissions:
+  - cloudformation:UpdateStack
+  relationship_name: CAN_EXEC
