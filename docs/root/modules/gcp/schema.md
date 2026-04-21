@@ -1796,7 +1796,7 @@ graph LR
 
 Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
 
-> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+> **Ontology Mapping**: This node carries no ontology label of its own. Cloud Run Service is an orchestrator (analogous to `ECSService`); its child `GCPCloudRunContainer` nodes carry `:Container` and HAS_IMAGE.
 
 | Field | Description |
 |---|---|

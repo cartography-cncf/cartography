@@ -514,7 +514,7 @@ Function is a semantic label.
 ```
 
 A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
-It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps. GCP Cloud Run Services and Jobs are orchestrators (not functions) — see the note in the Relationships section below.
 
 | Field | Description |
 |-------|-------------|

@@ -38,9 +38,13 @@ def transform_group_containers(container_groups: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for group in container_groups:
         subnet_ids: list[str] = []
-        # Azure SDK as_dict() returns flat structure (not nested under "properties")
-        for subnet_ref in group.get(
-            "subnet_ids", group.get("properties", {}).get("subnet_ids", [])
+        # Azure SDK as_dict() returns flat structure (not nested under "properties").
+        # Use `or []` chain rather than dict.get(..., default) so an explicit
+        # null in the API response does not crash iteration.
+        for subnet_ref in (
+            group.get("subnet_ids")
+            or group.get("properties", {}).get("subnet_ids")
+            or []
         ):
             subnet_id = subnet_ref.get("id")
             if subnet_id:

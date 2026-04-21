@@ -94,7 +94,7 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
     """
     transformed: list[dict] = []
     for revision in revisions_data:
-        full_name = revision.get("name", "")
+        full_name = revision["name"]
 
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/services/([^/]+)/revisions/([^/]+)",

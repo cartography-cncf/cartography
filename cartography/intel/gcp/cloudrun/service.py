@@ -69,7 +69,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
     """
     transformed: list[dict] = []
     for service in services_data:
-        full_name = service.get("name", "")
+        full_name = service["name"]
 
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/services/([^/]+)",
@@ -106,7 +106,7 @@ def transform_containers(services_data: list[dict], project_id: str) -> list[dic
     """
     transformed: list[dict[str, Any]] = []
     for service in services_data:
-        service_id = service.get("name", "")
+        service_id = service["name"]
         template = service.get("template") or {}
         containers = template.get("containers", []) or []
 
@@ -174,6 +174,16 @@ def cleanup_services(
 
 
 @timeit
+def cleanup_containers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    GraphJob.from_node_schema(GCPCloudRunContainerSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+@timeit
 def sync_services(
     neo4j_session: neo4j.Session,
     client: Resource,
@@ -208,4 +218,5 @@ def sync_services(
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["project_id"] = project_id
+        cleanup_containers(neo4j_session, cleanup_job_params)
         cleanup_services(neo4j_session, cleanup_job_params)

@@ -83,7 +83,7 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
     transformed: list[dict] = []
     for job in jobs_data:
-        full_name = job.get("name", "")
+        full_name = job["name"]
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/jobs/([^/]+)",
             full_name,
@@ -114,7 +114,7 @@ def transform_containers(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
     transformed: list[dict[str, Any]] = []
     for job in jobs_data:
-        job_id = job.get("name", "")
+        job_id = job["name"]
         task_template = job.get("template", {}).get("template", {})
         containers = task_template.get("containers", []) or []
 
