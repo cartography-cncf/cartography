@@ -17,8 +17,10 @@ from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.cloudtrail import _is_retryable_cloudtrail_error
+from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
 from cartography.intel.aws.util.botocore_config import create_boto3_client
-from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.botocore_config import get_cloudtrail_botocore_config
 from cartography.models.aws.cloudtrail.management_events import AssumedRoleMatchLink
 from cartography.models.aws.cloudtrail.management_events import (
     AssumedRoleWithSAMLMatchLink,
@@ -31,31 +33,30 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-_RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 
+def _collect_lookup_events(page_iterator: Any) -> List[Dict[str, Any]]:
+    all_events: List[Dict[str, Any]] = []
+    try:
+        for page in page_iterator:
+            all_events.extend(page.get("Events", []))
+    except ClientError as error:
+        if _is_retryable_cloudtrail_error(error):
+            raise CloudTrailTransientRegionFailure(
+                "AWS SDK retries were exhausted for transient LookupEvents failure"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise CloudTrailTransientRegionFailure(
+            "Encountered a transient regional CloudTrail endpoint failure while calling LookupEvents"
+        ) from error
 
-class CloudTrailManagementEventsTransientRegionFailure(Exception):
-    pass
-
-
-def _is_retryable_cloudtrail_management_events_error(error: ClientError) -> bool:
-    error_code = error.response.get("Error", {}).get("Code", "")
-    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-    return (
-        error_code
-        in {
-            "RequestLimitExceeded",
-            "RequestThrottled",
-            "RequestTimeout",
-            "RequestTimeoutException",
-            "ServiceUnavailable",
-            "ServiceUnavailableException",
-            "Throttling",
-            "ThrottlingException",
-            "TooManyRequestsException",
-        }
-        or status_code in _RETRYABLE_HTTP_STATUS_CODES
-    )
+    return all_events
 
 
 @timeit
@@ -78,7 +79,10 @@ def get_assume_role_events(
     :return: List of CloudTrail AssumeRole events
     """
     client = create_boto3_client(
-        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
+        boto3_session,
+        "cloudtrail",
+        region_name=region,
+        config=get_cloudtrail_botocore_config(),
     )
 
     # Calculate time range
@@ -92,37 +96,19 @@ def get_assume_role_events(
 
     paginator = client.get_paginator("lookup_events")
 
-    all_events = []
-    try:
-        page_iterator = paginator.paginate(
-            LookupAttributes=[
-                {"AttributeKey": "EventName", "AttributeValue": "AssumeRole"}
-            ],
-            StartTime=start_time,
-            EndTime=end_time,
-            PaginationConfig={
-                "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
-                "PageSize": 50,  # CloudTrail API limit per page
-            },
-        )
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as error:
-        if _is_retryable_cloudtrail_management_events_error(error):
-            raise CloudTrailManagementEventsTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure while fetching AssumeRole events"
-            ) from error
-        raise
-    except (
-        ConnectionClosedError,
-        ConnectTimeoutError,
-        EndpointConnectionError,
-        ReadTimeoutError,
-        ResponseParserError,
-    ) as error:
-        raise CloudTrailManagementEventsTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while fetching AssumeRole events"
-        ) from error
+    page_iterator = paginator.paginate(
+        LookupAttributes=[
+            {"AttributeKey": "EventName", "AttributeValue": "AssumeRole"}
+        ],
+        StartTime=start_time,
+        EndTime=end_time,
+        PaginationConfig={
+            "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
+            "PageSize": 50,  # CloudTrail API limit per page
+        },
+    )
+
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
 
@@ -149,7 +135,10 @@ def get_saml_role_events(
     :return: List of CloudTrail AssumeRoleWithSAML events
     """
     client = create_boto3_client(
-        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
+        boto3_session,
+        "cloudtrail",
+        region_name=region,
+        config=get_cloudtrail_botocore_config(),
     )
 
     # Calculate time range
@@ -163,37 +152,19 @@ def get_saml_role_events(
 
     paginator = client.get_paginator("lookup_events")
 
-    all_events = []
-    try:
-        page_iterator = paginator.paginate(
-            LookupAttributes=[
-                {"AttributeKey": "EventName", "AttributeValue": "AssumeRoleWithSAML"}
-            ],
-            StartTime=start_time,
-            EndTime=end_time,
-            PaginationConfig={
-                "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
-                "PageSize": 50,  # CloudTrail API limit per page
-            },
-        )
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as error:
-        if _is_retryable_cloudtrail_management_events_error(error):
-            raise CloudTrailManagementEventsTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure while fetching AssumeRoleWithSAML events"
-            ) from error
-        raise
-    except (
-        ConnectionClosedError,
-        ConnectTimeoutError,
-        EndpointConnectionError,
-        ReadTimeoutError,
-        ResponseParserError,
-    ) as error:
-        raise CloudTrailManagementEventsTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while fetching AssumeRoleWithSAML events"
-        ) from error
+    page_iterator = paginator.paginate(
+        LookupAttributes=[
+            {"AttributeKey": "EventName", "AttributeValue": "AssumeRoleWithSAML"}
+        ],
+        StartTime=start_time,
+        EndTime=end_time,
+        PaginationConfig={
+            "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
+            "PageSize": 50,  # CloudTrail API limit per page
+        },
+    )
+
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithSAML events from region '{region}'"
@@ -222,7 +193,10 @@ def get_web_identity_role_events(
     :return: List of CloudTrail AssumeRoleWithWebIdentity events
     """
     client = create_boto3_client(
-        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
+        boto3_session,
+        "cloudtrail",
+        region_name=region,
+        config=get_cloudtrail_botocore_config(),
     )
 
     # Calculate time range
@@ -236,40 +210,19 @@ def get_web_identity_role_events(
 
     paginator = client.get_paginator("lookup_events")
 
-    all_events = []
-    try:
-        page_iterator = paginator.paginate(
-            LookupAttributes=[
-                {
-                    "AttributeKey": "EventName",
-                    "AttributeValue": "AssumeRoleWithWebIdentity",
-                }
-            ],
-            StartTime=start_time,
-            EndTime=end_time,
-            PaginationConfig={
-                "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
-                "PageSize": 50,  # CloudTrail API limit per page
-            },
-        )
-        for page in page_iterator:
-            all_events.extend(page.get("Events", []))
-    except ClientError as error:
-        if _is_retryable_cloudtrail_management_events_error(error):
-            raise CloudTrailManagementEventsTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient LookupEvents failure while fetching AssumeRoleWithWebIdentity events"
-            ) from error
-        raise
-    except (
-        ConnectionClosedError,
-        ConnectTimeoutError,
-        EndpointConnectionError,
-        ReadTimeoutError,
-        ResponseParserError,
-    ) as error:
-        raise CloudTrailManagementEventsTransientRegionFailure(
-            "Encountered a transient regional CloudTrail endpoint failure while fetching AssumeRoleWithWebIdentity events"
-        ) from error
+    page_iterator = paginator.paginate(
+        LookupAttributes=[
+            {"AttributeKey": "EventName", "AttributeValue": "AssumeRoleWithWebIdentity"}
+        ],
+        StartTime=start_time,
+        EndTime=end_time,
+        PaginationConfig={
+            "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
+            "PageSize": 50,  # CloudTrail API limit per page
+        },
+    )
+
+    all_events = _collect_lookup_events(page_iterator)
 
     logger.info(
         f"Retrieved {len(all_events)} AssumeRoleWithWebIdentity events from region '{region}'"
@@ -566,10 +519,6 @@ def load_role_assumptions(
         _sub_resource_id=current_aws_account_id,
     )
 
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} role assumption relationships"
-    )
-
 
 @timeit
 def load_saml_role_assumptions(
@@ -608,10 +557,6 @@ def load_saml_role_assumptions(
         _sub_resource_id=current_aws_account_id,
     )
 
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} SAML role assumption relationships"
-    )
-
 
 @timeit
 def load_web_identity_role_assumptions(
@@ -648,10 +593,6 @@ def load_web_identity_role_assumptions(
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
         _sub_resource_id=current_aws_account_id,
-    )
-
-    logger.info(
-        f"Successfully loaded {len(aggregated_role_assumptions)} WebIdentity role assumption relationships"
     )
 
 
@@ -800,13 +741,12 @@ def sync_assume_role_events(
                 region=region,
                 lookback_hours=lookback_hours,
             )
-        except CloudTrailManagementEventsTransientRegionFailure as error:
+        except CloudTrailTransientRegionFailure:
             cleanup_safe = False
             logger.warning(
-                "Skipping CloudTrail AssumeRole event sync for account %s in region %s after transient LookupEvents failure: %s",
+                "Skipping CloudTrail management events for account %s in region %s after transient failure",
                 current_aws_account_id,
                 region,
-                error,
             )
             continue
 
@@ -827,12 +767,11 @@ def sync_assume_role_events(
             f"Loaded {len(assume_role_assumptions)} AssumeRole assumptions for region {region}"
         )
 
-    # Run cleanup for stale relationships after processing all regions
     if cleanup_safe:
         cleanup(neo4j_session, current_aws_account_id, update_tag)
     else:
         logger.warning(
-            "Skipping CloudTrail management event cleanup for account %s because one or more regions had transient CloudTrail failures. Preserving last-known-good AssumeRole relationships.",
+            "Skipping CloudTrail management events cleanup for account %s because one or more regions had transient failures. Preserving last-known-good data.",
             current_aws_account_id,
         )
 
@@ -905,12 +844,11 @@ def sync_saml_role_events(
                 region=region,
                 lookback_hours=lookback_hours,
             )
-        except CloudTrailManagementEventsTransientRegionFailure as error:
+        except CloudTrailTransientRegionFailure:
             logger.warning(
-                "Skipping CloudTrail AssumeRoleWithSAML event sync for account %s in region %s after transient LookupEvents failure: %s",
+                "Skipping CloudTrail SAML management events for account %s in region %s after transient failure",
                 current_aws_account_id,
                 region,
-                error,
             )
             continue
 
@@ -1000,12 +938,11 @@ def sync_web_identity_role_events(
                 region=region,
                 lookback_hours=lookback_hours,
             )
-        except CloudTrailManagementEventsTransientRegionFailure as error:
+        except CloudTrailTransientRegionFailure:
             logger.warning(
-                "Skipping CloudTrail AssumeRoleWithWebIdentity event sync for account %s in region %s after transient LookupEvents failure: %s",
+                "Skipping CloudTrail WebIdentity management events for account %s in region %s after transient failure",
                 current_aws_account_id,
                 region,
-                error,
             )
             continue
 

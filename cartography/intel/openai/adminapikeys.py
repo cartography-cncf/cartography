@@ -84,7 +84,6 @@ def load_adminapikeys(
     ORG_ID: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI AdminApiKey into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIAdminApiKeySchema(),

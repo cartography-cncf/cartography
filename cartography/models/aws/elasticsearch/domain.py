@@ -20,6 +20,7 @@ class ESDomainNodeProperties(CartographyNodeProperties):
     deleted: PropertyRef = PropertyRef("Deleted")
     created: PropertyRef = PropertyRef("Created")
     endpoint: PropertyRef = PropertyRef("Endpoint")
+    name: PropertyRef = PropertyRef("DomainName", extra_index=True)
     elasticsearch_version: PropertyRef = PropertyRef("ElasticsearchVersion")
     # Cluster config properties (flattened)
     elasticsearch_cluster_config_instancetype: PropertyRef = PropertyRef(

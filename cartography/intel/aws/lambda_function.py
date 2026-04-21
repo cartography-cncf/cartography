@@ -18,6 +18,8 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image import parse_image_uri
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
 from cartography.models.aws.lambda_function.event_source_mapping import (
     AWSLambdaEventSourceMappingSchema,
@@ -95,9 +97,47 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     return lambda_functions
 
 
+@timeit
+@aws_handle_regions
+def get_lambda_image_uris(
+    boto3_session: boto3.session.Session,
+    lambda_functions: List[Dict],
+    region: str,
+) -> Dict[str, Dict[str, str | None]]:
+    """
+    For each container-image Lambda (PackageType=Image), call get_function to
+    resolve ImageUri / ResolvedImageUri. list_functions does not return the
+    Code.ImageUri field, so this per-function call is required for image-based
+    Lambdas only. Returns a map of function_arn -> {"ImageUri", "ResolvedImageUri"}.
+
+    A failure on a single function is logged and skipped so one transient SDK
+    error does not abort the whole region's Lambda sync.
+    """
+    client = create_boto3_client(boto3_session, "lambda", region_name=region)
+    image_uris: Dict[str, Dict[str, str | None]] = {}
+    for function_data in lambda_functions:
+        if function_data.get("PackageType") != "Image":
+            continue
+        function_arn = function_data["FunctionArn"]
+        try:
+            response = client.get_function(FunctionName=function_arn)
+        except Exception as error:
+            logger.warning(
+                "Failed to get image URI for Lambda %s: %s", function_arn, error
+            )
+            continue
+        code = response.get("Code") or {}
+        image_uris[function_arn] = {
+            "ImageUri": code.get("ImageUri"),
+            "ResolvedImageUri": code.get("ResolvedImageUri"),
+        }
+    return image_uris
+
+
 def transform_lambda_functions(
     lambda_functions: List[Dict],
     permissions_by_arn: Dict[str, Dict[str, Any]],
+    image_uris_by_arn: Dict[str, Dict[str, str | None]],
     region: str,
 ) -> List[Dict]:
     transformed_functions = []
@@ -115,6 +155,20 @@ def transform_lambda_functions(
         permission_data = permissions_by_arn[function_arn]
         transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
         transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
+
+        # list_functions does not include container image details, so those are
+        # resolved separately with GetFunction for image-based Lambdas only.
+        code = image_uris_by_arn.get(function_arn, {})
+        image_uri, image_digest = parse_image_uri(
+            code.get("ResolvedImageUri") or code.get("ImageUri")
+        )
+        transformed_function["image_uri"] = image_uri
+        transformed_function["image_digest"] = image_digest
+
+        architectures = function_data.get("Architectures") or []
+        transformed_function["architecture_normalized"] = (
+            normalize_architecture(architectures[0]) if architectures else None
+        )
 
         transformed_functions.append(transformed_function)
 
@@ -261,10 +315,9 @@ def get_lambda_permissions(
                 }
         except client.exceptions.ResourceNotFoundException:
             logger.debug(f"No policy found for Lambda function {function_name}")
-            pass
-        except Exception as e:
+        except Exception as error:
             logger.warning(
-                f"Error getting policy for Lambda function {function_name}: {e}"
+                f"Error getting policy for Lambda function {function_name}: {error}"
             )
 
     return all_permissions
@@ -440,7 +493,6 @@ def sync_aliases(
     for lambda_function in lambda_functions:
         function_arn = lambda_function["FunctionArn"]
 
-        # Get, transform, and collect aliases
         try:
             aliases = get_function_aliases(lambda_function, client)
         except LambdaSubResourceTransientFailure as error:
@@ -455,7 +507,6 @@ def sync_aliases(
             transformed_aliases = transform_lambda_aliases(aliases, function_arn)
             all_aliases.extend(transformed_aliases)
 
-    # Load all aliases
     load_lambda_function_aliases(
         neo4j_session, all_aliases, region, current_aws_account_id, update_tag
     )
@@ -477,7 +528,6 @@ def sync_event_source_mappings(
 
     cleanup_safe = True
     for lambda_function in lambda_functions:
-        # Get and collect event source mappings (no transformation needed)
         try:
             esms = get_event_source_mappings(lambda_function, client)
         except LambdaSubResourceTransientFailure as error:
@@ -491,7 +541,6 @@ def sync_event_source_mappings(
         if esms:
             all_esms.extend(esms)
 
-    # Load all event source mappings
     load_lambda_event_source_mappings(
         neo4j_session, all_esms, current_aws_account_id, update_tag
     )
@@ -513,13 +562,11 @@ def sync_lambda_layers(
     for lambda_function in lambda_functions:
         function_arn = lambda_function["FunctionArn"]
 
-        # Get, transform, and collect layers (from function data)
         layers = lambda_function.get("Layers", [])
         if layers:
             transformed_layers = transform_lambda_layers(layers, function_arn)
             all_layers.extend(transformed_layers)
 
-    # Load all layers
     load_lambda_layers(neo4j_session, all_layers, current_aws_account_id, update_tag)
 
 
@@ -543,7 +590,6 @@ def sync(
             current_aws_account_id,
         )
 
-        # Get and load core lambda functions
         try:
             data = get_lambda_data(boto3_session, region)
         except LambdaTransientRegionFailure as error:
@@ -559,7 +605,13 @@ def sync(
             )
             continue
         permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
-        transformed_data = transform_lambda_functions(data, permissions_by_arn, region)
+        image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
+        transformed_data = transform_lambda_functions(
+            data,
+            permissions_by_arn,
+            image_uris_by_arn,
+            region,
+        )
         load_lambda_functions(
             neo4j_session,
             transformed_data,
@@ -568,10 +620,8 @@ def sync(
             update_tag,
         )
 
-        # Create Lambda client for sub-entity requests
         client = create_boto3_client(boto3_session, "lambda", region_name=region)
 
-        # Sync all sub-entities
         aliases_cleanup_safe = (
             sync_aliases(
                 neo4j_session,
@@ -601,6 +651,7 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
+
     cleanup_lambda(
         neo4j_session,
         common_job_parameters,

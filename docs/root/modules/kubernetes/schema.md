@@ -32,6 +32,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 - All resources whether cluster-scoped or namespace-scoped belong to a `KubernetesCluster`.
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNamespace,
+                                       :KubernetesNode,
                                        :KubernetesPod,
                                        :KubernetesContainer,
                                        :KubernetesService,
@@ -51,6 +52,40 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 - A `KubernetesPod` belongs to a `KubernetesCluster`
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesPod)
+    ```
+
+- A `KubernetesCluster` maps to the `EKSCluster` that hosts it when its `external_id` is an EKS cluster ARN.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    ```
+
+### KubernetesNode
+Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/architecture/nodes/)
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the node derived from cluster name and node name (e.g. `my-cluster/my-node`) |
+| **name** | Name of the Kubernetes node |
+| **cluster\_name** | Name of the Kubernetes cluster this node belongs to |
+| architecture | Raw CPU architecture as reported by the node (e.g. `amd64`, `arm64`) |
+| architecture\_normalized | Canonical CPU architecture after normalization (e.g. `x86_64` → `amd64`, `aarch64` → `arm64`) |
+| os | Operating system of the node (e.g. `linux`) |
+| os\_image | Human-readable OS image name (e.g. `Ubuntu 22.04.3 LTS`) |
+| kernel\_version | Kernel version of the node (e.g. `5.15.0-1034-aws`) |
+| container\_runtime\_version | Container runtime and version (e.g. `containerd://1.7.0`) |
+| kubelet\_version | Version of the kubelet running on the node (e.g. `v1.27.1`) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesNode` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNode)
+    ```
+
+- `KubernetesPod` runs on a `KubernetesNode`.
+    ```
+    (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
     ```
 
 ### KubernetesNamespace
@@ -93,18 +128,30 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes pod |
 | deletion\_timestamp | Timestamp of the deletion time of the Kubernetes pod |
 | **namespace** | The Kubernetes namespace where this pod is deployed |
+| service\_account\_name | Name of the ServiceAccount used by the pod. Derived from `pod.spec.service_account_name` and defaults to `default` when unset. |
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
+| architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
+- `KubernetesPod` uses a `KubernetesServiceAccount`.
+    ```
+    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    ```
+
 - `KubernetesPod` has `KubernetesContainer`.
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
+    ```
+    (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesPod`. Created by the `k8s_lb_exposure` analysis job.
@@ -125,8 +172,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | **namespace** | The Kubernetes namespace where this container is deployed |
 | **cluster\_name** | Name of the Kubernetes cluster where this container is deployed |
 | image\_pull_policy | The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent) |
-| status\_image\_id | ImageID of the container's image. |
-| **status\_image\_sha** | The SHA portion of the status\_image\_id |
+| status\_image\_id | Runtime-reported image identifier for the container. This may differ from the declared `image` field because the container runtime can rewrite tags or parent image indexes to digest-qualified references. |
+| **status\_image\_sha** | The SHA portion of the runtime-reported `status_image_id` when Cartography can extract it. |
 | status\_ready | Specifies whether the container has passed its readiness probe. |
 | status\_started | Specifies whether the container has passed its startup probe. |
 | **status\_state** | State of the container (running, terminated, waiting) |
@@ -134,6 +181,7 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
 | memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
 | cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
+| architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -146,10 +194,15 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
-- `KubernetesContainer` references container images from registries. The relationship matches containers to images by digest (`status_image_sha`).
+- `KubernetesContainer` references container images from registries.
+  `HAS_IMAGE` matches the runtime digest (`status_image_sha`) reported in container status.
+  That means the relationship can point at either a top-level image artifact or a platform-specific manifest, depending on which registry node type has the matching digest.
+  Runtime fields like `status_image_id` and `status_image_sha` remain on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
@@ -266,6 +319,7 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 | **id** | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
 | name | Name of the Kubernetes ServiceAccount |
 | namespace | The Kubernetes namespace where this ServiceAccount is deployed |
+| aws_role_arn | ARN from the IRSA annotation `eks.amazonaws.com/role-arn`, when present. Used to link the ServiceAccount to an `AWSRole`. |
 | uid | UID of the Kubernetes ServiceAccount |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
 | resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
@@ -282,6 +336,16 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 - `KubernetesServiceAccount` is contained in a `KubernetesNamespace`.
     ```
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` is used by a `KubernetesPod`.
+    ```
+    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.
+    ```
+    (:KubernetesServiceAccount)-[:ASSUMES_ROLE]->(:AWSRole)
     ```
 
 - `KubernetesServiceAccount` is used as a subject in `KubernetesRoleBinding`.

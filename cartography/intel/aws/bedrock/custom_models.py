@@ -101,8 +101,6 @@ def load_custom_models(
     """
     Load custom models into the graph database.
     """
-    logger.info("Loading %d Bedrock custom models for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockCustomModelSchema(),

@@ -288,7 +288,6 @@ def load_cves(
     """
     Load CVE's information
     """
-    logger.info(f"Loading {len(data)} CVEs into the graph.")
     load(
         neo4j_session,
         CVESchema(),
@@ -306,7 +305,6 @@ def load_cve_feed(
     """
     Load CVE feed information
     """
-    logger.info(f"Loading CVE feed info {data} into the graph...")
     load(
         neo4j_session,
         CVEFeedSchema(),

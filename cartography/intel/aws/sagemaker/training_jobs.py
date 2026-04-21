@@ -7,16 +7,17 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.sagemaker.util import extract_bucket_name_from_s3_uri
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.training_job import AWSSageMakerTrainingJobSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_training_jobs(
     boto3_session: boto3.session.Session,
     region: str,
@@ -148,30 +149,22 @@ def sync_training_jobs(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker Training Jobs for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker Training Jobs for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get training jobs from AWS
-        training_jobs = get_training_jobs(boto3_session, region)
-
-        # Transform the data
-        transformed_jobs = transform_training_jobs(training_jobs, region)
-
-        # Load into Neo4j
-        load_training_jobs(
-            neo4j_session,
-            transformed_jobs,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old training jobs
-    cleanup_training_jobs(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="training_jobs",
+        get_resources=get_training_jobs,
+        transform_resources=transform_training_jobs,
+        load_resources=load_training_jobs,
+        cleanup_resources=cleanup_training_jobs,
+    )

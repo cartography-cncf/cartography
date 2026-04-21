@@ -8,11 +8,6 @@ aws_eks_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EKSCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="arn",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(ontology_field="version", node_field="version"),
@@ -29,11 +24,6 @@ aws_ecs_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECSCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="arn",
-                    required=True,
-                ),
                 OntologyFieldMapping(
                     ontology_field="name",
                     node_field="name",
@@ -53,11 +43,6 @@ aws_emr_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EMRCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(
@@ -77,11 +62,6 @@ azure_aks_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureKubernetesCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="region",
@@ -107,11 +87,6 @@ gcp_gke_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GKECluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="region",
@@ -137,11 +112,6 @@ kubernetes_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KubernetesCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 # region: Not available in KubernetesCluster node
                 OntologyFieldMapping(

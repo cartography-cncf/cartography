@@ -81,6 +81,10 @@ def test_sync_skips_only_event_source_mapping_cleanup_after_transient_subresourc
             }
         },
     )
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_image_uris",
+        return_value={},
+    )
     mocker.patch("cartography.intel.aws.lambda_function.load_lambda_functions")
     mocker.patch(
         "cartography.intel.aws.lambda_function.sync_aliases",
@@ -109,4 +113,30 @@ def test_sync_skips_only_event_source_mapping_cleanup_after_transient_subresourc
         event_source_mappings_cleanup_safe=False,
         layers_cleanup_safe=True,
         functions_cleanup_safe=True,
+    )
+
+
+def test_sync_skips_cleanup_after_transient_region_failure(mocker):
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_data",
+        side_effect=lambda_function.LambdaTransientRegionFailure("temporary failure"),
+    )
+    cleanup = mocker.patch("cartography.intel.aws.lambda_function.cleanup_lambda")
+
+    lambda_function.sync(
+        MagicMock(),
+        MagicMock(),
+        ["us-east-1"],
+        "123456789012",
+        1,
+        {},
+    )
+
+    cleanup.assert_called_once_with(
+        ANY,
+        {},
+        aliases_cleanup_safe=False,
+        event_source_mappings_cleanup_safe=False,
+        layers_cleanup_safe=False,
+        functions_cleanup_safe=False,
     )

@@ -549,7 +549,6 @@ def load_user_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(user_roles)} user roles")
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOUserMatchLink(),
@@ -567,7 +566,6 @@ def load_group_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(group_roles)} group roles")
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOGroupMatchLink(),

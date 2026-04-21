@@ -74,8 +74,6 @@ def load_foundation_models(
     """
     Load foundation models into the graph database.
     """
-    logger.info("Loading %d Bedrock foundation models for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockFoundationModelSchema(),

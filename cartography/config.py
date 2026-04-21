@@ -36,7 +36,7 @@ class Config:
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
-    See https://neo4j.com/docs/api/python-driver/4.4/api.html#database. Optional.
+    See https://neo4j.com/docs/api/python-driver/5.26/api.html#database. Optional.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
@@ -107,7 +107,7 @@ class Config:
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
-    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
+    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
@@ -188,6 +188,12 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type vercel_token: str
+    :param vercel_token: Vercel API token. Optional.
+    :type vercel_team_id: str
+    :param vercel_team_id: Vercel team ID to sync. Optional.
+    :type vercel_base_url: str
+    :param vercel_base_url: Vercel API base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -196,6 +202,8 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type socketdev_token: str
+    :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
     :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
     :type airbyte_client_secret: str
@@ -267,6 +275,10 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type workos_api_key: str
+    :param workos_api_key: WorkOS API key. Optional.
+    :type workos_client_id: str
+    :param workos_client_id: WorkOS client ID. Optional.
     :type sentry_token: str
     :param sentry_token: Sentry internal integration auth token. Optional.
     :type sentry_org: str
@@ -372,6 +384,9 @@ class Config:
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        vercel_token=None,
+        vercel_team_id=None,
+        vercel_base_url=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -415,6 +430,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        workos_api_key=None,
+        workos_client_id=None,
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
@@ -425,6 +442,7 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        socketdev_token=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -523,6 +541,9 @@ class Config:
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.vercel_token = vercel_token
+        self.vercel_team_id = vercel_team_id
+        self.vercel_base_url = vercel_base_url
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -566,6 +587,8 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.workos_api_key = workos_api_key
+        self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
@@ -576,3 +599,4 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.socketdev_token = socketdev_token

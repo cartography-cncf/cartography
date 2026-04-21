@@ -44,8 +44,7 @@ def test_cascade_cleanup_sub_rel():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        CALL {
-            WITH n
+        CALL (n) {
             OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child
@@ -78,8 +77,7 @@ def test_cascade_cleanup_with_selected_rel():
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        CALL {
-            WITH n
+        CALL (n) {
             OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child
@@ -111,8 +109,7 @@ def test_build_cleanup_queries_with_cascade():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        CALL {
-            WITH n
+        CALL (n) {
             OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child

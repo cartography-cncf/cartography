@@ -1,8 +1,11 @@
 import json
 import re
+from ast import literal_eval
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
+from typing import Tuple
 
 
 class ACLParser:
@@ -32,6 +35,25 @@ class ACLParser:
         r'("(?:(?=(\\?))\2.)*?")|(?:\/\*(?:(?!\*\/).)+\*\/)', flags=re.M | re.DOTALL
     )
     RE_TRAILING_COMMA = re.compile(r",(?=\s*?[\}\]])")
+    RE_NOT_IN = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+NOT\s+IN\s+(?P<value>\[.*\])$",
+        flags=re.IGNORECASE,
+    )
+    RE_IN = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IN\s+(?P<value>\[.*\])$",
+        flags=re.IGNORECASE,
+    )
+    RE_IS_SET = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+IS\s+SET$",
+        flags=re.IGNORECASE,
+    )
+    RE_NOT_SET = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s+NOT\s+SET$",
+        flags=re.IGNORECASE,
+    )
+    RE_BINARY = re.compile(
+        r"^(?P<attribute>[A-Za-z0-9:_-]+)\s*(?P<operator>==|!=|>=|<=|>|<)\s*(?P<value>.+)$",
+    )
 
     def __init__(self, raw_acl: str) -> None:
         # Tailscale ACL use comments and trailing commas
@@ -108,6 +130,128 @@ class ACLParser:
             )
         return result
 
+    def get_postures(
+        self,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Get logical postures and their atomic conditions from the ACL.
+
+        Returns:
+            A tuple ``(postures, conditions)`` where:
+            - ``postures`` contains one item per posture block
+            - ``conditions`` contains one item per posture assertion
+        """
+        postures: list[dict[str, Any]] = []
+        conditions: list[dict[str, Any]] = []
+
+        for posture_id, raw_conditions in self.data.get("postures", {}).items():
+            condition_ids: list[str] = []
+            descriptions: list[str] = []
+
+            for index, raw_condition in enumerate(raw_conditions):
+                parsed = self._parse_posture_condition(raw_condition)
+                if not parsed:
+                    continue
+
+                condition_id = f"{posture_id}:{index}"
+                condition_ids.append(condition_id)
+                descriptions.append(raw_condition)
+                conditions.append(
+                    {
+                        "id": condition_id,
+                        "posture_id": posture_id,
+                        "name": parsed["attribute"],
+                        "provider": parsed["provider"],
+                        "operator": parsed["operator"],
+                        "value": parsed["value"],
+                    },
+                )
+
+            postures.append(
+                {
+                    "id": posture_id,
+                    "name": posture_id.split(":", 1)[-1],
+                    "description": "; ".join(descriptions),
+                    "condition_ids": condition_ids,
+                },
+            )
+
+        return postures, conditions
+
+    @classmethod
+    def _parse_posture_condition(
+        cls,
+        raw_condition: str,
+    ) -> Optional[Dict[str, Any]]:
+        condition = raw_condition.strip()
+
+        not_in_match = cls.RE_NOT_IN.match(condition)
+        if not_in_match:
+            attribute = not_in_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": "NOT IN",
+                "value": _stringify_condition_value(
+                    _parse_condition_value(not_in_match.group("value")),
+                ),
+            }
+
+        in_match = cls.RE_IN.match(condition)
+        if in_match:
+            attribute = in_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": "IN",
+                "value": _stringify_condition_value(
+                    _parse_condition_value(in_match.group("value")),
+                ),
+            }
+
+        is_set_match = cls.RE_IS_SET.match(condition)
+        if is_set_match:
+            attribute = is_set_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": "IS SET",
+                "value": None,
+            }
+
+        not_set_match = cls.RE_NOT_SET.match(condition)
+        if not_set_match:
+            attribute = not_set_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": "NOT SET",
+                "value": None,
+            }
+
+        binary_match = cls.RE_BINARY.match(condition)
+        if binary_match:
+            attribute = binary_match.group("attribute")
+            return {
+                "attribute": attribute,
+                "provider": derive_provider(attribute),
+                "operator": binary_match.group("operator"),
+                "value": _stringify_condition_value(
+                    _parse_condition_value(binary_match.group("value")),
+                ),
+            }
+
+        # Tailscale posture booleans are sometimes expressed as a bare attribute.
+        if condition:
+            return {
+                "attribute": condition,
+                "provider": derive_provider(condition),
+                "operator": "==",
+                "value": "true",
+            }
+
+        return None
+
 
 def role_to_group(role: str) -> list[str]:
     """Convert Tailscale role to group
@@ -130,3 +274,51 @@ def role_to_group(role: str) -> list[str]:
     elif role in ("admin", "auditor", "billing-admin", "it-admin", "network-admin"):
         result.append("autogroup:member")
     return result
+
+
+def derive_provider(attribute: str) -> str:
+    provider_aliases = {
+        "sentinelone": "sentinelone",
+        "falcon": "falcon",
+        "kolide": "kolide",
+        "fleet": "fleet",
+        "huntress": "huntress",
+        "kandji": "kandji",
+        "jamfpro": "jamfpro",
+        "intune": "intune",
+        "node": "node",
+        "ip": "ip",
+    }
+    if ":" in attribute:
+        provider = attribute.split(":", 1)[0].lower()
+        return provider_aliases.get(provider, provider)
+    if "_" in attribute:
+        provider = attribute.split("_", 1)[0].lower()
+        return provider_aliases.get(provider, provider)
+    return "custom"
+
+
+def _parse_condition_value(raw_value: str) -> Any:
+    value = raw_value.strip()
+
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    if value.lower() == "null":
+        return None
+
+    try:
+        return literal_eval(value)
+    except (ValueError, SyntaxError):
+        return value.strip("'\"")
+
+
+def _stringify_condition_value(value: Any) -> Optional[str]:
+    if isinstance(value, bool):
+        return str(value).lower()
+    if value is None:
+        return None
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, sort_keys=True)
+    return str(value)

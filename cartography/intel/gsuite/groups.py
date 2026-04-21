@@ -146,8 +146,6 @@ def load_gsuite_groups(
     """
     Load GSuite groups using the modern data model
     """
-    logger.info("Ingesting %d gsuite groups", len(groups))
-
     # Load tenant first if it doesn't exist
     tenant_data = [{"id": customer_id}]
     load(

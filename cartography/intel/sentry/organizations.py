@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,8 +8,6 @@ from cartography.intel.sentry.util import call_sentry_api
 from cartography.intel.sentry.util import get_paginated_results
 from cartography.models.sentry.organization import SentryOrganizationSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -57,7 +54,6 @@ def load_organizations(
     data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d SentryOrganization(s) into Neo4j.", len(data))
     load(
         neo4j_session,
         SentryOrganizationSchema(),
