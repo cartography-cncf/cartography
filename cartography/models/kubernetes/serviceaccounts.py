@@ -17,6 +17,9 @@ class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     namespace: PropertyRef = PropertyRef("namespace")
+    automount_service_account_token: PropertyRef = PropertyRef(
+        "automount_service_account_token"
+    )
     aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")

@@ -1,4 +1,13 @@
 from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_1_super_admin_count_too_low,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_2_super_admin_count_too_high,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_3_super_admin_used_for_daily_admin,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
     cis_gw_4_1_1_1_admin_2sv_not_enforced,
 )
 from cartography.rules.data.rules.cis_google_workspace import (
@@ -11,6 +20,9 @@ from cartography.rules.spec.model import Module
 def test_rules_registered_and_metadata():
     """Verify all rules have correct metadata."""
     rules = [
+        cis_gw_1_1_1_super_admin_count_too_low,
+        cis_gw_1_1_2_super_admin_count_too_high,
+        cis_gw_1_1_3_super_admin_used_for_daily_admin,
         cis_gw_4_1_1_3_user_2sv_not_enforced,
         cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
@@ -27,24 +39,33 @@ def test_rules_registered_and_metadata():
 def test_rule_names_follow_cis_convention():
     """Verify rule names follow CIS naming convention."""
     rules = [
+        cis_gw_1_1_1_super_admin_count_too_low,
+        cis_gw_1_1_2_super_admin_count_too_high,
+        cis_gw_1_1_3_super_admin_used_for_daily_admin,
         cis_gw_4_1_1_3_user_2sv_not_enforced,
         cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
 
     for rule in rules:
-        assert rule.name.startswith(
-            "CIS Google Workspace"
-        ), f"Rule {rule.id} name should start with 'CIS Google Workspace'"
+        assert rule.name.startswith("CIS Google Workspace"), (
+            f"Rule {rule.id} name should start with 'CIS Google Workspace'"
+        )
 
 
 def test_facts_have_expected_structure():
     """Verify facts have required fields and valid queries."""
     expected_fact_ids = {
+        "gw_super_admin_count_too_low",
+        "gw_super_admin_count_too_high",
+        "gw_super_admin_with_delegated_admin_role",
         "gw_user_2sv_not_enforced",
         "gw_admin_2sv_not_enforced",
     }
 
     for rule in (
+        cis_gw_1_1_1_super_admin_count_too_low,
+        cis_gw_1_1_2_super_admin_count_too_high,
+        cis_gw_1_1_3_super_admin_used_for_daily_admin,
         cis_gw_4_1_1_3_user_2sv_not_enforced,
         cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ):
@@ -62,6 +83,9 @@ def test_facts_have_expected_structure():
 def test_output_models_are_distinct():
     """Verify each rule has its own output model (not shared)."""
     rules = [
+        cis_gw_1_1_1_super_admin_count_too_low,
+        cis_gw_1_1_2_super_admin_count_too_high,
+        cis_gw_1_1_3_super_admin_used_for_daily_admin,
         cis_gw_4_1_1_3_user_2sv_not_enforced,
         cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
@@ -69,3 +93,26 @@ def test_output_models_are_distinct():
     output_models = [rule.output_model for rule in rules]
     # All output models should be unique classes
     assert len(set(output_models)) == len(output_models)
+
+
+def test_admin_2sv_rule_includes_delegated_admins():
+    fact = cis_gw_4_1_1_1_admin_2sv_not_enforced.facts[0]
+
+    assert "u.is_delegated_admin" in fact.cypher_query
+    assert "u.is_delegated_admin" in fact.cypher_visual_query
+    assert "u.is_delegated_admin" in fact.cypher_count_query
+
+
+def test_super_admin_rules_use_is_admin_as_super_admin_signal():
+    low_fact = cis_gw_1_1_1_super_admin_count_too_low.facts[0]
+    high_fact = cis_gw_1_1_2_super_admin_count_too_high.facts[0]
+    dual_role_fact = cis_gw_1_1_3_super_admin_used_for_daily_admin.facts[0]
+
+    assert "coalesce(u.is_admin, false) = true" in low_fact.cypher_query
+    assert "super_admin_count <= 1" in low_fact.cypher_query
+
+    assert "coalesce(u.is_admin, false) = true" in high_fact.cypher_query
+    assert "super_admin_count > 4" in high_fact.cypher_query
+
+    assert "coalesce(u.is_admin, false) = true" in dual_role_fact.cypher_query
+    assert "coalesce(u.is_delegated_admin, false) = true" in dual_role_fact.cypher_query

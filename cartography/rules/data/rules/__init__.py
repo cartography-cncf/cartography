@@ -1,8 +1,81 @@
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_3_dnssec_enabled
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_4_dnssec_no_rsasha1_ksk
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_5_dnssec_no_rsasha1_zsk
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_8_vpc_flow_logs
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_1_default_service_account
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_4_2_default_service_account_full_api,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_4_3_block_project_wide_ssh_keys,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_4_oslogin_enabled
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_5_serial_ports_disabled
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_6_ip_forwarding
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_8_shielded_vm
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_11_confidential_compute
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_1_2_cloudsql_mysql_skip_show_database,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_1_3_cloudsql_mysql_local_infile,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_1_cloudsql_postgres_log_error_verbosity,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_2_cloudsql_postgres_log_connections,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_3_cloudsql_postgres_log_disconnections,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_5_cloudsql_postgres_log_min_messages,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_6_cloudsql_postgres_log_min_error_statement,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_7_cloudsql_postgres_log_min_duration_statement,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_2_8_cloudsql_postgres_enable_pgaudit,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_1_cloudsql_sqlserver_external_scripts,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_2_cloudsql_sqlserver_cross_db_ownership,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_3_cloudsql_sqlserver_user_connections,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_4_cloudsql_sqlserver_user_options,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_5_cloudsql_sqlserver_remote_access,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_6_cloudsql_sqlserver_trace_3625,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_3_7_cloudsql_sqlserver_contained_auth,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_6_4_cloudsql_ssl_required
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_6_5_cloudsql_authorized_networks,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_6_6_cloudsql_public_ip
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_6_7_cloudsql_backups
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_1_bigquery_dataset_public
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_2_bigquery_table_cmek
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_3_bigquery_dataset_cmek
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_12_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_13_multiple_access_keys
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_14_access_key_not_rotated
@@ -39,6 +112,15 @@ from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_5_s3_access
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_6_s3_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_2_1_rds_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_3_1_ebs_encryption
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_1_super_admin_count_too_low,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_2_super_admin_count_too_high,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_gw_1_1_3_super_admin_used_for_daily_admin,
+)
 from cartography.rules.data.rules.cis_google_workspace import (
     cis_gw_4_1_1_1_admin_2sv_not_enforced,
 )
@@ -78,6 +160,30 @@ from cartography.rules.data.rules.cis_kubernetes_rbac import (
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_13_sa_token_creation,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_1_6_sa_token_mounts,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_3_host_pid,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_4_host_ipc,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_5_host_network,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_6_allow_privilege_escalation,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_11_host_path_volumes,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_12_host_ports,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_6_2_runtime_default_seccomp,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_4_1_secrets_in_env_vars,
@@ -187,11 +293,49 @@ RULES = {
     nist_ai_provider_api_key_hygiene.id: nist_ai_provider_api_key_hygiene,
     # CIS GCP 4.0 Rules
     cis_gcp_3_1_default_network.id: cis_gcp_3_1_default_network,
+    cis_gcp_3_3_dnssec_enabled.id: cis_gcp_3_3_dnssec_enabled,
+    cis_gcp_3_4_dnssec_no_rsasha1_ksk.id: cis_gcp_3_4_dnssec_no_rsasha1_ksk,
+    cis_gcp_3_5_dnssec_no_rsasha1_zsk.id: cis_gcp_3_5_dnssec_no_rsasha1_zsk,
+    cis_gcp_3_8_vpc_flow_logs.id: cis_gcp_3_8_vpc_flow_logs,
     cis_gcp_3_6_unrestricted_ssh.id: cis_gcp_3_6_unrestricted_ssh,
     cis_gcp_3_7_unrestricted_rdp.id: cis_gcp_3_7_unrestricted_rdp,
+    cis_gcp_4_1_default_service_account.id: cis_gcp_4_1_default_service_account,
+    cis_gcp_4_2_default_service_account_full_api.id: cis_gcp_4_2_default_service_account_full_api,
+    cis_gcp_4_3_block_project_wide_ssh_keys.id: cis_gcp_4_3_block_project_wide_ssh_keys,
+    cis_gcp_4_4_oslogin_enabled.id: cis_gcp_4_4_oslogin_enabled,
+    cis_gcp_4_5_serial_ports_disabled.id: cis_gcp_4_5_serial_ports_disabled,
+    cis_gcp_4_6_ip_forwarding.id: cis_gcp_4_6_ip_forwarding,
+    cis_gcp_4_8_shielded_vm.id: cis_gcp_4_8_shielded_vm,
     cis_gcp_4_9_public_ip.id: cis_gcp_4_9_public_ip,
+    cis_gcp_4_11_confidential_compute.id: cis_gcp_4_11_confidential_compute,
     cis_gcp_5_2_bucket_uniform_access.id: cis_gcp_5_2_bucket_uniform_access,
+    cis_gcp_6_1_2_cloudsql_mysql_skip_show_database.id: cis_gcp_6_1_2_cloudsql_mysql_skip_show_database,
+    cis_gcp_6_1_3_cloudsql_mysql_local_infile.id: cis_gcp_6_1_3_cloudsql_mysql_local_infile,
+    cis_gcp_6_2_1_cloudsql_postgres_log_error_verbosity.id: cis_gcp_6_2_1_cloudsql_postgres_log_error_verbosity,
+    cis_gcp_6_2_2_cloudsql_postgres_log_connections.id: cis_gcp_6_2_2_cloudsql_postgres_log_connections,
+    cis_gcp_6_2_3_cloudsql_postgres_log_disconnections.id: cis_gcp_6_2_3_cloudsql_postgres_log_disconnections,
+    cis_gcp_6_2_5_cloudsql_postgres_log_min_messages.id: cis_gcp_6_2_5_cloudsql_postgres_log_min_messages,
+    cis_gcp_6_2_6_cloudsql_postgres_log_min_error_statement.id: cis_gcp_6_2_6_cloudsql_postgres_log_min_error_statement,
+    cis_gcp_6_2_7_cloudsql_postgres_log_min_duration_statement.id: cis_gcp_6_2_7_cloudsql_postgres_log_min_duration_statement,
+    cis_gcp_6_2_8_cloudsql_postgres_enable_pgaudit.id: cis_gcp_6_2_8_cloudsql_postgres_enable_pgaudit,
+    cis_gcp_6_3_1_cloudsql_sqlserver_external_scripts.id: cis_gcp_6_3_1_cloudsql_sqlserver_external_scripts,
+    cis_gcp_6_3_2_cloudsql_sqlserver_cross_db_ownership.id: cis_gcp_6_3_2_cloudsql_sqlserver_cross_db_ownership,
+    cis_gcp_6_3_3_cloudsql_sqlserver_user_connections.id: cis_gcp_6_3_3_cloudsql_sqlserver_user_connections,
+    cis_gcp_6_3_4_cloudsql_sqlserver_user_options.id: cis_gcp_6_3_4_cloudsql_sqlserver_user_options,
+    cis_gcp_6_3_5_cloudsql_sqlserver_remote_access.id: cis_gcp_6_3_5_cloudsql_sqlserver_remote_access,
+    cis_gcp_6_3_6_cloudsql_sqlserver_trace_3625.id: cis_gcp_6_3_6_cloudsql_sqlserver_trace_3625,
+    cis_gcp_6_3_7_cloudsql_sqlserver_contained_auth.id: cis_gcp_6_3_7_cloudsql_sqlserver_contained_auth,
+    cis_gcp_6_4_cloudsql_ssl_required.id: cis_gcp_6_4_cloudsql_ssl_required,
+    cis_gcp_6_5_cloudsql_authorized_networks.id: cis_gcp_6_5_cloudsql_authorized_networks,
+    cis_gcp_6_6_cloudsql_public_ip.id: cis_gcp_6_6_cloudsql_public_ip,
+    cis_gcp_6_7_cloudsql_backups.id: cis_gcp_6_7_cloudsql_backups,
+    cis_gcp_7_1_bigquery_dataset_public.id: cis_gcp_7_1_bigquery_dataset_public,
+    cis_gcp_7_2_bigquery_table_cmek.id: cis_gcp_7_2_bigquery_table_cmek,
+    cis_gcp_7_3_bigquery_dataset_cmek.id: cis_gcp_7_3_bigquery_dataset_cmek,
     # CIS Google Workspace Rules
+    cis_gw_1_1_1_super_admin_count_too_low.id: cis_gw_1_1_1_super_admin_count_too_low,
+    cis_gw_1_1_2_super_admin_count_too_high.id: cis_gw_1_1_2_super_admin_count_too_high,
+    cis_gw_1_1_3_super_admin_used_for_daily_admin.id: cis_gw_1_1_3_super_admin_used_for_daily_admin,
     cis_gw_4_1_1_3_user_2sv_not_enforced.id: cis_gw_4_1_1_3_user_2sv_not_enforced,
     cis_gw_4_1_1_1_admin_2sv_not_enforced.id: cis_gw_4_1_1_1_admin_2sv_not_enforced,
     # CIS Kubernetes Benchmark v1.12 Rules
@@ -207,6 +351,14 @@ RULES = {
     cis_k8s_5_1_11_csr_approval_access.id: cis_k8s_5_1_11_csr_approval_access,
     cis_k8s_5_1_12_webhook_config_access.id: cis_k8s_5_1_12_webhook_config_access,
     cis_k8s_5_1_13_sa_token_creation.id: cis_k8s_5_1_13_sa_token_creation,
+    cis_k8s_5_1_6_sa_token_mounts.id: cis_k8s_5_1_6_sa_token_mounts,
+    cis_k8s_5_2_3_host_pid.id: cis_k8s_5_2_3_host_pid,
+    cis_k8s_5_2_4_host_ipc.id: cis_k8s_5_2_4_host_ipc,
+    cis_k8s_5_2_5_host_network.id: cis_k8s_5_2_5_host_network,
+    cis_k8s_5_2_6_allow_privilege_escalation.id: cis_k8s_5_2_6_allow_privilege_escalation,
+    cis_k8s_5_2_11_host_path_volumes.id: cis_k8s_5_2_11_host_path_volumes,
+    cis_k8s_5_2_12_host_ports.id: cis_k8s_5_2_12_host_ports,
+    cis_k8s_5_6_2_runtime_default_seccomp.id: cis_k8s_5_6_2_runtime_default_seccomp,
     cis_k8s_5_4_1_secrets_in_env_vars.id: cis_k8s_5_4_1_secrets_in_env_vars,
     cis_k8s_5_6_4_default_namespace.id: cis_k8s_5_6_4_default_namespace,
 }
