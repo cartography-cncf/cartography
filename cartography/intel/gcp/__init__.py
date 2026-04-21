@@ -198,12 +198,6 @@ def _sync_project_resources(
     # the serviceusage.serviceUsageConsumer permission.
     cai_rest_client: Optional[Resource] = None  # REST client for asset listing
     cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
-    cai_enabled_on_first_project: Optional[bool] = (
-        None  # Cached check for CAI enablement
-    )
-    policy_bindings_permission_ok: Optional[bool] = (
-        None  # Track if we have permission for policy bindings
-    )
     serviceusage_client = _get_cached_client(
         client_cache,
         "serviceusage",
@@ -493,28 +487,18 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-        # Policy bindings sync uses CAI gRPC client.
-        # We attempt policy bindings for all projects unless we've already encountered a permission error.
-        # CAI uses the service account's host project for quota by default.
-        if policy_bindings_permission_ok is not False and (
-            requested_syncs is None or "policy_bindings" in requested_syncs
-        ):
-            # Check if CAI is enabled (cached after first check on first project)
-            if cai_enabled_on_first_project is None:
-                cai_enabled_on_first_project = service_names.cai in project_services
-                if cai_enabled_on_first_project:
-                    logger.info(
-                        "CAI enabled, will sync policy bindings for all projects.",
-                    )
-                else:
-                    logger.info(
-                        "CAI not enabled on project %s, skipping policy bindings sync. "
-                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
-                        project_id,
-                    )
-
-            if cai_enabled_on_first_project:
-                # Lazily initialize CAI gRPC client for policy bindings.
+        # Policy bindings sync uses the CAI gRPC client.
+        # CAI enablement is project-specific, so evaluate it for each project
+        # instead of caching the first project's state across the whole worker.
+        if requested_syncs is None or "policy_bindings" in requested_syncs:
+            if service_names.cai not in project_services:
+                logger.info(
+                    "CAI not enabled on project %s, skipping policy bindings sync. "
+                    "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
+                    project_id,
+                )
+            else:
+                # Lazily initialize the CAI gRPC client and reuse it across projects.
                 if cai_grpc_client is None:
                     cai_grpc_client = cast(
                         AssetServiceClient,
@@ -528,17 +512,13 @@ def _sync_project_resources(
                     "Syncing IAM policies for GCP project %s.",
                     project_id,
                 )
-                success = policy_bindings.sync(
+                policy_bindings.sync(
                     neo4j_session,
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
                     cai_grpc_client,
                 )
-                # Track if we have permission. Once set to False (permission denied),
-                # the outer condition will skip policy_bindings for remaining projects.
-                if not success:
-                    policy_bindings_permission_ok = False
 
         if requested_syncs is None or "permission_relationships" in requested_syncs:
             permission_relationships.sync(
