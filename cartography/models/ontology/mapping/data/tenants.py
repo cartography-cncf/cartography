@@ -383,6 +383,24 @@ workos_tenants_mapping = OntologyMapping(
 
 # SubImage: No field to map in SubImageTenant (minimal properties beyond id)
 
+# Vercel
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -403,4 +421,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "workos": workos_tenants_mapping,
+    "vercel": vercel_mapping,
 }

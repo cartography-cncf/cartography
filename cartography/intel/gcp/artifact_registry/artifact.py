@@ -212,33 +212,40 @@ def get_go_modules(client: Resource, repository_name: str) -> list[dict]:
     """
     Gets Go modules for a repository.
 
+    The Artifact Registry v1 API does not expose a ``goModules.list`` method;
+    Go modules are enumerated via the generic ``packages``/``versions`` endpoints.
+
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Go module dicts from the API.
+    :return: List of Go module version dicts, each enriched with ``packageName``.
     """
-    modules: list[dict] = []
+    artifacts: list[dict] = []
     try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .goModules()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            modules.extend(response.get("goModules", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .goModules()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
+        packages_resource = client.projects().locations().repositories().packages()
+        packages_request = packages_resource.list(parent=repository_name)
+        while packages_request is not None:
+            packages_response = gcp_api_execute_with_retry(packages_request)
+            for package in packages_response.get("packages", []):
+                package_name = (
+                    package.get("displayName")
+                    or package.get("name", "").split("/packages/")[-1]
                 )
+                versions_resource = packages_resource.versions()
+                versions_request = versions_resource.list(parent=package.get("name"))
+                while versions_request is not None:
+                    versions_response = gcp_api_execute_with_retry(versions_request)
+                    for version in versions_response.get("versions", []):
+                        version["packageName"] = package_name
+                        artifacts.append(version)
+                    versions_request = versions_resource.list_next(
+                        previous_request=versions_request,
+                        previous_response=versions_response,
+                    )
+            packages_request = packages_resource.list_next(
+                previous_request=packages_request,
+                previous_response=packages_response,
             )
-        return modules
+        return artifacts
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
             f"Failed to get Go modules for repository {repository_name} "
@@ -512,11 +519,15 @@ def transform_go_modules(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Go modules to the GCPArtifactRegistryLanguagePackage node format.
+    Transforms Go module versions to the GCPArtifactRegistryLanguagePackage node format.
+
+    Each input entry is a version resource (from ``packages.versions.list``)
+    enriched with a ``packageName`` field identifying the parent module.
     """
     transformed: list[dict] = []
     for module in modules_data:
         name = module.get("name", "")
+        version = name.split("/versions/")[-1] if "/versions/" in name else None
 
         transformed.append(
             {
@@ -524,8 +535,8 @@ def transform_go_modules(
                 "name": name.split("/")[-1] if name else None,
                 "format": "GO",
                 "uri": None,
-                "version": module.get("version"),
-                "package_name": None,
+                "version": version,
+                "package_name": module.get("packageName"),
                 "create_time": module.get("createTime"),
                 "update_time": module.get("updateTime"),
                 "repository_id": repository_id,

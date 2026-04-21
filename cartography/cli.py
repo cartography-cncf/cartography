@@ -66,6 +66,7 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_VERCEL = "Vercel Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -115,6 +116,7 @@ MODULE_PANELS = {
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
+    "vercel": PANEL_VERCEL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1702,6 +1704,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Vercel Options
+            # =================================================================
+            vercel_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-token-env-var",
+                    help="Environment variable name containing Vercel API token.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_team_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-team-id",
+                    help="Vercel team ID to sync.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--vercel-base-url",
+                    help="Vercel API base URL.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = "https://api.vercel.com",
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -2066,6 +2098,15 @@ class CLI:
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
 
+            # Read Vercel token
+            vercel_token = None
+            if vercel_token_env_var:
+                logger.debug(
+                    "Reading Vercel API token from environment variable %s",
+                    vercel_token_env_var,
+                )
+                vercel_token = os.environ.get(vercel_token_env_var)
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -2350,6 +2391,9 @@ class CLI:
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                vercel_token=vercel_token,
+                vercel_team_id=vercel_team_id,
+                vercel_base_url=vercel_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
