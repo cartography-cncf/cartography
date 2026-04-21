@@ -49,7 +49,7 @@ def _is_retryable_apigatewayv2_error(error: ClientError) -> bool:
         or status_code in _RETRYABLE_HTTP_STATUS_CODES
         or (
             error_code == "AuthorizerConfigurationException"
-            and "internal server error" in error_message.lower()
+            and "internal server error" in str(error_message).lower()
         )
     )
 
