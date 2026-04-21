@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Any
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -7,9 +8,13 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
+from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image import parse_image_uri
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.models.gcp.cloudrun.container import GCPCloudRunContainerSchema
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
 from cartography.util import timeit
 
@@ -60,14 +65,12 @@ def get_services(
 
 def transform_services(services_data: list[dict], project_id: str) -> list[dict]:
     """
-    Transforms the list of Cloud Run Service dicts for ingestion.
+    Transforms the list of Cloud Run Service dicts into service-level records.
     """
     transformed: list[dict] = []
     for service in services_data:
-        # Full resource name: projects/{project}/locations/{location}/services/{service}
         full_name = service.get("name", "")
 
-        # Extract location and short name from the full resource name
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/services/([^/]+)",
             full_name,
@@ -75,10 +78,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(2) if name_match else None
 
-        # Get latest ready revision - the v2 API returns the full resource name
         latest_ready_revision = service.get("latestReadyRevision")
-
-        # Get service account email from template.serviceAccount (v2 API)
         service_account_email = service.get("template", {}).get("serviceAccount")
 
         transformed.append(
@@ -98,6 +98,39 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
     return transformed
 
 
+def transform_containers(services_data: list[dict], project_id: str) -> list[dict]:
+    """
+    Flattens service.template.containers[] into one record per individual container.
+    The Cloud Run v2 API returns the latestReadyRevision's spec inline as service.template,
+    so this captures the current canonical container set per service.
+    """
+    transformed: list[dict[str, Any]] = []
+    for service in services_data:
+        service_id = service.get("name", "")
+        template = service.get("template") or {}
+        containers = template.get("containers", []) or []
+
+        for index, container in enumerate(containers):
+            image, image_digest = parse_image_uri(container.get("image"))
+            container_name = container.get("name") or str(index)
+            transformed.append(
+                {
+                    "id": f"{service_id}/containers/{container_name}",
+                    "name": container_name,
+                    "job_id": None,
+                    "service_id": service_id,
+                    "image": image,
+                    "image_digest": image_digest,
+                    # Cloud Run only supports amd64; ARM is not supported.
+                    "architecture": "amd64",
+                    "architecture_normalized": normalize_architecture("amd64"),
+                    "architecture_source": ARCH_SOURCE_PLATFORM_REQUIREMENT,
+                    "project_id": project_id,
+                },
+            )
+    return transformed
+
+
 @timeit
 def load_services(
     neo4j_session: neo4j.Session,
@@ -105,12 +138,25 @@ def load_services(
     project_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Loads GCPCloudRunService nodes and their relationships.
-    """
     load(
         neo4j_session,
         GCPCloudRunServiceSchema(),
+        data,
+        lastupdated=update_tag,
+        project_id=project_id,
+    )
+
+
+@timeit
+def load_containers(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        GCPCloudRunContainerSchema(),
         data,
         lastupdated=update_tag,
         project_id=project_id,
@@ -122,9 +168,6 @@ def cleanup_services(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    """
-    Cleans up stale Cloud Run services.
-    """
     GraphJob.from_node_schema(GCPCloudRunServiceSchema(), common_job_parameters).run(
         neo4j_session,
     )
@@ -144,14 +187,16 @@ def sync_services(
     logger.info(f"Syncing Cloud Run Services for project {project_id}.")
     services_raw = get_services(client, project_id)
 
-    # Only load and cleanup if we successfully retrieved data (even if empty list).
-    # If get() returned None due to API not enabled, skip both to preserve existing data.
     if services_raw is not None:
         if not services_raw:
             logger.info(f"No Cloud Run services found for project {project_id}.")
 
         services = transform_services(services_raw, project_id)
         load_services(neo4j_session, services, project_id, update_tag)
+
+        containers = transform_containers(services_raw, project_id)
+        load_containers(neo4j_session, containers, project_id, update_tag)
+
         sync_labels(
             neo4j_session,
             services,

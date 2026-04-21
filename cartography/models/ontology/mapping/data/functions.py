@@ -65,23 +65,6 @@ gcp_mapping = OntologyMapping(
                 # timeout: not available in GCPCloudFunction
             ],
         ),
-        OntologyNodeMapping(
-            node_label="GCPCloudRunService",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "container"},
-                ),
-                # runtime: not applicable for container-based functions
-                # memory: not available in GCPCloudRunService
-                # timeout: not available in GCPCloudRunService
-            ],
-        ),
     ],
 )
 

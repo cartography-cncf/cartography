@@ -11,7 +11,7 @@ import cartography.intel.gcp.cloudrun.service as cloudrun_service
 from cartography.util import run_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
-from tests.data.gcp.cloudrun import MOCK_SERVICES
+from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
 from tests.data.gcp.cloudrun import TEST_JOB_PRIMARY_DIGEST
 from tests.data.gcp.cloudrun import TEST_REVISION_PRIMARY_DIGEST
 from tests.integration.util import check_rels
@@ -68,12 +68,10 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     neo4j_session,
 ):
     """Run Cloud Run service, revision and job through the real load path,
-    then verify RESOLVED_IMAGE is created where each ontology label lives:
-    Service via HAS_REVISION traversal onto :Function; Job's individual
-    containers onto :Container directly via their HAS_IMAGE.
-
-    Revision has no ontology label of its own and must not carry RESOLVED_IMAGE.
-    Job no longer carries :Function and must not carry RESOLVED_IMAGE either.
+    then verify RESOLVED_IMAGE is created on the per-container :Container nodes
+    for both Service and Job. Service and Job carry no ontology label of their
+    own, and Revision is a pure versioning marker — none of them get
+    RESOLVED_IMAGE.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
@@ -113,7 +111,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
 
     # Act: sync Cloud Run through the real load path
-    mock_get_services.return_value = MOCK_SERVICES["services"]
+    mock_get_services.return_value = MOCK_SERVICE_WITH_DIGEST
     mock_get_revisions.return_value = MOCK_REVISION_WITH_DIGEST
     mock_get_jobs.return_value = MOCK_JOB_WITH_DIGEST
     common_job_parameters = {
@@ -151,19 +149,21 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: RESOLVED_IMAGE on :Function only for the Service (via HAS_REVISION traversal).
-    assert check_rels(
-        neo4j_session,
-        "Function",
-        "id",
-        "Image",
-        "id",
-        "RESOLVED_IMAGE",
-    ) == {
-        (TEST_SERVICE_ID, TEST_REVISION_PRIMARY_DIGEST),
-    }
+    # Assert: no :Function RESOLVED_IMAGE — Service no longer carries :Function.
+    assert (
+        check_rels(
+            neo4j_session,
+            "Function",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
 
-    # Assert: RESOLVED_IMAGE on :Container for the Job's individual container.
+    # Assert: RESOLVED_IMAGE on :Container for both the Service-side and Job-side individual containers.
+    service_primary_container_id = f"{TEST_SERVICE_ID}/containers/0"
     job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
     assert check_rels(
         neo4j_session,
@@ -173,10 +173,11 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         "id",
         "RESOLVED_IMAGE",
     ) == {
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
         (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
     }
 
-    # Assert: Revision has no RESOLVED_IMAGE (it is not an ontology node).
+    # Assert: Revision has no RESOLVED_IMAGE (pure versioning marker).
     assert (
         check_rels(
             neo4j_session,
@@ -189,7 +190,20 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         == set()
     )
 
-    # Assert: Job has no RESOLVED_IMAGE (it is now a pure grouping node).
+    # Assert: Service has no RESOLVED_IMAGE (orchestrator, no ontology label).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunService",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+    # Assert: Job has no RESOLVED_IMAGE (orchestrator, no ontology label).
     assert (
         check_rels(
             neo4j_session,

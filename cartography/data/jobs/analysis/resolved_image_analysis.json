@@ -32,16 +32,6 @@
       "__comment": "Create RESOLVED_IMAGE on :Function whose direct HAS_IMAGE points at an ImageManifestList. Architecture-match via the Function's own architecture_normalized with a single-candidate determinism guard.",
       "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
-    },
-    {
-      "__comment": "Create RESOLVED_IMAGE on :Function (GCPCloudRunService) by traversing HAS_REVISION->GCPCloudRunRevision-HAS_IMAGE->Image. GCPCloudRunRevision has no ontology label of its own (internal versioning artifact); the resolved image is attached to the user-visible Service instead.",
-      "query": "MATCH (f:Function)-[:HAS_REVISION]->(:GCPCloudRunRevision)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList MERGE (f)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-      "iterative": false
-    },
-    {
-      "__comment": "Create RESOLVED_IMAGE on :Function (GCPCloudRunService) when the traversed revision points at an ImageManifestList. Architecture-match via the Revision's architecture_normalized; grouping by (Service, Revision) preserves multiple RESOLVED_IMAGE edges when a Service splits traffic across revisions, while per-revision determinism requires exactly one arch-matching child image.",
-      "query": "MATCH (f:Function)-[:HAS_REVISION]->(r:GCPCloudRunRevision)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE r.architecture_normalized IS NOT NULL AND i._ont_architecture = r.architecture_normalized WITH f, r, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[rel:RESOLVED_IMAGE]->(img) ON CREATE SET rel.firstseen = timestamp() SET rel.lastupdated = $UPDATE_TAG",
-      "iterative": false
     }
   ]
 }

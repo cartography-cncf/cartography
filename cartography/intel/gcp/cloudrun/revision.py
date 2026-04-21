@@ -7,9 +7,6 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
-from cartography.intel.container_arch import normalize_architecture
-from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudrun.revision import GCPCloudRunRevisionSchema
@@ -34,8 +31,6 @@ def get_revisions(
     """
     try:
         revisions: list[dict] = []
-        # First, get all services so we can iterate through them to get revisions
-        # The v2 API doesn't support double wildcards for location and service
         services_parent = f"projects/{project_id}/locations/{location}"
         services_request = (
             client.projects().locations().services().list(parent=services_parent)
@@ -45,7 +40,6 @@ def get_revisions(
             services_response = gcp_api_execute_with_retry(services_request)
             services = services_response.get("services", [])
 
-            # For each service, get its revisions
             for service in services:
                 service_name = service.get("name", "")
                 revisions_request = (
@@ -94,14 +88,14 @@ def get_revisions(
 
 def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dict]:
     """
-    Transforms the list of Cloud Run Revision dicts for ingestion.
+    Transforms the list of Cloud Run Revision dicts into revision-level records.
+    Revisions are pure versioning markers; per-container image data lives on the
+    parent Service's GCPCloudRunContainer children (latestReadyRevision).
     """
     transformed: list[dict] = []
     for revision in revisions_data:
-        # Full resource name: projects/{project}/locations/{location}/services/{service}/revisions/{revision}
         full_name = revision.get("name", "")
 
-        # Extract location and short name from the full resource name
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/services/([^/]+)/revisions/([^/]+)",
             full_name,
@@ -109,38 +103,18 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(3) if name_match else None
 
-        # Get service short name from the v2 API response (it's just the short name, not full path)
         service_short_name = revision.get("service")
-
-        # Construct the full service resource name for the relationship
         service_full_name = None
         if location and service_short_name:
             service_full_name = f"projects/{project_id}/locations/{location}/services/{service_short_name}"
-
-        containers = revision.get("containers", [])
-        image_metadata = extract_container_image_metadata(containers)
-
-        # Get service account email (v2 API has serviceAccount at top level)
-        service_account_email = revision.get("serviceAccount")
-
-        # Get log URI directly from API response
-        log_uri = revision.get("logUri")
 
         transformed.append(
             {
                 "id": full_name,
                 "name": short_name,
                 "service": service_full_name,
-                "container_image": image_metadata["container_image"],
-                "container_images": image_metadata["container_images"],
-                "image_digest": image_metadata["image_digest"],
-                "image_digests": image_metadata["image_digests"],
-                # Cloud Run only supports x86_64 (amd64); ARM workloads are not supported
-                "architecture": "amd64",
-                "architecture_normalized": normalize_architecture("amd64"),
-                "architecture_source": ARCH_SOURCE_PLATFORM_REQUIREMENT,
-                "service_account_email": service_account_email,
-                "log_uri": log_uri,
+                "service_account_email": revision.get("serviceAccount"),
+                "log_uri": revision.get("logUri"),
                 "project_id": project_id,
             },
         )
@@ -154,9 +128,6 @@ def load_revisions(
     project_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Loads GCPCloudRunRevision nodes and their relationships.
-    """
     load(
         neo4j_session,
         GCPCloudRunRevisionSchema(),
@@ -171,9 +142,6 @@ def cleanup_revisions(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    """
-    Cleans up stale Cloud Run revisions.
-    """
     GraphJob.from_node_schema(GCPCloudRunRevisionSchema(), common_job_parameters).run(
         neo4j_session,
     )

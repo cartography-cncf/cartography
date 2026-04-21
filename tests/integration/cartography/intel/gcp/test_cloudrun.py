@@ -10,6 +10,7 @@ from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_JOBS
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISIONS
+from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_SERVICES
 from tests.data.gcp.cloudrun import TEST_JOB_PRIMARY_DIGEST
 from tests.data.gcp.cloudrun import TEST_JOB_SIDECAR_DIGEST
@@ -224,37 +225,6 @@ def _create_image_registry_nodes(neo4j_session):
     )
 
 
-def _get_cloud_run_node_image_metadata(
-    neo4j_session,
-    node_label: str,
-    node_id: str,
-):
-    result = neo4j_session.run(
-        f"""
-        MATCH (n:{node_label} {{id: $node_id}})
-        RETURN
-            n.container_image AS container_image,
-            n.container_images AS container_images,
-            n.image_digest AS image_digest,
-            n.image_digests AS image_digests,
-            n.architecture AS architecture,
-            n.architecture_normalized AS architecture_normalized,
-            n.architecture_source AS architecture_source
-        """,
-        node_id=node_id,
-    ).single()
-    assert result is not None
-    return {
-        "container_image": result["container_image"],
-        "container_images": result["container_images"],
-        "image_digest": result["image_digest"],
-        "image_digests": result["image_digests"],
-        "architecture": result["architecture"],
-        "architecture_normalized": result["architecture_normalized"],
-        "architecture_source": result["architecture_source"],
-    }
-
-
 @patch("cartography.intel.gcp.cloudrun.execution.get_executions")
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
@@ -432,13 +402,16 @@ def test_sync_cloudrun(
 
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
+@patch("cartography.intel.gcp.cloudrun.service.get_services")
 def test_cloud_run_image_prerequisites(
+    mock_get_services,
     mock_get_revisions,
     mock_get_jobs,
     neo4j_session,
 ):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
+    mock_get_services.return_value = MOCK_SERVICE_WITH_DIGEST
     mock_get_revisions.return_value = MOCK_REVISION_WITH_DIGEST
     mock_get_jobs.return_value = MOCK_JOB_WITH_DIGEST
 
@@ -451,6 +424,13 @@ def test_cloud_run_image_prerequisites(
     }
     mock_client = MagicMock()
 
+    cloudrun_service.sync_services(
+        neo4j_session,
+        mock_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
     cloudrun_revision.sync_revisions(
         neo4j_session,
         mock_client,
@@ -466,31 +446,44 @@ def test_cloud_run_image_prerequisites(
         common_job_parameters,
     )
 
-    assert _get_cloud_run_node_image_metadata(
-        neo4j_session,
-        "GCPCloudRunRevision",
-        TEST_REVISION_ID,
-    ) == {
-        "container_image": TEST_REVISION_PRIMARY_IMAGE,
-        "container_images": [TEST_REVISION_PRIMARY_IMAGE, TEST_REVISION_SIDECAR_IMAGE],
-        "image_digest": TEST_REVISION_PRIMARY_DIGEST,
-        "image_digests": [TEST_REVISION_PRIMARY_DIGEST, TEST_REVISION_SIDECAR_DIGEST],
-        "architecture": "amd64",
-        "architecture_normalized": "amd64",
-        "architecture_source": "platform_requirement",
-    }
-
-    # Job is now a pure grouping node: image/architecture live on the child GCPCloudRunContainer.
+    # Container nodes from Service (latestReadyRevision spec) and Job (task template).
+    service_primary_container_id = f"{TEST_SERVICE_ID}/containers/0"
+    service_sidecar_container_id = f"{TEST_SERVICE_ID}/containers/1"
     job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
     job_sidecar_container_id = f"{TEST_JOB_ID}/containers/1"
+
     assert check_nodes(
         neo4j_session,
         "GCPCloudRunContainer",
         ["id", "image", "image_digest"],
     ) == {
+        (
+            service_primary_container_id,
+            TEST_REVISION_PRIMARY_IMAGE,
+            TEST_REVISION_PRIMARY_DIGEST,
+        ),
+        (
+            service_sidecar_container_id,
+            TEST_REVISION_SIDECAR_IMAGE,
+            TEST_REVISION_SIDECAR_DIGEST,
+        ),
         (job_primary_container_id, TEST_JOB_PRIMARY_IMAGE, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_IMAGE, TEST_JOB_SIDECAR_DIGEST),
     }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunService",
+        "id",
+        "GCPCloudRunContainer",
+        "id",
+        "CONTAINS",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SERVICE_ID, service_primary_container_id),
+        (TEST_SERVICE_ID, service_sidecar_container_id),
+    }
+
     assert check_rels(
         neo4j_session,
         "GCPCloudRunJob",
@@ -504,17 +497,18 @@ def test_cloud_run_image_prerequisites(
         (TEST_JOB_ID, job_sidecar_container_id),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "GCPCloudRunRevision",
-        "id",
-        "ECRImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {
-        (TEST_REVISION_ID, TEST_REVISION_PRIMARY_DIGEST),
-        (TEST_REVISION_ID, TEST_REVISION_SIDECAR_DIGEST),
-    }
+    # Revision is now a pure versioning marker; no HAS_IMAGE on it.
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunRevision",
+            "id",
+            "ECRImage",
+            "digest",
+            "HAS_IMAGE",
+        )
+        == set()
+    )
 
     assert check_rels(
         neo4j_session,
@@ -524,20 +518,10 @@ def test_cloud_run_image_prerequisites(
         "digest",
         "HAS_IMAGE",
     ) == {
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
+        (service_sidecar_container_id, TEST_REVISION_SIDECAR_DIGEST),
         (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "GCPCloudRunRevision",
-        "id",
-        "GitLabContainerImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {
-        (TEST_REVISION_ID, TEST_REVISION_PRIMARY_DIGEST),
-        (TEST_REVISION_ID, TEST_REVISION_SIDECAR_DIGEST),
     }
 
     assert check_rels(
@@ -548,20 +532,10 @@ def test_cloud_run_image_prerequisites(
         "digest",
         "HAS_IMAGE",
     ) == {
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
+        (service_sidecar_container_id, TEST_REVISION_SIDECAR_DIGEST),
         (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "GCPCloudRunRevision",
-        "id",
-        "GCPArtifactRegistryContainerImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {
-        (TEST_REVISION_ID, TEST_REVISION_PRIMARY_DIGEST),
-        (TEST_REVISION_ID, TEST_REVISION_SIDECAR_DIGEST),
     }
 
     assert check_rels(
@@ -572,6 +546,8 @@ def test_cloud_run_image_prerequisites(
         "digest",
         "HAS_IMAGE",
     ) == {
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
+        (service_sidecar_container_id, TEST_REVISION_SIDECAR_DIGEST),
         (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
     }
@@ -590,15 +566,3 @@ def test_cloud_run_image_prerequisites(
             TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
         ),
     }
-
-    assert (
-        check_rels(
-            neo4j_session,
-            "GCPCloudRunRevision",
-            "id",
-            "GCPArtifactRegistryPlatformImage",
-            "digest",
-            "HAS_IMAGE",
-        )
-        == set()
-    )

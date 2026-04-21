@@ -17,6 +17,7 @@ class GCPCloudRunContainerProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     job_id: PropertyRef = PropertyRef("job_id")
+    service_id: PropertyRef = PropertyRef("service_id")
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("image_digest")
     architecture: PropertyRef = PropertyRef("architecture")
@@ -59,6 +60,24 @@ class CloudRunJobToContainerRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: CloudRunJobToContainerRelProperties = (
         CloudRunJobToContainerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunServiceToContainerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudRunServiceToContainerRel(CartographyRelSchema):
+    target_node_label: str = "GCPCloudRunService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("service_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: CloudRunServiceToContainerRelProperties = (
+        CloudRunServiceToContainerRelProperties()
     )
 
 
@@ -149,6 +168,7 @@ class GCPCloudRunContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunJobToContainerRel(),
+            CloudRunServiceToContainerRel(),
             CloudRunContainerToECRImageRel(),
             CloudRunContainerToGitLabContainerImageRel(),
             CloudRunContainerToArtifactRegistryContainerImageRel(),

@@ -15,6 +15,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image import parse_image_uri
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.labels import sync_labels
 from cartography.models.gcp.cloudrun.container import GCPCloudRunContainerSchema
@@ -76,13 +77,6 @@ def get_jobs(
         raise
 
 
-def _extract_image_digest(image: str | None) -> str | None:
-    if not image or "@" not in image:
-        return None
-    _, digest = image.rsplit("@", 1)
-    return digest or None
-
-
 def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of Cloud Run Job dicts into job-level records (one per Job).
@@ -125,15 +119,16 @@ def transform_containers(jobs_data: list[dict], project_id: str) -> list[dict]:
         containers = task_template.get("containers", []) or []
 
         for index, container in enumerate(containers):
-            image = container.get("image")
+            image, image_digest = parse_image_uri(container.get("image"))
             container_name = container.get("name") or str(index)
             transformed.append(
                 {
                     "id": f"{job_id}/containers/{container_name}",
                     "name": container_name,
                     "job_id": job_id,
+                    "service_id": None,
                     "image": image,
-                    "image_digest": _extract_image_digest(image),
+                    "image_digest": image_digest,
                     # Cloud Run only supports amd64; ARM is not supported.
                     "architecture": "amd64",
                     "architecture_normalized": normalize_architecture("amd64"),
