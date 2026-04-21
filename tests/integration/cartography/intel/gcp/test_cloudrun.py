@@ -480,18 +480,28 @@ def test_cloud_run_image_prerequisites(
         "architecture_source": "platform_requirement",
     }
 
-    assert _get_cloud_run_node_image_metadata(
+    # Job is now a pure grouping node: image/architecture live on the child GCPCloudRunContainer.
+    job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
+    job_sidecar_container_id = f"{TEST_JOB_ID}/containers/1"
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudRunContainer",
+        ["id", "image", "image_digest"],
+    ) == {
+        (job_primary_container_id, TEST_JOB_PRIMARY_IMAGE, TEST_JOB_PRIMARY_DIGEST),
+        (job_sidecar_container_id, TEST_JOB_SIDECAR_IMAGE, TEST_JOB_SIDECAR_DIGEST),
+    }
+    assert check_rels(
         neo4j_session,
         "GCPCloudRunJob",
-        TEST_JOB_ID,
+        "id",
+        "GCPCloudRunContainer",
+        "id",
+        "CONTAINS",
+        rel_direction_right=True,
     ) == {
-        "container_image": TEST_JOB_PRIMARY_IMAGE,
-        "container_images": [TEST_JOB_PRIMARY_IMAGE, TEST_JOB_SIDECAR_IMAGE],
-        "image_digest": TEST_JOB_PRIMARY_DIGEST,
-        "image_digests": [TEST_JOB_PRIMARY_DIGEST, TEST_JOB_SIDECAR_DIGEST],
-        "architecture": "amd64",
-        "architecture_normalized": "amd64",
-        "architecture_source": "platform_requirement",
+        (TEST_JOB_ID, job_primary_container_id),
+        (TEST_JOB_ID, job_sidecar_container_id),
     }
 
     assert check_rels(
@@ -508,14 +518,14 @@ def test_cloud_run_image_prerequisites(
 
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunJob",
+        "GCPCloudRunContainer",
         "id",
         "ECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {
-        (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
-        (TEST_JOB_ID, TEST_JOB_SIDECAR_DIGEST),
+        (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
+        (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
     }
 
     assert check_rels(
@@ -532,14 +542,14 @@ def test_cloud_run_image_prerequisites(
 
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunJob",
+        "GCPCloudRunContainer",
         "id",
         "GitLabContainerImage",
         "digest",
         "HAS_IMAGE",
     ) == {
-        (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
-        (TEST_JOB_ID, TEST_JOB_SIDECAR_DIGEST),
+        (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
+        (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
     }
 
     assert check_rels(
@@ -556,14 +566,14 @@ def test_cloud_run_image_prerequisites(
 
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunJob",
+        "GCPCloudRunContainer",
         "id",
         "GCPArtifactRegistryContainerImage",
         "digest",
         "HAS_IMAGE",
     ) == {
-        (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
-        (TEST_JOB_ID, TEST_JOB_SIDECAR_DIGEST),
+        (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
+        (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
     }
 
     assert check_nodes(

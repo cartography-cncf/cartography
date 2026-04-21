@@ -82,30 +82,6 @@ gcp_mapping = OntologyMapping(
                 # timeout: not available in GCPCloudRunService
             ],
         ),
-        OntologyNodeMapping(
-            node_label="GCPCloudRunJob",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "container"},
-                ),
-                # Cloud Run Jobs always run a container image; expose it for cross-cloud queries.
-                OntologyFieldMapping(
-                    ontology_field="image", node_field="container_image"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="image_digest"
-                ),
-                # runtime: not applicable for container-based functions
-                # memory: not available in GCPCloudRunJob
-                # timeout: not available in GCPCloudRunJob
-            ],
-        ),
     ],
 )
 

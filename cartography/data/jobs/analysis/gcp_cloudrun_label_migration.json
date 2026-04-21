@@ -6,8 +6,8 @@
       "iterative": false
     },
     {
-      "__comment__": "GCPCloudRunJob now carries only :Function. Strip stale :Container from pre-migration jobs.",
-      "query": "MATCH (n:GCPCloudRunJob:Container) REMOVE n:Container",
+      "__comment__": "GCPCloudRunJob no longer carries any ontology label (individual GCPCloudRunContainer children carry :Container). Strip stale :Container and :Function from pre-migration jobs.",
+      "query": "MATCH (n:GCPCloudRunJob) REMOVE n:Container, n:Function",
       "iterative": false
     }
   ],

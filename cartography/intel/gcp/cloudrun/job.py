@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Any
 from typing import Optional
 
 import neo4j
@@ -15,8 +16,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
-from cartography.intel.gcp.cloudrun.util import extract_container_image_metadata
 from cartography.intel.gcp.labels import sync_labels
+from cartography.models.gcp.cloudrun.container import GCPCloudRunContainerSchema
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
 
@@ -35,19 +36,15 @@ def get_jobs(
     """
     jobs: list[dict] = []
     try:
-        # Determine which locations to query
         if location == "-":
-            # Discover all Cloud Run locations for this project
             locations = discover_cloud_run_locations(
                 client,
                 project_id,
                 credentials=credentials,
             )
         else:
-            # Query specific location
             locations = {f"projects/{project_id}/locations/{location}"}
 
-        # Query jobs for each location
         for loc_name in locations:
             try:
                 request = client.projects().locations().jobs().list(parent=loc_name)
@@ -64,8 +61,6 @@ def get_jobs(
                         )
                     )
             except HttpError as e:
-                # Only skip 403 permission errors (e.g., restricted regions)
-                # Re-raise other errors (429, 500, etc.) to surface systemic failures
                 if e.resp.status == 403:
                     logger.warning(
                         f"Permission denied listing Cloud Run jobs in {loc_name}. Skipping location.",
@@ -81,16 +76,20 @@ def get_jobs(
         raise
 
 
+def _extract_image_digest(image: str | None) -> str | None:
+    if not image or "@" not in image:
+        return None
+    _, digest = image.rsplit("@", 1)
+    return digest or None
+
+
 def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
-    Transforms the list of Cloud Run Job dicts for ingestion.
+    Transforms the list of Cloud Run Job dicts into job-level records (one per Job).
     """
     transformed: list[dict] = []
     for job in jobs_data:
-        # Full resource name: projects/{project}/locations/{location}/jobs/{job}
         full_name = job.get("name", "")
-
-        # Extract location and short name from the full resource name
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/jobs/([^/]+)",
             full_name,
@@ -98,12 +97,7 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(2) if name_match else None
 
-        template = job.get("template", {})
-        task_template = template.get("template", {})
-        containers = task_template.get("containers", [])
-        image_metadata = extract_container_image_metadata(containers)
-
-        # Get service account email from template.template.serviceAccount
+        task_template = job.get("template", {}).get("template", {})
         service_account_email = task_template.get("serviceAccount")
 
         transformed.append(
@@ -111,19 +105,42 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
                 "id": full_name,
                 "name": short_name,
                 "location": location,
-                "container_image": image_metadata["container_image"],
-                "container_images": image_metadata["container_images"],
-                "image_digest": image_metadata["image_digest"],
-                "image_digests": image_metadata["image_digests"],
-                # Cloud Run only supports x86_64 (amd64); ARM workloads are not supported
-                "architecture": "amd64",
-                "architecture_normalized": normalize_architecture("amd64"),
-                "architecture_source": ARCH_SOURCE_PLATFORM_REQUIREMENT,
                 "service_account_email": service_account_email,
                 "project_id": project_id,
                 "labels": job.get("labels", {}),
             },
         )
+    return transformed
+
+
+def transform_containers(jobs_data: list[dict], project_id: str) -> list[dict]:
+    """
+    Flattens the Job -> template.template.containers[] into one record per individual container.
+    Each container node represents a single container spec in the Job's task template.
+    """
+    transformed: list[dict[str, Any]] = []
+    for job in jobs_data:
+        job_id = job.get("name", "")
+        task_template = job.get("template", {}).get("template", {})
+        containers = task_template.get("containers", []) or []
+
+        for index, container in enumerate(containers):
+            image = container.get("image")
+            container_name = container.get("name") or str(index)
+            transformed.append(
+                {
+                    "id": f"{job_id}/containers/{container_name}",
+                    "name": container_name,
+                    "job_id": job_id,
+                    "image": image,
+                    "image_digest": _extract_image_digest(image),
+                    # Cloud Run only supports amd64; ARM is not supported.
+                    "architecture": "amd64",
+                    "architecture_normalized": normalize_architecture("amd64"),
+                    "architecture_source": ARCH_SOURCE_PLATFORM_REQUIREMENT,
+                    "project_id": project_id,
+                },
+            )
     return transformed
 
 
@@ -134,12 +151,25 @@ def load_jobs(
     project_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Loads GCPCloudRunJob nodes and their relationships.
-    """
     load(
         neo4j_session,
         GCPCloudRunJobSchema(),
+        data,
+        lastupdated=update_tag,
+        project_id=project_id,
+    )
+
+
+@timeit
+def load_containers(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        GCPCloudRunContainerSchema(),
         data,
         lastupdated=update_tag,
         project_id=project_id,
@@ -151,10 +181,17 @@ def cleanup_jobs(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    """
-    Cleans up stale Cloud Run jobs.
-    """
     GraphJob.from_node_schema(GCPCloudRunJobSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+@timeit
+def cleanup_containers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    GraphJob.from_node_schema(GCPCloudRunContainerSchema(), common_job_parameters).run(
         neo4j_session,
     )
 
@@ -178,6 +215,10 @@ def sync_jobs(
 
     jobs = transform_jobs(jobs_raw, project_id)
     load_jobs(neo4j_session, jobs, project_id, update_tag)
+
+    containers = transform_containers(jobs_raw, project_id)
+    load_containers(neo4j_session, containers, project_id, update_tag)
+
     sync_labels(
         neo4j_session,
         jobs,
@@ -189,4 +230,5 @@ def sync_jobs(
 
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["project_id"] = project_id
+    cleanup_containers(neo4j_session, cleanup_job_params)
     cleanup_jobs(neo4j_session, cleanup_job_params)

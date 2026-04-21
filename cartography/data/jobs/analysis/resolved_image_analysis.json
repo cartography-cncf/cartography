@@ -24,7 +24,7 @@
       "iterationsize": 1000
     },
     {
-      "__comment": "Create RESOLVED_IMAGE on :Function via direct HAS_IMAGE (covers GCPCloudRunJob, which carries HAS_IMAGE on the node itself).",
+      "__comment": "Create RESOLVED_IMAGE on :Function via direct HAS_IMAGE (covers container-deployed AWSLambda and AzureFunctionApp, which carry HAS_IMAGE on the node itself). Cloud Run Jobs flow through the :Container path via GCPCloudRunContainer instead.",
       "query": "MATCH (f:Function)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList MERGE (f)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },

@@ -1882,9 +1882,7 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 
 ### GCPCloudRunJob
 
-Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
-
-> **Ontology Mapping**: This node has the extra label `Function` (for cross-platform serverless-function queries alongside `AWSLambda`, `AzureFunctionApp`, `GCPCloudFunction`, `GCPCloudRunService`). Cloud Run Jobs are container-based functions — `_ont_image` / `_ont_image_digest` are populated and the node participates in `RESOLVED_IMAGE`.
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunContainer](#gcpcloudruncontainer) nodes, analogous to `ECSTask` / `ECSContainer` in AWS.
 
 | Field | Description |
 |---|---|
@@ -1893,13 +1891,6 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 | **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
 | name | Short name of the job |
 | location | The GCP location where the job is deployed |
-| container_image | First container image reference retained for compatibility; use `container_images` for all containers |
-| container_images | List of all container image references for this job, including sidecars |
-| image_digest | First container digest retained for compatibility; use `image_digests` for all container digests |
-| image_digests | List of all container digests for this job, used to link to image registry nodes |
-| architecture | CPU architecture of the container (always `amd64`; Cloud Run does not support ARM) |
-| architecture_normalized | Normalized architecture value (always `amd64`) |
-| architecture_source | How the architecture was determined (always `platform_requirement`) |
 | service_account_email | The email of the service account used by this job |
 | project_id | The GCP project ID this job belongs to |
 
@@ -1917,15 +1908,51 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunJobs are linked to the image reference recorded in Cloud Run metadata. Matches on `image_digests`, so this can point to either a single-image manifest or a multi-architecture image index depending on what Cloud Run stores.
+  - GCPCloudRunJobs contain one GCPCloudRunContainer per container declared in the task template (including sidecars).
     ```
-    (GCPCloudRunJob)-[:HAS_IMAGE]->(ECRImage)
-    (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunContainer)
     ```
-  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Function](../../ontology/schema.md#function) for the full semantics.
+
+### GCPCloudRunContainer
+
+Representation of an individual container declared in the task template of a [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). One node is created per container spec (including sidecars).
+
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | `{job_id}/containers/{container_name_or_index}` |
+| name | Name of the container as declared in the task template. Falls back to the container index when the Cloud Run API omits the field (single-container jobs) |
+| job_id | Full resource name of the parent GCPCloudRunJob |
+| image | The container image reference as declared in the task template |
+| image_digest | The digest portion of the image reference (e.g., `sha256:abc...`) when the image is pinned by digest; `None` for tag-based references |
+| architecture | CPU architecture (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
+| project_id | The GCP project ID this container belongs to |
+
+#### Relationships
+
+  - GCPCloudRunContainers are resources of GCPProjects.
     ```
-    (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunContainer)
+    ```
+  - GCPCloudRunContainers live inside a GCPCloudRunJob.
+    ```
+    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunContainer)
+    ```
+  - GCPCloudRunContainers link to the image they run when the image is pinned by digest.
+    ```
+    (GCPCloudRunContainer)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    ```
+  - GCPCloudRunContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunContainer)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunExecution

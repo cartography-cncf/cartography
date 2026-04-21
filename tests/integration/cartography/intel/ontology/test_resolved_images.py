@@ -68,10 +68,12 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     neo4j_session,
 ):
     """Run Cloud Run service, revision and job through the real load path,
-    then verify RESOLVED_IMAGE is created on the :Function side (Service via
-    HAS_REVISION traversal; Job directly).
+    then verify RESOLVED_IMAGE is created where each ontology label lives:
+    Service via HAS_REVISION traversal onto :Function; Job's individual
+    containers onto :Container directly via their HAS_IMAGE.
 
     Revision has no ontology label of its own and must not carry RESOLVED_IMAGE.
+    Job no longer carries :Function and must not carry RESOLVED_IMAGE either.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
@@ -149,7 +151,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: RESOLVED_IMAGE edges exist on :Function for both Service (via HAS_REVISION) and Job (directly).
+    # Assert: RESOLVED_IMAGE on :Function only for the Service (via HAS_REVISION traversal).
     assert check_rels(
         neo4j_session,
         "Function",
@@ -159,14 +161,39 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         "RESOLVED_IMAGE",
     ) == {
         (TEST_SERVICE_ID, TEST_REVISION_PRIMARY_DIGEST),
-        (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
     }
 
-    # Assert: Revision itself has no RESOLVED_IMAGE (it is not an ontology node).
+    # Assert: RESOLVED_IMAGE on :Container for the Job's individual container.
+    job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {
+        (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
+    }
+
+    # Assert: Revision has no RESOLVED_IMAGE (it is not an ontology node).
     assert (
         check_rels(
             neo4j_session,
             "GCPCloudRunRevision",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+    # Assert: Job has no RESOLVED_IMAGE (it is now a pure grouping node).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunJob",
             "id",
             "Image",
             "id",
