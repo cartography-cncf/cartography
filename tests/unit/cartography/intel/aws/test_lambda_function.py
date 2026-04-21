@@ -31,6 +31,24 @@ def test_get_event_source_mappings_raises_transient_failure_after_retry_exhausti
         lambda_function.get_event_source_mappings(LIST_LAMBDA_FUNCTIONS[0], client)
 
 
+def test_get_lambda_image_uris_raises_transient_failure_after_retry_exhaustion():
+    image_lambda = dict(LIST_LAMBDA_FUNCTIONS[0], PackageType="Image")
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_function.side_effect = _client_error(
+        "ServiceException",
+        "An error occurred and the request cannot be processed.",
+        500,
+    )
+
+    with pytest.raises(lambda_function.LambdaTransientRegionFailure):
+        lambda_function.get_lambda_image_uris(
+            boto3_session,
+            [image_lambda],
+            "us-east-1",
+        )
+
+
 def test_sync_event_source_mappings_skips_failed_function_and_marks_cleanup_unsafe(
     mocker,
 ):
@@ -65,7 +83,7 @@ def test_sync_event_source_mappings_skips_failed_function_and_marks_cleanup_unsa
     )
 
 
-def test_sync_skips_only_event_source_mapping_cleanup_after_transient_subresource_failure(
+def test_sync_skips_function_cleanup_after_transient_subresource_failure(
     mocker,
 ):
     mocker.patch(
@@ -112,7 +130,7 @@ def test_sync_skips_only_event_source_mapping_cleanup_after_transient_subresourc
         aliases_cleanup_safe=True,
         event_source_mappings_cleanup_safe=False,
         layers_cleanup_safe=True,
-        functions_cleanup_safe=True,
+        functions_cleanup_safe=False,
     )
 
 
@@ -132,6 +150,49 @@ def test_sync_skips_cleanup_after_transient_region_failure(mocker):
         {},
     )
 
+    cleanup.assert_called_once_with(
+        ANY,
+        {},
+        aliases_cleanup_safe=False,
+        event_source_mappings_cleanup_safe=False,
+        layers_cleanup_safe=False,
+        functions_cleanup_safe=False,
+    )
+
+
+def test_sync_skips_cleanup_after_transient_image_metadata_failure(mocker):
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_data",
+        return_value=[dict(LIST_LAMBDA_FUNCTIONS[0], PackageType="Image")],
+    )
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_permissions",
+        return_value={
+            LIST_LAMBDA_FUNCTIONS[0]["FunctionArn"]: {
+                "AnonymousAccess": False,
+                "AnonymousActions": [],
+            }
+        },
+    )
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_image_uris",
+        side_effect=lambda_function.LambdaTransientRegionFailure("temporary failure"),
+    )
+    load_lambda_functions = mocker.patch(
+        "cartography.intel.aws.lambda_function.load_lambda_functions"
+    )
+    cleanup = mocker.patch("cartography.intel.aws.lambda_function.cleanup_lambda")
+
+    lambda_function.sync(
+        MagicMock(),
+        MagicMock(),
+        ["us-east-1"],
+        "123456789012",
+        1,
+        {},
+    )
+
+    load_lambda_functions.assert_not_called()
     cleanup.assert_called_once_with(
         ANY,
         {},

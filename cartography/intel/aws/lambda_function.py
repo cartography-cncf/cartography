@@ -110,8 +110,9 @@ def get_lambda_image_uris(
     Code.ImageUri field, so this per-function call is required for image-based
     Lambdas only. Returns a map of function_arn -> {"ImageUri", "ResolvedImageUri"}.
 
-    A failure on a single function is logged and skipped so one transient SDK
-    error does not abort the whole region's Lambda sync.
+    Non-transient failures on a single function are logged and skipped, but
+    retry-exhausted transport/service failures abort the region so the sync can
+    preserve last-known-good image metadata.
     """
     client = create_boto3_client(boto3_session, "lambda", region_name=region)
     image_uris: Dict[str, Dict[str, str | None]] = {}
@@ -121,6 +122,25 @@ def get_lambda_image_uris(
         function_arn = function_data["FunctionArn"]
         try:
             response = client.get_function(FunctionName=function_arn)
+        except ClientError as error:
+            if _is_retryable_lambda_error(error):
+                raise LambdaTransientRegionFailure(
+                    f"AWS SDK retries were exhausted for transient GetFunction failure on function {function_arn}"
+                ) from error
+            logger.warning(
+                "Failed to get image URI for Lambda %s: %s", function_arn, error
+            )
+            continue
+        except (
+            ConnectionClosedError,
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+            ResponseParserError,
+        ) as error:
+            raise LambdaTransientRegionFailure(
+                f"Encountered a transient Lambda endpoint failure while calling GetFunction on function {function_arn}"
+            ) from error
         except Exception as error:
             logger.warning(
                 "Failed to get image URI for Lambda %s: %s", function_arn, error
@@ -605,7 +625,20 @@ def sync(
             )
             continue
         permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
-        image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
+        try:
+            image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
+        except LambdaTransientRegionFailure as error:
+            aliases_cleanup_safe = False
+            event_source_mappings_cleanup_safe = False
+            layers_cleanup_safe = False
+            functions_cleanup_safe = False
+            logger.warning(
+                "Skipping Lambda sync for account %s in region %s after transient Lambda image metadata failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         transformed_data = transform_lambda_functions(
             data,
             permissions_by_arn,
@@ -658,5 +691,10 @@ def sync(
         aliases_cleanup_safe=aliases_cleanup_safe,
         event_source_mappings_cleanup_safe=event_source_mappings_cleanup_safe,
         layers_cleanup_safe=layers_cleanup_safe,
-        functions_cleanup_safe=functions_cleanup_safe,
+        functions_cleanup_safe=(
+            functions_cleanup_safe
+            and aliases_cleanup_safe
+            and event_source_mappings_cleanup_safe
+            and layers_cleanup_safe
+        ),
     )
