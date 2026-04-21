@@ -54,19 +54,19 @@ azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
         OntologyNodeMapping(
-            node_label="AzureGroupContainer",
+            node_label="AzureContainerInstance",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="image_digest"
                 ),
-                # state: Not per-container on Azure; provisioning_state lives on the parent AzureContainerInstance (container group)
+                # state: Not per-container on Azure; provisioning_state lives on the parent AzureGroupContainer (container group)
                 # cpu: Node exposes cpu_request/cpu_limit rather than a single cpu value; skip to avoid ambiguity
                 # memory: Node exposes memory_request_gb/memory_limit_gb (GB) which does not match the ontology MB unit
-                # region: Not per-container on Azure; location lives on the parent AzureContainerInstance
+                # region: Not per-container on Azure; location lives on the parent AzureGroupContainer
                 # namespace: Not applicable for Azure Container Instances (Azure does not use namespaces in this context)
-                # health_status: Not exposed as a direct field in AzureGroupContainer node
+                # health_status: Not exposed as a direct field in AzureContainerInstance node
             ],
         ),
     ],

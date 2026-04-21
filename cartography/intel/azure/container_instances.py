@@ -8,11 +8,7 @@ from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.container_instance import AzureContainerInstanceSchema
-from cartography.models.azure.tags.container_instance_tag import (
-    AzureContainerInstanceTagsSchema,
-)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -28,7 +24,6 @@ def get_container_instances(
         client = ContainerInstanceManagementClient(
             credentials.credential, subscription_id
         )
-        # NOTE: Azure Container Instances are called "Container Groups" in the SDK
         return [cg.as_dict() for cg in client.container_groups.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
@@ -38,42 +33,38 @@ def get_container_instances(
 
 
 def transform_container_instances(container_groups: list[dict]) -> list[dict]:
-    transformed_instances: list[dict[str, Any]] = []
+    transformed: list[dict[str, Any]] = []
     for group in container_groups:
-        subnet_ids: list[str] = []
-        # Azure SDK as_dict() returns flat structure (not nested under "properties")
-        for subnet_ref in group.get(
-            "subnet_ids", group.get("properties", {}).get("subnet_ids", [])
-        ):
-            subnet_id = subnet_ref.get("id")
-            if subnet_id:
-                subnet_ids.append(subnet_id)
+        group_id = group.get("id")
+        for container in group.get("containers", []):
+            image = container.get("image")
+            try:
+                image_digest = image.split("@")[1] if image else None
+            except IndexError:
+                image_digest = None
 
-        transformed_instance = {
-            "id": group.get("id"),
-            "name": group.get("name"),
-            "location": group.get("location"),
-            "type": group.get("type"),
-            "provisioning_state": group.get(
-                "provisioning_state",
-                group.get("properties", {}).get("provisioning_state"),
-            ),
-            "ip_address": (
-                group.get("ip_address")
-                or group.get("properties", {}).get("ip_address")
-                or {}
-            ).get("ip"),
-            "ip_address_type": (
-                group.get("ip_address")
-                or group.get("properties", {}).get("ip_address")
-                or {}
-            ).get("type"),
-            "os_type": group.get("os_type", group.get("properties", {}).get("os_type")),
-            "tags": group.get("tags"),
-            "SUBNET_IDS": subnet_ids,
-        }
-        transformed_instances.append(transformed_instance)
-    return transformed_instances
+            resources = container.get("resources", {})
+            requests = resources.get("requests", {})
+            limits = resources.get("limits", {})
+
+            transformed.append(
+                {
+                    "id": f"{group_id}/{container.get('name')}",
+                    "name": container.get("name"),
+                    "group_id": group_id,
+                    "image": image,
+                    "image_digest": image_digest,
+                    # ACI does not expose host architecture via its API, and ARM64 support
+                    # is not yet GA. All ACI workloads run on amd64 hosts.
+                    "architecture": "amd64",
+                    "architecture_normalized": "amd64",
+                    "cpu_request": requests.get("cpu"),
+                    "memory_request_gb": requests.get("memory_in_gb"),
+                    "cpu_limit": limits.get("cpu"),
+                    "memory_limit_gb": limits.get("memory_in_gb"),
+                },
+            )
+    return transformed
 
 
 @timeit
@@ -93,40 +84,11 @@ def load_container_instances(
 
 
 @timeit
-def load_container_instance_tags(
-    neo4j_session: neo4j.Session,
-    subscription_id: str,
-    groups: list[dict],
-    update_tag: int,
-) -> None:
-    """
-    Loads tags for Container Instances.
-    """
-    tags = transform_tags(groups, subscription_id)
-    load(
-        neo4j_session,
-        AzureContainerInstanceTagsSchema(),
-        tags,
-        lastupdated=update_tag,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-    )
-
-
-@timeit
 def cleanup_container_instances(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     GraphJob.from_node_schema(
         AzureContainerInstanceSchema(), common_job_parameters
-    ).run(neo4j_session)
-
-
-@timeit
-def cleanup_container_instance_tags(
-    neo4j_session: neo4j.Session, common_job_parameters: dict
-) -> None:
-    GraphJob.from_node_schema(
-        AzureContainerInstanceTagsSchema(), common_job_parameters
     ).run(neo4j_session)
 
 
@@ -142,12 +104,6 @@ def sync(
         f"Syncing Azure Container Instances for subscription {subscription_id}."
     )
     raw_groups = get_container_instances(credentials, subscription_id)
-    transformed_groups = transform_container_instances(raw_groups)
-    load_container_instances(
-        neo4j_session, transformed_groups, subscription_id, update_tag
-    )
-    load_container_instance_tags(
-        neo4j_session, subscription_id, transformed_groups, update_tag
-    )
+    transformed = transform_container_instances(raw_groups)
+    load_container_instances(neo4j_session, transformed, subscription_id, update_tag)
     cleanup_container_instances(neo4j_session, common_job_parameters)
-    cleanup_container_instance_tags(neo4j_session, common_job_parameters)
