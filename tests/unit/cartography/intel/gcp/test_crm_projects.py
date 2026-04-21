@@ -40,6 +40,31 @@ def test_get_default_apps_script_folder_names_only_matches_documented_lineage():
     }
 
 
+def test_get_default_apps_script_folder_names_requires_direct_system_parent():
+    folders = [
+        {
+            "name": "folders/system",
+            "parent": "organizations/123456789012",
+            "displayName": "system-gsuite",
+            "lifecycleState": "ACTIVE",
+        },
+        {
+            "name": "folders/intermediate",
+            "parent": "folders/system",
+            "displayName": "intermediate",
+            "lifecycleState": "ACTIVE",
+        },
+        {
+            "name": "folders/nested-apps-script",
+            "parent": "folders/intermediate",
+            "displayName": "apps-script",
+            "lifecycleState": "ACTIVE",
+        },
+    ]
+
+    assert get_default_apps_script_folder_names(folders) == set()
+
+
 def test_get_gcp_projects_skips_default_apps_script_parent_only():
     folders = [
         {
