@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import boto3
@@ -17,6 +18,9 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+AWS_AUTH_TEMPLATE_PATTERN = re.compile(r"{{[^}]+}}")
 
 
 @timeit
@@ -39,43 +43,20 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]
     """
     result: dict[str, list[dict[str, Any]]] = {"roles": [], "users": []}
 
-    # Parse mapRoles
     if "mapRoles" in configmap.data:
         map_roles_yaml = configmap.data["mapRoles"]
-        role_mappings = yaml.safe_load(map_roles_yaml) or []
-
-        # Filter out templated entries for now (https://github.com/cartography-cncf/cartography/issues/1854)
-        filtered_role_mappings = []
-        for mapping in role_mappings:
-            username = mapping.get("username", "")
-            if "{{" in username:
-                logger.debug(f"Skipping templated username in mapRoles: {username}")
-                continue
-            filtered_role_mappings.append(mapping)
-
-        result["roles"] = filtered_role_mappings
+        result["roles"] = yaml.safe_load(map_roles_yaml) or []
         logger.info(
-            f"Parsed {len(filtered_role_mappings)} role mappings from aws-auth ConfigMap"
+            f"Parsed {len(result['roles'])} role mappings from aws-auth ConfigMap"
         )
     else:
         logger.info("No mapRoles found in aws-auth ConfigMap")
 
-    # Parse mapUsers
     if "mapUsers" in configmap.data:
         map_users_yaml = configmap.data["mapUsers"]
-        user_mappings = yaml.safe_load(map_users_yaml) or []
-
-        filtered_user_mappings = []
-        for mapping in user_mappings:
-            username = mapping.get("username", "")
-            if "{{" in username:
-                logger.debug(f"Skipping templated username in mapUsers: {username}")
-                continue
-            filtered_user_mappings.append(mapping)
-
-        result["users"] = filtered_user_mappings
+        result["users"] = yaml.safe_load(map_users_yaml) or []
         logger.info(
-            f"Parsed {len(filtered_user_mappings)} user mappings from aws-auth ConfigMap"
+            f"Parsed {len(result['users'])} user mappings from aws-auth ConfigMap"
         )
     else:
         logger.info("No mapUsers found in aws-auth ConfigMap")
@@ -83,14 +64,112 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]
     return result
 
 
+def _extract_role_account_id(role_arn: str) -> str | None:
+    parts = role_arn.split(":")
+    if len(parts) < 5 or parts[2] != "iam":
+        logger.warning(f"Unable to extract AWS account ID from role ARN {role_arn}")
+        return None
+    return parts[4]
+
+
+def _contains_unsupported_template(value: str) -> bool:
+    return any(
+        token not in {"{{AccountID}}", "{{SessionName}}", "{{SessionNameRaw}}"}
+        for token in AWS_AUTH_TEMPLATE_PATTERN.findall(value)
+    )
+
+
+def _replace_account_id_template(value: str, role_arn: str) -> str | None:
+    if "{{AccountID}}" not in value:
+        return value
+
+    account_id = _extract_role_account_id(role_arn)
+    if account_id is None:
+        return None
+    return value.replace("{{AccountID}}", account_id)
+
+
+def _build_subject_name_pattern(template_value: str, role_arn: str) -> str | None:
+    resolved_value = _replace_account_id_template(template_value, role_arn)
+    if resolved_value is None:
+        return None
+
+    escaped_value = re.escape(resolved_value)
+    escaped_value = escaped_value.replace(re.escape("{{SessionNameRaw}}"), ".+")
+    escaped_value = escaped_value.replace(re.escape("{{SessionName}}"), "[^@]+")
+    return f"^{escaped_value}$"
+
+
+def _find_matching_kubernetes_subjects(
+    neo4j_session: neo4j.Session,
+    label: str,
+    cluster_name: str,
+    name_pattern: str,
+) -> list[dict[str, str]]:
+    query = f"""
+    MATCH (subject:{label})
+    WHERE subject.cluster_name = $cluster_name
+      AND subject.name =~ $name_pattern
+    RETURN subject.id AS id, subject.name AS name
+    ORDER BY subject.name
+    """
+    return [
+        record.data()
+        for record in neo4j_session.run(
+            query, cluster_name=cluster_name, name_pattern=name_pattern
+        )
+    ]
+
+
 def transform_aws_auth_mappings(
-    auth_mappings: dict[str, list[dict[str, Any]]], cluster_name: str
+    neo4j_session: neo4j.Session,
+    auth_mappings: dict[str, list[dict[str, Any]]],
+    cluster_name: str,
 ) -> dict[str, list[dict[str, Any]]]:
     """
     Transform both role and user mappings from aws-auth ConfigMap into combined user/group data.
     """
     all_users = []
     all_groups = []
+
+    seen_users: set[tuple[str, str | None, str | None]] = set()
+    seen_groups: set[tuple[str, str | None, str | None]] = set()
+
+    def add_user(
+        name: str, aws_role_arn: str | None = None, aws_user_arn: str | None = None
+    ) -> None:
+        user_key = (name, aws_role_arn, aws_user_arn)
+        if user_key in seen_users:
+            return
+        seen_users.add(user_key)
+        user_data = {
+            "id": f"{cluster_name}/{name}",
+            "name": name,
+            "cluster_name": cluster_name,
+        }
+        if aws_role_arn:
+            user_data["aws_role_arn"] = aws_role_arn
+        if aws_user_arn:
+            user_data["aws_user_arn"] = aws_user_arn
+        all_users.append(user_data)
+
+    def add_group(
+        name: str, aws_role_arn: str | None = None, aws_user_arn: str | None = None
+    ) -> None:
+        group_key = (name, aws_role_arn, aws_user_arn)
+        if group_key in seen_groups:
+            return
+        seen_groups.add(group_key)
+        group_data = {
+            "id": f"{cluster_name}/{name}",
+            "name": name,
+            "cluster_name": cluster_name,
+        }
+        if aws_role_arn:
+            group_data["aws_role_arn"] = aws_role_arn
+        if aws_user_arn:
+            group_data["aws_user_arn"] = aws_user_arn
+        all_groups.append(group_data)
 
     # Process role mappings if they exist
     if auth_mappings.get("roles"):
@@ -102,27 +181,50 @@ def transform_aws_auth_mappings(
             if not role_arn:
                 continue
 
-            # Create user data with AWS role relationship (only if username is provided)
             if username:
-                all_users.append(
-                    {
-                        "id": f"{cluster_name}/{username}",
-                        "name": username,
-                        "cluster_name": cluster_name,
-                        "aws_role_arn": role_arn,
-                    }
-                )
+                if _contains_unsupported_template(username):
+                    logger.debug(
+                        f"Skipping unsupported templated username in mapRoles: {username}"
+                    )
+                elif "{{SessionName" in username:
+                    name_pattern = _build_subject_name_pattern(username, role_arn)
+                    if name_pattern is not None:
+                        matching_users = _find_matching_kubernetes_subjects(
+                            neo4j_session,
+                            "KubernetesUser",
+                            cluster_name,
+                            name_pattern,
+                        )
+                        for user in matching_users:
+                            add_user(user["name"], aws_role_arn=role_arn)
+                else:
+                    resolved_username = _replace_account_id_template(username, role_arn)
+                    if resolved_username is not None:
+                        add_user(resolved_username, aws_role_arn=role_arn)
 
-            # Create group data with AWS role relationship for each group
             for group_name in group_names:
-                all_groups.append(
-                    {
-                        "id": f"{cluster_name}/{group_name}",
-                        "name": group_name,
-                        "cluster_name": cluster_name,
-                        "aws_role_arn": role_arn,
-                    }
-                )
+                if _contains_unsupported_template(group_name):
+                    logger.debug(
+                        f"Skipping unsupported templated group in mapRoles: {group_name}"
+                    )
+                    continue
+
+                if "{{SessionName" in group_name:
+                    name_pattern = _build_subject_name_pattern(group_name, role_arn)
+                    if name_pattern is not None:
+                        matching_groups = _find_matching_kubernetes_subjects(
+                            neo4j_session,
+                            "KubernetesGroup",
+                            cluster_name,
+                            name_pattern,
+                        )
+                        for group in matching_groups:
+                            add_group(group["name"], aws_role_arn=role_arn)
+                    continue
+
+                resolved_group_name = _replace_account_id_template(group_name, role_arn)
+                if resolved_group_name is not None:
+                    add_group(resolved_group_name, aws_role_arn=role_arn)
 
     # Process user mappings if they exist
     if auth_mappings.get("users"):
@@ -134,27 +236,27 @@ def transform_aws_auth_mappings(
             if not user_arn:
                 continue
 
-            # Create user data with AWS user relationship (only if username is provided)
             if username:
-                all_users.append(
-                    {
-                        "id": f"{cluster_name}/{username}",
-                        "name": username,
-                        "cluster_name": cluster_name,
-                        "aws_user_arn": user_arn,
-                    }
-                )
+                if (
+                    _contains_unsupported_template(username)
+                    or "{{SessionName" in username
+                ):
+                    logger.debug(
+                        f"Skipping templated username in mapUsers because session templates are only supported for mapRoles: {username}"
+                    )
+                else:
+                    add_user(username, aws_user_arn=user_arn)
 
-            # Create group data with AWS user relationship for each group
             for group_name in group_names:
-                all_groups.append(
-                    {
-                        "id": f"{cluster_name}/{group_name}",
-                        "name": group_name,
-                        "cluster_name": cluster_name,
-                        "aws_user_arn": user_arn,
-                    }
-                )
+                if (
+                    _contains_unsupported_template(group_name)
+                    or "{{SessionName" in group_name
+                ):
+                    logger.debug(
+                        f"Skipping templated group in mapUsers because session templates are only supported for mapRoles: {group_name}"
+                    )
+                    continue
+                add_group(group_name, aws_user_arn=user_arn)
 
     # Count entries with vs without usernames for visibility
     role_entries_with_username = sum(
@@ -458,7 +560,11 @@ def sync(
 
     # Transform and load both role and user mappings
     if auth_mappings.get("roles") or auth_mappings.get("users"):
-        transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
+        transformed_data = transform_aws_auth_mappings(
+            neo4j_session,
+            auth_mappings,
+            cluster_name,
+        )
         load_aws_auth_mappings(
             neo4j_session,
             transformed_data["users"],
