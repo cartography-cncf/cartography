@@ -169,6 +169,14 @@ def test_start_aws_ingestion(
         },
     )
     mock_sync_shared_public_ssm_parameters.assert_called_once()
+    shared_call_args = mock_sync_shared_public_ssm_parameters.call_args.args
+    assert shared_call_args[0] is neo4j_session
+    assert shared_call_args[3] == list(RESOURCE_FUNCTIONS.keys())
+    assert shared_call_args[4]["aws_ssm_public_parameter_prefix_allowlist"] == (
+        cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+    )
+    assert shared_call_args[4]["aws_ssm_ingest_secure_strings"] is False
+    assert shared_call_args[6] == test_config.aws_best_effort_mode
 
 
 @mock.patch.dict(os.environ, {"AWS_SSM_INGEST_SECURE_STRINGS": "true"}, clear=False)

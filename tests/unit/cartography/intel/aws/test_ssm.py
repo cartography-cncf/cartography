@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
-from cartography.intel.aws.ssm import _parameter_matches_allowlist_prefixes
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
 from cartography.intel.aws.ssm import transform_ssm_parameters
 
@@ -26,17 +25,6 @@ def test_minimize_allowlisted_prefixes() -> None:
             "/aws/service/eks/optimized-ami/",
         ],
     ) == ["/aws/service/"]
-
-
-def test_parameter_matches_allowlist_prefixes() -> None:
-    assert _parameter_matches_allowlist_prefixes(
-        "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
-        ["/aws/service/bottlerocket/", "/aws/service/eks/optimized-ami/"],
-    )
-    assert not _parameter_matches_allowlist_prefixes(
-        "/my/private/path",
-        ["/aws/service/bottlerocket/", "/aws/service/eks/optimized-ami/"],
-    )
 
 
 def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_filtering() -> (
@@ -61,11 +49,6 @@ def test_get_public_ssm_parameters_by_path_handles_pagination_and_securestring_f
         },
         {
             "Parameters": [
-                {
-                    "Name": "/other/prefix/not-allowlisted",
-                    "Type": "String",
-                    "Value": "ami-00000",
-                },
                 {
                     "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_version",
                     "Type": "String",

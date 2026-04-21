@@ -52,13 +52,6 @@ def _minimize_allowlisted_prefixes(prefixes: Iterable[str]) -> list[str]:
     return minimized_prefixes
 
 
-def _parameter_matches_allowlist_prefixes(
-    parameter_name: str,
-    allowed_prefixes: Iterable[str],
-) -> bool:
-    return any(parameter_name.startswith(prefix) for prefix in allowed_prefixes)
-
-
 @timeit
 def get_instance_ids(
     neo4j_session: neo4j.Session,
@@ -174,21 +167,16 @@ def get_public_ssm_parameters_by_path(
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
     paginator = client.get_paginator("get_parameters_by_path")
     ssm_parameters_data: List[Dict[str, Any]] = []
-    for prefix in _minimize_allowlisted_prefixes(allowlist_prefixes):
+    for prefix in allowlist_prefixes:
         prefix_parameter_count = 0
         for page in paginator.paginate(
             Path=prefix,
             Recursive=True,
             WithDecryption=False,
+            # 10 is the AWS API maximum for GetParametersByPath.
             PaginationConfig={"PageSize": 10},
         ):
             for parameter in page.get("Parameters", []):
-                parameter_name = parameter.get("Name", "")
-                if not _parameter_matches_allowlist_prefixes(
-                    parameter_name,
-                    [prefix],
-                ):
-                    continue
                 if (
                     not ingest_secure_strings
                     and parameter.get("Type") == "SecureString"
@@ -198,9 +186,6 @@ def get_public_ssm_parameters_by_path(
                         region,
                     )
                     continue
-                # Public AWS-managed parameters are expected to be plain Strings.
-                # If SecureStrings are explicitly allowed, WithDecryption remains
-                # disabled here so values stay in the service-returned form.
                 ssm_parameters_data.append(parameter)
                 prefix_parameter_count += 1
         logger.info(
@@ -390,8 +375,10 @@ def sync_public_parameters(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    allowlist_prefixes = _normalize_allowlisted_prefixes(
-        common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+    allowlist_prefixes = _minimize_allowlisted_prefixes(
+        _normalize_allowlisted_prefixes(
+            common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+        )
     )
     if not allowlist_prefixes:
         logger.info(
