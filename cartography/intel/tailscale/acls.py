@@ -1,8 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import neo4j
 import requests
@@ -32,14 +29,14 @@ _TIMEOUT = (60, 60)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     org: str,
-    users: List[Dict[str, Any]],
+    users: list[dict[str, Any]],
 ) -> tuple[
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
     raw_acl = get(
         api_session,
@@ -102,16 +99,16 @@ def get(
 
 def transform(
     raw_acl: str,
-    users: List[Dict[str, Any]],
-) -> Tuple[
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
-    List[Dict[str, Any]],
+    users: list[dict[str, Any]],
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
 ]:
-    transformed_groups: Dict[str, Dict[str, Any]] = {}
-    transformed_tags: Dict[str, Dict[str, Any]] = {}
+    transformed_groups: dict[str, dict[str, Any]] = {}
+    transformed_tags: dict[str, dict[str, Any]] = {}
 
     parser = ACLParser(raw_acl)
     # Extract groups from the ACL
@@ -160,7 +157,7 @@ def transform(
 @timeit
 def load_groups(
     neo4j_session: neo4j.Session,
-    groups: List[Dict[str, Any]],
+    groups: list[dict[str, Any]],
     update_tag: str,
     org: str,
 ) -> None:
@@ -170,7 +167,7 @@ def load_groups(
 @timeit
 def load_tags(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -186,7 +183,7 @@ def load_tags(
 @timeit
 def load_postures(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -203,7 +200,7 @@ def load_postures(
 @timeit
 def load_posture_conditions(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -221,7 +218,7 @@ def load_posture_conditions(
 def get_inherited_member_relationships(
     neo4j_session: neo4j.Session,
     org: str,
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """
     Query Neo4j to find User -> INHERITED_MEMBER_OF -> Group relationships.
 
@@ -251,7 +248,7 @@ def get_inherited_member_relationships(
 @timeit
 def load_inherited_members(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, str]],
+    data: list[dict[str, str]],
     org: str,
     update_tag: int,
 ) -> None:
@@ -271,7 +268,7 @@ def load_inherited_members(
 @timeit
 def cleanup_groups(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """Clean stale group nodes and edges before computing transitive membership."""
     GraphJob.from_node_schema(TailscaleGroupSchema(), common_job_parameters).run(
@@ -281,7 +278,7 @@ def cleanup_groups(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     GraphJob.from_matchlink(
         TailscaleUserToGroupInheritedMemberMatchLink(),

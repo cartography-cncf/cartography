@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Any
 
 import neo4j
@@ -9,8 +8,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.service import TailscaleServiceSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 _TIMEOUT = 30
 
@@ -31,12 +28,10 @@ def sync(
 
     Returns the raw service data for use by other modules (e.g., grants).
     """
-    logger.info("Starting Tailscale Services sync")
     raw_services = get(api_session, common_job_parameters["BASE_URL"], org)
     transformed = transform(raw_services)
     load_services(neo4j_session, transformed, org, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
-    logger.info("Completed Tailscale Services sync: %d services", len(transformed))
     return raw_services
 
 
@@ -96,7 +91,6 @@ def load_services(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Tailscale Services to the graph", len(data))
     load(
         neo4j_session,
         TailscaleServiceSchema(),

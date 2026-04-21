@@ -2,10 +2,6 @@ import json
 import re
 from ast import literal_eval
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 
 class ACLParser:
@@ -65,13 +61,13 @@ class ACLParser:
         filtered_json_string = self.RE_TRAILING_COMMA.sub("", filtered_json_string)
         self.data = json.loads(filtered_json_string)
 
-    def get_groups(self) -> List[Dict[str, Any]]:
+    def get_groups(self) -> list[dict[str, Any]]:
         """
         Get all groups from the ACL
 
         :return: list of groups
         """
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         groups = self.data.get("groups", {})
         for group_id, members in groups.items():
             group_name = group_id.split(":")[-1]
@@ -98,13 +94,13 @@ class ACLParser:
             )
         return result
 
-    def get_tags(self) -> List[Dict[str, Any]]:
+    def get_tags(self) -> list[dict[str, Any]]:
         """
         Get all tags from the ACL
 
         :return: list of tags
         """
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         for tag, owners in self.data.get("tagOwners", {}).items():
             tag_name = tag.split(":")[-1]
             user_owners = []
@@ -130,7 +126,7 @@ class ACLParser:
             )
         return result
 
-    def get_grants(self) -> List[Dict[str, Any]]:
+    def get_grants(self) -> list[dict[str, Any]]:
         """
         Get all grants from the ACL/policy file.
 
@@ -145,16 +141,16 @@ class ACLParser:
         """
         import hashlib
 
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         grants = self.data.get("grants", [])
         for grant in grants:
             sources = grant.get("src", [])
             destinations = grant.get("dst", [])
 
             # Classify sources
-            source_users: List[str] = []
-            source_groups: List[str] = []
-            source_tags: List[str] = []
+            source_users: list[str] = []
+            source_groups: list[str] = []
+            source_tags: list[str] = []
             for src in sources:
                 if src.startswith("group:") or src.startswith("autogroup:"):
                     source_groups.append(src)
@@ -167,10 +163,10 @@ class ACLParser:
                     source_users.append(src)
 
             # Classify destinations
-            destination_tags: List[str] = []
-            destination_groups: List[str] = []
-            destination_services: List[str] = []
-            destination_hosts: List[str] = []
+            destination_tags: list[str] = []
+            destination_groups: list[str] = []
+            destination_services: list[str] = []
+            destination_hosts: list[str] = []
             for dst in destinations:
                 if dst.startswith("tag:"):
                     destination_tags.append(dst)
@@ -225,7 +221,7 @@ class ACLParser:
 
     def get_postures(
         self,
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         Get logical postures and their atomic conditions from the ACL.
 
@@ -275,7 +271,7 @@ class ACLParser:
     def _parse_posture_condition(
         cls,
         raw_condition: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         condition = raw_condition.strip()
 
         not_in_match = cls.RE_NOT_IN.match(condition)
@@ -407,7 +403,7 @@ def _parse_condition_value(raw_value: str) -> Any:
         return value.strip("'\"")
 
 
-def _stringify_condition_value(value: Any) -> Optional[str]:
+def _stringify_condition_value(value: Any) -> str | None:
     if isinstance(value, bool):
         return str(value).lower()
     if value is None:
