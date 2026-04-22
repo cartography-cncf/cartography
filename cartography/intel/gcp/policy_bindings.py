@@ -10,11 +10,61 @@ from google.cloud.asset_v1.types import SearchAllIamPoliciesRequest
 from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Maps a Cloud Asset full-resource-name prefix to the Cartography node label
+# and the substring of the full name that corresponds to that node's `id`.
+# Extend this as more resource types are brought into the ontology.
+_FULL_RESOURCE_NAME_TO_NODE: list[tuple[str, str, str]] = [
+    # (prefix to strip, target label, suffix template marker)
+    # Tuple semantics: (prefix, target_label, id_format)
+    #   id_format = "last"          -> take last path segment after prefix
+    #   id_format = "type_prefixed" -> keep "{type}/{id}" (e.g. "organizations/1337")
+    ("//cloudresourcemanager.googleapis.com/projects/", "GCPProject", "last"),
+    (
+        "//cloudresourcemanager.googleapis.com/folders/",
+        "GCPFolder",
+        "type_prefixed",
+    ),
+    (
+        "//cloudresourcemanager.googleapis.com/organizations/",
+        "GCPOrganization",
+        "type_prefixed",
+    ),
+    ("//storage.googleapis.com/buckets/", "GCPBucket", "last"),
+]
+
+
+def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
+    """
+    Parse a GCP Cloud Asset full resource name and return the matching
+    (target_node_label, target_id) pair when the resource type is part of the
+    Cartography ontology, or (None, None) otherwise.
+
+    Full resource name format: //{service}.googleapis.com/{path}
+    """
+    for prefix, label, id_format in _FULL_RESOURCE_NAME_TO_NODE:
+        if not full_name.startswith(prefix):
+            continue
+        suffix = full_name[len(prefix) :]
+        if not suffix:
+            return None, None
+        # We only match the first path segment after the prefix — policies
+        # attached to sub-resources (e.g. bucket objects) resolve back to the
+        # owning top-level resource that exists in the graph.
+        segment = suffix.split("/", 1)[0]
+        if id_format == "type_prefixed":
+            # Extract the resource type from the prefix (e.g. "folders")
+            type_name = prefix.rstrip("/").rsplit("/", 1)[-1]
+            return label, f"{type_name}/{segment}"
+        return label, segment
+    return None, None
 
 
 @timeit
@@ -162,6 +212,27 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
     return list(bindings.values())
 
 
+def _group_applies_to_links(
+    bindings: list[dict[str, Any]],
+) -> dict[str, list[dict[str, str]]]:
+    """
+    Group bindings by the Cartography label of their bound resource so
+    load_matchlinks can be invoked once per target label. Bindings whose
+    resource type is not yet in the ontology are silently dropped here — the
+    binding node is still created by the main load(), just without an
+    APPLIES_TO edge.
+    """
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for binding in bindings:
+        label, target_id = _parse_full_resource_name(binding["resource"])
+        if not label or not target_id:
+            continue
+        grouped.setdefault(label, []).append(
+            {"binding_id": binding["id"], "target_id": target_id},
+        )
+    return grouped
+
+
 @timeit
 def load_bindings(
     neo4j_session: neo4j.Session,
@@ -177,6 +248,16 @@ def load_bindings(
         PROJECT_ID=project_id,
     )
 
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            links,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPProject",
+            _sub_resource_id=project_id,
+        )
+
 
 @timeit
 def cleanup(
@@ -189,6 +270,19 @@ def cleanup(
         GCPPolicyBindingSchema(),
         common_job_parameters,
     ).run(neo4j_session)
+
+    project_id = common_job_parameters["PROJECT_ID"]
+    update_tag = common_job_parameters["UPDATE_TAG"]
+    # Run a matchlink cleanup for every target label we know how to map. This
+    # clears stale APPLIES_TO edges even if no binding in this sync targeted
+    # that label.
+    for target_label in {label for _, label, _ in _FULL_RESOURCE_NAME_TO_NODE}:
+        GraphJob.from_matchlink(
+            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
 
 
 @timeit
