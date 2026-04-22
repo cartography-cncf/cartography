@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import neo4j
@@ -18,26 +19,126 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Maps a Cloud Asset full-resource-name prefix to the Cartography node label
-# and the substring of the full name that corresponds to that node's `id`.
-# Extend this as more resource types are brought into the ontology.
-_FULL_RESOURCE_NAME_TO_NODE: list[tuple[str, str, str]] = [
-    # (prefix to strip, target label, suffix template marker)
-    # Tuple semantics: (prefix, target_label, id_format)
-    #   id_format = "last"          -> take last path segment after prefix
-    #   id_format = "type_prefixed" -> keep "{type}/{id}" (e.g. "organizations/1337")
-    ("//cloudresourcemanager.googleapis.com/projects/", "GCPProject", "last"),
-    (
-        "//cloudresourcemanager.googleapis.com/folders/",
+
+@dataclass(frozen=True)
+class _FullNameMapping:
+    """
+    Rule that maps a Cloud Asset full resource name to a Cartography node.
+
+    - ``service_prefix``: the full name must start with this (e.g.
+      ``"//cloudkms.googleapis.com/"``).
+    - ``marker``: the path segment identifying the resource type (e.g.
+      ``"cryptoKeys"``). The segment immediately after the marker is the name.
+    - ``label``: Cartography node label.
+    - ``id_mode``:
+        * ``"last_segment"``   — just the name (GCPProject, GCPBucket).
+        * ``"type_prefixed"``  — ``"{marker}/{name}"`` (GCPFolder, GCPOrganization).
+        * ``"full_path"``      — the whole path up to and including the name
+          (KMS, Secrets, Artifact Registry, Cloud Run, Compute).
+    """
+
+    service_prefix: str
+    marker: str
+    label: str
+    id_mode: str
+
+
+# Order matters within a given service_prefix: more specific mappings first so
+# nested resource types win (e.g. a cryptoKey full name also contains
+# ``/keyRings/``, so GCPCryptoKey must precede GCPKeyRing).
+_FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
+    # Cloud Resource Manager.
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "projects",
+        "GCPProject",
+        "last_segment",
+    ),
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "folders",
         "GCPFolder",
         "type_prefixed",
     ),
-    (
-        "//cloudresourcemanager.googleapis.com/organizations/",
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "organizations",
         "GCPOrganization",
         "type_prefixed",
     ),
-    ("//storage.googleapis.com/buckets/", "GCPBucket", "last"),
+    # Cloud Storage.
+    _FullNameMapping(
+        "//storage.googleapis.com/",
+        "buckets",
+        "GCPBucket",
+        "last_segment",
+    ),
+    # KMS — cryptoKey wins over keyRing (nested).
+    _FullNameMapping(
+        "//cloudkms.googleapis.com/",
+        "cryptoKeys",
+        "GCPCryptoKey",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//cloudkms.googleapis.com/",
+        "keyRings",
+        "GCPKeyRing",
+        "full_path",
+    ),
+    # Secret Manager — version wins over secret (nested).
+    _FullNameMapping(
+        "//secretmanager.googleapis.com/",
+        "versions",
+        "GCPSecretManagerSecretVersion",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//secretmanager.googleapis.com/",
+        "secrets",
+        "GCPSecretManagerSecret",
+        "full_path",
+    ),
+    # Artifact Registry.
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
+        "repositories",
+        "GCPArtifactRegistryRepository",
+        "full_path",
+    ),
+    # Cloud Run services.
+    _FullNameMapping(
+        "//run.googleapis.com/",
+        "services",
+        "GCPCloudRunService",
+        "full_path",
+    ),
+    # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
+    # which matches the path left after stripping the service prefix.
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "instances",
+        "GCPInstance",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "networks",
+        "GCPVpc",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "subnetworks",
+        "GCPSubnet",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "firewalls",
+        "GCPFirewall",
+        "full_path",
+    ),
 ]
 
 
@@ -47,23 +148,33 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
     (target_node_label, target_id) pair when the resource type is part of the
     Cartography ontology, or (None, None) otherwise.
 
-    Full resource name format: //{service}.googleapis.com/{path}
+    Full resource name format: ``//{service}.googleapis.com/{path}``.
     """
-    for prefix, label, id_format in _FULL_RESOURCE_NAME_TO_NODE:
-        if not full_name.startswith(prefix):
+    for mapping in _FULL_NAME_MAPPINGS:
+        if not full_name.startswith(mapping.service_prefix):
             continue
-        suffix = full_name[len(prefix) :]
-        if not suffix:
-            return None, None
-        # We only match the first path segment after the prefix — policies
-        # attached to sub-resources (e.g. bucket objects) resolve back to the
-        # owning top-level resource that exists in the graph.
-        segment = suffix.split("/", 1)[0]
-        if id_format == "type_prefixed":
-            # Extract the resource type from the prefix (e.g. "folders")
-            type_name = prefix.rstrip("/").rsplit("/", 1)[-1]
-            return label, f"{type_name}/{segment}"
-        return label, segment
+        path = full_name[len(mapping.service_prefix) :].rstrip("/")
+        if not path:
+            continue
+        parts = path.split("/")
+        try:
+            marker_idx = parts.index(mapping.marker)
+        except ValueError:
+            continue
+        if marker_idx + 1 >= len(parts):
+            continue
+        name_segment = parts[marker_idx + 1]
+        if not name_segment:
+            continue
+        if mapping.id_mode == "last_segment":
+            return mapping.label, name_segment
+        if mapping.id_mode == "type_prefixed":
+            return mapping.label, f"{mapping.marker}/{name_segment}"
+        # full_path: keep everything up to and including the resource name.
+        # Sub-paths (e.g. a policy on a secret version, or on a cryptoKey
+        # version) resolve to the nearest ancestor in the ontology via the
+        # mapping order defined above.
+        return mapping.label, "/".join(parts[: marker_idx + 2])
     return None, None
 
 
@@ -276,7 +387,7 @@ def cleanup(
     # Run a matchlink cleanup for every target label we know how to map. This
     # clears stale APPLIES_TO edges even if no binding in this sync targeted
     # that label.
-    for target_label in {label for _, label, _ in _FULL_RESOURCE_NAME_TO_NODE}:
+    for target_label in {mapping.label for mapping in _FULL_NAME_MAPPINGS}:
         GraphJob.from_matchlink(
             GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
             "GCPProject",
