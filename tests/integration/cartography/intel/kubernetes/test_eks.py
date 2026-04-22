@@ -375,6 +375,15 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
 
     neo4j_session.run(
         """
+        MERGE (user:AWSUser {arn: $arn})
+        SET user.id = $arn, user.lastupdated = $update_tag
+        """,
+        arn=f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    neo4j_session.run(
+        """
         UNWIND $users AS user
         MERGE (u:KubernetesUser {id: user.id})
         SET u.name = user.name,
@@ -450,7 +459,13 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
   username: raw:{{{{SessionNameRaw}}}}
   groups:
   - raw-team:{{{{SessionNameRaw}}}}
-"""
+""",
+                "mapUsers": f"""
+- userarn: arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user
+  username: acct-user-{{{{AccountID}}}}
+  groups:
+  - acct-group-{{{{AccountID}}}}
+""",
             }
         )
     )
@@ -510,6 +525,36 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
             f"{TEST_CLUSTER_NAME}/raw-team:alice@example.com",
         ),
     }.issubset(actual_role_group_relationships)
+
+    actual_user_group_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-group-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_group_relationships)
+
+    actual_user_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-user-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_user_relationships)
 
     assert (
         f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",

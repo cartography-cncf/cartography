@@ -28,7 +28,7 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     """
     Get aws-auth ConfigMap from kube-system namespace.
     """
-    logger.info(f"Retrieving aws-auth ConfigMap from cluster {client.name}")
+    logger.info("Retrieving aws-auth ConfigMap from cluster %s", client.name)
     return client.core.read_namespaced_config_map(
         name="aws-auth", namespace="kube-system"
     )
@@ -64,10 +64,13 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]
     return result
 
 
-def _extract_role_account_id(role_arn: str) -> str | None:
-    parts = role_arn.split(":")
+def _extract_principal_account_id(principal_arn: str) -> str | None:
+    parts = principal_arn.split(":")
     if len(parts) < 5 or parts[2] != "iam":
-        logger.warning(f"Unable to extract AWS account ID from role ARN {role_arn}")
+        logger.warning(
+            "Unable to extract AWS account ID from IAM principal ARN %s",
+            principal_arn,
+        )
         return None
     return parts[4]
 
@@ -79,11 +82,11 @@ def _contains_unsupported_template(value: str) -> bool:
     )
 
 
-def _replace_account_id_template(value: str, role_arn: str) -> str | None:
+def _replace_account_id_template(value: str, principal_arn: str) -> str | None:
     if "{{AccountID}}" not in value:
         return value
 
-    account_id = _extract_role_account_id(role_arn)
+    account_id = _extract_principal_account_id(principal_arn)
     if account_id is None:
         return None
     return value.replace("{{AccountID}}", account_id)
@@ -184,7 +187,8 @@ def transform_aws_auth_mappings(
             if username:
                 if _contains_unsupported_template(username):
                     logger.debug(
-                        f"Skipping unsupported templated username in mapRoles: {username}"
+                        "Skipping unsupported templated username in mapRoles: %s",
+                        username,
                     )
                 elif "{{SessionName" in username:
                     name_pattern = _build_subject_name_pattern(username, role_arn)
@@ -205,7 +209,8 @@ def transform_aws_auth_mappings(
             for group_name in group_names:
                 if _contains_unsupported_template(group_name):
                     logger.debug(
-                        f"Skipping unsupported templated group in mapRoles: {group_name}"
+                        "Skipping unsupported templated group in mapRoles: %s",
+                        group_name,
                     )
                     continue
 
@@ -242,10 +247,13 @@ def transform_aws_auth_mappings(
                     or "{{SessionName" in username
                 ):
                     logger.debug(
-                        f"Skipping templated username in mapUsers because session templates are only supported for mapRoles: {username}"
+                        "Skipping templated username in mapUsers because session templates are only supported for mapRoles: %s",
+                        username,
                     )
                 else:
-                    add_user(username, aws_user_arn=user_arn)
+                    resolved_username = _replace_account_id_template(username, user_arn)
+                    if resolved_username is not None:
+                        add_user(resolved_username, aws_user_arn=user_arn)
 
             for group_name in group_names:
                 if (
@@ -253,10 +261,13 @@ def transform_aws_auth_mappings(
                     or "{{SessionName" in group_name
                 ):
                     logger.debug(
-                        f"Skipping templated group in mapUsers because session templates are only supported for mapRoles: {group_name}"
+                        "Skipping templated group in mapUsers because session templates are only supported for mapRoles: %s",
+                        group_name,
                     )
                     continue
-                add_group(group_name, aws_user_arn=user_arn)
+                resolved_group_name = _replace_account_id_template(group_name, user_arn)
+                if resolved_group_name is not None:
+                    add_group(resolved_group_name, aws_user_arn=user_arn)
 
     # Count entries with vs without usernames for visibility
     role_entries_with_username = sum(
@@ -274,10 +285,13 @@ def transform_aws_auth_mappings(
     entries_without_username = total_entries - total_entries_with_username
 
     logger.info(
-        f"Transformed {len(all_users)} users (from {total_entries_with_username} entries with usernames) "
-        f"and {len(all_groups)} groups from {len(auth_mappings.get('roles', []))} role mappings "
-        f"and {len(auth_mappings.get('users', []))} user mappings "
-        f"({entries_without_username} entries without usernames created groups only)"
+        "Transformed %s users (from %s entries with usernames) and %s groups from %s role mappings and %s user mappings (%s entries without usernames created groups only)",
+        len(all_users),
+        total_entries_with_username,
+        len(all_groups),
+        len(auth_mappings.get("roles", [])),
+        len(auth_mappings.get("users", [])),
+        entries_without_username,
     )
 
     return {"users": all_users, "groups": all_groups}
@@ -551,7 +565,7 @@ def sync(
     2. EKS Access Entries (EKS API)
     3. External OIDC providers (EKS API)
     """
-    logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
+    logger.info("Starting EKS identity provider sync for cluster %s", cluster_name)
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
@@ -574,8 +588,9 @@ def sync(
             cluster_name,
         )
         logger.info(
-            f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
-            f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
+            "Successfully synced %s AWS IAM role mappings and %s AWS IAM user mappings",
+            len(auth_mappings.get("roles", [])),
+            len(auth_mappings.get("users", [])),
         )
     else:
         logger.info("No role or user mappings found in aws-auth ConfigMap")
