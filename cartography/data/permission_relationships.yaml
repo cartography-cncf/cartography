@@ -18,7 +18,21 @@
   - dynamodb:GetItem
   - dynamodb:GetRecords
   - dynamodb:Query
+  - dynamodb:Scan
   relationship_name: CAN_QUERY
+# Map principals that can write data to DynamoDB.
+- target_label: DynamoDBTable
+  permissions:
+  - dynamodb:PutItem
+  - dynamodb:UpdateItem
+  - dynamodb:DeleteItem
+  - dynamodb:BatchWriteItem
+  relationship_name: CAN_WRITE
+# Map principals that can retrieve secrets from Secrets Manager.
+- target_label: SecretsManagerSecret
+  permissions:
+  - secretsmanager:GetSecretValue
+  relationship_name: GET_SECRET
 # Map principals that can administer RedshiftClusters.
 - target_label: RedshiftCluster
   permissions:

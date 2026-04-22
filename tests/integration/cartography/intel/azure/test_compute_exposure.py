@@ -148,12 +148,12 @@ def _create_base_graph(neo4j_session):
 
     # --- Scenario 4: Container instances ---
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance:Container{id: 'public-aci-id'}) "
+        "MERGE (c:AzureContainerInstance{id: 'public-aci-id'}) "
         "SET c.name = 'public-aci', c.ip_address = '20.1.2.3', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance:Container{id: 'private-aci-id'}) "
+        "MERGE (c:AzureContainerInstance{id: 'private-aci-id'}) "
         "SET c.name = 'private-aci', c.ip_address = '10.0.1.5', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )

@@ -8,7 +8,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.glue.connection import GlueConnectionSchema
 from cartography.models.aws.glue.job import GlueJobSchema
 from cartography.util import aws_handle_regions
@@ -22,8 +23,8 @@ logger = logging.getLogger(__name__)
 def get_glue_connections(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "glue", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "glue", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("get_connections")
     connections = []
@@ -36,8 +37,8 @@ def get_glue_connections(
 @timeit
 @aws_handle_regions
 def get_glue_jobs(boto3_session: boto3.Session, region: str) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "glue", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "glue", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("get_jobs")
     jobs = []

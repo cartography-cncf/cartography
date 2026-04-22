@@ -330,8 +330,6 @@ def load_users(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(users_data)} Spacelift users")
-
 
 def load_runs(
     neo4j_session: neo4j.Session,
@@ -349,8 +347,6 @@ def load_runs(
         lastupdated=update_tag,
         spacelift_account_id=account_id,
     )
-
-    logger.info(f"Loaded {len(runs_data)} Spacelift runs")
 
 
 def load_commits(
@@ -370,8 +366,6 @@ def load_commits(
         lastupdated=update_tag,
         spacelift_account_id=account_id,
     )
-
-    logger.info(f"Loaded {len(commits_data)} Git commits")
 
 
 @timeit
@@ -456,8 +450,4 @@ def sync_runs(
     cleanup_users(neo4j_session, common_job_parameters)
     cleanup_commits(neo4j_session, common_job_parameters)
     cleanup_runs(neo4j_session, common_job_parameters)
-
-    logger.info(
-        f"Synced {len(extracted_users)} users, {len(extracted_commits)} commits, "
-        f"and {len(transformed_runs)} Spacelift runs"
-    )
+    logger.info("Synced Spacelift runs for account %s", account_id)

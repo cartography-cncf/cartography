@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -8,7 +7,6 @@ from cartography.client.core.tx import load
 from cartography.models.subimage.tenant import SubImageTenantSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 
 
@@ -52,7 +50,6 @@ def load_tenants(
     data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d SubImage Tenants into Neo4j.", len(data))
     load(
         neo4j_session,
         SubImageTenantSchema(),

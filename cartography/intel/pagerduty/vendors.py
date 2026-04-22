@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -10,8 +9,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.pagerduty.vendor import PagerDutyVendorSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -42,7 +39,6 @@ def load_vendor_data(
     """
     Transform and load vendor information
     """
-    logger.info(f"Loading {len(data)} pagerduty vendors.")
     load(neo4j_session, PagerDutyVendorSchema(), data, lastupdated=update_tag)
 
 

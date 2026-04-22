@@ -8,10 +8,23 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
+from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _get_project_parents_to_list(
+    org_resource_name: str,
+    folders: List[Dict],
+) -> set[str]:
+    """
+    Build the parent set for list_projects(), excluding documented default Apps Script folders.
+    """
+    folder_names = {folder["name"] for folder in folders if folder.get("name")}
+    excluded_folder_names = get_default_apps_script_folder_names(folders)
+    return {org_resource_name, *folder_names} - excluded_folder_names
 
 
 @timeit
@@ -26,12 +39,10 @@ def get_gcp_projects(
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     :param folders: List of folder dictionaries containing 'name' field with full resource names
     """
-    folder_names = [folder["name"] for folder in folders] if folders else []
-    # Build list of parent resources to check (org and all folders)
-    parents = set([org_resource_name] + folder_names)
+    parents = _get_project_parents_to_list(org_resource_name, folders)
     results: List[Dict] = []
-    for parent in parents:
-        client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+    client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+    for parent in sorted(parents):
         for proj in client.list_projects(parent=parent):
             # list_projects returns ACTIVE projects by default
             name_field = proj.name  # "projects/<number>"

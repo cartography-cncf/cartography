@@ -189,9 +189,9 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
         "EventTime": "2024-01-15T13:10:25.123000",
         "UserIdentity": {
             "type": "WebIdentityUser",
-            "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
+            "principalId": "repo:example-org/example-repo:ref:refs/heads/main",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main",
+            "userName": "repo:example-org/example-repo:ref:refs/heads/main",
         },
         "Resources": [
             {
@@ -200,7 +200,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
                 "AccountId": "123456789012",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/sublimage"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:example-org/example-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:example-org/example-repo:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/example-repo"}}}',
     },
     {
         "EventName": "AssumeRoleWithWebIdentity",

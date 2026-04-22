@@ -12,6 +12,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -79,8 +80,11 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
-    aioboto3_session: aioboto3.Session = aioboto3.Session(),
+    aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
+    if aioboto3_session is None:
+        aioboto3_session = aioboto3.Session()
+
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -228,7 +232,7 @@ def _autodiscover_accounts(
     logger.info("Trying to autodiscover accounts.")
     try:
         # Fetch all accounts
-        client = boto3_session.client("organizations")
+        client = create_boto3_client(boto3_session, "organizations")
         paginator = client.get_paginator("list_accounts")
         accounts: List[Dict] = []
         for page in paginator.paginate():
@@ -262,14 +266,13 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
 
     failed_account_ids = []
     exception_tracebacks = []
-
-    num_accounts = len(accounts)
 
     for profile_name, account_id in accounts.items():
         logger.info(
@@ -278,13 +281,11 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-            aioboto3_session = aioboto3.Session()
-        else:
-            boto3_session = boto3.Session(profile_name=profile_name)
-            aioboto3_session = aioboto3.Session(profile_name=profile_name)
+        # When use_explicit_profile is set, honor configured profiles (hub/spoke STS assume-role configs, #1142/#1185).
+        # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -473,6 +474,9 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
+        # stays decoupled from the CLI option should the two ever diverge.
+        use_explicit_profile=config.aws_sync_all_profiles,
     )
 
     if sync_successful:

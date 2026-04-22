@@ -123,7 +123,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v data:/data \
         --name cartography-neo4j \
         --env=NEO4J_AUTH=none \
-        neo4j:4.4-community
+        neo4j:5-community
     ```
 
     - Refer to the Neo4j Docker [official docs](https://github.com/neo4j/docker-neo4j) for more information.
@@ -189,13 +189,11 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 ![yourowntestmachine.png](images/yourowntestmachine.png)
 
-1. **Ensure that you have Python 3.10 set up on your machine.**
+1. **Ensure that you have Python 3.13 set up on your machine.**
 
-    Older or newer versions of Python may work but are not explicitly supported. You will probably have more luck with newer versions.
+    Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
 
 1. **Run Neo4j graph database version 5.x or higher.**
-
-        ⚠️ Neo4j 4.x may work but is not guaranteed to be compatible. We recommend using Neo4j 5.x.
 
     1. We recommend running Neo4j as a Docker container so that you save time and don't need to install Java. Run `docker run --publish=7474:7474 --publish=7687:7687 -v data:/data --env=NEO4J_AUTH=none neo4j:5-community`.
 

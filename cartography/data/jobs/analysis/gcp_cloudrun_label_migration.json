@@ -1,0 +1,15 @@
+{
+  "statements": [
+    {
+      "__comment__": "GCPCloudRunRevision no longer carries :Container (revisions are versioning artifacts with no ontology label). Strip stale :Container from pre-migration revisions.",
+      "query": "MATCH (n:GCPCloudRunRevision:Container) REMOVE n:Container",
+      "iterative": false
+    },
+    {
+      "__comment__": "GCPCloudRunJob now carries only :Function. Strip stale :Container from pre-migration jobs.",
+      "query": "MATCH (n:GCPCloudRunJob:Container) REMOVE n:Container",
+      "iterative": false
+    }
+  ],
+  "name": "GCP Cloud Run ontology label migration"
+}

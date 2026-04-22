@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1OwnerReference
 from kubernetes.client.models import V1Secret
 
@@ -19,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_secrets(client: K8sClient) -> list[V1Secret]:
-    items = k8s_paginate(client.core.list_secret_for_all_namespaces)
+    items = k8s_paginate(
+        client.core.list_secret_for_all_namespaces,
+        raise_on_forbidden=True,
+    )
     return items
 
 
@@ -73,7 +77,6 @@ def load_secrets(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(secrets)} KubernetesSecrets")
     load(
         session,
         KubernetesSecretSchema(),
@@ -101,7 +104,23 @@ def sync_secrets(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    secrets = get_secrets(client)
+    try:
+        secrets = get_secrets(client)
+    except ApiException as e:
+        if e.status in (401, 403):
+            # Skipping load + cleanup is intentional: if the operator previously granted
+            # `list secrets` and later revoked it, running cleanup would wipe the existing
+            # KubernetesSecret subgraph for this cluster.
+            logger.warning(
+                "Cartography lacks permission to list secrets on cluster %s (status %s). "
+                "Skipping secret sync and preserving previously synced secrets. "
+                "If this is intentional (granting `list secrets` also exposes the base64 "
+                "`data` field and you prefer not to grant it), you can ignore this warning.",
+                client.name,
+                e.status,
+            )
+            return
+        raise
     transformed_secrets = transform_secrets(secrets, client.name)
     load_secrets(
         session=session,

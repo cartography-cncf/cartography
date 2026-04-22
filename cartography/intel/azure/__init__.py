@@ -24,6 +24,7 @@ from . import event_hub
 from . import event_hub_namespace
 from . import firewall
 from . import functions
+from . import group_containers
 from . import key_vaults
 from . import load_balancers
 from . import logic_apps
@@ -206,6 +207,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    group_containers.sync_group_containers(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     firewall.sync(
         neo4j_session,
         credentials,
@@ -368,6 +376,15 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
         run_analysis_job(
             "azure_compute_asset_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        # DEPRECATED: compatibility migration for AzureContainerInstance :Container
+        # labels. The group no longer carries the ontology label (the individual
+        # AzureGroupContainer does). Remove in v1.0.0.
+        run_analysis_job(
+            "azure_container_instance_label_migration.json",
             neo4j_session,
             common_job_parameters,
         )

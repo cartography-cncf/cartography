@@ -108,6 +108,14 @@ from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
     malicious_npm_dependencies_shai_hulud,
 )
 from cartography.rules.data.rules.mfa_missing import missing_mfa_rule
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_admin_ai_app_authorizations
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_agent_inventory
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_coverage_gaps
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_provider_api_key_hygiene
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_third_party_app_inventory
+from cartography.rules.data.rules.nist_ai_rmf import (
+    nist_ai_third_party_app_sensitive_scopes,
+)
 from cartography.rules.data.rules.object_storage_public import object_storage_public
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
@@ -121,6 +129,7 @@ from cartography.rules.data.rules.subimage_coverage import (
     subimage_module_not_configured,
 )
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
+from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
@@ -170,6 +179,14 @@ RULES = {
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
+    unpinned_github_actions.id: unpinned_github_actions,
+    # NIST AI RMF Rules
+    nist_ai_third_party_app_inventory.id: nist_ai_third_party_app_inventory,
+    nist_ai_third_party_app_sensitive_scopes.id: nist_ai_third_party_app_sensitive_scopes,
+    nist_ai_admin_ai_app_authorizations.id: nist_ai_admin_ai_app_authorizations,
+    nist_ai_aibom_agent_inventory.id: nist_ai_aibom_agent_inventory,
+    nist_ai_aibom_coverage_gaps.id: nist_ai_aibom_coverage_gaps,
+    nist_ai_provider_api_key_hygiene.id: nist_ai_provider_api_key_hygiene,
     # CIS GCP 4.0 Rules
     cis_gcp_3_1_default_network.id: cis_gcp_3_1_default_network,
     cis_gcp_3_6_unrestricted_ssh.id: cis_gcp_3_6_unrestricted_ssh,

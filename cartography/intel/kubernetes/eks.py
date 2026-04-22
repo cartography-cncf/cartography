@@ -5,6 +5,7 @@ import boto3
 import neo4j
 import yaml
 from botocore.exceptions import ClientError
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.client.core.tx import load
@@ -376,7 +377,6 @@ def load_oidc_provider(
     """
     Load OIDC providers and their relationships to users and groups into Neo4j.
     """
-    logger.info(f"Loading {len(oidc_providers)} EKS OIDC providers")
     load(
         neo4j_session,
         KubernetesOIDCProviderSchema(),
@@ -398,8 +398,6 @@ def load_aws_auth_mappings(
     """
     Load Kubernetes Users/Groups with AWS Role and User relationships into Neo4j using schema-based loading.
     """
-    logger.info(f"Loading {len(users)} Kubernetes Users with AWS mappings")
-
     if users:
         load(
             neo4j_session,
@@ -409,8 +407,6 @@ def load_aws_auth_mappings(
             CLUSTER_ID=cluster_id,
             CLUSTER_NAME=cluster_name,
         )
-
-    logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
 
     if groups:
         load(
@@ -458,26 +454,49 @@ def sync(
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
-    configmap = get_aws_auth_configmap(k8s_client)
-    auth_mappings = parse_aws_auth_map(configmap)
+    configmap: V1ConfigMap | None
+    try:
+        configmap = get_aws_auth_configmap(k8s_client)
+    except ApiException as e:
+        if e.status in (401, 403):
+            logger.warning(
+                "Cartography lacks permission to read the aws-auth ConfigMap on cluster %s "
+                "(status %s). Skipping legacy IAM mappings; continuing with Access Entries "
+                "and OIDC providers.",
+                cluster_name,
+                e.status,
+            )
+            configmap = None
+        elif e.status == 404:
+            logger.info(
+                "No aws-auth ConfigMap on cluster %s — normal for clusters using EKS "
+                "Access Entries exclusively.",
+                cluster_name,
+            )
+            configmap = None
+        else:
+            raise
 
-    # Transform and load both role and user mappings
-    if auth_mappings.get("roles") or auth_mappings.get("users"):
-        transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
-        load_aws_auth_mappings(
-            neo4j_session,
-            transformed_data["users"],
-            transformed_data["groups"],
-            update_tag,
-            cluster_id,
-            cluster_name,
-        )
-        logger.info(
-            f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
-            f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
-        )
-    else:
-        logger.info("No role or user mappings found in aws-auth ConfigMap")
+    if configmap is not None:
+        auth_mappings = parse_aws_auth_map(configmap)
+
+        # Transform and load both role and user mappings
+        if auth_mappings.get("roles") or auth_mappings.get("users"):
+            transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
+            load_aws_auth_mappings(
+                neo4j_session,
+                transformed_data["users"],
+                transformed_data["groups"],
+                update_tag,
+                cluster_id,
+                cluster_name,
+            )
+            logger.info(
+                f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
+                f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
+            )
+        else:
+            logger.info("No role or user mappings found in aws-auth ConfigMap")
 
     # 2. Sync EKS Access Entries (EKS API)
     logger.info("Syncing EKS Access Entries from EKS API")
@@ -500,7 +519,6 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(access_entries)} EKS Access Entries")
     else:
         logger.info("No EKS Access Entries found for cluster")
 
@@ -522,7 +540,6 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(oidc_provider)} external OIDC provider")
     else:
         logger.info("No external OIDC provider found for cluster")
 

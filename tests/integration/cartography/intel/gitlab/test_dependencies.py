@@ -1,6 +1,8 @@
 """Integration tests for GitLab dependencies module."""
 
 from cartography.intel.gitlab.dependencies import load_dependencies
+from tests.data.gitlab.dependencies import TEST_GITLAB_URL
+from tests.data.gitlab.dependencies import TEST_PROJECT_ID
 from tests.data.gitlab.dependencies import TEST_PROJECT_URL
 from tests.data.gitlab.dependencies import TRANSFORMED_DEPENDENCIES
 from tests.integration.util import check_nodes
@@ -13,12 +15,16 @@ def _create_test_project(neo4j_session):
     """Create test GitLabProject node."""
     neo4j_session.run(
         """
-        MERGE (p:GitLabProject{id: $project_url})
+        MERGE (p:GitLabProject{id: $project_id})
         ON CREATE SET p.firstseen = timestamp()
         SET p.lastupdated = $update_tag,
-            p.name = 'awesome-project'
+            p.name = 'awesome-project',
+            p.web_url = $project_url,
+            p.gitlab_url = $gitlab_url
         """,
+        project_id=TEST_PROJECT_ID,
         project_url=TEST_PROJECT_URL,
+        gitlab_url=TEST_GITLAB_URL,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -48,7 +54,8 @@ def test_load_gitlab_dependencies_nodes(neo4j_session):
     load_dependencies(
         neo4j_session,
         TRANSFORMED_DEPENDENCIES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
@@ -85,26 +92,27 @@ def test_load_gitlab_dependencies_resource_relationships(neo4j_session):
     load_dependencies(
         neo4j_session,
         TRANSFORMED_DEPENDENCIES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check RESOURCE relationships from Project to Dependency
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:npm:express@4.18.2",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:npm:lodash@4.17.21",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:pypi:requests@2.31.0",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:golang:gin@1.9.1",
         ),
     }
@@ -130,26 +138,27 @@ def test_load_gitlab_dependencies_requires_relationships(neo4j_session):
     load_dependencies(
         neo4j_session,
         TRANSFORMED_DEPENDENCIES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check REQUIRES relationships
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:npm:express@4.18.2",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:npm:lodash@4.17.21",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:pypi:requests@2.31.0",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project:golang:gin@1.9.1",
         ),
     }
@@ -178,7 +187,8 @@ def test_load_gitlab_dependencies_has_dep_relationships(neo4j_session):
     load_dependencies(
         neo4j_session,
         TRANSFORMED_DEPENDENCIES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
@@ -216,7 +226,8 @@ def test_load_gitlab_dependencies_properties(neo4j_session):
     load_dependencies(
         neo4j_session,
         TRANSFORMED_DEPENDENCIES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 

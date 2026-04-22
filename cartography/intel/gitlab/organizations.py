@@ -34,6 +34,7 @@ def transform_organizations(
 
     for org in raw_orgs:
         transformed_org = {
+            "id": org.get("id"),
             "web_url": org.get("web_url"),
             "name": org.get("name"),
             "path": org.get("path"),
@@ -58,7 +59,6 @@ def load_organizations(
     """
     Load GitLab organizations into the graph.
     """
-    logger.info(f"Loading {len(organizations)} organizations")
     load(
         neo4j_session,
         GitLabOrganizationSchema(),

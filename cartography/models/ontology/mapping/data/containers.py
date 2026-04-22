@@ -8,9 +8,6 @@ aws_ecs_container_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECSContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="arn", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -35,9 +32,6 @@ kubernetes_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KubernetesContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
@@ -60,22 +54,19 @@ azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
         OntologyNodeMapping(
-            node_label="AzureContainerInstance",
+            node_label="AzureGroupContainer",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
-                # image: Not exposed as a direct field in AzureContainerInstance node (image info is in nested container properties)
-                # image_digest: Not exposed as a direct field in AzureContainerInstance node
+                OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
-                    ontology_field="state", node_field="provisioning_state"
+                    ontology_field="image_digest", node_field="image_digest"
                 ),
-                # cpu: Not exposed as a direct field in AzureContainerInstance node
-                # memory: Not exposed as a direct field in AzureContainerInstance node
-                OntologyFieldMapping(ontology_field="region", node_field="location"),
+                # state: Not per-container on Azure; provisioning_state lives on the parent AzureContainerInstance (container group)
+                # cpu: Node exposes cpu_request/cpu_limit rather than a single cpu value; skip to avoid ambiguity
+                # memory: Node exposes memory_request_gb/memory_limit_gb (GB) which does not match the ontology MB unit
+                # region: Not per-container on Azure; location lives on the parent AzureContainerInstance
                 # namespace: Not applicable for Azure Container Instances (Azure does not use namespaces in this context)
-                # health_status: Not exposed as a direct field in AzureContainerInstance node
+                # health_status: Not exposed as a direct field in AzureGroupContainer node
             ],
         ),
     ],

@@ -19,9 +19,11 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.supply_chain import extract_container_parent_image
+from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
-from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
@@ -356,43 +358,9 @@ async def _extract_provenance_from_attestation(
     predicate = attestation_blob.get("predicate", {})
     result: dict[str, Any] = {}
 
-    # Supports SLSA v0.2 materials and SLSA v1 resolvedDependencies.
-    dependency_list: list[dict[str, Any]] = predicate.get("materials", [])
-    if not dependency_list:
-        build_def = predicate.get("buildDefinition", {})
-        dependency_list = build_def.get("resolvedDependencies", [])
+    result.update(extract_container_parent_image(predicate))
 
-    for dep in dependency_list:
-        uri = dep.get("uri", "")
-        uri_l = uri.lower()
-        # Look for container image URIs that are NOT the dockerfile itself
-        is_container_ref = (
-            uri_l.startswith("pkg:docker/")
-            or uri_l.startswith("pkg:oci/")
-            or uri_l.startswith("oci://")
-        )
-        if is_container_ref and "dockerfile" not in uri_l:
-            digest_obj = dep.get("digest", {})
-            sha256_digest = digest_obj.get("sha256")
-            if sha256_digest:
-                result["parent_image_uri"] = uri
-                result["parent_image_digest"] = f"sha256:{sha256_digest}"
-                break
-
-    # SLSA v0.2 stores VCS in predicate.metadata, while SLSA v1 uses
-    # runDetails.metadata.buildkit_metadata.vcs.
-    metadata = predicate.get("metadata", {})
-    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
-    vcs = buildkit_metadata.get("vcs", {})
-    if not vcs:
-        run_details = predicate.get("runDetails", {})
-        run_metadata = run_details.get("metadata", {})
-        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
-
-    if vcs.get("source"):
-        result["source_uri"] = normalize_vcs_url(vcs["source"])
-    if vcs.get("revision"):
-        result["source_revision"] = vcs["revision"]
+    result.update(extract_image_source_provenance(predicate))
 
     # Prefer GitHub Actions env vars when present, otherwise fall back to the
     # SLSA v1 builder URL.
@@ -420,27 +388,6 @@ async def _extract_provenance_from_attestation(
             parts = builder_id.split("/actions/runs/")
             if len(parts) == 2:
                 result["invocation_uri"] = parts[0]
-
-    # SLSA v1 can move the Dockerfile path into
-    # buildDefinition.externalParameters.configSource.path.
-    if "source_uri" in result:
-        config_source = invocation.get("configSource", {})
-        entry_point = config_source.get("entryPoint", "")
-        if not entry_point:
-            build_def = predicate.get("buildDefinition", {})
-            entry_point = (
-                build_def.get("externalParameters", {})
-                .get("configSource", {})
-                .get("path", "Dockerfile")
-            )
-        if not entry_point:
-            entry_point = "Dockerfile"
-        dockerfile_dir = (
-            (vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
-        )
-        result["source_file"] = (
-            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
-        )
 
     if not result:
         logger.debug(
@@ -1226,8 +1173,8 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                async with aioboto3_session.client(
-                    "ecr", region_name=region
+                async with create_aioboto3_client(
+                    aioboto3_session, "ecr", region_name=region
                 ) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 

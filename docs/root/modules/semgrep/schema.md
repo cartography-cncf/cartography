@@ -50,9 +50,11 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
     (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
     ```
 
-### SemgrepSASTFinding
+### SemgrepSASTFinding::SecurityIssue
 
 Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -79,6 +81,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 | fix_status | Fix status based on triage (e.g. open, fixed, ignored) |
 | triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened) |
 | opened_at | Date and time when the finding was first seen in UTC |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
 | risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details |
 
 #### Relationships
@@ -95,9 +98,11 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
     (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
     ```
 
-### SemgrepSecretsFinding
+### SemgrepSecretsFinding::SecurityIssue
 
 Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -167,6 +172,7 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 | fix_status | Whether the finding is fixed or not based on triage (e.g. open, fixed, ignored) |
 | triage_status | Whether the finding is triaged or not (e.g. untriaged, ignored, reopened) |
 | confidence | Confidence of the finding based on Semgrep analysis (e.g. high, medium, low) |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
 
 
 #### Relationships
