@@ -443,10 +443,9 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
 
     mock_k8s_client = MagicMock()
     mock_k8s_client.name = TEST_CLUSTER_NAME
-    mock_k8s_client.core.read_namespaced_config_map.return_value = (
-        create_custom_aws_auth_configmap(
-            {
-                "mapRoles": f"""
+    mock_k8s_client.core.read_namespaced_config_map.return_value = create_custom_aws_auth_configmap(
+        {
+            "mapRoles": f"""
 - rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole
   username: acct-{{{{AccountID}}}}-admin
   groups:
@@ -460,14 +459,13 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
   groups:
   - raw-team:{{{{SessionNameRaw}}}}
 """,
-                "mapUsers": f"""
+            "mapUsers": f"""
 - userarn: arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user
   username: acct-user-{{{{AccountID}}}}
   groups:
   - acct-group-{{{{AccountID}}}}
 """,
-            }
-        )
+        }
     )
 
     sync_eks(
