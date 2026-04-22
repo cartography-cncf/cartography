@@ -1,53 +1,6 @@
 {
   "statements": [
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaUser)-[:FACTOR]->(n:OktaUserFactor) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaUserFactor nodes"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaUser)-[r:FACTOR]->(:OktaUserFactor)  WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaUserFactor to OktaUser relationship"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaUser) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaUser"
-    },
-    {
-      "query": "MATCH (:AWSRole)<-[r:ALLOWED_BY]-(:OktaGroup) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete Stale OktaGroup to AWSRole ALLOWED_BY relationship"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaApplication) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaApplication"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaApplication)<-[r:APPLICATION]-(n) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaApplication relationships"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaTrustedOrigin) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaTrustedOrigin"
-    },
-    {
-      "query": "MATCH (n:OktaOrganization{id: $OKTA_ORG_ID}) WHERE n.lastupdated <> $UPDATE_TAG DELETE (n)",
-      "iterative": false,
-      "__comment__": "Delete stale OktaOrganization"
-    },
-    {
       "query": "MATCH (h:Human)-[:IDENTITY_OKTA]->(:OktaUser) MATCH (h)-[r:CAN_ASSUME_ROLE]->(:AWSRole) WITH DISTINCT r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,

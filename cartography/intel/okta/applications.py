@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# Okta intel module - Applications
 import asyncio
 import json
 import logging
@@ -20,9 +19,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-####
-# Get Applications
-####
 @timeit
 def sync_okta_applications(
     okta_client: OktaClient,
@@ -379,11 +375,6 @@ def _cleanup_okta_applications(
     )
 
 
-####
-# Get Applications assigned to users
-####
-
-
 @timeit
 async def _get_application_assigned_users(
     okta_client: OktaClient, app_id: str
@@ -400,9 +391,6 @@ async def _get_application_assigned_users(
     return [user.id for user in application_users]
 
 
-####
-# Get Applications assigned to groups
-####
 @timeit
 async def _get_application_assigned_groups(
     okta_client: OktaClient, app_id: str
@@ -417,11 +405,6 @@ async def _get_application_assigned_groups(
         okta_client.list_application_group_assignments, limit=200, app_id=app_id
     )
     return [group.id for group in application_groups]
-
-
-####
-# ReplyUri
-####
 
 
 @timeit

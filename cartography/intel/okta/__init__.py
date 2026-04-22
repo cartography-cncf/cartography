@@ -34,6 +34,7 @@ def _cleanup_okta_organizations(
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
+    # DEPRECATED: migration cleanup, will be removed in v1
     run_cleanup_job("okta_import_cleanup.json", neo4j_session, common_job_parameters)
     cleanup_okta_groups(neo4j_session, common_job_parameters)
 

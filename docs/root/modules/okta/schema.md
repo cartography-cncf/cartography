@@ -245,6 +245,163 @@ Representation of an [Okta Trusted Origin](https://developer.okta.com/docs/refer
     (OktaOrganization)-[RESOURCE]->(OktaTrustedOrigin)
     ```
 
+### OktaUserRole
+
+Representation of an administrative [Okta Role](https://developer.okta.com/docs/reference/api/roles/) assigned directly to an OktaUser.
+
+| Field | Description |
+|-------|--------------|
+| **id** | Okta role assignment id |
+| assignment_type | `USER` or `GROUP` |
+| created | When the role assignment was created |
+| description | Role description |
+| label | Human-readable role label |
+| name | Role name |
+| role_type | Role type (e.g. `SUPER_ADMIN`, `ORG_ADMIN`) |
+| status | Role assignment status |
+| last_updated | When the role assignment was last updated |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaUserRoles
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaUserRole)
+    ```
+- An OktaUser can have OktaUserRoles
+    ```
+    (OktaUser)-[HAS_ROLE]->(OktaUserRole)
+    ```
+
+### OktaUserType
+
+Representation of an [Okta User Type](https://developer.okta.com/docs/reference/api/user-types/).
+
+| Field | Description |
+|-------|--------------|
+| **id** | User type id |
+| name | Internal user type name |
+| display_name | Display name |
+| description | User type description |
+| default | Whether this is the default user type |
+| created | Creation timestamp |
+| created_by | User id that created the type |
+| last_updated | Last update timestamp |
+| last_updated_by | User id that last updated the type |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaUserTypes
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaUserType)
+    ```
+- An OktaUser is of a given OktaUserType
+    ```
+    (OktaUser)-[HAS_TYPE]->(OktaUserType)
+    ```
+
+### OktaGroupRole
+
+Representation of an administrative [Okta Role](https://developer.okta.com/docs/reference/api/roles/) assigned to an OktaGroup.
+
+| Field | Description |
+|-------|--------------|
+| **id** | Okta role assignment id |
+| assignment_type | `USER` or `GROUP` |
+| created | When the role assignment was created |
+| description | Role description |
+| label | Human-readable role label |
+| name | Role name |
+| role_type | Role type (e.g. `SUPER_ADMIN`, `ORG_ADMIN`) |
+| status | Role assignment status |
+| last_updated | When the role assignment was last updated |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaGroupRoles
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaGroupRole)
+    ```
+- An OktaGroup can have OktaGroupRoles
+    ```
+    (OktaGroup)-[HAS_ROLE]->(OktaGroupRole)
+    ```
+
+### OktaGroupRule
+
+Representation of an [Okta Group Rule](https://developer.okta.com/docs/reference/api/groups/#group-rule-object).
+
+| Field | Description |
+|-------|--------------|
+| **id** | Group rule id |
+| name | Group rule name |
+| status | Rule status (`ACTIVE`, `INACTIVE`) |
+| created | Creation timestamp |
+| last_updated | Last update timestamp |
+| condition_type | One of `expression`, `group_membership`, `complex` |
+| conditions | Rule condition payload (expression string or JSON) |
+| expression_type | Expression language type when `condition_type=expression` |
+| inclusions | User ids included by the rule, if any |
+| exclusions | User ids excluded by the rule, if any |
+| assigned_groups | Group ids the rule assigns users to |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaGroupRules
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaGroupRule)
+    ```
+- An OktaGroupRule assigns users to one or more OktaGroups
+    ```
+    (OktaGroupRule)-[ASSIGNED_BY_GROUP_RULE]->(OktaGroup)
+    ```
+
+### OktaAuthenticator
+
+Representation of an [Okta Authenticator](https://developer.okta.com/docs/reference/api/authenticators-admin/).
+
+| Field | Description |
+|-------|--------------|
+| **id** | Authenticator id |
+| name | Authenticator name |
+| key | Authenticator key (e.g. `okta_password`, `webauthn`) |
+| authenticator_type | Authenticator type |
+| status | Authenticator status |
+| created | Creation timestamp |
+| last_updated | Last update timestamp |
+| provider_type | Provider type when applicable |
+| provider_host_name | Provider host name |
+| provider_auth_port | Provider auth port |
+| provider_instance_id | Provider instance id |
+| provider_integration_key | Provider integration key |
+| provider_secret_key | Provider secret key |
+| provider_shared_secret | Provider shared secret |
+| provider_user_name_template | Provider user name template |
+| provider_configuration | Full provider configuration as JSON |
+| settings_allowed_for | Contexts the authenticator is allowed for |
+| settings_token_lifetime_minutes | Token lifetime in minutes |
+| settings_compliance | Compliance settings |
+| settings_channel_binding | Channel binding style |
+| settings_user_verification | User verification setting |
+| settings_app_instance_id | Bound app instance id |
+| settings | Full settings payload as JSON |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization has OktaAuthenticators
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaAuthenticator)
+    ```
+
 ### ReplyUri
 
 Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/reference/api/apps/).
