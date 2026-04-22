@@ -226,9 +226,11 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
     ORDER BY a.name, i.region
     ```
 
-### GuardDutyFinding::Risk
+### GuardDutyFinding::Risk::SecurityIssue
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., SemgrepSASTFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|-------------|
@@ -274,7 +276,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
-### AWSInspectorFinding
+### AWSInspectorFinding::Risk
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
@@ -452,11 +454,14 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | lastupdatestatus | The status of the last update that was performed on the function. |
 | lastupdatestatusreason |  The reason for the last update that was performed on the function.|
 | lastupdatestatusreasoncode | The reason code for the last update that was performed on the function. |
-| packagetype |  The type of deployment package. |
+| packagetype |  The type of deployment package (`Zip` for source code, `Image` for container). |
+| image_uri | Container image reference (e.g., `123.dkr.ecr.us-east-1.amazonaws.com/repo@sha256:...`). Populated when `packagetype=Image`. |
+| image_digest | Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
 | signingprofileversionarn | The ARN of the signing profile version. |
 | signingjobarn | The ARN of the signing job. |
 | codesha256 | The SHA256 hash of the function's deployment package. |
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
+| architecture_normalized | Canonical architecture (`amd64`, `arm64`) derived from `architectures[0]`. Used by `RESOLVED_IMAGE` to pick the right child image when the Lambda runs a multi-architecture manifest list. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
 | anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
@@ -493,6 +498,18 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 - AWSLambda functions has AWS ECR Images.
     ```
     (:AWSLambda)-[:HAS]->(:ECRImage)
+    ```
+
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryContainerImage`.
+    ```
+    (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    ```
+
+- AWSLambda functions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```
+    (:AWSLambda)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AWSLambdaFunctionAlias
@@ -2794,6 +2811,11 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 - EKS Clusters belong to AWS Accounts.
     ```
     (AWSAccount)-[RESOURCE]->(EKSCluster)
+    ```
+
+- An EKS Cluster maps to the `KubernetesCluster` synced from the same control plane.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
     ```
 
 #### Example queries

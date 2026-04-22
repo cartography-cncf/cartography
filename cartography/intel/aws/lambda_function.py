@@ -12,6 +12,8 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image import parse_image_uri
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
 from cartography.models.aws.lambda_function.event_source_mapping import (
     AWSLambdaEventSourceMappingSchema,
@@ -39,9 +41,46 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     return lambda_functions
 
 
+@timeit
+@aws_handle_regions
+def get_lambda_image_uris(
+    boto3_session: boto3.session.Session,
+    lambda_functions: List[Dict],
+    region: str,
+) -> Dict[str, Dict[str, str | None]]:
+    """
+    For each container-image Lambda (PackageType=Image), call get_function to
+    resolve ImageUri / ResolvedImageUri. list_functions does not return the
+    Code.ImageUri field, so this per-function call is required for image-based
+    Lambdas only. Returns a map of function_arn -> {"ImageUri", "ResolvedImageUri"}.
+
+    A failure on a single function is logged and skipped (matching the existing
+    per-function pattern used by get_lambda_permission_policy) so one transient
+    SDK error does not abort the whole region's Lambda sync.
+    """
+    client = create_boto3_client(boto3_session, "lambda", region_name=region)
+    image_uris: Dict[str, Dict[str, str | None]] = {}
+    for function_data in lambda_functions:
+        if function_data.get("PackageType") != "Image":
+            continue
+        function_arn = function_data["FunctionArn"]
+        try:
+            response = client.get_function(FunctionName=function_arn)
+        except Exception as e:
+            logger.warning("Failed to get image URI for Lambda %s: %s", function_arn, e)
+            continue
+        code = response.get("Code") or {}
+        image_uris[function_arn] = {
+            "ImageUri": code.get("ImageUri"),
+            "ResolvedImageUri": code.get("ResolvedImageUri"),
+        }
+    return image_uris
+
+
 def transform_lambda_functions(
     lambda_functions: List[Dict],
     permissions_by_arn: Dict[str, Dict[str, Any]],
+    image_uris_by_arn: Dict[str, Dict[str, str | None]],
     region: str,
 ) -> List[Dict]:
     transformed_functions = []
@@ -59,6 +98,22 @@ def transform_lambda_functions(
         permission_data = permissions_by_arn[function_arn]
         transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
         transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
+
+        # For PackageType=Image Lambdas, the resolved image URI is fetched via a
+        # per-function GetFunction call (list_functions does not return Code).
+        # Parsing both the URI and its digest allows RESOLVED_IMAGE to link Lambdas
+        # to registry image nodes the same way Cloud Run / Azure Container workloads do.
+        code = image_uris_by_arn.get(function_arn, {})
+        image_uri, image_digest = parse_image_uri(
+            code.get("ResolvedImageUri") or code.get("ImageUri")
+        )
+        transformed_function["image_uri"] = image_uri
+        transformed_function["image_digest"] = image_digest
+
+        architectures = function_data.get("Architectures") or []
+        transformed_function["architecture_normalized"] = (
+            normalize_architecture(architectures[0]) if architectures else None
+        )
 
         transformed_functions.append(transformed_function)
 
@@ -374,7 +429,10 @@ def sync(
         # Get and load core lambda functions
         data = get_lambda_data(boto3_session, region)
         permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
-        transformed_data = transform_lambda_functions(data, permissions_by_arn, region)
+        image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
+        transformed_data = transform_lambda_functions(
+            data, permissions_by_arn, image_uris_by_arn, region
+        )
         load_lambda_functions(
             neo4j_session,
             transformed_data,

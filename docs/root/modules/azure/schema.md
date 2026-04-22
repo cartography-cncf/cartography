@@ -1505,6 +1505,11 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 |state| The operational state of the Function App (e.g., Running, Stopped). |
 |default_host_name| The default hostname of the Function App. |
 |https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
+|is_container| `true` when the Function App is deployed from a container image (linuxFxVersion prefixed with `DOCKER|`); `false` for code-based runtimes. |
+|deployment_type| `"container"` when the Function App runs a container image, `"code"` otherwise. Derived from `is_container`. |
+|image_uri| Container image reference parsed from `linuxFxVersion` (without the `DOCKER|` prefix). Populated only when `is_container=true`. |
+|image_digest| Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
+|architecture_normalized| Canonical architecture for container-based Function Apps. Function Apps do not expose host architecture; Linux container plans are assumed to run on `amd64`. |
 
 #### Relationships
 
@@ -1516,6 +1521,18 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 - Azure Function Apps can be tagged with Azure Tags.
     ```cypher
     (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
+- Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
+    ```cypher
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    ```
+
+- Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```cypher
+    (AzureFunctionApp)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AzureAppService
@@ -1892,9 +1909,7 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 
 ### AzureContainerInstance
 
-Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
-
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., ECSContainer, KubernetesContainer).
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureGroupContainer](#azuregroupcontainer)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
 |**id**| The full resource ID of the Container Instance. |
 |name| The name of the Container Instance. |
@@ -2568,9 +2583,11 @@ Representation of an Azure Synapse [Managed Private Endpoint](https://learn.micr
     (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
     ```
 
-### AzureSecurityAssessment
+### AzureSecurityAssessment::SecurityIssue
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
 
 | Field | Description |
 |---|---|

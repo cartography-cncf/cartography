@@ -9,6 +9,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 class CrowdstrikeHostNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("device_id")
     cid: PropertyRef = PropertyRef("cid")
+    email: PropertyRef = PropertyRef("email", extra_index=True)
     instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
     status: PropertyRef = PropertyRef("status")

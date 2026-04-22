@@ -1,6 +1,6 @@
 ## Trivy Schema
 
-### TrivyImageFinding
+### TrivyImageFinding::Risk::CVE
 Representation of a vulnerability finding in a container image.
 
 | Field | Description |

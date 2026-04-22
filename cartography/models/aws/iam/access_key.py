@@ -32,26 +32,6 @@ class AccountAccessKeyNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AWSUserToAccountAccessKeyRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AWSUserToAccountAccessKeyRel(CartographyRelSchema):
-    target_node_label: str = "AccountAccessKey"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "accesskeyid": PropertyRef("accesskeyid"),
-        }
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "AWS_ACCESS_KEY"
-    properties: AWSUserToAccountAccessKeyRelProperties = (
-        AWSUserToAccountAccessKeyRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class AccountAccessKeyToAWSUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -102,6 +82,5 @@ class AccountAccessKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AccountAccessKeyToAWSUserRel(),
-            AccountAccessKeyToAWSAccountRel(),
         ]
     )
