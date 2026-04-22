@@ -3,8 +3,46 @@ from __future__ import annotations
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from typing import Optional
 
 from okta.pagination import PaginationHelper
+
+
+def _relax_required_fields(*model_paths: str) -> None:
+    """
+    Work around okta-sdk-python models that mark API response fields as
+    required (StrictStr / StrictBool / StrictInt) even though the Okta API
+    frequently omits them on real tenants. A strict model_validate rejects
+    the whole list response, so we rewrite the given pydantic models to
+    make every required field Optional with a None default.
+
+    This keeps the SDK usable until upstream relaxes those fields. Tracked
+    at https://github.com/okta/okta-sdk-python/issues/535 (user types) and
+    the newly-filed SamlApplicationSettingsSignOn report.
+    """
+    import importlib
+
+    for path in model_paths:
+        module_name, _, class_name = path.rpartition(".")
+        try:
+            model_cls = getattr(importlib.import_module(module_name), class_name)
+        except (ImportError, AttributeError):
+            continue
+        changed = False
+        for field_info in model_cls.model_fields.values():
+            if field_info.is_required():
+                field_info.default = None
+                field_info.annotation = Optional[field_info.annotation]
+                changed = True
+        if changed:
+            model_cls.model_rebuild(force=True)
+
+
+# Loosen Okta SDK 3.4.2 models that declare API-optional fields as required.
+# See the _relax_required_fields docstring for context.
+_relax_required_fields(
+    "okta.models.saml_application_settings_sign_on.SamlApplicationSettingsSignOn",
+)
 
 
 class OktaApiError(RuntimeError):
