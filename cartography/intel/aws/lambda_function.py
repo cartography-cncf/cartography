@@ -18,6 +18,7 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_lambda_botocore_config
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
@@ -71,7 +72,12 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     """
     Create an Lambda boto3 client and grab all the lambda functions.
     """
-    client = create_boto3_client(boto3_session, "lambda", region_name=region)
+    client = create_boto3_client(
+        boto3_session,
+        "lambda",
+        region_name=region,
+        config=get_lambda_botocore_config(),
+    )
     paginator = client.get_paginator("list_functions")
     lambda_functions = []
     try:
@@ -114,7 +120,12 @@ def get_lambda_image_uris(
     retry-exhausted transport/service failures abort the region so the sync can
     preserve last-known-good image metadata.
     """
-    client = create_boto3_client(boto3_session, "lambda", region_name=region)
+    client = create_boto3_client(
+        boto3_session,
+        "lambda",
+        region_name=region,
+        config=get_lambda_botocore_config(),
+    )
     image_uris: Dict[str, Dict[str, str | None]] = {}
     for function_data in lambda_functions:
         if function_data.get("PackageType") != "Image":
@@ -653,7 +664,12 @@ def sync(
             update_tag,
         )
 
-        client = create_boto3_client(boto3_session, "lambda", region_name=region)
+        client = create_boto3_client(
+            boto3_session,
+            "lambda",
+            region_name=region,
+            config=get_lambda_botocore_config(),
+        )
 
         aliases_cleanup_safe = (
             sync_aliases(

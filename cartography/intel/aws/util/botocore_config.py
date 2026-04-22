@@ -8,6 +8,9 @@ DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_RETRY_MODE = "adaptive"
 
 CLOUDTRAIL_RETRY_MODE = "standard"
+LAMBDA_READ_TIMEOUT = 30
+LAMBDA_MAX_ATTEMPTS = 2
+LAMBDA_RETRY_MODE = "standard"
 
 
 def _normalize_retries(
@@ -74,6 +77,19 @@ def get_cloudtrail_botocore_config(
         read_timeout=read_timeout,
         max_attempts=DEFAULT_MAX_ATTEMPTS,
         retry_mode=CLOUDTRAIL_RETRY_MODE,
+        max_pool_connections=max_pool_connections,
+    )
+
+
+def get_lambda_botocore_config(
+    *,
+    read_timeout: int = LAMBDA_READ_TIMEOUT,
+    max_pool_connections: int | None = None,
+) -> botocore.config.Config:
+    return get_botocore_config(
+        read_timeout=read_timeout,
+        max_attempts=LAMBDA_MAX_ATTEMPTS,
+        retry_mode=LAMBDA_RETRY_MODE,
         max_pool_connections=max_pool_connections,
     )
 

@@ -5,6 +5,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from cartography.intel.aws import lambda_function
+from cartography.intel.aws.util.botocore_config import get_lambda_botocore_config
 from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS
 
 
@@ -31,6 +32,18 @@ def test_get_event_source_mappings_raises_transient_failure_after_retry_exhausti
         lambda_function.get_event_source_mappings(LIST_LAMBDA_FUNCTIONS[0], client)
 
 
+def test_get_lambda_data_uses_lambda_retry_profile():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_paginator.return_value.paginate.return_value = []
+
+    lambda_function.get_lambda_data(boto3_session, "us-east-1")
+
+    assert (
+        boto3_session.client.call_args.kwargs["config"] == get_lambda_botocore_config()
+    )
+
+
 def test_get_lambda_image_uris_raises_transient_failure_after_retry_exhaustion():
     image_lambda = dict(LIST_LAMBDA_FUNCTIONS[0], PackageType="Image")
     boto3_session = MagicMock()
@@ -47,6 +60,23 @@ def test_get_lambda_image_uris_raises_transient_failure_after_retry_exhaustion()
             [image_lambda],
             "us-east-1",
         )
+
+
+def test_get_lambda_image_uris_uses_lambda_retry_profile():
+    image_lambda = dict(LIST_LAMBDA_FUNCTIONS[0], PackageType="Image")
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_function.return_value = {"Code": {}}
+
+    lambda_function.get_lambda_image_uris(
+        boto3_session,
+        [image_lambda],
+        "us-east-1",
+    )
+
+    assert (
+        boto3_session.client.call_args.kwargs["config"] == get_lambda_botocore_config()
+    )
 
 
 def test_sync_event_source_mappings_skips_failed_function_and_marks_cleanup_unsafe(

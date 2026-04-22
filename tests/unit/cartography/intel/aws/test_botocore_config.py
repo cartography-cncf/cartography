@@ -3,6 +3,7 @@ from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import create_boto3_resource
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.botocore_config import get_cloudtrail_botocore_config
+from cartography.intel.aws.util.botocore_config import get_lambda_botocore_config
 
 
 class FakeSession:
@@ -42,6 +43,14 @@ def test_get_cloudtrail_botocore_config_uses_standard_retries():
     assert config.retries["max_attempts"] == 3
     assert config.retries["mode"] == "standard"
     assert config.read_timeout == 120
+
+
+def test_get_lambda_botocore_config_uses_fail_fast_standard_retries():
+    config = get_lambda_botocore_config()
+
+    assert config.retries["max_attempts"] == 2
+    assert config.retries["mode"] == "standard"
+    assert config.read_timeout == 30
 
 
 def test_create_boto3_client_uses_shared_config_by_default():
