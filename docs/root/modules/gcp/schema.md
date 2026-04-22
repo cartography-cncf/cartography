@@ -908,6 +908,18 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
     (GCPPolicyBinding)-[:GRANTS_ROLE]->(GCPRole)
     ```
 
+- GCPPolicyBindings apply to the concrete resource they govern. The edge is
+  created only when the bound resource is already present in the graph, and
+  supports `GCPProject`, `GCPFolder`, `GCPOrganization`, `GCPBucket`,
+  `GCPKeyRing`, `GCPCryptoKey`, `GCPSecretManagerSecret`,
+  `GCPSecretManagerSecretVersion`, `GCPArtifactRegistryRepository`,
+  `GCPCloudRunService`, `GCPInstance`, `GCPVpc`, `GCPSubnet`, and
+  `GCPFirewall` targets.
+
+    ```
+    (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
 ### GCPBigtableInstance
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
