@@ -4,7 +4,7 @@ This module enriches existing CVE nodes in the graph with metadata from external
 
 ### Data Sources
 
-- **NVD** — CVSS scores, descriptions, references, weaknesses, and CISA KEV (Known Exploited Vulnerabilities) data from the [NVD JSON feeds](https://nvd.nist.gov/vuln/data-feeds).
+- **NVD** — CVSS scores, descriptions, references, weaknesses, and CISA KEV (Known Exploited Vulnerabilities) data from the [NIST NVD API v2.0](https://nvd.nist.gov/developers/vulnerabilities) when an API key is provided, otherwise from the [NVD JSON feeds](https://nvd.nist.gov/vuln/data-feeds).
 - **EPSS** — Exploit Prediction Scoring System scores from [FIRST.org](https://www.first.org/epss/).
 
 ### Usage
@@ -16,6 +16,7 @@ No explicit enable flag is needed. Include `cve_metadata` in your module list or
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--cve-metadata-src` | List of metadata sources to enable. Can be specified multiple times. Valid values: `nvd`, `epss`. | All sources enabled |
+| `--cve-metadata-nist-api-key-env-var` | Environment variable name holding an NVD API v2.0 key. When set, CVEs are fetched one-by-one via the API (fresher data); otherwise the module downloads yearly JSON feeds. | None |
 
 ### Examples
 

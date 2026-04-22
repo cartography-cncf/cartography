@@ -118,6 +118,7 @@ def start_cve_metadata_ingestion(
             nvd_data = nvd.get_and_transform_nvd_cves(
                 http_session,
                 set(cve_ids),
+                api_key=config.cve_metadata_nist_api_key,
             )
             nvd.merge_nvd_into_cves(cves, nvd_data)
             logger.info("NVD enriched %d CVEs.", len(nvd_data))

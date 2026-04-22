@@ -906,6 +906,19 @@ class CLI:
                     hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
             ] = None,
+            cve_metadata_nist_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--cve-metadata-nist-api-key-env-var",
+                    help=(
+                        "Environment variable name containing the NIST NVD API v2.0 key. "
+                        "When set, the module queries the API per-CVE; otherwise it falls back "
+                        "to yearly JSON feed downloads."
+                    ),
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # PagerDuty Options
             # =================================================================
@@ -2028,6 +2041,17 @@ class CLI:
                 )
                 cve_api_key = os.environ.get(cve_api_key_env_var)
 
+            # Read CVE Metadata NIST API key
+            cve_metadata_nist_api_key = None
+            if cve_metadata_nist_api_key_env_var:
+                logger.debug(
+                    "Reading CVE Metadata NIST API key from environment variable %s",
+                    cve_metadata_nist_api_key_env_var,
+                )
+                cve_metadata_nist_api_key = os.environ.get(
+                    cve_metadata_nist_api_key_env_var,
+                )
+
             # Read SnipeIT token
             snipeit_token = None
             if snipeit_base_uri:
@@ -2300,6 +2324,7 @@ class CLI:
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
                 cve_metadata_src=cve_metadata_src,
+                cve_metadata_nist_api_key=cve_metadata_nist_api_key,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,

@@ -42,7 +42,7 @@ def test_get_cve_ids_from_graph(neo4j_session):
 @patch.object(
     cartography.intel.cve_metadata.nvd,
     "get_and_transform_nvd_cves",
-    side_effect=lambda http_session, cve_ids: transform_cves(
+    side_effect=lambda http_session, cve_ids, api_key=None: transform_cves(
         copy.deepcopy(GET_NVD_API_DATA), cve_ids
     ),
 )

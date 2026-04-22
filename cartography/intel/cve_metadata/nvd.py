@@ -1,6 +1,7 @@
 import json
 import logging
 import tempfile
+import time
 import zipfile
 from datetime import datetime
 from functools import reduce
@@ -13,8 +14,12 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+NVD_API_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 NVD_FEED_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/2.0"
 CONNECT_AND_READ_TIMEOUT = (30, 120)
+# NVD API rate limits: 50 req/30s with key. 0.6s/req would hit the limit exactly;
+# keep a margin at 1s.
+API_SLEEP_TIME = 1.0
 
 
 def _extract_years_from_cve_ids(cve_ids: set[str]) -> set[str]:
@@ -25,6 +30,26 @@ def _extract_years_from_cve_ids(cve_ids: set[str]) -> set[str]:
         if len(parts) >= 2:
             years.add(parts[1])
     return years
+
+
+@timeit
+def _fetch_cve_from_api(
+    http_session: Session,
+    cve_id: str,
+    api_key: str,
+) -> dict[Any, Any] | None:
+    """Fetch a single CVE from the NVD API v2.0. Returns the raw `cve` dict or None."""
+    response = http_session.get(
+        NVD_API_BASE_URL,
+        params={"cveId": cve_id},
+        headers={"apiKey": api_key, "Content-Type": "application/json"},
+        timeout=CONNECT_AND_READ_TIMEOUT,
+    )
+    response.raise_for_status()
+    vulnerabilities = response.json().get("vulnerabilities", [])
+    if not vulnerabilities:
+        return None
+    return vulnerabilities[0].get("cve")
 
 
 @timeit
@@ -159,26 +184,63 @@ def merge_nvd_into_cves(
 
 
 @timeit
-def get_and_transform_nvd_cves(
+def _get_nvd_cves_from_api(
+    http_session: Session,
+    cve_ids_in_graph: set[str],
+    api_key: str,
+) -> dict[str, dict[Any, Any]]:
+    """Fetch CVEs one-by-one from the NVD API, transforming each response."""
+    logger.info(
+        "Fetching %d CVEs from NVD API v2.0 (one request per CVE)",
+        len(cve_ids_in_graph),
+    )
+    all_cves: dict[str, dict[Any, Any]] = {}
+    for cve_id in sorted(cve_ids_in_graph):
+        raw_cve = _fetch_cve_from_api(http_session, cve_id, api_key)
+        if raw_cve is None:
+            logger.debug("CVE %s not found in NVD, skipping.", cve_id)
+            continue
+        transformed = transform_cves(
+            {"vulnerabilities": [{"cve": raw_cve}]},
+            cve_ids_in_graph,
+        )
+        all_cves.update(transformed)
+        time.sleep(API_SLEEP_TIME)
+    return all_cves
+
+
+@timeit
+def _get_nvd_cves_from_feeds(
     http_session: Session,
     cve_ids_in_graph: set[str],
 ) -> dict[str, dict[Any, Any]]:
-    """
-    Download NVD yearly feed files for the years matching CVE IDs in the graph,
-    then filter and transform to only those CVEs.
-    """
+    """Download NVD yearly feed files for the years matching CVE IDs in the graph."""
     years = _extract_years_from_cve_ids(cve_ids_in_graph)
     logger.info(
         "Downloading NVD feeds for years %s to enrich %d CVEs",
         sorted(years),
         len(cve_ids_in_graph),
     )
-
     all_cves: dict[str, dict[Any, Any]] = {}
     for year in sorted(years):
         feed_data = _download_nvd_feed(http_session, year)
         year_cves = transform_cves(feed_data, cve_ids_in_graph)
         all_cves.update(year_cves)
         logger.debug("Year %s: found %d matching CVEs.", year, len(year_cves))
-
     return all_cves
+
+
+@timeit
+def get_and_transform_nvd_cves(
+    http_session: Session,
+    cve_ids_in_graph: set[str],
+    api_key: str | None = None,
+) -> dict[str, dict[Any, Any]]:
+    """
+    Enrich CVEs with NVD metadata. Uses the NVD API v2.0 per-CVE when an API key
+    is provided (fresher data, no unused downloads); otherwise falls back to
+    yearly JSON feed downloads.
+    """
+    if api_key:
+        return _get_nvd_cves_from_api(http_session, cve_ids_in_graph, api_key)
+    return _get_nvd_cves_from_feeds(http_session, cve_ids_in_graph)
