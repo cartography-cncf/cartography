@@ -4,9 +4,9 @@ import logging
 import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
-from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.microsoft.client import create_graph_service_client
 from cartography.intel.microsoft.intune.compliance_policies import (
     sync_compliance_policies,
 )
@@ -54,10 +54,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             client_id=config.entra_client_id,
             client_secret=config.entra_client_secret,
         )
-        intune_client = GraphServiceClient(
-            credential,
-            scopes=["https://graph.microsoft.com/.default"],
-        )
+        intune_client = create_graph_service_client(credential)
 
         managed_devices_synced = False
         try:

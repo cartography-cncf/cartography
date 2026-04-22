@@ -1,3 +1,4 @@
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -31,7 +32,16 @@ async def _mock_get_managed_devices(client):
 
 async def _mock_get_detected_apps(client):
     for app in MOCK_DETECTED_APPS:
-        yield app
+        yield replace(app, managed_devices=None)
+
+
+async def _mock_get_managed_device_ids_for_detected_app(client, detected_app_id):
+    for app in MOCK_DETECTED_APPS:
+        if app.id == detected_app_id and app.managed_devices:
+            for device in app.managed_devices:
+                if device.id:
+                    yield device.id
+            return
 
 
 async def _mock_get_compliance_policies(client):
@@ -91,6 +101,11 @@ def _create_prereq_nodes(neo4j_session):
     side_effect=_mock_get_detected_apps,
 )
 @patch.object(
+    cartography.intel.microsoft.intune.detected_apps,
+    "get_managed_device_ids_for_detected_app",
+    side_effect=_mock_get_managed_device_ids_for_detected_app,
+)
+@patch.object(
     cartography.intel.microsoft.intune.compliance_policies,
     "get_compliance_policies",
     side_effect=_mock_get_compliance_policies,
@@ -98,6 +113,7 @@ def _create_prereq_nodes(neo4j_session):
 @pytest.mark.asyncio
 async def test_sync_intune(
     mock_compliance_policies,
+    mock_managed_device_ids_for_detected_app,
     mock_detected_apps,
     mock_managed_devices,
     neo4j_session,
