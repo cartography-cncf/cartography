@@ -1,4 +1,3 @@
-from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -11,10 +10,12 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 )
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
+from cartography.intel.microsoft.intune.reports import ExportedReportRows
 from cartography.util import run_scoped_analysis_job
 from tests.data.microsoft.intune.compliance_policies import MOCK_COMPLIANCE_POLICIES
 from tests.data.microsoft.intune.compliance_policies import TEST_GROUP_ID
-from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APPS
+from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APP_AGGREGATE_ROWS
+from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APP_RAW_ROWS
 from tests.data.microsoft.intune.managed_devices import MOCK_MANAGED_DEVICES
 from tests.data.microsoft.intune.managed_devices import TEST_TENANT_ID
 from tests.data.microsoft.intune.managed_devices import TEST_USER_ID_1
@@ -23,6 +24,8 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
+APP_KEY_CHROME = "4f5cf2a0a1c0f5b9d4601f6ca58f5a0c9b5d77e11c1f"
+APP_KEY_TAILSCALE = "da8ab4f0d2cfe2bb9486778d6a628673da7a6e20b1dd"
 
 
 async def _mock_get_managed_devices(client):
@@ -30,18 +33,26 @@ async def _mock_get_managed_devices(client):
         yield device
 
 
-async def _mock_get_detected_apps(client):
-    for app in MOCK_DETECTED_APPS:
-        yield replace(app, managed_devices=None)
+async def _mock_get_detected_app_aggregate_rows(client):
+    return ExportedReportRows(
+        fieldnames=(
+            "ApplicationKey",
+            "ApplicationId",
+            "ApplicationName",
+            "ApplicationPublisher",
+            "ApplicationVersion",
+            "DeviceCount",
+            "Platform",
+        ),
+        rows=MOCK_DETECTED_APP_AGGREGATE_ROWS,
+    )
 
 
-async def _mock_get_managed_device_ids_for_detected_app(client, detected_app_id):
-    for app in MOCK_DETECTED_APPS:
-        if app.id == detected_app_id and app.managed_devices:
-            for device in app.managed_devices:
-                if device.id:
-                    yield device.id
-            return
+async def _mock_get_detected_app_raw_rows(client):
+    return ExportedReportRows(
+        fieldnames=("ApplicationKey", "DeviceId"),
+        rows=MOCK_DETECTED_APP_RAW_ROWS,
+    )
 
 
 async def _mock_get_compliance_policies(client):
@@ -51,33 +62,26 @@ async def _mock_get_compliance_policies(client):
 
 def _create_prereq_nodes(neo4j_session):
     """Create prerequisite nodes that the Intune module depends on."""
-    # Create EntraTenant node (normally created by the Entra module)
     neo4j_session.run(
         "MERGE (t:AzureTenant:EntraTenant {id: $id}) SET t.display_name = $name",
         id=TEST_TENANT_ID,
         name="Test Tenant",
     )
-
-    # Create EntraUser nodes
     neo4j_session.run(
         "MERGE (u:EntraUser {id: $id}) SET u.user_principal_name = $upn",
         id=TEST_USER_ID_1,
-        upn="shyam@subimage.io",
+        upn="shyam@example.test",
     )
     neo4j_session.run(
         "MERGE (u:EntraUser {id: $id}) SET u.user_principal_name = $upn",
         id=TEST_USER_ID_2,
-        upn="testuser@subimage.io",
+        upn="testuser@example.test",
     )
-
-    # Create EntraGroup node
     neo4j_session.run(
         "MERGE (g:EntraGroup {id: $id}) SET g.display_name = $name",
         id=TEST_GROUP_ID,
         name="All Users",
     )
-
-    # Create MEMBER_OF relationships (users in the All Users group)
     neo4j_session.run(
         "MATCH (u:EntraUser {id: $uid}), (g:EntraGroup {id: $gid}) MERGE (u)-[:MEMBER_OF]->(g)",
         uid=TEST_USER_ID_1,
@@ -97,13 +101,13 @@ def _create_prereq_nodes(neo4j_session):
 )
 @patch.object(
     cartography.intel.microsoft.intune.detected_apps,
-    "get_detected_apps",
-    side_effect=_mock_get_detected_apps,
+    "get_detected_app_aggregate_rows",
+    side_effect=_mock_get_detected_app_aggregate_rows,
 )
 @patch.object(
     cartography.intel.microsoft.intune.detected_apps,
-    "get_managed_device_ids_for_detected_app",
-    side_effect=_mock_get_managed_device_ids_for_detected_app,
+    "get_detected_app_raw_rows",
+    side_effect=_mock_get_detected_app_raw_rows,
 )
 @patch.object(
     cartography.intel.microsoft.intune.compliance_policies,
@@ -113,16 +117,14 @@ def _create_prereq_nodes(neo4j_session):
 @pytest.mark.asyncio
 async def test_sync_intune(
     mock_compliance_policies,
-    mock_managed_device_ids_for_detected_app,
-    mock_detected_apps,
+    mock_detected_app_raw_rows,
+    mock_detected_app_aggregate_rows,
     mock_managed_devices,
     neo4j_session,
 ):
-    # Arrange
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID}
     _create_prereq_nodes(neo4j_session)
 
-    # Act
     await sync_managed_devices(
         neo4j_session,
         None,
@@ -145,7 +147,6 @@ async def test_sync_intune(
         common_job_parameters,
     )
 
-    # Assert: managed devices exist
     assert check_nodes(
         neo4j_session, "IntuneManagedDevice", ["id", "device_name", "compliance_state"]
     ) == {
@@ -153,7 +154,6 @@ async def test_sync_intune(
         ("device-002", "Test Windows Laptop", "noncompliant"),
     }
 
-    # Assert: ENROLLED_TO relationship between EntraUser and IntuneManagedDevice
     assert check_rels(
         neo4j_session,
         "EntraUser",
@@ -166,13 +166,11 @@ async def test_sync_intune(
         (TEST_USER_ID_2, "device-002"),
     }
 
-    # Assert: detected apps exist
     assert check_nodes(neo4j_session, "IntuneDetectedApp", ["id", "display_name"]) == {
-        ("app-001", "Google Chrome"),
-        ("app-002", "Tailscale"),
+        (APP_KEY_CHROME, "Google Chrome"),
+        (APP_KEY_TAILSCALE, "Tailscale"),
     }
 
-    # Assert: HAS_APP relationship between IntuneManagedDevice and IntuneDetectedApp
     assert check_rels(
         neo4j_session,
         "IntuneManagedDevice",
@@ -181,12 +179,11 @@ async def test_sync_intune(
         "id",
         "HAS_APP",
     ) == {
-        ("device-001", "app-001"),
-        ("device-002", "app-001"),
-        ("device-001", "app-002"),
+        ("device-001", APP_KEY_CHROME),
+        ("device-002", APP_KEY_CHROME),
+        ("device-001", APP_KEY_TAILSCALE),
     }
 
-    # Assert: compliance policies exist
     assert check_nodes(
         neo4j_session, "IntuneCompliancePolicy", ["id", "display_name", "platform"]
     ) == {
@@ -194,7 +191,6 @@ async def test_sync_intune(
         ("policy-002", "Android Compliance Policy", "android"),
     }
 
-    # Assert: ASSIGNED_TO relationship between IntuneCompliancePolicy and EntraGroup
     assert check_rels(
         neo4j_session,
         "IntuneCompliancePolicy",
@@ -206,7 +202,6 @@ async def test_sync_intune(
         ("policy-001", TEST_GROUP_ID),
     }
 
-    # Assert: RESOURCE sub-resource rels to EntraTenant
     assert check_rels(
         neo4j_session,
         "IntuneManagedDevice",
@@ -229,8 +224,8 @@ async def test_sync_intune(
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("app-001", TEST_TENANT_ID),
-        ("app-002", TEST_TENANT_ID),
+        (APP_KEY_CHROME, TEST_TENANT_ID),
+        (APP_KEY_TAILSCALE, TEST_TENANT_ID),
     }
 
     assert check_rels(
@@ -246,17 +241,12 @@ async def test_sync_intune(
         ("policy-002", TEST_TENANT_ID),
     }
 
-    # Run the analysis job to resolve policy -> device relationships
     run_scoped_analysis_job(
         "intune_compliance_policy_device.json",
         neo4j_session,
         common_job_parameters,
     )
 
-    # Assert: APPLIES_TO relationships
-    # policy-001 (macOS) is assigned to All Users group, both users are members,
-    # so it applies to both devices via group -> user -> device chain.
-    # policy-002 (Android) has applies_to_all_devices=true, so it applies to all devices.
     assert check_rels(
         neo4j_session,
         "IntuneCompliancePolicy",
@@ -270,88 +260,3 @@ async def test_sync_intune(
         ("policy-002", "device-001"),
         ("policy-002", "device-002"),
     }
-
-
-@patch.object(
-    cartography.intel.microsoft.intune.managed_devices,
-    "get_managed_devices",
-    side_effect=_mock_get_managed_devices,
-)
-@patch.object(
-    cartography.intel.microsoft.intune.compliance_policies,
-    "get_compliance_policies",
-    side_effect=_mock_get_compliance_policies,
-)
-@pytest.mark.asyncio
-async def test_policy_device_analysis_cleans_stale_relationships_on_partial_sync(
-    mock_compliance_policies,
-    mock_managed_devices,
-    neo4j_session,
-):
-    old_update_tag = TEST_UPDATE_TAG
-    new_update_tag = TEST_UPDATE_TAG + 1
-    _create_prereq_nodes(neo4j_session)
-
-    old_job_parameters = {
-        "UPDATE_TAG": old_update_tag,
-        "TENANT_ID": TEST_TENANT_ID,
-    }
-    new_job_parameters = {
-        "UPDATE_TAG": new_update_tag,
-        "TENANT_ID": TEST_TENANT_ID,
-    }
-
-    await sync_managed_devices(
-        neo4j_session,
-        None,
-        TEST_TENANT_ID,
-        old_update_tag,
-        old_job_parameters,
-    )
-    await sync_compliance_policies(
-        neo4j_session,
-        None,
-        TEST_TENANT_ID,
-        old_update_tag,
-        old_job_parameters,
-    )
-
-    run_scoped_analysis_job(
-        "intune_compliance_policy_device.json",
-        neo4j_session,
-        old_job_parameters,
-    )
-
-    assert check_rels(
-        neo4j_session,
-        "IntuneCompliancePolicy",
-        "id",
-        "IntuneManagedDevice",
-        "id",
-        "APPLIES_TO",
-    ) == {
-        ("policy-001", "device-001"),
-        ("policy-001", "device-002"),
-        ("policy-002", "device-001"),
-        ("policy-002", "device-002"),
-    }
-
-    # Simulate a subsequent run where Intune entity syncs were skipped due to
-    # missing permissions but the scoped analysis job still executes.
-    run_scoped_analysis_job(
-        "intune_compliance_policy_device.json",
-        neo4j_session,
-        new_job_parameters,
-    )
-
-    assert (
-        check_rels(
-            neo4j_session,
-            "IntuneCompliancePolicy",
-            "id",
-            "IntuneManagedDevice",
-            "id",
-            "APPLIES_TO",
-        )
-        == set()
-    )

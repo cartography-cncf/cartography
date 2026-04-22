@@ -56,10 +56,11 @@ Representation of an application detected on a device managed by Microsoft Intun
 
 | Field | Description |
 |-------|-------------|
-| id | Unique identifier for the detected app (composite of tenant, app, device) |
+| id | Intune report `ApplicationKey` for the detected app |
+| application_id | Intune report `ApplicationId` when the report includes one |
 | display_name | Display name of the application |
 | version | Version of the application |
-| size_in_byte | Size of the application in bytes |
+| size_in_byte | Size of the application in bytes when available |
 | device_count | Number of devices this app is detected on |
 | publisher | Publisher of the application |
 | platform | Platform the application runs on |

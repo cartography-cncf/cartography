@@ -1,16 +1,15 @@
 import logging
 from typing import Any
-from typing import AsyncGenerator
+from typing import Mapping
 
 import neo4j
-from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
-from msgraph.generated.models.detected_app import DetectedApp
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.intel.microsoft.client import get_api_error_response_header
+from cartography.intel.microsoft.intune.reports import export_report_rows
+from cartography.intel.microsoft.intune.reports import ExportedReportRows
 from cartography.models.microsoft.intune.detected_app import IntuneDetectedAppSchema
 from cartography.models.microsoft.intune.detected_app import (
     IntuneManagedDeviceToDetectedAppMatchLink,
@@ -19,105 +18,62 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-DETECTED_APPS_PAGE_SIZE = 50
-DETECTED_APP_MANAGED_DEVICES_PAGE_SIZE = 100
 APP_NODE_BATCH_SIZE = 100
 APP_RELATIONSHIP_BATCH_SIZE = 500
-DETECTED_APP_SELECT_FIELDS = [
-    "id",
-    "displayName",
-    "version",
-    "sizeInByte",
-    "deviceCount",
-    "publisher",
-    "platform",
+APPINVAGGREGATE_REPORT_NAME = "AppInvAggregate"
+APPINVRAWDATA_REPORT_NAME = "AppInvRawData"
+APPINVAGGREGATE_COLUMNS = [
+    "ApplicationKey",
+    "ApplicationId",
+    "ApplicationName",
+    "ApplicationPublisher",
+    "ApplicationVersion",
+    "DeviceCount",
+    "Platform",
+]
+APPINVRAWDATA_COLUMNS = [
+    "ApplicationKey",
+    "DeviceId",
 ]
 
 
-@timeit
-async def get_detected_apps(
+async def get_detected_app_aggregate_rows(
     client: GraphServiceClient,
-) -> AsyncGenerator[DetectedApp, None]:
-    """
-    Get all Intune detected apps using lightweight pages.
-    https://learn.microsoft.com/en-us/graph/api/intune-devices-detectedapp-list
-    Permissions: DeviceManagementManagedDevices.Read.All
-    """
-    request_config = client.device_management.detected_apps.DetectedAppsRequestBuilderGetRequestConfiguration(
-        query_parameters=client.device_management.detected_apps.DetectedAppsRequestBuilderGetQueryParameters(
-            select=DETECTED_APP_SELECT_FIELDS,
-            top=DETECTED_APPS_PAGE_SIZE,
-        ),
+) -> ExportedReportRows:
+    return await export_report_rows(
+        client,
+        APPINVAGGREGATE_REPORT_NAME,
+        APPINVAGGREGATE_COLUMNS,
     )
 
-    page = await client.device_management.detected_apps.get(
-        request_configuration=request_config,
-    )
-    while page:
-        if page.value:
-            for app in page.value:
-                yield app
-        if not page.odata_next_link:
-            break
 
-        next_page_url = page.odata_next_link
-        page.value = None
-        page = await client.device_management.detected_apps.with_url(
-            next_page_url,
-        ).get()
-
-
-@timeit
-async def get_managed_device_ids_for_detected_app(
+async def get_detected_app_raw_rows(
     client: GraphServiceClient,
-    detected_app_id: str,
-) -> AsyncGenerator[str, None]:
-    """
-    Stream managed device IDs for a specific detected app.
-    """
-    managed_devices_builder = client.device_management.detected_apps.by_detected_app_id(
-        detected_app_id,
-    ).managed_devices
-    request_config = managed_devices_builder.ManagedDevicesRequestBuilderGetRequestConfiguration(
-        query_parameters=managed_devices_builder.ManagedDevicesRequestBuilderGetQueryParameters(
-            select=["id"],
-            top=DETECTED_APP_MANAGED_DEVICES_PAGE_SIZE,
-        ),
+) -> ExportedReportRows:
+    return await export_report_rows(
+        client,
+        APPINVRAWDATA_REPORT_NAME,
+        APPINVRAWDATA_COLUMNS,
     )
 
-    page = await managed_devices_builder.get(request_configuration=request_config)
-    while page:
-        if page.value:
-            for device in page.value:
-                if device.id:
-                    yield device.id
-        if not page.odata_next_link:
-            break
 
-        next_page_url = page.odata_next_link
-        page.value = None
-        page = await managed_devices_builder.with_url(next_page_url).get()
-
-
-def transform_detected_app(app: DetectedApp) -> dict[str, Any]:
+def transform_detected_app(row: Mapping[str, str]) -> dict[str, Any]:
     return {
-        "id": app.id,
-        "display_name": app.display_name,
-        "version": app.version,
-        "size_in_byte": app.size_in_byte,
-        "device_count": app.device_count,
-        "publisher": app.publisher,
-        "platform": app.platform.value if app.platform else None,
+        "id": _get_required_value(row, "ApplicationKey", APPINVAGGREGATE_REPORT_NAME),
+        "application_id": _get_optional_value(row, "ApplicationId"),
+        "display_name": _get_optional_value(row, "ApplicationName"),
+        "version": _get_optional_value(row, "ApplicationVersion"),
+        "size_in_byte": None,
+        "device_count": _parse_optional_int(row.get("DeviceCount")),
+        "publisher": _get_optional_value(row, "ApplicationPublisher"),
+        "platform": _get_optional_value(row, "Platform"),
     }
 
 
-def transform_detected_app_relationship(
-    app_id: str,
-    device_id: str,
-) -> dict[str, str]:
+def transform_detected_app_relationship(row: Mapping[str, str]) -> dict[str, str]:
     return {
-        "app_id": app_id,
-        "device_id": device_id,
+        "app_id": _get_required_value(row, "ApplicationKey", APPINVRAWDATA_REPORT_NAME),
+        "device_id": _get_required_value(row, "DeviceId", APPINVRAWDATA_REPORT_NAME),
     }
 
 
@@ -186,15 +142,18 @@ async def sync_detected_apps(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
+    aggregate_report = await get_detected_app_aggregate_rows(client)
+    _validate_report_columns(
+        aggregate_report.fieldnames,
+        APPINVAGGREGATE_COLUMNS,
+        APPINVAGGREGATE_REPORT_NAME,
+    )
+
     app_nodes_batch: list[dict[str, Any]] = []
-    app_relationships_batch: list[dict[str, str]] = []
     app_count = 0
-    relationship_count = 0
-
-    async for app in get_detected_apps(client):
-        app_nodes_batch.append(transform_detected_app(app))
+    for row in aggregate_report.rows:
+        app_nodes_batch.append(transform_detected_app(row))
         app_count += 1
-
         if len(app_nodes_batch) >= APP_NODE_BATCH_SIZE:
             load_detected_app_nodes(
                 neo4j_session,
@@ -205,45 +164,6 @@ async def sync_detected_apps(
             logger.info("sync_detected_apps: loaded %d app nodes so far", app_count)
             app_nodes_batch.clear()
 
-        if app.id and (app.device_count or 0) > 0:
-            try:
-                async for device_id in get_managed_device_ids_for_detected_app(
-                    client,
-                    app.id,
-                ):
-                    app_relationships_batch.append(
-                        transform_detected_app_relationship(app.id, device_id),
-                    )
-                    if len(app_relationships_batch) >= APP_RELATIONSHIP_BATCH_SIZE:
-                        load_detected_app_relationships(
-                            neo4j_session,
-                            app_relationships_batch,
-                            tenant_id,
-                            update_tag,
-                        )
-                        relationship_count += len(app_relationships_batch)
-                        logger.info(
-                            "sync_detected_apps: loaded %d HAS_APP relationships so far",
-                            relationship_count,
-                        )
-                        app_relationships_batch.clear()
-            except APIError as e:
-                logger.error(
-                    "Failed managed-device lookup for detected app %s "
-                    "(status=%s, retry_after=%s, request_id=%s, "
-                    "client_request_id=%s, throttle_scope=%s, "
-                    "throttle_information=%s); aborting Intune detected-app "
-                    "sync to avoid partial HAS_APP cleanup.",
-                    app.id,
-                    e.response_status_code,
-                    get_api_error_response_header(e, "Retry-After"),
-                    get_api_error_response_header(e, "request-id"),
-                    get_api_error_response_header(e, "client-request-id"),
-                    get_api_error_response_header(e, "x-ms-throttle-scope"),
-                    get_api_error_response_header(e, "x-ms-throttle-information"),
-                )
-                raise
-
     if app_nodes_batch:
         load_detected_app_nodes(
             neo4j_session,
@@ -251,6 +171,31 @@ async def sync_detected_apps(
             tenant_id,
             update_tag,
         )
+
+    raw_report = await get_detected_app_raw_rows(client)
+    _validate_report_columns(
+        raw_report.fieldnames,
+        APPINVRAWDATA_COLUMNS,
+        APPINVRAWDATA_REPORT_NAME,
+    )
+
+    app_relationships_batch: list[dict[str, str]] = []
+    relationship_count = 0
+    for row in raw_report.rows:
+        app_relationships_batch.append(transform_detected_app_relationship(row))
+        if len(app_relationships_batch) >= APP_RELATIONSHIP_BATCH_SIZE:
+            load_detected_app_relationships(
+                neo4j_session,
+                app_relationships_batch,
+                tenant_id,
+                update_tag,
+            )
+            relationship_count += len(app_relationships_batch)
+            logger.info(
+                "sync_detected_apps: loaded %d HAS_APP relationships so far",
+                relationship_count,
+            )
+            app_relationships_batch.clear()
 
     if app_relationships_batch:
         load_detected_app_relationships(
@@ -262,10 +207,46 @@ async def sync_detected_apps(
         relationship_count += len(app_relationships_batch)
 
     logger.info(
-        "sync_detected_apps: finished — %d apps and %d HAS_APP relationships",
+        "sync_detected_apps: finished - %d apps and %d HAS_APP relationships",
         app_count,
         relationship_count,
     )
 
     cleanup_detected_app_nodes(neo4j_session, common_job_parameters)
     cleanup_detected_app_relationships(neo4j_session, common_job_parameters)
+
+
+def _validate_report_columns(
+    fieldnames: tuple[str, ...],
+    required_columns: list[str],
+    report_name: str,
+) -> None:
+    missing = [column for column in required_columns if column not in fieldnames]
+    if missing:
+        raise ValueError(
+            f"{report_name} export is missing required columns: {', '.join(missing)}"
+        )
+
+
+def _get_required_value(
+    row: Mapping[str, str],
+    field_name: str,
+    report_name: str,
+) -> str:
+    value = row.get(field_name, "").strip()
+    if not value:
+        raise ValueError(
+            f"{report_name} row is missing required value for {field_name}: {row}"
+        )
+    return value
+
+
+def _get_optional_value(row: Mapping[str, str], field_name: str) -> str | None:
+    value = row.get(field_name, "").strip()
+    return value or None
+
+
+def _parse_optional_int(value: str | None) -> int | None:
+    if not value:
+        return None
+    return int(value)
