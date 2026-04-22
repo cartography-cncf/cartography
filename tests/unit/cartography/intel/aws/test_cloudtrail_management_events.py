@@ -21,7 +21,7 @@ from cartography.intel.aws.cloudtrail_management_events import (
 from cartography.intel.aws.cloudtrail_management_events import (
     transform_web_identity_role_events_to_role_assumptions,
 )
-from cartography.intel.aws.util.botocore_config import get_cloudtrail_botocore_config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from tests.data.aws.cloudtrail_management_events import (
     ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
@@ -203,10 +203,7 @@ def test_get_role_events_raise_transient_region_failure_on_503(getter):
     with pytest.raises(CloudTrailTransientRegionFailure):
         getter(boto3_session, "me-central-1", 24)
 
-    assert (
-        boto3_session.client.call_args.kwargs["config"]
-        == get_cloudtrail_botocore_config()
-    )
+    assert boto3_session.client.call_args.kwargs["config"] == get_botocore_config()
 
 
 @pytest.mark.parametrize(

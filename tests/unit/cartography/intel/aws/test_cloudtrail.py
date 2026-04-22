@@ -9,7 +9,7 @@ from botocore.exceptions import ConnectTimeoutError
 from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
 from cartography.intel.aws.cloudtrail import get_cloudtrail_trails
 from cartography.intel.aws.cloudtrail import sync
-from cartography.intel.aws.util.botocore_config import get_cloudtrail_botocore_config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 
 
 def _client_error(code: str, message: str, status_code: int) -> ClientError:
@@ -39,7 +39,7 @@ def test_get_cloudtrail_trails_raises_transient_region_failure_on_describe_trail
         )
 
 
-def test_get_cloudtrail_trails_uses_cloudtrail_retry_profile():
+def test_get_cloudtrail_trails_uses_shared_retry_profile():
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
     client.describe_trails.return_value = {"trailList": []}
@@ -50,10 +50,7 @@ def test_get_cloudtrail_trails_uses_cloudtrail_retry_profile():
         "123456789012",
     )
 
-    assert (
-        boto3_session.client.call_args.kwargs["config"]
-        == get_cloudtrail_botocore_config()
-    )
+    assert boto3_session.client.call_args.kwargs["config"] == get_botocore_config()
 
 
 def test_get_cloudtrail_trails_raises_transient_region_failure_when_event_selectors_temporarily_fail():

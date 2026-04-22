@@ -20,7 +20,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.cloudtrail import _is_retryable_cloudtrail_error
 from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
 from cartography.intel.aws.util.botocore_config import create_boto3_client
-from cartography.intel.aws.util.botocore_config import get_cloudtrail_botocore_config
 from cartography.models.aws.cloudtrail.management_events import AssumedRoleMatchLink
 from cartography.models.aws.cloudtrail.management_events import (
     AssumedRoleWithSAMLMatchLink,
@@ -78,12 +77,7 @@ def get_assume_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRole events
     """
-    client = create_boto3_client(
-        boto3_session,
-        "cloudtrail",
-        region_name=region,
-        config=get_cloudtrail_botocore_config(),
-    )
+    client = create_boto3_client(boto3_session, "cloudtrail", region_name=region)
 
     # Calculate time range
     end_time = datetime.utcnow()
@@ -134,12 +128,7 @@ def get_saml_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRoleWithSAML events
     """
-    client = create_boto3_client(
-        boto3_session,
-        "cloudtrail",
-        region_name=region,
-        config=get_cloudtrail_botocore_config(),
-    )
+    client = create_boto3_client(boto3_session, "cloudtrail", region_name=region)
 
     # Calculate time range
     end_time = datetime.utcnow()
@@ -192,12 +181,7 @@ def get_web_identity_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRoleWithWebIdentity events
     """
-    client = create_boto3_client(
-        boto3_session,
-        "cloudtrail",
-        region_name=region,
-        config=get_cloudtrail_botocore_config(),
-    )
+    client = create_boto3_client(boto3_session, "cloudtrail", region_name=region)
 
     # Calculate time range
     end_time = datetime.utcnow()
