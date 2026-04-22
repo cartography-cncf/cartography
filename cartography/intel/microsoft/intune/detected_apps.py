@@ -10,6 +10,7 @@ from msgraph.generated.models.detected_app import DetectedApp
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.client import get_api_error_response_header
 from cartography.models.microsoft.intune.detected_app import IntuneDetectedAppSchema
 from cartography.models.microsoft.intune.detected_app import (
     IntuneManagedDeviceToDetectedAppMatchLink,
@@ -229,10 +230,17 @@ async def sync_detected_apps(
             except APIError as e:
                 logger.warning(
                     "Failed managed-device lookup for detected app %s "
-                    "(status=%s); continuing without HAS_APP relationships for "
-                    "this app.",
+                    "(status=%s, retry_after=%s, request_id=%s, "
+                    "client_request_id=%s, throttle_scope=%s, "
+                    "throttle_information=%s); continuing without HAS_APP "
+                    "relationships for this app.",
                     app.id,
                     e.response_status_code,
+                    get_api_error_response_header(e, "Retry-After"),
+                    get_api_error_response_header(e, "request-id"),
+                    get_api_error_response_header(e, "client-request-id"),
+                    get_api_error_response_header(e, "x-ms-throttle-scope"),
+                    get_api_error_response_header(e, "x-ms-throttle-information"),
                 )
 
     if app_nodes_batch:
