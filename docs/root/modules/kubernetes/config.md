@@ -24,14 +24,14 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 
 ### Optional Permissions
 
-These permissions are recommended but Cartography degrades gracefully if they are withheld: it logs a warning, skips the corresponding step, and preserves any data previously synced for that resource.
+These permissions are recommended but Cartography degrades gracefully if they are withheld: it logs a warning and skips the corresponding step. See each bullet for the precise behavior, since the trade-off differs per resource.
 
-- `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb; Cartography will skip `sync_secrets` and will not delete previously synced secrets.
+- `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
 - `get configmaps` (EKS only) — enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. This is optional because:
   - Clusters that use [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively may not have an `aws-auth` ConfigMap at all.
   - Some operators prefer not to grant `get` on all ConfigMaps just to read `aws-auth`.
 
-  When omitted or when the ConfigMap does not exist, Cartography still ingests identity mappings from EKS Access Entries and external OIDC providers.
+  When omitted or when the ConfigMap does not exist, Cartography still ingests identity mappings from EKS Access Entries and external OIDC providers. Note that the EKS identity sync still runs its cleanup step over `KubernetesUser` and `KubernetesGroup`: mappings that previously came only from `aws-auth` (i.e. not also re-asserted by Access Entries in the current run) will be removed from the graph. If you want to preserve legacy `aws-auth` mappings across syncs, grant this verb.
 
 Create a ClusterRole and bind it to the identity used by Cartography:
 
