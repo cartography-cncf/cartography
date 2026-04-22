@@ -228,12 +228,12 @@ async def sync_detected_apps(
                         )
                         app_relationships_batch.clear()
             except APIError as e:
-                logger.warning(
+                logger.error(
                     "Failed managed-device lookup for detected app %s "
                     "(status=%s, retry_after=%s, request_id=%s, "
                     "client_request_id=%s, throttle_scope=%s, "
-                    "throttle_information=%s); continuing without HAS_APP "
-                    "relationships for this app.",
+                    "throttle_information=%s); aborting Intune detected-app "
+                    "sync to avoid partial HAS_APP cleanup.",
                     app.id,
                     e.response_status_code,
                     get_api_error_response_header(e, "Retry-After"),
@@ -242,6 +242,7 @@ async def sync_detected_apps(
                     get_api_error_response_header(e, "x-ms-throttle-scope"),
                     get_api_error_response_header(e, "x-ms-throttle-information"),
                 )
+                raise
 
     if app_nodes_batch:
         load_detected_app_nodes(

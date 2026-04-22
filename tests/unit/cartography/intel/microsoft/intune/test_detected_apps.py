@@ -155,18 +155,21 @@ async def _mock_get_managed_device_ids_for_detected_app_throttled(
     side_effect=_mock_get_detected_apps_for_throttle_test,
 )
 @pytest.mark.asyncio
-async def test_sync_detected_apps_logs_throttle_metadata_when_retries_are_exhausted(
+async def test_sync_detected_apps_raises_with_throttle_metadata_when_retries_are_exhausted(
     _mock_get_detected_apps,
     _mock_get_managed_device_ids,
     mock_load_detected_app_nodes,
     mock_load_detected_app_relationships,
-    _mock_cleanup_detected_app_nodes,
-    _mock_cleanup_detected_app_relationships,
+    mock_cleanup_detected_app_nodes,
+    mock_cleanup_detected_app_relationships,
     caplog,
 ):
-    with caplog.at_level(
-        logging.WARNING,
-        logger="cartography.intel.microsoft.intune.detected_apps",
+    with (
+        pytest.raises(APIError),
+        caplog.at_level(
+            logging.ERROR,
+            logger="cartography.intel.microsoft.intune.detected_apps",
+        ),
     ):
         await sync_detected_apps(
             neo4j_session=MagicMock(),
@@ -179,11 +182,16 @@ async def test_sync_detected_apps_logs_throttle_metadata_when_retries_are_exhaus
             },
         )
 
-    assert mock_load_detected_app_nodes.called
+    assert not mock_load_detected_app_nodes.called
     assert not mock_load_detected_app_relationships.called
+    assert not mock_cleanup_detected_app_nodes.called
+    assert not mock_cleanup_detected_app_relationships.called
     assert (
         "status=429, retry_after=17, request_id=req-123, "
         "client_request_id=client-456, "
         "throttle_scope=Tenant_Application/ReadWrite/17s, "
         "throttle_information=ResourceUnitLimitExceeded"
     ) in caplog.text
+    assert "aborting Intune detected-app sync to avoid partial HAS_APP cleanup" in (
+        caplog.text
+    )
