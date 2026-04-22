@@ -394,7 +394,12 @@ async def _get_okta_user_roles(
     raise_for_okta_error(error, f"list_assigned_roles_for_user(user_id={user_id})")
     if not output_user_roles:
         return []
-    return [(user_id, role) for role in output_user_roles]
+    # The SDK returns a discriminated-union wrapper; the Role fields live on
+    # `actual_instance` (StandardRole | CustomRole), so unwrap here.
+    return [
+        (user_id, role.actual_instance if hasattr(role, "actual_instance") else role)
+        for role in output_user_roles
+    ]
 
 
 @timeit

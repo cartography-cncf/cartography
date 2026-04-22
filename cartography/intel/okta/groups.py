@@ -384,7 +384,12 @@ async def _get_okta_group_roles(
     raise_for_okta_error(error, f"list_group_assigned_roles(group_id={group_id})")
     if not group_roles:
         return []
-    return [(group_id, role) for role in group_roles]
+    # The SDK returns a discriminated-union wrapper; the Role fields live on
+    # `actual_instance` (StandardRole | CustomRole), so unwrap here.
+    return [
+        (group_id, role.actual_instance if hasattr(role, "actual_instance") else role)
+        for role in group_roles
+    ]
 
 
 @timeit
