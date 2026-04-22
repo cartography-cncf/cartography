@@ -41,13 +41,13 @@ def test_sync_okta_groups(
     # Arrange - Create test data
     test_group_1 = create_test_group()
     test_group_1.id = "group-001"
-    test_group_1.profile.name = "Engineering"
-    test_group_1.profile.description = "Engineering team"
+    test_group_1.profile.actual_instance.name = "Engineering"
+    test_group_1.profile.actual_instance.description = "Engineering team"
 
     test_group_2 = create_test_group()
     test_group_2.id = "group-002"
-    test_group_2.profile.name = "Product"
-    test_group_2.profile.description = "Product team"
+    test_group_2.profile.actual_instance.name = "Product"
+    test_group_2.profile.actual_instance.description = "Product team"
 
     # Create test users in the graph first
     neo4j_session.run(
@@ -146,7 +146,7 @@ def test_sync_okta_groups_with_roles(
     # Arrange - Create test data
     test_group = create_test_group()
     test_group.id = "group-with-role"
-    test_group.profile.name = "Admin Group"
+    test_group.profile.actual_instance.name = "Admin Group"
 
     # Create test role
     test_role = create_test_group_role()
@@ -233,7 +233,7 @@ def test_cleanup_okta_groups(
     # Create a fresh group via sync
     test_group = create_test_group()
     test_group.id = "fresh-group"
-    test_group.profile.name = "Fresh Group"
+    test_group.profile.actual_instance.name = "Fresh Group"
 
     mock_get_groups.return_value = [test_group]
     mock_get_members.return_value = []

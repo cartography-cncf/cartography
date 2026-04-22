@@ -134,18 +134,24 @@ def _transform_okta_groups(
         group_props["last_membership_updated"] = okta_group.last_membership_updated
         group_props["last_updated"] = okta_group.last_updated
         group_props["object_class"] = json.dumps(okta_group.object_class)
-        group_props["description"] = okta_group.profile.description
-        group_props["name"] = okta_group.profile.name
-        group_props["group_type"] = okta_group.type.value
+        # `okta_group.profile` is a discriminated-union wrapper (anyOf
+        # OktaUserGroupProfile / OktaActiveDirectoryGroupProfile); concrete
+        # fields live on `actual_instance`. AD-only fields (sam_account_name,
+        # dn, windows_domain_qualified_name, external_id) need getattr
+        # because OktaUserGroupProfile doesn't declare them.
+        profile = okta_group.profile
+        if profile is not None and hasattr(profile, "actual_instance"):
+            profile = profile.actual_instance
+        group_props["description"] = getattr(profile, "description", None)
+        group_props["name"] = getattr(profile, "name", None)
+        group_props["group_type"] = okta_group.type.value if okta_group.type else None
         # Legacy AD-synced group fields for backward compatibility
-        group_props["sam_account_name"] = getattr(
-            okta_group.profile, "sam_account_name", None
-        )
-        group_props["dn"] = getattr(okta_group.profile, "dn", None)
+        group_props["sam_account_name"] = getattr(profile, "sam_account_name", None)
+        group_props["dn"] = getattr(profile, "dn", None)
         group_props["windows_domain_qualified_name"] = getattr(
-            okta_group.profile, "windows_domain_qualified_name", None
+            profile, "windows_domain_qualified_name", None
         )
-        group_props["external_id"] = getattr(okta_group.profile, "external_id", None)
+        group_props["external_id"] = getattr(profile, "external_id", None)
         # For each group, grab what users might assigned
         group_members: list[OktaUser] = asyncio.run(
             _get_okta_group_members(okta_client, okta_group.id),
@@ -233,7 +239,9 @@ def _transform_okta_group_rules(
         group_rule_props = {}
         group_rule_props["id"] = okta_group_rule.id
         group_rule_props["name"] = okta_group_rule.name
-        group_rule_props["status"] = okta_group_rule.status.value
+        group_rule_props["status"] = (
+            okta_group_rule.status.value if okta_group_rule.status else None
+        )
         group_rule_props["last_updated"] = okta_group_rule.last_updated
         group_rule_props["created"] = okta_group_rule.created
 

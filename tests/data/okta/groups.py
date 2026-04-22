@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 
 from okta.models.group import Group
+from okta.models.group_profile import GroupProfile
+from okta.models.okta_user_group_profile import OktaUserGroupProfile
 
 
 def create_test_group():
@@ -16,15 +18,13 @@ def create_test_group():
     group.type = MagicMock()
     group.type.value = "OKTA_GROUP"
 
-    # Profile
-    group.profile = MagicMock()
-    group.profile.name = "group_profile_name_value"
-    group.profile.description = "group_profile_description_value"
-    # Legacy AD-synced group fields (None for non-AD groups)
-    group.profile.sam_account_name = None
-    group.profile.dn = None
-    group.profile.windows_domain_qualified_name = None
-    group.profile.external_id = None
+    # Profile — mirror the SDK shape: GroupProfile is a discriminated-union
+    # wrapper whose concrete fields live on `actual_instance`
+    # (OktaUserGroupProfile | OktaActiveDirectoryGroupProfile).
+    group.profile = MagicMock(spec=GroupProfile)
+    group.profile.actual_instance = MagicMock(spec=OktaUserGroupProfile)
+    group.profile.actual_instance.name = "group_profile_name_value"
+    group.profile.actual_instance.description = "group_profile_description_value"
 
     return group
 
