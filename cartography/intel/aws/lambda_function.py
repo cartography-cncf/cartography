@@ -86,6 +86,8 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
                 lambda_functions.append(each_function)
     except ClientError as error:
         if _is_retryable_lambda_error(error):
+            # Don't let aws_handle_regions() convert retry exhaustion into []:
+            # Lambda cleanup must treat this as an ambiguous read, not empty data.
             raise LambdaTransientRegionFailure(
                 "AWS SDK retries were exhausted for transient ListFunctions failure"
             ) from error
@@ -135,6 +137,8 @@ def get_lambda_image_uris(
             response = client.get_function(FunctionName=function_arn)
         except ClientError as error:
             if _is_retryable_lambda_error(error):
+                # aws_handle_regions() is for skippable region errors; retry
+                # exhaustion needs to abort the region so cleanup stays safe.
                 raise LambdaTransientRegionFailure(
                     f"AWS SDK retries were exhausted for transient GetFunction failure on function {function_arn}"
                 ) from error
@@ -624,6 +628,8 @@ def sync(
         try:
             data = get_lambda_data(boto3_session, region)
         except LambdaTransientRegionFailure as error:
+            # If a transient Lambda read is ambiguous, don't let later cleanup
+            # interpret the region as empty.
             aliases_cleanup_safe = False
             event_source_mappings_cleanup_safe = False
             layers_cleanup_safe = False
@@ -639,6 +645,8 @@ def sync(
         try:
             image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
         except LambdaTransientRegionFailure as error:
+            # Same cleanup rule here: preserve last-known-good data when image
+            # metadata reads fail transiently.
             aliases_cleanup_safe = False
             event_source_mappings_cleanup_safe = False
             layers_cleanup_safe = False
