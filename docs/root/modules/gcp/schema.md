@@ -1796,7 +1796,7 @@ graph LR
 
 Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
 
-> **Ontology Mapping**: This node carries no ontology label of its own. Cloud Run Service is an orchestrator (analogous to `ECSService`); its child `GCPCloudRunContainer` nodes carry `:Container` and HAS_IMAGE.
+> **Ontology Mapping**: This node carries no ontology label of its own. Cloud Run Service is an orchestrator (analogous to `ECSService`); its child `GCPCloudRunServiceContainer` nodes carry `:Container` and HAS_IMAGE.
 
 | Field | Description |
 |---|---|
@@ -1813,7 +1813,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
 
-Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and carries no ontology label of its own. The container specs from the `latestReadyRevision` (returned inline in `service.template.containers`) are materialized as child `GCPCloudRunContainer` nodes that carry `:Container` and `HAS_IMAGE`. Older revisions are tracked as pure metadata via `GCPCloudRunRevision`, with no image data attached.
+Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and carries no ontology label of its own. The container specs from the `latestReadyRevision` (returned inline in `service.template.containers`) are materialized as child `GCPCloudRunServiceContainer` nodes that carry `:Container` and `HAS_IMAGE`. Older revisions are tracked as pure metadata via `GCPCloudRunRevision`, with no image data attached.
 
 #### Relationships
 
@@ -1829,14 +1829,14 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunServices contain one GCPCloudRunContainer per container declared in the `latestReadyRevision` spec (including sidecars).
+  - GCPCloudRunServices contain one GCPCloudRunServiceContainer per container declared in the `latestReadyRevision` spec (including sidecars).
     ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunContainer)
+    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
     ```
 
 ### GCPCloudRunRevision
 
-Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions). A pure versioning marker for the parent Service — no image data is attached. Per-container image data lives on the Service's child `GCPCloudRunContainer` nodes (sourced from `latestReadyRevision`).
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions). A pure versioning marker for the parent Service — no image data is attached. Per-container image data lives on the Service's child `GCPCloudRunServiceContainer` nodes (sourced from `latestReadyRevision`).
 
 | Field | Description |
 |---|---|
@@ -1866,7 +1866,7 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 
 ### GCPCloudRunJob
 
-Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunContainer](#gcpcloudruncontainer) nodes, analogous to `ECSTask` / `ECSContainer` in AWS.
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunJobContainer](#gcpcloudrunjobcontainer) nodes, analogous to `ECSTask` / `ECSContainer` in AWS.
 
 | Field | Description |
 |---|---|
@@ -1892,25 +1892,66 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunJobs contain one GCPCloudRunContainer per container declared in the task template (including sidecars).
+  - GCPCloudRunJobs contain one GCPCloudRunJobContainer per container declared in the task template (including sidecars).
     ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunContainer)
+    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
     ```
 
-### GCPCloudRunContainer
+### GCPCloudRunJobContainer
 
-Representation of an individual container spec from either a [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services) (sourced from `service.template.containers`, i.e. the `latestReadyRevision`) or a [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs) (sourced from `job.template.template.containers`). One node is created per container spec (including sidecars). Each node has exactly one parent — either a Service or a Job, never both.
+Representation of an individual container spec from a [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs) (sourced from `job.template.template.containers`). One node is created per container spec (including sidecars).
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunServiceContainer`).
 
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | `{parent_id}/containers/{container_name_or_index}` where `parent_id` is the Job or Service full resource name |
+| **id** | `{job_id}/containers/{container_name_or_index}` |
+| name | Name of the container as declared in the task template. Falls back to the container index when the Cloud Run API omits the field (single-container jobs) |
+| job_id | Full resource name of the parent GCPCloudRunJob |
+| image | The container image reference as declared in the task template |
+| image_digest | The digest portion of the image reference (e.g., `sha256:abc...`) when the image is pinned by digest; `None` for tag-based references |
+| architecture | CPU architecture (always `amd64`; Cloud Run does not support ARM) |
+| architecture_normalized | Normalized architecture value (always `amd64`) |
+| architecture_source | How the architecture was determined (always `platform_requirement`) |
+| project_id | The GCP project ID this container belongs to |
+
+#### Relationships
+
+  - GCPCloudRunJobContainers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunJobContainer)
+    ```
+  - GCPCloudRunJobContainers live inside a GCPCloudRunJob.
+    ```
+    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
+    ```
+  - GCPCloudRunJobContainers link to the image they run when the image is pinned by digest.
+    ```
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    ```
+  - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+    ```
+    (GCPCloudRunJobContainer)-[:RESOLVED_IMAGE]->(Image)
+    ```
+
+### GCPCloudRunServiceContainer
+
+Representation of an individual container spec from a [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services) (sourced from `service.template.containers`, i.e. the `latestReadyRevision` exposed inline by the v2 API). One node is created per container spec (including sidecars). Older revisions' container specs are not modeled — only the latest ready spec is materialized.
+
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunJobContainer`).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | `{service_id}/containers/{container_name_or_index}` |
 | name | Name of the container as declared in the spec. Falls back to the container index when the Cloud Run API omits the field (single-container deployments) |
-| job_id | Full resource name of the parent GCPCloudRunJob (only set when the parent is a Job; `None` for Service-children) |
-| service_id | Full resource name of the parent GCPCloudRunService (only set when the parent is a Service; `None` for Job-children) |
+| service_id | Full resource name of the parent GCPCloudRunService |
 | image | The container image reference as declared in the spec |
 | image_digest | The digest portion of the image reference (e.g., `sha256:abc...`) when the image is pinned by digest; `None` for tag-based references |
 | architecture | CPU architecture (always `amd64`; Cloud Run does not support ARM) |
@@ -1920,25 +1961,24 @@ Representation of an individual container spec from either a [Cloud Run Service]
 
 #### Relationships
 
-  - GCPCloudRunContainers are resources of GCPProjects.
+  - GCPCloudRunServiceContainers are resources of GCPProjects.
     ```
-    (GCPProject)-[:RESOURCE]->(GCPCloudRunContainer)
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunServiceContainer)
     ```
-  - GCPCloudRunContainers live inside a GCPCloudRunJob (Job-children) or GCPCloudRunService (Service-children, from `latestReadyRevision`).
+  - GCPCloudRunServiceContainers live inside a GCPCloudRunService (sourced from the `latestReadyRevision` spec).
     ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunContainer)
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunContainer)
+    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
     ```
-  - GCPCloudRunContainers link to the image they run when the image is pinned by digest.
+  - GCPCloudRunServiceContainers link to the image they run when the image is pinned by digest.
     ```
-    (GCPCloudRunContainer)-[:HAS_IMAGE]->(ECRImage)
-    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
-    (GCPCloudRunContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
-  - GCPCloudRunContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
-    (GCPCloudRunContainer)-[:RESOLVED_IMAGE]->(Image)
+    (GCPCloudRunServiceContainer)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunExecution

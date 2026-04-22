@@ -452,9 +452,10 @@ def test_cloud_run_image_prerequisites(
     job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
     job_sidecar_container_id = f"{TEST_JOB_ID}/containers/1"
 
+    # Service-side and Job-side use distinct schemas; both carry :Container.
     assert check_nodes(
         neo4j_session,
-        "GCPCloudRunContainer",
+        "GCPCloudRunServiceContainer",
         ["id", "image", "image_digest"],
     ) == {
         (
@@ -467,6 +468,12 @@ def test_cloud_run_image_prerequisites(
             TEST_REVISION_SIDECAR_IMAGE,
             TEST_REVISION_SIDECAR_DIGEST,
         ),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudRunJobContainer",
+        ["id", "image", "image_digest"],
+    ) == {
         (job_primary_container_id, TEST_JOB_PRIMARY_IMAGE, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_IMAGE, TEST_JOB_SIDECAR_DIGEST),
     }
@@ -475,7 +482,7 @@ def test_cloud_run_image_prerequisites(
         neo4j_session,
         "GCPCloudRunService",
         "id",
-        "GCPCloudRunContainer",
+        "GCPCloudRunServiceContainer",
         "id",
         "CONTAINS",
         rel_direction_right=True,
@@ -488,7 +495,7 @@ def test_cloud_run_image_prerequisites(
         neo4j_session,
         "GCPCloudRunJob",
         "id",
-        "GCPCloudRunContainer",
+        "GCPCloudRunJobContainer",
         "id",
         "CONTAINS",
         rel_direction_right=True,
@@ -510,9 +517,10 @@ def test_cloud_run_image_prerequisites(
         == set()
     )
 
+    # HAS_IMAGE rels are split per-schema; using :Container collapses both back.
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunContainer",
+        "Container",
         "id",
         "ECRImage",
         "digest",
@@ -526,7 +534,7 @@ def test_cloud_run_image_prerequisites(
 
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunContainer",
+        "Container",
         "id",
         "GitLabContainerImage",
         "digest",
@@ -540,7 +548,7 @@ def test_cloud_run_image_prerequisites(
 
     assert check_rels(
         neo4j_session,
-        "GCPCloudRunContainer",
+        "Container",
         "id",
         "GCPArtifactRegistryContainerImage",
         "digest",

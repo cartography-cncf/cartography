@@ -14,8 +14,10 @@ from cartography.intel.container_image import parse_image_uri
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
-from cartography.models.gcp.cloudrun.container import GCPCloudRunContainerSchema
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
+from cartography.models.gcp.cloudrun.service_container import (
+    GCPCloudRunServiceContainerSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -117,7 +119,6 @@ def transform_containers(services_data: list[dict], project_id: str) -> list[dic
                 {
                     "id": f"{service_id}/containers/{container_name}",
                     "name": container_name,
-                    "job_id": None,
                     "service_id": service_id,
                     "image": image,
                     "image_digest": image_digest,
@@ -156,7 +157,7 @@ def load_containers(
 ) -> None:
     load(
         neo4j_session,
-        GCPCloudRunContainerSchema(),
+        GCPCloudRunServiceContainerSchema(),
         data,
         lastupdated=update_tag,
         project_id=project_id,
@@ -178,7 +179,9 @@ def cleanup_containers(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    GraphJob.from_node_schema(GCPCloudRunContainerSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(
+        GCPCloudRunServiceContainerSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
 

@@ -290,10 +290,10 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services and Jobs (`GCPCloudRunContainer`).
+It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services (`GCPCloudRunServiceContainer`) and Jobs (`GCPCloudRunJobContainer`).
 
 ```{note}
-GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
+GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
 ```
 
 | Field | Description |
@@ -531,7 +531,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
 - `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
-    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
+    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
     ```
     (:Function)-[:RESOLVED_IMAGE]->(:Image)

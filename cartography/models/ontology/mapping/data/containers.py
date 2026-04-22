@@ -72,24 +72,29 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+_GCP_CLOUDRUN_CONTAINER_FIELDS = [
+    OntologyFieldMapping(ontology_field="name", node_field="name"),
+    OntologyFieldMapping(ontology_field="image", node_field="image"),
+    OntologyFieldMapping(ontology_field="image_digest", node_field="image_digest"),
+    # state: Not per-container on Cloud Run; run state lives on GCPCloudRunExecution
+    # cpu: Not exposed as a direct field on the container node
+    # memory: Not exposed as a direct field on the container node
+    # region: Not per-container; location lives on the parent Job/Service
+    # namespace: Not applicable for Cloud Run
+    # health_status: Not exposed as a direct field on the container node
+]
+
+
 gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
         OntologyNodeMapping(
-            node_label="GCPCloudRunContainer",
-            fields=[
-                OntologyFieldMapping(ontology_field="name", node_field="name"),
-                OntologyFieldMapping(ontology_field="image", node_field="image"),
-                OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="image_digest"
-                ),
-                # state: Not per-container on Cloud Run; run state lives on GCPCloudRunExecution
-                # cpu: Not exposed as a direct field on GCPCloudRunContainer
-                # memory: Not exposed as a direct field on GCPCloudRunContainer
-                # region: Not per-container; location lives on the parent GCPCloudRunJob
-                # namespace: Not applicable for Cloud Run
-                # health_status: Not exposed as a direct field on GCPCloudRunContainer
-            ],
+            node_label="GCPCloudRunJobContainer",
+            fields=_GCP_CLOUDRUN_CONTAINER_FIELDS,
+        ),
+        OntologyNodeMapping(
+            node_label="GCPCloudRunServiceContainer",
+            fields=_GCP_CLOUDRUN_CONTAINER_FIELDS,
         ),
     ],
 )

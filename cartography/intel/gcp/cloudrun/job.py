@@ -18,8 +18,8 @@ from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.labels import sync_labels
-from cartography.models.gcp.cloudrun.container import GCPCloudRunContainerSchema
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
+from cartography.models.gcp.cloudrun.job_container import GCPCloudRunJobContainerSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,6 @@ def transform_containers(jobs_data: list[dict], project_id: str) -> list[dict]:
                     "id": f"{job_id}/containers/{container_name}",
                     "name": container_name,
                     "job_id": job_id,
-                    "service_id": None,
                     "image": image,
                     "image_digest": image_digest,
                     # Cloud Run only supports amd64; ARM is not supported.
@@ -164,7 +163,7 @@ def load_containers(
 ) -> None:
     load(
         neo4j_session,
-        GCPCloudRunContainerSchema(),
+        GCPCloudRunJobContainerSchema(),
         data,
         lastupdated=update_tag,
         project_id=project_id,
@@ -186,7 +185,9 @@ def cleanup_containers(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
 ) -> None:
-    GraphJob.from_node_schema(GCPCloudRunContainerSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(
+        GCPCloudRunJobContainerSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
 
