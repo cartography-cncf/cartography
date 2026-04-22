@@ -191,7 +191,7 @@ async def _mock_get_entra_groups_with_deleted(client):
 def mock_get_group_owners_404_side_effect(client, group_id: str) -> list[str]:
     """Return owners for valid groups, raise 404 for the deleted group."""
     if group_id == MOCK_DELETED_GROUP.id:
-        err = APIError()
+        err = APIError("not found")
         err.response_status_code = 404
         raise err
     return mock_get_group_owners_side_effect(client, group_id)
@@ -203,7 +203,7 @@ def mock_get_group_members_404_side_effect(
 ) -> tuple[list[str], list[str]]:
     """Return members for valid groups, raise 404 for the deleted group."""
     if group_id == MOCK_DELETED_GROUP.id:
-        err = APIError()
+        err = APIError("not found")
         err.response_status_code = 404
         raise err
     return mock_get_group_members_side_effect(client, group_id)

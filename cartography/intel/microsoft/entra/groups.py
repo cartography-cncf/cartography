@@ -158,17 +158,19 @@ async def sync_entra_groups(
     async for group in get_entra_groups(client):
         # Fetch owners and members for this group.
         # The group may no longer exist by the time we fetch details,
-        # returning a 404.  Skip it and move on.
+        # returning a 404 or 410. Skip it and move on.
         try:
             owners = await call_with_retries(get_group_owners, client, group.id)
             users, subgroups = await call_with_retries(
                 get_group_members, client, group.id
             )
         except APIError as e:
-            if e.response_status_code == 404:
+            if e.response_status_code in (404, 410):
                 logger.warning(
-                    "Group %s not found (404); skipping.",
+                    "Group %s (%s) not found (%d); skipping.",
                     group.id,
+                    group.display_name,
+                    e.response_status_code,
                 )
                 continue
             raise
