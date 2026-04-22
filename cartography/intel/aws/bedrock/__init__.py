@@ -10,7 +10,7 @@ from typing import Dict
 import boto3
 import neo4j
 
-from cartography.intel.aws.util.common import (
+from cartography.intel.aws.util.service_regions import (
     filter_regions_to_supported_service_regions,
 )
 from cartography.util import timeit
@@ -67,28 +67,14 @@ def sync(
         )
     )
 
-    if bedrock_regions == regions and not unsupported_bedrock_regions and regions:
-        logger.warning(
-            "Could not determine available Bedrock regions for account %s. Continuing with requested regions.",
-            current_aws_account_id,
-        )
-    elif unsupported_bedrock_regions:
+    if unsupported_bedrock_regions:
         logger.info(
             "Skipping Bedrock sync for account %s in unsupported Bedrock regions: %s",
             current_aws_account_id,
             ", ".join(unsupported_bedrock_regions),
         )
 
-    if (
-        bedrock_agent_regions == regions
-        and not unsupported_bedrock_agent_regions
-        and regions
-    ):
-        logger.warning(
-            "Could not determine available Bedrock Agent regions for account %s. Continuing with requested regions.",
-            current_aws_account_id,
-        )
-    elif unsupported_bedrock_agent_regions:
+    if unsupported_bedrock_agent_regions:
         logger.info(
             "Skipping Bedrock agent sync for account %s in unsupported Bedrock Agent regions: %s",
             current_aws_account_id,

@@ -62,18 +62,14 @@ def test_get_all_codebuild_projects_invalid_token_error_raises():
 @patch.object(codebuild, "cleanup")
 @patch.object(codebuild, "load_codebuild_projects")
 @patch.object(codebuild, "get_all_codebuild_projects", return_value=GET_PROJECTS)
-@patch.object(
-    codebuild,
-    "filter_regions_to_supported_service_regions",
-    return_value=(["us-east-1"], ["ca-west-1"]),
-)
 def test_sync_skips_unsupported_region(
-    mock_filter_regions,
     mock_get_all_codebuild_projects,
     mock_load_codebuild_projects,
     mock_cleanup,
 ):
     boto3_session = MagicMock()
+    boto3_session.get_partition_for_region.return_value = "aws"
+    boto3_session.get_available_regions.return_value = ["us-east-1"]
 
     codebuild.sync(
         neo4j_session=MagicMock(),
@@ -84,11 +80,6 @@ def test_sync_skips_unsupported_region(
         common_job_parameters={"UPDATE_TAG": 123, "AWS_ID": "123456789012"},
     )
 
-    mock_filter_regions.assert_called_once_with(
-        boto3_session,
-        "codebuild",
-        ["us-east-1", "ca-west-1"],
-    )
     mock_get_all_codebuild_projects.assert_called_once_with(boto3_session, "us-east-1")
     mock_load_codebuild_projects.assert_called_once()
     mock_cleanup.assert_called_once()

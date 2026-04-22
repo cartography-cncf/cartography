@@ -179,10 +179,8 @@ def test_sagemaker_sync_filters_supported_regions_and_carries_skip_regions_forwa
 ):
     boto3_session = MagicMock()
     captured_skip_regions = {}
-    mocker.patch(
-        "cartography.intel.aws.sagemaker.filter_regions_to_supported_service_regions",
-        return_value=(["us-east-1", "me-south-1"], ["eu-west-3"]),
-    )
+    boto3_session.get_partition_for_region.return_value = "aws"
+    boto3_session.get_available_regions.return_value = ["us-east-1", "me-south-1"]
 
     def _capture_skip_regions(name, return_value):
         def _side_effect(*args):

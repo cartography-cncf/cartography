@@ -1,5 +1,4 @@
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import cartography.intel.aws.codebuild
 from cartography.intel.aws.codebuild import sync
@@ -13,20 +12,17 @@ TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(
-    cartography.intel.aws.codebuild,
-    "get_all_codebuild_projects",
-    return_value=GET_PROJECTS,
-)
-@patch.object(
-    cartography.intel.aws.codebuild,
-    "filter_regions_to_supported_service_regions",
-    return_value=([TEST_REGION], []),
-)
-def test_sync_cloudwatch(mock_filter_regions, mock_get_projects, neo4j_session):
+def test_sync_cloudwatch(mocker, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
+    boto3_session.get_partition_for_region.return_value = "aws"
+    boto3_session.get_available_regions.return_value = [TEST_REGION]
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mocker.patch.object(
+        cartography.intel.aws.codebuild,
+        "get_all_codebuild_projects",
+        return_value=GET_PROJECTS,
+    )
 
     # Act
     sync(
@@ -36,12 +32,6 @@ def test_sync_cloudwatch(mock_filter_regions, mock_get_projects, neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    mock_filter_regions.assert_called_once_with(
-        boto3_session,
-        "codebuild",
-        [TEST_REGION],
     )
 
     # Assert

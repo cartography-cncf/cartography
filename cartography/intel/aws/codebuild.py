@@ -10,7 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
-from cartography.intel.aws.util.common import (
+from cartography.intel.aws.util.service_regions import (
     filter_regions_to_supported_service_regions,
 )
 from cartography.models.aws.codebuild.project import CodeBuildProjectSchema
@@ -124,16 +124,11 @@ def sync(
             regions,
         )
     )
-    if codebuild_regions == regions and not unsupported_regions and regions:
-        logger.warning(
-            "Could not determine available CodeBuild regions. Continuing with requested regions.",
+    for region in unsupported_regions:
+        logger.info(
+            "Skipping CodeBuild sync for unsupported region '%s'.",
+            region,
         )
-    else:
-        for region in unsupported_regions:
-            logger.info(
-                "Skipping CodeBuild sync for unsupported region '%s'.",
-                region,
-            )
 
     for region in codebuild_regions:
         logger.info(
