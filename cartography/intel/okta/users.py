@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import json
 import logging
 from typing import Any
@@ -18,28 +17,12 @@ from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
 from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
-from cartography.models.core.common import PropertyRef
 from cartography.models.okta.user import OktaUserRoleSchema
 from cartography.models.okta.user import OktaUserSchema
 from cartography.models.okta.user import OktaUserTypeSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _coerce_neo4j_property(value: Any) -> Any:
-    """
-    Neo4j properties only accept primitives or arrays of primitives. Okta
-    custom profile attributes can be nested dicts / heterogeneous lists, so
-    fall back to a JSON string when a value wouldn't round-trip cleanly.
-    """
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, list) and all(
-        v is None or isinstance(v, (str, int, float, bool)) for v in value
-    ):
-        return value
-    return json.dumps(value)
 
 
 ####
@@ -241,15 +224,19 @@ def _transform_okta_users(
         roles_by_user.setdefault(user_id, []).append(user_role)
     for okta_user in okta_users:
         user_props: dict[str, Any] = {}
-        # Flatten the UserProfile into top-level props. UserProfile declares
-        # an `additional_properties: Dict[str, Any]` field for tenant-specific
-        # custom attributes — Neo4j rejects map values, so we lift custom
-        # attrs to top-level keys and JSON-encode any non-scalar value.
+        # Standard UserProfile fields are declared explicitly on the schema;
+        # tenant-specific custom attributes (Okta's `additional_properties`)
+        # are JSON-serialised into a single `custom_attributes` blob so they
+        # don't require a dynamic schema.
         if okta_user.profile is not None:
             profile_data = okta_user.profile.model_dump()
             custom_attrs = profile_data.pop("additional_properties", None) or {}
-            for key, value in {**profile_data, **custom_attrs}.items():
-                user_props[key] = _coerce_neo4j_property(value)
+            user_props.update(profile_data)
+            user_props["custom_attributes"] = (
+                json.dumps(custom_attrs) if custom_attrs else None
+            )
+        else:
+            user_props["custom_attributes"] = None
         user_props["id"] = okta_user.id
         user_props["created"] = okta_user.created
         user_props["status"] = okta_user.status.value if okta_user.status else None
@@ -283,48 +270,9 @@ def _load_okta_users(
     """
 
     logger.info("Loading %s Okta users", len(user_list))
-    # We want to allow for dynamic properties on this element
-    # Iterate through all the users and pick out all valid profile attribute names
-    valid_keys: set[str] = set()
-    for user in user_list:
-        valid_keys.update(user.keys())
-
-    # Ensure mandatory properties are included
-    valid_keys.add("id")
-    valid_keys.add("lastupdated")
-
-    # Make sure each user has a value set for every parameter, even if None
-    for user in user_list:
-        for key in valid_keys:
-            if key not in user:
-                user[key] = None
-
-    # Next we need to dynamically construct an equivalent to a NodeProperties Dataclass
-    properties = []
-    prop_value_dict = {}
-    for key in valid_keys:
-        properties.append((key, PropertyRef))
-        if key == "lastupdated":
-            prop_value_dict[key] = PropertyRef(key, set_in_kwargs=True)
-        else:
-            prop_value_dict[key] = PropertyRef(key)
-
-    custom_node_prop_class_def = dataclasses.make_dataclass(
-        "OktaUserNodeProperties",
-        properties,
-        frozen=True,
-    )
-    custom_node_prop_class = custom_node_prop_class_def(**prop_value_dict)
-    # Create a new schema instance with the custom properties
-    # We use dataclasses.replace to create a modified copy of the frozen dataclass
-    base_schema = OktaUserSchema()
-    custom_okta_user_schema = dataclasses.replace(
-        base_schema,
-        properties=custom_node_prop_class,
-    )
     load(
         neo4j_session,
-        custom_okta_user_schema,
+        OktaUserSchema(),
         user_list,
         OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
         lastupdated=common_job_parameters["UPDATE_TAG"],

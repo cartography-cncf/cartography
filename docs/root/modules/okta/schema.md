@@ -60,11 +60,10 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 |-------|--------------|
 | **id** | Unique Okta user ID (e.g., "00u1a2b3c4d5e6f7g8h9") |
 | **email** | User's primary email address (also used for Human node linking) |
-| first_name | User's first name |
-| last_name | User's last name |
 | login | Username used for login (typically an email address) |
 | second_email | User's secondary email address, if configured |
-| mobile_phone | User's mobile phone number, if configured |
+| status | Okta user lifecycle status (e.g. `ACTIVE`, `SUSPENDED`) |
+| type | OktaUserType id the user belongs to |
 | created | ISO 8601 timestamp when the user was created in Okta |
 | activated | ISO 8601 timestamp when the user was activated |
 | status_changed | ISO 8601 timestamp of the last status change |
@@ -72,6 +71,18 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 | okta_last_updated | ISO 8601 timestamp when user properties were last modified in Okta |
 | password_changed | ISO 8601 timestamp when the user's password was last changed |
 | transition_to_status | ISO 8601 timestamp of the last status transition |
+| first_name, last_name, middle_name | Given name components |
+| honorific_prefix, honorific_suffix | Name prefix / suffix |
+| display_name, nick_name | Display-friendly names |
+| profile_url | Profile URL |
+| locale, preferred_language, timezone | Locale / i18n preferences |
+| user_type | Free-form user type label from the Okta profile |
+| title, department, division, organization | Employment metadata |
+| cost_center, employee_number | Finance / HR identifiers |
+| manager, manager_id | Manager name and Okta id |
+| mobile_phone, primary_phone | Phone numbers |
+| street_address, city, state, zip_code, country_code, postal_address | Address fields |
+| custom_attributes | JSON-serialized tenant-specific profile attributes (Okta `additional_properties`). Null when absent. |
 | firstseen | Timestamp when Cartography first discovered this node |
 | lastupdated | Timestamp when Cartography last updated this node |
 
