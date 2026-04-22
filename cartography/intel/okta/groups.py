@@ -404,15 +404,26 @@ def _transform_okta_group_roles(
     transformed_group_roles: list[dict] = []
     logger.info("Transforming %s Okta group roles", len(okta_group_roles))
     for _assignee, okta_group_role in okta_group_roles:
+        # The SDK emits StandardRole or CustomRole here; StandardRole has no
+        # `description` field, and the enum-typed fields are Optional on both
+        # variants, so guard everything that isn't guaranteed by the schema.
         role_props = {}
         role_props["id"] = okta_group_role.id
-        role_props["assignment_type"] = okta_group_role.assignment_type.value
+        role_props["assignment_type"] = (
+            okta_group_role.assignment_type.value
+            if okta_group_role.assignment_type
+            else None
+        )
         role_props["created"] = okta_group_role.created
-        role_props["description"] = okta_group_role.description
+        role_props["description"] = getattr(okta_group_role, "description", None)
         role_props["label"] = okta_group_role.label
         role_props["last_updated"] = okta_group_role.last_updated
-        role_props["status"] = okta_group_role.status.value
-        role_props["role_type"] = okta_group_role.type.value
+        role_props["status"] = (
+            okta_group_role.status.value if okta_group_role.status else None
+        )
+        role_props["role_type"] = (
+            okta_group_role.type.value if okta_group_role.type else None
+        )
         transformed_group_roles.append(role_props)
     return transformed_group_roles
 

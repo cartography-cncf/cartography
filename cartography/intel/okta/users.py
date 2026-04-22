@@ -414,6 +414,9 @@ def _transform_okta_user_roles(
     transformed_user_roles: list[dict] = []
     logger.info("Transforming %s Okta user roles", len(okta_user_roles))
     for _assignee, okta_user_role in okta_user_roles:
+        # The SDK emits StandardRole or CustomRole here; StandardRole has no
+        # `description` field, so fall back to None for any optional field not
+        # present on the concrete variant.
         role_props: dict[str, Any] = {}
         role_props["id"] = okta_user_role.id
         role_props["assignment_type"] = (
@@ -422,7 +425,7 @@ def _transform_okta_user_roles(
             else None
         )
         role_props["created"] = okta_user_role.created
-        role_props["description"] = okta_user_role.description
+        role_props["description"] = getattr(okta_user_role, "description", None)
         role_props["label"] = okta_user_role.label
         role_props["last_updated"] = okta_user_role.last_updated
         role_props["status"] = (
