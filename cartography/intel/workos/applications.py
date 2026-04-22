@@ -61,16 +61,13 @@ def transform(apps: list[Any]) -> list[dict[str, Any]]:
     result = []
 
     for app in apps:
-        # application_type and organization_id were removed from the list response
-        # in workos 6.0.0 and reintroduced after 6.0.5. Read defensively so the
-        # module works on both versions.
         app_dict = {
             "id": app.id,
             "client_id": app.client_id,
             "name": app.name,
             "description": app.description,
-            "application_type": getattr(app, "application_type", None),
-            "organization_id": getattr(app, "organization_id", None),
+            "application_type": app.application_type,
+            "organization_id": app.organization_id,
             "scopes": json.dumps(list(app.scopes)) if app.scopes else None,
             "created_at": app.created_at,
             "updated_at": app.updated_at,

@@ -1000,7 +1000,7 @@ requires-dist = [
     { name = "statsd", specifier = ">=4.0.0" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "types-aiobotocore-ecr", specifier = ">=3.1.0" },
-    { name = "workos", specifier = ">=6.0.0" },
+    { name = "workos", specifier = ">=6.0.5" },
     { name = "xmltodict", specifier = ">=1.0.0" },
 ]
 
@@ -4457,7 +4457,7 @@ wheels = [
 
 [[package]]
 name = "workos"
-version = "6.0.4"
+version = "6.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -4465,9 +4465,9 @@ dependencies = [
     { name = "pyjwt" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/2f/99fb8718274116c5c146c745755620fd5c5943f78ca52ca9b17e94348286/workos-6.0.4.tar.gz", hash = "sha256:b0bfe8fd212b8567422c4ea3732eb33608794033eb3a69900c6b04db183c32d6", size = 172217, upload-time = "2026-04-16T03:09:28.583Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/04/abf5e9f57f8495be83253aa8cd7e89e478e82a2425337235afc48186480a/workos-6.0.5.tar.gz", hash = "sha256:cf59c7263ba1cff74aec1119ff8e60126db2596074e592bc27b86d4fe1c99f5b", size = 175140, upload-time = "2026-04-20T20:58:54.688Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/f1/d2ab661e6dc2828a4c73e38f12630c3b109cfe2bc664ab70631c04f0db4b/workos-6.0.4-py3-none-any.whl", hash = "sha256:548668b3702673536f853ba72a7b5bbbc269e467aaf9ac4f477b6e0177df5e21", size = 511418, upload-time = "2026-04-16T03:09:27.098Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/9a/b832b408afc4bd1d033af1f2e4e28ef0aa03b0665ac4ecc1f9fee24cbcb3/workos-6.0.5-py3-none-any.whl", hash = "sha256:7fb1141b10110a2b49426d4f113dbf185822e29cc2e54d64d1e6c9249ed82e80", size = 521884, upload-time = "2026-04-20T20:58:53.186Z" },
 ]
 
 [[package]]
