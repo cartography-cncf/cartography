@@ -78,9 +78,9 @@ def _transform_okta_user_types(
     logger.info("Transforming %s Okta user types", len(okta_user_types))
     # Upstream SDK bug: `okta.models.user_type.UserType` only declares `id`,
     # so every other field the `/api/v1/meta/types/user` endpoint returns is
-    # silently dropped by pydantic. We emit what the SDK hands us; waiting
-    # for an upstream fix in okta-sdk-python. See OktaUserTypeNodeProperties
-    # for the full rationale.
+    # silently dropped by pydantic. We emit what the SDK hands us; tracked
+    # at https://github.com/okta/okta-sdk-python/issues/535. See
+    # OktaUserTypeNodeProperties for the full rationale.
     for okta_user_type in okta_user_types:
         transformed_users.append({"id": okta_user_type.id})
     return transformed_users

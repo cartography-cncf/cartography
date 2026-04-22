@@ -20,8 +20,7 @@ class OktaUserTypeNodeProperties(CartographyNodeProperties):
     # (name, display_name, description, created, created_by, last_updated,
     # last_updated_by, default). `list_user_types` is typed as
     # `List[UserType]`, so the richer metadata never reaches us.
-    # Keep the node minimal until okta-sdk-python ships a dedicated response
-    # model for list_user_types — waiting for upstream fix.
+    # Tracked upstream at https://github.com/okta/okta-sdk-python/issues/535.
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

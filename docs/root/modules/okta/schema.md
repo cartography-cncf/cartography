@@ -293,7 +293,8 @@ Representation of an [Okta User Type](https://developer.okta.com/docs/reference/
 > `id` field; richer metadata returned by the API (name, display_name,
 > description, timestamps, …) is discarded before it reaches us. The node is
 > therefore kept minimal and mostly used as a join target for
-> `(OktaUser)-[:HAS_TYPE]->(OktaUserType)`.
+> `(OktaUser)-[:HAS_TYPE]->(OktaUserType)`. Tracked upstream at
+> [okta/okta-sdk-python#535](https://github.com/okta/okta-sdk-python/issues/535).
 
 | Field | Description |
 |-------|--------------|
