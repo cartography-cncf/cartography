@@ -2,6 +2,7 @@ import asyncio
 import csv
 import io
 import logging
+import tempfile
 import time
 import zipfile
 from dataclasses import dataclass
@@ -25,12 +26,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_REPORT_POLL_INTERVAL_SECONDS = 5
 DEFAULT_REPORT_TIMEOUT_SECONDS = 300
 EXPORT_DOWNLOAD_TIMEOUT_SECONDS = 60
+MAX_REPORT_ARCHIVE_BYTES = 64 * 1024 * 1024
+MAX_REPORT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 
 
 @dataclass(frozen=True)
 class ExportedReportRows:
     fieldnames: tuple[str, ...]
-    rows: list[dict[str, str]]
+    rows: list[dict[str, str | None]]
 
 
 @timeit
@@ -129,36 +132,67 @@ def download_export_report_rows(
     download_url: str,
     report_name: str,
 ) -> ExportedReportRows:
-    response = requests.get(download_url, timeout=EXPORT_DOWNLOAD_TIMEOUT_SECONDS)
-    response.raise_for_status()
+    with requests.get(
+        download_url,
+        stream=True,
+        timeout=EXPORT_DOWNLOAD_TIMEOUT_SECONDS,
+    ) as response:
+        response.raise_for_status()
 
-    try:
-        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-            csv_members = sorted(
-                name for name in archive.namelist() if name.lower().endswith(".csv")
-            )
-            if not csv_members:
-                raise ValueError(
-                    f"Export for {report_name} did not contain a CSV file."
-                )
-
-            with archive.open(csv_members[0]) as report_file:
-                decoded = io.TextIOWrapper(
-                    report_file, encoding="utf-8-sig", newline=""
-                )
-                reader = csv.DictReader(decoded)
-                if not reader.fieldnames:
+        with tempfile.SpooledTemporaryFile(
+            max_size=MAX_REPORT_ARCHIVE_BYTES,
+        ) as archive_file:
+            archive_size = 0
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                archive_size += len(chunk)
+                if archive_size > MAX_REPORT_ARCHIVE_BYTES:
                     raise ValueError(
-                        f"Export for {report_name} did not contain CSV headers."
+                        f"Export for {report_name} exceeded the maximum compressed size."
                     )
-                rows = [
-                    {key: value or "" for key, value in row.items() if key is not None}
-                    for row in reader
-                ]
-    except zipfile.BadZipFile as e:
-        raise ValueError(
-            f"Export for {report_name} did not contain a valid zip archive."
-        ) from e
+                archive_file.write(chunk)
+
+            archive_file.seek(0)
+            try:
+                with zipfile.ZipFile(archive_file) as archive:
+                    csv_members = [
+                        info
+                        for info in archive.infolist()
+                        if info.filename.lower().endswith(".csv")
+                    ]
+                    if len(csv_members) != 1:
+                        raise ValueError(
+                            f"Export for {report_name} must contain exactly one CSV file."
+                        )
+
+                    csv_member = csv_members[0]
+                    if csv_member.file_size > MAX_REPORT_UNCOMPRESSED_BYTES:
+                        raise ValueError(
+                            f"Export for {report_name} exceeded the maximum CSV size."
+                        )
+
+                    with archive.open(csv_member) as report_file:
+                        decoded = io.TextIOWrapper(
+                            report_file, encoding="utf-8-sig", newline=""
+                        )
+                        reader = csv.DictReader(decoded)
+                        if not reader.fieldnames:
+                            raise ValueError(
+                                f"Export for {report_name} did not contain CSV headers."
+                            )
+                        rows = [
+                            {
+                                key: value if value != "" else None
+                                for key, value in row.items()
+                                if key is not None
+                            }
+                            for row in reader
+                        ]
+            except zipfile.BadZipFile as e:
+                raise ValueError(
+                    f"Export for {report_name} did not contain a valid zip archive."
+                ) from e
 
     return ExportedReportRows(fieldnames=tuple(reader.fieldnames), rows=rows)
 

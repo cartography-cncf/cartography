@@ -37,6 +37,7 @@ APPINVRAWDATA_COLUMNS = [
 ]
 
 
+@timeit
 async def get_detected_app_aggregate_rows(
     client: GraphServiceClient,
 ) -> ExportedReportRows:
@@ -47,6 +48,7 @@ async def get_detected_app_aggregate_rows(
     )
 
 
+@timeit
 async def get_detected_app_raw_rows(
     client: GraphServiceClient,
 ) -> ExportedReportRows:
@@ -57,7 +59,7 @@ async def get_detected_app_raw_rows(
     )
 
 
-def transform_detected_app(row: Mapping[str, str]) -> dict[str, Any]:
+def transform_detected_app(row: Mapping[str, str | None]) -> dict[str, Any]:
     return {
         "id": _get_required_value(row, "ApplicationKey", APPINVAGGREGATE_REPORT_NAME),
         "application_id": _get_optional_value(row, "ApplicationId"),
@@ -70,7 +72,9 @@ def transform_detected_app(row: Mapping[str, str]) -> dict[str, Any]:
     }
 
 
-def transform_detected_app_relationship(row: Mapping[str, str]) -> dict[str, str]:
+def transform_detected_app_relationship(
+    row: Mapping[str, str | None],
+) -> dict[str, str]:
     return {
         "app_id": _get_required_value(row, "ApplicationKey", APPINVRAWDATA_REPORT_NAME),
         "device_id": _get_required_value(row, "DeviceId", APPINVRAWDATA_REPORT_NAME),
@@ -229,11 +233,14 @@ def _validate_report_columns(
 
 
 def _get_required_value(
-    row: Mapping[str, str],
+    row: Mapping[str, str | None],
     field_name: str,
     report_name: str,
 ) -> str:
-    value = row.get(field_name, "").strip()
+    value = row.get(field_name)
+    if value is None:
+        value = ""
+    value = value.strip()
     if not value:
         raise ValueError(
             f"{report_name} row is missing required value for {field_name}: {row}"
@@ -241,8 +248,14 @@ def _get_required_value(
     return value
 
 
-def _get_optional_value(row: Mapping[str, str], field_name: str) -> str | None:
-    value = row.get(field_name, "").strip()
+def _get_optional_value(
+    row: Mapping[str, str | None],
+    field_name: str,
+) -> str | None:
+    value = row.get(field_name)
+    if value is None:
+        return None
+    value = value.strip()
     return value or None
 
 

@@ -1,6 +1,5 @@
 import io
 import zipfile
-from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -19,11 +18,21 @@ from cartography.intel.microsoft.intune.reports import export_report_rows
 from cartography.intel.microsoft.intune.reports import wait_for_export_job
 
 
-def _build_zip_csv(contents: str) -> bytes:
+def _build_zip(files: dict[str, str]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        archive.writestr("report.csv", contents)
+        for path, contents in files.items():
+            archive.writestr(path, contents)
     return buffer.getvalue()
+
+
+def _mock_streaming_response(content: bytes) -> MagicMock:
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
+    response.iter_content.return_value = [content]
+    response.raise_for_status.return_value = None
+    return response
 
 
 @pytest.mark.asyncio
@@ -87,12 +96,16 @@ async def test_wait_for_export_job_times_out():
         )
 
 
-def test_download_export_report_rows_parses_csv_zip():
-    response = SimpleNamespace(
-        content=_build_zip_csv(
-            "ApplicationKey,ApplicationName,DeviceCount\n" "4f5c,Google Chrome,2\n"
+def test_download_export_report_rows_parses_csv_zip_and_preserves_missing_optionals():
+    response = _mock_streaming_response(
+        _build_zip(
+            {
+                "report.csv": (
+                    "ApplicationKey,ApplicationName,ApplicationId\n"
+                    "4f5c,Google Chrome,\n"
+                ),
+            },
         ),
-        raise_for_status=lambda: None,
     )
 
     with patch.object(
@@ -105,15 +118,44 @@ def test_download_export_report_rows_parses_csv_zip():
             "AppInvAggregate",
         )
 
-    mock_get.assert_called_once()
-    assert result.fieldnames == ("ApplicationKey", "ApplicationName", "DeviceCount")
+    mock_get.assert_called_once_with(
+        "https://example.test/report.zip",
+        stream=True,
+        timeout=60,
+    )
+    assert result.fieldnames == ("ApplicationKey", "ApplicationName", "ApplicationId")
     assert result.rows == [
         {
             "ApplicationKey": "4f5c",
             "ApplicationName": "Google Chrome",
-            "DeviceCount": "2",
+            "ApplicationId": None,
         },
     ]
+
+
+def test_download_export_report_rows_rejects_multiple_csv_members():
+    response = _mock_streaming_response(
+        _build_zip(
+            {
+                "report-a.csv": "ApplicationKey\n4f5c\n",
+                "report-b.csv": "ApplicationKey\n4f5d\n",
+            },
+        ),
+    )
+
+    with patch.object(
+        cartography.intel.microsoft.intune.reports.requests,
+        "get",
+        return_value=response,
+    ):
+        with pytest.raises(
+            ValueError,
+            match="AppInvAggregate must contain exactly one CSV file",
+        ):
+            download_export_report_rows(
+                "https://example.test/report.zip",
+                "AppInvAggregate",
+            )
 
 
 @pytest.mark.asyncio
