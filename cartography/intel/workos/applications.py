@@ -19,14 +19,14 @@ def sync(
     neo4j_session: neo4j.Session,
     client: WorkOSClient,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[str]:
     """
     Sync WorkOS Connect Applications.
 
     :param neo4j_session: Neo4J session for database interface
     :param client: WorkOS API client
     :param common_job_parameters: Common parameters for cleanup jobs
-    :return: None
+    :return: List of application IDs synced
     """
     client_id = common_job_parameters["WORKOS_CLIENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
@@ -35,6 +35,7 @@ def sync(
     transformed_apps = transform(apps)
     load_applications(neo4j_session, transformed_apps, client_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    return [app["id"] for app in transformed_apps]
 
 
 @timeit
@@ -60,26 +61,17 @@ def transform(apps: list[Any]) -> list[dict[str, Any]]:
     result = []
 
     for app in apps:
-        redirect_uris = getattr(app, "redirect_uris", None)
-        scopes = getattr(app, "scopes", None)
+        # application_type and organization_id were removed from the list response
+        # in workos 6.0.0 and reintroduced after 6.0.5. Read defensively so the
+        # module works on both versions.
         app_dict = {
             "id": app.id,
             "client_id": app.client_id,
             "name": app.name,
-            "description": getattr(app, "description", None),
-            "application_type": app.application_type,
-            "redirect_uris": (
-                json.dumps([u.uri for u in redirect_uris]) if redirect_uris else None
-            ),
-            "uses_pkce": getattr(app, "uses_pkce", None),
-            "is_first_party": getattr(app, "is_first_party", None),
-            "was_dynamically_registered": getattr(
-                app,
-                "was_dynamically_registered",
-                None,
-            ),
+            "description": app.description,
+            "application_type": getattr(app, "application_type", None),
             "organization_id": getattr(app, "organization_id", None),
-            "scopes": json.dumps(list(scopes)) if scopes else None,
+            "scopes": json.dumps(list(app.scopes)) if app.scopes else None,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
         }

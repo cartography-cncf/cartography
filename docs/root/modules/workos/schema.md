@@ -13,9 +13,11 @@ E -- RESOURCE --> DG(DirectoryGroup)
 E -- RESOURCE --> OD(OrganizationDomain)
 E -- RESOURCE --> AK(APIKey)
 E -- RESOURCE --> APP(Application)
+E -- RESOURCE --> ACS(AppClientSecret)
+APP -- HAS_SECRET --> ACS
+APP -- BELONGS_TO --> O
 O -- HAS --> R
 O -- OWNS --> AK
-APP -- BELONGS_TO --> O
 U -- MEMBER_OF --> M
 M -- IN --> O
 M -- WITH_ROLE --> R
@@ -59,7 +61,8 @@ Represents a WorkOS Environment (root node for a WorkOS account/client). This is
         :WorkOSDirectoryGroup,
         :WorkOSOrganizationDomain,
         :WorkOSAPIKey,
-        :WorkOSApplication)
+        :WorkOSApplication,
+        :WorkOSApplicationClientSecret)
     ```
 
 
@@ -409,11 +412,7 @@ Represents a Connect application integrated with WorkOS. These can be OAuth appl
 | client_id | The OAuth client ID for the application |
 | name | The name of the application |
 | description | A description of the application |
-| application_type | The type of application (oauth or m2m) |
-| redirect_uris | List of allowed redirect URIs for OAuth flows |
-| uses_pkce | Whether the application uses PKCE (Proof Key for Code Exchange) |
-| is_first_party | Whether this is a first-party application |
-| was_dynamically_registered | Whether the application was dynamically registered |
+| application_type | The type of application. Set to `m2m` for Machine-to-Machine applications; null for OAuth applications. |
 | scopes | The OAuth scopes granted to this application |
 | created_at | The RFC 3339 datetime of when the application was created |
 | updated_at | The RFC 3339 datetime of when the application was last updated |
@@ -423,7 +422,39 @@ Represents a Connect application integrated with WorkOS. These can be OAuth appl
     ```
     (WorkOSEnvironment)-[:RESOURCE]->(WorkOSApplication)
     ```
-- `Application` belongs to `Organization`
+- `Application` belongs to `Organization` (M2M applications only)
     ```
     (WorkOSApplication)-[:BELONGS_TO]->(WorkOSOrganization)
+    ```
+- `Application` has client secrets
+    ```
+    (WorkOSApplication)-[:HAS_SECRET]->(WorkOSApplicationClientSecret)
+    ```
+
+
+### WorkOSApplicationClientSecret
+
+Represents a client secret (credential) attached to a WorkOS Connect application, typically used by M2M applications to authenticate and obtain access tokens. The plaintext secret value is never exposed by the WorkOS API after creation; only a `secret_hint` (the last few characters) is available.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived authentication credentials across different systems.
+
+
+| Field | Description |
+|-------|-------------|
+| id | The identifier of the client secret |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| secret_hint | The last few characters of the secret value (for identification) |
+| last_used_at | Timestamp of the last time this secret was used, or null if never used |
+| created_at | The RFC 3339 datetime of when the secret was created |
+| updated_at | The RFC 3339 datetime of when the secret was last updated |
+
+#### Relationships
+- `ApplicationClientSecret` belongs to an `Environment`
+    ```
+    (WorkOSEnvironment)-[:RESOURCE]->(WorkOSApplicationClientSecret)
+    ```
+- `ApplicationClientSecret` is owned by an `Application`
+    ```
+    (WorkOSApplication)-[:HAS_SECRET]->(WorkOSApplicationClientSecret)
     ```
