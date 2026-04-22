@@ -18,9 +18,8 @@ LAMBDA_MAX_ATTEMPTS = 2
 
 def _get_int_env(name: str, default: int) -> int:
     raw_value = os.getenv(name)
-    if raw_value in (None, ""):
+    if raw_value is None or raw_value == "":
         return default
-    assert raw_value is not None
     try:
         value = int(raw_value)
     except ValueError as exc:
@@ -34,9 +33,8 @@ def _get_int_env(name: str, default: int) -> int:
 
 def _get_retry_mode_env(default: str) -> str:
     raw_value = os.getenv(RETRY_MODE_ENV_VAR)
-    if raw_value in (None, ""):
+    if raw_value is None or raw_value == "":
         return default
-    assert raw_value is not None
     retry_mode = raw_value.strip().lower()
     if retry_mode not in VALID_RETRY_MODES:
         supported_modes = ", ".join(sorted(VALID_RETRY_MODES))

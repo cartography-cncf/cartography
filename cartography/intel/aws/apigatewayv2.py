@@ -6,7 +6,6 @@ import neo4j
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
-from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
@@ -75,7 +74,6 @@ def get_apigatewayv2_apis(
     except (
         ConnectionClosedError,
         ConnectTimeoutError,
-        EndpointConnectionError,
         ReadTimeoutError,
         ResponseParserError,
     ) as error:

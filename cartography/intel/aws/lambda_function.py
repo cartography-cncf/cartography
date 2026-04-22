@@ -95,7 +95,6 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     except (
         ConnectionClosedError,
         ConnectTimeoutError,
-        EndpointConnectionError,
         ReadTimeoutError,
         ResponseParserError,
     ) as error:
@@ -327,7 +326,12 @@ def get_lambda_permissions(
     """
     Get Lambda permissions for the given functions in the specified region.
     """
-    client = create_boto3_client(boto3_session, "lambda", region_name=region)
+    client = create_boto3_client(
+        boto3_session,
+        "lambda",
+        region_name=region,
+        config=get_lambda_botocore_config(),
+    )
     all_permissions = {}
     for function in lambda_functions:
         function_name = function["FunctionName"]
@@ -348,11 +352,35 @@ def get_lambda_permissions(
                     "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
                     "AnonymousActions": parsed_policy.get("AnonymousActions"),
                 }
-        except client.exceptions.ResourceNotFoundException:
-            logger.debug(f"No policy found for Lambda function {function_name}")
+        except ClientError as error:
+            if (
+                error.response.get("Error", {}).get("Code")
+                == "ResourceNotFoundException"
+            ):
+                logger.debug(f"No policy found for Lambda function {function_name}")
+                continue
+            if _is_retryable_lambda_error(error):
+                raise LambdaTransientRegionFailure(
+                    f"AWS SDK retries were exhausted for transient GetPolicy failure on function {function_arn}"
+                ) from error
+            logger.warning(
+                "Error getting policy for Lambda function %s: %s",
+                function_name,
+                error,
+            )
+        except (
+            ConnectionClosedError,
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+            ResponseParserError,
+        ) as error:
+            raise LambdaTransientRegionFailure(
+                f"Encountered a transient Lambda endpoint failure while calling GetPolicy on function {function_arn}"
+            ) from error
         except Exception as error:
             logger.warning(
-                f"Error getting policy for Lambda function {function_name}: {error}"
+                "Error getting policy for Lambda function %s: %s", function_name, error
             )
 
     return all_permissions
@@ -641,7 +669,20 @@ def sync(
                 error,
             )
             continue
-        permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
+        try:
+            permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
+        except LambdaTransientRegionFailure as error:
+            aliases_cleanup_safe = False
+            event_source_mappings_cleanup_safe = False
+            layers_cleanup_safe = False
+            functions_cleanup_safe = False
+            logger.warning(
+                "Skipping Lambda sync for account %s in region %s after transient Lambda policy failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         try:
             image_uris_by_arn = get_lambda_image_uris(boto3_session, data, region)
         except LambdaTransientRegionFailure as error:
@@ -715,10 +756,5 @@ def sync(
         aliases_cleanup_safe=aliases_cleanup_safe,
         event_source_mappings_cleanup_safe=event_source_mappings_cleanup_safe,
         layers_cleanup_safe=layers_cleanup_safe,
-        functions_cleanup_safe=(
-            functions_cleanup_safe
-            and aliases_cleanup_safe
-            and event_source_mappings_cleanup_safe
-            and layers_cleanup_safe
-        ),
+        functions_cleanup_safe=functions_cleanup_safe,
     )

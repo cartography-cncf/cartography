@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 
 from cartography.intel.aws import lambda_function
 from cartography.intel.aws.util.botocore_config import get_lambda_botocore_config
@@ -79,6 +80,53 @@ def test_get_lambda_image_uris_uses_lambda_retry_profile():
     )
 
 
+def test_get_lambda_data_skips_endpoint_connection_error():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_paginator.return_value.paginate.side_effect = EndpointConnectionError(
+        endpoint_url="https://lambda.us-iso-east-1.amazonaws.com"
+    )
+
+    assert lambda_function.get_lambda_data(boto3_session, "us-iso-east-1") == []
+
+
+def test_get_lambda_permissions_uses_lambda_retry_profile():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_policy.side_effect = _client_error(
+        "ResourceNotFoundException",
+        "not found",
+        404,
+    )
+
+    lambda_function.get_lambda_permissions(
+        LIST_LAMBDA_FUNCTIONS[:1],
+        boto3_session,
+        "us-east-1",
+    )
+
+    assert (
+        boto3_session.client.call_args.kwargs["config"] == get_lambda_botocore_config()
+    )
+
+
+def test_get_lambda_permissions_raises_transient_region_failure_after_retry_exhaustion():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.get_policy.side_effect = _client_error(
+        "TooManyRequestsException",
+        "Rate exceeded",
+        429,
+    )
+
+    with pytest.raises(lambda_function.LambdaTransientRegionFailure):
+        lambda_function.get_lambda_permissions(
+            LIST_LAMBDA_FUNCTIONS[:1],
+            boto3_session,
+            "us-east-1",
+        )
+
+
 def test_sync_event_source_mappings_skips_failed_function_and_marks_cleanup_unsafe(
     mocker,
 ):
@@ -113,7 +161,7 @@ def test_sync_event_source_mappings_skips_failed_function_and_marks_cleanup_unsa
     )
 
 
-def test_sync_skips_function_cleanup_after_transient_subresource_failure(
+def test_sync_preserves_function_cleanup_after_transient_subresource_failure(
     mocker,
 ):
     mocker.patch(
@@ -160,7 +208,7 @@ def test_sync_skips_function_cleanup_after_transient_subresource_failure(
         aliases_cleanup_safe=True,
         event_source_mappings_cleanup_safe=False,
         layers_cleanup_safe=True,
-        functions_cleanup_safe=False,
+        functions_cleanup_safe=True,
     )
 
 
@@ -223,6 +271,50 @@ def test_sync_skips_cleanup_after_transient_image_metadata_failure(mocker):
     )
 
     load_lambda_functions.assert_not_called()
+    cleanup.assert_called_once_with(
+        ANY,
+        {},
+        aliases_cleanup_safe=False,
+        event_source_mappings_cleanup_safe=False,
+        layers_cleanup_safe=False,
+        functions_cleanup_safe=False,
+    )
+
+
+def test_sync_skips_cleanup_after_transient_policy_failure(mocker):
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_data",
+        return_value=LIST_LAMBDA_FUNCTIONS[:1],
+    )
+    mocker.patch(
+        "cartography.intel.aws.lambda_function.get_lambda_permissions",
+        side_effect=lambda_function.LambdaTransientRegionFailure("temporary failure"),
+    )
+    load_lambda_functions = mocker.patch(
+        "cartography.intel.aws.lambda_function.load_lambda_functions"
+    )
+    sync_aliases = mocker.patch("cartography.intel.aws.lambda_function.sync_aliases")
+    sync_event_source_mappings = mocker.patch(
+        "cartography.intel.aws.lambda_function.sync_event_source_mappings"
+    )
+    sync_lambda_layers = mocker.patch(
+        "cartography.intel.aws.lambda_function.sync_lambda_layers"
+    )
+    cleanup = mocker.patch("cartography.intel.aws.lambda_function.cleanup_lambda")
+
+    lambda_function.sync(
+        MagicMock(),
+        MagicMock(),
+        ["us-east-1"],
+        "123456789012",
+        1,
+        {},
+    )
+
+    load_lambda_functions.assert_not_called()
+    sync_aliases.assert_not_called()
+    sync_event_source_mappings.assert_not_called()
+    sync_lambda_layers.assert_not_called()
     cleanup.assert_called_once_with(
         ANY,
         {},
