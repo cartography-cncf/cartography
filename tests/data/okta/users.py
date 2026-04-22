@@ -1,22 +1,7 @@
 from unittest.mock import MagicMock
 
 from okta.models.user import User
-
-
-class MockUserProfile:
-    """
-    Mock profile object mirroring okta.models.user_profile.UserProfile.
-
-    The real pydantic model exposes snake_case attributes (first_name,
-    last_name); tests must match that shape so the ontology mapping
-    (which reads first_name / last_name) is actually exercised.
-    """
-
-    def __init__(self):
-        self.login = "test@lyft.com"
-        self.email = "test@lyft.com"
-        self.last_name = "LastName"
-        self.first_name = "firstName"
+from okta.models.user_profile import UserProfile
 
 
 def create_test_user():
@@ -40,7 +25,13 @@ def create_test_user():
     user.type = MagicMock()
     user.type.id = "default_user_type"
 
-    # Profile - using a real object for proper __dict__ support
-    user.profile = MockUserProfile()
+    # Profile — use the real pydantic model so the transform exercises
+    # model_dump() / additional_properties flattening end-to-end.
+    user.profile = UserProfile(
+        login="test@lyft.com",
+        email="test@lyft.com",
+        last_name="LastName",
+        first_name="firstName",
+    )
 
     return user

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import logging
 from typing import Any
 
@@ -24,6 +25,22 @@ from cartography.models.okta.user import OktaUserTypeSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _coerce_neo4j_property(value: Any) -> Any:
+    """
+    Neo4j properties only accept primitives or arrays of primitives. Okta
+    custom profile attributes can be nested dicts / heterogeneous lists, so
+    fall back to a JSON string when a value wouldn't round-trip cleanly.
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list) and all(
+        v is None or isinstance(v, (str, int, float, bool)) for v in value
+    ):
+        return value
+    return json.dumps(value)
+
 
 ####
 # Okta User Types
@@ -224,8 +241,15 @@ def _transform_okta_users(
         roles_by_user.setdefault(user_id, []).append(user_role)
     for okta_user in okta_users:
         user_props: dict[str, Any] = {}
-        # Dynamic properties added that change based on tenant
-        user_props.update(okta_user.profile.__dict__)
+        # Flatten the UserProfile into top-level props. UserProfile declares
+        # an `additional_properties: Dict[str, Any]` field for tenant-specific
+        # custom attributes — Neo4j rejects map values, so we lift custom
+        # attrs to top-level keys and JSON-encode any non-scalar value.
+        if okta_user.profile is not None:
+            profile_data = okta_user.profile.model_dump()
+            custom_attrs = profile_data.pop("additional_properties", None) or {}
+            for key, value in {**profile_data, **custom_attrs}.items():
+                user_props[key] = _coerce_neo4j_property(value)
         user_props["id"] = okta_user.id
         user_props["created"] = okta_user.created
         user_props["status"] = okta_user.status.value if okta_user.status else None
