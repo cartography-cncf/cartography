@@ -156,7 +156,7 @@ def sync_okta_users(
     # Role endpoints require super-admin; most tokens won't have it. When the
     # API returns E0000006 we log and continue so the rest of the sync runs.
     # https://developer.okta.com/docs/reference/error-codes/
-    user_roles: list[OktaUserRole] = []
+    user_roles: list[tuple[str, OktaUserRole]] = []
     try:
         user_roles = asyncio.run(_get_all_user_roles(okta_client))
         transformed_user_roles = _transform_okta_user_roles(user_roles)
@@ -206,16 +206,22 @@ async def _get_okta_users(okta_client: OktaClient) -> list[OktaUser]:
 @timeit
 def _transform_okta_users(
     okta_users: list[OktaUser],
-    okta_user_roles: list[OktaUserRole],
+    okta_user_roles: list[tuple[str, OktaUserRole]],
 ) -> list[dict[str, Any]]:
     """
     Convert a list of Okta users into a format for Neo4j
     :param okta_users: List of Okta users
-    :param okta_user_roles: List of Okta user roles
+    :param okta_user_roles: List of (user_id, role) tuples
     :return: List of users dicts
     """
     transformed_users: list[dict] = []
     logger.info("Transforming %s Okta users", len(okta_users))
+    # The SDK's role model is a discriminated pydantic union without an
+    # `assignee` field, so we carry the owning user_id alongside rather than
+    # mutating the model (which validate_assignment=True would reject).
+    roles_by_user: dict[str, list[OktaUserRole]] = {}
+    for user_id, user_role in okta_user_roles:
+        roles_by_user.setdefault(user_id, []).append(user_role)
     for okta_user in okta_users:
         user_props: dict[str, Any] = {}
         # Dynamic properties added that change based on tenant
@@ -231,9 +237,7 @@ def _transform_okta_users(
         user_props["password_changed"] = okta_user.password_changed
         user_props["type"] = okta_user.type.id if okta_user.type else None
         # Add role information on a per user basis
-        for user_role in okta_user_roles:
-            if user_role.assignee != okta_user.id:
-                continue
+        for user_role in roles_by_user.get(okta_user.id, []):
             match_role = {**user_props, "role_id": user_role.id}
             transformed_users.append(match_role)
         transformed_users.append(user_props)
@@ -325,7 +329,9 @@ def _cleanup_okta_users(
 
 
 @timeit
-async def _get_all_user_roles(okta_client: OktaClient) -> list[OktaUserRole]:
+async def _get_all_user_roles(
+    okta_client: OktaClient,
+) -> list[tuple[str, OktaUserRole]]:
     """
     Get all user roles using the bulk API for efficiency.
 
@@ -334,11 +340,11 @@ async def _get_all_user_roles(okta_client: OktaClient) -> list[OktaUserRole]:
     of users with roles, rather than O(n) for all users.
 
     :param okta_client: An Okta client object
-    :return: List of all user roles across all users
+    :return: List of (user_id, role) tuples across all users
     """
     from okta.pagination import PaginationHelper
 
-    all_user_roles: list[OktaUserRole] = []
+    all_user_roles: list[tuple[str, OktaUserRole]] = []
 
     # Step 1: Get all users who have role assignments (bulk API). This endpoint
     # returns a RoleAssignedUsers wrapper (with a `value` list) per page, so we
@@ -375,12 +381,12 @@ async def _get_all_user_roles(okta_client: OktaClient) -> list[OktaUserRole]:
 async def _get_okta_user_roles(
     okta_client: OktaClient,
     user_id: str,
-) -> list[OktaUserRole]:
+) -> list[tuple[str, OktaUserRole]]:
     """
     Get Okta user roles list from Okta for a specific user.
     :param okta_client: An Okta client object
     :param user_id: The user ID to fetch roles for
-    :return: List of Okta user roles
+    :return: List of (user_id, role) tuples
     """
     output_user_roles, _, error = await okta_client.list_assigned_roles_for_user(
         user_id
@@ -388,25 +394,21 @@ async def _get_okta_user_roles(
     raise_for_okta_error(error, f"list_assigned_roles_for_user(user_id={user_id})")
     if not output_user_roles:
         return []
-    # The user role object doesn't include an easily parsable user_id
-    # for which it applies. So we manually add it
-    for output_user_role in output_user_roles:
-        output_user_role.assignee = user_id
-    return output_user_roles
+    return [(user_id, role) for role in output_user_roles]
 
 
 @timeit
 def _transform_okta_user_roles(
-    okta_user_roles: list[OktaUserRole],
+    okta_user_roles: list[tuple[str, OktaUserRole]],
 ) -> list[dict[str, Any]]:
     """
     Convert a list of Okta user roles into a format for Neo4j
-    :param okta_user_roles: List of Okta user roles
+    :param okta_user_roles: List of (user_id, role) tuples
     :return: List of user roles dicts
     """
     transformed_user_roles: list[dict] = []
     logger.info("Transforming %s Okta user roles", len(okta_user_roles))
-    for okta_user_role in okta_user_roles:
+    for _assignee, okta_user_role in okta_user_roles:
         role_props: dict[str, Any] = {}
         role_props["id"] = okta_user_role.id
         role_props["assignment_type"] = (

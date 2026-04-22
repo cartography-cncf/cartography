@@ -153,7 +153,6 @@ def test_sync_okta_groups_with_roles(
     test_role.id = "role-001"
     test_role.label = "App Admin"
     test_role.type.value = "APP_ADMIN"
-    test_role.assignee = "group-with-role"
 
     neo4j_session.run(
         """
@@ -167,7 +166,7 @@ def test_sync_okta_groups_with_roles(
     # Mock the API calls
     mock_get_groups.return_value = [test_group]
     mock_get_members.return_value = []
-    mock_get_roles.return_value = [test_role]
+    mock_get_roles.return_value = [("group-with-role", test_role)]
     mock_get_rules.return_value = []
 
     okta_client = MagicMock()

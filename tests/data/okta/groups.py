@@ -54,7 +54,4 @@ def create_test_group_role():
     role.type = MagicMock()
     role.type.value = "APP_ADMIN"
 
-    # Added by the intel module during transform
-    role.assignee = None
-
     return role

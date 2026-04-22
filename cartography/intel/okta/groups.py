@@ -55,7 +55,7 @@ def sync_okta_groups(
     # instead of iterating through each group.
     # Role endpoints require super-admin; soft-fail on E0000006 so sync continues.
     # https://developer.okta.com/docs/reference/error-codes/
-    group_roles: list[OktaGroupRole] = []
+    group_roles: list[tuple[str, OktaGroupRole]] = []
     logger.info("Syncing Okta group roles")
     try:
         for okta_group in groups:
@@ -107,24 +107,25 @@ async def _get_okta_groups(okta_client: OktaClient) -> list[OktaGroup]:
 def _transform_okta_groups(
     okta_client: OktaClient,
     okta_groups: list[OktaGroup],
-    okta_group_roles: list[OktaGroupRole],
+    okta_group_roles: list[tuple[str, OktaGroupRole]],
 ) -> list[dict[str, Any]]:
     """
     Convert a list of Okta groups into a format for Neo4j
     :param okta_client: An Okta client object
     :param okta_groups: List of Okta groups
-    :param okta_group_roles: List of Okta group roles
+    :param okta_group_roles: List of (group_id, role) tuples
     :return: List of group dicts
     """
     transformed_groups: list[dict] = []
     logger.info("Transforming %s Okta groups", len(okta_groups))
 
-    # Build a hashmap of group roles keyed by group_id for O(1) lookup
+    # Build a hashmap of group roles keyed by group_id for O(1) lookup. The
+    # SDK's role model is a discriminated pydantic union without an `assignee`
+    # field, so we carry the owning group_id alongside rather than mutating
+    # the model (which validate_assignment=True would reject).
     roles_by_group: dict[str, list[OktaGroupRole]] = {}
-    for role in okta_group_roles:
-        if role.assignee not in roles_by_group:
-            roles_by_group[role.assignee] = []
-        roles_by_group[role.assignee].append(role)
+    for group_id, role in okta_group_roles:
+        roles_by_group.setdefault(group_id, []).append(role)
 
     for okta_group in okta_groups:
         group_props: dict[str, Any] = {}
@@ -371,37 +372,33 @@ def _cleanup_okta_group_rules(
 @timeit
 async def _get_okta_group_roles(
     okta_client: OktaClient, group_id: str
-) -> list[OktaGroupRole]:
+) -> list[tuple[str, OktaGroupRole]]:
     """
     Get Okta group roles list from Okta
     :param okta_client: An Okta client object
     :param group_id: The id of the group to look up roles for
-    :return: List of Okta group rules
+    :return: List of (group_id, role) tuples
     """
     # This won't ever be paginated
     group_roles, _, error = await okta_client.list_group_assigned_roles(group_id)
     raise_for_okta_error(error, f"list_group_assigned_roles(group_id={group_id})")
     if not group_roles:
         return []
-    # By default these objects won't cleanly include group_id
-    # So we add it into the object since we have them here
-    for group_role in group_roles:
-        group_role.assignee = group_id
-    return group_roles
+    return [(group_id, role) for role in group_roles]
 
 
 @timeit
 def _transform_okta_group_roles(
-    okta_group_roles: list[OktaGroupRole],
+    okta_group_roles: list[tuple[str, OktaGroupRole]],
 ) -> list[dict[str, Any]]:
     """
     Convert a list of Okta group roles into a format for Neo4j
-    :param okta_group_roles: List of Okta group roles
+    :param okta_group_roles: List of (group_id, role) tuples
     :return: List of group role dicts
     """
     transformed_group_roles: list[dict] = []
     logger.info("Transforming %s Okta group roles", len(okta_group_roles))
-    for okta_group_role in okta_group_roles:
+    for _assignee, okta_group_role in okta_group_roles:
         role_props = {}
         role_props["id"] = okta_group_role.id
         role_props["assignment_type"] = okta_group_role.assignment_type.value
