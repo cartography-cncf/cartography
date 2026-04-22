@@ -16,9 +16,13 @@ def _relax_required_fields(*model_paths: str) -> None:
     the whole list response, so we rewrite the given pydantic models to
     make every required field Optional with a None default.
 
-    This keeps the SDK usable until upstream relaxes those fields. Tracked
-    at https://github.com/okta/okta-sdk-python/issues/535 (user types) and
-    the newly-filed SamlApplicationSettingsSignOn report.
+    This is a pragmatic shim, not a tracked upstream fix. The
+    overly-restrictive-validation pattern is a known family of bugs in the
+    SDK (see okta/okta-sdk-python#498, #479) that the maintainers declared
+    fixed in 3.1.0, yet 3.4.2 still ships strict-required fields on several
+    response models. We have not filed a specific issue for
+    SamlApplicationSettingsSignOn; if sync breaks on another model, extend
+    the list below with the exact dotted path.
     """
     import importlib
 
