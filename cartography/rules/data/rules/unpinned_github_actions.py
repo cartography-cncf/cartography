@@ -5,36 +5,18 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-# Filter applied consistently across query, visual query, and count query:
-# - is_pinned: false          -> action not pinned to a full commit SHA
-# - is_local: false           -> exclude in-repo actions (./.github/actions/...)
-# - owner <> 'docker'         -> exclude docker:// references (different pinning model)
-_UNPINNED_ACTION_MATCH = """
-MATCH (repo:GitHubRepository)-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)-[:USES_ACTION]->(a:GitHubAction)
-WHERE a.is_pinned = false
-  AND a.is_local = false
-  AND a.owner <> 'docker'
-"""
-
-_TOTAL_ACTIONS_MATCH = """
-MATCH (a:GitHubAction)
-WHERE a.is_local = false
-  AND a.owner <> 'docker'
-"""
-
-
 _unpinned_github_actions_fact = Fact(
     id="unpinned-github-actions",
     name="GitHub workflows using unpinned third-party Actions",
     description=(
         "Finds GitHub Actions referenced by workflows that are not pinned to a full "
-        "commit SHA. Mutable references (branches, tags, major-version tags) let a "
-        "compromised upstream maintainer swap in malicious code on the next workflow "
-        "run. Local actions (./.github/actions/...) and docker:// references are "
-        "excluded."
+        "commit SHA. Local (./.github/actions/...) and docker:// references are excluded."
     ),
-    cypher_query=_UNPINNED_ACTION_MATCH
-    + """
+    cypher_query="""
+    MATCH (repo:GitHubRepository)-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)-[:USES_ACTION]->(a:GitHubAction)
+    WHERE a.is_pinned = false
+      AND a.is_local = false
+      AND a.owner <> 'docker'
     RETURN
         a.full_name AS action,
         a.version AS version,
@@ -43,12 +25,17 @@ _unpinned_github_actions_fact = Fact(
         a.id AS action_id
     ORDER BY repo, workflow_path, action
     """,
-    cypher_visual_query=_UNPINNED_ACTION_MATCH
-    + """
+    cypher_visual_query="""
+    MATCH (repo:GitHubRepository)-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)-[:USES_ACTION]->(a:GitHubAction)
+    WHERE a.is_pinned = false
+      AND a.is_local = false
+      AND a.owner <> 'docker'
     RETURN *
     """,
-    cypher_count_query=_TOTAL_ACTIONS_MATCH
-    + """
+    cypher_count_query="""
+    MATCH (a:GitHubAction)
+    WHERE a.is_local = false
+      AND a.owner <> 'docker'
     RETURN COUNT(a) AS count
     """,
     asset_id_field="action_id",
@@ -69,15 +56,11 @@ unpinned_github_actions = Rule(
     id="unpinned-github-actions",
     name="Unpinned GitHub Actions",
     description=(
-        "Detects GitHub workflows that reference third-party GitHub Actions using a "
-        "mutable reference (branch or tag) rather than a full commit SHA. A "
-        "compromise of the upstream action repository — as happened with "
-        "tj-actions/changed-files in March 2025 — lets attackers retarget an "
-        "existing tag at malicious code, which then executes with the workflow's "
-        "permissions and access to its secrets on the next run. Pinning every "
-        "third-party action to a full 40-character commit SHA, combined with "
-        "Dependabot to keep those pins current, is the mitigation recommended by "
-        "GitHub's security hardening guide."
+        "Detects workflows referencing third-party GitHub Actions by a mutable ref "
+        "(branch or tag) instead of a full commit SHA. If the upstream action is "
+        "compromised — as with tj-actions/changed-files in March 2025 — attackers "
+        "can retarget a tag at malicious code that then runs with the workflow's "
+        "secrets. Pin to a full SHA and let Dependabot keep the pin current."
     ),
     output_model=UnpinnedGitHubActionOutput,
     tags=("supply_chain", "github", "stride:tampering"),
