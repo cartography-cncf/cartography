@@ -1,9 +1,11 @@
+import logging
 from typing import Any
 from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.group import Group
@@ -13,6 +15,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.group import EntraGroupSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -152,13 +156,27 @@ async def sync_entra_groups(
 
     # First pass: collect groups and their owners/members
     async for group in get_entra_groups(client):
+        # Fetch owners and members for this group.
+        # The group may no longer exist by the time we fetch details,
+        # returning a 404 or 410. Skip it and move on.
+        try:
+            owners = await call_with_retries(get_group_owners, client, group.id)
+            users, subgroups = await call_with_retries(
+                get_group_members, client, group.id
+            )
+        except APIError as e:
+            if e.response_status_code in (404, 410):
+                logger.warning(
+                    "Group %s (%s) not found (%d); skipping.",
+                    group.id,
+                    group.display_name,
+                    e.response_status_code,
+                )
+                continue
+            raise
+
         groups_batch.append(group)
-
-        # Fetch owners and members for this group
-        owners = await call_with_retries(get_group_owners, client, group.id)
         group_owner_map[group.id] = owners
-
-        users, subgroups = await call_with_retries(get_group_members, client, group.id)
         user_member_map[group.id] = users
         group_member_map[group.id] = subgroups
 
