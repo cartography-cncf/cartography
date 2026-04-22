@@ -18,7 +18,12 @@ TEST_UPDATE_TAG = 123456789
     "get_all_codebuild_projects",
     return_value=GET_PROJECTS,
 )
-def test_sync_cloudwatch(mock_get_projects, neo4j_session):
+@patch.object(
+    cartography.intel.aws.codebuild,
+    "filter_regions_to_supported_service_regions",
+    return_value=([TEST_REGION], []),
+)
+def test_sync_cloudwatch(mock_filter_regions, mock_get_projects, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -31,6 +36,12 @@ def test_sync_cloudwatch(mock_get_projects, neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    mock_filter_regions.assert_called_once_with(
+        boto3_session,
+        "codebuild",
+        [TEST_REGION],
     )
 
     # Assert

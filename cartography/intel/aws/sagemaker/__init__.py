@@ -18,7 +18,9 @@ from cartography.intel.aws.sagemaker.notebook_instances import sync_notebook_ins
 from cartography.intel.aws.sagemaker.training_jobs import sync_training_jobs
 from cartography.intel.aws.sagemaker.transform_jobs import sync_transform_jobs
 from cartography.intel.aws.sagemaker.user_profiles import sync_user_profiles
-from cartography.intel.aws.sagemaker.util import get_available_sagemaker_regions
+from cartography.intel.aws.util.common import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -48,24 +50,24 @@ def sync(
         current_aws_account_id,
     )
 
-    available_regions = get_available_sagemaker_regions(boto3_session, regions)
-    if not available_regions:
+    sagemaker_regions, unsupported_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "sagemaker",
+            regions,
+        )
+    )
+    if sagemaker_regions == regions and not unsupported_regions and regions:
         logger.warning(
             "Could not determine available SageMaker regions for account '%s'. Continuing with requested regions.",
             current_aws_account_id,
         )
-        sagemaker_regions = regions
-    else:
-        sagemaker_regions = [
-            region for region in regions if region in available_regions
-        ]
-        unsupported_regions = sorted(set(regions) - set(sagemaker_regions))
-        if unsupported_regions:
-            logger.info(
-                "Skipping SageMaker sync for account '%s' in unsupported regions: %s",
-                current_aws_account_id,
-                ", ".join(unsupported_regions),
-            )
+    elif unsupported_regions:
+        logger.info(
+            "Skipping SageMaker sync for account '%s' in unsupported regions: %s",
+            current_aws_account_id,
+            ", ".join(unsupported_regions),
+        )
 
     skip_regions: Set[str] = set()
     submodule_syncs = [

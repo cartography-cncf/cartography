@@ -10,6 +10,9 @@ from typing import Dict
 import boto3
 import neo4j
 
+from cartography.intel.aws.util.common import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.util import timeit
 
 # Import sync functions from individual modules
@@ -49,11 +52,54 @@ def sync(
         len(regions),
     )
 
+    bedrock_regions, unsupported_bedrock_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "bedrock",
+            regions,
+        )
+    )
+    bedrock_agent_regions, unsupported_bedrock_agent_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "bedrock-agent",
+            regions,
+        )
+    )
+
+    if bedrock_regions == regions and not unsupported_bedrock_regions and regions:
+        logger.warning(
+            "Could not determine available Bedrock regions for account %s. Continuing with requested regions.",
+            current_aws_account_id,
+        )
+    elif unsupported_bedrock_regions:
+        logger.info(
+            "Skipping Bedrock sync for account %s in unsupported Bedrock regions: %s",
+            current_aws_account_id,
+            ", ".join(unsupported_bedrock_regions),
+        )
+
+    if (
+        bedrock_agent_regions == regions
+        and not unsupported_bedrock_agent_regions
+        and regions
+    ):
+        logger.warning(
+            "Could not determine available Bedrock Agent regions for account %s. Continuing with requested regions.",
+            current_aws_account_id,
+        )
+    elif unsupported_bedrock_agent_regions:
+        logger.info(
+            "Skipping Bedrock agent sync for account %s in unsupported Bedrock Agent regions: %s",
+            current_aws_account_id,
+            ", ".join(unsupported_bedrock_agent_regions),
+        )
+
     # Sync foundation models
     foundation_models.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
@@ -63,7 +109,7 @@ def sync(
     custom_models.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
@@ -73,7 +119,7 @@ def sync(
     guardrails.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
@@ -83,7 +129,7 @@ def sync(
     knowledge_bases.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_agent_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
@@ -93,7 +139,7 @@ def sync(
     agents.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_agent_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
@@ -103,7 +149,7 @@ def sync(
     provisioned_model_throughput.sync(
         neo4j_session,
         boto3_session,
-        regions,
+        bedrock_regions,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
