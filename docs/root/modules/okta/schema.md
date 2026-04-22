@@ -289,17 +289,15 @@ Representation of an administrative [Okta Role](https://developer.okta.com/docs/
 
 Representation of an [Okta User Type](https://developer.okta.com/docs/reference/api/user-types/).
 
+> **SDK limitation**: The Okta Python SDK's `UserType` model only exposes the
+> `id` field; richer metadata returned by the API (name, display_name,
+> description, timestamps, …) is discarded before it reaches us. The node is
+> therefore kept minimal and mostly used as a join target for
+> `(OktaUser)-[:HAS_TYPE]->(OktaUserType)`.
+
 | Field | Description |
 |-------|--------------|
 | **id** | User type id |
-| name | Internal user type name |
-| display_name | Display name |
-| description | User type description |
-| default | Whether this is the default user type |
-| created | Creation timestamp |
-| created_by | User id that created the type |
-| last_updated | Last update timestamp |
-| last_updated_by | User id that last updated the type |
 | firstseen | Timestamp when Cartography first discovered this node |
 | lastupdated | Timestamp when Cartography last updated this node |
 

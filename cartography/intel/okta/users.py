@@ -76,18 +76,10 @@ def _transform_okta_user_types(
 
     transformed_users: list[dict] = []
     logger.info("Transforming %s Okta user types", len(okta_user_types))
+    # The Okta SDK's UserType model only exposes `id`; see the comment on
+    # OktaUserTypeNodeProperties for why the richer metadata isn't available.
     for okta_user_type in okta_user_types:
-        user_type_props = {}
-        user_type_props["id"] = okta_user_type.id
-        user_type_props["created"] = okta_user_type.created
-        user_type_props["created_by"] = okta_user_type.created_by
-        user_type_props["default"] = okta_user_type.default
-        user_type_props["description"] = okta_user_type.description
-        user_type_props["display_name"] = okta_user_type.display_name
-        user_type_props["last_updated"] = okta_user_type.last_updated
-        user_type_props["last_updated_by"] = okta_user_type.last_updated_by
-        user_type_props["name"] = okta_user_type.name
-        transformed_users.append(user_type_props)
+        transformed_users.append({"id": okta_user_type.id})
     return transformed_users
 
 

@@ -14,16 +14,13 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OktaUserTypeNodeProperties(CartographyNodeProperties):
+    # The Okta SDK's `UserType` model (okta.models.user_type.UserType) only
+    # exposes `id`: the OpenAPI spec models the field as a single-key object
+    # and pydantic drops everything else the API returns (name,
+    # display_name, description, created, …). Keep the node minimal until
+    # we hit the raw API directly to recover the richer metadata.
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    created: PropertyRef = PropertyRef("created")
-    created_by: PropertyRef = PropertyRef("created_by")
-    default: PropertyRef = PropertyRef("default")
-    description: PropertyRef = PropertyRef("description")
-    display_name: PropertyRef = PropertyRef("display_name")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    last_updated_by: PropertyRef = PropertyRef("last_updated_by")
-    name: PropertyRef = PropertyRef("name")
 
 
 @dataclass(frozen=True)
