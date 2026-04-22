@@ -364,6 +364,15 @@ def test_sync_cloudrun(
     # Assert: Check service account relationships
     assert check_rels(
         neo4j_session,
+        "GCPCloudRunService",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "USES_SERVICE_ACCOUNT",
+    ) == {(TEST_SERVICE_ID, TEST_SA_EMAIL_1)}
+
+    assert check_rels(
+        neo4j_session,
         "GCPCloudRunRevision",
         "id",
         "GCPServiceAccount",

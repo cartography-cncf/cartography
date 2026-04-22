@@ -1459,6 +1459,12 @@ Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-
     (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
     ```
 
+- GCPPrincipals with appropriate permissions can read GCP Secret Manager secrets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[:CAN_READ]->(GCPSecretManagerSecret)
+    ```
+
 ### GCPSecretManagerSecretVersion
 
 Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
@@ -1781,6 +1787,7 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
+    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
     Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
 ```
@@ -1801,6 +1808,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | description | User-provided description of the service |
 | uri | Default URL serving the service |
 | latest_ready_revision | Full resource name of the latest ready revision for this service |
+| service_account_email | The email of the service account configured on the service template (used by new revisions created from this service) |
 | ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
 | exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
@@ -1817,12 +1825,16 @@ Cloud Run services can split traffic across multiple revisions, so exact runtime
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
     ```
+  - GCPCloudRunServices use GCPServiceAccounts.
+    ```
+    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
 
 ### GCPCloudRunRevision
 
 Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container workloads (alongside `KubernetesContainer`, `ECSContainer`, `AzureGroupContainer`, etc.). Cloud Run revisions participate in the `RESOLVED_IMAGE` analysis job.
+> **Ontology Mapping**: `GCPCloudRunRevision` is an internal versioning artifact of a `GCPCloudRunService` (not a standalone user-visible entity) and carries **no ontology label of its own**. `RESOLVED_IMAGE` is produced on the parent `GCPCloudRunService` (which is a `Function`) by traversing `HAS_REVISION`. See [Function](../../ontology/schema.md#function).
 
 | Field | Description |
 |---|---|
@@ -1862,16 +1874,17 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunRevision)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
-  - GCPCloudRunRevisions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunRevisions do **not** directly carry `RESOLVED_IMAGE`. The resolved image is attached to the parent `GCPCloudRunService` (which is a `Function`) by traversing `HAS_REVISION` in the analysis job — Revision is treated as an internal versioning artifact of the Service. See [Function](../../ontology/schema.md#function) for the full semantics.
     ```
-    (GCPCloudRunRevision)-[:RESOLVED_IMAGE]->(Image)
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)-[:HAS_IMAGE]->(Image)
+    (GCPCloudRunService)-[:RESOLVED_IMAGE]->(Image)
     ```
 
 ### GCPCloudRunJob
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
 
-> **Ontology Mapping**: This node has the extra labels `Function` and `Container`. `Function` enables cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction). `Container` enables cross-platform container-workload queries (alongside `KubernetesContainer`, `ECSContainer`, etc.) and makes Cloud Run jobs participate in the `RESOLVED_IMAGE` analysis job. Cloud Run jobs legitimately inhabit both categories — they are container images run as on-demand functions.
+> **Ontology Mapping**: This node has the extra label `Function` (for cross-platform serverless-function queries alongside `AWSLambda`, `AzureFunctionApp`, `GCPCloudFunction`, `GCPCloudRunService`). Cloud Run Jobs are container-based functions — `_ont_image` / `_ont_image_digest` are populated and the node participates in `RESOLVED_IMAGE`.
 
 | Field | Description |
 |---|---|
@@ -1910,7 +1923,7 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJob)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
     ```
-  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunJobs are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Function](../../ontology/schema.md#function) for the full semantics.
     ```
     (GCPCloudRunJob)-[:RESOLVED_IMAGE]->(Image)
     ```

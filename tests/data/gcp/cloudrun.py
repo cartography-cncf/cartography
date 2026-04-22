@@ -10,6 +10,9 @@ MOCK_SERVICES = {
             "uri": "https://test-service-abc123-uc.a.run.app",
             "ingress": "INGRESS_TRAFFIC_ALL",
             "latestReadyRevision": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+            "template": {
+                "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+            },
         },
     ],
 }
