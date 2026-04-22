@@ -116,6 +116,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  Jamf device emails, CrowdStrike host emails, and provider-native ownership edges are examples of signals Cartography can use to derive this relationship.
 - `User` can own one or many `APIKey` (semantic label):
     ```
     (:User)-[:OWNS]->(:APIKey)
@@ -177,14 +178,16 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| **id** | The unique identifier for the user. |
+| **id** | The unique identifier for the device. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
+| instance_id | Provider-specific instance identifier when available. |
+| manufacturer | Device manufacturer. |
 | os | OS running on the device. |
 | os_version | Version of the OS running on the device. |
 | model | Device model (e.g. ThinkPad Carbon X1 G11) |
-| platform | CPU architecture |
+| platform | Platform or device family reported by the source (e.g. `macOS`, `ios`). |
 | serial_number | Device serial number. |
 
 #### Relationships
@@ -197,6 +200,7 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
 
 
 ### APIKey
@@ -288,7 +292,11 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Container Instances, and GCP Cloud Run Revisions / Jobs.
+It generalizes concepts like ECS Containers, Kubernetes Containers, and individual containers within Azure Container Instances.
+
+```{note}
+GCP Cloud Run workloads (Services, Revisions, Jobs) are **not** modeled as `Container`. Revisions are treated as internal versioning artifacts of a Service, and both Services and Jobs are `Function` nodes. `RESOLVED_IMAGE` still applies to them (see the `Function` section).
+```
 
 | Field | Description |
 |-------|-------------|
@@ -516,7 +524,21 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
-| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; Cloud Run Service/Job are always `container`; GCP Cloud Functions are always `code`. |
+| _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`, Cloud Run Jobs). |
+| _ont_image_digest | Content-addressable digest (`sha256:...`) of the container image, when the reference is digest-pinned. |
+
+#### Relationships
+
+- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
+    - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **GCPCloudRunJob** has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **GCPCloudRunService** does not carry `HAS_IMAGE` directly; the job traverses `HAS_REVISION` to the underlying `GCPCloudRunRevision` (which is not an ontology node of its own) and attaches the resolved image to the user-visible Service. If a Service splits traffic across multiple revisions, it will carry one `RESOLVED_IMAGE` edge per distinct image.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
+    ```
+    (:Function)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### CodeRepository

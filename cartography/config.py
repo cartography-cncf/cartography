@@ -188,6 +188,12 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type vercel_token: str
+    :param vercel_token: Vercel API token. Optional.
+    :type vercel_team_id: str
+    :param vercel_team_id: Vercel team ID to sync. Optional.
+    :type vercel_base_url: str
+    :param vercel_base_url: Vercel API base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -196,6 +202,8 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type socketdev_token: str
+    :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
     :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
     :type airbyte_client_secret: str
@@ -376,6 +384,9 @@ class Config:
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        vercel_token=None,
+        vercel_team_id=None,
+        vercel_base_url=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -431,6 +442,7 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        socketdev_token=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -529,6 +541,9 @@ class Config:
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.vercel_token = vercel_token
+        self.vercel_team_id = vercel_team_id
+        self.vercel_base_url = vercel_base_url
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -584,3 +599,4 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.socketdev_token = socketdev_token

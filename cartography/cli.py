@@ -66,6 +66,8 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_SOCKETDEV = "Socket.dev Options"
+PANEL_VERCEL = "Vercel Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -90,6 +92,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -115,6 +118,7 @@ MODULE_PANELS = {
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
+    "vercel": PANEL_VERCEL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1001,6 +1005,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Socket.dev Options
+            # =================================================================
+            socketdev_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--socketdev-token-env-var",
+                    help="Environment variable name containing Socket.dev API token.",
+                    rich_help_panel=PANEL_SOCKETDEV,
+                    hidden=PANEL_SOCKETDEV not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # BigFix Options
             # =================================================================
             bigfix_username: Annotated[
@@ -1702,6 +1718,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Vercel Options
+            # =================================================================
+            vercel_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-token-env-var",
+                    help="Environment variable name containing Vercel API token.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_team_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-team-id",
+                    help="Vercel team ID to sync.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--vercel-base-url",
+                    help="Vercel API base URL.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = "https://api.vercel.com",
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -1957,6 +2003,16 @@ class CLI:
                     jumpcloud_api_key_env_var,
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read Socket.dev token
+            socketdev_token = None
+            if socketdev_token_env_var:
+                logger.debug(
+                    "Reading Socket.dev API token from environment variable %s",
+                    socketdev_token_env_var,
+                )
+                socketdev_token = os.environ.get(socketdev_token_env_var)
+
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2065,6 +2121,15 @@ class CLI:
                     tailscale_token_env_var,
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
+
+            # Read Vercel token
+            vercel_token = None
+            if vercel_token_env_var:
+                logger.debug(
+                    "Reading Vercel API token from environment variable %s",
+                    vercel_token_env_var,
+                )
+                vercel_token = os.environ.get(vercel_token_env_var)
 
             # Read Cloudflare token
             cloudflare_token = None
@@ -2327,6 +2392,7 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -2350,6 +2416,9 @@ class CLI:
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                vercel_token=vercel_token,
+                vercel_team_id=vercel_team_id,
+                vercel_base_url=vercel_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,

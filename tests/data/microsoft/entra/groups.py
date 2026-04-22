@@ -31,6 +31,20 @@ MOCK_ENTRA_GROUPS = [
     ),
 ]
 
+# Group that will trigger a 404 when fetching owners/members
+MOCK_DELETED_GROUP = Group(
+    id="deadbeef-dead-beef-dead-beefdeadbeef",
+    odata_type="#microsoft.graph.group",
+    display_name="Deleted Group",
+)
+
+# Groups list that includes a deleted group between two valid ones
+MOCK_ENTRA_GROUPS_WITH_DELETED = [
+    MOCK_ENTRA_GROUPS[0],
+    MOCK_DELETED_GROUP,
+    MOCK_ENTRA_GROUPS[1],
+]
+
 MOCK_GROUP_MEMBERS = {
     "11111111-1111-1111-1111-111111111111": [
         User(

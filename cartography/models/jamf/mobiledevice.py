@@ -21,6 +21,7 @@ class JamfMobileDeviceNodeProperties(CartographyNodeProperties):
     last_inventory_update_date: PropertyRef = PropertyRef("last_inventory_update_date")
     last_enrolled_date: PropertyRef = PropertyRef("last_enrolled_date")
     platform: PropertyRef = PropertyRef("platform")
+    os: PropertyRef = PropertyRef("os")
     os_version: PropertyRef = PropertyRef("os_version")
     os_build: PropertyRef = PropertyRef("os_build")
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)

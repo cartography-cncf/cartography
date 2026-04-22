@@ -251,6 +251,14 @@ jamf_mapping = OntologyMapping(
             node_label="JamfMobileDevice",
             fields=[
                 OntologyFieldMapping(
+                    ontology_field="hostname",
+                    node_field="display_name",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os",
+                    node_field="os",
+                ),
+                OntologyFieldMapping(
                     ontology_field="os_version",
                     node_field="os_version",
                 ),
@@ -262,6 +270,13 @@ jamf_mapping = OntologyMapping(
                     required=True,
                 ),
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on Jamf device email matching canonical User email",
+            query="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
         ),
     ],
 )

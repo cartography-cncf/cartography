@@ -129,6 +129,7 @@ from cartography.rules.data.rules.subimage_coverage import (
     subimage_module_not_configured,
 )
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
+from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
@@ -178,6 +179,7 @@ RULES = {
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
+    unpinned_github_actions.id: unpinned_github_actions,
     # NIST AI RMF Rules
     nist_ai_third_party_app_inventory.id: nist_ai_third_party_app_inventory,
     nist_ai_third_party_app_sensitive_scopes.id: nist_ai_third_party_app_sensitive_scopes,
