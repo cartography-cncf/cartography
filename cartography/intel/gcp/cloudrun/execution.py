@@ -25,11 +25,11 @@ def get_executions(
     Get GCP Cloud Run Executions for a project across cached locations.
     """
 
+    client = build_cloud_run_execution_client(credentials=credentials)
+
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: build_cloud_run_execution_client(
-                credentials=credentials,
-            ).list_executions(
+            fetcher=lambda: client.list_executions(
                 parent=f"{location}/jobs/-",
             ),
             resource_type="executions",

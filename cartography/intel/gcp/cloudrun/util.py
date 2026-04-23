@@ -23,6 +23,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+CLOUD_RUN_LABEL_BATCH_SIZE = 1000
 DEFAULT_CLOUD_RUN_LOCATION_WORKERS = 8
 
 

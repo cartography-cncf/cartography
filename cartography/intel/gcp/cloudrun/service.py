@@ -11,6 +11,7 @@ from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
 from cartography.intel.gcp.clients import build_cloud_run_service_client
+from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LABEL_BATCH_SIZE
 from cartography.intel.gcp.cloudrun.util import fetch_cloud_run_resources_for_locations
 from cartography.intel.gcp.cloudrun.util import list_cloud_run_resources_for_location
 from cartography.intel.gcp.labels import sync_labels
@@ -21,8 +22,6 @@ from cartography.models.gcp.cloudrun.service_container import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-CLOUD_RUN_LABEL_BATCH_SIZE = 1000
 
 
 @timeit
@@ -35,11 +34,11 @@ def get_services(
     Get GCP Cloud Run Services for a project across cached locations.
     """
 
+    client = build_cloud_run_service_client(credentials=credentials)
+
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: build_cloud_run_service_client(
-                credentials=credentials,
-            ).list_services(
+            fetcher=lambda: client.list_services(
                 parent=location,
             ),
             resource_type="services",

@@ -25,11 +25,11 @@ def get_revisions(
     Get GCP Cloud Run Revisions for a project across cached locations.
     """
 
+    client = build_cloud_run_revision_client(credentials=credentials)
+
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: build_cloud_run_revision_client(
-                credentials=credentials,
-            ).list_revisions(
+            fetcher=lambda: client.list_revisions(
                 parent=f"{location}/services/-",
             ),
             resource_type="revisions",
