@@ -182,20 +182,19 @@ def _transform_load_balancer_v2_data(
 
         # Extract target group nodes and target relationships
         for target_group in lb.get("TargetGroups", []):
-            tg_arn = target_group.get("TargetGroupArn")
-            if tg_arn:
-                if tg_arn in tg_by_arn:
-                    tg_by_arn[tg_arn]["LoadBalancerId"].append(dns_name)
-                else:
-                    tg_by_arn[tg_arn] = {
-                        "TargetGroupArn": tg_arn,
-                        "TargetGroupName": target_group.get("TargetGroupName"),
-                        "TargetType": target_group.get("TargetType"),
-                        "Protocol": target_group.get("Protocol"),
-                        "Port": target_group.get("Port"),
-                        "VpcId": target_group.get("VpcId"),
-                        "LoadBalancerId": [dns_name],
-                    }
+            tg_arn = target_group["TargetGroupArn"]
+            if tg_arn in tg_by_arn:
+                tg_by_arn[tg_arn]["LoadBalancerId"].append(dns_name)
+            else:
+                tg_by_arn[tg_arn] = {
+                    "TargetGroupArn": tg_arn,
+                    "TargetGroupName": target_group.get("TargetGroupName"),
+                    "TargetType": target_group.get("TargetType"),
+                    "Protocol": target_group.get("Protocol"),
+                    "Port": target_group.get("Port"),
+                    "VpcId": target_group.get("VpcId"),
+                    "LoadBalancerId": [dns_name],
+                }
 
             target_type = target_group.get("TargetType")
             for target_id in target_group.get("Targets", []):
@@ -374,19 +373,17 @@ def load_load_balancer_v2_target_groups(
     # Load target group nodes
     tg_node_data = []
     for tg in target_groups:
-        tg_arn = tg.get("TargetGroupArn")
-        if tg_arn:
-            tg_node_data.append(
-                {
-                    "TargetGroupArn": tg_arn,
-                    "TargetGroupName": tg.get("TargetGroupName"),
-                    "TargetType": tg.get("TargetType"),
-                    "Protocol": tg.get("Protocol"),
-                    "Port": tg.get("Port"),
-                    "VpcId": tg.get("VpcId"),
-                    "LoadBalancerId": [load_balancer_id],
-                }
-            )
+        tg_node_data.append(
+            {
+                "TargetGroupArn": tg["TargetGroupArn"],
+                "TargetGroupName": tg.get("TargetGroupName"),
+                "TargetType": tg.get("TargetType"),
+                "Protocol": tg.get("Protocol"),
+                "Port": tg.get("Port"),
+                "VpcId": tg.get("VpcId"),
+                "LoadBalancerId": [load_balancer_id],
+            }
+        )
     if tg_node_data:
         load(
             neo4j_session,
