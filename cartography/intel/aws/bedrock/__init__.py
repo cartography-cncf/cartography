@@ -47,7 +47,7 @@ def sync(
     :param common_job_parameters: Common parameters for cleanup jobs
     """
     logger.info(
-        "Syncing AWS Bedrock resources for account %s across %d regions",
+        "Syncing AWS Bedrock resources for account %s across %d requested regions",
         current_aws_account_id,
         len(regions),
     )
