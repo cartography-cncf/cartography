@@ -1082,6 +1082,35 @@ def test_resolve_access_ipdestination__unsupported_destination_logs_warning(
     )
 
 
+def test_resolve_access_ipdestination__valid_unmatched_cidr_does_not_warn(
+    caplog,
+) -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": ["alice@ex.com"],
+            "source_groups": [],
+            "source_tags": [],
+            "destinations": ["10.0.0.0/24"],
+            "destination_tags": [],
+            "destination_groups": [],
+            "destination_services": [],
+            "destination_hosts": ["10.0.0.0/24"],
+            "ip_rules": ["*:*"],
+            "app_capabilities": {},
+            "src_posture": [],
+        }
+    ]
+    user_access, _, _, _, _ = resolve_access(
+        grants, DEVICES_WITH_IPS, GROUPS, [], USERS
+    )
+    assert user_access == []
+    assert (
+        "Unsupported Tailscale grant destination selector '10.0.0.0/24'"
+        not in caplog.text
+    )
+
+
 def test_resolve_access_ipdestination__wide_cidr_matches_all() -> None:
     grants = [
         {

@@ -607,7 +607,7 @@ def _resolve_destination_devices(
             # Try to resolve as IP address or CIDR range
             matched = _resolve_ip_destination(dst, ip_to_devices or {})
             dest_device_ids.update(matched)
-            if not matched:
+            if not matched and not _is_ip_destination(dst):
                 unsupported_destinations.add(dst)
 
     for dst in sorted(unsupported_destinations):
@@ -653,6 +653,15 @@ def _resolve_ip_destination(
                 continue
 
     return matched
+
+
+def _is_ip_destination(dst: str) -> bool:
+    """Return True if the selector is a syntactically valid IP or CIDR."""
+    try:
+        ipaddress.ip_network(dst, strict=False)
+        return True
+    except ValueError:
+        return False
 
 
 def _resolve_destination_services(
