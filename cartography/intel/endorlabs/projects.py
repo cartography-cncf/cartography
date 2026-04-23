@@ -62,7 +62,7 @@ def transform(raw_projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         projects.append(
             {
-                "uuid": project.get("uuid"),
+                "uuid": project["uuid"],
                 "name": meta.get("name"),
                 "namespace": project.get("tenant_meta", {}).get("namespace"),
                 "description": meta.get("description"),
@@ -115,6 +115,7 @@ def sync_projects(
 
     if not projects:
         logger.warning("No Endor Labs projects found.")
+        cleanup(neo4j_session, common_job_parameters)
         return []
 
     load_projects(neo4j_session, projects, namespace, update_tag)

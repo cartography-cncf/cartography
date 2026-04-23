@@ -101,15 +101,15 @@ def transform(
     for pv in raw_package_versions:
         meta = pv.get("meta", {})
         spec = pv.get("spec", {})
-        pv_name = meta.get("name", "")
-        package_name, version = _parse_package_name(pv_name)
+        pv_name = meta.get("name")
+        package_name, version = _parse_package_name(pv_name or "")
         ecosystem = spec.get("ecosystem")
         purl = _make_purl(ecosystem, package_name, version)
         normalized_id = make_normalized_package_id(purl=purl)
 
         package_versions.append(
             {
-                "uuid": pv.get("uuid"),
+                "uuid": pv["uuid"],
                 "name": pv_name,
                 "namespace": pv.get("tenant_meta", {}).get("namespace"),
                 "ecosystem": ecosystem,

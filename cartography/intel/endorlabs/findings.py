@@ -71,7 +71,7 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         findings.append(
             {
-                "uuid": finding.get("uuid"),
+                "uuid": finding["uuid"],
                 "name": meta.get("name"),
                 "namespace": finding.get("tenant_meta", {}).get("namespace"),
                 "summary": spec.get("summary"),

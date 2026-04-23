@@ -66,7 +66,7 @@ def transform(
 
         deps.append(
             {
-                "uuid": dep.get("uuid"),
+                "uuid": dep["uuid"],
                 "name": meta.get("name"),
                 "namespace": dep.get("tenant_meta", {}).get("namespace"),
                 "direct": dependency_data.get("direct"),
@@ -75,8 +75,8 @@ def transform(
                 "project_uuid": importer_data.get("project_uuid"),
                 "importer_uuid": meta.get("parent_uuid"),
                 "dependency_name": meta.get("name"),
-                "dependency_package_version_uuid": spec.get(
-                    "dependency_package_version_uuid",
+                "dependency_package_version_uuid": dependency_data.get(
+                    "package_version_uuid",
                 ),
             },
         )
