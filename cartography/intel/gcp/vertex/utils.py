@@ -23,29 +23,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_VERTEX_AI_REGIONS = frozenset(
-    {
-        "us-central1",
-        "us-east1",
-        "us-east4",
-        "us-west1",
-        "us-west2",
-        "us-west3",
-        "us-west4",
-        "europe-west1",
-        "europe-west2",
-        "europe-west3",
-        "europe-west4",
-        "asia-east1",
-        "asia-northeast1",
-        "asia-northeast3",
-        "asia-southeast1",
-        "australia-southeast1",
-        "northamerica-northeast1",
-        "southamerica-east1",
-    }
-)
-
 DEFAULT_VERTEX_AI_LOCATION_WORKERS = 8
 
 

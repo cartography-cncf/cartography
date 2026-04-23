@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
 from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
 from cartography.intel.gcp.vertex.models import transform_vertex_ai_models
 
@@ -43,6 +44,23 @@ def test_transform_vertex_ai_models_keeps_string_training_pipeline():
     assert transformed[0]["training_pipeline"] == (
         "projects/test/locations/us-central1/trainingPipelines/tp-1"
     )
+
+
+def test_get_vertex_ai_locations_uses_service_reported_locations():
+    aiplatform = MagicMock()
+    aiplatform.projects.return_value.locations.return_value.list.return_value.execute.return_value = {
+        "locations": [
+            {"locationId": "us-central1"},
+            {"locationId": "europe-west9"},
+            {"locationId": "us-central1"},
+            {"locationId": "me-west1"},
+            {},
+        ],
+    }
+
+    locations = get_vertex_ai_locations(aiplatform, "test-project")
+
+    assert locations == ["europe-west9", "me-west1", "us-central1"]
 
 
 @patch("cartography.intel.gcp.vertex.models.cleanup_vertex_ai_models")

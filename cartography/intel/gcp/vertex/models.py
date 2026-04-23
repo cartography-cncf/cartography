@@ -17,7 +17,6 @@ from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.intel.gcp.vertex.utils import fetch_vertex_ai_resources_for_locations
 from cartography.intel.gcp.vertex.utils import get_vertex_credentials
 from cartography.intel.gcp.vertex.utils import list_vertex_ai_resources_for_location
-from cartography.intel.gcp.vertex.utils import SUPPORTED_VERTEX_AI_REGIONS
 from cartography.models.gcp.vertex.model import GCPVertexAIModelSchema
 from cartography.util import timeit
 
@@ -28,26 +27,35 @@ logger = logging.getLogger(__name__)
 def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
     """
     Gets all available Vertex AI locations for a project.
-    Filters to only regions that commonly support Vertex AI to improve sync performance.
+
+    We trust the service's reported location list instead of maintaining a
+    client-side allowlist, which can drift behind newly launched regions.
     """
     try:
         req = aiplatform.projects().locations().list(name=f"projects/{project_id}")
         res = req.execute()
 
-        locations = []
+        locations = set()
         all_locations = res.get("locations", [])
         for location in all_locations:
             # Extract location ID from the full path
             # Format: "projects/PROJECT_ID/locations/LOCATION_ID"
-            location_id = location["locationId"]
-            if location_id in SUPPORTED_VERTEX_AI_REGIONS:
-                locations.append(location_id)
+            location_id = location.get("locationId")
+            if location_id:
+                locations.add(location_id)
 
+        sorted_locations = sorted(locations)
         logger.info(
-            f"Found {len(locations)} supported Vertex AI locations "
-            f"(filtered from {len(all_locations)} total) for project {project_id}"
+            "Found %s Vertex AI locations from the service for project %s.",
+            len(sorted_locations),
+            project_id,
         )
-        return locations
+        logger.debug(
+            "Vertex AI locations for project %s: %s",
+            project_id,
+            sorted_locations,
+        )
+        return sorted_locations
 
     except HttpError as e:
         category = classify_gcp_http_error(e)
