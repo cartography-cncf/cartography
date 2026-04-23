@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
 
 from cartography.intel.aws.s3 import get_s3_bucket_list
 
@@ -81,6 +82,23 @@ def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
         "Buckets": [{"Name": "bad-bucket"}],
     }
     mock_client.head_bucket.side_effect = _make_client_error(403)
+
+    result = get_s3_bucket_list(mock_session)
+    assert result["Buckets"][0]["Region"] is None
+
+
+def test_get_s3_bucket_list_connect_timeout_sets_region_none():
+    """Transport timeouts during region discovery should preserve the bucket."""
+    mock_session = MagicMock()
+    mock_client = mock_session.client.return_value
+
+    mock_client.list_buckets.return_value = {
+        "Buckets": [{"Name": "slow-bucket"}],
+    }
+    mock_client.head_bucket.side_effect = ConnectTimeoutError(
+        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
+        error="timed out",
+    )
 
     result = get_s3_bucket_list(mock_session)
     assert result["Buckets"][0]["Region"] is None
