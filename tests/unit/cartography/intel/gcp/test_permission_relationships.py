@@ -67,11 +67,6 @@ def test_iter_permission_relationship_batches_preserves_matches():
         (("principal_email", "alice@example.com"), ("resource_id", "bucket-3")),
         (("principal_email", "bob@example.com"), ("resource_id", "bucket-2")),
     }
-    assert flattened == permission_relationships.calculate_permission_relationships(
-        principals,
-        resource_dict,
-        permissions,
-    )
 
 
 def test_sync_loads_permission_relationships_in_multiple_batches(monkeypatch):

@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterator
 from string import Template
 from typing import Any
+from typing import Callable
 
 import neo4j
 import yaml
@@ -126,22 +127,6 @@ def principal_allowed_on_resource(
     return False
 
 
-def calculate_permission_relationships(
-    principals: dict[str, Any],
-    resource_dict: dict[str, str],
-    permissions: list[str],
-) -> list[dict[str, Any]]:
-    return [
-        mapping
-        for batch in iter_permission_relationship_batches(
-            principals,
-            resource_dict,
-            permissions,
-        )
-        for mapping in batch
-    ]
-
-
 def calculate_permission_relationships_for_resource(
     principals: dict[str, Any],
     resource_id: str,
@@ -165,12 +150,17 @@ def iter_permission_relationship_batches(
     resource_dict: dict[str, str],
     permissions: list[str],
     batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> Iterator[list[dict[str, Any]]]:
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
 
     batch: list[dict[str, Any]] = []
-    for resource_id, resource_scope in resource_dict.items():
+    total_resources = len(resource_dict)
+    for resources_processed, (resource_id, resource_scope) in enumerate(
+        resource_dict.items(),
+        start=1,
+    ):
         batch.extend(
             calculate_permission_relationships_for_resource(
                 principals,
@@ -179,6 +169,8 @@ def iter_permission_relationship_batches(
                 permissions,
             )
         )
+        if progress_callback is not None:
+            progress_callback(resources_processed, total_resources)
         while len(batch) >= batch_size:
             yield batch[:batch_size]
             batch = batch[batch_size:]
@@ -378,34 +370,9 @@ def evaluate_and_load_permission_relationships(
         return 0
 
     relationships_loaded = 0
-    resources_processed = 0
     progress_interval = max(1, min(100, total_resources // 10 or 1))
-    batch: list[dict[str, Any]] = []
 
-    for resource_id, resource_scope in resource_dict.items():
-        batch.extend(
-            calculate_permission_relationships_for_resource(
-                principals,
-                resource_id,
-                resource_scope,
-                permissions,
-            )
-        )
-        resources_processed += 1
-
-        while len(batch) >= batch_size:
-            batch_to_load = batch[:batch_size]
-            load_principal_mappings(
-                neo4j_session,
-                batch_to_load,
-                matchlink_schema,
-                update_tag,
-                project_id,
-                batch_size=batch_size,
-            )
-            relationships_loaded += len(batch_to_load)
-            batch = batch[batch_size:]
-
+    def _log_progress(resources_processed: int, total_resources: int) -> None:
         if (
             resources_processed % progress_interval == 0
             or resources_processed == total_resources
@@ -421,7 +388,13 @@ def evaluate_and_load_permission_relationships(
                 relationships_loaded,
             )
 
-    if batch:
+    for batch in iter_permission_relationship_batches(
+        principals,
+        resource_dict,
+        permissions,
+        batch_size=batch_size,
+        progress_callback=_log_progress,
+    ):
         load_principal_mappings(
             neo4j_session,
             batch,
