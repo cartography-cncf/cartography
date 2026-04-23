@@ -24,7 +24,9 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
+APP_KEY_DEVICE_INVENTORY_AGENT = "0142ec1846a5fe5aae49d155590a2116300000904abcd"
 APP_KEY_CHROME = "4f5cf2a0a1c0f5b9d4601f6ca58f5a0c9b5d77e11c1f"
+APP_KEY_CURSOR = "75c4c0a1f23d4e5b98aa1274c1e0dbbb73f0fffeabcd"
 APP_KEY_TAILSCALE = "da8ab4f0d2cfe2bb9486778d6a628673da7a6e20b1dd"
 
 
@@ -50,7 +52,14 @@ async def _mock_get_detected_app_aggregate_rows(client):
 
 async def _mock_get_detected_app_raw_rows(client):
     return ExportedReportRows(
-        fieldnames=("ApplicationKey", "DeviceId"),
+        fieldnames=(
+            "ApplicationKey",
+            "ApplicationName",
+            "ApplicationPublisher",
+            "ApplicationVersion",
+            "Platform",
+            "DeviceId",
+        ),
         rows=MOCK_DETECTED_APP_RAW_ROWS,
     )
 
@@ -167,7 +176,9 @@ async def test_sync_intune(
     }
 
     assert check_nodes(neo4j_session, "IntuneDetectedApp", ["id", "display_name"]) == {
+        (APP_KEY_DEVICE_INVENTORY_AGENT, "Microsoft Device Inventory Agent"),
         (APP_KEY_CHROME, "Google Chrome"),
+        (APP_KEY_CURSOR, "Cursor (User)"),
         (APP_KEY_TAILSCALE, "Tailscale"),
     }
 
@@ -181,6 +192,7 @@ async def test_sync_intune(
     ) == {
         ("device-001", APP_KEY_CHROME),
         ("device-002", APP_KEY_CHROME),
+        ("device-002", APP_KEY_DEVICE_INVENTORY_AGENT),
         ("device-001", APP_KEY_TAILSCALE),
     }
 
@@ -224,7 +236,9 @@ async def test_sync_intune(
         "RESOURCE",
         rel_direction_right=False,
     ) == {
+        (APP_KEY_DEVICE_INVENTORY_AGENT, TEST_TENANT_ID),
         (APP_KEY_CHROME, TEST_TENANT_ID),
+        (APP_KEY_CURSOR, TEST_TENANT_ID),
         (APP_KEY_TAILSCALE, TEST_TENANT_ID),
     }
 
