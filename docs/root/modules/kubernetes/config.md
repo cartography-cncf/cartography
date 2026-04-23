@@ -12,16 +12,26 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 
 - `get namespaces` for reading `kube-system` cluster metadata
 - `list namespaces`
+- `list nodes` for reading node architecture (used to resolve container images)
 - `list pods`
 - `list services`
 - `list serviceaccounts`
-- `list secrets`
 - `list roles`
 - `list rolebindings`
 - `list clusterroles`
 - `list clusterrolebindings`
 - `list ingresses`
-- `get configmaps` for reading the `aws-auth` ConfigMap in `kube-system` (`EKS` only)
+
+### Optional Permissions
+
+These permissions are recommended but Cartography degrades gracefully if they are withheld: it logs a warning and skips the corresponding step. See each bullet for the precise behavior, since the trade-off differs per resource.
+
+- `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
+- `get configmaps` (EKS only) — enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. This is optional because:
+  - Clusters that use [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively may not have an `aws-auth` ConfigMap at all.
+  - Some operators prefer not to grant `get` on all ConfigMaps just to read `aws-auth`.
+
+  When omitted or when the ConfigMap does not exist, Cartography still ingests identity mappings from EKS Access Entries and external OIDC providers. Note that the EKS identity sync still runs its cleanup step over `KubernetesUser` and `KubernetesGroup`: mappings that previously came only from `aws-auth` (i.e. not also re-asserted by Access Entries in the current run) will be removed from the graph. If you want to preserve legacy `aws-auth` mappings across syncs, grant this verb.
 
 Create a ClusterRole and bind it to the identity used by Cartography:
 
@@ -39,11 +49,16 @@ rules:
 # Core resources - list only
 - apiGroups: [""]
   resources:
+    - nodes
     - pods
     - services
     - serviceaccounts
   verbs: ["list"]
-# Secrets - Cartography stores metadata only
+# Secrets (optional) — omit if you don't want to grant cluster-wide read access
+# to secret contents. Kubernetes RBAC has no metadata-only verb: `list secrets`
+# also exposes the base64 `data` field. Cartography ingests metadata only, but any
+# identity with this permission can read the content. See the Optional Permissions
+# section above for the behavior when this verb is omitted.
 - apiGroups: [""]
   resources:
     - secrets
@@ -61,7 +76,9 @@ rules:
   resources:
     - ingresses
   verbs: ["list"]
-# ConfigMaps (EKS only) - read aws-auth identity mapping
+# ConfigMaps (EKS only, optional) — only used to read the aws-auth ConfigMap for
+# legacy IAM identity mappings. Omit if your cluster uses EKS Access Entries
+# exclusively or if you don't want to grant `get` on all ConfigMaps.
 - apiGroups: [""]
   resources:
     - configmaps

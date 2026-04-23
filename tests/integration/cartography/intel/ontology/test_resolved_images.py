@@ -1,5 +1,5 @@
 """
-Integration test for the Container -> Image RESOLVED_IMAGE analysis job.
+Integration test for the Container/Function -> Image RESOLVED_IMAGE analysis job.
 """
 
 from unittest.mock import MagicMock
@@ -7,15 +7,18 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
+import cartography.intel.gcp.cloudrun.service as cloudrun_service
 from cartography.util import run_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
+from tests.data.gcp.cloudrun import MOCK_SERVICES
 from tests.data.gcp.cloudrun import TEST_JOB_PRIMARY_DIGEST
 from tests.data.gcp.cloudrun import TEST_REVISION_PRIMARY_DIGEST
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "test-project"
+TEST_SERVICE_ID = "projects/test-project/locations/us-central1/services/test-service"
 TEST_REVISION_ID = "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc"
 TEST_JOB_ID = "projects/test-project/locations/us-west1/jobs/test-job"
 
@@ -55,16 +58,20 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
     ) == {("container-1", "sha256:deadbeef")}
 
 
+@patch("cartography.intel.gcp.cloudrun.service.get_services")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")
 def test_resolved_image_analysis_creates_rel_for_cloud_run(
     mock_get_jobs,
     mock_get_revisions,
+    mock_get_services,
     neo4j_session,
 ):
-    """Run Cloud Run revision and job through the real load path, then verify RESOLVED_IMAGE is created.
+    """Run Cloud Run service, revision and job through the real load path,
+    then verify RESOLVED_IMAGE is created on the :Function side (Service via
+    HAS_REVISION traversal; Job directly).
 
-    This proves the schema's :Container label assignment and the analysis job work end-to-end.
+    Revision has no ontology label of its own and must not carry RESOLVED_IMAGE.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
@@ -104,6 +111,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
 
     # Act: sync Cloud Run through the real load path
+    mock_get_services.return_value = MOCK_SERVICES["services"]
     mock_get_revisions.return_value = MOCK_REVISION_WITH_DIGEST
     mock_get_jobs.return_value = MOCK_JOB_WITH_DIGEST
     common_job_parameters = {
@@ -112,6 +120,13 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     }
     mock_client = MagicMock()
 
+    cloudrun_service.sync_services(
+        neo4j_session,
+        mock_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
     cloudrun_revision.sync_revisions(
         neo4j_session,
         mock_client,
@@ -134,18 +149,31 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: RESOLVED_IMAGE edges exist for both revision and job
+    # Assert: RESOLVED_IMAGE edges exist on :Function for both Service (via HAS_REVISION) and Job (directly).
     assert check_rels(
         neo4j_session,
-        "Container",
+        "Function",
         "id",
         "Image",
         "id",
         "RESOLVED_IMAGE",
     ) == {
-        (TEST_REVISION_ID, TEST_REVISION_PRIMARY_DIGEST),
+        (TEST_SERVICE_ID, TEST_REVISION_PRIMARY_DIGEST),
         (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
     }
+
+    # Assert: Revision itself has no RESOLVED_IMAGE (it is not an ontology node).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunRevision",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
 
 
 def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):

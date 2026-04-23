@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -144,7 +143,6 @@ class CloudRunRevisionToArtifactRegistryContainerImageRel(CartographyRelSchema):
 class GCPCloudRunRevisionSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunRevision"
     properties: GCPCloudRunRevisionProperties = GCPCloudRunRevisionProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
     sub_resource_relationship: ProjectToCloudRunRevisionRel = (
         ProjectToCloudRunRevisionRel()
     )
