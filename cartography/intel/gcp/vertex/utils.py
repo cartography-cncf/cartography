@@ -8,10 +8,6 @@ from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import cast
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
@@ -41,7 +37,7 @@ def list_vertex_ai_resources_for_location(
     resource_type: str,
     location: str,
     project_id: str,
-) -> List[Dict]:
+) -> list[dict]:
     try:
         resources = [proto_message_to_dict(resource) for resource in fetcher()]
     except NotFound:
@@ -85,12 +81,12 @@ def list_vertex_ai_resources_for_location(
 @timeit
 def fetch_vertex_ai_resources_for_locations(
     *,
-    locations: List[str],
+    locations: list[str],
     project_id: str,
     resource_type: str,
-    fetch_for_location: Callable[[str], List[Dict]],
+    fetch_for_location: Callable[[str], list[dict]],
     max_workers: int = DEFAULT_VERTEX_AI_LOCATION_WORKERS,
-) -> List[Dict]:
+) -> list[dict]:
     deduped_locations = list(dict.fromkeys(locations))
     if not deduped_locations:
         logger.info(
@@ -161,7 +157,7 @@ def handle_vertex_api_response(
     resource_type: str,
     location: str,
     project_id: str,
-) -> Tuple[Optional[Dict], bool]:
+) -> tuple[dict | None, bool]:
     """
     Handle HTTP response from Vertex AI API with common error patterns.
 
@@ -208,13 +204,13 @@ def handle_vertex_api_response(
 
 def paginate_vertex_api(
     url: str,
-    headers: Optional[Dict[str, str]],
+    headers: dict[str, str] | None,
     resource_type: str,
     response_key: str,
     location: str,
     project_id: str,
-    session: Optional[Any] = None,
-) -> List[Dict]:
+    session: Any | None = None,
+) -> list[dict]:
     """
     Handle paginated requests to Vertex AI regional endpoints.
 
@@ -234,7 +230,7 @@ def paginate_vertex_api(
     request_headers = headers or {}
 
     while True:
-        params: Dict[str, str] = {}
+        params: dict[str, str] = {}
         if page_token:
             params["pageToken"] = page_token
 

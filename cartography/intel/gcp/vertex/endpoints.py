@@ -1,7 +1,5 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -25,7 +23,7 @@ def get_vertex_ai_endpoints_for_location(
     credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI endpoints for a specific location.
     """
@@ -42,7 +40,7 @@ def get_vertex_ai_endpoints_for_location(
 
 
 @timeit
-def transform_vertex_ai_endpoints(endpoints: List[Dict]) -> List[Dict]:
+def transform_vertex_ai_endpoints(endpoints: list[dict]) -> list[dict]:
     transformed_endpoints = []
 
     for endpoint in endpoints:
@@ -71,7 +69,7 @@ def transform_vertex_ai_endpoints(endpoints: List[Dict]) -> List[Dict]:
 @timeit
 def load_vertex_ai_endpoints(
     neo4j_session: neo4j.Session,
-    endpoints: List[Dict],
+    endpoints: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -90,7 +88,7 @@ def load_vertex_ai_endpoints(
 @timeit
 def cleanup_vertex_ai_endpoints(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Delete out-of-date GCP Vertex AI Endpoint nodes and relationships.
@@ -106,9 +104,9 @@ def sync_vertex_ai_endpoints(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
-    locations: List[str] | None = None,
-) -> List[Dict]:
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
+) -> list[dict]:
     """
     Get Vertex AI endpoints, ingest to Neo4j, and clean up old data.
     """

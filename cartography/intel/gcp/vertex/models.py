@@ -1,9 +1,6 @@
 import json
 import logging
 import re
-from typing import Dict
-from typing import List
-from typing import Optional
 from urllib.parse import urlparse
 
 import neo4j
@@ -34,7 +31,7 @@ def _is_vertex_ai_regional_location(location_id: str) -> bool:
 def get_vertex_ai_locations(
     aiplatform: Resource,
     project_id: str,
-) -> List[str] | None:
+) -> list[str] | None:
     """
     Gets all available Vertex AI locations for a project.
 
@@ -105,7 +102,7 @@ def get_vertex_ai_models_for_location(
     credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI models for a specific location.
     """
@@ -121,7 +118,7 @@ def get_vertex_ai_models_for_location(
     )
 
 
-def _extract_bucket_name_from_gcs_uri(gcs_uri: Optional[str]) -> Optional[str]:
+def _extract_bucket_name_from_gcs_uri(gcs_uri: str | None) -> str | None:
     """
     Extracts the bucket name from a GCS URI.
 
@@ -142,7 +139,7 @@ def _extract_bucket_name_from_gcs_uri(gcs_uri: Optional[str]) -> Optional[str]:
 
 
 @timeit
-def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
+def transform_vertex_ai_models(models: list[dict]) -> list[dict]:
     transformed_models = []
 
     for model in models:
@@ -155,7 +152,7 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
         labels_json = json.dumps(labels) if labels else None
 
         training_pipeline = model.get("trainingPipeline")
-        training_pipeline_value: Optional[str]
+        training_pipeline_value: str | None
         if isinstance(training_pipeline, (dict, list)):
             training_pipeline_value = json.dumps(training_pipeline)
         elif isinstance(training_pipeline, str):
@@ -191,7 +188,7 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
 @timeit
 def load_vertex_ai_models(
     neo4j_session: neo4j.Session,
-    models: List[Dict],
+    models: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -208,7 +205,7 @@ def load_vertex_ai_models(
 @timeit
 def cleanup_vertex_ai_models(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(GCPVertexAIModelSchema(), common_job_parameters).run(
@@ -222,8 +219,8 @@ def sync_vertex_ai_models(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
-    locations: Optional[List[str]] = None,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
 
     logger.info("Syncing Vertex AI models for project %s.", project_id)

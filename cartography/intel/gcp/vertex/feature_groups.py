@@ -1,7 +1,5 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -25,7 +23,7 @@ def get_feature_groups_for_location(
     credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI Feature Groups for a specific location.
 
@@ -45,7 +43,7 @@ def get_feature_groups_for_location(
 
 
 @timeit
-def transform_feature_groups(feature_groups: List[Dict]) -> List[Dict]:
+def transform_feature_groups(feature_groups: list[dict]) -> list[dict]:
     transformed_groups = []
 
     for group in feature_groups:
@@ -90,7 +88,7 @@ def transform_feature_groups(feature_groups: List[Dict]) -> List[Dict]:
 @timeit
 def load_feature_groups(
     neo4j_session: neo4j.Session,
-    feature_groups: List[Dict],
+    feature_groups: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -107,7 +105,7 @@ def load_feature_groups(
 @timeit
 def cleanup_feature_groups(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(
@@ -123,8 +121,8 @@ def sync_feature_groups(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
-    locations: List[str] | None = None,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
 
     logger.info("Syncing Vertex AI Feature Groups for project %s.", project_id)

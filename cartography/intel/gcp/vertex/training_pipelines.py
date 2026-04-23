@@ -1,7 +1,5 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -27,7 +25,7 @@ def get_vertex_ai_training_pipelines_for_location(
     credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
         fetcher=lambda: build_vertex_ai_pipeline_client(
@@ -41,7 +39,7 @@ def get_vertex_ai_training_pipelines_for_location(
 
 
 @timeit
-def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
+def transform_training_pipelines(training_pipelines: list[dict]) -> list[dict]:
 
     transformed_pipelines = []
 
@@ -120,7 +118,7 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
 @timeit
 def load_training_pipelines(
     neo4j_session: neo4j.Session,
-    training_pipelines: List[Dict],
+    training_pipelines: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -137,7 +135,7 @@ def load_training_pipelines(
 @timeit
 def cleanup_training_pipelines(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(
@@ -153,8 +151,8 @@ def sync_training_pipelines(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
-    locations: List[str] | None = None,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
 
     logger.info("Syncing Vertex AI training pipelines for project %s.", project_id)

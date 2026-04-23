@@ -1,7 +1,5 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -25,7 +23,7 @@ def get_vertex_ai_datasets_for_location(
     credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI datasets for a specific location.
     """
@@ -42,7 +40,7 @@ def get_vertex_ai_datasets_for_location(
 
 
 @timeit
-def transform_vertex_ai_datasets(datasets: List[Dict]) -> List[Dict]:
+def transform_vertex_ai_datasets(datasets: list[dict]) -> list[dict]:
     """
     Transform Vertex AI dataset API responses into format expected by the schema.
     """
@@ -85,7 +83,7 @@ def transform_vertex_ai_datasets(datasets: List[Dict]) -> List[Dict]:
 @timeit
 def load_vertex_ai_datasets(
     neo4j_session: neo4j.Session,
-    datasets: List[Dict],
+    datasets: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -104,7 +102,7 @@ def load_vertex_ai_datasets(
 @timeit
 def cleanup_vertex_ai_datasets(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Delete out-of-date GCP Vertex AI Dataset nodes and relationships.
@@ -120,8 +118,8 @@ def sync_vertex_ai_datasets(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
-    locations: List[str] | None = None,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
     """
     Get Vertex AI datasets, ingest to Neo4j, and clean up old data.
