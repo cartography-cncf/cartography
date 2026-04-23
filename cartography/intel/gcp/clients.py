@@ -15,6 +15,10 @@ from google.cloud.aiplatform_v1.services.feature_registry_service import (
 from google.cloud.aiplatform_v1.services.model_service import ModelServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service import PipelineServiceClient
 from google.cloud.asset_v1 import AssetServiceClient
+from google.cloud.run_v2 import ExecutionsClient
+from google.cloud.run_v2 import JobsClient
+from google.cloud.run_v2 import RevisionsClient
+from google.cloud.run_v2 import ServicesClient
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
 
@@ -154,6 +158,54 @@ def build_vertex_ai_feature_registry_client(
             quota_project_id=quota_project_id,
         ),
         client_options=_vertex_ai_client_options(location),
+    )
+
+
+def build_cloud_run_service_client(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> ServicesClient:
+    return ServicesClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_revision_client(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> RevisionsClient:
+    return RevisionsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_job_client(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> JobsClient:
+    return JobsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_execution_client(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> ExecutionsClient:
+    return ExecutionsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
     )
 
 

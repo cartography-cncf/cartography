@@ -46,6 +46,7 @@ from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
 from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
+from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -563,37 +564,55 @@ def _sync_project_resources(
 
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            cloud_run_cred = build_client("run", "v2", credentials=credentials)
-            cloudrun_service.sync_services(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            cloudrun_revision.sync_revisions(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            cloudrun_job.sync_jobs(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
+            cloud_run_discovery_client = build_client(
+                "run",
+                "v2",
                 credentials=credentials,
             )
-            cloudrun_execution.sync_executions(
-                neo4j_session,
-                cloud_run_cred,
+            cloud_run_locations = discover_cloud_run_locations(
+                cloud_run_discovery_client,
                 project_id,
-                gcp_update_tag,
-                common_job_parameters,
                 credentials=credentials,
             )
+            if cloud_run_locations is None:
+                logger.warning(
+                    "Skipping Cloud Run sync for project %s because location discovery failed. "
+                    "Preserving existing Cloud Run data.",
+                    project_id,
+                )
+            else:
+                cloudrun_service.sync_services(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_revision.sync_revisions(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_job.sync_jobs(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_execution.sync_executions(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
 
         # Build the BigQuery v2 client once — used for datasets/tables/routines
         # and also for location discovery when syncing connections.
