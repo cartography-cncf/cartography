@@ -119,6 +119,17 @@ class PackageToTrivyFixRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class PackageToEndorLabsPackageVersionRel(CartographyRelSchema):
+    target_node_label: str = "EndorLabsPackageVersion"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
+@dataclass(frozen=True)
 class PackageToPackageDependsOnRel(CartographyRelSchema):
     target_node_label: str = "Package"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,6 +164,7 @@ class PackageSchema(CartographyNodeSchema):
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
             PackageToSocketDevDependencyRel(),
+            PackageToEndorLabsPackageVersionRel(),
             PackageToECRImageRel(),
             PackageToGCPArtifactRegistryContainerImageRel(),
             PackageToGCPArtifactRegistryPlatformImageRel(),

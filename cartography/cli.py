@@ -67,6 +67,7 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_ENDORLABS = "Endor Labs Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
 PANEL_STATSD = "StatsD Metrics"
@@ -94,6 +95,7 @@ MODULE_PANELS = {
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "endorlabs": PANEL_ENDORLABS,
     "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
@@ -1029,6 +1031,36 @@ class CLI:
                     help="JumpCloud organization ID used as the tenant identifier.",
                     rich_help_panel=PANEL_JUMPCLOUD,
                     hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Endor Labs Options
+            # =================================================================
+            endorlabs_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--endorlabs-api-key-env-var",
+                    help="Environment variable name containing Endor Labs API key.",
+                    rich_help_panel=PANEL_ENDORLABS,
+                    hidden=PANEL_ENDORLABS not in visible_panels,
+                ),
+            ] = None,
+            endorlabs_api_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--endorlabs-api-secret-env-var",
+                    help="Environment variable name containing Endor Labs API secret.",
+                    rich_help_panel=PANEL_ENDORLABS,
+                    hidden=PANEL_ENDORLABS not in visible_panels,
+                ),
+            ] = None,
+            endorlabs_namespace: Annotated[
+                str | None,
+                typer.Option(
+                    "--endorlabs-namespace",
+                    help="Endor Labs tenant namespace.",
+                    rich_help_panel=PANEL_ENDORLABS,
+                    hidden=PANEL_ENDORLABS not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2031,6 +2063,23 @@ class CLI:
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
 
+            # Read Endor Labs credentials
+            endorlabs_api_key = None
+            if endorlabs_api_key_env_var:
+                logger.debug(
+                    "Reading Endor Labs API key from environment variable %s",
+                    endorlabs_api_key_env_var,
+                )
+                endorlabs_api_key = os.environ.get(endorlabs_api_key_env_var)
+
+            endorlabs_api_secret = None
+            if endorlabs_api_secret_env_var:
+                logger.debug(
+                    "Reading Endor Labs API secret from environment variable %s",
+                    endorlabs_api_secret_env_var,
+                )
+                endorlabs_api_secret = os.environ.get(endorlabs_api_secret_env_var)
+
             # Read Socket.dev token
             socketdev_token = None
             if socketdev_token_env_var:
@@ -2432,6 +2481,9 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                endorlabs_api_key=endorlabs_api_key,
+                endorlabs_api_secret=endorlabs_api_secret,
+                endorlabs_namespace=endorlabs_namespace,
                 socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,

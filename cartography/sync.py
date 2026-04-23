@@ -24,6 +24,7 @@ import cartography.intel.cve_metadata
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
+import cartography.intel.endorlabs
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
@@ -98,6 +99,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "sentry": cartography.intel.sentry.start_sentry_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "endorlabs": cartography.intel.endorlabs.start_endorlabs_ingestion,
         "socketdev": cartography.intel.socketdev.start_socketdev_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,

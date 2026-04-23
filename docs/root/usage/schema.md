@@ -66,6 +66,9 @@
 ```{include} ../modules/duo/schema.md
 ```
 
+```{include} ../modules/endorlabs/schema.md
+```
+
 ```{include} ../modules/microsoft/schema.md
 ```
 
