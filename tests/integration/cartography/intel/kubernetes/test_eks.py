@@ -24,6 +24,10 @@ from tests.data.kubernetes.eks import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
+TEST_CLUSTER_ARN = (
+    f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:cluster/{TEST_CLUSTER_NAME}"
+)
+
 
 def create_mock_aws_auth_configmap():
     """Create a mock V1ConfigMap object for testing."""
@@ -32,6 +36,15 @@ def create_mock_aws_auth_configmap():
         kind="ConfigMap",
         metadata={"name": "aws-auth", "namespace": "kube-system"},
         data=AWS_AUTH_CONFIGMAP_DATA,
+    )
+
+
+def create_custom_aws_auth_configmap(data):
+    return V1ConfigMap(
+        api_version="v1",
+        kind="ConfigMap",
+        metadata={"name": "aws-auth", "namespace": "kube-system"},
+        data=data,
     )
 
 
@@ -104,7 +117,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         TEST_REGION,
         TEST_UPDATE_TAG,
         TEST_CLUSTER_ID,
-        TEST_CLUSTER_NAME,
+        TEST_CLUSTER_ARN,
     )
 
     # Assert: Verify AWS Role to Kubernetes User relationships
@@ -330,6 +343,230 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     assert expected_access_entry_role_group_relationships.issubset(
         actual_access_entry_role_group_relationships
     )
+
+
+@patch("cartography.intel.kubernetes.eks.get_access_entries", return_value=[])
+@patch("cartography.intel.kubernetes.eks.get_oidc_provider", return_value=[])
+def test_eks_sync_resolves_supported_aws_auth_templates(
+    mock_get_oidc_provider,
+    mock_get_access_entries,
+    neo4j_session,
+):
+    neo4j_session.run(
+        """
+        MERGE (aa:AWSAccount{id: $account_id})
+        ON CREATE SET aa.firstseen = timestamp()
+        SET aa.lastupdated = $update_tag, aa :Tenant
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    for role_arn in (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+    ):
+        neo4j_session.run(
+            """
+            MERGE (role:AWSRole {arn: $arn})
+            SET role.id = $arn, role.lastupdated = $update_tag
+            """,
+            arn=role_arn,
+            update_tag=TEST_UPDATE_TAG,
+        )
+
+    neo4j_session.run(
+        """
+        MERGE (user:AWSUser {arn: $arn})
+        SET user.id = $arn, user.lastupdated = $update_tag
+        """,
+        arn=f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    neo4j_session.run(
+        """
+        UNWIND $users AS user
+        MERGE (u:KubernetesUser {id: user.id})
+        SET u.name = user.name,
+            u.cluster_name = $cluster_name,
+            u.lastupdated = $update_tag
+        WITH u
+        MATCH (c:KubernetesCluster {id: $cluster_id})
+        MERGE (c)-[:RESOURCE]->(u)
+        """,
+        users=[
+            {
+                "id": f"{TEST_CLUSTER_NAME}/sso:alice-example.com",
+                "name": "sso:alice-example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/raw:alice@example.com",
+                "name": "raw:alice@example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/sso:alice@example.com",
+                "name": "sso:alice@example.com",
+            },
+        ],
+        cluster_name=TEST_CLUSTER_NAME,
+        cluster_id=TEST_CLUSTER_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        UNWIND $groups AS group
+        MERGE (g:KubernetesGroup {id: group.id})
+        SET g.name = group.name,
+            g.cluster_name = $cluster_name,
+            g.lastupdated = $update_tag
+        WITH g
+        MATCH (c:KubernetesCluster {id: $cluster_id})
+        MERGE (c)-[:RESOURCE]->(g)
+        """,
+        groups=[
+            {
+                "id": f"{TEST_CLUSTER_NAME}/team:alice-example.com",
+                "name": "team:alice-example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/raw-team:alice@example.com",
+                "name": "raw-team:alice@example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/team:alice@example.com",
+                "name": "team:alice@example.com",
+            },
+        ],
+        cluster_name=TEST_CLUSTER_NAME,
+        cluster_id=TEST_CLUSTER_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.return_value = create_custom_aws_auth_configmap(
+        {
+            "mapRoles": f"""
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole
+  username: acct-{{{{AccountID}}}}-admin
+  groups:
+  - acct-{{{{AccountID}}}}-admins
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole
+  username: sso:{{{{SessionName}}}}
+  groups:
+  - team:{{{{SessionName}}}}
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole
+  username: raw:{{{{SessionNameRaw}}}}
+  groups:
+  - raw-team:{{{{SessionNameRaw}}}}
+""",
+            "mapUsers": f"""
+- userarn: arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user
+  username: acct-user-{{{{AccountID}}}}
+  groups:
+  - acct-group-{{{{AccountID}}}}
+""",
+        }
+    )
+
+    sync_eks(
+        neo4j_session,
+        mock_k8s_client,
+        MagicMock(),
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_ARN,
+    )
+
+    actual_role_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+            f"{TEST_CLUSTER_NAME}/acct-{TEST_ACCOUNT_ID}-admin",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+            f"{TEST_CLUSTER_NAME}/sso:alice-example.com",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+            f"{TEST_CLUSTER_NAME}/raw:alice@example.com",
+        ),
+    }.issubset(actual_role_user_relationships)
+
+    actual_role_group_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+            f"{TEST_CLUSTER_NAME}/acct-{TEST_ACCOUNT_ID}-admins",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+            f"{TEST_CLUSTER_NAME}/team:alice-example.com",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+            f"{TEST_CLUSTER_NAME}/raw-team:alice@example.com",
+        ),
+    }.issubset(actual_role_group_relationships)
+
+    actual_user_group_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-group-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_group_relationships)
+
+    actual_user_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-user-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_user_relationships)
+
+    assert (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"{TEST_CLUSTER_NAME}/sso:alice@example.com",
+    ) not in actual_role_user_relationships
+    assert (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"{TEST_CLUSTER_NAME}/team:alice@example.com",
+    ) not in actual_role_group_relationships
 
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
