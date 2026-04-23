@@ -99,6 +99,7 @@ def transform(grants: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "destinations": grant["destinations"],
                 "source_groups": grant["source_groups"],
                 "source_users": grant["source_users"],
+                "source_any": grant.get("source_any", False),
                 "destination_tags": grant["destination_tags"],
                 "destination_groups": grant["destination_groups"],
                 "ip_rules": grant["ip_rules"] or None,
@@ -279,7 +280,7 @@ def resolve_access(
     all_user_logins = {u["loginName"] for u in users}
     user_to_devices = _build_user_to_devices_map(devices)
     ip_to_devices = _build_ip_to_devices_map(devices)
-    service_ids = {f"svc:{s.get('name', '')}" for s in (services or [])}
+    service_ids = {_normalize_service_id(s["name"]) for s in (services or [])}
     device_postures = _build_device_postures_map(posture_matches or [])
 
     user_access: dict[tuple[str, str], list[str]] = {}
@@ -294,6 +295,9 @@ def resolve_access(
         grant_id = grant["id"]
         required_postures = set(grant.get("src_posture", []))
         grant_postures[grant_id] = required_postures
+        network_capable = bool(grant.get("ip_rules")) or not bool(
+            grant.get("app_capabilities"),
+        )
 
         has_self_destination = _has_autogroup_self(grant["destinations"])
 
@@ -313,8 +317,15 @@ def resolve_access(
             service_ids,
         )
 
+        if not network_capable:
+            continue
+
+        source_users = set(grant["source_users"])
+        if grant.get("source_any", False):
+            source_users.update(all_user_logins)
+
         # --- Source: direct users ---
-        for user_login in grant["source_users"]:
+        for user_login in source_users:
             if user_login not in all_user_logins:
                 continue
             if not _user_meets_posture(
@@ -356,8 +367,12 @@ def resolve_access(
                 for svc_id in dest_service_ids:
                     _add_access(user_svc_access, (user_login, svc_id), grant_id)
 
+        source_tag_ids = set(grant["source_tags"])
+        if grant.get("source_any", False):
+            source_tag_ids.update(tag_to_devices.keys())
+
         # --- Source: tags (device-to-device access) ---
-        for source_tag in grant["source_tags"]:
+        for source_tag in source_tag_ids:
             source_device_ids = tag_to_devices.get(source_tag, [])
             for source_device_id in source_device_ids:
                 if not _device_meets_posture(
@@ -545,6 +560,10 @@ def _has_autogroup_self(destinations: list[str]) -> bool:
     return False
 
 
+def _normalize_service_id(name: str) -> str:
+    return name if name.startswith("svc:") else f"svc:{name}"
+
+
 def _resolve_destination_devices(
     grant: dict[str, Any],
     tag_to_devices: dict[str, list[str]],
@@ -559,6 +578,7 @@ def _resolve_destination_devices(
     Note: svc:xxx is handled by _resolve_destination_services().
     """
     dest_device_ids: set[str] = set()
+    unsupported_destinations: set[str] = set()
 
     for dst in grant["destinations"]:
         if dst == "*" or dst == "*:*":
@@ -587,6 +607,15 @@ def _resolve_destination_devices(
             # Try to resolve as IP address or CIDR range
             matched = _resolve_ip_destination(dst, ip_to_devices or {})
             dest_device_ids.update(matched)
+            if not matched:
+                unsupported_destinations.add(dst)
+
+    for dst in sorted(unsupported_destinations):
+        logger.warning(
+            "Unsupported Tailscale grant destination selector '%s' in grant %s",
+            dst,
+            grant["id"],
+        )
 
     return dest_device_ids
 
@@ -633,8 +662,10 @@ def _resolve_destination_services(
     """Resolve which services are targeted by a grant's destinations."""
     dest_services: set[str] = set()
     for dst in destinations:
-        if dst.startswith("svc:") and dst in service_ids:
-            dest_services.add(dst)
+        if dst.startswith("svc:"):
+            service_id = _normalize_service_id(dst)
+            if service_id in service_ids:
+                dest_services.add(service_id)
     return dest_services
 
 

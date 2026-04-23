@@ -66,12 +66,13 @@ def transform(
     transformed: list[dict[str, Any]] = []
     for service in raw_services:
         name = service["name"]
+        service_id = _normalize_service_id(name)
         addrs = service.get("addrs", [])
         tags = service.get("tags", [])
 
         transformed.append(
             {
-                "id": f"svc:{name}",
+                "id": service_id,
                 "name": name,
                 "comment": service.get("comment"),
                 "ipv4_address": addrs[0] if len(addrs) > 0 else None,
@@ -82,6 +83,10 @@ def transform(
             },
         )
     return transformed
+
+
+def _normalize_service_id(name: str) -> str:
+    return name if name.startswith("svc:") else f"svc:{name}"
 
 
 @timeit

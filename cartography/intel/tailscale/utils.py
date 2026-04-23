@@ -151,13 +151,14 @@ class ACLParser:
             source_users: list[str] = []
             source_groups: list[str] = []
             source_tags: list[str] = []
+            source_any = False
             for src in sources:
                 if src.startswith("group:") or src.startswith("autogroup:"):
                     source_groups.append(src)
                 elif src.startswith("tag:"):
                     source_tags.append(src)
                 elif src == "*":
-                    source_groups.append("autogroup:member")
+                    source_any = True
                 else:
                     # Treat as user email
                     source_users.append(src)
@@ -208,6 +209,7 @@ class ACLParser:
                     "source_users": source_users,
                     "source_groups": source_groups,
                     "source_tags": source_tags,
+                    "source_any": source_any,
                     "destination_tags": destination_tags,
                     "destination_groups": destination_groups,
                     "destination_services": destination_services,

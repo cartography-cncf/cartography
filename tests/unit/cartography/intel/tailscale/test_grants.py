@@ -55,7 +55,8 @@ def test_aclparser_get_grants__autogroup_source() -> None:
 def test_aclparser_get_grants__wildcard_source() -> None:
     acl = ACLParser('{"grants": [{"src": ["*"], "dst": ["tag:web"], "ip": ["*:*"]}]}')
     grants = acl.get_grants()
-    assert grants[0]["source_groups"] == ["autogroup:member"]
+    assert grants[0]["source_any"] is True
+    assert grants[0]["source_groups"] == []
     assert grants[0]["source_users"] == []
 
 
@@ -77,6 +78,7 @@ def test_aclparser_get_grants__mixed_sources() -> None:
     assert grants[0]["source_users"] == ["alice@example.com"]
     assert grants[0]["source_groups"] == ["group:eng", "autogroup:admin"]
     assert grants[0]["source_tags"] == ["tag:server"]
+    assert grants[0]["source_any"] is False
 
 
 def test_aclparser_get_grants__tag_destination() -> None:
@@ -341,6 +343,28 @@ def test_resolve_access_direct_user__user_to_autogroup_self() -> None:
     user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
     user_pairs = {(a["user_login_name"], a["device_id"]) for a in user_access}
     assert user_pairs == {("alice@ex.com", "dev-1"), ("alice@ex.com", "dev-2")}
+
+
+def test_resolve_access_direct_user__wildcard_source_expands_to_all_users() -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": [],
+            "source_groups": [],
+            "source_tags": [],
+            "source_any": True,
+            "destinations": ["tag:web"],
+            "destination_tags": ["tag:web"],
+            "destination_groups": [],
+            "destination_hosts": [],
+            "ip_rules": ["*:*"],
+            "app_capabilities": {},
+            "src_posture": [],
+        }
+    ]
+    user_access, _, _, _, _ = resolve_access(grants, DEVICES, GROUPS, [], USERS)
+    user_logins = {a["user_login_name"] for a in user_access}
+    assert user_logins == {"alice@ex.com", "bob@ex.com"}
 
 
 def test_resolve_access_group__group_to_tag_destination() -> None:
@@ -640,6 +664,32 @@ def test_resolve_access_edge_cases__grant_with_no_matching_destination() -> None
     assert user_access == []
 
 
+def test_resolve_access_edge_cases__app_only_grant_does_not_create_can_access() -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": ["alice@ex.com"],
+            "source_groups": [],
+            "source_tags": [],
+            "destinations": ["tag:web"],
+            "destination_tags": ["tag:web"],
+            "destination_groups": [],
+            "destination_hosts": [],
+            "ip_rules": [],
+            "app_capabilities": {"tailscale.com/cap/test": [{"x": "y"}]},
+            "src_posture": [],
+        }
+    ]
+    user_access, group_access, device_access, user_svc_access, group_svc_access = (
+        resolve_access(grants, DEVICES, GROUPS, [], USERS)
+    )
+    assert user_access == []
+    assert group_access == []
+    assert device_access == []
+    assert user_svc_access == []
+    assert group_svc_access == []
+
+
 def test_resolve_access_edge_cases__grant_ip_rules_stored_on_relationship() -> None:
     grants = [
         {
@@ -702,6 +752,7 @@ def test_resolve_access_edge_cases__tag_destination_with_port_suffix_stripped() 
 
 
 SERVICES = [{"name": "web-server"}, {"name": "database"}]
+SERVICES_WITH_PREFIX = [{"name": "svc:web-server"}, {"name": "svc:database"}]
 
 
 def test_aclparser_service_destination__svc_destination_classified() -> None:
@@ -818,6 +869,32 @@ def test_resolve_access_service_destination__mixed_device_and_service_destinatio
     assert ("alice@ex.com", "dev-1") in device_pairs
     svc_pairs = {(a["user_login_name"], a["service_id"]) for a in user_svc}
     assert svc_pairs == {("alice@ex.com", "svc:database")}
+
+
+def test_resolve_access_service_destination__prefixed_service_names_supported() -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": ["alice@ex.com"],
+            "source_groups": [],
+            "source_tags": [],
+            "source_any": False,
+            "destinations": ["svc:web-server"],
+            "destination_tags": [],
+            "destination_groups": [],
+            "destination_services": ["svc:web-server"],
+            "destination_hosts": [],
+            "ip_rules": ["tcp:443"],
+            "app_capabilities": {},
+            "src_posture": [],
+        }
+    ]
+    _, _, _, user_svc, _ = resolve_access(
+        grants, DEVICES, GROUPS, [], USERS, SERVICES_WITH_PREFIX
+    )
+    assert {(a["user_login_name"], a["service_id"]) for a in user_svc} == {
+        ("alice@ex.com", "svc:web-server")
+    }
 
 
 DEVICES_WITH_IPS = [
@@ -978,6 +1055,31 @@ def test_resolve_access_ipdestination__invalid_destination_ignored() -> None:
         grants, DEVICES_WITH_IPS, GROUPS, [], USERS
     )
     assert user_access == []
+
+
+def test_resolve_access_ipdestination__unsupported_destination_logs_warning(
+    caplog,
+) -> None:
+    grants = [
+        {
+            "id": "grant:0",
+            "source_users": ["alice@ex.com"],
+            "source_groups": [],
+            "source_tags": [],
+            "destinations": ["ipset:corp"],
+            "destination_tags": [],
+            "destination_groups": [],
+            "destination_services": [],
+            "destination_hosts": ["ipset:corp"],
+            "ip_rules": ["*:*"],
+            "app_capabilities": {},
+            "src_posture": [],
+        }
+    ]
+    resolve_access(grants, DEVICES_WITH_IPS, GROUPS, [], USERS)
+    assert (
+        "Unsupported Tailscale grant destination selector 'ipset:corp'" in caplog.text
+    )
 
 
 def test_resolve_access_ipdestination__wide_cidr_matches_all() -> None:
