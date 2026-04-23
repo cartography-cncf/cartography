@@ -2,56 +2,20 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.endorlabs.util import paginated_get
 from cartography.models.endorlabs.dependency_metadata import (
     EndorLabsDependencyMetadataSchema,
 )
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-_TIMEOUT = (60, 60)
-_BASE_URL = "https://api.endorlabs.com"
-_PAGE_SIZE = 100
 
 
-@timeit
 def get(bearer_token: str, namespace: str) -> list[dict[str, Any]]:
-    all_deps: list[dict[str, Any]] = []
-    page_token: str | None = None
-    headers = {
-        "Authorization": f"Bearer {bearer_token}",
-        "Content-Type": "application/jsoncompact",
-    }
-
-    while True:
-        params: dict[str, Any] = {
-            "list_parameters.page_size": _PAGE_SIZE,
-        }
-        if page_token:
-            params["list_parameters.page_token"] = page_token
-
-        response = requests.get(
-            f"{_BASE_URL}/v1/namespaces/{namespace}/dependency-metadata",
-            headers=headers,
-            params=params,
-            timeout=_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        objects = data.get("list", {}).get("objects", [])
-        all_deps.extend(objects)
-
-        next_token = data.get("list", {}).get("response", {}).get("next_page_token")
-        if not next_token or not objects:
-            break
-        page_token = next_token
-
-    logger.debug("Fetched %d Endor Labs dependency metadata records", len(all_deps))
-    return all_deps
+    return paginated_get(bearer_token, namespace, "dependency-metadata")
 
 
 def transform(
