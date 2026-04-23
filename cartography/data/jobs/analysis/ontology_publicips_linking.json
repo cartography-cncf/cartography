@@ -1,0 +1,10 @@
+{
+  "name": "Ontology - PublicIPs relationship linking",
+  "statements": [
+    {
+      "__comment": "Link PublicIP to Device based on CrowdstrikeHost external_ip",
+      "query": "MATCH (p:PublicIP), (host:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device) WHERE host.external_ip = p.ip_address MERGE (p)-[r:POINTS_TO]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}
