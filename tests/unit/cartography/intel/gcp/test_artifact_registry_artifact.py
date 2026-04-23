@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import NotFound
 
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
@@ -19,6 +20,10 @@ def _permission_denied_getter(client, repository_name):
 
 def _unexpected_error_getter(client, repository_name):
     raise GoogleAPICallError("boom")
+
+
+def _not_found_getter(client, repository_name):
+    raise NotFound("not found")
 
 
 def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomplete(
@@ -79,6 +84,46 @@ def test_sync_artifact_registry_artifacts_propagates_unexpected_gapic_errors(
             {"UPDATE_TAG": 123},
             max_workers=1,
         )
+
+
+def test_sync_artifact_registry_artifacts_treats_not_found_as_empty_repo(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
+        {"DOCKER": (_not_found_getter, transform_docker_images)},
+    )
+
+    with (
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.cleanup_docker_images"
+        ) as cleanup_docker_images,
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.cleanup_helm_charts"
+        ) as cleanup_helm_charts,
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.cleanup_language_packages"
+        ) as cleanup_language_packages,
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.cleanup_generic_artifacts"
+        ) as cleanup_generic_artifacts,
+    ):
+        result = sync_artifact_registry_artifacts(
+            MagicMock(),
+            MagicMock(),
+            [{"name": "repo", "format": "DOCKER"}],
+            "test-project",
+            123,
+            {"UPDATE_TAG": 123},
+            max_workers=1,
+        )
+
+    assert result.cleanup_safe is True
+    assert result.platform_images == []
+    cleanup_docker_images.assert_called_once()
+    cleanup_helm_charts.assert_called_once()
+    cleanup_language_packages.assert_called_once()
+    cleanup_generic_artifacts.assert_called_once()
 
 
 def test_load_docker_images_uses_artifact_registry_batch_size():

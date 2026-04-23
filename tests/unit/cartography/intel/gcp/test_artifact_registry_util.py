@@ -36,16 +36,14 @@ def test_get_artifact_registry_locations_forbidden_returns_none(caplog):
     assert "Skipping Artifact Registry cleanup" in caplog.text
 
 
-def test_get_artifact_registry_locations_unknown_error_returns_none(caplog):
+def test_get_artifact_registry_locations_unknown_error_raises(caplog):
     def _raise_api_error(request):
         raise GoogleAPICallError("backend error")
 
     client = SimpleNamespace(list_locations=_raise_api_error)
 
-    locations = get_artifact_registry_locations(client, "test-project")
-
-    assert locations is None
-    assert "Failed to get Artifact Registry locations" in caplog.text
+    with pytest.raises(GoogleAPICallError):
+        get_artifact_registry_locations(client, "test-project")
 
 
 def test_fetch_artifact_registry_resources_preserves_input_order():

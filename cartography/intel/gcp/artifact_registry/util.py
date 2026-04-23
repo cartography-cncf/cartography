@@ -83,25 +83,23 @@ def get_artifact_registry_locations(
     except PermissionDenied as e:
         logger.warning(
             "Missing permissions for Artifact Registry locations in project %s. "
-            "Skipping Artifact Registry cleanup for this project. %s",
+            "Skipping Artifact Registry cleanup for this project. (%s)",
             project_id,
-            e,
+            type(e).__name__,
         )
         return None
     except (DefaultCredentialsError, RefreshError) as e:
         logger.warning(
             "Failed to get Artifact Registry locations for project %s due to auth error. "
-            "Skipping Artifact Registry cleanup for this project. %s",
+            "Skipping Artifact Registry cleanup for this project. (%s)",
             project_id,
-            e,
+            type(e).__name__,
         )
         return None
-    except GoogleAPICallError as e:
-        logger.warning(
-            "Failed to get Artifact Registry locations for project %s. "
-            "Skipping Artifact Registry cleanup for this project. %s",
+    except GoogleAPICallError:
+        logger.error(
+            "Unexpected error getting Artifact Registry locations for project %s.",
             project_id,
-            e,
             exc_info=True,
         )
-        return None
+        raise

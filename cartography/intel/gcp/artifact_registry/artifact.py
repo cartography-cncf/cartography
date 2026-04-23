@@ -5,6 +5,7 @@ from functools import partial
 from urllib.parse import unquote
 
 import neo4j
+from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
@@ -93,11 +94,17 @@ def get_docker_images(
             proto_message_to_dict(image)
             for image in client.list_docker_images(parent=repository_name)
         ]
+    except NotFound:
+        logger.debug(
+            "Docker images not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            "Could not retrieve Docker images for repository %s due to permissions or auth error. Skipping. %s",
+            "Could not retrieve Docker images for repository %s due to permissions or auth error. Skipping. (%s)",
             repository_name,
-            e,
+            type(e).__name__,
         )
         return None
 
@@ -121,11 +128,17 @@ def get_maven_artifacts(
             proto_message_to_dict(artifact)
             for artifact in client.list_maven_artifacts(parent=repository_name)
         ]
+    except NotFound:
+        logger.debug(
+            "Maven artifacts not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            "Could not retrieve Maven artifacts for repository %s due to permissions or auth error. Skipping. %s",
+            "Could not retrieve Maven artifacts for repository %s due to permissions or auth error. Skipping. (%s)",
             repository_name,
-            e,
+            type(e).__name__,
         )
         return None
 
@@ -149,11 +162,17 @@ def get_npm_packages(
             proto_message_to_dict(package)
             for package in client.list_npm_packages(parent=repository_name)
         ]
+    except NotFound:
+        logger.debug(
+            "npm packages not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            "Could not retrieve npm packages for repository %s due to permissions or auth error. Skipping. %s",
+            "Could not retrieve npm packages for repository %s due to permissions or auth error. Skipping. (%s)",
             repository_name,
-            e,
+            type(e).__name__,
         )
         return None
 
@@ -176,11 +195,17 @@ def get_python_packages(
             proto_message_to_dict(package)
             for package in client.list_python_packages(parent=repository_name)
         ]
+    except NotFound:
+        logger.debug(
+            "Python packages not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            "Could not retrieve Python packages for repository %s due to permissions or auth error. Skipping. %s",
+            "Could not retrieve Python packages for repository %s due to permissions or auth error. Skipping. (%s)",
             repository_name,
-            e,
+            type(e).__name__,
         )
         return None
 
@@ -202,10 +227,17 @@ def get_go_modules(
     """
     try:
         return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "Go modules not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Go modules for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+            "Failed to get Go modules for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
         )
         return None
 
@@ -224,10 +256,17 @@ def get_apt_artifacts(
     """
     try:
         return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "APT package versions not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get APT package versions for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+            "Failed to get APT package versions for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
         )
         return None
 
@@ -246,10 +285,17 @@ def get_yum_artifacts(
     """
     try:
         return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "YUM package versions not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
+        )
+        return []
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get YUM package versions for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+            "Failed to get YUM package versions for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
         )
         return None
 
@@ -703,7 +749,14 @@ def _get_repository_artifacts(
         return RepositoryArtifactFetchResult(repo_name, repo_format, [], True)
 
     get_func, _ = handlers
-    artifacts = get_func(client, repo_name)
+    try:
+        artifacts = get_func(client, repo_name)
+    except NotFound:
+        logger.debug(
+            "Artifacts not found for repository %s. The repository may have been deleted during sync.",
+            repo_name,
+        )
+        return RepositoryArtifactFetchResult(repo_name, repo_format, [], True)
     if artifacts is None:
         return RepositoryArtifactFetchResult(repo_name, repo_format, [], False)
     return RepositoryArtifactFetchResult(repo_name, repo_format, artifacts, True)

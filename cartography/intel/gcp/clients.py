@@ -92,8 +92,8 @@ def build_asset_client(
 
 
 def build_artifact_registry_client(
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> ArtifactRegistryClient:
     return ArtifactRegistryClient(
         credentials=_resolve_credentials(

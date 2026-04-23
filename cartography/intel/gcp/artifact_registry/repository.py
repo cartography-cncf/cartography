@@ -58,19 +58,19 @@ def _list_repositories_for_location(
     except PermissionDenied as e:
         logger.warning(
             "Failed to get Artifact Registry repositories for project %s in location %s "
-            "due to permissions. Skipping Artifact Registry cleanup for this project. %s",
+            "due to permissions. Skipping Artifact Registry cleanup for this project. (%s)",
             project_id,
             location,
-            e,
+            type(e).__name__,
         )
         return LocationRepositoryFetchResult(location, [], False)
     except (DefaultCredentialsError, RefreshError) as e:
         logger.warning(
             "Failed to get Artifact Registry repositories for project %s in location %s "
-            "due to auth error. Skipping Artifact Registry cleanup for this project. %s",
+            "due to auth error. Skipping Artifact Registry cleanup for this project. (%s)",
             project_id,
             location,
-            e,
+            type(e).__name__,
         )
         return LocationRepositoryFetchResult(location, [], False)
     except GoogleAPICallError:
