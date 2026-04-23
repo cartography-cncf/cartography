@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from collections.abc import Iterator
 from string import Template
 from typing import Any
 
@@ -15,6 +16,8 @@ from cartography.models.gcp.permission_relationships import GCPPermissionMatchLi
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
 
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
@@ -128,19 +131,60 @@ def calculate_permission_relationships(
     resource_dict: dict[str, str],
     permissions: list[str],
 ) -> list[dict[str, Any]]:
+    return [
+        mapping
+        for batch in iter_permission_relationship_batches(
+            principals,
+            resource_dict,
+            permissions,
+        )
+        for mapping in batch
+    ]
+
+
+def calculate_permission_relationships_for_resource(
+    principals: dict[str, Any],
+    resource_id: str,
+    resource_scope: str,
+    permissions: list[str],
+) -> list[dict[str, Any]]:
     allowed_mappings: list[dict[str, Any]] = []
-    for resource_id, resource_scope in resource_dict.items():
-        for principal_email, policy_bindings in principals.items():
-            if principal_allowed_on_resource(
-                policy_bindings, resource_scope, permissions
-            ):
-                allowed_mappings.append(
-                    {
-                        "principal_email": principal_email,
-                        "resource_id": resource_id,
-                    }
-                )
+    for principal_email, policy_bindings in principals.items():
+        if principal_allowed_on_resource(policy_bindings, resource_scope, permissions):
+            allowed_mappings.append(
+                {
+                    "principal_email": principal_email,
+                    "resource_id": resource_id,
+                }
+            )
     return allowed_mappings
+
+
+def iter_permission_relationship_batches(
+    principals: dict[str, Any],
+    resource_dict: dict[str, str],
+    permissions: list[str],
+    batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+) -> Iterator[list[dict[str, Any]]]:
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
+
+    batch: list[dict[str, Any]] = []
+    for resource_id, resource_scope in resource_dict.items():
+        batch.extend(
+            calculate_permission_relationships_for_resource(
+                principals,
+                resource_id,
+                resource_scope,
+                permissions,
+            )
+        )
+        while len(batch) >= batch_size:
+            yield batch[:batch_size]
+            batch = batch[batch_size:]
+
+    if batch:
+        yield batch
 
 
 @timeit
@@ -285,6 +329,7 @@ def load_principal_mappings(
     matchlink_schema: GCPPermissionMatchLink,
     update_tag: int,
     project_id: str,
+    batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
 ) -> None:
     """
     Load principal mappings into Neo4j using MatchLinks.
@@ -301,10 +346,100 @@ def load_principal_mappings(
         neo4j_session,
         matchlink_schema,
         principal_mappings,
+        batch_size=batch_size,
         lastupdated=update_tag,
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+
+
+@timeit
+def evaluate_and_load_permission_relationships(
+    neo4j_session: neo4j.Session,
+    principals: dict[str, Any],
+    resource_dict: dict[str, str],
+    permissions: list[str],
+    matchlink_schema: GCPPermissionMatchLink,
+    update_tag: int,
+    project_id: str,
+    batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+) -> int:
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
+
+    total_resources = len(resource_dict)
+    if total_resources == 0:
+        logger.info(
+            "No %s resources found for relationship '%s' in project '%s'.",
+            matchlink_schema.target_node_label,
+            matchlink_schema.rel_label,
+            project_id,
+        )
+        return 0
+
+    relationships_loaded = 0
+    resources_processed = 0
+    progress_interval = max(1, min(100, total_resources // 10 or 1))
+    batch: list[dict[str, Any]] = []
+
+    for resource_id, resource_scope in resource_dict.items():
+        batch.extend(
+            calculate_permission_relationships_for_resource(
+                principals,
+                resource_id,
+                resource_scope,
+                permissions,
+            )
+        )
+        resources_processed += 1
+
+        while len(batch) >= batch_size:
+            batch_to_load = batch[:batch_size]
+            load_principal_mappings(
+                neo4j_session,
+                batch_to_load,
+                matchlink_schema,
+                update_tag,
+                project_id,
+                batch_size=batch_size,
+            )
+            relationships_loaded += len(batch_to_load)
+            batch = batch[batch_size:]
+
+        if (
+            resources_processed % progress_interval == 0
+            or resources_processed == total_resources
+        ):
+            percent = (resources_processed / total_resources) * 100
+            logger.info(
+                "Relationship '%s' for '%s': processed %d/%d resources (%.1f%%), loaded %d relationships so far",
+                matchlink_schema.rel_label,
+                matchlink_schema.target_node_label,
+                resources_processed,
+                total_resources,
+                percent,
+                relationships_loaded,
+            )
+
+    if batch:
+        load_principal_mappings(
+            neo4j_session,
+            batch,
+            matchlink_schema,
+            update_tag,
+            project_id,
+            batch_size=batch_size,
+        )
+        relationships_loaded += len(batch)
+
+    logger.info(
+        "Completed relationship '%s' for '%s': processed %d resources and loaded %d relationships",
+        matchlink_schema.rel_label,
+        matchlink_schema.target_node_label,
+        total_resources,
+        relationships_loaded,
+    )
+    return relationships_loaded
 
 
 @timeit
@@ -362,12 +497,17 @@ def sync(
         permissions = rpr["permissions"]
 
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
+        principal_count = len(principals)
+        resource_count = len(resource_dict)
 
         logger.info(
-            f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"
-        )
-        matches = calculate_permission_relationships(
-            principals, resource_dict, permissions
+            "Starting relationship '%s' for resource type '%s' in project '%s' with %d permissions, %d principals, and %d resources",
+            relationship_name,
+            target_label,
+            project_id,
+            len(permissions),
+            principal_count,
+            resource_count,
         )
 
         # Create MatchLink schema with dynamic attributes
@@ -377,12 +517,22 @@ def sync(
             rel_label=relationship_name,
         )
 
-        load_principal_mappings(
+        loaded_relationship_count = evaluate_and_load_permission_relationships(
             neo4j_session,
-            matches,
+            principals,
+            resource_dict,
+            permissions,
             matchlink_schema,
             update_tag,
             project_id,
+            batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+        )
+        logger.info(
+            "Finished loading relationship '%s' for resource type '%s' in project '%s' with %d total relationships before cleanup",
+            relationship_name,
+            target_label,
+            project_id,
+            loaded_relationship_count,
         )
         cleanup_rpr(
             neo4j_session,
