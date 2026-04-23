@@ -1,0 +1,40 @@
+{
+  "name": "Ontology - DNSRecords relationship linking",
+  "statements": [
+    {
+      "__comment": "Link DNSRecord to KubernetesIngress where the record name matches an ingress host",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns.name IN ing.host_names MERGE (dns)-[r:DNS_POINTS_TO]->(ing) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AWSLoadBalancerV2 where the record value matches the LB DNS name",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.value IS NOT NULL WITH dns MATCH (lb:AWSLoadBalancerV2) WHERE toLower(dns.value) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AWSLoadBalancer where the record value matches the LB DNS name",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.value IS NOT NULL WITH dns MATCH (lb:AWSLoadBalancer) WHERE toLower(dns.value) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AWSCloudFrontDistribution where the record value matches the distribution domain name",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.value IS NOT NULL WITH dns MATCH (cf:AWSCloudFrontDistribution) WHERE toLower(dns.value) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to EC2Instance where the record value matches the instance public DNS name",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.value IS NOT NULL WITH dns MATCH (i:EC2Instance) WHERE toLower(dns.value) = toLower(i.publicdnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AzureAppService where the record name matches the app default hostname",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.name IS NOT NULL WITH dns MATCH (app:AzureAppService) WHERE toLower(dns.name) = toLower(app.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(app) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AzureFunctionApp where the record name matches the function default hostname",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns.name IS NOT NULL WITH dns MATCH (func:AzureFunctionApp) WHERE toLower(dns.name) = toLower(func.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(func) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}
