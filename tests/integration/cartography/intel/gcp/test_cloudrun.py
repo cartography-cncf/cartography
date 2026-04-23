@@ -28,6 +28,10 @@ TEST_EXECUTION_ID_1 = "projects/test-project/locations/us-west1/jobs/test-job/ex
 TEST_EXECUTION_ID_2 = "projects/test-project/locations/us-west1/jobs/test-job/executions/test-job-exec-002"
 TEST_SA_EMAIL_1 = "test-sa@test-project.iam.gserviceaccount.com"
 TEST_SA_EMAIL_2 = "batch-sa@test-project.iam.gserviceaccount.com"
+TEST_CLOUD_RUN_LOCATIONS = [
+    "projects/test-project/locations/us-central1",
+    "projects/test-project/locations/us-west1",
+]
 TEST_REVISION_PRIMARY_IMAGE = (
     "us-central1-docker.pkg.dev/test-project/runtime-repo/test-image"
     f"@{TEST_REVISION_PRIMARY_DIGEST}"
@@ -256,39 +260,43 @@ def test_sync_cloudrun(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
+    mock_credentials = MagicMock()
 
     # Act: Sync all Cloud Run resources
     cloudrun_service.sync_services(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     cloudrun_revision.sync_revisions(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     cloudrun_job.sync_jobs(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     cloudrun_execution.sync_executions(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     # Assert: Check all 4 node types
@@ -422,28 +430,31 @@ def test_cloud_run_image_prerequisites(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
+    mock_credentials = MagicMock()
 
     cloudrun_service.sync_services(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_revision.sync_revisions(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_job.sync_jobs(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     # Container nodes from Service (latestReadyRevision spec) and Job (task template).

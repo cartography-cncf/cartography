@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import googleapiclient.discovery
 import httplib2
@@ -16,6 +15,10 @@ from google.cloud.aiplatform_v1.services.model_service import ModelServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service import PipelineServiceClient
 from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.asset_v1 import AssetServiceClient
+from google.cloud.run_v2 import ExecutionsClient
+from google.cloud.run_v2 import JobsClient
+from google.cloud.run_v2 import RevisionsClient
+from google.cloud.run_v2 import ServicesClient
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
 
@@ -36,8 +39,8 @@ def _authorized_http_with_timeout(
 
 
 def _resolve_credentials(
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> GoogleCredentials:
     resolved_credentials = credentials or get_gcp_credentials(
         quota_project_id=quota_project_id,
@@ -54,8 +57,8 @@ def _vertex_ai_client_options(location: str) -> ClientOptions:
 def build_client(
     service: str,
     version: str = "v1",
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> Resource:
     resolved_credentials = _resolve_credentials(
         credentials=credentials,
@@ -71,8 +74,8 @@ def build_client(
 
 
 def build_asset_client(
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> AssetServiceClient:
     """
     Build an AssetServiceClient for the Cloud Asset API.
@@ -102,8 +105,8 @@ def build_artifact_registry_client(
 
 def build_vertex_ai_model_client(
     location: str,
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> ModelServiceClient:
     return ModelServiceClient(
         credentials=_resolve_credentials(
@@ -116,8 +119,8 @@ def build_vertex_ai_model_client(
 
 def build_vertex_ai_endpoint_client(
     location: str,
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> EndpointServiceClient:
     return EndpointServiceClient(
         credentials=_resolve_credentials(
@@ -130,8 +133,8 @@ def build_vertex_ai_endpoint_client(
 
 def build_vertex_ai_dataset_client(
     location: str,
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> DatasetServiceClient:
     return DatasetServiceClient(
         credentials=_resolve_credentials(
@@ -144,8 +147,8 @@ def build_vertex_ai_dataset_client(
 
 def build_vertex_ai_pipeline_client(
     location: str,
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> PipelineServiceClient:
     return PipelineServiceClient(
         credentials=_resolve_credentials(
@@ -158,8 +161,8 @@ def build_vertex_ai_pipeline_client(
 
 def build_vertex_ai_feature_registry_client(
     location: str,
-    credentials: Optional[GoogleCredentials] = None,
-    quota_project_id: Optional[str] = None,
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
 ) -> FeatureRegistryServiceClient:
     return FeatureRegistryServiceClient(
         credentials=_resolve_credentials(
@@ -170,9 +173,57 @@ def build_vertex_ai_feature_registry_client(
     )
 
 
+def build_cloud_run_service_client(
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
+) -> ServicesClient:
+    return ServicesClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_revision_client(
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
+) -> RevisionsClient:
+    return RevisionsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_job_client(
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
+) -> JobsClient:
+    return JobsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
+def build_cloud_run_execution_client(
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
+) -> ExecutionsClient:
+    return ExecutionsClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
+
+
 def get_gcp_credentials(
-    quota_project_id: Optional[str] = None,
-) -> Optional[GoogleCredentials]:
+    quota_project_id: str | None = None,
+) -> GoogleCredentials | None:
     """
     Gets access tokens for GCP API access.
 
