@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -66,7 +65,6 @@ class CloudRunServiceToServiceAccountRel(CartographyRelSchema):
 class GCPCloudRunServiceSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunService"
     properties: GCPCloudRunServiceProperties = GCPCloudRunServiceProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
     sub_resource_relationship: ProjectToCloudRunServiceRel = (
         ProjectToCloudRunServiceRel()
     )
