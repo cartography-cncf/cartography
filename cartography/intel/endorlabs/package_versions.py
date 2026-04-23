@@ -13,6 +13,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get(bearer_token: str, namespace: str) -> list[dict[str, Any]]:
     return paginated_get(bearer_token, namespace, "package-versions")
 

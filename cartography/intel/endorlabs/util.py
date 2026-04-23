@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 from requests.exceptions import ReadTimeout
 
@@ -42,7 +43,7 @@ def paginated_get(
             )
             response.raise_for_status()
             data = response.json()
-        except (ReadTimeout, HTTPError):
+        except (ReadTimeout, HTTPError, RequestsConnectionError):
             retries += 1
             logger.warning(
                 "Failed to fetch %s (attempt %d/%d). Retrying...",
