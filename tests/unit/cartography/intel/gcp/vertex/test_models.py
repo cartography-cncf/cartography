@@ -1,5 +1,8 @@
 import json
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
+from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
 from cartography.intel.gcp.vertex.models import transform_vertex_ai_models
 
 
@@ -40,3 +43,35 @@ def test_transform_vertex_ai_models_keeps_string_training_pipeline():
     assert transformed[0]["training_pipeline"] == (
         "projects/test/locations/us-central1/trainingPipelines/tp-1"
     )
+
+
+@patch("cartography.intel.gcp.vertex.models.cleanup_vertex_ai_models")
+@patch("cartography.intel.gcp.vertex.models.load_vertex_ai_models")
+@patch(
+    "cartography.intel.gcp.vertex.models.fetch_vertex_ai_resources_for_locations",
+    return_value=[],
+)
+@patch("cartography.intel.gcp.vertex.models.get_vertex_ai_locations")
+def test_sync_vertex_ai_models_uses_cached_locations_when_provided(
+    mock_get_locations,
+    mock_fetch,
+    mock_load,
+    mock_cleanup,
+):
+    neo4j_session = MagicMock()
+    aiplatform = MagicMock()
+    common_job_parameters = {"PROJECT_ID": "test-project", "UPDATE_TAG": 123}
+
+    sync_vertex_ai_models(
+        neo4j_session=neo4j_session,
+        aiplatform=aiplatform,
+        project_id="test-project",
+        gcp_update_tag=123,
+        common_job_parameters=common_job_parameters,
+        locations=["us-central1"],
+    )
+
+    mock_get_locations.assert_not_called()
+    mock_fetch.assert_called_once()
+    mock_load.assert_called_once_with(neo4j_session, [], "test-project", 123)
+    mock_cleanup.assert_called_once_with(neo4j_session, common_job_parameters)
