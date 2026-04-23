@@ -123,6 +123,43 @@ def test_discover_cloud_run_locations_falls_back_when_v1_discovery_unavailable()
     ]
 
 
+def test_discover_cloud_run_locations_falls_back_when_v1_returns_no_locations():
+    mock_client = MagicMock()
+    mock_v1_client = MagicMock()
+    empty_locations_request = MagicMock()
+    empty_locations_request.execute.return_value = {"locations": []}
+    mock_v1_client.projects.return_value.locations.return_value.list.return_value = (
+        empty_locations_request
+    )
+    mock_v1_client.projects.return_value.locations.return_value.list_next.return_value = (
+        None
+    )
+
+    mock_services_request = MagicMock()
+    mock_services_request.execute.return_value = {
+        "services": [
+            {"name": "projects/test-project/locations/us-west1/services/svc-1"},
+        ],
+    }
+    services = (
+        mock_client.projects.return_value.locations.return_value.services.return_value
+    )
+    services.list.return_value = mock_services_request
+    services.list_next.return_value = None
+
+    with patch(
+        "cartography.intel.gcp.cloudrun.util.build_client",
+        return_value=mock_v1_client,
+    ):
+        result = discover_cloud_run_locations(
+            client=mock_client,
+            project_id="test-project",
+            credentials=MagicMock(),
+        )
+
+    assert result == ["projects/test-project/locations/us-west1"]
+
+
 def test_list_cloud_run_resources_for_location_skips_permission_denied():
     result = list_cloud_run_resources_for_location(
         fetcher=lambda: (_ for _ in ()).throw(PermissionDenied("nope")),

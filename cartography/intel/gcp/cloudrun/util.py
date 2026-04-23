@@ -158,6 +158,14 @@ def discover_cloud_run_locations(
             )
         )
 
+    if not discovered_locations:
+        logger.warning(
+            "Cloud Run v1 location discovery returned no locations for project %s. "
+            "Falling back to service-based discovery.",
+            project_id,
+        )
+        return _service_discovered_cloud_run_locations(client, project_id)
+
     normalized_locations = sorted(discovered_locations)
     logger.info(
         "Discovered %s cached Cloud Run locations for project %s.",

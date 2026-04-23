@@ -62,10 +62,13 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(3) if name_match else None
 
-        service_short_name = revision.get("service")
+        service_name = revision.get("service")
         service_full_name = None
-        if location and service_short_name:
-            service_full_name = f"projects/{project_id}/locations/{location}/services/{service_short_name}"
+        if isinstance(service_name, str):
+            if service_name.startswith("projects/"):
+                service_full_name = service_name
+            elif location:
+                service_full_name = f"projects/{project_id}/locations/{location}/services/{service_name}"
 
         transformed.append(
             {
