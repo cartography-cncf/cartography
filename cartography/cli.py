@@ -39,6 +39,7 @@ PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
+PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
@@ -90,6 +91,7 @@ MODULE_PANELS = {
     "kandji": PANEL_KANDJI,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
+    "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
@@ -897,6 +899,31 @@ class CLI:
                     help="Environment variable name containing NIST NVD API v2.0 key.",
                     rich_help_panel=PANEL_CVE,
                     hidden=PANEL_CVE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # CVE Metadata Options
+            # =================================================================
+            cve_metadata_src: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--cve-metadata-src",
+                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            cve_metadata_nist_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--cve-metadata-nist-api-key-env-var",
+                    help=(
+                        "Environment variable name containing the NIST NVD API v2.0 key. "
+                        "When set, the module queries the API per-CVE; otherwise it falls back "
+                        "to yearly JSON feed downloads."
+                    ),
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2094,6 +2121,17 @@ class CLI:
                 )
                 cve_api_key = os.environ.get(cve_api_key_env_var)
 
+            # Read CVE Metadata NIST API key
+            cve_metadata_nist_api_key = None
+            if cve_metadata_nist_api_key_env_var:
+                logger.debug(
+                    "Reading CVE Metadata NIST API key from environment variable %s",
+                    cve_metadata_nist_api_key_env_var,
+                )
+                cve_metadata_nist_api_key = os.environ.get(
+                    cve_metadata_nist_api_key_env_var,
+                )
+
             # Read SnipeIT token
             snipeit_token = None
             if snipeit_base_uri:
@@ -2383,6 +2421,8 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
+                cve_metadata_src=cve_metadata_src,
+                cve_metadata_nist_api_key=cve_metadata_nist_api_key,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,

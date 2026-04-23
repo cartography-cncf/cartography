@@ -157,15 +157,10 @@ your_service_mapping = OntologyMapping(
             ],
         ),
     ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link User to Device based on observed relationships",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        ),
-    ],
 )
 ```
+
+Ontology relationship linking queries are defined in analysis job JSON files under `cartography/data/jobs/analysis/ontology_*_linking.json`.
 
 This structure allows Cartography to flexibly describe how to map and relate entities from specific integrations into the unified ontology graph.
 
