@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.intel.aws.iam import load_role_data
@@ -573,3 +574,85 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
     # by the respective data models and Okta module, not by the EKS module.
+
+
+def _run_eks_sync_with_configmap_error(
+    neo4j_session, status: int, caplog_level: str | None = None, caplog=None
+) -> None:
+    """Helper: set up AWS prereqs, mock aws-auth read to raise ApiException, run sync_eks."""
+    neo4j_session.run(
+        """
+        MERGE (aa:AWSAccount{id: $account_id})
+        ON CREATE SET aa.firstseen = timestamp()
+        SET aa.lastupdated = $update_tag, aa :Tenant
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.side_effect = ApiException(
+        status=status, reason="Forbidden" if status == 403 else "Not Found"
+    )
+
+    with (
+        patch(
+            "cartography.intel.kubernetes.eks.get_access_entries",
+            return_value=MOCK_ACCESS_ENTRIES,
+        ),
+        patch(
+            "cartography.intel.kubernetes.eks.get_oidc_provider",
+            return_value=MOCK_OIDC_PROVIDER,
+        ),
+    ):
+        sync_eks(
+            neo4j_session,
+            mock_k8s_client,
+            MagicMock(),
+            TEST_REGION,
+            TEST_UPDATE_TAG,
+            TEST_CLUSTER_ID,
+            TEST_CLUSTER_NAME,
+        )
+
+
+def test_eks_sync_skips_aws_auth_on_forbidden(neo4j_session, caplog):
+    """
+    When Cartography lacks `get` on the aws-auth ConfigMap, sync_eks logs a warning,
+    skips legacy IAM mappings, but still ingests Access Entries and OIDC providers.
+    """
+    with caplog.at_level("WARNING"):
+        _run_eks_sync_with_configmap_error(neo4j_session, status=403)
+
+    assert any(
+        "lacks permission to read the aws-auth ConfigMap" in record.message
+        for record in caplog.records
+    )
+
+    # Access Entries users still created
+    actual_users = check_nodes(neo4j_session, "KubernetesUser", ["id"])
+    assert ("test-cluster/alice-access-entry",) in actual_users
+
+    # OIDC Provider still created
+    actual_oidc = check_nodes(neo4j_session, "KubernetesOIDCProvider", ["id"])
+    assert (f"{TEST_CLUSTER_NAME}/oidc/okta-provider",) in actual_oidc
+
+
+def test_eks_sync_skips_aws_auth_on_not_found(neo4j_session, caplog):
+    """
+    When the aws-auth ConfigMap does not exist (404, typical for Access Entries-only
+    clusters), sync_eks logs an info message and continues with the remaining steps.
+    """
+    with caplog.at_level("INFO"):
+        _run_eks_sync_with_configmap_error(neo4j_session, status=404)
+
+    assert any(
+        "No aws-auth ConfigMap on cluster" in record.message
+        for record in caplog.records
+    )
+
+    # Access Entries still ingested
+    actual_users = check_nodes(neo4j_session, "KubernetesUser", ["id"])
+    assert ("test-cluster/alice-access-entry",) in actual_users

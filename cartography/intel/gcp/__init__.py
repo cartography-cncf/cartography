@@ -864,6 +864,14 @@ def start_gcp_ingestion(
             common_job_parameters,
         )
 
+    # DEPRECATED: compatibility migration for Cloud Run :Container labels. Remove in v1.0.0.
+    if requested_syncs is None or "cloud_run" in requested_syncs:
+        run_analysis_job(
+            "gcp_cloudrun_label_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
     if requested_syncs is None or "gke" in requested_syncs:
         run_analysis_job(
             "gcp_gke_asset_exposure.json",

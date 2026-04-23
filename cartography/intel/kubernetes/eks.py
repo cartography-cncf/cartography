@@ -6,6 +6,7 @@ import boto3
 import neo4j
 import yaml
 from botocore.exceptions import ClientError
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.client.core.tx import load
@@ -575,31 +576,54 @@ def sync(
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
-    configmap = get_aws_auth_configmap(k8s_client)
-    auth_mappings = parse_aws_auth_map(configmap)
+    configmap: V1ConfigMap | None
+    try:
+        configmap = get_aws_auth_configmap(k8s_client)
+    except ApiException as e:
+        if e.status in (401, 403):
+            logger.warning(
+                "Cartography lacks permission to read the aws-auth ConfigMap on cluster %s "
+                "(status %s). Skipping legacy IAM mappings; continuing with Access Entries "
+                "and OIDC providers.",
+                kubernetes_cluster_name,
+                e.status,
+            )
+            configmap = None
+        elif e.status == 404:
+            logger.info(
+                "No aws-auth ConfigMap on cluster %s — normal for clusters using EKS "
+                "Access Entries exclusively.",
+                kubernetes_cluster_name,
+            )
+            configmap = None
+        else:
+            raise
 
-    # Transform and load both role and user mappings
-    if auth_mappings.get("roles") or auth_mappings.get("users"):
-        transformed_data = transform_aws_auth_mappings(
-            neo4j_session,
-            auth_mappings,
-            kubernetes_cluster_name,
-        )
-        load_aws_auth_mappings(
-            neo4j_session,
-            transformed_data["users"],
-            transformed_data["groups"],
-            update_tag,
-            cluster_id,
-            kubernetes_cluster_name,
-        )
-        logger.info(
-            "Successfully synced %s AWS IAM role mappings and %s AWS IAM user mappings",
-            len(auth_mappings.get("roles", [])),
-            len(auth_mappings.get("users", [])),
-        )
-    else:
-        logger.info("No role or user mappings found in aws-auth ConfigMap")
+    if configmap is not None:
+        auth_mappings = parse_aws_auth_map(configmap)
+
+        # Transform and load both role and user mappings
+        if auth_mappings.get("roles") or auth_mappings.get("users"):
+            transformed_data = transform_aws_auth_mappings(
+                neo4j_session,
+                auth_mappings,
+                kubernetes_cluster_name,
+            )
+            load_aws_auth_mappings(
+                neo4j_session,
+                transformed_data["users"],
+                transformed_data["groups"],
+                update_tag,
+                cluster_id,
+                kubernetes_cluster_name,
+            )
+            logger.info(
+                "Successfully synced %s AWS IAM role mappings and %s AWS IAM user mappings",
+                len(auth_mappings.get("roles", [])),
+                len(auth_mappings.get("users", [])),
+            )
+        else:
+            logger.info("No role or user mappings found in aws-auth ConfigMap")
 
     # 2. Sync EKS Access Entries (EKS API)
     logger.info("Syncing EKS Access Entries from EKS API")
