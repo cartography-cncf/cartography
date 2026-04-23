@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -21,6 +22,11 @@ from cartography.models.gcp.vertex.model import GCPVertexAIModelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+_VERTEX_AI_REGIONAL_LOCATION_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)+[0-9]$")
+
+
+def _is_vertex_ai_regional_location(location_id: str) -> bool:
+    return bool(_VERTEX_AI_REGIONAL_LOCATION_RE.match(location_id))
 
 
 @timeit
@@ -36,20 +42,29 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
         res = req.execute()
 
         locations = set()
+        skipped_locations = set()
         all_locations = res.get("locations", [])
         for location in all_locations:
-            # Extract location ID from the full path
-            # Format: "projects/PROJECT_ID/locations/LOCATION_ID"
             location_id = location.get("locationId")
-            if location_id:
+            if not location_id:
+                continue
+            if _is_vertex_ai_regional_location(location_id):
                 locations.add(location_id)
+            else:
+                skipped_locations.add(location_id)
 
         sorted_locations = sorted(locations)
         logger.info(
-            "Found %s Vertex AI locations from the service for project %s.",
+            "Found %s regional Vertex AI locations from the service for project %s.",
             len(sorted_locations),
             project_id,
         )
+        if skipped_locations:
+            logger.debug(
+                "Skipping non-regional Vertex AI locations for project %s: %s",
+                project_id,
+                sorted(skipped_locations),
+            )
         logger.debug(
             "Vertex AI locations for project %s: %s",
             project_id,

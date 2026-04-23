@@ -50,10 +50,13 @@ def test_get_vertex_ai_locations_uses_service_reported_locations():
     aiplatform = MagicMock()
     aiplatform.projects.return_value.locations.return_value.list.return_value.execute.return_value = {
         "locations": [
+            {"locationId": "global"},
+            {"locationId": "us"},
             {"locationId": "us-central1"},
             {"locationId": "europe-west9"},
             {"locationId": "us-central1"},
             {"locationId": "me-west1"},
+            {"locationId": "eu"},
             {},
         ],
     }
