@@ -1,55 +1,46 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
-from cartography.intel.gcp.util import GCP_API_NUM_RETRIES
 
 
 def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
     client = MagicMock()
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
-    )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-
-    packages_request = MagicMock()
-    packages_request.execute.return_value = {
-        "packages": [
-            {
-                "name": f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}",
+    package_resource_name = f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}"
+    client.list_packages.return_value = [
+        SimpleNamespace(
+            name=package_resource_name,
+            data={
+                "name": package_resource_name,
                 "displayName": package_name,
-            }
-        ]
-    }
-    packages.list.return_value = packages_request
-    packages.list_next.return_value = None
-
-    versions_request = MagicMock()
-    versions_request.execute.return_value = {
-        "versions": [
-            {
-                "name": f"projects/test-project/locations/us-east1/repositories/repo/packages/{package_name}/versions/{version_name}",
+            },
+        )
+    ]
+    client.list_versions.return_value = [
+        SimpleNamespace(
+            name=f"{package_resource_name}/versions/{version_name}",
+            data={
+                "name": f"{package_resource_name}/versions/{version_name}",
                 "createTime": "2024-01-06T00:00:00Z",
                 "updateTime": "2024-01-06T00:00:00Z",
-            }
-        ]
-    }
-    versions.list.return_value = versions_request
-    versions.list_next.return_value = None
+            },
+        )
+    ]
     return client
 
 
-def test_get_apt_artifacts_uses_packages_and_versions():
+def _proto_message_to_dict(message):
+    return message.data
+
+
+def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
     client = _make_os_package_client("curl", "7.88.1")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
+        _proto_message_to_dict,
     )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
 
     artifacts = get_apt_artifacts(
         client,
@@ -64,23 +55,20 @@ def test_get_apt_artifacts_uses_packages_and_versions():
             "packageName": "curl",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/curl",
     )
 
 
-def test_get_yum_artifacts_uses_packages_and_versions():
+def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
     client = _make_os_package_client("bash", "5.2.26")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
+        _proto_message_to_dict,
     )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
 
     artifacts = get_yum_artifacts(
         client,
@@ -95,23 +83,20 @@ def test_get_yum_artifacts_uses_packages_and_versions():
             "packageName": "bash",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/bash",
     )
 
 
-def test_get_go_modules_uses_packages_and_versions():
+def test_get_go_modules_uses_packages_and_versions(monkeypatch):
     client = _make_os_package_client("example.com/foo", "v1.2.3")
-    repositories = (
-        client.projects.return_value.locations.return_value.repositories.return_value
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
+        _proto_message_to_dict,
     )
-    packages = repositories.packages.return_value
-    versions = packages.versions.return_value
-    packages_request = packages.list.return_value
-    versions_request = versions.list.return_value
 
     modules = get_go_modules(
         client,
@@ -126,9 +111,9 @@ def test_get_go_modules_uses_packages_and_versions():
             "packageName": "example.com/foo",
         }
     ]
-    packages_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_packages.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo",
     )
-    versions_request.execute.assert_called_once_with(
-        num_retries=GCP_API_NUM_RETRIES,
+    client.list_versions.assert_called_once_with(
+        parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
     )
