@@ -1,5 +1,9 @@
+import json
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
+
+from googleapiclient.errors import HttpError
 
 import cartography.intel.gcp.kms as kms
 from tests.data.gcp.kms import MOCK_KEY_RINGS
@@ -10,6 +14,12 @@ from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "test-project"
 TEST_UPDATE_TAG = 123456789
+
+
+def _make_http_error(status: int, payload: dict) -> HttpError:
+    resp = MagicMock()
+    resp.status = status
+    return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
 
 
 @patch("cartography.intel.gcp.kms.get_crypto_keys")
@@ -125,3 +135,109 @@ def test_sync_kms(mock_get_locs, mock_get_rings, mock_get_keys, neo4j_session):
         neo4j_session, "GCPProject", "id", "GCPCryptoKey", "id", "RESOURCE"
     )
     assert actual_proj_key_rels == expected_proj_key_rels
+
+
+def test_sync_kms_preserves_existing_data_when_billing_disabled(
+    monkeypatch,
+    caplog,
+    neo4j_session,
+):
+    old_update_tag = TEST_UPDATE_TAG - 1
+
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject {id: $project_id_short})
+        SET p.lastupdated = $tag, p.projectid = $project_id_short
+        """,
+        project_id_short=TEST_PROJECT_ID,
+        tag=old_update_tag,
+    )
+
+    existing_key_rings = kms.transform_key_rings(MOCK_KEY_RINGS, TEST_PROJECT_ID)
+    kms.load_key_rings(
+        neo4j_session,
+        existing_key_rings,
+        TEST_PROJECT_ID,
+        old_update_tag,
+    )
+
+    for ring in MOCK_KEY_RINGS:
+        keyring_id = ring["name"]
+        crypto_keys = kms.transform_crypto_keys(
+            MOCK_KEYS_BY_RING.get(keyring_id, []),
+            keyring_id,
+        )
+        if crypto_keys:
+            kms.load_crypto_keys(
+                neo4j_session,
+                crypto_keys,
+                TEST_PROJECT_ID,
+                old_update_tag,
+            )
+
+    billing_error = _make_http_error(
+        400,
+        {
+            "error": {
+                "message": "Billing is disabled for project 123456789",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                        "reason": "BILLING_DISABLED",
+                    }
+                ],
+            }
+        },
+    )
+
+    client = MagicMock()
+    request = MagicMock()
+    client.projects.return_value.locations.return_value.keyRings.return_value.list.return_value = (
+        request
+    )
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.kms.get_kms_locations",
+        lambda _client, _project_id: MOCK_LOCATIONS,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.kms.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(billing_error),
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+
+    with caplog.at_level(logging.WARNING):
+        kms.sync(
+            neo4j_session,
+            client,
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    expected_keyrings = {
+        (MOCK_KEY_RINGS[0]["name"],),
+        (MOCK_KEY_RINGS[1]["name"],),
+    }
+    assert check_nodes(neo4j_session, "GCPKeyRing", ["id"]) == expected_keyrings
+
+    expected_cryptokeys = {
+        (
+            "projects/test-project/locations/global/keyRings/my-global-keyring/cryptoKeys/key-one",
+        ),
+        (
+            "projects/test-project/locations/us-central1/keyRings/my-regional-keyring/cryptoKeys/key-two",
+        ),
+        (
+            "projects/test-project/locations/us-central1/keyRings/my-regional-keyring/cryptoKeys/key-three",
+        ),
+    }
+    assert check_nodes(neo4j_session, "GCPCryptoKey", ["id"]) == expected_cryptokeys
+    assert (
+        "Billing is disabled for project test-project while listing KMS key rings. "
+        "Skipping KMS sync to preserve existing data."
+    ) in caplog.text
