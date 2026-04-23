@@ -574,3 +574,27 @@ def test_cloud_run_image_prerequisites(
             TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
         ),
     }
+
+    # Cloud Run Service/Job container specs are declarative; the ontology mapping encodes
+    # _ont_state="running" statically so :Container consumers can uniformly query containers
+    # that are running or can be launched.
+    service_container_states = neo4j_session.run(
+        """
+        MATCH (c:GCPCloudRunServiceContainer)
+        RETURN c.id AS id, c._ont_state AS state
+        """,
+    )
+    assert {(r["id"], r["state"]) for r in service_container_states} == {
+        (service_primary_container_id, "running"),
+        (service_sidecar_container_id, "running"),
+    }
+    job_container_states = neo4j_session.run(
+        """
+        MATCH (c:GCPCloudRunJobContainer)
+        RETURN c.id AS id, c._ont_state AS state
+        """,
+    )
+    assert {(r["id"], r["state"]) for r in job_container_states} == {
+        (job_primary_container_id, "running"),
+        (job_sidecar_container_id, "running"),
+    }

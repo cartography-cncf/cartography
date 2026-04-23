@@ -1957,6 +1957,7 @@ Representation of an individual container within an [Azure Container Group](http
 | image_digest | The digest portion of the image reference (e.g., `sha256:abc...`), if the image was pinned by digest. `None` for tag-based references |
 | architecture | CPU architecture. Hardcoded to `amd64` — ACI does not expose host architecture and ARM64 support is not yet GA |
 | architecture_normalized | Canonical CPU architecture. Hardcoded to `amd64` |
+| state | Per-container runtime state from `instanceView.currentState.state` (e.g., `Running`, `Waiting`, `Terminated`). Distinct from the parent container group's `provisioning_state` |
 | cpu_request | CPU units requested by the container |
 | memory_request_gb | Memory (in GB) requested by the container |
 | cpu_limit | CPU limit for the container, if set |

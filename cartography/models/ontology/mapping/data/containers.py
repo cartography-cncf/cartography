@@ -61,7 +61,9 @@ azure_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="image_digest"
                 ),
-                # state: Not per-container on Azure; provisioning_state lives on the parent AzureGroupContainer (container group)
+                # ACI exposes per-container runtime state via instanceView.currentState.state,
+                # distinct from the group's provisioning_state.
+                OntologyFieldMapping(ontology_field="state", node_field="state"),
                 # cpu: Node exposes cpu_request/cpu_limit rather than a single cpu value; skip to avoid ambiguity
                 # memory: Node exposes memory_request_gb/memory_limit_gb (GB) which does not match the ontology MB unit
                 # region: Not per-container on Azure; location lives on the parent AzureGroupContainer
@@ -72,11 +74,21 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+# Cloud Run Service/Job container nodes are declarative spec entries, not runtime instances:
+# per-invocation runtime state lives on GCPCloudRunExecution (Jobs) or on serving revisions (Services).
+# We encode "running" statically so :Container consumers can query "containers that are running or
+# can be launched" uniformly across providers — once a Service/Job exists, its container spec is by
+# construction ready to run on the next request/execution.
 _GCP_CLOUDRUN_CONTAINER_FIELDS = [
     OntologyFieldMapping(ontology_field="name", node_field="name"),
     OntologyFieldMapping(ontology_field="image", node_field="image"),
     OntologyFieldMapping(ontology_field="image_digest", node_field="image_digest"),
-    # state: Not per-container on Cloud Run; run state lives on GCPCloudRunExecution
+    OntologyFieldMapping(
+        ontology_field="state",
+        node_field="",
+        special_handling="static_value",
+        extra={"value": "running"},
+    ),
     # cpu: Not exposed as a direct field on the container node
     # memory: Not exposed as a direct field on the container node
     # region: Not per-container; location lives on the parent Job/Service

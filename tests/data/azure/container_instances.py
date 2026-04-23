@@ -19,6 +19,11 @@ MOCK_CONTAINER_GROUP_WITH_CONTAINERS = [
                     "requests": {"cpu": 1.0, "memory_in_gb": 1.5},
                     "limits": {"cpu": 2.0, "memory_in_gb": 3.0},
                 },
+                "instance_view": {
+                    "current_state": {
+                        "state": "Running",
+                    },
+                },
             },
         ],
     },

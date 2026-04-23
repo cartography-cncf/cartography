@@ -21,6 +21,7 @@ class AzureContainerInstanceNodeProperties(CartographyNodeProperties):
     image_digest: PropertyRef = PropertyRef("image_digest")
     architecture: PropertyRef = PropertyRef("architecture")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    state: PropertyRef = PropertyRef("state")
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_request_gb: PropertyRef = PropertyRef("memory_request_gb")
     cpu_limit: PropertyRef = PropertyRef("cpu_limit")

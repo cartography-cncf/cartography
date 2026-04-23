@@ -47,6 +47,12 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
             requests = resources.get("requests", {})
             limits = resources.get("limits", {})
 
+            # Per-container runtime state lives on instance_view.current_state.state,
+            # separate from the container group's provisioning_state.
+            instance_view = container.get("instance_view") or {}
+            current_state = instance_view.get("current_state") or {}
+            state = current_state.get("state")
+
             transformed.append(
                 {
                     "id": f"{group_id}/{container.get('name')}",
@@ -58,6 +64,7 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
                     # is not yet GA. All ACI workloads run on amd64 hosts.
                     "architecture": "amd64",
                     "architecture_normalized": "amd64",
+                    "state": state,
                     "cpu_request": requests.get("cpu"),
                     "memory_request_gb": requests.get("memory_in_gb"),
                     "cpu_limit": limits.get("cpu"),

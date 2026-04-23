@@ -115,6 +115,7 @@ def test_container_ontology_mapping(mock_get, neo4j_session):
         RETURN c._ont_name AS name,
                c._ont_image AS image,
                c._ont_image_digest AS image_digest,
+               c._ont_state AS state,
                c._ont_source AS source
         """,
         id=TEST_CONTAINER_ID,
@@ -124,5 +125,6 @@ def test_container_ontology_mapping(mock_get, neo4j_session):
         "name": "my-container",
         "image": f"myregistry.azurecr.io/myimage@{TEST_GROUP_CONTAINER_DIGEST}",
         "image_digest": TEST_GROUP_CONTAINER_DIGEST,
+        "state": "Running",
         "source": "azure",
     }
