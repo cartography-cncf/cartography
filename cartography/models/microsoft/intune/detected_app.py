@@ -19,7 +19,6 @@ class IntuneDetectedAppNodeProperties(CartographyNodeProperties):
     application_id: PropertyRef = PropertyRef("application_id")
     display_name: PropertyRef = PropertyRef("display_name")
     version: PropertyRef = PropertyRef("version")
-    size_in_byte: PropertyRef = PropertyRef("size_in_byte")
     device_count: PropertyRef = PropertyRef("device_count")
     publisher: PropertyRef = PropertyRef("publisher")
     platform: PropertyRef = PropertyRef("platform")

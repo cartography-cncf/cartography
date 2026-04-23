@@ -18,6 +18,8 @@ from msgraph.generated.models.device_management_report_file_format import (
 from msgraph.generated.models.device_management_report_status import (
     DeviceManagementReportStatus,
 )
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from cartography.util import timeit
 
@@ -28,11 +30,17 @@ DEFAULT_REPORT_TIMEOUT_SECONDS = 300
 EXPORT_DOWNLOAD_TIMEOUT_SECONDS = 60
 MAX_REPORT_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_REPORT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
+EXPORT_DOWNLOAD_MAX_RETRIES = 3
+EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS = 1.0
+EXPORT_DOWNLOAD_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
 
 
 @dataclass(frozen=True)
 class ExportedReportRows:
     fieldnames: tuple[str, ...]
+    # The sync pipeline needs repeated access to the same export rows when it
+    # builds the union of aggregate and raw app keys. Materializing the rows
+    # keeps that logic straightforward, while explicit size caps bound memory.
     rows: list[dict[str, str | None]]
 
 
@@ -132,11 +140,14 @@ def download_export_report_rows(
     download_url: str,
     report_name: str,
 ) -> ExportedReportRows:
-    with requests.get(
-        download_url,
-        stream=True,
-        timeout=EXPORT_DOWNLOAD_TIMEOUT_SECONDS,
-    ) as response:
+    with (
+        _build_retryable_session() as session,
+        session.get(
+            download_url,
+            stream=True,
+            timeout=EXPORT_DOWNLOAD_TIMEOUT_SECONDS,
+        ) as response,
+    ):
         response.raise_for_status()
 
         with tempfile.SpooledTemporaryFile(
@@ -200,7 +211,21 @@ def download_export_report_rows(
 def _report_status_name(status: DeviceManagementReportStatus | None) -> str:
     if status is None:
         return "unknown"
-    value = status.value
-    if isinstance(value, tuple):
-        return str(value[0])
-    return str(value)
+    return str(status.value)
+
+
+def _build_retryable_session() -> requests.Session:
+    retry = Retry(
+        total=EXPORT_DOWNLOAD_MAX_RETRIES,
+        connect=EXPORT_DOWNLOAD_MAX_RETRIES,
+        read=EXPORT_DOWNLOAD_MAX_RETRIES,
+        backoff_factor=EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS,
+        status_forcelist=EXPORT_DOWNLOAD_RETRY_STATUS_CODES,
+        allowed_methods=frozenset({"GET"}),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session = requests.Session()
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session

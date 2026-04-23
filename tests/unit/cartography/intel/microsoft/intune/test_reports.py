@@ -35,6 +35,14 @@ def _mock_streaming_response(content: bytes) -> MagicMock:
     return response
 
 
+def _mock_retryable_session(response: MagicMock) -> MagicMock:
+    session = MagicMock()
+    session.__enter__.return_value = session
+    session.__exit__.return_value = False
+    session.get.return_value = response
+    return session
+
+
 @pytest.mark.asyncio
 @patch(
     "cartography.intel.microsoft.intune.reports.asyncio.sleep",
@@ -107,18 +115,20 @@ def test_download_export_report_rows_parses_csv_zip_and_preserves_missing_option
             },
         ),
     )
+    session = _mock_retryable_session(response)
 
     with patch.object(
-        cartography.intel.microsoft.intune.reports.requests,
-        "get",
-        return_value=response,
-    ) as mock_get:
+        cartography.intel.microsoft.intune.reports,
+        "_build_retryable_session",
+        return_value=session,
+    ) as mock_build_session:
         result = download_export_report_rows(
             "https://example.test/report.zip",
             "AppInvAggregate",
         )
 
-    mock_get.assert_called_once_with(
+    mock_build_session.assert_called_once_with()
+    session.get.assert_called_once_with(
         "https://example.test/report.zip",
         stream=True,
         timeout=60,
@@ -142,11 +152,12 @@ def test_download_export_report_rows_rejects_multiple_csv_members():
             },
         ),
     )
+    session = _mock_retryable_session(response)
 
     with patch.object(
-        cartography.intel.microsoft.intune.reports.requests,
-        "get",
-        return_value=response,
+        cartography.intel.microsoft.intune.reports,
+        "_build_retryable_session",
+        return_value=session,
     ):
         with pytest.raises(
             ValueError,

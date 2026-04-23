@@ -71,7 +71,6 @@ def transform_detected_app(row: Mapping[str, str | None]) -> dict[str, Any]:
         "application_id": _get_optional_value(row, "ApplicationId"),
         "display_name": _get_optional_value(row, "ApplicationName"),
         "version": _get_optional_value(row, "ApplicationVersion"),
-        "size_in_byte": None,
         "device_count": _parse_optional_int(row.get("DeviceCount")),
         "publisher": _get_optional_value(row, "ApplicationPublisher"),
         "platform": _get_optional_value(row, "Platform"),
@@ -84,7 +83,6 @@ def transform_detected_app_from_raw(row: Mapping[str, str | None]) -> dict[str, 
         "application_id": None,
         "display_name": _get_optional_value(row, "ApplicationName"),
         "version": _get_optional_value(row, "ApplicationVersion"),
-        "size_in_byte": None,
         "device_count": None,
         "publisher": _get_optional_value(row, "ApplicationPublisher"),
         "platform": _get_optional_value(row, "Platform"),
@@ -233,7 +231,6 @@ def _merge_detected_app_payloads(
         "application_id": _coalesce_field(aggregate_app, raw_app, "application_id"),
         "display_name": _coalesce_field(aggregate_app, raw_app, "display_name"),
         "version": _coalesce_field(aggregate_app, raw_app, "version"),
-        "size_in_byte": _coalesce_field(aggregate_app, raw_app, "size_in_byte"),
         "device_count": (
             preferred["device_count"]
             if preferred.get("device_count") is not None
