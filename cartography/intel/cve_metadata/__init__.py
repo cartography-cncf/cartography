@@ -29,11 +29,10 @@ ALL_SOURCES = {"nvd", "epss"}
 @timeit
 def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
     """Query Neo4j for all CVE node IDs present in the graph."""
-    # DEPRECATED: should be limited to cve_id when CVE is a proper ontology label
     query = """
     MATCH (c:CVE)
-    WHERE c.id STARTS WITH "CVE"
-    RETURN DISTINCT c.id
+    WHERE c.cve_id STARTS WITH "CVE"
+    RETURN DISTINCT c.cve_id
     """
     return [str(cve_id) for cve_id in read_list_of_values_tx(neo4j_session, query)]
 

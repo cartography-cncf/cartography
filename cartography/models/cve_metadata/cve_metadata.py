@@ -74,9 +74,8 @@ class CVEMetadataToCVERelProperties(CartographyRelProperties):
 # (:CVEMetadata)-[:ENRICHES]->(:CVE)
 class CVEMetadataToCVERel(CartographyRelSchema):
     target_node_label: str = "CVE"
-    # DEPRECATED: should be limited to cve_id when CVE is a proper ontology label
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"cve_id": PropertyRef("id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENRICHES"

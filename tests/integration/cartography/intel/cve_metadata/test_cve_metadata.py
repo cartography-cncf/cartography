@@ -112,7 +112,7 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
         "CVEMetadata",
         "id",
         "CVE",
-        "id",
+        "cve_id",
         "ENRICHES",
     ) == {
         ("CVE-2023-41782", "CVE-2023-41782"),
