@@ -300,7 +300,7 @@ def sync_findings(...) -> None:
 | AWS S3 | `aws_s3acl_analysis.json` | Scoped (in `s3.py`) |
 | GCP | `gcp_compute_asset_inet_exposure.json`, `gcp_gke_asset_exposure.json`, `gcp_gke_basic_auth.json`, `gcp_compute_instance_vpc_analysis.json` | Global (end of `start_gcp_ingestion`) |
 | GSuite | `gsuite_human_link.json` | Global (end of `start_gsuite_ingestion`) |
-| Keycloak | `keycloak_inheritance.json` | Global (end of `start_keycloak_ingestion`) |
+| Keycloak | `cartography.intel.keycloak.inheritance` (Python) | Global (end of `start_keycloak_ingestion`) |
 | Semgrep | `semgrep_sca_risk_analysis.json` | Scoped (in `findings.py`) |
 
 > **Note**: `aws_ecs_asset_exposure.json` is marked as deprecated in favor of the ontology `LoadBalancer-[:EXPOSE]->Container` pattern, but is still called for backward compatibility.
