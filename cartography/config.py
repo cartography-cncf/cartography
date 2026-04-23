@@ -202,6 +202,12 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type endorlabs_api_key: str
+    :param endorlabs_api_key: Endor Labs API key. Optional.
+    :type endorlabs_api_secret: str
+    :param endorlabs_api_secret: Endor Labs API secret. Optional.
+    :type endorlabs_namespace: str
+    :param endorlabs_namespace: Endor Labs tenant namespace. Optional.
     :type socketdev_token: str
     :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
@@ -442,6 +448,9 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        endorlabs_api_key=None,
+        endorlabs_api_secret=None,
+        endorlabs_namespace=None,
         socketdev_token=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
@@ -599,4 +608,7 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.endorlabs_api_key = endorlabs_api_key
+        self.endorlabs_api_secret = endorlabs_api_secret
+        self.endorlabs_namespace = endorlabs_namespace
         self.socketdev_token = socketdev_token
