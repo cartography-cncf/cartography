@@ -1,14 +1,17 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.clients import build_vertex_ai_pipeline_client
 from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
+from cartography.intel.gcp.vertex.utils import fetch_vertex_ai_resources_for_locations
+from cartography.intel.gcp.vertex.utils import get_vertex_credentials
+from cartography.intel.gcp.vertex.utils import list_vertex_ai_resources_for_location
 from cartography.models.gcp.vertex.training_pipeline import (
     GCPVertexAITrainingPipelineSchema,
 )
@@ -19,42 +22,24 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_vertex_ai_training_pipelines_for_location(
-    aiplatform: Resource,
+    credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
-
-    from google.auth.transport.requests import Request as AuthRequest
-
-    from cartography.intel.gcp.vertex.utils import paginate_vertex_api
-
-    # Get credentials and refresh token if needed
-    creds = aiplatform._http.credentials
-    if not creds.valid:
-        creds.refresh(AuthRequest())
-
-    # Prepare request parameters
-    regional_endpoint = f"https://{location}-aiplatform.googleapis.com"
+) -> list[dict]:
     parent = f"projects/{project_id}/locations/{location}"
-    headers = {
-        "Authorization": f"Bearer {creds.token}",
-        "Content-Type": "application/json",
-    }
-    url = f"{regional_endpoint}/v1/{parent}/trainingPipelines"
-
-    # Use helper function to handle pagination and error handling
-    return paginate_vertex_api(
-        url=url,
-        headers=headers,
+    return list_vertex_ai_resources_for_location(
+        fetcher=lambda: build_vertex_ai_pipeline_client(
+            location,
+            credentials=credentials,
+        ).list_training_pipelines(parent=parent),
         resource_type="training pipelines",
-        response_key="trainingPipelines",
         location=location,
         project_id=project_id,
     )
 
 
 @timeit
-def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
+def transform_training_pipelines(training_pipelines: list[dict]) -> list[dict]:
 
     transformed_pipelines = []
 
@@ -133,7 +118,7 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
 @timeit
 def load_training_pipelines(
     neo4j_session: neo4j.Session,
-    training_pipelines: List[Dict],
+    training_pipelines: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -150,7 +135,7 @@ def load_training_pipelines(
 @timeit
 def cleanup_training_pipelines(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(
@@ -166,21 +151,39 @@ def sync_training_pipelines(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
 
     logger.info("Syncing Vertex AI training pipelines for project %s.", project_id)
 
-    # Get all available locations for Vertex AI
-    locations = get_vertex_ai_locations(aiplatform, project_id)
-
-    # Collect training pipelines from all locations
-    all_training_pipelines = []
-    for location in locations:
-        training_pipelines = get_vertex_ai_training_pipelines_for_location(
-            aiplatform, project_id, location
+    if locations is None:
+        locations = get_vertex_ai_locations(aiplatform, project_id)
+        if locations is None:
+            logger.warning(
+                "Skipping Vertex AI training pipelines sync for project %s to preserve existing "
+                "data because Vertex AI location discovery failed.",
+                project_id,
+            )
+            return
+    else:
+        logger.debug(
+            "Using %s cached Vertex AI locations for training pipelines in project %s.",
+            len(locations),
+            project_id,
         )
-        all_training_pipelines.extend(training_pipelines)
+
+    credentials = get_vertex_credentials(aiplatform)
+    all_training_pipelines = fetch_vertex_ai_resources_for_locations(
+        locations=locations,
+        project_id=project_id,
+        resource_type="training pipelines",
+        fetch_for_location=lambda location: get_vertex_ai_training_pipelines_for_location(
+            credentials,
+            project_id,
+            location,
+        ),
+    )
 
     # Transform and load training pipelines
     transformed_pipelines = transform_training_pipelines(all_training_pipelines)
