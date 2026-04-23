@@ -14,7 +14,9 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
@@ -101,6 +103,12 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             else:
                 raise
+        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            bucket["Region"] = None
+            logger.warning(
+                "skipping bucket='%s' region discovery due to transport timeout/connection error.",
+                bucket["Name"],
+            )
     return buckets
 
 
