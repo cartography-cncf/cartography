@@ -21,6 +21,8 @@ class EndorLabsPackageVersionNodeProperties(CartographyNodeProperties):
     ecosystem: PropertyRef = PropertyRef("ecosystem")
     package_name: PropertyRef = PropertyRef("package_name")
     version: PropertyRef = PropertyRef("version")
+    purl: PropertyRef = PropertyRef("purl")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     release_timestamp: PropertyRef = PropertyRef("release_timestamp")
     call_graph_available: PropertyRef = PropertyRef("call_graph_available")
     project_uuid: PropertyRef = PropertyRef("project_uuid")

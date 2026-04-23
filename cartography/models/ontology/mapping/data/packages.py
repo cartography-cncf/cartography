@@ -126,7 +126,29 @@ syft_mapping = OntologyMapping(
     ],
 )
 
+endorlabs_mapping = OntologyMapping(
+    module_name="endorlabs",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="EndorLabsPackageVersion",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="normalized_id",
+                    node_field="normalized_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="name", node_field="package_name"),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="type", node_field="ecosystem"),
+                OntologyFieldMapping(ontology_field="purl", node_field="purl"),
+            ],
+        ),
+    ],
+    rels=[],
+)
+
 PACKAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "trivy": trivy_mapping,
     "syft": syft_mapping,
+    "endorlabs": endorlabs_mapping,
 }

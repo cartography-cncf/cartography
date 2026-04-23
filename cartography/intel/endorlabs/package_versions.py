@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.endorlabs.package_version import EndorLabsPackageVersionSchema
 from cartography.util import timeit
 
@@ -52,6 +53,24 @@ def get(bearer_token: str, namespace: str) -> list[dict[str, Any]]:
     return all_package_versions
 
 
+_ECOSYSTEM_TO_PURL_TYPE: dict[str, str] = {
+    "ECOSYSTEM_NPM": "npm",
+    "ECOSYSTEM_PYPI": "pypi",
+    "ECOSYSTEM_MAVEN": "maven",
+    "ECOSYSTEM_GO": "golang",
+    "ECOSYSTEM_RUBYGEMS": "gem",
+    "ECOSYSTEM_NUGET": "nuget",
+    "ECOSYSTEM_CRATES_IO": "cargo",
+    "ECOSYSTEM_PACKAGIST": "composer",
+    "ECOSYSTEM_PUB": "pub",
+    "ECOSYSTEM_COCOAPODS": "cocoapods",
+    "ECOSYSTEM_SWIFT": "swift",
+    "ECOSYSTEM_CARGO": "cargo",
+    "ECOSYSTEM_HACKAGE": "hackage",
+    "ECOSYSTEM_HEX": "hex",
+}
+
+
 def _parse_package_name(name: str) -> tuple[str | None, str | None]:
     """Parse 'ecosystem://package@version' into (package, version)."""
     if "://" in name:
@@ -60,6 +79,19 @@ def _parse_package_name(name: str) -> tuple[str | None, str | None]:
         parts = name.rsplit("@", 1)
         return parts[0], parts[1]
     return name, None
+
+
+def _make_purl(
+    ecosystem: str | None,
+    package_name: str | None,
+    version: str | None,
+) -> str | None:
+    if not package_name or not version:
+        return None
+    purl_type = _ECOSYSTEM_TO_PURL_TYPE.get(ecosystem or "")
+    if not purl_type:
+        return None
+    return f"pkg:{purl_type}/{package_name}@{version}"
 
 
 def transform(
@@ -71,15 +103,20 @@ def transform(
         spec = pv.get("spec", {})
         pv_name = meta.get("name", "")
         package_name, version = _parse_package_name(pv_name)
+        ecosystem = spec.get("ecosystem")
+        purl = _make_purl(ecosystem, package_name, version)
+        normalized_id = make_normalized_package_id(purl=purl)
 
         package_versions.append(
             {
                 "uuid": pv.get("uuid"),
                 "name": pv_name,
                 "namespace": pv.get("tenant_meta", {}).get("namespace"),
-                "ecosystem": spec.get("ecosystem"),
+                "ecosystem": ecosystem,
                 "package_name": package_name,
                 "version": version,
+                "purl": purl,
+                "normalized_id": normalized_id,
                 "release_timestamp": spec.get("release_timestamp"),
                 "call_graph_available": spec.get("call_graph_available"),
                 "project_uuid": spec.get("project_uuid"),
