@@ -17,12 +17,8 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type", node_field="type"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="value", node_field="value"
-                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
             ],
         ),
     ],
@@ -38,12 +34,8 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type", node_field="type"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="value", node_field="data"
-                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="data"),
             ],
         ),
     ],
@@ -59,12 +51,8 @@ cloudflare_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type", node_field="type"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="value", node_field="value"
-                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
             ],
         ),
     ],
@@ -80,12 +68,8 @@ vercel_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type", node_field="type"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="value", node_field="value"
-                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
             ],
         ),
     ],
