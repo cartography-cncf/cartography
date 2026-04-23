@@ -116,6 +116,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  Jamf device emails, CrowdStrike host emails, and provider-native ownership edges are examples of signals Cartography can use to derive this relationship.
 - `User` can own one or many `APIKey` (semantic label):
     ```
     (:User)-[:OWNS]->(:APIKey)
@@ -199,6 +200,7 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
 
 
 ### APIKey

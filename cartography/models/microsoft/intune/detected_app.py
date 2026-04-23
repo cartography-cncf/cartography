@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -28,6 +30,16 @@ class IntuneDetectedAppRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+@dataclass(frozen=True)
+class IntuneManagedDeviceHasAppRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
 # (:IntuneDetectedApp)<-[:RESOURCE]-(:EntraTenant)
 @dataclass(frozen=True)
 class IntuneDetectedAppToTenantRel(CartographyRelSchema):
@@ -42,14 +54,20 @@ class IntuneDetectedAppToTenantRel(CartographyRelSchema):
 
 # (:IntuneManagedDevice)-[:HAS_APP]->(:IntuneDetectedApp)
 @dataclass(frozen=True)
-class IntuneDetectedAppToManagedDeviceRel(CartographyRelSchema):
+class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
     target_node_label: str = "IntuneManagedDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("device_id")},
     )
+    source_node_label: str = "IntuneDetectedApp"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("app_id")},
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_APP"
-    properties: IntuneDetectedAppRelProperties = IntuneDetectedAppRelProperties()
+    properties: IntuneManagedDeviceHasAppRelProperties = (
+        IntuneManagedDeviceHasAppRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -59,8 +77,4 @@ class IntuneDetectedAppSchema(CartographyNodeSchema):
     sub_resource_relationship: IntuneDetectedAppToTenantRel = (
         IntuneDetectedAppToTenantRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            IntuneDetectedAppToManagedDeviceRel(),
-        ],
-    )
+    other_relationships: OtherRelationships = OtherRelationships([])
