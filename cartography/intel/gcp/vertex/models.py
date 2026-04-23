@@ -30,7 +30,10 @@ def _is_vertex_ai_regional_location(location_id: str) -> bool:
 
 
 @timeit
-def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
+def get_vertex_ai_locations(
+    aiplatform: Resource,
+    project_id: str,
+) -> List[str] | None:
     """
     Gets all available Vertex AI locations for a project.
 
@@ -93,7 +96,7 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
                 summarize_gcp_http_error(e),
                 exc_info=True,
             )
-        return []
+        return None
 
 
 @timeit
@@ -227,6 +230,13 @@ def sync_vertex_ai_models(
 
     if locations is None:
         locations = get_vertex_ai_locations(aiplatform, project_id)
+        if locations is None:
+            logger.warning(
+                "Skipping Vertex AI models sync for project %s to preserve existing data "
+                "because Vertex AI location discovery failed.",
+                project_id,
+            )
+            return
     else:
         logger.debug(
             "Using %s cached Vertex AI locations for models in project %s.",

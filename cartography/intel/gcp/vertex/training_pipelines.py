@@ -161,6 +161,13 @@ def sync_training_pipelines(
 
     if locations is None:
         locations = get_vertex_ai_locations(aiplatform, project_id)
+        if locations is None:
+            logger.warning(
+                "Skipping Vertex AI training pipelines sync for project %s to preserve existing "
+                "data because Vertex AI location discovery failed.",
+                project_id,
+            )
+            return
     else:
         logger.debug(
             "Using %s cached Vertex AI locations for training pipelines in project %s.",

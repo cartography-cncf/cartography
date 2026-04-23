@@ -96,3 +96,31 @@ def test_sync_vertex_ai_models_uses_cached_locations_when_provided(
     mock_fetch.assert_called_once()
     mock_load.assert_called_once_with(neo4j_session, [], "test-project", 123)
     mock_cleanup.assert_called_once_with(neo4j_session, common_job_parameters)
+
+
+@patch("cartography.intel.gcp.vertex.models.cleanup_vertex_ai_models")
+@patch("cartography.intel.gcp.vertex.models.load_vertex_ai_models")
+@patch("cartography.intel.gcp.vertex.models.fetch_vertex_ai_resources_for_locations")
+@patch("cartography.intel.gcp.vertex.models.get_vertex_ai_locations", return_value=None)
+def test_sync_vertex_ai_models_skips_on_location_discovery_failure(
+    mock_get_locations,
+    mock_fetch,
+    mock_load,
+    mock_cleanup,
+):
+    neo4j_session = MagicMock()
+    aiplatform = MagicMock()
+    common_job_parameters = {"PROJECT_ID": "test-project", "UPDATE_TAG": 123}
+
+    sync_vertex_ai_models(
+        neo4j_session=neo4j_session,
+        aiplatform=aiplatform,
+        project_id="test-project",
+        gcp_update_tag=123,
+        common_job_parameters=common_job_parameters,
+    )
+
+    mock_get_locations.assert_called_once_with(aiplatform, "test-project")
+    mock_fetch.assert_not_called()
+    mock_load.assert_not_called()
+    mock_cleanup.assert_not_called()
