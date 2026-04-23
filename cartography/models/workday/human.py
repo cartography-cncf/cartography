@@ -71,7 +71,7 @@ class WorkdayHumanToManagerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkdayHumanSchema(CartographyNodeSchema):
     label: str = "WorkdayHuman"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Human"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Human", "UserAccount"])
     properties: WorkdayHumanNodeProperties = WorkdayHumanNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
