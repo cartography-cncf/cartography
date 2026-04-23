@@ -7,6 +7,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
@@ -101,7 +102,7 @@ def get_vertex_ai_locations(
 
 @timeit
 def get_vertex_ai_models_for_location(
-    aiplatform: Resource,
+    credentials: GoogleCredentials,
     project_id: str,
     location: str,
 ) -> List[Dict]:
@@ -109,7 +110,6 @@ def get_vertex_ai_models_for_location(
     Gets all Vertex AI models for a specific location.
     """
     parent = f"projects/{project_id}/locations/{location}"
-    credentials = get_vertex_credentials(aiplatform)
     return list_vertex_ai_resources_for_location(
         fetcher=lambda: build_vertex_ai_model_client(
             location,
@@ -244,12 +244,13 @@ def sync_vertex_ai_models(
             project_id,
         )
 
+    credentials = get_vertex_credentials(aiplatform)
     all_models = fetch_vertex_ai_resources_for_locations(
         locations=locations,
         project_id=project_id,
         resource_type="models",
         fetch_for_location=lambda location: get_vertex_ai_models_for_location(
-            aiplatform,
+            credentials,
             project_id,
             location,
         ),

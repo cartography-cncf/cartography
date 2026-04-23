@@ -4,6 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
@@ -23,12 +24,11 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_vertex_ai_training_pipelines_for_location(
-    aiplatform: Resource,
+    credentials: GoogleCredentials,
     project_id: str,
     location: str,
 ) -> List[Dict]:
     parent = f"projects/{project_id}/locations/{location}"
-    credentials = get_vertex_credentials(aiplatform)
     return list_vertex_ai_resources_for_location(
         fetcher=lambda: build_vertex_ai_pipeline_client(
             location,
@@ -175,12 +175,13 @@ def sync_training_pipelines(
             project_id,
         )
 
+    credentials = get_vertex_credentials(aiplatform)
     all_training_pipelines = fetch_vertex_ai_resources_for_locations(
         locations=locations,
         project_id=project_id,
         resource_type="training pipelines",
         fetch_for_location=lambda location: get_vertex_ai_training_pipelines_for_location(
-            aiplatform,
+            credentials,
             project_id,
             location,
         ),
