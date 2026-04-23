@@ -24,7 +24,6 @@ from tests.data.kubernetes.eks import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-
 TEST_CLUSTER_ARN = (
     f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:cluster/{TEST_CLUSTER_NAME}"
 )
