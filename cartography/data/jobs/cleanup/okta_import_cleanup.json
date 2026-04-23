@@ -1,81 +1,34 @@
 {
   "statements": [
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaUser)-[:FACTOR]->(n:OktaUserFactor) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (h:Human)-[:IDENTITY_OKTA]->(:OktaUser) MATCH (h)-[r:CAN_ASSUME_ROLE]->(:AWSRole) WITH DISTINCT r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Delete stale OktaUserFactor nodes"
+      "__comment__": "Migration: drop deprecated Okta-sourced (:Human)-[:CAN_ASSUME_ROLE]->(:AWSRole) edges; scoped via the :IDENTITY_OKTA provenance marker so non-Okta producers of CAN_ASSUME_ROLE are left untouched. Must run before the IDENTITY_OKTA cleanup below"
     },
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaUser)-[r:FACTOR]->(:OktaUserFactor)  WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "query": "MATCH (:Human)-[r:IDENTITY_OKTA]->(:OktaUser) WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Delete stale OktaUserFactor to OktaUser relationship"
+      "__comment__": "Migration: drop deprecated (:Human)-[:IDENTITY_OKTA]->(:OktaUser) edges left over from pre-refactor graphs"
     },
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaUser) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (:OktaUser)-[r:MEMBER_OF_OKTA_ROLE]->() WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Delete stale OktaUser"
+      "__comment__": "Migration: drop deprecated (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->() edges, replaced by :HAS_ROLE to OktaUserRole"
     },
     {
-      "query": "MATCH (:AWSRole)<-[r:ALLOWED_BY]-(:OktaGroup) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "query": "MATCH (:OktaGroup)-[r:MEMBER_OF_OKTA_ROLE]->() WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Delete Stale OktaGroup to AWSRole ALLOWED_BY relationship"
+      "__comment__": "Migration: drop deprecated (:OktaGroup)-[:MEMBER_OF_OKTA_ROLE]->() edges, replaced by :HAS_ROLE to OktaGroupRole"
     },
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaApplication) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (n:OktaAdministrationRole) WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
       "iterative": true,
       "iterationsize": 100,
-      "__comment__": "Delete stale OktaApplication"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaApplication)<-[r:APPLICATION]-(n) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaApplication relationships"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaTrustedOrigin) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaTrustedOrigin"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaAdministrationRole) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaAdministrationRole"
-    },
-    {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaAdministrationRole)<-[r:MEMBER_OF_OKTA_ROLE]-(n)  WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete stale OktaAdministrationRole relationships"
-    },
-    {
-      "query": "MATCH (n:OktaOrganization{id: $OKTA_ORG_ID}) WHERE n.lastupdated <> $UPDATE_TAG DELETE (n)",
-      "iterative": false,
-      "__comment__": "Delete stale OktaOrganization"
-    },
-    {
-      "query": "MATCH (n:ReplyUri) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete Stale ReplyUri nodes"
-    },
-    {
-      "query": "MATCH (:ReplyUri)<-[r:REPLYURI]-(:OktaApplication) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete Stale ReplyUri relationships"
-    },
-    {
-      "query": "MATCH (:AWSRole)<-[r:CAN_ASSUME_ROLE]-(:Human) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Delete Stale Human to AWSRole CAN_ASSUME_ROLE relationship"
+      "__comment__": "Migration: drop deprecated OktaAdministrationRole nodes, replaced by OktaUserRole/OktaGroupRole"
     }
   ],
   "name": "Okta intel module cleanup"

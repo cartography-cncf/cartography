@@ -1,459 +1,456 @@
-# Okta intel module - Applications
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
-from datetime import datetime
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Any
 
 import neo4j
-from okta.framework.ApiClient import ApiClient
-from okta.framework.OktaError import OktaError
+from okta.client import Client as OktaClient
+from okta.models.application import Application as OktaApplication
 
-from cartography.client.core.tx import run_write_query
-from cartography.intel.okta.utils import check_rate_limit
-from cartography.intel.okta.utils import create_api_client
-from cartography.intel.okta.utils import is_last_page
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import collect_paginated
+from cartography.models.okta.application import OktaApplicationSchema
+from cartography.models.okta.reply_uri import OktaReplyUriSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
+def sync_okta_applications(
+    okta_client: OktaClient,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     """
-    Get application data from Okta server
-    :param app_client: api client
-    :return: application data
+    Sync Okta applications
+    :param okta_client: An Okta client object
+    :param neo4j_session: Session with Neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
     """
-    app_list: List[Dict] = []
 
-    next_url = None
-    while True:
-        try:
-            # https://developer.okta.com/docs/reference/api/apps/#list-applications
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path("/", params)
-        except OktaError as okta_error:
-            logger.debug(f"Got error while listing applications {okta_error}")
-            break
-
-        app_list.extend(json.loads(paged_response.text))
-
-        check_rate_limit(paged_response)
-
-        if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
-        else:
-            break
-
-    return app_list
+    logger.info("Syncing Okta applications")
+    applications = asyncio.run(_get_okta_applications(okta_client))
+    transformed_applications = _transform_okta_applications(okta_client, applications)
+    _load_okta_applications(
+        neo4j_session, transformed_applications, common_job_parameters
+    )
+    _cleanup_okta_applications(neo4j_session, common_job_parameters)
+    reply_uris = _transform_okta_reply_uris(applications)
+    _load_okta_reply_uris(neo4j_session, reply_uris, common_job_parameters)
+    _cleanup_okta_reply_uris(neo4j_session, common_job_parameters)
 
 
 @timeit
-def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[str]:
+async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplication]:
     """
-    Get users assigned to a specific application
-    :param api_client: api client
-    :param app_id: application id to get users from
-    :return: Array of user data
+    Get Okta applications list from Okta
+    :param okta_client: An Okta client object
+    :return: List of Okta applications
     """
-    app_users: List[str] = []
+    return await collect_paginated(okta_client.list_applications, limit=200)
 
-    next_url = None
-    while True:
-        try:
-            # https://developer.okta.com/docs/reference/api/apps/#list-users-assigned-to-application
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path(f"/{app_id}/users", params)
-        except OktaError as okta_error:
-            logger.debug(
-                f"Got error while going through list application assigned users {okta_error}",
+
+@timeit
+def _transform_okta_applications(
+    okta_client: OktaClient,
+    okta_applications: list[OktaApplication],
+) -> list[dict[str, Any]]:
+    """
+    :param okta_client: An Okta client object
+    Convert a list of Okta applications into a format for Neo4j
+    :param okta_applications: List of Okta applications
+    :return: List of application dicts
+    """
+    transformed_applications: list[OktaApplication] = []
+    logger.info("Transforming %s Okta applications", len(okta_applications))
+    for okta_application in okta_applications:
+        application_props: dict[str, Any] = {}
+        application_props["id"] = okta_application.id
+        # Sparse app types (bookmarks, SWA, ...) can have any of the nested
+        # sub-objects set to None, so every level must be guarded to avoid
+        # aborting the whole sync on one atypical app.
+        accessibility = okta_application.accessibility
+        application_props["accessibility_error_redirect_url"] = (
+            accessibility.error_redirect_url if accessibility else None
+        )
+        application_props["accessibility_login_redirect_url"] = (
+            accessibility.login_redirect_url if accessibility else None
+        )
+        application_props["accessibility_self_service"] = (
+            accessibility.self_service if accessibility else None
+        )
+
+        application_props["created"] = okta_application.created
+        credentials = okta_application.credentials
+        signing = credentials.signing if credentials else None
+        application_props["credentials_signing_kid"] = signing.kid if signing else None
+        application_props["credentials_signing_last_rotated"] = (
+            signing.last_rotated if signing else None
+        )
+        application_props["credentials_signing_next_rotation"] = (
+            signing.next_rotation if signing else None
+        )
+        application_props["credentials_signing_rotation_mode"] = (
+            signing.rotation_mode if signing else None
+        )
+        application_props["credentials_signing_use"] = signing.use if signing else None
+        user_name_template = credentials.user_name_template if credentials else None
+        application_props["credentials_user_name_template_push_status"] = (
+            user_name_template.push_status if user_name_template else None
+        )
+        application_props["credentials_user_name_template_suffix"] = (
+            user_name_template.suffix if user_name_template else None
+        )
+        application_props["credentials_user_name_template_template"] = (
+            user_name_template.template if user_name_template else None
+        )
+        application_props["credentials_user_name_template_type"] = (
+            user_name_template.type if user_name_template else None
+        )
+        application_props["features"] = okta_application.features
+        application_props["label"] = okta_application.label
+        application_props["last_updated"] = okta_application.last_updated
+        # Licensing information varies by application type and license model.
+        # seat_count is only available for applications with seat-based licensing.
+        # Other licensing models may have different attributes (e.g., unlimited, per-user).
+        # We extract seat_count when available; other licensing attributes can be added
+        # as needed based on specific application requirements.
+        licensing = okta_application.licensing
+        application_props["licensing_seat_count"] = (
+            getattr(licensing, "seat_count", None) if licensing else None
+        )
+        application_props["name"] = okta_application.name
+        settings = okta_application.settings
+        settings_app = settings.app if settings else None
+        application_props["settings_app_acs_url"] = (
+            settings_app.acs_url if settings_app else None
+        )
+        application_props["settings_app_button_field"] = (
+            settings_app.button_field if settings_app else None
+        )
+        application_props["settings_app_login_url_regex"] = (
+            settings_app.login_url_regex if settings_app else None
+        )
+        application_props["settings_app_org_name"] = (
+            settings_app.org_name if settings_app else None
+        )
+        application_props["settings_app_password_field"] = (
+            settings_app.password_field if settings_app else None
+        )
+        application_props["settings_app_url"] = (
+            settings_app.url if settings_app else None
+        )
+        application_props["settings_app_username_field"] = (
+            settings_app.username_field if settings_app else None
+        )
+        application_props["settings_app_implicit_assignment"] = (
+            settings.implicit_assignment if settings else None
+        )
+        application_props["settings_app_inline_hook_id"] = (
+            settings.inline_hook_id if settings else None
+        )
+        notifications = settings.notifications if settings else None
+        vpn = notifications.vpn if notifications else None
+        network = vpn.network if vpn else None
+        application_props["settings_notifications_vpn_help_url"] = (
+            vpn.help_url if vpn else None
+        )
+        application_props["settings_notifications_vpn_message"] = (
+            vpn.message if vpn else None
+        )
+        application_props["settings_notifications_vpn_network_connection"] = (
+            network.connection if network else None
+        )
+        application_props["settings_notifications_vpn_network_exclude"] = (
+            json.dumps(network.exclude) if network else None
+        )
+        application_props["settings_notifications_vpn_network_include"] = (
+            json.dumps(network.include) if network else None
+        )
+        notes = settings.notes if settings else None
+        application_props["settings_notes_admin"] = getattr(notes, "admin", None)
+        application_props["settings_notes_enduser"] = getattr(notes, "enduser", None)
+        # Parse SAML sign-on configuration if present
+        sign_on = getattr(settings, "sign_on", None) if settings else None
+        if sign_on:
+            # Common SAML sign-on properties
+            if hasattr(sign_on, "default_relay_state"):
+                application_props["settings_sign_on_default_relay_state"] = (
+                    sign_on.default_relay_state
+                )
+            if hasattr(sign_on, "sso_acs_url"):
+                application_props["settings_sign_on_sso_acs_url"] = sign_on.sso_acs_url
+            if hasattr(sign_on, "sso_acs_url_override"):
+                application_props["settings_sign_on_sso_acs_url_override"] = (
+                    sign_on.sso_acs_url_override
+                )
+            if hasattr(sign_on, "recipient"):
+                application_props["settings_sign_on_recipient"] = sign_on.recipient
+            if hasattr(sign_on, "recipient_override"):
+                application_props["settings_sign_on_recipient_override"] = (
+                    sign_on.recipient_override
+                )
+            if hasattr(sign_on, "destination"):
+                application_props["settings_sign_on_destination"] = sign_on.destination
+            if hasattr(sign_on, "destination_override"):
+                application_props["settings_sign_on_destination_override"] = (
+                    sign_on.destination_override
+                )
+            if hasattr(sign_on, "audience"):
+                application_props["settings_sign_on_audience"] = sign_on.audience
+            if hasattr(sign_on, "audience_override"):
+                application_props["settings_sign_on_audience_override"] = (
+                    sign_on.audience_override
+                )
+            if hasattr(sign_on, "idp_issuer"):
+                application_props["settings_sign_on_idp_issuer"] = sign_on.idp_issuer
+            if hasattr(sign_on, "subject_name_id_template"):
+                application_props["settings_sign_on_subject_name_id_template"] = (
+                    sign_on.subject_name_id_template
+                )
+            if hasattr(sign_on, "subject_name_id_format"):
+                application_props["settings_sign_on_subject_name_id_format"] = (
+                    sign_on.subject_name_id_format
+                )
+            if hasattr(sign_on, "response_signed"):
+                application_props["settings_sign_on_response_signed"] = (
+                    sign_on.response_signed
+                )
+            if hasattr(sign_on, "assertion_signed"):
+                application_props["settings_sign_on_assertion_signed"] = (
+                    sign_on.assertion_signed
+                )
+            if hasattr(sign_on, "signature_algorithm"):
+                application_props["settings_sign_on_signature_algorithm"] = (
+                    sign_on.signature_algorithm
+                )
+            if hasattr(sign_on, "digest_algorithm"):
+                application_props["settings_sign_on_digest_algorithm"] = (
+                    sign_on.digest_algorithm
+                )
+            if hasattr(sign_on, "honor_force_authn"):
+                application_props["settings_sign_on_honor_force_authn"] = (
+                    sign_on.honor_force_authn
+                )
+            if hasattr(sign_on, "authn_context_class_ref"):
+                application_props["settings_sign_on_authn_context_class_ref"] = (
+                    sign_on.authn_context_class_ref
+                )
+        # oauth_client, sometimes this doesn't exist, sometimes its None
+        oauth_client = getattr(settings, "oauth_client", None) if settings else None
+        if oauth_client:
+            application_type = getattr(oauth_client, "application_type", None)
+            application_props["settings_oauth_client_application_type"] = (
+                application_type.value if application_type else None
             )
-            break
-
-        app_users.append(paged_response.text)
-
-        check_rate_limit(paged_response)
-
-        if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
-        else:
-            break
-
-    return app_users
-
-
-@timeit
-def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List[str]:
-    """
-    Get groups assigned to a specific application
-    :param api_client: api client
-    :param app_id: application id to get users from
-    :return: Array of group id
-    """
-    app_groups: List[str] = []
-
-    next_url = None
-
-    while True:
-        try:
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path(f"/{app_id}/groups", params)
-        except OktaError as okta_error:
-            logger.debug(
-                f"Got error while going through list application assigned groups {okta_error}",
+            application_props["settings_oauth_client_client_uri"] = (
+                oauth_client.client_uri
             )
-            break
-
-        app_groups.append(paged_response.text)
-
-        check_rate_limit(paged_response)
-
-        if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            consent_method = getattr(oauth_client, "consent_method", None)
+            application_props["settings_oauth_client_consent_method"] = (
+                consent_method.value if consent_method else None
+            )
+            application_props["settings_oauth_client_grant_Type"] = [
+                grant_type.value for grant_type in (oauth_client.grant_types or [])
+            ]
+            idp_initiated_login = getattr(oauth_client, "idp_initiated_login", None)
+            application_props[
+                "settings_oauth_client_idp_initiated_login_default_scope"
+            ] = (
+                json.dumps(idp_initiated_login.default_scope)
+                if idp_initiated_login
+                else None
+            )
+            application_props["settings_oauth_client_idp_initiated_login_mode"] = (
+                idp_initiated_login.mode if idp_initiated_login else None
+            )
+            application_props["settings_oauth_client_initiate_login_uri"] = (
+                oauth_client.initiate_login_uri
+            )
+            application_props["settings_oauth_client_logo_uri"] = oauth_client.logo_uri
+            application_props["settings_oauth_client_policy_uri"] = (
+                oauth_client.policy_uri
+            )
+            application_props["settings_oauth_client_post_logout_redirect_uris"] = (
+                json.dumps(oauth_client.post_logout_redirect_uris)
+            )
+            application_props["settings_oauth_client_redirect_uris"] = json.dumps(
+                oauth_client.redirect_uris
+            )
+            application_props["settings_oauth_client_response_types"] = [
+                response_type.value
+                for response_type in (oauth_client.response_types or [])
+            ]
+            application_props["settings_oauth_client_tos_uri"] = oauth_client.tos_uri
+            application_props["settings_oauth_client_wildcard_redirect"] = (
+                oauth_client.wildcard_redirect
+            )
+        # This value can also be None, in which case it has no value
+        if okta_application.sign_on_mode:
+            application_props["sign_on_mode"] = okta_application.sign_on_mode.value
         else:
-            break
+            application_props["sign_on_mode"] = okta_application.sign_on_mode
+        application_props["status"] = (
+            okta_application.status.value if okta_application.status else None
+        )
+        application_props["activated"] = okta_application.activated
+        visibility = okta_application.visibility
+        # visibility.app_links is a dict of poorly defined shape, treat as JSON blob.
+        application_props["visibility_app_links"] = (
+            json.dumps(visibility.app_links) if visibility else None
+        )
+        application_props["visibility_auto_launch"] = (
+            visibility.auto_launch if visibility else None
+        )
+        application_props["visibility_auto_submit_toolbar"] = (
+            visibility.auto_submit_toolbar if visibility else None
+        )
+        # visibility.hide is an ApplicationVisibilityHide model that behaves
+        # like a dict; stored as JSON.
+        hide = visibility.hide if visibility else None
+        application_props["visibility_hide"] = (
+            json.dumps(hide.as_dict()) if hide else None
+        )
+        transformed_applications.append(application_props)
+        # Add user assignments
+        app_users = asyncio.run(
+            _get_application_assigned_users(okta_client, okta_application.id)
+        )
+        for app_user in app_users:
+            match_app = {**application_props, "user_id": app_user}
+            transformed_applications.append(match_app)
+        # Add group assignments
+        app_groups = asyncio.run(
+            _get_application_assigned_groups(okta_client, okta_application.id)
+        )
+        for app_group in app_groups:
+            match_app = {**application_props, "group_id": app_group}
+            transformed_applications.append(match_app)
 
-    return app_groups
-
-
-@timeit
-def transform_application_assigned_users_list(
-    assigned_user_list: List[str],
-) -> List[str]:
-    """
-    Transform application users Okta data
-    :param assigned_user_list: Okta data on assigned users
-    :return: Array of users
-    """
-    users: List[str] = []
-
-    for current in assigned_user_list:
-        users.extend(transform_application_assigned_users(current))
-
-    return users
-
-
-@timeit
-def transform_application_assigned_users(json_app_data: str) -> List[str]:
-    """
-    Transform application users data for graph consumption
-    :param json_app_data: raw json application data
-    :return: individual user id
-    """
-
-    users: List[str] = []
-    app_data = json.loads(json_app_data)
-    for user in app_data:
-        users.append(user["id"])
-
-    return users
-
-
-@timeit
-def transform_application_assigned_groups_list(
-    assigned_group_list: List[str],
-) -> List[Dict]:
-    group_list: List[Dict] = []
-
-    for current in assigned_group_list:
-        group_data = transform_application_assigned_groups(current)
-        group_list.extend(group_data)
-
-    return group_list
-
-
-@timeit
-def transform_application_assigned_groups(json_app_data: str) -> List[str]:
-    """
-    Transform application group assignment to consumable data for the graph
-    :param json_app_data: raw json group application assignment data.
-    :return: group ids
-    """
-    groups: List[str] = []
-    app_data = json.loads(json_app_data)
-
-    for group in app_data:
-        groups.append(group["id"])
-
-    return groups
-
-
-@timeit
-def transform_okta_application_list(okta_applications: List[Dict]) -> List[Dict]:
-    app_list: List[Dict] = []
-
-    for current in okta_applications:
-        app_info = transform_okta_application(current)
-        app_list.append(app_info)
-
-    return app_list
-
-
-@timeit
-def transform_okta_application(okta_application: Dict) -> Dict:
-    app_props = {}
-    app_props["id"] = okta_application["id"]
-    app_props["name"] = okta_application["name"]
-    app_props["label"] = okta_application["label"]
-    if "created" in okta_application and okta_application["created"]:
-        app_props["created"] = datetime.strptime(
-            okta_application["created"],
-            "%Y-%m-%dT%H:%M:%S.%fZ",
-        ).strftime("%m/%d/%Y, %H:%M:%S")
-    else:
-        app_props["created"] = None
-
-    if "lastUpdated" in okta_application and okta_application["lastUpdated"]:
-        app_props["okta_last_updated"] = datetime.strptime(
-            okta_application["lastUpdated"],
-            "%Y-%m-%dT%H:%M:%S.%fZ",
-        ).strftime("%m/%d/%Y, %H:%M:%S")
-    else:
-        app_props["okta_last_updated"] = None
-
-    app_props["status"] = okta_application["status"]
-
-    if "activated" in okta_application and okta_application["activated"]:
-        app_props["activated"] = datetime.strptime(
-            okta_application["activated"],
-            "%Y-%m-%dT%H:%M:%S.%fZ",
-        ).strftime("%m/%d/%Y, %H:%M:%S")
-    else:
-        app_props["activated"] = None
-
-    app_props["features"] = okta_application["features"]
-    app_props["sign_on_mode"] = okta_application["signOnMode"]
-
-    return app_props
-
-
-@timeit
-def transform_okta_application_extract_replyurls(
-    okta_application: Dict,
-) -> Optional[str]:
-    """
-    Extracts the reply uri information from an okta app
-    """
-
-    if "oauthClient" in okta_application["settings"]:
-        if "redirect_uris" in okta_application["settings"]["oauthClient"]:
-            return okta_application["settings"]["oauthClient"]["redirect_uris"]
-    return None
+    return transformed_applications
 
 
 @timeit
 def _load_okta_applications(
     neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    app_list: List[Dict],
-    okta_update_tag: int,
+    application_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Add application into the graph
-    :param neo4j_session: session with the Neo4j server
-    :param okta_org_id: okta organization id
-    :param app_list: application list - Array of dictionary
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    Load Okta application information into the graph
+    :param neo4j_session: session with neo4j server
+    :param application_list: list of application
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-    ingest_statement = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $APP_LIST as app_data
-    MERGE (new_app:OktaApplication{id: app_data.id})
-    ON CREATE SET new_app.firstseen = timestamp()
-    SET new_app:ThirdPartyApp,
-    new_app.name = app_data.name,
-    new_app._ont_client_id = app_data.id,
-    new_app._ont_name = app_data.label,
-    new_app._ont_enabled = (app_data.status IN ['ACTIVE']),
-    new_app._ont_protocol = app_data.sign_on_mode,
-    new_app.label = app_data.label,
-    new_app.created = app_data.created,
-    new_app.okta_last_updated = app_data.okta_last_updated,
-    new_app.status = app_data.status,
-    new_app.activated = app_data.activated,
-    new_app.features = app_data.features,
-    new_app.sign_on_mode = app_data.sign_on_mode,
-    new_app.lastupdated = $okta_update_tag
-    WITH org, new_app
-    MERGE (org)-[org_r:RESOURCE]->(new_app)
-    ON CREATE SET org_r.firstseen = timestamp()
-    SET org_r.lastupdated = $okta_update_tag
-    """
 
-    run_write_query(
+    logger.info("Loading %s Okta applications", len(application_list))
+
+    load(
         neo4j_session,
-        ingest_statement,
-        ORG_ID=okta_org_id,
-        APP_LIST=app_list,
-        okta_update_tag=okta_update_tag,
+        OktaApplicationSchema(),
+        application_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
 
 @timeit
-def _load_application_user(
-    neo4j_session: neo4j.Session,
-    app_id: str,
-    user_list: List[str],
-    okta_update_tag: int,
+def _cleanup_okta_applications(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
-    Add application users into the graph
-    :param neo4j_session: session with the Neo4j server
-    :param app_id: application to map
-    :param user_list: users to map
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    Cleanup application nodes and relationships
+    :param neo4j_session: session with neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-    ingest = """
-    MATCH (app:OktaApplication{id: $APP_ID})
-    WITH app
-    UNWIND $USER_LIST as user_id
-    MATCH (user:OktaUser{id: user_id})
-    WITH app, user
-    MERGE (user)-[r:APPLICATION]->(app)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest,
-        APP_ID=app_id,
-        USER_LIST=user_list,
-        okta_update_tag=okta_update_tag,
+    GraphJob.from_node_schema(OktaApplicationSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
 @timeit
-def _load_application_group(
-    neo4j_session: neo4j.Session,
-    app_id: str,
-    group_list: List[str],
-    okta_update_tag: int,
-) -> None:
+async def _get_application_assigned_users(
+    okta_client: OktaClient, app_id: str
+) -> list[str]:
     """
-    Add application groups into the graph
-    :param neo4j_session: session with the Neo4j server
-    :param app_id: application to map
-    :param group_list: groups to map
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :return: Nothing
+    Get Okta application users list from Okta
+    :param okta_client: An Okta client object
+    :param app_id: The application ID to fetch users for
+    :return: List of Okta application user IDs
     """
-    ingest = """
-    MATCH (app:OktaApplication{id: $APP_ID})
-    WITH app
-    UNWIND $GROUP_LIST as group_id
-    MATCH (group:OktaGroup{id: group_id})
-    WITH app, group
-    MERGE (group)-[r:APPLICATION]->(app)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
+    application_users = await collect_paginated(
+        okta_client.list_application_users, limit=500, app_id=app_id
+    )
+    return [user.id for user in application_users]
 
-    run_write_query(
+
+@timeit
+async def _get_application_assigned_groups(
+    okta_client: OktaClient, app_id: str
+) -> list[str]:
+    """
+    Get Okta application groups list from Okta
+    :param okta_client: An Okta client object
+    :param app_id: The application ID to fetch groups for
+    :return: List of Okta application group IDs
+    """
+    application_groups = await collect_paginated(
+        okta_client.list_application_group_assignments, limit=200, app_id=app_id
+    )
+    return [group.id for group in application_groups]
+
+
+@timeit
+def _transform_okta_reply_uris(
+    okta_applications: list[OktaApplication],
+) -> list[dict[str, Any]]:
+    """
+    Extract OAuth redirect URIs per application into ReplyUri records.
+    """
+    reply_uris: list[dict[str, Any]] = []
+    for okta_application in okta_applications:
+        settings = okta_application.settings
+        oauth_client = getattr(settings, "oauth_client", None) if settings else None
+        if not oauth_client:
+            continue
+        for redirect_uri in oauth_client.redirect_uris or []:
+            reply_uris.append(
+                {
+                    "id": redirect_uri,
+                    "uri": redirect_uri,
+                    "application_id": okta_application.id,
+                }
+            )
+    return reply_uris
+
+
+@timeit
+def _load_okta_reply_uris(
+    neo4j_session: neo4j.Session,
+    reply_uri_list: list[dict[str, Any]],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    logger.info("Loading %s Okta ReplyUris", len(reply_uri_list))
+    load(
         neo4j_session,
-        ingest,
-        APP_ID=app_id,
-        GROUP_LIST=group_list,
-        okta_update_tag=okta_update_tag,
+        OktaReplyUriSchema(),
+        reply_uri_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
 
 @timeit
-def _load_application_reply_urls(
-    neo4j_session: neo4j.Session,
-    app_id: str,
-    reply_urls: List[str],
-    okta_update_tag: int,
+def _cleanup_okta_reply_uris(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    """
-    Add reply urls to their applications
-    :param neo4j_session: session with the Neo4j server
-    :param app_id: application to map the reply urls to
-    :param reply_urls: reply urls to map
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :return: Nothing
-    """
-    if not reply_urls:
-        return
-    ingest = """
-    MATCH (app:OktaApplication{id: $APP_ID})
-    WITH app
-    UNWIND $URL_LIST as url_list
-    MERGE (uri:ReplyUri{id: url_list})
-    ON CREATE SET uri.firstseen = timestamp()
-    SET uri.uri = url_list,
-    uri.lastupdated = $okta_update_tag
-    WITH app, uri
-    MERGE (uri)<-[r:REPLYURI]-(app)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest,
-        APP_ID=app_id,
-        URL_LIST=reply_urls,
-        okta_update_tag=okta_update_tag,
+    GraphJob.from_node_schema(OktaReplyUriSchema(), common_job_parameters).run(
+        neo4j_session
     )
-
-
-@timeit
-def sync_okta_applications(
-    neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    okta_update_tag: int,
-    okta_api_key: str,
-    okta_base_domain: str = "okta.com",
-) -> None:
-    """
-    Sync okta application
-    :param neo4j_session: session from the Neo4j server
-    :param okta_org_id: okta organization id
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :param okta_api_key: Okta api key
-    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
-    :return: Nothing
-    """
-    logger.info("Syncing Okta Applications")
-
-    api_client = create_api_client(
-        okta_org_id, "/api/v1/apps", okta_api_key, okta_base_domain
-    )
-
-    okta_app_data = _get_okta_applications(api_client)
-    app_data = transform_okta_application_list(okta_app_data)
-    _load_okta_applications(neo4j_session, okta_org_id, app_data, okta_update_tag)
-
-    for app in okta_app_data:
-        app_id = app["id"]
-        user_list_data = _get_application_assigned_users(api_client, app_id)
-        user_list = transform_application_assigned_users_list(user_list_data)
-        _load_application_user(neo4j_session, app_id, user_list, okta_update_tag)
-
-        group_list_data = _get_application_assigned_groups(api_client, app_id)
-        group_list = transform_application_assigned_groups_list(group_list_data)
-        _load_application_group(neo4j_session, app_id, group_list, okta_update_tag)
-
-        reply_urls = transform_okta_application_extract_replyurls(app)
-        _load_application_reply_urls(neo4j_session, app_id, reply_urls, okta_update_tag)

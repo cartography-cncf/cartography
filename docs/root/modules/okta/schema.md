@@ -49,11 +49,6 @@ Representation of an [Okta Organization](https://developer.okta.com/docs/concept
     ```
     (OktaOrganization)-[RESOURCE]->(OktaTrustedOrigin)
     ```
-- An OktaOrganization has OktaAdministrationRoles
-
-    ```
-    (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
-    ```
 
 ### OktaUser
 
@@ -65,11 +60,10 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 |-------|--------------|
 | **id** | Unique Okta user ID (e.g., "00u1a2b3c4d5e6f7g8h9") |
 | **email** | User's primary email address (also used for Human node linking) |
-| first_name | User's first name |
-| last_name | User's last name |
 | login | Username used for login (typically an email address) |
 | second_email | User's secondary email address, if configured |
-| mobile_phone | User's mobile phone number, if configured |
+| status | Okta user lifecycle status (e.g. `ACTIVE`, `SUSPENDED`) |
+| type | OktaUserType id the user belongs to |
 | created | ISO 8601 timestamp when the user was created in Okta |
 | activated | ISO 8601 timestamp when the user was activated |
 | status_changed | ISO 8601 timestamp of the last status change |
@@ -77,6 +71,18 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 | okta_last_updated | ISO 8601 timestamp when user properties were last modified in Okta |
 | password_changed | ISO 8601 timestamp when the user's password was last changed |
 | transition_to_status | ISO 8601 timestamp of the last status transition |
+| first_name, last_name, middle_name | Given name components |
+| honorific_prefix, honorific_suffix | Name prefix / suffix |
+| display_name, nick_name | Display-friendly names |
+| profile_url | Profile URL |
+| locale, preferred_language, timezone | Locale / i18n preferences |
+| user_type | Free-form user type label from the Okta profile |
+| title, department, division, organization | Employment metadata |
+| cost_center, employee_number | Finance / HR identifiers |
+| manager, manager_id | Manager name and Okta id |
+| mobile_phone, primary_phone | Phone numbers |
+| street_address, city, state, zip_code, country_code, postal_address | Address fields |
+| custom_attributes | JSON-serialized tenant-specific profile attributes (Okta `additional_properties`). Null when absent. |
 | firstseen | Timestamp when Cartography first discovered this node |
 | lastupdated | Timestamp when Cartography last updated this node |
 
@@ -87,12 +93,6 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
     (:OktaOrganization)-[:RESOURCE]->(:OktaUser)
     ```
 
-- **OktaUser is an identity for a Human**: Links Okta identities to Human entities (matched by email)
-    ```cypher
-    (:Human)-[:IDENTITY_OKTA]->(:OktaUser)
-    ```
-    This relationship allows tracking the same person across multiple identity systems. The Human node is automatically created based on the OktaUser's email address.
-
 - **OktaUsers are assigned OktaApplications**: Tracks which applications a user has access to
     ```cypher
     (:OktaUser)-[:APPLICATION]->(:OktaApplication)
@@ -101,11 +101,6 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 - **OktaUser can be a member of OktaGroups**: Group membership for access control
     ```cypher
     (:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)
-    ```
-
-- **OktaUser can be a member of OktaAdministrationRoles**: Administrative role assignments
-    ```cypher
-    (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
     ```
 
 - **OktaUsers can have authentication factors**: Multi-factor authentication methods (SMS, TOTP, WebAuthn, etc.)
@@ -134,12 +129,17 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
 | Field | Description |
 |-------|--------------|
 | id | application id  |
-| name | group name |
+| **name** | group name |
 | description | group description |
 | sam_account_name | windows SAM account name mapped
 | dn | group dn |
 | windows_domain_qualified_name | windows domain name |
 | external_id | group foreign id |
+| created | When the group was created in Okta |
+| last_membership_updated | When group membership was last updated |
+| last_updated | When the group was last updated |
+| object_class | Okta object class (e.g. `okta:user_group`) |
+| group_type | Group type reported by Okta (e.g. `OKTA_GROUP`, `APP_GROUP`) |
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -158,9 +158,9 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
      ```
     (OktaUser)-[MEMBER_OF_OKTA_GROUP]->(OktaGroup)
     ```
- - An OktaGroup can be a member of an OktaAdministrationRole
+ - An OktaGroup can have an OktaGroupRole assigned to it
      ```
-    (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
+    (OktaGroup)-[HAS_ROLE]->(OktaGroupRole)
     ```
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
     ```
@@ -206,7 +206,7 @@ Representation of an [Okta Application](https://developer.okta.com/docs/referenc
 - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```
 
 ### OktaUserFactor
@@ -256,32 +256,160 @@ Representation of an [Okta Trusted Origin](https://developer.okta.com/docs/refer
     (OktaOrganization)-[RESOURCE]->(OktaTrustedOrigin)
     ```
 
-### OktaAdministrationRole
+### OktaUserRole
 
-Representation of an [Okta Administration Role](https://developer.okta.com/docs/reference/api/roles/#role-object).
+Representation of an administrative [Okta Role](https://developer.okta.com/docs/reference/api/roles/) assigned directly to an OktaUser.
 
 | Field | Description |
 |-------|--------------|
-| id | role id mapped to the type |
-| type | role type |
-| label | role label |
-| firstseen| Timestamp of when a sync job first discovered this node |
-| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | Okta role assignment id |
+| assignment_type | `USER` or `GROUP` |
+| created | When the role assignment was created |
+| description | Role description |
+| label | Human-readable role label |
+| name | Role name |
+| role_type | Role type (e.g. `SUPER_ADMIN`, `ORG_ADMIN`) |
+| status | Role assignment status |
+| last_updated | When the role assignment was last updated |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
 
 #### Relationships
 
- - OktaUsers can be members of OktaAdministrationRoles
-     ```
-    (OktaUser)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
+- An OktaOrganization contains OktaUserRoles
     ```
- - An OktaGroup can be a member of an OktaAdministrationRolee
-     ```
-    (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
+    (OktaOrganization)-[RESOURCE]->(OktaUserRole)
     ```
-- An OktaOrganization contains OktaAdministrationRoles
+- An OktaUser can have OktaUserRoles
+    ```
+    (OktaUser)-[HAS_ROLE]->(OktaUserRole)
+    ```
 
+### OktaUserType
+
+Representation of an [Okta User Type](https://developer.okta.com/docs/reference/api/user-types/).
+
+> **SDK limitation**: The Okta Python SDK's `UserType` model only exposes the
+> `id` field; richer metadata returned by the API (name, display_name,
+> description, timestamps, …) is discarded before it reaches us. The node is
+> therefore kept minimal and mostly used as a join target for
+> `(OktaUser)-[:HAS_TYPE]->(OktaUserType)`. Tracked upstream at
+> [okta/okta-sdk-python#535](https://github.com/okta/okta-sdk-python/issues/535).
+
+| Field | Description |
+|-------|--------------|
+| **id** | User type id |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaUserTypes
     ```
-    (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
+    (OktaOrganization)-[RESOURCE]->(OktaUserType)
+    ```
+- An OktaUser is of a given OktaUserType
+    ```
+    (OktaUser)-[HAS_TYPE]->(OktaUserType)
+    ```
+
+### OktaGroupRole
+
+Representation of an administrative [Okta Role](https://developer.okta.com/docs/reference/api/roles/) assigned to an OktaGroup.
+
+| Field | Description |
+|-------|--------------|
+| **id** | Okta role assignment id |
+| assignment_type | `USER` or `GROUP` |
+| created | When the role assignment was created |
+| description | Role description |
+| label | Human-readable role label |
+| name | Role name |
+| role_type | Role type (e.g. `SUPER_ADMIN`, `ORG_ADMIN`) |
+| status | Role assignment status |
+| last_updated | When the role assignment was last updated |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaGroupRoles
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaGroupRole)
+    ```
+- An OktaGroup can have OktaGroupRoles
+    ```
+    (OktaGroup)-[HAS_ROLE]->(OktaGroupRole)
+    ```
+
+### OktaGroupRule
+
+Representation of an [Okta Group Rule](https://developer.okta.com/docs/reference/api/groups/#group-rule-object).
+
+| Field | Description |
+|-------|--------------|
+| **id** | Group rule id |
+| name | Group rule name |
+| status | Rule status (`ACTIVE`, `INACTIVE`) |
+| created | Creation timestamp |
+| last_updated | Last update timestamp |
+| condition_type | One of `expression`, `group_membership`, `complex` |
+| conditions | Rule condition payload (expression string or JSON) |
+| expression_type | Expression language type when `condition_type=expression` |
+| inclusions | User ids included by the rule, if any |
+| exclusions | User ids excluded by the rule, if any |
+| assigned_groups | Group ids the rule assigns users to |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization contains OktaGroupRules
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaGroupRule)
+    ```
+- An OktaGroupRule assigns users to one or more OktaGroups
+    ```
+    (OktaGroupRule)-[ASSIGNED_BY_GROUP_RULE]->(OktaGroup)
+    ```
+
+### OktaAuthenticator
+
+Representation of an [Okta Authenticator](https://developer.okta.com/docs/reference/api/authenticators-admin/).
+
+| Field | Description |
+|-------|--------------|
+| **id** | Authenticator id |
+| name | Authenticator name |
+| key | Authenticator key (e.g. `okta_password`, `webauthn`) |
+| authenticator_type | Authenticator type |
+| status | Authenticator status |
+| created | Creation timestamp |
+| last_updated | Last update timestamp |
+| provider_type | Provider type when applicable |
+| provider_host_name | Provider host name |
+| provider_auth_port | Provider auth port |
+| provider_instance_id | Provider instance id |
+| provider_integration_key | Provider integration key |
+| provider_secret_key | Provider secret key |
+| provider_shared_secret | Provider shared secret |
+| provider_user_name_template | Provider user name template |
+| provider_configuration | Full provider configuration as JSON |
+| settings_allowed_for | Contexts the authenticator is allowed for |
+| settings_token_lifetime_minutes | Token lifetime in minutes |
+| settings_compliance | Compliance settings |
+| settings_channel_binding | Channel binding style |
+| settings_user_verification | User verification setting |
+| settings_app_instance_id | Bound app instance id |
+| settings | Full settings payload as JSON |
+| firstseen | Timestamp when Cartography first discovered this node |
+| lastupdated | Timestamp when Cartography last updated this node |
+
+#### Relationships
+
+- An OktaOrganization has OktaAuthenticators
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaAuthenticator)
     ```
 
 ### ReplyUri
@@ -292,7 +420,6 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
 |-------|--------------|
 | id | uri the app can send the reply to |
 | uri | uri the app can send the reply to |
-| valid | is the DNS of the reply uri valid. Invalid replyuris can lead to oath phishing |
 | firstseen| Timestamp of when a sync job first discovered this node |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -301,5 +428,5 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
  - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```

@@ -1,16 +1,17 @@
-import datetime
+from unittest.mock import MagicMock
 
-from okta.models.factor.Factor import Factor
+from okta.models.user_factor import UserFactor
 
 
 def create_test_factor():
-    factor = Factor()
+    """Create a mock UserFactor object for testing."""
+    factor = MagicMock(spec=UserFactor)
 
     factor.id = "factor_id_value"
-    factor.factorType = "factor_factorType_value"
+    factor.factor_type = "factor_type_value"
     factor.provider = "factor_provider_value"
     factor.status = "factor_status_value"
-    factor.created = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    factor.lastUpdated = datetime.datetime(2019, 1, 1, 0, 0, 1)
+    factor.created = None
+    factor.last_updated = None
 
     return factor

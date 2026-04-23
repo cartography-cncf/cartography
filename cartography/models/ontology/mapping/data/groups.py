@@ -186,7 +186,7 @@ oci_mapping = OntologyMapping(
     ],
 )
 
-# Okta (legacy module - label and _ont_* properties set in raw Cypher)
+# Okta
 okta_mapping = OntologyMapping(
     module_name="okta",
     nodes=[
