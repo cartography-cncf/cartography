@@ -1,6 +1,6 @@
 ## Keycloak Built-In Analysis
 
-Cartography includes several automatic analyses for Keycloak that help identify inheritance relationships and derived permissions in a Keycloak realm. These analyses are defined in `cartography/data/jobs/analysis/keycloak_inheritance.json`.
+Cartography includes several automatic analyses for Keycloak that help identify inheritance relationships and derived permissions in a Keycloak realm. These analyses are implemented in `cartography/intel/keycloak/inheritance.py` and run after all realms are synced.
 
 ### 1. Group Membership Inheritance
 

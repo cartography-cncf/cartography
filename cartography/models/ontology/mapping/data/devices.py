@@ -1,7 +1,6 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
-from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 bigfix_mapping = OntologyMapping(
     module_name="bigfix",
@@ -46,13 +45,6 @@ crowdstrike_mapping = OntologyMapping(
             ],
         ),
     ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on CrowdstrikeHost email matching canonical User email",
-            query="MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(host.email) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND toLower(u.email) = host_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        ),
-    ],
 )
 duo_mapping = OntologyMapping(
     module_name="duo",
@@ -79,18 +71,6 @@ duo_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
             ],
-        ),
-    ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on DuoUser-DuoPhone relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        ),
-        OntologyRelMapping(
-            __comment__="Link Device to User based on DuoUser-DuoEndpoint relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
         ),
     ],
 )
@@ -131,13 +111,6 @@ snipeit_mapping = OntologyMapping(
             ],
         ),
     ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on SnipeitUser-SnipeitAsset relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        )
-    ],
 )
 tailscale_mapping = OntologyMapping(
     module_name="tailscale",
@@ -154,13 +127,6 @@ tailscale_mapping = OntologyMapping(
                 ),
             ],
         ),
-    ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on TailscaleUser-TailscaleDevice relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        )
     ],
 )
 
@@ -188,13 +154,6 @@ googleworkspace_mapping = OntologyMapping(
                 ),
             ],
         ),
-    ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on GoogleWorkspaceUser-GoogleWorkspaceDevice relationship",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        )
     ],
 )
 
@@ -272,13 +231,6 @@ jamf_mapping = OntologyMapping(
             ],
         ),
     ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on Jamf device email matching canonical User email",
-            query="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        ),
-    ],
 )
 
 jumpcloud_mapping = OntologyMapping(
@@ -298,13 +250,6 @@ jumpcloud_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
             ],
-        ),
-    ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
         ),
     ],
 )

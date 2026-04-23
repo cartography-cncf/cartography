@@ -8,6 +8,7 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
+from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
 )
@@ -271,10 +272,10 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         stale_tag=TEST_UPDATE_TAG - 1,
     )
 
-    cartography.intel.ontology.devices.link_ontology_nodes(
+    run_analysis_job(
+        "ontology_devices_linking.json",
         neo4j_session,
-        "devices",
-        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
     assert (

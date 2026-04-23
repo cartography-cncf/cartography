@@ -1,7 +1,6 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
-from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 # =============================================================================
 # Node Mappings - Create PublicIP nodes from provider-specific IP resources
@@ -77,30 +76,9 @@ gcp_mapping = OntologyMapping(
 # directly in the PublicIP schema model (publicip.py)
 # =============================================================================
 
-# CrowdStrike - Link PublicIP to Device via CrowdstrikeHost
-crowdstrike_mapping = OntologyMapping(
-    module_name="crowdstrike",
-    nodes=[],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link PublicIP to Device based on CrowdstrikeHost external_ip",
-            query=(
-                "MATCH (p:PublicIP), (host:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device) "
-                "WHERE host.external_ip = p.ip_address "
-                "MERGE (p)-[r:POINTS_TO]->(d) "
-                "ON CREATE SET r.firstseen = timestamp() "
-                "SET r.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-    ],
-)
-
-
 PUBLIC_IPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_eip_mapping,
     "azure": azure_pip_mapping,
-    "crowdstrike": crowdstrike_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_fip_mapping,
 }
