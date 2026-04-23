@@ -565,7 +565,13 @@ def sync(
     2. EKS Access Entries (EKS API)
     3. External OIDC providers (EKS API)
     """
-    logger.info("Starting EKS identity provider sync for cluster %s", cluster_name)
+    eks_cluster_ref = cluster_name
+    kubernetes_cluster_name = k8s_client.name
+
+    logger.info(
+        "Starting EKS identity provider sync for cluster %s",
+        kubernetes_cluster_name,
+    )
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
@@ -577,7 +583,7 @@ def sync(
         transformed_data = transform_aws_auth_mappings(
             neo4j_session,
             auth_mappings,
-            cluster_name,
+            kubernetes_cluster_name,
         )
         load_aws_auth_mappings(
             neo4j_session,
@@ -585,7 +591,7 @@ def sync(
             transformed_data["groups"],
             update_tag,
             cluster_id,
-            cluster_name,
+            kubernetes_cluster_name,
         )
         logger.info(
             "Successfully synced %s AWS IAM role mappings and %s AWS IAM user mappings",
@@ -599,12 +605,12 @@ def sync(
     logger.info("Syncing EKS Access Entries from EKS API")
 
     # Get access entries from EKS API
-    access_entries = get_access_entries(boto3_session, region, cluster_name)
+    access_entries = get_access_entries(boto3_session, region, eks_cluster_ref)
 
     if access_entries:
         # Transform access entries into users and groups
         transformed_access_entries = transform_access_entries(
-            access_entries, cluster_name
+            access_entries, kubernetes_cluster_name
         )
 
         # Load users and groups from access entries
@@ -614,7 +620,7 @@ def sync(
             transformed_access_entries["groups"],
             update_tag,
             cluster_id,
-            cluster_name,
+            kubernetes_cluster_name,
         )
     else:
         logger.info("No EKS Access Entries found for cluster")
@@ -623,11 +629,14 @@ def sync(
     logger.info("Syncing external OIDC providers from EKS API")
 
     # Get OIDC providers from EKS API
-    oidc_provider = get_oidc_provider(boto3_session, region, cluster_name)
+    oidc_provider = get_oidc_provider(boto3_session, region, eks_cluster_ref)
 
     if oidc_provider:
         # Transform OIDC providers (infrastructure metadata only)
-        transformed_oidc_provider = transform_oidc_provider(oidc_provider, cluster_name)
+        transformed_oidc_provider = transform_oidc_provider(
+            oidc_provider,
+            kubernetes_cluster_name,
+        )
 
         # Load OIDC providers
         load_oidc_provider(
@@ -635,7 +644,7 @@ def sync(
             transformed_oidc_provider,
             update_tag,
             cluster_id,
-            cluster_name,
+            kubernetes_cluster_name,
         )
     else:
         logger.info("No external OIDC provider found for cluster")
@@ -648,5 +657,6 @@ def sync(
     cleanup(neo4j_session, common_job_parameters)
 
     logger.info(
-        f"Successfully completed EKS identity provider sync for cluster {cluster_name}"
+        "Successfully completed EKS identity provider sync for cluster %s",
+        kubernetes_cluster_name,
     )

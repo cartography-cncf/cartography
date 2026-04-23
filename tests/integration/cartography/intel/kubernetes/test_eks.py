@@ -24,6 +24,11 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 
+TEST_CLUSTER_ARN = (
+    f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:cluster/{TEST_CLUSTER_NAME}"
+)
+
+
 def create_mock_aws_auth_configmap():
     """Create a mock V1ConfigMap object for testing."""
     return V1ConfigMap(
@@ -112,7 +117,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         TEST_REGION,
         TEST_UPDATE_TAG,
         TEST_CLUSTER_ID,
-        TEST_CLUSTER_NAME,
+        TEST_CLUSTER_ARN,
     )
 
     # Assert: Verify AWS Role to Kubernetes User relationships
@@ -443,9 +448,10 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
 
     mock_k8s_client = MagicMock()
     mock_k8s_client.name = TEST_CLUSTER_NAME
-    mock_k8s_client.core.read_namespaced_config_map.return_value = create_custom_aws_auth_configmap(
-        {
-            "mapRoles": f"""
+    mock_k8s_client.core.read_namespaced_config_map.return_value = (
+        create_custom_aws_auth_configmap(
+            {
+                "mapRoles": f"""
 - rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole
   username: acct-{{{{AccountID}}}}-admin
   groups:
@@ -459,13 +465,14 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
   groups:
   - raw-team:{{{{SessionNameRaw}}}}
 """,
-            "mapUsers": f"""
+                "mapUsers": f"""
 - userarn: arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user
   username: acct-user-{{{{AccountID}}}}
   groups:
   - acct-group-{{{{AccountID}}}}
 """,
-        }
+            }
+        )
     )
 
     sync_eks(
@@ -475,7 +482,7 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
         TEST_REGION,
         TEST_UPDATE_TAG,
         TEST_CLUSTER_ID,
-        TEST_CLUSTER_NAME,
+        TEST_CLUSTER_ARN,
     )
 
     actual_role_user_relationships = check_rels(
