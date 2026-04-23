@@ -6,9 +6,13 @@ import neo4j
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
-from cartography.models.keycloak.inheritance import KeycloakRoleIndirectGrantsScopeMatchLink
+from cartography.models.keycloak.inheritance import (
+    KeycloakRoleIndirectGrantsScopeMatchLink,
+)
 from cartography.models.keycloak.inheritance import KeycloakUserAssumeScopeMatchLink
-from cartography.models.keycloak.inheritance import KeycloakUserInheritedMemberOfGroupMatchLink
+from cartography.models.keycloak.inheritance import (
+    KeycloakUserInheritedMemberOfGroupMatchLink,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -71,7 +75,9 @@ def _sync_realm_inheritance(
     logger.info("Computing keycloak inheritance for realm '%s'.", realm_name)
 
     inherited_members = neo4j_session.execute_read(
-        read_list_of_dicts_tx, _INHERITED_MEMBER_OF_QUERY, REALM=realm_name,
+        read_list_of_dicts_tx,
+        _INHERITED_MEMBER_OF_QUERY,
+        REALM=realm_name,
     )
     if inherited_members:
         load_matchlinks(
@@ -84,11 +90,15 @@ def _sync_realm_inheritance(
         )
 
     neo4j_session.run(
-        _ASSUME_ROLE_VIA_GROUP_QUERY, REALM=realm_name, UPDATE_TAG=update_tag,
+        _ASSUME_ROLE_VIA_GROUP_QUERY,
+        REALM=realm_name,
+        UPDATE_TAG=update_tag,
     )
 
     indirect_grants = neo4j_session.execute_read(
-        read_list_of_dicts_tx, _INDIRECT_GRANTS_QUERY, REALM=realm_name,
+        read_list_of_dicts_tx,
+        _INDIRECT_GRANTS_QUERY,
+        REALM=realm_name,
     )
     if indirect_grants:
         load_matchlinks(
@@ -101,10 +111,14 @@ def _sync_realm_inheritance(
         )
 
     scope_assignments = neo4j_session.execute_read(
-        read_list_of_dicts_tx, _ASSUME_SCOPE_QUERY, REALM=realm_name,
+        read_list_of_dicts_tx,
+        _ASSUME_SCOPE_QUERY,
+        REALM=realm_name,
     )
     orphan_scopes = neo4j_session.execute_read(
-        read_list_of_dicts_tx, _ASSUME_SCOPE_ORPHAN_QUERY, REALM=realm_name,
+        read_list_of_dicts_tx,
+        _ASSUME_SCOPE_ORPHAN_QUERY,
+        REALM=realm_name,
     )
     all_scope_assignments = _merge_scope_assignments(scope_assignments, orphan_scopes)
     if all_scope_assignments:

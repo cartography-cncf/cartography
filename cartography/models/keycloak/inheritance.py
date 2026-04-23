@@ -14,7 +14,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class KeycloakMatchLinkRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True,
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
