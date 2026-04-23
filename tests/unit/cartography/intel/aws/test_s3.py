@@ -87,18 +87,36 @@ def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
     assert result["Buckets"][0]["Region"] is None
 
 
-def test_get_s3_bucket_list_connect_timeout_sets_region_none():
-    """Transport timeouts during region discovery should preserve the bucket."""
+def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
+    """A timeout on one bucket should not stop region discovery for surrounding buckets."""
     mock_session = MagicMock()
     mock_client = mock_session.client.return_value
 
     mock_client.list_buckets.return_value = {
-        "Buckets": [{"Name": "slow-bucket"}],
+        "Buckets": [
+            {"Name": "first-bucket"},
+            {"Name": "slow-bucket"},
+            {"Name": "last-bucket"},
+        ],
     }
-    mock_client.head_bucket.side_effect = ConnectTimeoutError(
-        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
-        error="timed out",
-    )
+    mock_client.head_bucket.side_effect = [
+        {
+            "BucketRegion": "us-east-1",
+            "ResponseMetadata": {"HTTPHeaders": {}},
+        },
+        ConnectTimeoutError(
+            endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
+            error="timed out",
+        ),
+        {
+            "BucketRegion": "eu-west-1",
+            "ResponseMetadata": {"HTTPHeaders": {}},
+        },
+    ]
 
     result = get_s3_bucket_list(mock_session)
-    assert result["Buckets"][0]["Region"] is None
+    assert result["Buckets"] == [
+        {"Name": "first-bucket", "Region": "us-east-1"},
+        {"Name": "slow-bucket", "Region": None},
+        {"Name": "last-bucket", "Region": "eu-west-1"},
+    ]
