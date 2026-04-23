@@ -7,8 +7,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -85,4 +87,43 @@ class TailscaleGroupSchema(CartographyNodeSchema):
             TailscaleGroupToGroupRel(),
             TailscaleGroupToUserRel(),
         ]
+    )
+
+
+# MatchLink schemas for inherited (transitive) group membership.
+# These are computed after group ingestion by traversing MEMBER_OF*1..
+# in the graph, following the same pattern as Google Workspace.
+
+
+@dataclass(frozen=True)
+class TailscaleUserInheritedMemberRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class TailscaleUserToGroupInheritedMemberMatchLink(CartographyRelSchema):
+    """MatchLink: (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
+
+    Represents transitive group membership resolved from the graph:
+    User -[:MEMBER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
+    creates: User -[:INHERITED_MEMBER_OF]-> ParentGroup
+    """
+
+    source_node_label: str = "TailscaleUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"login_name": PropertyRef("user_login_name")},
+    )
+    target_node_label: str = "TailscaleGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INHERITED_MEMBER_OF"
+    properties: TailscaleUserInheritedMemberRelProperties = (
+        TailscaleUserInheritedMemberRelProperties()
     )
