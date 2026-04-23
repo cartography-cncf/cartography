@@ -55,6 +55,7 @@ from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed
 from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
 from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
 from cartography.intel.gcp.vertex.instances import sync_workbench_instances
+from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
 from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
 from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
@@ -364,30 +365,45 @@ def _sync_project_resources(
             aiplatform_client = build_client(
                 "aiplatform", "v1", credentials=credentials
             )
-            sync_vertex_ai_models(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            endpoints_raw = sync_vertex_ai_endpoints(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            # Always run deployed models sync when endpoints sync succeeded.
-            # Even if endpoints_raw is empty (no endpoints), we need to
-            # run cleanup to remove stale deployed model nodes.
-            sync_vertex_ai_deployed_models(
-                neo4j_session,
-                endpoints_raw,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            vertex_locations = get_vertex_ai_locations(aiplatform_client, project_id)
+            if vertex_locations is None:
+                logger.warning(
+                    "Skipping shared-location Vertex AI syncs for project %s to preserve existing "
+                    "data because Vertex AI location discovery failed.",
+                    project_id,
+                )
+            else:
+                logger.info(
+                    "Reusing %s cached Vertex AI locations across synced Vertex resources for project %s.",
+                    len(vertex_locations),
+                    project_id,
+                )
+                sync_vertex_ai_models(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                endpoints_raw = sync_vertex_ai_endpoints(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                # Always run deployed models sync when endpoints sync succeeded.
+                # Even if endpoints_raw is empty (no endpoints), we need to
+                # run cleanup to remove stale deployed model nodes.
+                sync_vertex_ai_deployed_models(
+                    neo4j_session,
+                    endpoints_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
             sync_workbench_instances(
                 neo4j_session,
                 aiplatform_client,
@@ -395,27 +411,31 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-            sync_training_pipelines(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            sync_feature_groups(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            sync_vertex_ai_datasets(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            if vertex_locations is not None:
+                sync_training_pipelines(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                sync_feature_groups(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                sync_vertex_ai_datasets(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
 
         # Policy bindings sync uses CAI gRPC client.
         # We attempt policy bindings for all projects unless we've already encountered a permission error.

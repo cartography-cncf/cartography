@@ -3,9 +3,17 @@ from typing import Optional
 
 import googleapiclient.discovery
 import httplib2
+from google.api_core.client_options import ClientOptions
 from google.auth import default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
+from google.cloud.aiplatform_v1.services.dataset_service import DatasetServiceClient
+from google.cloud.aiplatform_v1.services.endpoint_service import EndpointServiceClient
+from google.cloud.aiplatform_v1.services.feature_registry_service import (
+    FeatureRegistryServiceClient,
+)
+from google.cloud.aiplatform_v1.services.model_service import ModelServiceClient
+from google.cloud.aiplatform_v1.services.pipeline_service import PipelineServiceClient
 from google.cloud.asset_v1 import AssetServiceClient
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
@@ -26,17 +34,32 @@ def _authorized_http_with_timeout(
     return AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout))
 
 
+def _resolve_credentials(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> GoogleCredentials:
+    resolved_credentials = credentials or get_gcp_credentials(
+        quota_project_id=quota_project_id,
+    )
+    if resolved_credentials is None:
+        raise RuntimeError("GCP credentials are not available; cannot build client.")
+    return resolved_credentials
+
+
+def _vertex_ai_client_options(location: str) -> ClientOptions:
+    return ClientOptions(api_endpoint=f"{location}-aiplatform.googleapis.com")
+
+
 def build_client(
     service: str,
     version: str = "v1",
     credentials: Optional[GoogleCredentials] = None,
     quota_project_id: Optional[str] = None,
 ) -> Resource:
-    resolved_credentials = credentials or get_gcp_credentials(
+    resolved_credentials = _resolve_credentials(
+        credentials=credentials,
         quota_project_id=quota_project_id,
     )
-    if resolved_credentials is None:
-        raise RuntimeError("GCP credentials are not available; cannot build client.")
     client = googleapiclient.discovery.build(
         service,
         version,
@@ -57,14 +80,81 @@ def build_asset_client(
     :param quota_project_id: Optional quota project ID for billing. If not provided,
         the ADC default project will be used.
     """
-    resolved_credentials = credentials or get_gcp_credentials(
+    resolved_credentials = _resolve_credentials(
+        credentials=credentials,
         quota_project_id=quota_project_id,
     )
-    if resolved_credentials is None:
-        raise RuntimeError(
-            "GCP credentials are not available; cannot build asset client."
-        )
     return AssetServiceClient(credentials=resolved_credentials)
+
+
+def build_vertex_ai_model_client(
+    location: str,
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> ModelServiceClient:
+    return ModelServiceClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+        client_options=_vertex_ai_client_options(location),
+    )
+
+
+def build_vertex_ai_endpoint_client(
+    location: str,
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> EndpointServiceClient:
+    return EndpointServiceClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+        client_options=_vertex_ai_client_options(location),
+    )
+
+
+def build_vertex_ai_dataset_client(
+    location: str,
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> DatasetServiceClient:
+    return DatasetServiceClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+        client_options=_vertex_ai_client_options(location),
+    )
+
+
+def build_vertex_ai_pipeline_client(
+    location: str,
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> PipelineServiceClient:
+    return PipelineServiceClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+        client_options=_vertex_ai_client_options(location),
+    )
+
+
+def build_vertex_ai_feature_registry_client(
+    location: str,
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> FeatureRegistryServiceClient:
+    return FeatureRegistryServiceClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+        client_options=_vertex_ai_client_options(location),
+    )
 
 
 def get_gcp_credentials(
