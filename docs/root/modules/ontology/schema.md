@@ -116,6 +116,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  Jamf device emails, CrowdStrike host emails, and provider-native ownership edges are examples of signals Cartography can use to derive this relationship.
 - `User` can own one or many `APIKey` (semantic label):
     ```
     (:User)-[:OWNS]->(:APIKey)
@@ -199,6 +200,7 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
 
 
 ### APIKey
@@ -290,10 +292,10 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, and individual containers within Azure Container Instances.
+It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services (`GCPCloudRunServiceContainer`) and Jobs (`GCPCloudRunJobContainer`).
 
 ```{note}
-GCP Cloud Run workloads (Services, Revisions, Jobs) are **not** modeled as `Container`. Revisions are treated as internal versioning artifacts of a Service, and both Services and Jobs are `Function` nodes. `RESOLVED_IMAGE` still applies to them (see the `Function` section).
+GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
 ```
 
 | Field | Description |
@@ -514,7 +516,7 @@ Function is a semantic label.
 ```
 
 A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
-It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps. GCP Cloud Run Services and Jobs are orchestrators (not functions) — see the note in the Relationships section below.
 
 | Field | Description |
 |-------|-------------|
@@ -522,8 +524,8 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
-| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; Cloud Run Service/Job are always `container`; GCP Cloud Functions are always `code`. |
-| _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`, Cloud Run Jobs). |
+| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; GCP Cloud Functions are always `code`. |
+| _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`). |
 | _ont_image_digest | Content-addressable digest (`sha256:...`) of the container image, when the reference is digest-pinned. |
 
 #### Relationships
@@ -531,8 +533,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 - `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
-    - **GCPCloudRunJob** has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
-    - **GCPCloudRunService** does not carry `HAS_IMAGE` directly; the job traverses `HAS_REVISION` to the underlying `GCPCloudRunRevision` (which is not an ontology node of its own) and attaches the resolved image to the user-visible Service. If a Service splits traffic across multiple revisions, it will carry one `RESOLVED_IMAGE` edge per distinct image.
+    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
     ```
     (:Function)-[:RESOLVED_IMAGE]->(:Image)

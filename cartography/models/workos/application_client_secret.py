@@ -13,64 +13,63 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class WorkOSApplicationNodeProperties(CartographyNodeProperties):
+class WorkOSApplicationClientSecretNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    client_id: PropertyRef = PropertyRef("client_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    application_type: PropertyRef = PropertyRef("application_type")
-    scopes: PropertyRef = PropertyRef("scopes")
+    secret_hint: PropertyRef = PropertyRef("secret_hint")
+    last_used_at: PropertyRef = PropertyRef("last_used_at")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class WorkOSApplicationToEnvironmentRelProperties(CartographyRelProperties):
+class WorkOSApplicationClientSecretToEnvironmentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSApplication)
-class WorkOSApplicationToEnvironmentRel(CartographyRelSchema):
+# (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSApplicationClientSecret)
+class WorkOSApplicationClientSecretToEnvironmentRel(CartographyRelSchema):
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: WorkOSApplicationToEnvironmentRelProperties = (
-        WorkOSApplicationToEnvironmentRelProperties()
+    properties: WorkOSApplicationClientSecretToEnvironmentRelProperties = (
+        WorkOSApplicationClientSecretToEnvironmentRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class WorkOSApplicationToOrganizationRelProperties(CartographyRelProperties):
+class WorkOSApplicationClientSecretToApplicationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:WorkOSApplication)-[:BELONGS_TO]->(:WorkOSOrganization)
-class WorkOSApplicationToOrganizationRel(CartographyRelSchema):
-    target_node_label: str = "WorkOSOrganization"
+# (:WorkOSApplication)-[:HAS_SECRET]->(:WorkOSApplicationClientSecret)
+class WorkOSApplicationClientSecretToApplicationRel(CartographyRelSchema):
+    target_node_label: str = "WorkOSApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("organization_id")},
+        {"id": PropertyRef("application_id")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "BELONGS_TO"
-    properties: WorkOSApplicationToOrganizationRelProperties = (
-        WorkOSApplicationToOrganizationRelProperties()
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_SECRET"
+    properties: WorkOSApplicationClientSecretToApplicationRelProperties = (
+        WorkOSApplicationClientSecretToApplicationRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class WorkOSApplicationSchema(CartographyNodeSchema):
-    label: str = "WorkOSApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
-    properties: WorkOSApplicationNodeProperties = WorkOSApplicationNodeProperties()
-    sub_resource_relationship: WorkOSApplicationToEnvironmentRel = (
-        WorkOSApplicationToEnvironmentRel()
+class WorkOSApplicationClientSecretSchema(CartographyNodeSchema):
+    label: str = "WorkOSApplicationClientSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    properties: WorkOSApplicationClientSecretNodeProperties = (
+        WorkOSApplicationClientSecretNodeProperties()
+    )
+    sub_resource_relationship: WorkOSApplicationClientSecretToEnvironmentRel = (
+        WorkOSApplicationClientSecretToEnvironmentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[WorkOSApplicationToOrganizationRel()],
+        rels=[WorkOSApplicationClientSecretToApplicationRel()],
     )
