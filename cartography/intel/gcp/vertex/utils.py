@@ -70,7 +70,7 @@ def list_vertex_ai_resources_for_location(
             e,
             exc_info=True,
         )
-        return []
+        raise
 
     logger.info(
         "Found %s Vertex AI %s in %s for project %s",
