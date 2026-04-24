@@ -94,12 +94,10 @@ def test_sync_artifact_registry(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
     mock_credentials = MagicMock()
 
     sync(
         neo4j_session,
-        mock_client,
         mock_credentials,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,

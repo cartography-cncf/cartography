@@ -2,7 +2,6 @@ import logging
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
-from googleapiclient.discovery import Resource
 
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    client: Resource,
     credentials: GoogleCredentials,
     project_id: str,
     update_tag: int,
@@ -36,7 +34,6 @@ def sync(
     3. Image manifests (for multi-architecture Docker images, extracted from imageManifests field)
 
     :param neo4j_session: The Neo4j session.
-    :param client: Legacy Artifact Registry discovery client kept for API compatibility.
     :param credentials: GCP credentials used to build the GAPIC Artifact Registry client.
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.

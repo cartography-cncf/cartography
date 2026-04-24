@@ -550,12 +550,8 @@ def _sync_project_resources(
 
         if service_names.artifact_registry in enabled_services:
             logger.info("Syncing GCP project %s for Artifact Registry.", project_id)
-            artifact_registry_client = build_client(
-                "artifactregistry", "v1", credentials=credentials
-            )
             artifact_registry.sync(
                 neo4j_session,
-                artifact_registry_client,
                 credentials,
                 project_id,
                 gcp_update_tag,

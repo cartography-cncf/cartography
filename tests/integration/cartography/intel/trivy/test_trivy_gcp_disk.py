@@ -102,12 +102,10 @@ def test_sync_trivy_gcp(
     }
 
     # First sync GCP Artifact Registry container images and platform images
-    mock_client = MagicMock()
     mock_credentials = MagicMock()
 
     sync(
         neo4j_session,
-        mock_client,
         mock_credentials,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
