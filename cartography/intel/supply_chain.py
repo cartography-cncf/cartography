@@ -9,6 +9,8 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any
 
+import neo4j
+
 logger = logging.getLogger(__name__)
 
 
@@ -954,3 +956,158 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
         return parts[2]
 
     return None
+
+
+# Standard OCI annotation keys for source provenance
+_OCI_SOURCE_LABELS = [
+    "org.opencontainers.image.source",
+    "vcs.source",
+]
+_OCI_REVISION_LABELS = [
+    "org.opencontainers.image.revision",
+    "vcs.revision",
+]
+
+
+def extract_provenance_from_oci_config(
+    config: dict[str, Any],
+) -> dict[str, str]:
+    """
+    Extract source provenance from an OCI image config's labels and annotations.
+
+    Checks standard OCI annotation keys (org.opencontainers.image.source) and
+    BuildKit VCS metadata (vcs.source, vcs.revision).
+
+    :param config: The parsed OCI image config JSON
+    :return: Dict with any of: source_uri, source_revision
+    """
+    result: dict[str, str] = {}
+
+    labels = config.get("config", {}).get("Labels") or {}
+
+    for key in _OCI_SOURCE_LABELS:
+        value = labels.get(key)
+        if value:
+            result["source_uri"] = normalize_vcs_url(value)
+            break
+
+    for key in _OCI_REVISION_LABELS:
+        value = labels.get(key)
+        if value:
+            result["source_revision"] = str(value)
+            break
+
+    return result
+
+
+def extract_layers_from_oci_config(
+    config: dict[str, Any],
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """
+    Extract layer diff_ids and history from an OCI image config.
+
+    :param config: The parsed OCI image config JSON
+    :return: Tuple of (layer_diff_ids, layer_history) where layer_history
+             entries have 'created_by' and 'empty_layer' keys.
+    """
+    diff_ids: list[str] = config.get("rootfs", {}).get("diff_ids", [])
+
+    raw_history: list[dict[str, Any]] = config.get("history", [])
+    layer_history: list[dict[str, Any]] = [
+        {
+            "created_by": entry.get("created_by", ""),
+            "empty_layer": entry.get("empty_layer", False),
+        }
+        for entry in raw_history
+    ]
+
+    return diff_ids, layer_history
+
+
+def get_unmatched_gcp_images_with_history(
+    neo4j_session: neo4j.Session,
+    sub_resource_label: str,
+    sub_resource_id: str | int,
+    update_tag: int,
+    limit: int | None = None,
+) -> list[ContainerImage]:
+    """
+    Query GCP Artifact Registry images not yet matched by provenance.
+
+    Shared helper used by GitHub and GitLab supply chain modules to include
+    GCP images in Dockerfile analysis alongside ECR/GitLab registry images.
+
+    :param neo4j_session: Neo4j session
+    :param sub_resource_label: The sub-resource label for scoping (e.g., 'GitHubOrganization')
+    :param sub_resource_id: The sub-resource ID for scoping (e.g., org name or ID)
+    :param update_tag: The current sync update tag
+    :param limit: Optional limit on number of images to return
+    :return: List of ContainerImage objects with layer history populated
+    """
+    query = """
+        MATCH (img:Image:GCPArtifactRegistryContainerImage)
+        WHERE img.layer_diff_ids IS NOT NULL
+          AND size(img.layer_diff_ids) > 0
+          AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
+              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
+          )
+        OPTIONAL MATCH (img)<-[:CONTAINS]-(gcpRepo:GCPArtifactRegistryRepository)
+        WITH coalesce(gcpRepo.id, img.id) AS group_key, img
+        ORDER BY img.upload_time DESC
+        WITH group_key, collect(img)[0] AS img
+        WITH img
+        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+        WITH img, img.layer_diff_ids[idx] AS diff_id, idx
+        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+        WITH img, idx, {
+            diff_id: diff_id,
+            history: layer.history,
+            is_empty: layer.is_empty
+        } AS layer_info
+        ORDER BY idx
+        WITH img, collect(layer_info) AS layer_history
+        RETURN
+            img.digest AS digest,
+            img.uri AS uri,
+            img.repository_id AS repository_id,
+            img.name AS name,
+            img.layer_diff_ids AS layer_diff_ids,
+            layer_history
+    """
+
+    if limit:
+        query += f" LIMIT {limit}"
+
+    result = neo4j_session.run(
+        query,
+        update_tag=update_tag,
+        sub_resource_label=sub_resource_label,
+        sub_resource_id=sub_resource_id,
+    )
+    images = []
+
+    for record in result:
+        layer_history = convert_layer_history_records(record["layer_history"])
+        images.append(
+            ContainerImage(
+                digest=record["digest"],
+                uri=record["uri"] or "",
+                registry_id=record["repository_id"] or None,
+                display_name=record["name"] or None,
+                tag=None,
+                layer_diff_ids=record["layer_diff_ids"] or [],
+                image_type=None,
+                architecture=None,
+                os=None,
+                layer_history=layer_history,
+            ),
+        )
+
+    if images:
+        logger.info(
+            "Found %d GCP Artifact Registry images with layer history for dockerfile analysis",
+            len(images),
+        )
+    return images

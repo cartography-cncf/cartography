@@ -10,6 +10,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
+from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
@@ -446,6 +447,13 @@ def sync(
         neo4j_session,
         organization,
         update_tag,
+        limit=image_limit,
+    )
+    unmatched += get_unmatched_gcp_images_with_history(
+        neo4j_session,
+        sub_resource_label="GitHubOrganization",
+        sub_resource_id=organization,
+        update_tag=update_tag,
         limit=image_limit,
     )
 

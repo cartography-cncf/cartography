@@ -12,6 +12,7 @@ from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
+from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
@@ -425,6 +426,13 @@ def sync(
         organization_id,
         gitlab_url,
         update_tag,
+        limit=image_limit,
+    )
+    unmatched += get_unmatched_gcp_images_with_history(
+        neo4j_session,
+        sub_resource_label="GitLabOrganization",
+        sub_resource_id=organization_id,
+        update_tag=update_tag,
         limit=image_limit,
     )
 

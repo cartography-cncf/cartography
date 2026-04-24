@@ -52,6 +52,7 @@ class RepositoryArtifactFetchResult:
 @dataclass(frozen=True)
 class ArtifactRegistryArtifactSyncResult:
     platform_images: list[dict]
+    docker_images_raw: list[dict]
     cleanup_safe: bool
 
 
@@ -783,7 +784,7 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: Artifact sync result containing platform images and cleanup-safety state.
+    :return: Artifact sync result containing platform images, raw docker images, and cleanup-safety state.
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 
@@ -906,4 +907,8 @@ def sync_artifact_registry_artifacts(
         )
 
     platform_images = transform_image_manifests(docker_images_raw, project_id)
-    return ArtifactRegistryArtifactSyncResult(platform_images, artifact_cleanup_safe)
+    return ArtifactRegistryArtifactSyncResult(
+        platform_images,
+        docker_images_raw,
+        artifact_cleanup_safe,
+    )

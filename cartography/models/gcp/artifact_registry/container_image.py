@@ -112,3 +112,32 @@ class GCPArtifactRegistryContainerImageSchema(CartographyNodeSchema):
             ),
         ],
     )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryContainerImageProvenanceNodeProperties(
+    CartographyNodeProperties,
+):
+    id: PropertyRef = PropertyRef("id", extra_index=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    source_file: PropertyRef = PropertyRef("source_file")
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryContainerImageProvenanceSchema(CartographyNodeSchema):
+    """Enrichment-only schema for updating GCP container images with provenance and layer data.
+
+    Separate from the base schema so that basic API loads don't null out
+    provenance fields set by the supply chain module (same pattern as ECR).
+    """
+
+    label: str = "GCPArtifactRegistryContainerImage"
+    properties: GCPArtifactRegistryContainerImageProvenanceNodeProperties = (
+        GCPArtifactRegistryContainerImageProvenanceNodeProperties()
+    )
+    sub_resource_relationship: GCPArtifactRegistryContainerImageToProjectRel = (
+        GCPArtifactRegistryContainerImageToProjectRel()
+    )
