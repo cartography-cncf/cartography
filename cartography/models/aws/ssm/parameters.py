@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -17,6 +18,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
     id: PropertyRef = PropertyRef("ARN")
     name: PropertyRef = PropertyRef("Name")
+    value: PropertyRef = PropertyRef("Value")
     description: PropertyRef = PropertyRef("Description")
     type: PropertyRef = PropertyRef("Type")
     keyid: PropertyRef = PropertyRef("KeyId")
@@ -77,6 +79,21 @@ class SSMParameterSchema(CartographyNodeSchema):
         SSMParameterToAWSAccountRel()
     )
 
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            SSMParameterToKMSKeyRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class PublicSSMParameterSchema(CartographyNodeSchema):
+
+    label: str = "PublicSSMParameter"
+    properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
+    sub_resource_relationship: None = None
+    scoped_cleanup: bool = False
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMParameter"])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SSMParameterToKMSKeyRel(),
