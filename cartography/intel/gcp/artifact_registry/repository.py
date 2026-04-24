@@ -224,7 +224,8 @@ def sync_artifact_registry_repositories(
     if not repositories_raw:
         if result.cleanup_safe:
             logger.info(
-                f"No Artifact Registry repositories found for project {project_id}."
+                "No Artifact Registry repositories found for project %s.",
+                project_id,
             )
         else:
             logger.warning(
