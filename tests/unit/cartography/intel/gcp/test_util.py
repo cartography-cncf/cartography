@@ -373,6 +373,27 @@ class TestIsBillingDisabledError:
         error = HttpError(mock_resp, error_content)
         assert is_billing_disabled_error(error) is True
 
+    def test_false_when_structured_non_billing_reason_has_billing_like_message(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "PERMISSION_DENIED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is False
+
     def test_false_when_unrelated_403(self):
         mock_resp = MagicMock()
         mock_resp.status = 403

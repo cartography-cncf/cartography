@@ -302,6 +302,8 @@ def is_billing_disabled_error(e: HttpError) -> bool:
     reason = get_error_reason(e)
     if reason == "BILLING_DISABLED":
         return True
+    if reason:
+        return False
 
     try:
         error_json = json.loads(e.content.decode("utf-8"))
