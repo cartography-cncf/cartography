@@ -26,12 +26,10 @@ def _not_found_getter(client, repository_name):
     raise NotFound("not found")
 
 
-def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomplete(
-    monkeypatch,
-):
+def _run_sync_with_cleanup_mocks(monkeypatch, getter):
     monkeypatch.setattr(
         "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
-        {"DOCKER": (_permission_denied_getter, transform_docker_images)},
+        {"DOCKER": (getter, transform_docker_images)},
     )
 
     with (
@@ -57,6 +55,26 @@ def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomple
             {"UPDATE_TAG": 123},
             max_workers=1,
         )
+
+    return (
+        result,
+        cleanup_docker_images,
+        cleanup_helm_charts,
+        cleanup_language_packages,
+        cleanup_generic_artifacts,
+    )
+
+
+def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomplete(
+    monkeypatch,
+):
+    (
+        result,
+        cleanup_docker_images,
+        cleanup_helm_charts,
+        cleanup_language_packages,
+        cleanup_generic_artifacts,
+    ) = _run_sync_with_cleanup_mocks(monkeypatch, _permission_denied_getter)
 
     assert result.cleanup_safe is False
     assert result.platform_images == []
@@ -89,34 +107,13 @@ def test_sync_artifact_registry_artifacts_propagates_unexpected_gapic_errors(
 def test_sync_artifact_registry_artifacts_treats_not_found_as_empty_repo(
     monkeypatch,
 ):
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
-        {"DOCKER": (_not_found_getter, transform_docker_images)},
-    )
-
-    with (
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.cleanup_docker_images"
-        ) as cleanup_docker_images,
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.cleanup_helm_charts"
-        ) as cleanup_helm_charts,
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.cleanup_language_packages"
-        ) as cleanup_language_packages,
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.cleanup_generic_artifacts"
-        ) as cleanup_generic_artifacts,
-    ):
-        result = sync_artifact_registry_artifacts(
-            MagicMock(),
-            MagicMock(),
-            [{"name": "repo", "format": "DOCKER"}],
-            "test-project",
-            123,
-            {"UPDATE_TAG": 123},
-            max_workers=1,
-        )
+    (
+        result,
+        cleanup_docker_images,
+        cleanup_helm_charts,
+        cleanup_language_packages,
+        cleanup_generic_artifacts,
+    ) = _run_sync_with_cleanup_mocks(monkeypatch, _not_found_getter)
 
     assert result.cleanup_safe is True
     assert result.platform_images == []
