@@ -64,41 +64,8 @@ class PackageToSocketDevDependencyRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class PackageToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToGitLabContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
+class PackageToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
     )
@@ -153,10 +120,7 @@ class PackageSchema(CartographyNodeSchema):
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
             PackageToSocketDevDependencyRel(),
-            PackageToECRImageRel(),
-            PackageToGCPArtifactRegistryContainerImageRel(),
-            PackageToGCPArtifactRegistryPlatformImageRel(),
-            PackageToGitLabContainerImageRel(),
+            PackageToOntologyImageRel(),
             PackageToTrivyFixRel(),
             PackageToPackageDependsOnRel(),
             TrivyImageFindingToPackageRel(),

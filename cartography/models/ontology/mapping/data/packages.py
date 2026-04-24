@@ -23,42 +23,9 @@ trivy_mapping = OntologyMapping(
     ],
     rels=[
         OntologyRelMapping(
-            __comment__="Link Package to ECRImage via TrivyPackage DEPLOYED",
+            __comment__="Link Package to ontology Image via TrivyPackage DEPLOYED",
             query=(
-                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:ECRImage) "
-                "MERGE (p)-[r:DEPLOYED]->(img) "
-                "ON CREATE SET r.firstseen = timestamp() "
-                "SET r.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-        OntologyRelMapping(
-            __comment__="Link Package to GCPArtifactRegistryContainerImage via TrivyPackage DEPLOYED",
-            query=(
-                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)"
-                "-[:DEPLOYED]->(img:GCPArtifactRegistryContainerImage) "
-                "MERGE (p)-[r:DEPLOYED]->(img) "
-                "ON CREATE SET r.firstseen = timestamp() "
-                "SET r.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-        OntologyRelMapping(
-            __comment__="Link Package to GCPArtifactRegistryPlatformImage via TrivyPackage DEPLOYED",
-            query=(
-                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)"
-                "-[:DEPLOYED]->(img:GCPArtifactRegistryPlatformImage) "
-                "MERGE (p)-[r:DEPLOYED]->(img) "
-                "ON CREATE SET r.firstseen = timestamp() "
-                "SET r.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-        OntologyRelMapping(
-            __comment__="Link Package to GitLabContainerImage via TrivyPackage DEPLOYED",
-            query=(
-                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)"
-                "-[:DEPLOYED]->(img:GitLabContainerImage) "
+                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image) "
                 "MERGE (p)-[r:DEPLOYED]->(img) "
                 "ON CREATE SET r.firstseen = timestamp() "
                 "SET r.lastupdated = $UPDATE_TAG"
@@ -112,6 +79,16 @@ syft_mapping = OntologyMapping(
         ),
     ],
     rels=[
+        OntologyRelMapping(
+            __comment__="Link Package to ontology Image via SyftPackage DEPLOYED",
+            query=(
+                "MATCH (p:Package)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image) "
+                "MERGE (p)-[r:DEPLOYED]->(img) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
+        ),
         OntologyRelMapping(
             __comment__="Link Package DEPENDS_ON Package via SyftPackage dependency graph",
             query=(

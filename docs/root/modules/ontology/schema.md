@@ -670,7 +670,7 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
     ```
-- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
@@ -758,6 +758,16 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 - `SyftPackage` nodes discovered by Syft are deployed on an `Image`:
     ```
     (:SyftPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `TrivyImageFinding` vulnerabilities discovered by Trivy affect an `Image`:
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Image)
+    ```
+
+- Canonical `Package` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
     ```
 
 

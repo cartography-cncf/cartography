@@ -54,6 +54,12 @@ Representation of a vulnerability finding in a container image.
     (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
     ```
 
+- A TrivyImageFinding affects an ontology Image (matched via `_ont_digest`).
+
+    ```
+    (TrivyImageFinding)-[AFFECTS]->(Image)
+    ```
+
 ### TrivyPackage
 Representation of a package installed in a container image, as detected by Trivy.
 
