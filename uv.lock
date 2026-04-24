@@ -415,16 +415,16 @@ wheels = [
 
 [[package]]
 name = "azure-keyvault-secrets"
-version = "4.10.0"
+version = "4.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/e5/3074e581b6e8923c4a1f2e42192ea6f390bb52de3600c68baaaed529ef05/azure_keyvault_secrets-4.10.0.tar.gz", hash = "sha256:666fa42892f9cee749563e551a90f060435ab878977c95265173a8246d546a36", size = 129695, upload-time = "2025-06-16T22:52:20.986Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/b8/03c7b4edd1e3355ad5fffb70e68af70cd09542963f45cf3a2aa9fb3930b5/azure_keyvault_secrets-4.11.0.tar.gz", hash = "sha256:ac14727b9159cca353173ec5a454d8d7b192a6f2f5e7eb540f9fbcf914fa0ca0", size = 112291, upload-time = "2026-04-17T00:52:12.422Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/94/7c902e966b28e7cb5080a8e0dd6bffc22ba44bc907f09c4c633d2b7c4f6a/azure_keyvault_secrets-4.10.0-py3-none-any.whl", hash = "sha256:9dbde256077a4ee1a847646671580692e3f9bea36bcfc189c3cf2b9a94eb38b9", size = 125237, upload-time = "2025-06-16T22:52:22.489Z" },
+    { url = "https://files.pythonhosted.org/packages/78/76/41c513917c0e8dc68de0c33578c6a0668b4a09eb4dc3e2782d382dc2947f/azure_keyvault_secrets-4.11.0-py3-none-any.whl", hash = "sha256:d8543b710423569bd00ada2a2533fe83d52d8e1fe026e1c47f41a3bc0fc73ef5", size = 103148, upload-time = "2026-04-17T00:52:13.796Z" },
 ]
 
 [[package]]
@@ -2947,7 +2947,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.170.0"
+version = "2.171.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2958,9 +2958,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/9a/6cc66cf3012e8f7e699d88f09ce9b2364afce8bcbc9fb7473a8aa9225e15/oci-2.170.0.tar.gz", hash = "sha256:1e205a395e856b6514501d34595dd1e8e261415aaaab2c97f77fd2fc9618dcc3", size = 17014345, upload-time = "2026-04-07T07:38:00.103Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/60/280971906425495ee1b7c81e2bf052a113fbec1adc4de0ec4bd1df07d43c/oci-2.171.0.tar.gz", hash = "sha256:83e46b7d6a54d9d41a1d090c6a3e4e9bd00caa305ceb1958eb5a15191b72cb68", size = 17035917, upload-time = "2026-04-14T03:25:12.714Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/a1/bc99b0809c49c1cac99250446ddd4f3e5cab8442a256ceb9ee59ddedca0d/oci-2.170.0-py3-none-any.whl", hash = "sha256:49adf0ffaf754c07c43194d19d2e11f5e1b602a95bb365bb384d939ff365b1b4", size = 34700441, upload-time = "2026-04-07T07:37:52.151Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/2f/4925fcf29e771c62a6892a49d5e35efed2fb0d1ee3aaa1535435cf2e2b87/oci-2.171.0-py3-none-any.whl", hash = "sha256:235e7aa8891c02869ea9d0418ef8ffc7af18b36509bc0b95d74c449569bf894c", size = 34771785, upload-time = "2026-04-14T03:25:04.927Z" },
 ]
 
 [[package]]
@@ -3025,11 +3025,11 @@ wheels = [
 
 [[package]]
 name = "packaging"
-version = "26.0"
+version = "26.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/de/0d2b39fb4af88a0258f3bac87dfcbb48e73fbdea4a2ed0e2213f9a4c2f9a/packaging-26.1.tar.gz", hash = "sha256:f042152b681c4bfac5cae2742a55e103d27ab2ec0f3d88037136b6bfe7c9c5de", size = 215519, upload-time = "2026-04-14T21:12:49.362Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/c2/920ef838e2f0028c8262f16101ec09ebd5969864e5a64c4c05fad0617c56/packaging-26.1-py3-none-any.whl", hash = "sha256:5d9c0669c6285e491e0ced2eee587eaf67b670d94a19e94e3984a481aba6802f", size = 95831, upload-time = "2026-04-14T21:12:47.56Z" },
 ]
 
 [[package]]
