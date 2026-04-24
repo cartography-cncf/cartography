@@ -16,7 +16,7 @@ from tests.data.gcp.artifact_registry import MOCK_PLATFORM_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_REPOSITORIES
 from tests.data.trivy.trivy_gcp_sample import TRIVY_GCP_SAMPLE
 from tests.integration.cartography.intel.trivy.test_helpers import (
-    assert_trivy_gcp_image_relationships,
+    assert_trivy_image_relationships,
 )
 
 TEST_UPDATE_TAG = 123456789
@@ -151,7 +151,7 @@ def test_sync_trivy_gcp(
         ),
     }
 
-    assert_trivy_gcp_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
