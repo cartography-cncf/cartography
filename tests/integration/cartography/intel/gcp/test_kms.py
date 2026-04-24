@@ -22,6 +22,35 @@ def _make_http_error(status: int, payload: dict) -> HttpError:
     return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
 
 
+class _KeyRingListRequest:
+    def __init__(self, error: HttpError):
+        self.execute = MagicMock(side_effect=error)
+
+
+class _KMSClientWithKeyRingListError:
+    def __init__(self, request: _KeyRingListRequest):
+        self._request = request
+
+    def projects(self) -> "_KMSClientWithKeyRingListError":
+        return self
+
+    def locations(self) -> "_KMSClientWithKeyRingListError":
+        return self
+
+    def keyRings(self) -> "_KMSClientWithKeyRingListError":
+        return self
+
+    def list(self, parent: str) -> _KeyRingListRequest:
+        return self._request
+
+    def list_next(
+        self,
+        previous_request: _KeyRingListRequest,
+        previous_response: dict,
+    ) -> None:
+        return None
+
+
 @patch("cartography.intel.gcp.kms.get_crypto_keys")
 @patch("cartography.intel.gcp.kms.get_key_rings")
 @patch("cartography.intel.gcp.kms.get_kms_locations")
@@ -190,19 +219,12 @@ def test_sync_kms_preserves_existing_data_when_billing_disabled(
         },
     )
 
-    client = MagicMock()
-    request = MagicMock()
-    client.projects.return_value.locations.return_value.keyRings.return_value.list.return_value = (
-        request
-    )
+    request = _KeyRingListRequest(billing_error)
+    client = _KMSClientWithKeyRingListError(request)
 
     monkeypatch.setattr(
         "cartography.intel.gcp.kms.get_kms_locations",
         lambda _client, _project_id: MOCK_LOCATIONS,
-    )
-    monkeypatch.setattr(
-        "cartography.intel.gcp.kms.gcp_api_execute_with_retry",
-        lambda _request: (_ for _ in ()).throw(billing_error),
     )
 
     common_job_parameters = {
@@ -237,6 +259,7 @@ def test_sync_kms_preserves_existing_data_when_billing_disabled(
         ),
     }
     assert check_nodes(neo4j_session, "GCPCryptoKey", ["id"]) == expected_cryptokeys
+    request.execute.assert_called_once_with(num_retries=5)
     assert (
         "Billing is disabled for project test-project while listing KMS key rings. "
         "Skipping KMS sync to preserve existing data."
