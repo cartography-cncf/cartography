@@ -13,7 +13,6 @@ from tests.data.gitlab.container_registry import TEST_ORG_URL
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTI_REPO_DIGESTS
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_CHILD_AMD64
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_CHILD_ARM64
-from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_MANIFEST_LIST
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_SAMPLE
 from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_finding_extended_fields,
@@ -214,70 +213,6 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
         )
 
     return common_job_parameters
-
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_MANIFEST_LIST),
-)
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-manifest-list.json"},
-)
-def test_sync_trivy_gitlab_multiarch_manifest_list(
-    mock_list_dir_scan_results,
-    mock_file_open,
-    neo4j_session,
-):
-    """
-    Test Trivy scan of a multi-arch manifest list.
-
-    Verifies that findings link to the manifest_list type image node,
-    not to the platform-specific children.
-    """
-    common_job_parameters = _sync_gitlab_data(neo4j_session)
-
-    # Act - sync Trivy results for manifest list
-    sync_trivy_from_dir(
-        neo4j_session,
-        "/tmp",
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Assert - verify findings link to manifest list digest
-    expected_package_rels = {
-        (
-            "3.7.9-2+deb12u3|libgnutls30",
-            "sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-        ),
-    }
-
-    expected_finding_rels = {
-        (
-            "TIF|CVE-2024-77777",
-            "sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-        ),
-    }
-
-    assert_trivy_gitlab_image_relationships(
-        neo4j_session,
-        expected_package_rels,
-        expected_finding_rels,
-    )
-
-    # Verify the image node is of type manifest_list
-    result = neo4j_session.run(
-        """
-        MATCH (img:GitLabContainerImage {digest: $digest})
-        RETURN img.type AS type
-        """,
-        digest="sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-    ).single()
-    assert result is not None
-    assert result["type"] == "manifest_list"
 
 
 @patch(

@@ -65,9 +65,18 @@ class PackageToSocketDevDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageToOntologyImageRel(CartographyRelSchema):
+    """
+    Cleanup-only relationship schema.
+
+    The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
+    only needs the relationship label and target node label to delete stale
+    DEPLOYED edges. Relationship creation happens via ontology_packages_linking.json
+    which traverses the scanner package path (Package -> DETECTED_AS -> TrivyPackage/SyftPackage -> DEPLOYED -> Image).
+    """
+
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"id": PropertyRef("_unused_cleanup_matcher")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DEPLOYED"
