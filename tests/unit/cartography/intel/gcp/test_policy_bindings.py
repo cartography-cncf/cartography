@@ -2,6 +2,7 @@ import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from google.api_core.exceptions import PermissionDenied
 from google.api_core.exceptions import ResourceExhausted
 from google.api_core.exceptions import RetryError
@@ -16,6 +17,39 @@ COMMON_JOB_PARAMS = {
     "ORG_RESOURCE_NAME": "organizations/1337",
     "PROJECT_ID": TEST_PROJECT_ID,
 }
+
+
+def test_wait_for_cai_policy_bindings_slot_reserves_per_operation_slots():
+    original_state = policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.copy()
+    policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.clear()
+    try:
+        with (
+            patch.object(policy_bindings.time, "monotonic", return_value=100.0),
+            patch.object(policy_bindings.time, "sleep") as mock_sleep,
+        ):
+            policy_bindings._wait_for_cai_policy_bindings_slot(
+                "search_all_iam_policies"
+            )
+            policy_bindings._wait_for_cai_policy_bindings_slot(
+                "search_all_iam_policies"
+            )
+            policy_bindings._wait_for_cai_policy_bindings_slot(
+                "batch_get_effective_iam_policies"
+            )
+
+        assert mock_sleep.call_count == 1
+        assert mock_sleep.call_args.args[0] == pytest.approx(0.2)
+        assert policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION[
+            "search_all_iam_policies"
+        ] == pytest.approx(100.4)
+        assert policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION[
+            "batch_get_effective_iam_policies"
+        ] == pytest.approx(100.75)
+    finally:
+        policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.clear()
+        policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.update(
+            original_state
+        )
 
 
 @patch.object(policy_bindings, "_wait_for_cai_policy_bindings_slot")

@@ -53,19 +53,26 @@ _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION: dict[str, float] = {}
 
 def _wait_for_cai_policy_bindings_slot(operation: str) -> None:
     min_interval = CAI_POLICY_BINDINGS_MIN_INTERVAL_SECONDS[operation]
+    sleep_for = 0.0
     with _CAI_POLICY_BINDINGS_THROTTLE_LOCK:
         now = time.monotonic()
-        last_call = _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.get(operation)
-        if last_call is not None:
-            sleep_for = max(0.0, min_interval - (now - last_call))
-            if sleep_for > 0:
-                logger.debug(
-                    "Throttling Cloud Asset policy bindings %s for %.2f seconds.",
-                    operation,
-                    sleep_for,
-                )
-                time.sleep(sleep_for)
-        _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION[operation] = time.monotonic()
+        next_allowed_time = _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.get(
+            operation,
+            now,
+        )
+        scheduled_time = max(now, next_allowed_time)
+        sleep_for = max(0.0, scheduled_time - now)
+        _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION[operation] = (
+            scheduled_time + min_interval
+        )
+
+    if sleep_for > 0:
+        logger.debug(
+            "Throttling Cloud Asset policy bindings %s for %.2f seconds.",
+            operation,
+            sleep_for,
+        )
+        time.sleep(sleep_for)
 
 
 def _log_cai_policy_bindings_retry(
