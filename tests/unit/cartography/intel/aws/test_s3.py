@@ -4,6 +4,8 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
 
+from cartography.intel.aws.s3 import FETCH_FAILED
+from cartography.intel.aws.s3 import get_public_access_block
 from cartography.intel.aws.s3 import get_s3_bucket_list
 
 
@@ -120,3 +122,28 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
         {"Name": "slow-bucket", "Region": None},
         {"Name": "last-bucket", "Region": "eu-west-1"},
     ]
+
+
+def test_get_public_access_block_connect_timeout_preserves_existing_data():
+    bucket = {"Name": "slow-bucket"}
+    client = MagicMock()
+    client.get_public_access_block.side_effect = ConnectTimeoutError(
+        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/?publicAccessBlock",
+        error="timed out",
+    )
+
+    assert get_public_access_block(bucket, client) is FETCH_FAILED
+
+
+def test_get_public_access_block_retryable_client_error_preserves_existing_data():
+    bucket = {"Name": "slow-bucket"}
+    client = MagicMock()
+    client.get_public_access_block.side_effect = ClientError(
+        {
+            "Error": {"Code": "ServiceUnavailable", "Message": "Unknown"},
+            "ResponseMetadata": {"HTTPStatusCode": 503},
+        },
+        "GetPublicAccessBlock",
+    )
+
+    assert get_public_access_block(bucket, client) is FETCH_FAILED

@@ -14,9 +14,6 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
-from botocore.exceptions import ConnectTimeoutError
-from botocore.exceptions import EndpointConnectionError
-from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
@@ -24,6 +21,8 @@ from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
+from cartography.intel.aws.util.transient_errors import TRANSIENT_REGION_EXCEPTIONS
 from cartography.models.aws.s3.acl import S3AclSchema
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
@@ -101,9 +100,15 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                     "skipping bucket='{}' due to exception.".format(bucket["Name"]),
                 )
                 continue
-            else:
-                raise
-        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            if is_retryable_aws_client_error(e):
+                bucket["Region"] = None
+                logger.warning(
+                    "skipping bucket='%s' region discovery after transient S3 failure.",
+                    bucket["Name"],
+                )
+                continue
+            raise
+        except TRANSIENT_REGION_EXCEPTIONS:
             bucket["Region"] = None
             logger.warning(
                 "skipping bucket='%s' region discovery due to transport timeout/connection error.",
@@ -212,13 +217,11 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "policy", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "policy", error)
 
 
 @timeit
@@ -232,13 +235,11 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "ACL", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "ACL", error)
 
 
 @timeit
@@ -252,13 +253,11 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "encryption", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "encryption", error)
 
 
 @timeit
@@ -272,13 +271,11 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "versioning", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "versioning", error)
 
 
 @timeit
@@ -295,14 +292,11 @@ def get_public_access_block(
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "public access block", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "public access block", error)
 
 
 @timeit
@@ -318,14 +312,11 @@ def get_bucket_ownership_controls(
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "ownership controls", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "ownership controls", error)
 
 
 @timeit
@@ -339,13 +330,25 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        else:
-            raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+        if is_retryable_aws_client_error(e):
+            return _handle_transport_error(bucket["Name"], "logging status", e)
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        return _handle_transport_error(bucket["Name"], "logging status", error)
+
+
+def _handle_transport_error(
+    bucket_name: str,
+    detail_name: str,
+    error: Exception,
+) -> _FetchFailed:
+    logger.warning(
+        "Failed to retrieve S3 bucket %s for %s due to transient %s. Preserving existing data.",
+        detail_name,
+        bucket_name,
+        error.__class__.__name__,
+    )
+    return FETCH_FAILED
 
 
 @timeit

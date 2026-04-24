@@ -6,12 +6,15 @@ from typing import Tuple
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
+from cartography.intel.aws.util.transient_errors import TRANSIENT_REGION_EXCEPTIONS
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2Schema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2ToAWSLambdaMatchLink
@@ -28,6 +31,10 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class ELBV2TransientRegionFailure(Exception):
+    pass
 
 
 # DEPRECATED: Remove this migration function when releasing v1
@@ -63,8 +70,19 @@ def get_load_balancer_v2_listeners(
 ) -> List[Dict]:
     paginator = client.get_paginator("describe_listeners")
     listeners: List[Dict] = []
-    for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
-        listeners.extend(page["Listeners"])
+    try:
+        for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
+            listeners.extend(page["Listeners"])
+    except ClientError as error:
+        if is_retryable_aws_client_error(error):
+            raise ELBV2TransientRegionFailure(
+                f"AWS SDK retries were exhausted for transient DescribeListeners failure on load balancer {load_balancer_arn}"
+            ) from error
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBV2TransientRegionFailure(
+            f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeListeners on load balancer {load_balancer_arn}"
+        ) from error
 
     return listeners
 
@@ -76,15 +94,37 @@ def get_load_balancer_v2_target_groups(
 ) -> List[Dict]:
     paginator = client.get_paginator("describe_target_groups")
     target_groups: List[Dict] = []
-    for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
-        target_groups.extend(page["TargetGroups"])
+    try:
+        for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
+            target_groups.extend(page["TargetGroups"])
+    except ClientError as error:
+        if is_retryable_aws_client_error(error):
+            raise ELBV2TransientRegionFailure(
+                f"AWS SDK retries were exhausted for transient DescribeTargetGroups failure on load balancer {load_balancer_arn}"
+            ) from error
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBV2TransientRegionFailure(
+            f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeTargetGroups on load balancer {load_balancer_arn}"
+        ) from error
 
     # Add instance data
     for target_group in target_groups:
         target_group["Targets"] = []
-        target_health = client.describe_target_health(
-            TargetGroupArn=target_group["TargetGroupArn"],
-        )
+        try:
+            target_health = client.describe_target_health(
+                TargetGroupArn=target_group["TargetGroupArn"],
+            )
+        except ClientError as error:
+            if is_retryable_aws_client_error(error):
+                raise ELBV2TransientRegionFailure(
+                    f"AWS SDK retries were exhausted for transient DescribeTargetHealth failure on target group {target_group['TargetGroupArn']}"
+                ) from error
+            raise
+        except TRANSIENT_REGION_EXCEPTIONS as error:
+            raise ELBV2TransientRegionFailure(
+                f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeTargetHealth on target group {target_group['TargetGroupArn']}"
+            ) from error
         for target_health_description in target_health["TargetHealthDescriptions"]:
             target_group["Targets"].append(target_health_description["Target"]["Id"])
 
@@ -102,8 +142,19 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
     )
     paginator = client.get_paginator("describe_load_balancers")
     elbv2s: List[Dict] = []
-    for page in paginator.paginate():
-        elbv2s.extend(page["LoadBalancers"])
+    try:
+        for page in paginator.paginate():
+            elbv2s.extend(page["LoadBalancers"])
+    except ClientError as error:
+        if is_retryable_aws_client_error(error):
+            raise ELBV2TransientRegionFailure(
+                "AWS SDK retries were exhausted for transient DescribeLoadBalancers failure"
+            ) from error
+        raise
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBV2TransientRegionFailure(
+            "Encountered a transient regional ELBV2 endpoint failure while calling DescribeLoadBalancers"
+        ) from error
 
     # Make extra calls to get listeners
     for elbv2 in elbv2s:
@@ -431,6 +482,7 @@ def sync_load_balancer_v2s(
     so that EC2PrivateIp nodes created by ec2:network_interface exist first.
     """
     _migrate_legacy_loadbalancerv2_labels(neo4j_session)
+    cleanup_safe = True
 
     for region in regions:
         logger.info(
@@ -438,7 +490,17 @@ def sync_load_balancer_v2s(
             region,
             current_aws_account_id,
         )
-        data = get_loadbalancer_v2_data(boto3_session, region)
+        try:
+            data = get_loadbalancer_v2_data(boto3_session, region)
+        except ELBV2TransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping ELBV2 sync for account %s in region %s after transient ELBV2 failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         load_load_balancer_v2s(
             neo4j_session,
             data,
@@ -446,7 +508,13 @@ def sync_load_balancer_v2s(
             current_aws_account_id,
             update_tag,
         )
-    cleanup_load_balancer_v2s(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_load_balancer_v2s(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping ELBV2 cleanup for account %s because one or more regions had transient ELBV2 failures. Preserving last-known-good ELBV2 state.",
+            current_aws_account_id,
+        )
 
 
 @timeit
@@ -463,13 +531,24 @@ def sync_load_balancer_v2_expose(
     Runs after ec2:network_interface so that EC2PrivateIp nodes exist.
     Re-fetches LBv2 data from AWS API to get target information.
     """
+    cleanup_safe = True
     for region in regions:
         logger.info(
             "Syncing EC2 load balancer v2 IP targets for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
-        data = get_loadbalancer_v2_data(boto3_session, region)
+        try:
+            data = get_loadbalancer_v2_data(boto3_session, region)
+        except ELBV2TransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping ELBV2 IP target sync for account %s in region %s after transient ELBV2 failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         _, _, target_data = _transform_load_balancer_v2_data(data)
         _load_load_balancer_v2_ip_targets(
             neo4j_session,
@@ -477,4 +556,10 @@ def sync_load_balancer_v2_expose(
             current_aws_account_id,
             update_tag,
         )
-    cleanup_load_balancer_v2_expose(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_load_balancer_v2_expose(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping ELBV2 IP target cleanup for account %s because one or more regions had transient ELBV2 failures. Preserving last-known-good ELBV2 IP target state.",
+            current_aws_account_id,
+        )
