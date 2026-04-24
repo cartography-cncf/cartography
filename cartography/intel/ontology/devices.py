@@ -7,9 +7,9 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
-from cartography.intel.ontology.utils import link_ontology_nodes
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.device import HOSTNAME_MATCHLINKS
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,11 @@ def sync(
         update_tag,
     )
     _run_hostname_matchlinks(neo4j_session, update_tag)
-    link_ontology_nodes(neo4j_session, "devices", update_tag)
+    run_analysis_job(
+        "ontology_devices_linking.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     cleanup(neo4j_session, common_job_parameters)
 
 

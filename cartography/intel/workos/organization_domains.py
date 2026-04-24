@@ -6,7 +6,6 @@ from workos import WorkOSClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.workos.util import paginated_list
 from cartography.models.workos.organization_domain import WorkOSOrganizationDomainSchema
 from cartography.util import timeit
 
@@ -50,12 +49,10 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
     logger.debug("Fetching WorkOS organization domains")
     domains = []
 
+    # v6: domains are embedded in the Organization model, not a dedicated list endpoint.
     for org_id in organization_ids:
-        org_domains = paginated_list(
-            client.organizations.list_organization_domains,
-            organization_id=org_id,
-        )
-        domains.extend(org_domains)
+        org = client.organizations.get_organization(id=org_id)
+        domains.extend(org.domains)
 
     return domains
 

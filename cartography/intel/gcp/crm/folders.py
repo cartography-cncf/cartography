@@ -13,6 +13,40 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_APPS_SCRIPT_FOLDER_DISPLAY_NAME = "apps-script"
+_DEFAULT_APPS_SCRIPT_SYSTEM_FOLDER_DISPLAY_NAME = "system-gsuite"
+
+
+def get_default_apps_script_folder_names(folders: List[Dict]) -> set[str]:
+    """
+    Return folder resource names that match the documented default Apps Script lineage.
+
+    Default Apps Script projects live under `system-gsuite > apps-script`. We only
+    exclude folders when that direct parent relationship is visible in the
+    discovered folder tree.
+    """
+    folder_by_name = {
+        folder["name"]: folder for folder in folders if folder.get("name")
+    }
+    matching_folders: set[str] = set()
+
+    for folder in folders:
+        if folder.get("displayName") != _DEFAULT_APPS_SCRIPT_FOLDER_DISPLAY_NAME:
+            continue
+
+        parent_name = folder.get("parent")
+        parent_folder = folder_by_name.get(parent_name) if parent_name else None
+        if (
+            parent_name
+            and parent_name.startswith("folders/")
+            and parent_folder
+            and parent_folder.get("displayName")
+            == _DEFAULT_APPS_SCRIPT_SYSTEM_FOLDER_DISPLAY_NAME
+        ):
+            matching_folders.add(folder["name"])
+
+    return matching_folders
+
 
 @timeit
 def get_gcp_folders(

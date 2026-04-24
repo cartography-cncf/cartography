@@ -21,6 +21,9 @@ def _setup_trivy_graph(neo4j_session):
             p.type = 'npm'
         MERGE (img:ECRImage {id: 'sha256:abc123'})
         MERGE (p)-[:DEPLOYED]->(img)
+        MERGE (ont_img:Image {id: 'ont-img-abc123'})
+        SET ont_img._ont_digest = 'sha256:abc123'
+        MERGE (p)-[:DEPLOYED]->(ont_img)
         MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-00001'})
         SET f.name = 'CVE-2024-00001'
         MERGE (f)-[:AFFECTS]->(p)
@@ -38,6 +41,9 @@ def _setup_trivy_graph(neo4j_session):
             p.type = 'pypi'
         MERGE (img:GitLabContainerImage {id: 'sha256:def456'})
         MERGE (p)-[:DEPLOYED]->(img)
+        MERGE (ont_img:Image {id: 'ont-img-def456'})
+        SET ont_img._ont_digest = 'sha256:def456'
+        MERGE (p)-[:DEPLOYED]->(ont_img)
         """,
     )
 
@@ -55,6 +61,10 @@ def _setup_syft_graph(neo4j_session):
             p2.name = 'body-parser', p2.version = '1.20.2',
             p2.type = 'npm'
         MERGE (p1)-[:DEPENDS_ON]->(p2)
+        MERGE (ont_img:Image {id: 'ont-img-syft'})
+        SET ont_img._ont_digest = 'sha256:syft789'
+        MERGE (p1)-[:DEPLOYED]->(ont_img)
+        MERGE (p2)-[:DEPLOYED]->(ont_img)
         """,
     )
 
@@ -151,35 +161,23 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     )
     assert actual_syft_rels == expected_syft_rels
 
-    # Assert - Check DEPLOYED propagated from TrivyPackage to Package -> ECRImage
-    expected_deployed_ecr = {
-        ("npm|express|4.18.2", "sha256:abc123"),
+    # Assert - Check DEPLOYED propagated to Package -> ontology Image
+    expected_deployed_image = {
+        ("npm|express|4.18.2", "ont-img-abc123"),
+        ("npm|express|4.18.2", "ont-img-syft"),
+        ("npm|body-parser|1.20.2", "ont-img-syft"),
+        ("pypi|requests|2.31.0", "ont-img-def456"),
     }
-    actual_deployed_ecr = check_rels(
+    actual_deployed_image = check_rels(
         neo4j_session,
         "Package",
         "id",
-        "ECRImage",
+        "Image",
         "id",
         "DEPLOYED",
         rel_direction_right=True,
     )
-    assert actual_deployed_ecr == expected_deployed_ecr
-
-    # Assert - Check DEPLOYED propagated from TrivyPackage to Package -> GitLabContainerImage
-    expected_deployed_gitlab = {
-        ("pypi|requests|2.31.0", "sha256:def456"),
-    }
-    actual_deployed_gitlab = check_rels(
-        neo4j_session,
-        "Package",
-        "id",
-        "GitLabContainerImage",
-        "id",
-        "DEPLOYED",
-        rel_direction_right=True,
-    )
-    assert actual_deployed_gitlab == expected_deployed_gitlab
+    assert actual_deployed_image == expected_deployed_image
 
     # Assert - Check AFFECTS propagated from TrivyImageFinding to Package
     expected_affects = {
@@ -235,7 +233,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
     neo4j_session.run(
         """
         MATCH (n)
-        WHERE n:Package OR n:TrivyPackage OR n:TrivyImageFinding OR n:TrivyFix OR n:ECRImage
+        WHERE n:Package OR n:TrivyPackage OR n:TrivyImageFinding OR n:TrivyFix OR n:Image
         DETACH DELETE n
         """,
     )
@@ -247,7 +245,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
         MERGE (p:Package:Ontology {id: 'npm|express|4.18.2'})
         SET p.lastupdated = $update_tag
 
-        MERGE (img:ECRImage {id: 'sha256:stale'})
+        MERGE (img:Image {id: 'sha256:stale'})
         MERGE (p)-[r1:DEPLOYED]->(img)
         SET r1.lastupdated = $stale_tag
 

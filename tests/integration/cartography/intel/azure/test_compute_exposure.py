@@ -148,12 +148,12 @@ def _create_base_graph(neo4j_session):
 
     # --- Scenario 4: Container instances ---
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance{id: 'public-aci-id'}) "
+        "MERGE (c:AzureGroupContainer{id: 'public-aci-id'}) "
         "SET c.name = 'public-aci', c.ip_address = '20.1.2.3', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance{id: 'private-aci-id'}) "
+        "MERGE (c:AzureGroupContainer{id: 'private-aci-id'}) "
         "SET c.name = 'private-aci', c.ip_address = '10.0.1.5', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
@@ -162,7 +162,7 @@ def _create_base_graph(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (c:AzureContainerInstance{id:'private-aci-id'}), (sn:AzureSubnet{id:'container-subnet-id'}) "
+        "MATCH (c:AzureGroupContainer{id:'private-aci-id'}), (sn:AzureSubnet{id:'container-subnet-id'}) "
         "MERGE (c)-[:ATTACHED_TO]->(sn)",
     )
 
@@ -214,7 +214,7 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
     # Assert: exposed_internet on containers
     assert check_nodes(
         neo4j_session,
-        "AzureContainerInstance",
+        "AzureGroupContainer",
         ["id", "exposed_internet"],
     ) == {
         ("public-aci-id", True),

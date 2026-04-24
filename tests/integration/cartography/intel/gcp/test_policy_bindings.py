@@ -339,8 +339,8 @@ def test_sync_gcp_policy_bindings_permission_denied(
 ):
     """
     Test that policy bindings sync handles PermissionDenied gracefully.
-    When the user lacks org-level cloudasset.viewer role, sync should return False
-    and not raise an exception.
+    When the user lacks org-level cloudasset.viewer role, sync should return a
+    skipped status and not raise an exception.
     """
     # ARRANGE
     _create_test_project(neo4j_session)
@@ -355,6 +355,9 @@ def test_sync_gcp_policy_bindings_permission_denied(
         mock_asset_client,
     )
 
-    # ASSERT - sync should return False and not raise an exception
-    assert result is False
+    # ASSERT - sync should return a skipped status and not raise an exception
+    assert (
+        result
+        == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+    )
     mock_get_policy_bindings.assert_called_once()

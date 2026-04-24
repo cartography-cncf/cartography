@@ -5,7 +5,6 @@ from typing import Callable
 from typing import cast
 from typing import Iterable
 from typing import Optional
-from typing import Set
 from typing import TypeVar
 
 import boto3
@@ -15,7 +14,6 @@ from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
-from botocore.exceptions import UnknownRegionError
 from botocore.parsers import ResponseParserError
 
 from cartography.util import is_aws_region_skippable_client_error
@@ -85,35 +83,6 @@ def sagemaker_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             ) from error
 
     return cast(AWSGetFunc, inner_function)
-
-
-def get_available_sagemaker_regions(
-    boto3_session: boto3.session.Session,
-    regions: list[str],
-) -> Set[str]:
-    partitions: Set[str] = set()
-    get_partition_for_region = getattr(boto3_session, "get_partition_for_region", None)
-    if callable(get_partition_for_region):
-        for region in regions:
-            try:
-                partitions.add(get_partition_for_region(region))
-            except UnknownRegionError:
-                logger.debug(
-                    "Could not determine AWS partition for region '%s' while filtering SageMaker regions.",
-                    region,
-                )
-    if not partitions:
-        partitions.update(boto3_session.get_available_partitions())
-
-    available_regions: Set[str] = set()
-    for partition_name in partitions:
-        available_regions.update(
-            boto3_session.get_available_regions(
-                "sagemaker",
-                partition_name=partition_name,
-            ),
-        )
-    return available_regions
 
 
 @timeit
