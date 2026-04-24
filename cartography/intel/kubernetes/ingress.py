@@ -106,8 +106,10 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
         transformed_rules = _format_ingress_rules(item.spec.rules)
 
         backend_services = set()
-        # extract backend services from ingress rules
+        host_names = []
         for rule in transformed_rules:
+            if rule.get("host"):
+                host_names.append(rule["host"])
             for path in rule.get("paths") or []:
                 if path.get("backend_service_name"):
                     backend_services.add(path["backend_service_name"])
@@ -142,6 +144,7 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "default_backend": json.dumps(
                     _format_ingress_backend(item.spec.default_backend)
                 ),
+                "host_names": host_names,
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,

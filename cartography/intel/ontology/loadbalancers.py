@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 
-from cartography.intel.ontology.utils import link_semantic_labels
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -15,4 +15,8 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    link_semantic_labels(neo4j_session, "loadbalancers", update_tag)
+    run_analysis_job(
+        "ontology_loadbalancers_linking.json",
+        neo4j_session,
+        common_job_parameters,
+    )
