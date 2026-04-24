@@ -1,9 +1,18 @@
 import hashlib
 import logging
+import time
+from enum import Enum
+from threading import Lock
 from typing import Any
 
 import neo4j
+from google.api_core.exceptions import DeadlineExceeded
 from google.api_core.exceptions import PermissionDenied
+from google.api_core.exceptions import ResourceExhausted
+from google.api_core.exceptions import RetryError
+from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.retry import if_exception_type
+from google.api_core.retry import Retry
 from google.cloud.asset_v1 import AssetServiceClient
 from google.cloud.asset_v1.types import BatchGetEffectiveIamPoliciesRequest
 from google.cloud.asset_v1.types import SearchAllIamPoliciesRequest
@@ -15,6 +24,91 @@ from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class PolicyBindingsSyncStatus(str, Enum):
+    SUCCESS = "success"
+    SKIPPED_API_DISABLED = "skipped_api_disabled"
+    SKIPPED_PERMISSION_DENIED = "skipped_permission_denied"
+    SKIPPED_RATE_LIMIT = "skipped_rate_limit"
+    SKIPPED_RETRY_EXHAUSTED = "skipped_retry_exhausted"
+
+
+CAI_POLICY_BINDINGS_RETRY_INITIAL = 1.0
+CAI_POLICY_BINDINGS_RETRY_MAX = 32.0
+CAI_POLICY_BINDINGS_RETRY_MULTIPLIER = 2.0
+CAI_POLICY_BINDINGS_RETRY_TIMEOUT = 300.0
+CAI_POLICY_BINDINGS_BATCH_TIMEOUT = 300.0
+CAI_POLICY_BINDINGS_SEARCH_TIMEOUT = 30.0
+CAI_POLICY_BINDINGS_MIN_INTERVAL_SECONDS = {
+    # Cloud Asset default quotas:
+    # BatchGetEffectiveIamPolicies: 100/min/project ~= 0.6s between calls
+    # SearchAllIamPolicies: 400/min/project ~= 0.15s between calls
+    "batch_get_effective_iam_policies": 0.75,
+    "search_all_iam_policies": 0.20,
+}
+_CAI_POLICY_BINDINGS_THROTTLE_LOCK = Lock()
+_CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION: dict[str, float] = {}
+
+
+def _wait_for_cai_policy_bindings_slot(operation: str) -> None:
+    min_interval = CAI_POLICY_BINDINGS_MIN_INTERVAL_SECONDS[operation]
+    with _CAI_POLICY_BINDINGS_THROTTLE_LOCK:
+        now = time.monotonic()
+        last_call = _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.get(operation)
+        if last_call is not None:
+            sleep_for = max(0.0, min_interval - (now - last_call))
+            if sleep_for > 0:
+                logger.debug(
+                    "Throttling Cloud Asset policy bindings %s for %.2f seconds.",
+                    operation,
+                    sleep_for,
+                )
+                time.sleep(sleep_for)
+        _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION[operation] = time.monotonic()
+
+
+def _log_cai_policy_bindings_retry(
+    project_id: str,
+    operation: str,
+    exc: Exception,
+) -> None:
+    if isinstance(exc, ResourceExhausted):
+        error_kind = "quota/rate-limit error"
+    else:
+        error_kind = "transient gRPC error"
+    logger.warning(
+        "Retrying Cloud Asset policy bindings %s for project %s after %s: %s",
+        operation,
+        project_id,
+        error_kind,
+        exc,
+    )
+
+
+def build_cai_policy_bindings_retry(project_id: str, operation: str) -> Retry:
+    return Retry(
+        predicate=if_exception_type(
+            DeadlineExceeded,
+            ResourceExhausted,
+            ServiceUnavailable,
+        ),
+        initial=CAI_POLICY_BINDINGS_RETRY_INITIAL,
+        maximum=CAI_POLICY_BINDINGS_RETRY_MAX,
+        multiplier=CAI_POLICY_BINDINGS_RETRY_MULTIPLIER,
+        timeout=CAI_POLICY_BINDINGS_RETRY_TIMEOUT,
+        on_error=lambda exc: _log_cai_policy_bindings_retry(
+            project_id,
+            operation,
+            exc,
+        ),
+    )
+
+
+def _is_rate_limit_retry_error(exc: Exception) -> bool:
+    if isinstance(exc, ResourceExhausted):
+        return True
+    return isinstance(exc, RetryError) and isinstance(exc.cause, ResourceExhausted)
 
 
 @timeit
@@ -32,10 +126,16 @@ def get_policy_bindings(
 
     # Fetch effective policies for project resource (using org scope for inheritance)
     effective_scope = org_id
+    _wait_for_cai_policy_bindings_slot("batch_get_effective_iam_policies")
     response = client.batch_get_effective_iam_policies(
         request=BatchGetEffectiveIamPoliciesRequest(
             scope=effective_scope, names=[project_resource_name]
-        )
+        ),
+        retry=build_cai_policy_bindings_retry(
+            project_id,
+            "batch_get_effective_iam_policies",
+        ),
+        timeout=CAI_POLICY_BINDINGS_BATCH_TIMEOUT,
     )
     effective_dict = MessageToDict(response._pb, preserving_proto_field_name=True)
 
@@ -48,25 +148,38 @@ def get_policy_bindings(
         scope=f"projects/{project_id}",
         asset_types=[],
     )
-    for policy in client.search_all_iam_policies(request=search_request):
-        policy_dict = MessageToDict(policy._pb, preserving_proto_field_name=True)
-        # Filter out project resource itself (we already have effective policies for it)
-        resource = policy_dict.get("resource", "")
-        if resource != project_resource_name:
-            policy_data = policy_dict.get("policy", {})
-            bindings = policy_data.get("bindings", [])
+    search_retry = build_cai_policy_bindings_retry(
+        project_id,
+        "search_all_iam_policies",
+    )
+    _wait_for_cai_policy_bindings_slot("search_all_iam_policies")
+    search_pager = client.search_all_iam_policies(
+        request=search_request,
+        retry=search_retry,
+        timeout=CAI_POLICY_BINDINGS_SEARCH_TIMEOUT,
+    )
+    for page in search_pager.pages:
+        for policy in page.results:
+            policy_dict = MessageToDict(policy._pb, preserving_proto_field_name=True)
+            # Filter out project resource itself (we already have effective policies for it)
+            resource = policy_dict.get("resource", "")
+            if resource != project_resource_name:
+                policy_data = policy_dict.get("policy", {})
+                bindings = policy_data.get("bindings", [])
 
-            policies.append(
-                {
-                    "full_resource_name": resource,
-                    "policies": [
-                        {
-                            "attached_resource": resource,
-                            "policy": {"bindings": bindings},
-                        }
-                    ],
-                }
-            )
+                policies.append(
+                    {
+                        "full_resource_name": resource,
+                        "policies": [
+                            {
+                                "attached_resource": resource,
+                                "policy": {"bindings": bindings},
+                            }
+                        ],
+                    }
+                )
+        if page.next_page_token:
+            _wait_for_cai_policy_bindings_slot("search_all_iam_policies")
 
     return {
         "project_id": project_id,
@@ -198,11 +311,11 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
-) -> bool:
+) -> PolicyBindingsSyncStatus:
     """
     Sync GCP IAM policy bindings for a project.
 
-    Returns True if sync was successful, False if skipped due to permissions.
+    Returns a status describing whether policy bindings were refreshed.
     """
     try:
         bindings_data = get_policy_bindings(
@@ -216,10 +329,42 @@ def sync(
             project_id,
             e,
         )
-        return False
+        return PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+    except RetryError as e:
+        if _is_rate_limit_retry_error(e):
+            logger.warning(
+                "Cloud Asset policy bindings retries exhausted for project %s after quota/rate-limit errors. "
+                "Preserving existing policy-binding and permission-relationship data. Error: %s",
+                project_id,
+                e,
+            )
+            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+        logger.warning(
+            "Cloud Asset policy bindings retries exhausted for project %s after transient gRPC errors. "
+            "Preserving existing policy-binding and permission-relationship data. Error: %s",
+            project_id,
+            e,
+        )
+        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+    except (DeadlineExceeded, ResourceExhausted, ServiceUnavailable) as e:
+        if isinstance(e, ResourceExhausted):
+            logger.warning(
+                "Cloud Asset policy bindings rate-limited for project %s. "
+                "Preserving existing policy-binding and permission-relationship data. Error: %s",
+                project_id,
+                e,
+            )
+            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+        logger.warning(
+            "Cloud Asset policy bindings failed for project %s with a transient gRPC error. "
+            "Preserving existing policy-binding and permission-relationship data. Error: %s",
+            project_id,
+            e,
+        )
+        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
 
     transformed_bindings_data = transform_bindings(bindings_data)
 
     load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    return True
+    return PolicyBindingsSyncStatus.SUCCESS
