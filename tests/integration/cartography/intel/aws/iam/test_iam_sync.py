@@ -13,6 +13,9 @@ from tests.data.aws.iam.role_policies import (
     ANOTHER_GET_ROLE_LIST_DATASET as GET_ROLE_LIST_DATA,
 )
 from tests.data.aws.iam.role_policies import GET_ROLE_MANAGED_POLICY_DATA
+from tests.data.aws.iam.service_specific_credentials import (
+    GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA,
+)
 from tests.data.aws.iam.user_inline_policies import GET_USER_INLINE_POLS_SAMPLE
 from tests.data.aws.iam.user_policies import GET_USER_LIST_DATA
 from tests.data.aws.iam.user_policies import GET_USER_MANAGED_POLS_SAMPLE
@@ -22,6 +25,7 @@ from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "1234"
 TEST_UPDATE_TAG = 123456789
+TEST_UPDATE_TAG_2 = 123456790
 
 
 @patch.object(
@@ -87,7 +91,13 @@ TEST_UPDATE_TAG = 123456789
     "get_user_access_keys_data",
     return_value=GET_USER_ACCESS_KEYS_DATA,
 )
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_service_specific_credentials_data",
+    return_value=GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA,
+)
 def test_sync_iam(
+    mock_get_user_service_specific_credentials_data,
     mock_get_user_access_keys,
     mock_get_user_list_data,
     mock_get_user_policy_data,
@@ -371,3 +381,135 @@ def test_sync_iam(
         ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
         ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
     }
+
+    # Assert: Check that service-specific credential nodes were created
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceSpecificCredential",
+        ["service_specific_credential_id", "service_name", "status"],
+    ) == {
+        ("ANPAEXAMPLEUSER1A", "codecommit.amazonaws.com", "Active"),
+        ("ANPAEXAMPLEUSER1B", "bedrock.amazonaws.com", "Inactive"),
+        ("ANPAEXAMPLEUSER2A", "codecommit.amazonaws.com", "Active"),
+    }
+
+    # Assert: Check that relationships were created between users and service-specific credentials
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceSpecificCredential",
+        "service_specific_credential_id",
+        "AWSUser",
+        "arn",
+        "SERVICE_SPECIFIC_CREDENTIAL",
+        rel_direction_right=False,
+    ) == {
+        ("ANPAEXAMPLEUSER1A", "arn:aws:iam::1234:user/user1"),
+        ("ANPAEXAMPLEUSER1B", "arn:aws:iam::1234:user/user1"),
+        ("ANPAEXAMPLEUSER2A", "arn:aws:iam::1234:user/user2"),
+    }
+
+    # Assert: Check account RESOURCE relationships to service-specific credentials
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSServiceSpecificCredential",
+        "service_specific_credential_id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "ANPAEXAMPLEUSER1A"),
+        (TEST_ACCOUNT_ID, "ANPAEXAMPLEUSER1B"),
+        (TEST_ACCOUNT_ID, "ANPAEXAMPLEUSER2A"),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_service_specific_credentials_data",
+    side_effect=[
+        GET_USER_SERVICE_SPECIFIC_CREDENTIALS_DATA,
+        {
+            "arn:aws:iam::1234:user/user1": [],
+            "arn:aws:iam::1234:user/user2": [],
+            "arn:aws:iam::1234:user/user3": [],
+        },
+    ],
+)
+def test_sync_user_service_specific_credentials_cleanup(
+    mock_get_user_service_specific_credentials_data,
+    neo4j_session,
+):
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Seed users because sync_user_service_specific_credentials queries existing AWSUser nodes.
+    users = cartography.intel.aws.iam.transform_users(GET_USER_LIST_DATA["Users"])
+    cartography.intel.aws.iam.load_users(
+        neo4j_session,
+        users,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.iam.sync_user_service_specific_credentials(
+        neo4j_session,
+        boto3_session,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceSpecificCredential",
+        ["service_specific_credential_id"],
+    ) == {
+        ("ANPAEXAMPLEUSER1A",),
+        ("ANPAEXAMPLEUSER1B",),
+        ("ANPAEXAMPLEUSER2A",),
+    }
+
+    # Re-sync with empty credentials and a new update tag; stale credentials should be cleaned up.
+    cartography.intel.aws.iam.sync_user_service_specific_credentials(
+        neo4j_session,
+        boto3_session,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG_2,
+        {"UPDATE_TAG": TEST_UPDATE_TAG_2, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert (
+        check_nodes(
+            neo4j_session,
+            "AWSServiceSpecificCredential",
+            ["service_specific_credential_id"],
+        )
+        == set()
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSServiceSpecificCredential",
+            "service_specific_credential_id",
+            "AWSUser",
+            "arn",
+            "SERVICE_SPECIFIC_CREDENTIAL",
+            rel_direction_right=False,
+        )
+        == set()
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSServiceSpecificCredential",
+            "service_specific_credential_id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
