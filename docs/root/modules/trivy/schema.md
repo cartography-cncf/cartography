@@ -30,30 +30,6 @@ Representation of a vulnerability finding in a container image.
 
 #### Relationships
 
-- A TrivyImageFinding affects an ECRImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(ECRImage)
-    ```
-
-- A TrivyImageFinding affects a GCPArtifactRegistryContainerImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GCPArtifactRegistryContainerImage)
-    ```
-
-- A TrivyImageFinding affects a GCPArtifactRegistryPlatformImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- A TrivyImageFinding affects a GitLabContainerImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
-    ```
-
 - A TrivyImageFinding affects an ontology Image (matched via `_ont_digest`).
 
     ```
@@ -78,30 +54,6 @@ Representation of a package installed in a container image, as detected by Trivy
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
-
-- A TrivyPackage is deployed in an ECRImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(ECRImage)
-    ```
-
-- A TrivyPackage is deployed in a GCPArtifactRegistryContainerImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryContainerImage)
-    ```
-
-- A TrivyPackage is deployed in a GCPArtifactRegistryPlatformImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- A TrivyPackage is deployed in a GitLabContainerImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GitLabContainerImage)
-    ```
 
 - A TrivyPackage is deployed on an ontology Image (matched via `_ont_digest`).
 
