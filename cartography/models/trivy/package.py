@@ -78,6 +78,17 @@ class TrivyPackageToGitLabImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyPackageToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyPackageToFindingRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -106,6 +117,7 @@ class TrivyPackageSchema(CartographyNodeSchema):
             TrivyPackageToGCPImageRel(),
             TrivyPackageToGCPPlatformImageRel(),
             TrivyPackageToGitLabImageRel(),
+            TrivyPackageToOntologyImageRel(),
             TrivyPackageToFindingRel(),
         ],
     )
