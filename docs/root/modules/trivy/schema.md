@@ -97,6 +97,12 @@ Representation of a package installed in a container image, as detected by Trivy
     (TrivyPackage)-[DEPLOYED]->(GitLabContainerImage)
     ```
 
+- A TrivyPackage is deployed on an ontology Image (matched via `_ont_digest`).
+
+    ```
+    (TrivyPackage)-[DEPLOYED]->(Image)
+    ```
+
 - A TrivyPackage is affected by a TrivyImageFinding.
 
     ```

@@ -750,6 +750,16 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
     (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
     ```
 
+- `TrivyPackage` nodes discovered by Trivy are deployed on an `Image`:
+    ```
+    (:TrivyPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `SyftPackage` nodes discovered by Syft are deployed on an `Image`:
+    ```
+    (:SyftPackage)-[:DEPLOYED]->(:Image)
+    ```
+
 
 ### ImageAttestation
 
