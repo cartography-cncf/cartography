@@ -222,9 +222,15 @@ def sync_artifact_registry_repositories(
     result = get_artifact_registry_repositories(client, project_id)
     repositories_raw = result.repositories
     if not repositories_raw:
-        logger.info(
-            f"No Artifact Registry repositories found for project {project_id}."
-        )
+        if result.cleanup_safe:
+            logger.info(
+                f"No Artifact Registry repositories found for project {project_id}."
+            )
+        else:
+            logger.warning(
+                "Artifact Registry repository discovery incomplete for project %s; no repositories will be loaded and cleanup will be skipped.",
+                project_id,
+            )
 
     repositories = transform_repositories(repositories_raw, project_id)
     load_repositories(neo4j_session, repositories, project_id, update_tag)

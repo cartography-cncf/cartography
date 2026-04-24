@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.exceptions import NotFound
 
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
@@ -20,10 +19,6 @@ def _permission_denied_getter(client, repository_name):
 
 def _unexpected_error_getter(client, repository_name):
     raise GoogleAPICallError("boom")
-
-
-def _not_found_getter(client, repository_name):
-    raise NotFound("not found")
 
 
 def _run_sync_with_cleanup_mocks(monkeypatch, getter):
@@ -102,25 +97,6 @@ def test_sync_artifact_registry_artifacts_propagates_unexpected_gapic_errors(
             {"UPDATE_TAG": 123},
             max_workers=1,
         )
-
-
-def test_sync_artifact_registry_artifacts_treats_not_found_as_empty_repo(
-    monkeypatch,
-):
-    (
-        result,
-        cleanup_docker_images,
-        cleanup_helm_charts,
-        cleanup_language_packages,
-        cleanup_generic_artifacts,
-    ) = _run_sync_with_cleanup_mocks(monkeypatch, _not_found_getter)
-
-    assert result.cleanup_safe is True
-    assert result.platform_images == []
-    cleanup_docker_images.assert_called_once()
-    cleanup_helm_charts.assert_called_once()
-    cleanup_language_packages.assert_called_once()
-    cleanup_generic_artifacts.assert_called_once()
 
 
 def test_load_docker_images_uses_artifact_registry_batch_size():

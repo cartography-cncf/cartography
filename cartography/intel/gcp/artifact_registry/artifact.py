@@ -68,7 +68,15 @@ def _list_package_versions(
     artifacts: list[dict] = []
     for package in client.list_packages(parent=repository_name):
         package_name = _extract_package_name(package)
-        for version in client.list_versions(parent=package.name):
+        try:
+            versions = client.list_versions(parent=package.name)
+        except NotFound:
+            logger.debug(
+                "Package versions not found for package %s. The package may have been deleted during sync.",
+                package.name,
+            )
+            continue
+        for version in versions:
             version_data = proto_message_to_dict(version)
             version_data["packageName"] = package_name
             artifacts.append(version_data)
@@ -749,14 +757,7 @@ def _get_repository_artifacts(
         return RepositoryArtifactFetchResult(repo_name, repo_format, [], True)
 
     get_func, _ = handlers
-    try:
-        artifacts = get_func(client, repo_name)
-    except NotFound:
-        logger.debug(
-            "Artifacts not found for repository %s. The repository may have been deleted during sync.",
-            repo_name,
-        )
-        return RepositoryArtifactFetchResult(repo_name, repo_format, [], True)
+    artifacts = get_func(client, repo_name)
     if artifacts is None:
         return RepositoryArtifactFetchResult(repo_name, repo_format, [], False)
     return RepositoryArtifactFetchResult(repo_name, repo_format, artifacts, True)
@@ -782,7 +783,7 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: List of transformed platform image data (from imageManifests field).
+    :return: Artifact sync result containing platform images and cleanup-safety state.
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 

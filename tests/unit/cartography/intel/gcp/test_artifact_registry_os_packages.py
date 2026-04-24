@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from google.api_core.exceptions import NotFound
+
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
@@ -117,3 +119,49 @@ def test_get_go_modules_uses_packages_and_versions(monkeypatch):
     client.list_versions.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
     )
+
+
+def test_get_go_modules_skips_package_deleted_before_versions_list(monkeypatch):
+    client = MagicMock()
+    deleted_package = SimpleNamespace(
+        name="projects/test-project/locations/us-east1/repositories/repo/packages/deleted",
+        data={
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/deleted",
+            "displayName": "deleted",
+        },
+    )
+    kept_package = SimpleNamespace(
+        name="projects/test-project/locations/us-east1/repositories/repo/packages/kept",
+        data={
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/kept",
+            "displayName": "kept",
+        },
+    )
+    kept_version = SimpleNamespace(
+        name="projects/test-project/locations/us-east1/repositories/repo/packages/kept/versions/v1.0.0",
+        data={
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/kept/versions/v1.0.0",
+            "createTime": "2024-01-06T00:00:00Z",
+            "updateTime": "2024-01-06T00:00:00Z",
+        },
+    )
+    client.list_packages.return_value = [deleted_package, kept_package]
+    client.list_versions.side_effect = [NotFound("deleted"), [kept_version]]
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
+        _proto_message_to_dict,
+    )
+
+    modules = get_go_modules(
+        client,
+        "projects/test-project/locations/us-east1/repositories/repo",
+    )
+
+    assert modules == [
+        {
+            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/kept/versions/v1.0.0",
+            "createTime": "2024-01-06T00:00:00Z",
+            "updateTime": "2024-01-06T00:00:00Z",
+            "packageName": "kept",
+        }
+    ]
