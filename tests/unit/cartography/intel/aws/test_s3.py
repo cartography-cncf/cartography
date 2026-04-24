@@ -143,7 +143,7 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
         (get_bucket_logging, "get_bucket_logging"),
     ],
 )
-def test_s3_detail_fetchers_connect_timeout_preserves_existing_data(
+def test_s3_detail_fetchers_connect_timeout_returns_fetch_failed(
     getter,
     client_method,
 ):

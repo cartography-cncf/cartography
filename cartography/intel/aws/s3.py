@@ -54,10 +54,10 @@ S3_DETAIL_TRANSPORT_ERRORS = (
 )
 
 
-# Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
-# When a fetch returns FETCH_FAILED, we skip loading that property group to preserve existing data.
+# Sentinel value to indicate a fetch operation failed (vs None for "no configuration").
+# When a fetch returns FETCH_FAILED, we skip loading that property group for this sync.
 class _FetchFailed:
-    """Sentinel indicating fetch failure - preserves existing data in Neo4j."""
+    """Sentinel indicating that a detail fetch failed and should be skipped."""
 
     _instance = None
 
@@ -82,7 +82,7 @@ def _handle_s3_detail_transport_error(
     error: Exception,
 ) -> _FetchFailed:
     logger.warning(
-        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Preserving existing data.",
+        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Skipping this detail group.",
         detail_name,
         bucket_name,
         error.__class__.__name__,
@@ -159,7 +159,7 @@ def get_s3_bucket_details(
     Each value can be:
     - A dict with the configuration data
     - None indicating no configuration exists (valid state)
-    - FETCH_FAILED indicating the fetch failed and existing data should be preserved
+    - FETCH_FAILED indicating the fetch failed and the detail group should not be loaded
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
@@ -392,7 +392,7 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
         )
         return (True, False)
 
-    # Fetch failures - should preserve existing data
+    # Fetch failures - skip loading the affected detail group for this sync.
     # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
         logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
@@ -472,7 +472,7 @@ def _merge_bucket_details(
     into separate data structures for each composite schema.
 
     Uses the Composite Node Pattern: returns separate lists for each property group,
-    allowing us to skip loading a group when its fetch failed (preserving existing data).
+    allowing us to skip loading a group when its fetch failed.
 
     Returns a dict with:
         - base_buckets: List of bucket dicts with base properties (always populated)
@@ -666,8 +666,7 @@ def load_s3_details(
     Merge bucket details with basic bucket data and load using composite schemas.
 
     Uses the Composite Node Pattern: each property group is loaded separately,
-    so if a fetch fails for one group, we skip loading that group and preserve
-    existing data in Neo4j.
+    so if a fetch fails for one group, we skip loading that group for this sync.
     """
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
