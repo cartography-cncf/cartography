@@ -113,8 +113,6 @@ def build_cai_policy_bindings_retry(project_id: str, operation: str) -> Retry:
 
 
 def _is_rate_limit_retry_error(exc: Exception) -> bool:
-    if isinstance(exc, ResourceExhausted):
-        return True
     return isinstance(exc, RetryError) and isinstance(exc.cause, ResourceExhausted)
 
 

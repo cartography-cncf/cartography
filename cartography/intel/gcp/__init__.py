@@ -507,11 +507,8 @@ def _sync_project_resources(
                 and policy_bindings_status
                 != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
             ):
-                status_label = (
-                    policy_bindings_status.value.replace("_", " ")
-                    if policy_bindings_status is not None
-                    else "not_run"
-                )
+                assert policy_bindings_status is not None
+                status_label = policy_bindings_status.value.replace("_", " ")
                 logger.warning(
                     "Skipping GCP permission relationships for project %s because policy bindings sync was %s. "
                     "Preserving existing permission relationships for this project.",
