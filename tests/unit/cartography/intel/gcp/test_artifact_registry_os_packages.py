@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
 from google.api_core.exceptions import NotFound
 
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
@@ -37,12 +38,16 @@ def _proto_message_to_dict(message):
     return message.data
 
 
-def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
-    client = _make_os_package_client("curl", "7.88.1")
+@pytest.fixture(autouse=True)
+def proto_message_to_dict(monkeypatch):
     monkeypatch.setattr(
         "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
         _proto_message_to_dict,
     )
+
+
+def test_get_apt_artifacts_uses_packages_and_versions():
+    client = _make_os_package_client("curl", "7.88.1")
 
     artifacts = get_apt_artifacts(
         client,
@@ -65,13 +70,8 @@ def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
     )
 
 
-def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
+def test_get_yum_artifacts_uses_packages_and_versions():
     client = _make_os_package_client("bash", "5.2.26")
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
-        _proto_message_to_dict,
-    )
-
     artifacts = get_yum_artifacts(
         client,
         "projects/test-project/locations/us-east1/repositories/repo",
@@ -93,13 +93,8 @@ def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
     )
 
 
-def test_get_go_modules_uses_packages_and_versions(monkeypatch):
+def test_get_go_modules_uses_packages_and_versions():
     client = _make_os_package_client("example.com/foo", "v1.2.3")
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
-        _proto_message_to_dict,
-    )
-
     modules = get_go_modules(
         client,
         "projects/test-project/locations/us-east1/repositories/repo",
@@ -121,7 +116,7 @@ def test_get_go_modules_uses_packages_and_versions(monkeypatch):
     )
 
 
-def test_get_go_modules_skips_package_deleted_before_versions_list(monkeypatch):
+def test_get_go_modules_skips_package_deleted_before_versions_list():
     client = MagicMock()
     deleted_package = SimpleNamespace(
         name="projects/test-project/locations/us-east1/repositories/repo/packages/deleted",
@@ -147,10 +142,6 @@ def test_get_go_modules_skips_package_deleted_before_versions_list(monkeypatch):
     )
     client.list_packages.return_value = [deleted_package, kept_package]
     client.list_versions.side_effect = [NotFound("deleted"), [kept_version]]
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.proto_message_to_dict",
-        _proto_message_to_dict,
-    )
 
     modules = get_go_modules(
         client,
