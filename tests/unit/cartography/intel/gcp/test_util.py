@@ -286,6 +286,35 @@ class TestGetErrorReason:
         error = HttpError(mock_resp, error_content)
         assert get_error_reason(error) == "BILLING_DISABLED"
 
+    def test_prefers_detail_reason_over_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        },
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "RATE_LIMIT_EXCEEDED",
+                            "domain": "googleapis.com",
+                        },
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "RATE_LIMIT_EXCEEDED"
+
     def test_extracts_reason_from_standard_errors_array(self):
         mock_resp = MagicMock()
         mock_resp.status = 403

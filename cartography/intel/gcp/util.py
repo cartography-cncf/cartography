@@ -263,13 +263,16 @@ def get_error_reason(http_error: HttpError) -> str:
                         if isinstance(reason, str):
                             return reason
 
-                        violations = detail.get("violations", [])
-                        if isinstance(violations, list):
-                            for violation in violations:
-                                if isinstance(violation, dict):
-                                    violation_type = violation.get("type")
-                                    if isinstance(violation_type, str):
-                                        return violation_type
+                for detail in details:
+                    if not isinstance(detail, dict):
+                        continue
+                    violations = detail.get("violations", [])
+                    if isinstance(violations, list):
+                        for violation in violations:
+                            if isinstance(violation, dict):
+                                violation_type = violation.get("type")
+                                if isinstance(violation_type, str):
+                                    return violation_type
 
             return ""
 
