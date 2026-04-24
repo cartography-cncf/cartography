@@ -21,6 +21,10 @@ TEST_PROJECT_ID = "test-project"
 TEST_SERVICE_ID = "projects/test-project/locations/us-central1/services/test-service"
 TEST_REVISION_ID = "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc"
 TEST_JOB_ID = "projects/test-project/locations/us-west1/jobs/test-job"
+TEST_CLOUD_RUN_LOCATIONS = [
+    "projects/test-project/locations/us-central1",
+    "projects/test-project/locations/us-west1",
+]
 
 
 def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
@@ -118,28 +122,31 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
+    mock_credentials = MagicMock()
 
     cloudrun_service.sync_services(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_revision.sync_revisions(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_job.sync_jobs(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     # Act: run the RESOLVED_IMAGE analysis job
