@@ -467,10 +467,11 @@ def _handle_transport_error(
     error: Exception,
 ) -> _FetchFailed:
     logger.warning(
-        "Failed to retrieve S3 bucket %s for %s due to transient %s. Preserving existing data.",
+        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Preserving existing data.",
         detail_name,
         bucket_name,
         error.__class__.__name__,
+        error,
     )
     return FETCH_FAILED
 

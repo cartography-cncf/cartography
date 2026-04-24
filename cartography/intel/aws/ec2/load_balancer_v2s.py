@@ -76,7 +76,7 @@ def get_load_balancer_v2_listeners(
     except ClientError as error:
         if is_retryable_aws_client_error(error):
             raise ELBV2TransientRegionFailure(
-                f"AWS SDK retries were exhausted for transient DescribeListeners failure on load balancer {load_balancer_arn}"
+                f"Botocore retries were exhausted for transient DescribeListeners failure on load balancer {load_balancer_arn}"
             ) from error
         raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
@@ -100,7 +100,7 @@ def get_load_balancer_v2_target_groups(
     except ClientError as error:
         if is_retryable_aws_client_error(error):
             raise ELBV2TransientRegionFailure(
-                f"AWS SDK retries were exhausted for transient DescribeTargetGroups failure on load balancer {load_balancer_arn}"
+                f"Botocore retries were exhausted for transient DescribeTargetGroups failure on load balancer {load_balancer_arn}"
             ) from error
         raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
@@ -118,7 +118,7 @@ def get_load_balancer_v2_target_groups(
         except ClientError as error:
             if is_retryable_aws_client_error(error):
                 raise ELBV2TransientRegionFailure(
-                    f"AWS SDK retries were exhausted for transient DescribeTargetHealth failure on target group {target_group['TargetGroupArn']}"
+                    f"Botocore retries were exhausted for transient DescribeTargetHealth failure on target group {target_group['TargetGroupArn']}"
                 ) from error
             raise
         except TRANSIENT_REGION_EXCEPTIONS as error:
@@ -148,7 +148,7 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
     except ClientError as error:
         if is_retryable_aws_client_error(error):
             raise ELBV2TransientRegionFailure(
-                "AWS SDK retries were exhausted for transient DescribeLoadBalancers failure"
+                "Botocore retries were exhausted for transient DescribeLoadBalancers failure"
             ) from error
         raise
     except TRANSIENT_REGION_EXCEPTIONS as error:

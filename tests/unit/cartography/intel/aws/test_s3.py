@@ -1,13 +1,20 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
 
 from cartography.intel.aws.s3 import cleanup_s3_bucket_exposure_details
 from cartography.intel.aws.s3 import FETCH_FAILED
+from cartography.intel.aws.s3 import get_acl
+from cartography.intel.aws.s3 import get_bucket_logging
+from cartography.intel.aws.s3 import get_bucket_ownership_controls
+from cartography.intel.aws.s3 import get_encryption
+from cartography.intel.aws.s3 import get_policy
 from cartography.intel.aws.s3 import get_public_access_block
 from cartography.intel.aws.s3 import get_s3_bucket_list
+from cartography.intel.aws.s3 import get_versioning
 from cartography.intel.aws.s3 import load_s3_details
 from cartography.intel.aws.s3 import preserve_s3_buckets_with_transient_failures
 
@@ -245,26 +252,61 @@ def test_load_s3_details_preserves_resolved_bucket_policy_and_acl_failures(
     )
 
 
-def test_get_public_access_block_connect_timeout_preserves_existing_data():
+@pytest.mark.parametrize(
+    "getter,client_method",
+    [
+        (get_policy, "get_bucket_policy"),
+        (get_acl, "get_bucket_acl"),
+        (get_encryption, "get_bucket_encryption"),
+        (get_versioning, "get_bucket_versioning"),
+        (get_public_access_block, "get_public_access_block"),
+        (get_bucket_ownership_controls, "get_bucket_ownership_controls"),
+        (get_bucket_logging, "get_bucket_logging"),
+    ],
+)
+def test_s3_detail_fetchers_connect_timeout_preserves_existing_data(
+    getter,
+    client_method,
+):
     bucket = {"Name": "slow-bucket"}
     client = MagicMock()
-    client.get_public_access_block.side_effect = ConnectTimeoutError(
-        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/?publicAccessBlock",
+    getattr(client, client_method).side_effect = ConnectTimeoutError(
+        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
         error="timed out",
     )
 
-    assert get_public_access_block(bucket, client) is FETCH_FAILED
+    assert getter(bucket, client) is FETCH_FAILED
 
 
-def test_get_public_access_block_retryable_client_error_preserves_existing_data():
+@pytest.mark.parametrize(
+    "getter,client_method,operation_name",
+    [
+        (get_policy, "get_bucket_policy", "GetBucketPolicy"),
+        (get_acl, "get_bucket_acl", "GetBucketAcl"),
+        (get_encryption, "get_bucket_encryption", "GetBucketEncryption"),
+        (get_versioning, "get_bucket_versioning", "GetBucketVersioning"),
+        (get_public_access_block, "get_public_access_block", "GetPublicAccessBlock"),
+        (
+            get_bucket_ownership_controls,
+            "get_bucket_ownership_controls",
+            "GetBucketOwnershipControls",
+        ),
+        (get_bucket_logging, "get_bucket_logging", "GetBucketLogging"),
+    ],
+)
+def test_s3_detail_fetchers_retryable_client_error_preserves_existing_data(
+    getter,
+    client_method,
+    operation_name,
+):
     bucket = {"Name": "slow-bucket"}
     client = MagicMock()
-    client.get_public_access_block.side_effect = ClientError(
+    getattr(client, client_method).side_effect = ClientError(
         {
             "Error": {"Code": "ServiceUnavailable", "Message": "Unknown"},
             "ResponseMetadata": {"HTTPStatusCode": 503},
         },
-        "GetPublicAccessBlock",
+        operation_name,
     )
 
-    assert get_public_access_block(bucket, client) is FETCH_FAILED
+    assert getter(bucket, client) is FETCH_FAILED

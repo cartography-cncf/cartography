@@ -165,7 +165,7 @@ def get_loadbalancer_data(
     except ClientError as error:
         if is_retryable_aws_client_error(error):
             raise ELBTransientRegionFailure(
-                "AWS SDK retries were exhausted for transient DescribeLoadBalancers failure"
+                "Botocore retries were exhausted for transient DescribeLoadBalancers failure"
             ) from error
         raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
