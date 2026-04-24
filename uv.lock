@@ -555,16 +555,16 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-keyvault"
-version = "13.0.0"
+version = "14.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-mgmt-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/44/d453a7a125cb44f6443808f11c820a4c3f88d0af2c5b8d9adaf490ed064e/azure_mgmt_keyvault-13.0.0.tar.gz", hash = "sha256:56c12904e6d9ac49f886483e50e3f635d8bf43a489eb32fa7b4832f323d396c7", size = 102260, upload-time = "2025-12-11T10:14:41.609Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/b3/ab3d78f67a7758a387984ff43dccf99aa445cad2482f46e040a414b4334d/azure_mgmt_keyvault-14.0.0.tar.gz", hash = "sha256:799a7d572e7692fd3f8c56cf270efc54223f30c8435096e1d96be4f37faab8f5", size = 104466, upload-time = "2026-03-20T22:45:00.372Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/e4/f11ae6caa523834be04a1d52dee11c79f8838e6752f95af3bcfd4f979713/azure_mgmt_keyvault-13.0.0-py3-none-any.whl", hash = "sha256:02c5ca1b428fa7a2c393c6891b7436ad529a7ad22d378eba0b9a26291da67a0d", size = 102054, upload-time = "2025-12-11T10:14:43.064Z" },
+    { url = "https://files.pythonhosted.org/packages/05/f6/7b5e28cc35339c5d8755db96936be83a1d53448982d9fb0050b6ee95f58a/azure_mgmt_keyvault-14.0.0-py3-none-any.whl", hash = "sha256:e31bd63ca5d83aeb73d2ca3e8a5bb16c917999934fd28ee94434bd10a28adcf0", size = 104334, upload-time = "2026-03-20T22:45:01.876Z" },
 ]
 
 [[package]]
