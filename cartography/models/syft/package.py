@@ -55,6 +55,24 @@ class SyftPackageDependsOnRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SyftPackageToOntologyImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SyftPackageToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: SyftPackageToOntologyImageRelProperties = (
+        SyftPackageToOntologyImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SyftPackageSchema(CartographyNodeSchema):
     label: str = "SyftPackage"
     scoped_cleanup: bool = False
@@ -63,5 +81,6 @@ class SyftPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SyftPackageDependsOnRel(),
+            SyftPackageToOntologyImageRel(),
         ],
     )
