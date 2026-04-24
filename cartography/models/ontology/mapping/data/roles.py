@@ -280,7 +280,9 @@ workos_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="type",
-                    node_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "builtin"},
                 ),
                 OntologyFieldMapping(
                     ontology_field="scope",
