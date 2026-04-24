@@ -577,21 +577,6 @@ subimage_mapping = OntologyMapping(
     ],
 )
 
-workday_mapping = OntologyMapping(
-    module_name="workday",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="WorkdayHuman",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="email", node_field="email", required=True
-                ),
-                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
-            ],
-        ),
-    ],
-)
-
 kubernetes_mapping = OntologyMapping(
     module_name="kubernetes",
     nodes=[
@@ -651,5 +636,4 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
-    "workday": workday_mapping,
 }

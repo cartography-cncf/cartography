@@ -455,8 +455,8 @@ FileStorage is a semantic label.
 ```
 
 A file storage represents a managed network file system or file share across different cloud providers.
-It generalizes concepts like AWS EFS, Azure Data Lake file systems, and Azure Files shares, as opposed to
-object storage (S3-like) or block storage (EBS-like).
+It generalizes concepts like AWS EFS and Azure Files shares, as opposed to object storage (S3-like)
+or block storage (EBS-like).
 
 | Field | Description |
 |-------|-------------|

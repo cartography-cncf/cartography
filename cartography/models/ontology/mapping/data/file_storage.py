@@ -29,23 +29,11 @@ azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
         OntologyNodeMapping(
-            node_label="AzureDataLakeFileSystem",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                # _ont_location: Not available at filesystem level (account-level)
-                # _ont_encrypted: Not exposed in current model (inherited from storage account)
-            ],
-        ),
-        OntologyNodeMapping(
             node_label="AzureStorageFileShare",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                # _ont_location: Not available at file share level (account-level)
-                # _ont_encrypted: Not exposed in current model (inherited from storage account)
             ],
         ),
     ],
