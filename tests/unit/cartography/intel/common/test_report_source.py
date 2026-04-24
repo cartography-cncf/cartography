@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -71,15 +72,14 @@ def test_parse_report_source_rejects_unknown_scheme() -> None:
         parse_report_source("ftp://example.com/reports")
 
 
-def test_build_bucket_reader_for_s3(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_session = object()
-    fake_reader = object()
-
-    monkeypatch.setattr("boto3.Session", lambda: fake_session)
-    monkeypatch.setattr(
-        "cartography.intel.common.object_store.S3BucketReader",
-        lambda session: fake_reader,
-    )
+@patch("cartography.intel.common.object_store.S3BucketReader")
+@patch("boto3.Session")
+def test_build_bucket_reader_for_s3(
+    mock_session_cls,
+    mock_reader_cls,
+) -> None:
+    fake_session = mock_session_cls.return_value
+    fake_reader = mock_reader_cls.return_value
 
     reader, bucket_name, prefix = build_bucket_reader_for_source(
         S3ReportSource(raw="s3://bucket/prefix", bucket="bucket", prefix="prefix"),
@@ -88,14 +88,12 @@ def test_build_bucket_reader_for_s3(monkeypatch: pytest.MonkeyPatch) -> None:
     assert reader is fake_reader
     assert bucket_name == "bucket"
     assert prefix == "prefix"
+    mock_reader_cls.assert_called_once_with(fake_session)
 
 
-def test_build_bucket_reader_for_gcs(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_reader = object()
-    monkeypatch.setattr(
-        "cartography.intel.common.object_store.GCSBucketReader",
-        lambda: fake_reader,
-    )
+@patch("cartography.intel.common.object_store.GCSBucketReader")
+def test_build_bucket_reader_for_gcs(mock_reader_cls) -> None:
+    fake_reader = mock_reader_cls.return_value
 
     reader, bucket_name, prefix = build_bucket_reader_for_source(
         GCSReportSource(raw="gs://bucket/prefix", bucket="bucket", prefix="prefix"),
@@ -104,27 +102,17 @@ def test_build_bucket_reader_for_gcs(monkeypatch: pytest.MonkeyPatch) -> None:
     assert reader is fake_reader
     assert bucket_name == "bucket"
     assert prefix == "prefix"
+    mock_reader_cls.assert_called_once_with()
 
 
+@patch("cartography.intel.common.object_store.AzureBlobContainerReader")
+@patch("azure.identity.AzureCliCredential")
 def test_build_bucket_reader_for_azure_cli_auth(
-    monkeypatch: pytest.MonkeyPatch,
+    mock_credential_cls,
+    mock_reader_cls,
 ) -> None:
-    fake_reader = object()
-    fake_credential = object()
-
-    def _build_reader(account_name, credential):
-        assert account_name == "acct"
-        assert credential is fake_credential
-        return fake_reader
-
-    monkeypatch.setattr(
-        "azure.identity.AzureCliCredential",
-        lambda: fake_credential,
-    )
-    monkeypatch.setattr(
-        "cartography.intel.common.object_store.AzureBlobContainerReader",
-        _build_reader,
-    )
+    fake_reader = mock_reader_cls.return_value
+    fake_credential = mock_credential_cls.return_value
 
     reader, bucket_name, prefix = build_bucket_reader_for_source(
         AzureBlobReportSource(
@@ -138,24 +126,19 @@ def test_build_bucket_reader_for_azure_cli_auth(
     assert reader is fake_reader
     assert bucket_name == "container"
     assert prefix == "prefix"
+    mock_reader_cls.assert_called_once_with("acct", fake_credential)
 
 
+@patch("cartography.intel.common.object_store.AzureBlobContainerReader")
+@patch("cartography.intel.azure.util.credentials.Authenticator")
 def test_build_bucket_reader_for_azure_sp_auth(
-    monkeypatch: pytest.MonkeyPatch,
+    mock_authenticator_cls,
+    mock_reader_cls,
 ) -> None:
-    fake_reader = object()
+    fake_reader = mock_reader_cls.return_value
     fake_credentials = MagicMock(credential=object())
-    fake_authenticator = MagicMock()
+    fake_authenticator = mock_authenticator_cls.return_value
     fake_authenticator.authenticate_sp.return_value = fake_credentials
-
-    monkeypatch.setattr(
-        "cartography.intel.azure.util.credentials.Authenticator",
-        lambda: fake_authenticator,
-    )
-    monkeypatch.setattr(
-        "cartography.intel.common.object_store.AzureBlobContainerReader",
-        lambda account_name, credential: fake_reader,
-    )
 
     reader, bucket_name, prefix = build_bucket_reader_for_source(
         AzureBlobReportSource(
@@ -178,3 +161,4 @@ def test_build_bucket_reader_for_azure_sp_auth(
         client_id="client-id",
         client_secret="client-secret",
     )
+    mock_reader_cls.assert_called_once_with("acct", fake_credentials.credential)

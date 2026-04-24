@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -73,8 +74,11 @@ def test_s3_bucket_reader_reads_bytes() -> None:
     )
 
 
+@patch("google.cloud.storage.Client")
+@patch("cartography.intel.gcp.clients.get_gcp_credentials")
 def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
-    monkeypatch: pytest.MonkeyPatch,
+    mock_get_gcp_credentials,
+    mock_storage_client_cls,
 ) -> None:
     fake_client = MagicMock()
     fake_client.list_blobs.return_value = [
@@ -83,15 +87,9 @@ def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
     ]
     fake_bucket = fake_client.bucket.return_value
     fake_bucket.blob.return_value.download_as_bytes.return_value = b"hello"
-
-    monkeypatch.setattr(
-        "cartography.intel.gcp.clients.get_gcp_credentials",
-        lambda: object(),
-    )
-    monkeypatch.setattr(
-        "google.cloud.storage.Client",
-        lambda credentials=None: fake_client,
-    )
+    fake_credentials = object()
+    mock_get_gcp_credentials.return_value = fake_credentials
+    mock_storage_client_cls.return_value = fake_client
 
     reader = GCSBucketReader()
     refs = reader.list_objects("example-bucket", "reports/")
@@ -103,10 +101,12 @@ def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
         )
         == b"hello"
     )
+    mock_storage_client_cls.assert_called_once_with(credentials=fake_credentials)
 
 
+@patch("azure.storage.blob.BlobServiceClient")
 def test_azure_blob_reader_lists_objects_and_reads_bytes(
-    monkeypatch: pytest.MonkeyPatch,
+    mock_blob_service_client_cls,
 ) -> None:
     fake_service_client = MagicMock()
     fake_service_client.get_container_client.return_value.list_blobs.return_value = [
@@ -116,11 +116,7 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
     fake_service_client.get_blob_client.return_value.download_blob.return_value.readall.return_value = (
         b"hello"
     )
-
-    monkeypatch.setattr(
-        "azure.storage.blob.BlobServiceClient",
-        lambda account_url, credential: fake_service_client,
-    )
+    mock_blob_service_client_cls.return_value = fake_service_client
 
     reader = AzureBlobContainerReader("acct", object())
     refs = reader.list_objects("container", "reports/")

@@ -65,6 +65,8 @@ ReportSource = LocalReportSource | CloudReportSource
 
 
 def build_s3_source(bucket: str, prefix: str | None = None) -> str:
+    # Object-store prefixes should not start at the bucket root, but a trailing
+    # slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"s3://{bucket}/{normalized_prefix}"
@@ -72,6 +74,8 @@ def build_s3_source(bucket: str, prefix: str | None = None) -> str:
 
 
 def build_gcs_source(bucket: str, prefix: str | None = None) -> str:
+    # Object-store prefixes should not start at the bucket root, but a trailing
+    # slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"gs://{bucket}/{normalized_prefix}"
@@ -83,6 +87,8 @@ def build_azblob_source(
     container_name: str,
     prefix: str | None = None,
 ) -> str:
+    # Object-store prefixes should not start at the container root, but a
+    # trailing slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"azblob://{account_name}/{container_name}/{normalized_prefix}"

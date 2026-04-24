@@ -70,24 +70,25 @@ Place the Docker Scout text result files in a directory and point Cartography at
 
 ```bash
 cartography --selected-modules docker_scout \
-    --docker-scout-results-dir /path/to/results
+    --docker-scout-source /path/to/results
 ```
 
 Cartography will inspect non-hidden files under the provided directory recursively and ingest the ones that match the Docker Scout recommendation report format.
 
-#### Option 2: S3 bucket
+#### Option 2: Object storage
 
-Upload the Docker Scout text result files to an S3 bucket and configure Cartography to read from it:
+Upload the Docker Scout text result files to a supported object store and configure Cartography to read from it:
 
 ```bash
 cartography --selected-modules docker_scout \
-    --docker-scout-s3-bucket my-bucket \
-    --docker-scout-s3-prefix docker-scout-scans/
+    --docker-scout-source s3://my-bucket/docker-scout-scans/
 ```
 
 This requires the role running Cartography to have `s3:ListBucket`, `s3:GetObject` permissions for the bucket and prefix.
 
-The `--docker-scout-s3-prefix` parameter is optional and defaults to an empty string.
+`--docker-scout-source` also accepts `gs://bucket/prefix` and `azblob://account/container/prefix`.
+
+The legacy `--docker-scout-results-dir`, `--docker-scout-s3-bucket`, and `--docker-scout-s3-prefix` flags are still accepted as compatibility shims, but they are deprecated in favor of `--docker-scout-source`.
 
 ### What Gets Created
 

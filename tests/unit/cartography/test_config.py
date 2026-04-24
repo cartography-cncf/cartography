@@ -1,5 +1,7 @@
 import logging
 
+import pytest
+
 from cartography.config import Config
 
 
@@ -34,8 +36,25 @@ def test_config_legacy_local_source_shim_emits_warning(caplog) -> None:
     with caplog.at_level(logging.WARNING):
         config = Config(
             neo4j_uri="bolt://localhost:7687",
-            docker_scout_results_dir="/tmp/docker-scout",
+            syft_results_dir="/tmp/syft-results",
         )
 
-    assert config.docker_scout_source == "/tmp/docker-scout"
-    assert "DEPRECATED: `docker_scout_results_dir`" in caplog.text
+    assert config.syft_source == "/tmp/syft-results"
+    assert "DEPRECATED: `syft_results_dir`" in caplog.text
+
+
+def test_config_rejects_source_with_legacy_s3_fields() -> None:
+    with pytest.raises(ValueError, match="Cannot use `trivy_source`"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            trivy_source="gs://example-bucket/reports/trivy/",
+            trivy_s3_bucket="example-bucket",
+        )
+
+
+def test_config_rejects_legacy_prefix_without_bucket() -> None:
+    with pytest.raises(ValueError, match="`syft_s3_prefix` requires `syft_s3_bucket`"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            syft_s3_prefix="reports/syft/",
+        )

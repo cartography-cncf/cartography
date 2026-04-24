@@ -2,7 +2,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from cartography.intel.common.object_store import ObjectRef
+import pytest
+
 from cartography.intel.docker_scout import sync_docker_scout_from_dir
 from cartography.intel.docker_scout import sync_docker_scout_from_s3
 
@@ -36,21 +37,40 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     neo4j_session = MagicMock()
     boto3_session = MagicMock()
     s3_client = MagicMock()
+    s3_client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/bad-report.txt"}]},
+    ]
     s3_client.get_object.return_value = {
         "Body": MagicMock(read=MagicMock(return_value=b"\x80")),
     }
     boto3_session.client.return_value = s3_client
 
-    with patch(
-        "cartography.intel.docker_scout.S3BucketReader.list_objects",
-        return_value=[
-            ObjectRef(
-                "s3",
-                "example-bucket",
-                "reports/bad-report.txt",
-            ),
-        ],
-    ):
+    sync_docker_scout_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        1,
+        {"UPDATE_TAG": 1},
+        boto3_session,
+    )
+
+    assert (
+        "Skipping unreadable Docker Scout report s3://example-bucket/reports/bad-report.txt"
+        in caplog.text
+    )
+
+
+def test_sync_docker_scout_from_s3_propagates_read_failures() -> None:
+    neo4j_session = MagicMock()
+    boto3_session = MagicMock()
+    s3_client = MagicMock()
+    s3_client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/forbidden-report.txt"}]},
+    ]
+    s3_client.get_object.side_effect = PermissionError("access denied")
+    boto3_session.client.return_value = s3_client
+
+    with pytest.raises(PermissionError, match="access denied"):
         sync_docker_scout_from_s3(
             neo4j_session,
             "example-bucket",
@@ -59,8 +79,3 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
             {"UPDATE_TAG": 1},
             boto3_session,
         )
-
-    assert (
-        "Skipping unreadable Docker Scout report s3://example-bucket/reports/bad-report.txt"
-        in caplog.text
-    )

@@ -18,6 +18,21 @@ def _resolve_report_source_compatibility_shim(
     from cartography.intel.common.report_source import build_s3_source
     from cartography.intel.common.report_source import parse_report_source
 
+    if source and (local_path or s3_bucket or s3_prefix):
+        raise ValueError(
+            f"Cannot use `{source_name}` with deprecated source fields "
+            f"(`{local_name}`, `{s3_bucket_name}`, `{s3_prefix_name}`).",
+        )
+
+    if local_path and (s3_bucket or s3_prefix):
+        raise ValueError(
+            f"Cannot use both `{local_name}` and `{s3_bucket_name}`/`{s3_prefix_name}`. "
+            f"Use `{source_name}` instead.",
+        )
+
+    if s3_prefix and not s3_bucket:
+        raise ValueError(f"`{s3_prefix_name}` requires `{s3_bucket_name}`.")
+
     if source:
         return source
 

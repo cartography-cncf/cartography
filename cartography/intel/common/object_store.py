@@ -109,6 +109,8 @@ class AzureBlobContainerReader:
             refs.append(
                 ObjectRef(
                     provider="azblob",
+                    # Azure blob refs carry account/container in bucket so the
+                    # shared ObjectRef still has enough context for reads.
                     bucket=f"{self._account_name}/{bucket}",
                     key=blob.name,
                 ),
@@ -165,7 +167,5 @@ def read_json_document(
 ) -> Any:
     try:
         return json.loads(read_text_document(reader, ref))
-    except ObjectStoreParseError:
-        raise
     except json.JSONDecodeError as exc:
         raise ObjectStoreParseError(ref.uri, "Failed to parse JSON document") from exc
