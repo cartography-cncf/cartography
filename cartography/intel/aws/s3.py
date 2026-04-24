@@ -19,6 +19,7 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
@@ -69,7 +70,17 @@ MaybeFailed = Union[Optional[Dict], _FetchFailed]
 
 
 @timeit
-def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
+def get_s3_bucket_list(
+    boto3_session: boto3.session.Session,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Return region-resolved buckets plus buckets whose region could not be rediscovered.
+
+    The returned mapping contains:
+    - ``Buckets``: buckets whose region was resolved successfully and are safe to re-sync
+    - ``FailedBuckets``: buckets whose region discovery failed transiently and whose
+      last-known-good graph state should be preserved
+    """
     client = create_boto3_client(
         boto3_session,
         "s3",
@@ -124,108 +135,110 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
 
 
 @timeit
-def preserve_s3_buckets_with_failed_region_discovery(
+def preserve_s3_buckets_with_transient_failures(
     neo4j_session: neo4j.Session,
-    failed_buckets: List[Dict[str, Any]],
+    failed_region_bucket_names: List[str],
+    failed_acl_bucket_names: List[str],
+    failed_policy_bucket_names: List[str],
     aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
-    Preserve existing S3 state for buckets whose region could not be rediscovered.
+    Preserve existing S3 state for buckets affected by transient failures.
 
-    We intentionally skip reloading these buckets so we don't overwrite the
-    last-known-good Region with an ambiguous value. Bumping lastupdated on the
-    existing bucket and related ACL/policy nodes keeps cleanup from deleting
-    previously known state during transient failures.
+    Region-discovery failures need bucket-level preservation because we skip
+    reloading the bucket entirely. ACL/policy detail failures need subgraph
+    preservation because the base bucket load still runs but account-wide ACL
+    and policy cleanup would otherwise delete the last-known-good state.
     """
-    if not failed_buckets:
-        return
+    if failed_region_bucket_names:
+        preserve_bucket_query = """
+        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(bucket:S3Bucket)
+        WHERE bucket.id IN $bucket_names
+        SET
+            bucket.lastupdated = $UPDATE_TAG,
+            resource.lastupdated = $UPDATE_TAG
+        """
+        run_write_query(
+            neo4j_session,
+            preserve_bucket_query,
+            AWS_ID=aws_account_id,
+            UPDATE_TAG=update_tag,
+            bucket_names=failed_region_bucket_names,
+        )
 
-    preserve_bucket_query = """
-    UNWIND $failed_buckets AS bucket
-    MATCH (account:AWSAccount{id: $AWS_ID})
-    MERGE (b:S3Bucket {id: bucket.Name})
-    ON CREATE SET
-        b.firstseen = timestamp(),
-        b.name = bucket.Name,
-        b.arn = bucket.Arn,
-        b.creationdate = bucket.CreationDate
-    SET
-        b:ObjectStorage,
-        b.lastupdated = $UPDATE_TAG
-    MERGE (b)-[r:RESOURCE]->(account)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UPDATE_TAG
-    """
-    run_write_query(
-        neo4j_session,
-        preserve_bucket_query,
-        AWS_ID=aws_account_id,
-        UPDATE_TAG=update_tag,
-        failed_buckets=[
-            {
-                "Name": bucket["Name"],
-                "Arn": "arn:aws:s3:::" + bucket["Name"],
-                "CreationDate": str(bucket["CreationDate"]),
-            }
-            for bucket in failed_buckets
-        ],
+    acl_bucket_names = sorted(
+        set(failed_region_bucket_names) | set(failed_acl_bucket_names)
     )
+    if acl_bucket_names:
+        preserve_acl_query = """
+        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(acl:S3Acl)-[applies:APPLIES_TO]->(bucket:S3Bucket)
+        WHERE bucket.id IN $bucket_names
+        SET
+            acl.lastupdated = $UPDATE_TAG,
+            resource.lastupdated = $UPDATE_TAG,
+            applies.lastupdated = $UPDATE_TAG
+        """
+        run_write_query(
+            neo4j_session,
+            preserve_acl_query,
+            AWS_ID=aws_account_id,
+            UPDATE_TAG=update_tag,
+            bucket_names=acl_bucket_names,
+        )
 
-    preserve_acl_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(acl:S3Acl)-[applies:APPLIES_TO]->(b:S3Bucket)
-    WHERE b.name IN $bucket_names
-    SET
-        acl.lastupdated = $UPDATE_TAG,
-        resource.lastupdated = $UPDATE_TAG,
-        applies.lastupdated = $UPDATE_TAG
-    """
-    run_write_query(
-        neo4j_session,
-        preserve_acl_query,
-        AWS_ID=aws_account_id,
-        UPDATE_TAG=update_tag,
-        bucket_names=[bucket["Name"] for bucket in failed_buckets],
+    policy_bucket_names = sorted(
+        set(failed_region_bucket_names) | set(failed_policy_bucket_names)
     )
-
-    preserve_policy_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(stmt:S3PolicyStatement)<-[policy_statement:POLICY_STATEMENT]-(b:S3Bucket)
-    WHERE b.name IN $bucket_names
-    SET
-        stmt.lastupdated = $UPDATE_TAG,
-        resource.lastupdated = $UPDATE_TAG,
-        policy_statement.lastupdated = $UPDATE_TAG
-    """
-    run_write_query(
-        neo4j_session,
-        preserve_policy_query,
-        AWS_ID=aws_account_id,
-        UPDATE_TAG=update_tag,
-        bucket_names=[bucket["Name"] for bucket in failed_buckets],
-    )
+    if policy_bucket_names:
+        preserve_policy_query = """
+        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(stmt:S3PolicyStatement)<-[policy_statement:POLICY_STATEMENT]-(bucket:S3Bucket)
+        WHERE bucket.id IN $bucket_names
+        SET
+            stmt.lastupdated = $UPDATE_TAG,
+            resource.lastupdated = $UPDATE_TAG,
+            policy_statement.lastupdated = $UPDATE_TAG
+        """
+        run_write_query(
+            neo4j_session,
+            preserve_policy_query,
+            AWS_ID=aws_account_id,
+            UPDATE_TAG=update_tag,
+            bucket_names=policy_bucket_names,
+        )
 
 
 @timeit
 def cleanup_s3_bucket_exposure_details(
     neo4j_session: neo4j.Session,
     aws_account_id: str,
-    failed_bucket_names: List[str],
+    preserved_bucket_names: List[str],
 ) -> None:
     """
     Clear stale bucket exposure properties while preserving ambiguous buckets.
     """
     cleanup_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(s:S3Bucket)
-    WHERE s.anonymous_access IS NOT NULL
-      AND NOT s.name IN $failed_bucket_names
-    REMOVE s.anonymous_access, s.anonymous_actions
+    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(bucket:S3Bucket)
+    WHERE bucket.anonymous_access IS NOT NULL
+      AND NOT bucket.id IN $preserved_bucket_names
+    WITH bucket LIMIT $LIMIT_SIZE
+    REMOVE bucket.anonymous_access, bucket.anonymous_actions
     """
-    run_write_query(
-        neo4j_session,
+    cleanup_statement = GraphStatement(
         cleanup_query,
-        AWS_ID=aws_account_id,
-        failed_bucket_names=failed_bucket_names,
+        parameters={
+            "AWS_ID": aws_account_id,
+            "preserved_bucket_names": preserved_bucket_names,
+        },
+        iterative=True,
+        iterationsize=100,
+        parent_job_name="aws_s3_exposure_details_cleanup",
     )
+    GraphJob(
+        "AWS S3 Exposure Details cleanup",
+        [cleanup_statement],
+        "aws_s3_details",
+    ).run(neo4j_session)
 
 
 @timeit
@@ -588,6 +601,9 @@ def _merge_bucket_details(
         - logging_buckets: List of bucket dicts with logging properties
         - acls: List of parsed ACL dicts
         - statements: List of parsed policy statement dicts
+        - failed_acl_bucket_names: List of buckets whose ACL fetch failed transiently
+        - failed_policy_bucket_names: List of buckets whose policy fetch failed transiently
+        - failed_exposure_bucket_names: List of buckets whose ACL or policy fetch failed transiently
     """
     # Create a dict for quick lookup by bucket name
     buckets_by_name: Dict[str, Dict] = {}
@@ -608,6 +624,9 @@ def _merge_bucket_details(
     logging_buckets: List[Dict] = []
     acls: List[Dict] = []
     statements: List[Dict] = []
+    failed_acl_bucket_names: set[str] = set()
+    failed_policy_bucket_names: set[str] = set()
+    failed_exposure_bucket_names: set[str] = set()
 
     for (
         bucket_name,
@@ -624,13 +643,19 @@ def _merge_bucket_details(
             continue
 
         # Parse and collect ACLs (skip if fetch failed)
-        if acl is not FETCH_FAILED:
+        if acl is FETCH_FAILED:
+            failed_acl_bucket_names.add(bucket_name)
+            failed_exposure_bucket_names.add(bucket_name)
+        else:
             parsed_acls = parse_acl(acl, bucket_name, aws_account_id)
             if parsed_acls is not None:
                 acls.extend(parsed_acls)
 
         # Parse policy for anonymous access and policy statements (skip if fetch failed)
-        if policy is not FETCH_FAILED:
+        if policy is FETCH_FAILED:
+            failed_policy_bucket_names.add(bucket_name)
+            failed_exposure_bucket_names.add(bucket_name)
+        else:
             parsed_policy = parse_policy(bucket_name, policy)
             policy_data = {
                 "Name": bucket_name,
@@ -755,6 +780,9 @@ def _merge_bucket_details(
         "logging_buckets": logging_buckets,
         "acls": acls,
         "statements": statements,
+        "failed_acl_bucket_names": sorted(failed_acl_bucket_names),
+        "failed_policy_bucket_names": sorted(failed_policy_bucket_names),
+        "failed_exposure_bucket_names": sorted(failed_exposure_bucket_names),
     }
 
 
@@ -775,11 +803,17 @@ def load_s3_details(
     """
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
+    failed_region_bucket_names = sorted(
+        {bucket["Name"] for bucket in bucket_data.get("FailedBuckets", [])}
+    )
 
     cleanup_s3_bucket_exposure_details(
         neo4j_session,
         aws_account_id,
-        [bucket["Name"] for bucket in bucket_data.get("FailedBuckets", [])],
+        sorted(
+            set(failed_region_bucket_names)
+            | set(merged_data["failed_exposure_bucket_names"])
+        ),
     )
 
     # Load base bucket properties (always done for all buckets)
@@ -858,6 +892,14 @@ def load_s3_details(
     # Load policy statements
     _load_s3_policy_statements(
         neo4j_session, merged_data["statements"], update_tag, aws_account_id
+    )
+    preserve_s3_buckets_with_transient_failures(
+        neo4j_session,
+        failed_region_bucket_names,
+        merged_data["failed_acl_bucket_names"],
+        merged_data["failed_policy_bucket_names"],
+        aws_account_id,
+        update_tag,
     )
 
 
@@ -1446,12 +1488,6 @@ def sync(
         neo4j_session,
         bucket_details_iter,
         bucket_data,
-        current_aws_account_id,
-        update_tag,
-    )
-    preserve_s3_buckets_with_failed_region_discovery(
-        neo4j_session,
-        bucket_data.get("FailedBuckets", []),
         current_aws_account_id,
         update_tag,
     )

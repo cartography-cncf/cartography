@@ -4,10 +4,12 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
 
+from cartography.intel.aws.s3 import cleanup_s3_bucket_exposure_details
 from cartography.intel.aws.s3 import FETCH_FAILED
 from cartography.intel.aws.s3 import get_public_access_block
 from cartography.intel.aws.s3 import get_s3_bucket_list
-from cartography.intel.aws.s3 import preserve_s3_buckets_with_failed_region_discovery
+from cartography.intel.aws.s3 import load_s3_details
+from cartography.intel.aws.s3 import preserve_s3_buckets_with_transient_failures
 
 
 def _make_client_error(status_code, headers=None):
@@ -126,17 +128,121 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
     assert [bucket["Name"] for bucket in result["FailedBuckets"]] == ["slow-bucket"]
 
 
-def test_preserve_s3_buckets_with_failed_region_discovery_updates_existing_state():
+@patch("cartography.intel.aws.s3.run_write_query")
+def test_preserve_s3_buckets_with_transient_failures_updates_existing_state(
+    mock_run_write_query,
+):
     neo4j_session = MagicMock()
 
-    preserve_s3_buckets_with_failed_region_discovery(
+    preserve_s3_buckets_with_transient_failures(
         neo4j_session,
-        [{"Name": "slow-bucket", "CreationDate": "2026-04-24T00:00:00Z"}],
+        ["slow-bucket"],
+        ["acl-bucket"],
+        ["policy-bucket"],
         "123456789012",
         42,
     )
 
-    assert neo4j_session.execute_write.call_count == 3
+    assert mock_run_write_query.call_count == 3
+    assert "MERGE (b:S3Bucket" not in mock_run_write_query.call_args_list[0].args[1]
+    assert mock_run_write_query.call_args_list[0].kwargs["bucket_names"] == [
+        "slow-bucket"
+    ]
+    assert mock_run_write_query.call_args_list[1].kwargs["bucket_names"] == [
+        "acl-bucket",
+        "slow-bucket",
+    ]
+    assert mock_run_write_query.call_args_list[2].kwargs["bucket_names"] == [
+        "policy-bucket",
+        "slow-bucket",
+    ]
+
+
+@patch("cartography.intel.aws.s3.GraphJob.run", autospec=True)
+def test_cleanup_s3_bucket_exposure_details_uses_iterative_cleanup(mock_graph_job_run):
+    neo4j_session = MagicMock()
+
+    cleanup_s3_bucket_exposure_details(
+        neo4j_session,
+        "123456789012",
+        ["slow-bucket"],
+    )
+
+    job = mock_graph_job_run.call_args.args[0]
+    statement = job.statements[0]
+    assert statement.iterative is True
+    assert statement.iterationsize == 100
+    assert statement.parameters["AWS_ID"] == "123456789012"
+    assert statement.parameters["preserved_bucket_names"] == ["slow-bucket"]
+
+
+@patch("cartography.intel.aws.s3.preserve_s3_buckets_with_transient_failures")
+@patch("cartography.intel.aws.s3._load_s3_policy_statements")
+@patch("cartography.intel.aws.s3._load_s3_acls")
+@patch("cartography.intel.aws.s3.load")
+@patch("cartography.intel.aws.s3.cleanup_s3_bucket_exposure_details")
+def test_load_s3_details_preserves_resolved_bucket_policy_and_acl_failures(
+    mock_cleanup_exposure,
+    mock_load,
+    mock_load_acls,
+    mock_load_policy_statements,
+    mock_preserve_transient_failures,
+):
+    neo4j_session = MagicMock()
+    bucket_data = {
+        "Buckets": [
+            {
+                "Name": "slow-bucket",
+                "Region": "me-south-1",
+                "CreationDate": "2026-04-24T00:00:00Z",
+            }
+        ],
+        "FailedBuckets": [],
+    }
+    s3_details_iter = iter(
+        [
+            (
+                "slow-bucket",
+                FETCH_FAILED,
+                FETCH_FAILED,
+                FETCH_FAILED,
+                FETCH_FAILED,
+                FETCH_FAILED,
+                FETCH_FAILED,
+                FETCH_FAILED,
+            )
+        ]
+    )
+
+    load_s3_details(
+        neo4j_session,
+        s3_details_iter,
+        bucket_data,
+        "123456789012",
+        42,
+    )
+
+    mock_cleanup_exposure.assert_called_once_with(
+        neo4j_session,
+        "123456789012",
+        ["slow-bucket"],
+    )
+    mock_preserve_transient_failures.assert_called_once_with(
+        neo4j_session,
+        [],
+        ["slow-bucket"],
+        ["slow-bucket"],
+        "123456789012",
+        42,
+    )
+    assert mock_load.call_count == 1
+    mock_load_acls.assert_called_once_with(neo4j_session, [], "123456789012", 42)
+    mock_load_policy_statements.assert_called_once_with(
+        neo4j_session,
+        [],
+        42,
+        "123456789012",
+    )
 
 
 def test_get_public_access_block_connect_timeout_preserves_existing_data():
