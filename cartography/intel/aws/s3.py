@@ -78,6 +78,8 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     )
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
+    resolved_buckets = []
+    failed_bucket_names = []
     for bucket in buckets["Buckets"]:
         try:
             resp = client.head_bucket(Bucket=bucket["Name"])
@@ -92,16 +94,17 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
             )
             if region:
                 bucket["Region"] = region
+                resolved_buckets.append(bucket)
                 continue
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
-                bucket["Region"] = None
+                failed_bucket_names.append(bucket["Name"])
                 logger.warning(
                     "skipping bucket='{}' due to exception.".format(bucket["Name"]),
                 )
                 continue
             if is_retryable_aws_client_error(e):
-                bucket["Region"] = None
+                failed_bucket_names.append(bucket["Name"])
                 logger.warning(
                     "skipping bucket='%s' region discovery after transient S3 failure.",
                     bucket["Name"],
@@ -109,12 +112,74 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             raise
         except TRANSIENT_REGION_EXCEPTIONS:
-            bucket["Region"] = None
+            failed_bucket_names.append(bucket["Name"])
             logger.warning(
                 "skipping bucket='%s' region discovery due to transport timeout/connection error.",
                 bucket["Name"],
             )
+            continue
+        resolved_buckets.append(bucket)
+    buckets["Buckets"] = resolved_buckets
+    buckets["FailedBuckets"] = failed_bucket_names
     return buckets
+
+
+@timeit
+def preserve_s3_buckets_with_failed_region_discovery(
+    neo4j_session: neo4j.Session,
+    bucket_names: List[str],
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Preserve existing S3 state for buckets whose region could not be rediscovered.
+
+    We intentionally skip reloading these buckets so we don't overwrite the
+    last-known-good Region with an ambiguous value. Bumping lastupdated on the
+    existing bucket and related ACL/policy nodes keeps cleanup from deleting
+    previously known state during transient failures.
+    """
+    if not bucket_names:
+        return
+
+    preserve_bucket_query = """
+    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(b:S3Bucket)
+    WHERE b.name IN $bucket_names
+    SET b.lastupdated = $UPDATE_TAG
+    """
+    run_write_query(
+        neo4j_session,
+        preserve_bucket_query,
+        AWS_ID=aws_account_id,
+        UPDATE_TAG=update_tag,
+        bucket_names=bucket_names,
+    )
+
+    preserve_acl_query = """
+    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(acl:S3Acl)-[:APPLIES_TO]->(b:S3Bucket)
+    WHERE b.name IN $bucket_names
+    SET acl.lastupdated = $UPDATE_TAG
+    """
+    run_write_query(
+        neo4j_session,
+        preserve_acl_query,
+        AWS_ID=aws_account_id,
+        UPDATE_TAG=update_tag,
+        bucket_names=bucket_names,
+    )
+
+    preserve_policy_query = """
+    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(stmt:S3PolicyStatement)-[:POLICY_STATEMENT]->(b:S3Bucket)
+    WHERE b.name IN $bucket_names
+    SET stmt.lastupdated = $UPDATE_TAG
+    """
+    run_write_query(
+        neo4j_session,
+        preserve_policy_query,
+        AWS_ID=aws_account_id,
+        UPDATE_TAG=update_tag,
+        bucket_names=bucket_names,
+    )
 
 
 @timeit
@@ -1336,6 +1401,12 @@ def sync(
         neo4j_session,
         bucket_details_iter,
         bucket_data,
+        current_aws_account_id,
+        update_tag,
+    )
+    preserve_s3_buckets_with_failed_region_discovery(
+        neo4j_session,
+        bucket_data.get("FailedBuckets", []),
         current_aws_account_id,
         update_tag,
     )

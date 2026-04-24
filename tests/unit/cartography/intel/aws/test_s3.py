@@ -7,6 +7,7 @@ from botocore.exceptions import ConnectTimeoutError
 from cartography.intel.aws.s3 import FETCH_FAILED
 from cartography.intel.aws.s3 import get_public_access_block
 from cartography.intel.aws.s3 import get_s3_bucket_list
+from cartography.intel.aws.s3 import preserve_s3_buckets_with_failed_region_discovery
 
 
 def _make_client_error(status_code, headers=None):
@@ -75,8 +76,8 @@ def test_get_s3_bucket_list_403_with_region_header():
 
 
 @patch("cartography.intel.aws.s3._is_common_exception", return_value=(True, True))
-def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
-    """A common exception (no region header) keeps the bucket and sets Region to None."""
+def test_get_s3_bucket_list_common_exception_preserves_failed_bucket(mock_is_common):
+    """A common exception without region data skips the bucket and marks it for preservation."""
     mock_session = MagicMock()
     mock_client = mock_session.client.return_value
 
@@ -86,7 +87,8 @@ def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
     mock_client.head_bucket.side_effect = _make_client_error(403)
 
     result = get_s3_bucket_list(mock_session)
-    assert result["Buckets"][0]["Region"] is None
+    assert result["Buckets"] == []
+    assert result["FailedBuckets"] == ["bad-bucket"]
 
 
 def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
@@ -119,9 +121,22 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
     result = get_s3_bucket_list(mock_session)
     assert result["Buckets"] == [
         {"Name": "first-bucket", "Region": "us-east-1"},
-        {"Name": "slow-bucket", "Region": None},
         {"Name": "last-bucket", "Region": "eu-west-1"},
     ]
+    assert result["FailedBuckets"] == ["slow-bucket"]
+
+
+def test_preserve_s3_buckets_with_failed_region_discovery_updates_existing_state():
+    neo4j_session = MagicMock()
+
+    preserve_s3_buckets_with_failed_region_discovery(
+        neo4j_session,
+        ["slow-bucket"],
+        "123456789012",
+        42,
+    )
+
+    assert neo4j_session.execute_write.call_count == 3
 
 
 def test_get_public_access_block_connect_timeout_preserves_existing_data():
