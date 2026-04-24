@@ -1508,6 +1508,7 @@ graph LR
     LanguagePackage[GCPArtifactRegistryLanguagePackage]
     GenericArtifact[GCPArtifactRegistryGenericArtifact]
     PlatformImage[GCPArtifactRegistryPlatformImage]
+    ImageLayer[GCPArtifactRegistryImageLayer]
     TrivyFinding[TrivyImageFinding]
     Package[Package]
 
@@ -1517,6 +1518,7 @@ graph LR
     Project -->|RESOURCE| LanguagePackage
     Project -->|RESOURCE| GenericArtifact
     Project -->|RESOURCE| PlatformImage
+    Project -->|RESOURCE| ImageLayer
     Repository -->|CONTAINS| ContainerImage
     Repository -->|CONTAINS| HelmChart
     Repository -->|CONTAINS| LanguagePackage
@@ -1586,6 +1588,10 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 | update_time | Timestamp when the image was last updated |
 | repository_id | Full resource name of the parent repository |
 | project_id | The GCP project ID |
+| source_uri | Source repository URL extracted from OCI image config provenance (e.g., `https://github.com/org/repo`) |
+| source_revision | Git commit hash from build provenance |
+| source_file | Dockerfile path from build provenance |
+| layer_diff_ids | Ordered list of layer diff IDs from the OCI image config |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -1614,6 +1620,28 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 - Packages are deployed in GCPArtifactRegistryContainerImages.
     ```
     (Package)-[:DEPLOYED]->(GCPArtifactRegistryContainerImage)
+    ```
+
+#### GCPArtifactRegistryImageLayer
+
+Representation of a container image filesystem layer extracted from the OCI image config. Layer nodes enable Dockerfile analysis matching for code-to-cloud tracing.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries for image layers across different systems (e.g., ECRImageLayer, GCPArtifactRegistryImageLayer).
+
+| Field | Description |
+|-------|-------------|
+| **id** | The layer diff ID (content-addressable hash, e.g., `sha256:...`) |
+| diff_id | Same as id; the layer diff ID |
+| is_empty | Whether this is an empty (metadata-only) layer |
+| history | The Dockerfile command that created this layer (e.g., `RUN apt-get install ...`) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryImageLayers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageLayer)
     ```
 
 #### GCPArtifactRegistryHelmChart

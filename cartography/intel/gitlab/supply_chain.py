@@ -428,13 +428,17 @@ def sync(
         update_tag,
         limit=image_limit,
     )
-    unmatched += get_unmatched_gcp_images_with_history(
-        neo4j_session,
-        sub_resource_label="GitLabOrganization",
-        sub_resource_id=organization_id,
-        update_tag=update_tag,
-        limit=image_limit,
+    remaining_limit = (
+        None if image_limit is None else max(image_limit - len(unmatched), 0)
     )
+    if remaining_limit != 0:
+        unmatched += get_unmatched_gcp_images_with_history(
+            neo4j_session,
+            sub_resource_label="GitLabOrganization",
+            sub_resource_id=organization_id,
+            update_tag=update_tag,
+            limit=remaining_limit,
+        )
 
     # 3. Dockerfile analysis (only for unmatched images)
     if unmatched:

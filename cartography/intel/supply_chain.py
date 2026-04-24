@@ -1077,8 +1077,8 @@ def get_unmatched_gcp_images_with_history(
             layer_history
     """
 
-    if limit:
-        query += f" LIMIT {limit}"
+    if limit is not None:
+        query += f" LIMIT {int(limit)}"
 
     result = neo4j_session.run(
         query,
