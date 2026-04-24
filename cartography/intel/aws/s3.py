@@ -36,7 +36,6 @@ from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -79,7 +78,7 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
     resolved_buckets = []
-    failed_bucket_names = []
+    failed_buckets = []
     for bucket in buckets["Buckets"]:
         try:
             resp = client.head_bucket(Bucket=bucket["Name"])
@@ -98,13 +97,13 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
-                failed_bucket_names.append(bucket["Name"])
+                failed_buckets.append(bucket)
                 logger.warning(
                     "skipping bucket='{}' due to exception.".format(bucket["Name"]),
                 )
                 continue
             if is_retryable_aws_client_error(e):
-                failed_bucket_names.append(bucket["Name"])
+                failed_buckets.append(bucket)
                 logger.warning(
                     "skipping bucket='%s' region discovery after transient S3 failure.",
                     bucket["Name"],
@@ -112,7 +111,7 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             raise
         except TRANSIENT_REGION_EXCEPTIONS:
-            failed_bucket_names.append(bucket["Name"])
+            failed_buckets.append(bucket)
             logger.warning(
                 "skipping bucket='%s' region discovery due to transport timeout/connection error.",
                 bucket["Name"],
@@ -120,14 +119,14 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
             continue
         resolved_buckets.append(bucket)
     buckets["Buckets"] = resolved_buckets
-    buckets["FailedBuckets"] = failed_bucket_names
+    buckets["FailedBuckets"] = failed_buckets
     return buckets
 
 
 @timeit
 def preserve_s3_buckets_with_failed_region_discovery(
     neo4j_session: neo4j.Session,
-    bucket_names: List[str],
+    failed_buckets: List[Dict[str, Any]],
     aws_account_id: str,
     update_tag: int,
 ) -> None:
@@ -139,46 +138,93 @@ def preserve_s3_buckets_with_failed_region_discovery(
     existing bucket and related ACL/policy nodes keeps cleanup from deleting
     previously known state during transient failures.
     """
-    if not bucket_names:
+    if not failed_buckets:
         return
 
     preserve_bucket_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(b:S3Bucket)
-    WHERE b.name IN $bucket_names
-    SET b.lastupdated = $UPDATE_TAG
+    UNWIND $failed_buckets AS bucket
+    MATCH (account:AWSAccount{id: $AWS_ID})
+    MERGE (b:S3Bucket {id: bucket.Name})
+    ON CREATE SET
+        b.firstseen = timestamp(),
+        b.name = bucket.Name,
+        b.arn = bucket.Arn,
+        b.creationdate = bucket.CreationDate
+    SET
+        b:ObjectStorage,
+        b.lastupdated = $UPDATE_TAG
+    MERGE (b)-[r:RESOURCE]->(account)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $UPDATE_TAG
     """
     run_write_query(
         neo4j_session,
         preserve_bucket_query,
         AWS_ID=aws_account_id,
         UPDATE_TAG=update_tag,
-        bucket_names=bucket_names,
+        failed_buckets=[
+            {
+                "Name": bucket["Name"],
+                "Arn": "arn:aws:s3:::" + bucket["Name"],
+                "CreationDate": str(bucket["CreationDate"]),
+            }
+            for bucket in failed_buckets
+        ],
     )
 
     preserve_acl_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(acl:S3Acl)-[:APPLIES_TO]->(b:S3Bucket)
+    MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(acl:S3Acl)-[applies:APPLIES_TO]->(b:S3Bucket)
     WHERE b.name IN $bucket_names
-    SET acl.lastupdated = $UPDATE_TAG
+    SET
+        acl.lastupdated = $UPDATE_TAG,
+        resource.lastupdated = $UPDATE_TAG,
+        applies.lastupdated = $UPDATE_TAG
     """
     run_write_query(
         neo4j_session,
         preserve_acl_query,
         AWS_ID=aws_account_id,
         UPDATE_TAG=update_tag,
-        bucket_names=bucket_names,
+        bucket_names=[bucket["Name"] for bucket in failed_buckets],
     )
 
     preserve_policy_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(stmt:S3PolicyStatement)-[:POLICY_STATEMENT]->(b:S3Bucket)
+    MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(stmt:S3PolicyStatement)<-[policy_statement:POLICY_STATEMENT]-(b:S3Bucket)
     WHERE b.name IN $bucket_names
-    SET stmt.lastupdated = $UPDATE_TAG
+    SET
+        stmt.lastupdated = $UPDATE_TAG,
+        resource.lastupdated = $UPDATE_TAG,
+        policy_statement.lastupdated = $UPDATE_TAG
     """
     run_write_query(
         neo4j_session,
         preserve_policy_query,
         AWS_ID=aws_account_id,
         UPDATE_TAG=update_tag,
-        bucket_names=bucket_names,
+        bucket_names=[bucket["Name"] for bucket in failed_buckets],
+    )
+
+
+@timeit
+def cleanup_s3_bucket_exposure_details(
+    neo4j_session: neo4j.Session,
+    aws_account_id: str,
+    failed_bucket_names: List[str],
+) -> None:
+    """
+    Clear stale bucket exposure properties while preserving ambiguous buckets.
+    """
+    cleanup_query = """
+    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(s:S3Bucket)
+    WHERE s.anonymous_access IS NOT NULL
+      AND NOT s.name IN $failed_bucket_names
+    REMOVE s.anonymous_access, s.anonymous_actions
+    """
+    run_write_query(
+        neo4j_session,
+        cleanup_query,
+        AWS_ID=aws_account_id,
+        failed_bucket_names=failed_bucket_names,
     )
 
 
@@ -730,11 +776,10 @@ def load_s3_details(
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
 
-    # cleanup existing policy properties set on S3 Buckets
-    run_cleanup_job(
-        "aws_s3_details.json",
+    cleanup_s3_bucket_exposure_details(
         neo4j_session,
-        {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
+        aws_account_id,
+        [bucket["Name"] for bucket in bucket_data.get("FailedBuckets", [])],
     )
 
     # Load base bucket properties (always done for all buckets)

@@ -88,7 +88,7 @@ def test_get_s3_bucket_list_common_exception_preserves_failed_bucket(mock_is_com
 
     result = get_s3_bucket_list(mock_session)
     assert result["Buckets"] == []
-    assert result["FailedBuckets"] == ["bad-bucket"]
+    assert [bucket["Name"] for bucket in result["FailedBuckets"]] == ["bad-bucket"]
 
 
 def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
@@ -123,7 +123,7 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
         {"Name": "first-bucket", "Region": "us-east-1"},
         {"Name": "last-bucket", "Region": "eu-west-1"},
     ]
-    assert result["FailedBuckets"] == ["slow-bucket"]
+    assert [bucket["Name"] for bucket in result["FailedBuckets"]] == ["slow-bucket"]
 
 
 def test_preserve_s3_buckets_with_failed_region_discovery_updates_existing_state():
@@ -131,7 +131,7 @@ def test_preserve_s3_buckets_with_failed_region_discovery_updates_existing_state
 
     preserve_s3_buckets_with_failed_region_discovery(
         neo4j_session,
-        ["slow-bucket"],
+        [{"Name": "slow-bucket", "CreationDate": "2026-04-24T00:00:00Z"}],
         "123456789012",
         42,
     )
