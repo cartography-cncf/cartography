@@ -18,7 +18,7 @@ from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_finding_extended_fields,
 )
 from tests.integration.cartography.intel.trivy.test_helpers import (
-    assert_trivy_gitlab_image_relationships,
+    assert_trivy_image_relationships,
 )
 from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_package_extended_fields,
@@ -155,7 +155,7 @@ def test_sync_trivy_gitlab(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -261,7 +261,7 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -330,7 +330,7 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -395,7 +395,7 @@ def test_sync_trivy_gitlab_multi_repo_digests(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,

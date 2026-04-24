@@ -320,96 +320,34 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
         assert row["pkg_id"] is not None, f"pkg_id should be set for {row['id']}"
 
 
-def assert_trivy_gcp_image_relationships(
+def assert_trivy_image_relationships(
     neo4j_session: Session,
     expected_package_rels: set,
     expected_finding_rels: set,
 ) -> None:
-    """
-    Assert Trivy relationships to GCP image nodes are correctly created.
-    Checks both ContainerImage and PlatformImage nodes, combining results.
-    """
-    # Package to GCPArtifactRegistryContainerImage relationships (DEPLOYED)
-    container_image_package_rels = check_rels(
-        neo4j_session,
-        "TrivyPackage",
-        "id",
-        "GCPArtifactRegistryContainerImage",
-        "digest",
-        "DEPLOYED",
-        rel_direction_right=True,
-    )
-
-    # Package to GCPArtifactRegistryPlatformImage relationships (DEPLOYED)
-    platform_image_package_rels = check_rels(
-        neo4j_session,
-        "TrivyPackage",
-        "id",
-        "GCPArtifactRegistryPlatformImage",
-        "digest",
-        "DEPLOYED",
-        rel_direction_right=True,
-    )
-
-    # Combine both sets of relationships
-    actual_package_rels = container_image_package_rels | platform_image_package_rels
-    assert actual_package_rels == expected_package_rels
-
-    # TrivyImageFinding to GCPArtifactRegistryContainerImage relationships (AFFECTS)
-    container_image_finding_rels = check_rels(
-        neo4j_session,
-        "TrivyImageFinding",
-        "id",
-        "GCPArtifactRegistryContainerImage",
-        "digest",
-        "AFFECTS",
-        rel_direction_right=True,
-    )
-
-    # TrivyImageFinding to GCPArtifactRegistryPlatformImage relationships (AFFECTS)
-    platform_image_finding_rels = check_rels(
-        neo4j_session,
-        "TrivyImageFinding",
-        "id",
-        "GCPArtifactRegistryPlatformImage",
-        "digest",
-        "AFFECTS",
-        rel_direction_right=True,
-    )
-
-    # Combine both sets of relationships
-    actual_finding_rels = container_image_finding_rels | platform_image_finding_rels
-    assert actual_finding_rels == expected_finding_rels
-
-
-def assert_trivy_gitlab_image_relationships(
-    neo4j_session: Session,
-    expected_package_rels: set,
-    expected_finding_rels: set,
-) -> None:
-    """Assert Trivy relationships to GitLabContainerImage are correctly created."""
-    # Package to GitLabContainerImage relationships (DEPLOYED)
+    """Assert Trivy relationships to ontology Image nodes are correctly created."""
+    # TrivyPackage to ontology Image relationships (DEPLOYED)
     assert (
         check_rels(
             neo4j_session,
             "TrivyPackage",
             "id",
-            "GitLabContainerImage",
-            "id",
+            "Image",
+            "_ont_digest",
             "DEPLOYED",
             rel_direction_right=True,
         )
         == expected_package_rels
     )
 
-    # TrivyImageFinding to GitLabContainerImage relationships (AFFECTS)
+    # TrivyImageFinding to ontology Image relationships (AFFECTS)
     assert (
         check_rels(
             neo4j_session,
             "TrivyImageFinding",
             "id",
-            "GitLabContainerImage",
-            "id",
+            "Image",
+            "_ont_digest",
             "AFFECTS",
             rel_direction_right=True,
         )
