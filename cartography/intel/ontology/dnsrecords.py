@@ -16,7 +16,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     run_analysis_job(
-        "ontology_loadbalancers_linking.json",
+        "ontology_dnsrecords_linking.json",
         neo4j_session,
         common_job_parameters,
     )

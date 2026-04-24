@@ -68,30 +68,8 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
-# Vercel
-vercel_mapping = OntologyMapping(
-    module_name="vercel",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="VercelDomain",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="public",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": True},
-                ),
-            ],
-        ),
-    ],
-)
-
 DNSZONES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
-    "vercel": vercel_mapping,
 }
