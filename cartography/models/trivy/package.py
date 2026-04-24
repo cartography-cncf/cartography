@@ -34,43 +34,10 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyPackageToImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+class TrivyPackageToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
-
-
-@dataclass(frozen=True)
-class TrivyPackageToGCPImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
-
-
-@dataclass(frozen=True)
-class TrivyPackageToGCPPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
-
-
-@dataclass(frozen=True)
-class TrivyPackageToGitLabImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
+        {"_ont_digest": PropertyRef("ImageDigest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DEPLOYED"
@@ -102,10 +69,7 @@ class TrivyPackageSchema(CartographyNodeSchema):
     properties: TrivyPackageNodeProperties = TrivyPackageNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TrivyPackageToImageRel(),
-            TrivyPackageToGCPImageRel(),
-            TrivyPackageToGCPPlatformImageRel(),
-            TrivyPackageToGitLabImageRel(),
+            TrivyPackageToOntologyImageRel(),
             TrivyPackageToFindingRel(),
         ],
     )
