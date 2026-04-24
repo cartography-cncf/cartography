@@ -4,6 +4,12 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -40,7 +46,29 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesClusterToEKSClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+class KubernetesClusterToEKSClusterRel(CartographyRelSchema):
+    target_node_label: str = "EKSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("external_id")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesClusterToEKSClusterRelProperties = (
+        KubernetesClusterToEKSClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesClusterSchema(CartographyNodeSchema):
     label: str = "KubernetesCluster"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [KubernetesClusterToEKSClusterRel()]
+    )

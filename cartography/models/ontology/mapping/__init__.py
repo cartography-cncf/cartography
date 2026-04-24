@@ -23,6 +23,9 @@ from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.dnsrecords import (
+    DNSRECORDS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.dnszones import DNSZONES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.encryptionkeys import (
     ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
@@ -47,6 +50,9 @@ from cartography.models.ontology.mapping.data.publicips import (
 )
 from cartography.models.ontology.mapping.data.roles import ROLES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.security_issues import (
+    SECURITY_ISSUES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.serviceaccounts import (
     SERVICEACCOUNTS_ONTOLOGY_MAPPING,
 )
@@ -87,6 +93,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
+    "dnsrecords": DNSRECORDS_ONTOLOGY_MAPPING,
     "dnszones": DNSZONES_ONTOLOGY_MAPPING,
     "encryptionkeys": ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
@@ -97,6 +104,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
     "roles": ROLES_ONTOLOGY_MAPPING,
     "secrets": SECRETS_ONTOLOGY_MAPPING,
+    "securityissues": SECURITY_ISSUES_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,

@@ -56,11 +56,11 @@ def _iter_documents_from_dir(
         yield file_path, document
 
 
-def _iter_documents_from_s3(
+def _iter_documents_from_bucket_reader(
     json_files: list[ObjectRef],
     reader: BucketReader,
 ) -> Iterator[tuple[str, dict[str, Any]]]:
-    """Yield (source_label, document) pairs from S3 objects."""
+    """Yield (source_label, document) pairs from object store documents."""
     for ref in json_files:
         source = ref.uri
         try:
@@ -157,7 +157,7 @@ def sync_aibom_from_bucket_reader(
 
     _ingest_aibom_reports(
         neo4j_session,
-        _iter_documents_from_s3(json_files, reader),
+        _iter_documents_from_bucket_reader(json_files, reader),
         update_tag,
         common_job_parameters,
     )

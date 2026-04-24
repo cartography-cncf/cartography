@@ -1,3 +1,51 @@
+import logging
+
+logger = logging.getLogger(__name__)
+_DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION = "v1.0.0"
+
+
+def _resolve_report_source_compatibility_shim(
+    *,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    source_name: str,
+    local_name: str,
+    s3_bucket_name: str,
+    s3_prefix_name: str,
+) -> str | None:
+    from cartography.intel.common.report_source import build_s3_source
+    from cartography.intel.common.report_source import parse_report_source
+
+    if source:
+        return source
+
+    if local_path:
+        logger.warning(
+            "DEPRECATED: `%s` will be removed in Cartography %s; use `%s` instead.",
+            local_name,
+            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+            source_name,
+        )
+        parse_report_source(local_path)
+        return local_path
+
+    if s3_bucket:
+        logger.warning(
+            "DEPRECATED: `%s`/`%s` will be removed in Cartography %s; use `%s` instead.",
+            s3_bucket_name,
+            s3_prefix_name,
+            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+            source_name,
+        )
+        resolved_source = build_s3_source(s3_bucket, s3_prefix)
+        parse_report_source(resolved_source)
+        return resolved_source
+
+    return None
+
+
 class Config:
     """
     A common interface for cartography configuration.
@@ -107,7 +155,7 @@ class Config:
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
-    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
+    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
@@ -188,6 +236,12 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type vercel_token: str
+    :param vercel_token: Vercel API token. Optional.
+    :type vercel_team_id: str
+    :param vercel_team_id: Vercel team ID to sync. Optional.
+    :type vercel_base_url: str
+    :param vercel_base_url: Vercel API base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -196,6 +250,8 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type socketdev_token: str
+    :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
     :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
     :type airbyte_client_secret: str
@@ -358,6 +414,8 @@ class Config:
         nist_cve_url=None,
         cve_enabled=False,
         cve_api_key: str | None = None,
+        cve_metadata_src: list[str] | None = None,
+        cve_metadata_nist_api_key: str | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -388,6 +446,9 @@ class Config:
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        vercel_token=None,
+        vercel_team_id=None,
+        vercel_base_url=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -447,6 +508,7 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        socketdev_token=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -515,6 +577,8 @@ class Config:
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
         self.cve_api_key: str | None = cve_api_key
+        self.cve_metadata_src: list[str] | None = cve_metadata_src
+        self.cve_metadata_nist_api_key: str | None = cve_metadata_nist_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
@@ -545,6 +609,9 @@ class Config:
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.vercel_token = vercel_token
+        self.vercel_team_id = vercel_team_id
+        self.vercel_base_url = vercel_base_url
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -557,31 +624,31 @@ class Config:
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
         # DEPRECATED: `docker_scout_results_dir` and `docker_scout_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v10.0.0.
-        self.docker_scout_source = docker_scout_source or (
-            docker_scout_results_dir
-            if docker_scout_results_dir
-            else (
-                f"s3://{docker_scout_s3_bucket}/{docker_scout_s3_prefix}"
-                if docker_scout_s3_bucket and docker_scout_s3_prefix is not None
-                else (
-                    f"s3://{docker_scout_s3_bucket}" if docker_scout_s3_bucket else None
-                )
-            )
+        # These legacy source flags will be removed in Cartography v1.0.0.
+        self.docker_scout_source = _resolve_report_source_compatibility_shim(
+            source=docker_scout_source,
+            local_path=docker_scout_results_dir,
+            s3_bucket=docker_scout_s3_bucket,
+            s3_prefix=docker_scout_s3_prefix,
+            source_name="docker_scout_source",
+            local_name="docker_scout_results_dir",
+            s3_bucket_name="docker_scout_s3_bucket",
+            s3_prefix_name="docker_scout_s3_prefix",
         )
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
         self.docker_scout_s3_prefix = docker_scout_s3_prefix
         # DEPRECATED: `trivy_results_dir` and `trivy_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v10.0.0.
-        self.trivy_source = trivy_source or (
-            trivy_results_dir
-            if trivy_results_dir
-            else (
-                f"s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
-                if trivy_s3_bucket and trivy_s3_prefix is not None
-                else (f"s3://{trivy_s3_bucket}" if trivy_s3_bucket else None)
-            )
+        # These legacy source flags will be removed in Cartography v1.0.0.
+        self.trivy_source = _resolve_report_source_compatibility_shim(
+            source=trivy_source,
+            local_path=trivy_results_dir,
+            s3_bucket=trivy_s3_bucket,
+            s3_prefix=trivy_s3_prefix,
+            source_name="trivy_source",
+            local_name="trivy_results_dir",
+            s3_bucket_name="trivy_s3_bucket",
+            s3_prefix_name="trivy_s3_prefix",
         )
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
@@ -610,15 +677,16 @@ class Config:
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
         # DEPRECATED: `syft_results_dir` and `syft_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v10.0.0.
-        self.syft_source = syft_source or (
-            syft_results_dir
-            if syft_results_dir
-            else (
-                f"s3://{syft_s3_bucket}/{syft_s3_prefix}"
-                if syft_s3_bucket and syft_s3_prefix is not None
-                else (f"s3://{syft_s3_bucket}" if syft_s3_bucket else None)
-            )
+        # These legacy source flags will be removed in Cartography v1.0.0.
+        self.syft_source = _resolve_report_source_compatibility_shim(
+            source=syft_source,
+            local_path=syft_results_dir,
+            s3_bucket=syft_s3_bucket,
+            s3_prefix=syft_s3_prefix,
+            source_name="syft_source",
+            local_name="syft_results_dir",
+            s3_bucket_name="syft_s3_bucket",
+            s3_prefix_name="syft_s3_prefix",
         )
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
@@ -629,15 +697,16 @@ class Config:
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
         # DEPRECATED: `aibom_results_dir` and `aibom_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v10.0.0.
-        self.aibom_source = aibom_source or (
-            aibom_results_dir
-            if aibom_results_dir
-            else (
-                f"s3://{aibom_s3_bucket}/{aibom_s3_prefix}"
-                if aibom_s3_bucket and aibom_s3_prefix is not None
-                else (f"s3://{aibom_s3_bucket}" if aibom_s3_bucket else None)
-            )
+        # These legacy source flags will be removed in Cartography v1.0.0.
+        self.aibom_source = _resolve_report_source_compatibility_shim(
+            source=aibom_source,
+            local_path=aibom_results_dir,
+            s3_bucket=aibom_s3_bucket,
+            s3_prefix=aibom_s3_prefix,
+            source_name="aibom_source",
+            local_name="aibom_results_dir",
+            s3_bucket_name="aibom_s3_bucket",
+            s3_prefix_name="aibom_s3_prefix",
         )
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
@@ -646,3 +715,4 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.socketdev_token = socketdev_token

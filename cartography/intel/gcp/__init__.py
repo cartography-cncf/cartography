@@ -46,6 +46,7 @@ from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
 from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
+from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -55,6 +56,7 @@ from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed
 from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
 from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
 from cartography.intel.gcp.vertex.instances import sync_workbench_instances
+from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
 from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
 from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
@@ -170,6 +172,7 @@ def _sync_project_resources(
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
+        policy_bindings_status: policy_bindings.PolicyBindingsSyncStatus | None = None
         enabled_services = _services_enabled_on_project(
             build_client("serviceusage", "v1", credentials=credentials),
             project_id,
@@ -364,30 +367,45 @@ def _sync_project_resources(
             aiplatform_client = build_client(
                 "aiplatform", "v1", credentials=credentials
             )
-            sync_vertex_ai_models(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            endpoints_raw = sync_vertex_ai_endpoints(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            # Always run deployed models sync when endpoints sync succeeded.
-            # Even if endpoints_raw is empty (no endpoints), we need to
-            # run cleanup to remove stale deployed model nodes.
-            sync_vertex_ai_deployed_models(
-                neo4j_session,
-                endpoints_raw,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            vertex_locations = get_vertex_ai_locations(aiplatform_client, project_id)
+            if vertex_locations is None:
+                logger.warning(
+                    "Skipping shared-location Vertex AI syncs for project %s to preserve existing "
+                    "data because Vertex AI location discovery failed.",
+                    project_id,
+                )
+            else:
+                logger.info(
+                    "Reusing %s cached Vertex AI locations across synced Vertex resources for project %s.",
+                    len(vertex_locations),
+                    project_id,
+                )
+                sync_vertex_ai_models(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                endpoints_raw = sync_vertex_ai_endpoints(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                # Always run deployed models sync when endpoints sync succeeded.
+                # Even if endpoints_raw is empty (no endpoints), we need to
+                # run cleanup to remove stale deployed model nodes.
+                sync_vertex_ai_deployed_models(
+                    neo4j_session,
+                    endpoints_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
             sync_workbench_instances(
                 neo4j_session,
                 aiplatform_client,
@@ -395,36 +413,44 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-            sync_training_pipelines(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            sync_feature_groups(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            sync_vertex_ai_datasets(
-                neo4j_session,
-                aiplatform_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            if vertex_locations is not None:
+                sync_training_pipelines(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                sync_feature_groups(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
+                sync_vertex_ai_datasets(
+                    neo4j_session,
+                    aiplatform_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    locations=vertex_locations,
+                )
 
         # Policy bindings sync uses CAI gRPC client.
         # We attempt policy bindings for all projects unless we've already encountered a permission error.
         # CAI uses the service account's host project for quota by default.
-        if policy_bindings_permission_ok is not False and (
+        policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
-        ):
-            # Check if CAI is enabled (cached after first check on first project)
-            if cai_enabled_on_first_project is None:
+        )
+        if policy_bindings_requested:
+            if policy_bindings_permission_ok is False:
+                policy_bindings_status = (
+                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+                )
+            elif cai_enabled_on_first_project is None:
                 first_project_services = _services_enabled_on_project(
                     build_client("serviceusage", "v1", credentials=credentials),
                     project_id,
@@ -442,8 +468,15 @@ def _sync_project_resources(
                         "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
                         project_id,
                     )
+                    policy_bindings_status = (
+                        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
+                    )
+            elif cai_enabled_on_first_project is False:
+                policy_bindings_status = (
+                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
+                )
 
-            if cai_enabled_on_first_project:
+            if cai_enabled_on_first_project and policy_bindings_status is None:
                 # Lazily initialize CAI gRPC client for policy bindings.
                 if cai_grpc_client is None:
                     cai_grpc_client = build_asset_client(
@@ -453,7 +486,7 @@ def _sync_project_resources(
                     "Syncing IAM policies for GCP project %s.",
                     project_id,
                 )
-                success = policy_bindings.sync(
+                policy_bindings_status = policy_bindings.sync(
                     neo4j_session,
                     project_id,
                     gcp_update_tag,
@@ -462,16 +495,33 @@ def _sync_project_resources(
                 )
                 # Track if we have permission. Once set to False (permission denied),
                 # the outer condition will skip policy_bindings for remaining projects.
-                if not success:
+                if (
+                    policy_bindings_status
+                    == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+                ):
                     policy_bindings_permission_ok = False
 
         if requested_syncs is None or "permission_relationships" in requested_syncs:
-            permission_relationships.sync(
-                neo4j_session,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            if (
+                policy_bindings_requested
+                and policy_bindings_status
+                != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
+            ):
+                assert policy_bindings_status is not None
+                status_label = policy_bindings_status.value.replace("_", " ")
+                logger.warning(
+                    "Skipping GCP permission relationships for project %s because policy bindings sync was %s. "
+                    "Preserving existing permission relationships for this project.",
+                    project_id,
+                    status_label,
+                )
+            else:
+                permission_relationships.sync(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
@@ -543,37 +593,55 @@ def _sync_project_resources(
 
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            cloud_run_cred = build_client("run", "v2", credentials=credentials)
-            cloudrun_service.sync_services(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            cloudrun_revision.sync_revisions(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            cloudrun_job.sync_jobs(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
+            cloud_run_discovery_client = build_client(
+                "run",
+                "v2",
                 credentials=credentials,
             )
-            cloudrun_execution.sync_executions(
-                neo4j_session,
-                cloud_run_cred,
+            cloud_run_locations = discover_cloud_run_locations(
+                cloud_run_discovery_client,
                 project_id,
-                gcp_update_tag,
-                common_job_parameters,
                 credentials=credentials,
             )
+            if cloud_run_locations is None:
+                logger.warning(
+                    "Skipping Cloud Run sync for project %s because location discovery failed. "
+                    "Preserving existing Cloud Run data.",
+                    project_id,
+                )
+            else:
+                cloudrun_service.sync_services(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_revision.sync_revisions(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_job.sync_jobs(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
+                cloudrun_execution.sync_executions(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cloud_run_locations,
+                    credentials,
+                )
 
         # Build the BigQuery v2 client once — used for datasets/tables/routines
         # and also for location discovery when syncing connections.
@@ -860,6 +928,14 @@ def start_gcp_ingestion(
     if requested_syncs is None or "iam" in requested_syncs:
         run_analysis_job(
             "gcp_role_resource_edge_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    # DEPRECATED: compatibility migration for Cloud Run :Container labels. Remove in v1.0.0.
+    if requested_syncs is None or "cloud_run" in requested_syncs:
+        run_analysis_job(
+            "gcp_cloudrun_label_migration.json",
             neo4j_session,
             common_job_parameters,
         )

@@ -254,10 +254,10 @@ def sync_trivy_from_bucket_reader(
         )
         raise ValueError("No json scan results found in object store.")
 
-    logger.info(f"Processing {len(json_files)} Trivy result files from S3")
+    logger.info(f"Processing {len(json_files)} Trivy result files from object store")
     for ref in json_files:
         logger.debug(
-            "Reading scan results from S3: %s",
+            "Reading scan results from object store: %s",
             ref.uri,
         )
         trivy_data = read_json_document(reader, ref)
@@ -353,7 +353,7 @@ def sync_trivy_from_dir(
 
 @timeit
 def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
-    """Start Trivy scan ingestion from S3 or local files.
+    """Start Trivy scan ingestion from cloud object stores or local files.
 
     Args:
         neo4j_session: Neo4j session for database operations

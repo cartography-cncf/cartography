@@ -110,9 +110,44 @@ def test_build_bucket_reader_for_azure_cli_auth(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_reader = object()
+    fake_credential = object()
+
+    def _build_reader(account_name, credential):
+        assert account_name == "acct"
+        assert credential is fake_credential
+        return fake_reader
+
+    monkeypatch.setattr(
+        "azure.identity.AzureCliCredential",
+        lambda: fake_credential,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.common.object_store.AzureBlobContainerReader",
+        _build_reader,
+    )
+
+    reader, bucket_name, prefix = build_bucket_reader_for_source(
+        AzureBlobReportSource(
+            raw="azblob://acct/container/prefix",
+            account_name="acct",
+            container_name="container",
+            prefix="prefix",
+        ),
+    )
+
+    assert reader is fake_reader
+    assert bucket_name == "container"
+    assert prefix == "prefix"
+
+
+def test_build_bucket_reader_for_azure_sp_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_reader = object()
     fake_credentials = MagicMock(credential=object())
     fake_authenticator = MagicMock()
-    fake_authenticator.authenticate_cli.return_value = fake_credentials
+    fake_authenticator.authenticate_sp.return_value = fake_credentials
+
     monkeypatch.setattr(
         "cartography.intel.azure.util.credentials.Authenticator",
         lambda: fake_authenticator,
@@ -129,9 +164,17 @@ def test_build_bucket_reader_for_azure_cli_auth(
             container_name="container",
             prefix="prefix",
         ),
+        azure_sp_auth=True,
+        azure_tenant_id="tenant-id",
+        azure_client_id="client-id",
+        azure_client_secret="client-secret",
     )
 
     assert reader is fake_reader
     assert bucket_name == "container"
     assert prefix == "prefix"
-    fake_authenticator.authenticate_cli.assert_called_once_with()
+    fake_authenticator.authenticate_sp.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )

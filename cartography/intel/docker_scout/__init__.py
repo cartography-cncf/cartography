@@ -98,7 +98,10 @@ def sync_docker_scout_from_bucket_reader(
         )
         raise ValueError("No Docker Scout recommendation reports found in object store")
 
-    logger.info("Processing %d S3 Docker Scout report files", len(report_refs))
+    logger.info(
+        "Processing %d Docker Scout report files from object store",
+        len(report_refs),
+    )
 
     synced_count = 0
     for ref in report_refs:

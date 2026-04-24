@@ -66,7 +66,6 @@ def get(client: WorkOSClient, org_ids: list[str]) -> List[Dict[str, Any]]:
 def transform(memberships: list[Any]) -> list[dict[str, Any]]:
     """
     Transform organization memberships data for loading.
-    Extract role id from role object and generate unique ID.
 
     :param memberships: Raw organization membership objects from WorkOS
     :return: Transformed list of organization membership dicts
@@ -83,7 +82,7 @@ def transform(memberships: list[Any]) -> list[dict[str, Any]]:
             "status": membership.status,
             "created_at": getattr(membership, "created_at", None),
             "updated_at": getattr(membership, "updated_at", None),
-            "roles": [r["slug"] for r in membership.roles],
+            "roles": [membership.role.slug],
         }
 
         result.append(membership_dict)

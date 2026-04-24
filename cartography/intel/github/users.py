@@ -277,7 +277,6 @@ def sync(
         org_data,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session,

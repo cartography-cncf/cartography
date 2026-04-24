@@ -150,11 +150,11 @@ def sync_syft_from_bucket_reader(
         )
         return
 
-    logger.info("Processing %d Syft result files from S3", len(json_files))
+    logger.info("Processing %d Syft result files from object store", len(json_files))
 
     for ref in json_files:
         logger.debug(
-            "Reading scan results from S3: %s",
+            "Reading scan results from object store: %s",
             ref.uri,
         )
         syft_data = read_json_document(reader, ref)

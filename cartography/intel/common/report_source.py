@@ -154,28 +154,32 @@ def build_bucket_reader_for_source(
 
         return GCSBucketReader(), source.bucket, source.prefix
 
-    from cartography.intel.azure.util.credentials import Authenticator
     from cartography.intel.common.object_store import AzureBlobContainerReader
 
-    authenticator = Authenticator()
     if azure_sp_auth:
+        from cartography.intel.azure.util.credentials import Authenticator
+
+        authenticator = Authenticator()
         credentials = authenticator.authenticate_sp(
             tenant_id=azure_tenant_id,
             client_id=azure_client_id,
             client_secret=azure_client_secret,
         )
-    else:
-        credentials = authenticator.authenticate_cli()
 
-    if credentials is None:
-        raise RuntimeError(
-            "Azure Blob report source was configured, but Azure credentials are not available.",
-        )
+        if credentials is None:
+            raise RuntimeError(
+                "Azure Blob report source was configured, but Azure credentials are not available.",
+            )
+        credential = credentials.credential
+    else:
+        from azure.identity import AzureCliCredential
+
+        credential = AzureCliCredential()
 
     return (
         AzureBlobContainerReader(
             source.account_name,
-            credentials.credential,
+            credential,
         ),
         source.container_name,
         source.prefix,

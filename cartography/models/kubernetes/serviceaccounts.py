@@ -17,6 +17,7 @@ class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     namespace: PropertyRef = PropertyRef("namespace")
+    aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
@@ -63,6 +64,24 @@ class KubernetesServiceAccountToClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesServiceAccountToAWSRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesServiceAccountToAWSRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("aws_role_arn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSUMES_ROLE"
+    properties: KubernetesServiceAccountToAWSRoleRelProperties = (
+        KubernetesServiceAccountToAWSRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesServiceAccountSchema(CartographyNodeSchema):
     label: str = "KubernetesServiceAccount"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
@@ -75,5 +94,6 @@ class KubernetesServiceAccountSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesServiceAccountToNamespaceRel(),
+            KubernetesServiceAccountToAWSRoleRel(),
         ]
     )

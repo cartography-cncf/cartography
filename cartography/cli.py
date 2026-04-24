@@ -41,6 +41,7 @@ PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
+PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
@@ -68,6 +69,8 @@ PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_SOCKETDEV = "Socket.dev Options"
+PANEL_VERCEL = "Vercel Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -90,8 +93,10 @@ MODULE_PANELS = {
     "kandji": PANEL_KANDJI,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
+    "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -117,6 +122,7 @@ MODULE_PANELS = {
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
+    "vercel": PANEL_VERCEL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -213,7 +219,7 @@ def _resolve_report_source_option(
 
     if local_path:
         logger.warning(
-            "DEPRECATED: %s will be removed in Cartography v10.0.0; use %s instead.",
+            "DEPRECATED: %s will be removed in Cartography v1.0.0; use %s instead.",
             local_flag,
             source_flag,
         )
@@ -222,7 +228,7 @@ def _resolve_report_source_option(
 
     if s3_bucket:
         logger.warning(
-            "DEPRECATED: %s/%s will be removed in Cartography v10.0.0; use %s instead.",
+            "DEPRECATED: %s/%s will be removed in Cartography v1.0.0; use %s instead.",
             s3_bucket_flag,
             s3_prefix_flag,
             source_flag,
@@ -851,7 +857,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--jamf-base-uri",
-                    help="Jamf base URI, e.g. https://hostname.com/JSSResource.",
+                    help="Jamf base URI, e.g. https://hostname.jamfcloud.com.",
                     rich_help_panel=PANEL_JAMF,
                     hidden=PANEL_JAMF not in visible_panels,
                 ),
@@ -953,6 +959,31 @@ class CLI:
                     help="Environment variable name containing NIST NVD API v2.0 key.",
                     rich_help_panel=PANEL_CVE,
                     hidden=PANEL_CVE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # CVE Metadata Options
+            # =================================================================
+            cve_metadata_src: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--cve-metadata-src",
+                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            cve_metadata_nist_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--cve-metadata-nist-api-key-env-var",
+                    help=(
+                        "Environment variable name containing the NIST NVD API v2.0 key. "
+                        "When set, the module queries the API per-CVE; otherwise it falls back "
+                        "to yearly JSON feed downloads."
+                    ),
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1058,6 +1089,18 @@ class CLI:
                     help="JumpCloud organization ID used as the tenant identifier.",
                     rich_help_panel=PANEL_JUMPCLOUD,
                     hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Socket.dev Options
+            # =================================================================
+            socketdev_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--socketdev-token-env-var",
+                    help="Environment variable name containing Socket.dev API token.",
+                    rich_help_panel=PANEL_SOCKETDEV,
+                    hidden=PANEL_SOCKETDEV not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1387,32 +1430,32 @@ class CLI:
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--docker-scout-results-dir` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--docker-scout-results-dir` will be removed in Cartography v1.0.0.
             docker_scout_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-results-dir",
-                    help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v1.0.0.
             docker_scout_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-bucket",
-                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v1.0.0.
             docker_scout_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-prefix",
-                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1429,32 +1472,32 @@ class CLI:
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--trivy-s3-bucket` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--trivy-s3-bucket` will be removed in Cartography v1.0.0.
             trivy_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-bucket",
-                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v1.0.0.
             trivy_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-prefix",
-                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v1.0.0.
             trivy_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-results-dir",
-                    help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
@@ -1471,32 +1514,32 @@ class CLI:
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--syft-s3-bucket` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--syft-s3-bucket` will be removed in Cartography v1.0.0.
             syft_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-bucket",
-                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v1.0.0.
             syft_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-prefix",
-                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--syft-results-dir` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--syft-results-dir` will be removed in Cartography v1.0.0.
             syft_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-results-dir",
-                    help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
@@ -1512,32 +1555,32 @@ class CLI:
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--aibom-s3-bucket` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--aibom-s3-bucket` will be removed in Cartography v1.0.0.
             aibom_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-bucket",
-                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v1.0.0.
             aibom_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-prefix",
-                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
-            # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v10.0.0.
+            # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v1.0.0.
             aibom_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-results-dir",
-                    help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v10.0.0.",
+                    help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
@@ -1810,6 +1853,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Vercel Options
+            # =================================================================
+            vercel_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-token-env-var",
+                    help="Environment variable name containing Vercel API token.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_team_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-team-id",
+                    help="Vercel team ID to sync.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--vercel-base-url",
+                    help="Vercel API base URL.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = "https://api.vercel.com",
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -2065,6 +2138,16 @@ class CLI:
                     jumpcloud_api_key_env_var,
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read Socket.dev token
+            socketdev_token = None
+            if socketdev_token_env_var:
+                logger.debug(
+                    "Reading Socket.dev API token from environment variable %s",
+                    socketdev_token_env_var,
+                )
+                socketdev_token = os.environ.get(socketdev_token_env_var)
+
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2146,6 +2229,17 @@ class CLI:
                 )
                 cve_api_key = os.environ.get(cve_api_key_env_var)
 
+            # Read CVE Metadata NIST API key
+            cve_metadata_nist_api_key = None
+            if cve_metadata_nist_api_key_env_var:
+                logger.debug(
+                    "Reading CVE Metadata NIST API key from environment variable %s",
+                    cve_metadata_nist_api_key_env_var,
+                )
+                cve_metadata_nist_api_key = os.environ.get(
+                    cve_metadata_nist_api_key_env_var,
+                )
+
             # Read SnipeIT token
             snipeit_token = None
             if snipeit_base_uri:
@@ -2173,6 +2267,15 @@ class CLI:
                     tailscale_token_env_var,
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
+
+            # Read Vercel token
+            vercel_token = None
+            if vercel_token_env_var:
+                logger.debug(
+                    "Reading Vercel API token from environment variable %s",
+                    vercel_token_env_var,
+                )
+                vercel_token = os.environ.get(vercel_token_env_var)
 
             # Read Cloudflare token
             cloudflare_token = None
@@ -2444,6 +2547,8 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
+                cve_metadata_src=cve_metadata_src,
+                cve_metadata_nist_api_key=cve_metadata_nist_api_key,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,
@@ -2453,6 +2558,7 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -2476,6 +2582,9 @@ class CLI:
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                vercel_token=vercel_token,
+                vercel_team_id=vercel_team_id,
+                vercel_base_url=vercel_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
