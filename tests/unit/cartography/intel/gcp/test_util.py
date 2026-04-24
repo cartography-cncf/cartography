@@ -261,6 +261,31 @@ class TestGetErrorReason:
         error = HttpError(mock_resp, error_content)
         assert get_error_reason(error) == "BILLING_DISABLED"
 
+    def test_extracts_reason_from_precondition_failure_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "BILLING_DISABLED"
+
     def test_extracts_reason_from_standard_errors_array(self):
         mock_resp = MagicMock()
         mock_resp.status = 403
@@ -282,6 +307,35 @@ class TestIsBillingDisabledError:
                         {
                             "@type": "type.googleapis.com/google.rpc.ErrorInfo",
                             "reason": "BILLING_DISABLED",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_true_for_precondition_failure_billing_disabled_payload(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": (
+                        "Billing is disabled for project 123456789. Enable it by "
+                        "visiting https://console.cloud.google.com/billing/projects "
+                        "and associating your project with a billing account."
+                    ),
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
                         }
                     ],
                 }

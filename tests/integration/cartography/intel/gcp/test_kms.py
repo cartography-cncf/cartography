@@ -208,11 +208,20 @@ def test_sync_kms_preserves_existing_data_when_billing_disabled(
         400,
         {
             "error": {
-                "message": "Billing is disabled for project 123456789",
+                "message": (
+                    "Billing is disabled for project 123456789. Enable it by "
+                    "visiting https://console.cloud.google.com/billing/projects "
+                    "and associating your project with a billing account."
+                ),
                 "details": [
                     {
-                        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                        "reason": "BILLING_DISABLED",
+                        "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                        "violations": [
+                            {
+                                "type": "BILLING_DISABLED",
+                                "subject": "123456789",
+                            }
+                        ],
                     }
                 ],
             }
