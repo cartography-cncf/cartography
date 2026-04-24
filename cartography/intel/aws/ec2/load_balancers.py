@@ -3,13 +3,14 @@ import logging
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
-from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
-from cartography.intel.aws.util.transient_errors import TRANSIENT_REGION_EXCEPTIONS
 from cartography.models.aws.ec2.load_balancer_listeners import ELBListenerSchema
 from cartography.models.aws.ec2.load_balancers import LoadBalancerSchema
 from cartography.util import aws_handle_regions
@@ -20,6 +21,35 @@ logger = logging.getLogger(__name__)
 
 class ELBTransientRegionFailure(Exception):
     pass
+
+
+TRANSIENT_REGION_EXCEPTIONS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
+
+RETRYABLE_ELB_ERROR_CODES = {
+    "InternalError",
+    "InternalFailure",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
+
+RETRYABLE_ELB_HTTP_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _is_retryable_elb_client_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code in RETRYABLE_ELB_ERROR_CODES
+        or status_code in RETRYABLE_ELB_HTTP_STATUS_CODES
+    )
 
 
 # DEPRECATED: Remove this migration function when releasing v1
@@ -162,12 +192,6 @@ def get_loadbalancer_data(
     try:
         for page in paginator.paginate():
             elbs.extend(page["LoadBalancerDescriptions"])
-    except ClientError as error:
-        if is_retryable_aws_client_error(error):
-            raise ELBTransientRegionFailure(
-                "Botocore retries were exhausted for transient DescribeLoadBalancers failure"
-            ) from error
-        raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
         raise ELBTransientRegionFailure(
             "Encountered a transient regional ELB endpoint failure while calling DescribeLoadBalancers"
@@ -252,6 +276,17 @@ def sync_load_balancers(
                 error,
             )
             continue
+        except ClientError as error:
+            if _is_retryable_elb_client_error(error):
+                cleanup_safe = False
+                logger.warning(
+                    "Skipping classic ELB sync for account %s in region %s after AWS client retries were exhausted: %s",
+                    current_aws_account_id,
+                    region,
+                    error,
+                )
+                continue
+            raise
         transformed_data, listener_data = transform_load_balancer_data(data)
 
         load_load_balancers(

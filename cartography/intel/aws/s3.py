@@ -14,16 +14,16 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
-from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
-from cartography.intel.aws.util.transient_errors import TRANSIENT_REGION_EXCEPTIONS
 from cartography.models.aws.s3.acl import S3AclSchema
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
@@ -37,6 +37,7 @@ from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
+from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -45,6 +46,12 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 BUCKET_BATCH_SIZE = 50
+
+S3_DETAIL_TRANSPORT_ERRORS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
 
 # Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
@@ -69,18 +76,23 @@ FETCH_FAILED = _FetchFailed()
 MaybeFailed = Union[Optional[Dict], _FetchFailed]
 
 
-@timeit
-def get_s3_bucket_list(
-    boto3_session: boto3.session.Session,
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Return region-resolved buckets plus buckets whose region could not be rediscovered.
+def _handle_s3_detail_transport_error(
+    bucket_name: str,
+    detail_name: str,
+    error: Exception,
+) -> _FetchFailed:
+    logger.warning(
+        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Preserving existing data.",
+        detail_name,
+        bucket_name,
+        error.__class__.__name__,
+        error,
+    )
+    return FETCH_FAILED
 
-    The returned mapping contains:
-    - ``Buckets``: buckets whose region was resolved successfully and are safe to re-sync
-    - ``FailedBuckets``: buckets whose region discovery failed transiently and whose
-      last-known-good graph state should be preserved
-    """
+
+@timeit
+def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     client = create_boto3_client(
         boto3_session,
         "s3",
@@ -88,8 +100,6 @@ def get_s3_bucket_list(
     )
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
-    resolved_buckets = []
-    failed_buckets = []
     for bucket in buckets["Buckets"]:
         try:
             resp = client.head_bucket(Bucket=bucket["Name"])
@@ -104,141 +114,23 @@ def get_s3_bucket_list(
             )
             if region:
                 bucket["Region"] = region
-                resolved_buckets.append(bucket)
                 continue
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
-                failed_buckets.append(bucket)
+                bucket["Region"] = None
                 logger.warning(
                     "skipping bucket='{}' due to exception.".format(bucket["Name"]),
                 )
                 continue
-            if is_retryable_aws_client_error(e):
-                failed_buckets.append(bucket)
-                logger.warning(
-                    "skipping bucket='%s' region discovery after transient S3 failure.",
-                    bucket["Name"],
-                )
-                continue
-            raise
-        except TRANSIENT_REGION_EXCEPTIONS:
-            failed_buckets.append(bucket)
+            else:
+                raise
+        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            bucket["Region"] = None
             logger.warning(
                 "skipping bucket='%s' region discovery due to transport timeout/connection error.",
                 bucket["Name"],
             )
-            continue
-        resolved_buckets.append(bucket)
-    buckets["Buckets"] = resolved_buckets
-    buckets["FailedBuckets"] = failed_buckets
     return buckets
-
-
-@timeit
-def preserve_s3_buckets_with_transient_failures(
-    neo4j_session: neo4j.Session,
-    failed_region_bucket_names: List[str],
-    failed_acl_bucket_names: List[str],
-    failed_policy_bucket_names: List[str],
-    aws_account_id: str,
-    update_tag: int,
-) -> None:
-    """
-    Preserve existing S3 state for buckets affected by transient failures.
-
-    Region-discovery failures need bucket-level preservation because we skip
-    reloading the bucket entirely. ACL/policy detail failures need subgraph
-    preservation because the base bucket load still runs but account-wide ACL
-    and policy cleanup would otherwise delete the last-known-good state.
-    """
-    if failed_region_bucket_names:
-        preserve_bucket_query = """
-        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(bucket:S3Bucket)
-        WHERE bucket.id IN $bucket_names
-        SET
-            bucket.lastupdated = $UPDATE_TAG,
-            resource.lastupdated = $UPDATE_TAG
-        """
-        run_write_query(
-            neo4j_session,
-            preserve_bucket_query,
-            AWS_ID=aws_account_id,
-            UPDATE_TAG=update_tag,
-            bucket_names=failed_region_bucket_names,
-        )
-
-    acl_bucket_names = sorted(
-        set(failed_region_bucket_names) | set(failed_acl_bucket_names)
-    )
-    if acl_bucket_names:
-        preserve_acl_query = """
-        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(acl:S3Acl)-[applies:APPLIES_TO]->(bucket:S3Bucket)
-        WHERE bucket.id IN $bucket_names
-        SET
-            acl.lastupdated = $UPDATE_TAG,
-            resource.lastupdated = $UPDATE_TAG,
-            applies.lastupdated = $UPDATE_TAG
-        """
-        run_write_query(
-            neo4j_session,
-            preserve_acl_query,
-            AWS_ID=aws_account_id,
-            UPDATE_TAG=update_tag,
-            bucket_names=acl_bucket_names,
-        )
-
-    policy_bucket_names = sorted(
-        set(failed_region_bucket_names) | set(failed_policy_bucket_names)
-    )
-    if policy_bucket_names:
-        preserve_policy_query = """
-        MATCH (:AWSAccount{id: $AWS_ID})<-[resource:RESOURCE]-(stmt:S3PolicyStatement)<-[policy_statement:POLICY_STATEMENT]-(bucket:S3Bucket)
-        WHERE bucket.id IN $bucket_names
-        SET
-            stmt.lastupdated = $UPDATE_TAG,
-            resource.lastupdated = $UPDATE_TAG,
-            policy_statement.lastupdated = $UPDATE_TAG
-        """
-        run_write_query(
-            neo4j_session,
-            preserve_policy_query,
-            AWS_ID=aws_account_id,
-            UPDATE_TAG=update_tag,
-            bucket_names=policy_bucket_names,
-        )
-
-
-@timeit
-def cleanup_s3_bucket_exposure_details(
-    neo4j_session: neo4j.Session,
-    aws_account_id: str,
-    preserved_bucket_names: List[str],
-) -> None:
-    """
-    Clear stale bucket exposure properties while preserving ambiguous buckets.
-    """
-    cleanup_query = """
-    MATCH (:AWSAccount{id: $AWS_ID})<-[:RESOURCE]-(bucket:S3Bucket)
-    WHERE bucket.anonymous_access IS NOT NULL
-      AND NOT bucket.id IN $preserved_bucket_names
-    WITH bucket LIMIT $LIMIT_SIZE
-    REMOVE bucket.anonymous_access, bucket.anonymous_actions
-    """
-    cleanup_statement = GraphStatement(
-        cleanup_query,
-        parameters={
-            "AWS_ID": aws_account_id,
-            "preserved_bucket_names": preserved_bucket_names,
-        },
-        iterative=True,
-        iterationsize=100,
-        parent_job_name="aws_s3_exposure_details_cleanup",
-    )
-    GraphJob(
-        "AWS S3 Exposure Details cleanup",
-        [cleanup_statement],
-        "aws_s3_details",
-    ).run(neo4j_session)
 
 
 @timeit
@@ -341,11 +233,10 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "policy", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "policy", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "policy", error)
 
 
 @timeit
@@ -359,11 +250,10 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "ACL", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "ACL", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "ACL", error)
 
 
 @timeit
@@ -377,11 +267,10 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "encryption", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "encryption", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "encryption", error)
 
 
 @timeit
@@ -395,11 +284,10 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "versioning", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "versioning", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "versioning", error)
 
 
 @timeit
@@ -416,11 +304,14 @@ def get_public_access_block(
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "public access block", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "public access block", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "public access block",
+            error,
+        )
 
 
 @timeit
@@ -436,11 +327,14 @@ def get_bucket_ownership_controls(
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "ownership controls", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "ownership controls", error)
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "ownership controls",
+            error,
+        )
 
 
 @timeit
@@ -454,26 +348,14 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
         should_handle, is_failure = _is_common_exception(e, bucket["Name"])
         if should_handle:
             return FETCH_FAILED if is_failure else None
-        if is_retryable_aws_client_error(e):
-            return _handle_transport_error(bucket["Name"], "logging status", e)
-        raise
-    except TRANSIENT_REGION_EXCEPTIONS as error:
-        return _handle_transport_error(bucket["Name"], "logging status", error)
-
-
-def _handle_transport_error(
-    bucket_name: str,
-    detail_name: str,
-    error: Exception,
-) -> _FetchFailed:
-    logger.warning(
-        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Preserving existing data.",
-        detail_name,
-        bucket_name,
-        error.__class__.__name__,
-        error,
-    )
-    return FETCH_FAILED
+        else:
+            raise
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "logging status",
+            error,
+        )
 
 
 @timeit
@@ -602,9 +484,6 @@ def _merge_bucket_details(
         - logging_buckets: List of bucket dicts with logging properties
         - acls: List of parsed ACL dicts
         - statements: List of parsed policy statement dicts
-        - failed_acl_bucket_names: List of buckets whose ACL fetch failed transiently
-        - failed_policy_bucket_names: List of buckets whose policy fetch failed transiently
-        - failed_exposure_bucket_names: List of buckets whose ACL or policy fetch failed transiently
     """
     # Create a dict for quick lookup by bucket name
     buckets_by_name: Dict[str, Dict] = {}
@@ -625,9 +504,6 @@ def _merge_bucket_details(
     logging_buckets: List[Dict] = []
     acls: List[Dict] = []
     statements: List[Dict] = []
-    failed_acl_bucket_names: set[str] = set()
-    failed_policy_bucket_names: set[str] = set()
-    failed_exposure_bucket_names: set[str] = set()
 
     for (
         bucket_name,
@@ -644,19 +520,13 @@ def _merge_bucket_details(
             continue
 
         # Parse and collect ACLs (skip if fetch failed)
-        if acl is FETCH_FAILED:
-            failed_acl_bucket_names.add(bucket_name)
-            failed_exposure_bucket_names.add(bucket_name)
-        else:
+        if acl is not FETCH_FAILED:
             parsed_acls = parse_acl(acl, bucket_name, aws_account_id)
             if parsed_acls is not None:
                 acls.extend(parsed_acls)
 
         # Parse policy for anonymous access and policy statements (skip if fetch failed)
-        if policy is FETCH_FAILED:
-            failed_policy_bucket_names.add(bucket_name)
-            failed_exposure_bucket_names.add(bucket_name)
-        else:
+        if policy is not FETCH_FAILED:
             parsed_policy = parse_policy(bucket_name, policy)
             policy_data = {
                 "Name": bucket_name,
@@ -781,9 +651,6 @@ def _merge_bucket_details(
         "logging_buckets": logging_buckets,
         "acls": acls,
         "statements": statements,
-        "failed_acl_bucket_names": sorted(failed_acl_bucket_names),
-        "failed_policy_bucket_names": sorted(failed_policy_bucket_names),
-        "failed_exposure_bucket_names": sorted(failed_exposure_bucket_names),
     }
 
 
@@ -804,17 +671,12 @@ def load_s3_details(
     """
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
-    failed_region_bucket_names = sorted(
-        {bucket["Name"] for bucket in bucket_data.get("FailedBuckets", [])}
-    )
 
-    cleanup_s3_bucket_exposure_details(
+    # cleanup existing policy properties set on S3 Buckets
+    run_cleanup_job(
+        "aws_s3_details.json",
         neo4j_session,
-        aws_account_id,
-        sorted(
-            set(failed_region_bucket_names)
-            | set(merged_data["failed_exposure_bucket_names"])
-        ),
+        {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
     )
 
     # Load base bucket properties (always done for all buckets)
@@ -893,14 +755,6 @@ def load_s3_details(
     # Load policy statements
     _load_s3_policy_statements(
         neo4j_session, merged_data["statements"], update_tag, aws_account_id
-    )
-    preserve_s3_buckets_with_transient_failures(
-        neo4j_session,
-        failed_region_bucket_names,
-        merged_data["failed_acl_bucket_names"],
-        merged_data["failed_policy_bucket_names"],
-        aws_account_id,
-        update_tag,
     )
 
 

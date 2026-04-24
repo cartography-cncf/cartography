@@ -7,14 +7,15 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
-from cartography.intel.aws.util.transient_errors import is_retryable_aws_client_error
-from cartography.intel.aws.util.transient_errors import TRANSIENT_REGION_EXCEPTIONS
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2Schema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2ToAWSLambdaMatchLink
@@ -35,6 +36,35 @@ logger = logging.getLogger(__name__)
 
 class ELBV2TransientRegionFailure(Exception):
     pass
+
+
+TRANSIENT_REGION_EXCEPTIONS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
+
+RETRYABLE_ELBV2_ERROR_CODES = {
+    "InternalError",
+    "InternalFailure",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
+
+RETRYABLE_ELBV2_HTTP_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _is_retryable_elbv2_client_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code in RETRYABLE_ELBV2_ERROR_CODES
+        or status_code in RETRYABLE_ELBV2_HTTP_STATUS_CODES
+    )
 
 
 # DEPRECATED: Remove this migration function when releasing v1
@@ -73,12 +103,6 @@ def get_load_balancer_v2_listeners(
     try:
         for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
             listeners.extend(page["Listeners"])
-    except ClientError as error:
-        if is_retryable_aws_client_error(error):
-            raise ELBV2TransientRegionFailure(
-                f"Botocore retries were exhausted for transient DescribeListeners failure on load balancer {load_balancer_arn}"
-            ) from error
-        raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
         raise ELBV2TransientRegionFailure(
             f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeListeners on load balancer {load_balancer_arn}"
@@ -97,12 +121,6 @@ def get_load_balancer_v2_target_groups(
     try:
         for page in paginator.paginate(LoadBalancerArn=load_balancer_arn):
             target_groups.extend(page["TargetGroups"])
-    except ClientError as error:
-        if is_retryable_aws_client_error(error):
-            raise ELBV2TransientRegionFailure(
-                f"Botocore retries were exhausted for transient DescribeTargetGroups failure on load balancer {load_balancer_arn}"
-            ) from error
-        raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
         raise ELBV2TransientRegionFailure(
             f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeTargetGroups on load balancer {load_balancer_arn}"
@@ -115,12 +133,6 @@ def get_load_balancer_v2_target_groups(
             target_health = client.describe_target_health(
                 TargetGroupArn=target_group["TargetGroupArn"],
             )
-        except ClientError as error:
-            if is_retryable_aws_client_error(error):
-                raise ELBV2TransientRegionFailure(
-                    f"Botocore retries were exhausted for transient DescribeTargetHealth failure on target group {target_group['TargetGroupArn']}"
-                ) from error
-            raise
         except TRANSIENT_REGION_EXCEPTIONS as error:
             raise ELBV2TransientRegionFailure(
                 f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeTargetHealth on target group {target_group['TargetGroupArn']}"
@@ -145,12 +157,6 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
     try:
         for page in paginator.paginate():
             elbv2s.extend(page["LoadBalancers"])
-    except ClientError as error:
-        if is_retryable_aws_client_error(error):
-            raise ELBV2TransientRegionFailure(
-                "Botocore retries were exhausted for transient DescribeLoadBalancers failure"
-            ) from error
-        raise
     except TRANSIENT_REGION_EXCEPTIONS as error:
         raise ELBV2TransientRegionFailure(
             "Encountered a transient regional ELBV2 endpoint failure while calling DescribeLoadBalancers"
@@ -501,6 +507,17 @@ def sync_load_balancer_v2s(
                 error,
             )
             continue
+        except ClientError as error:
+            if _is_retryable_elbv2_client_error(error):
+                cleanup_safe = False
+                logger.warning(
+                    "Skipping ELBV2 sync for account %s in region %s after AWS client retries were exhausted: %s",
+                    current_aws_account_id,
+                    region,
+                    error,
+                )
+                continue
+            raise
         load_load_balancer_v2s(
             neo4j_session,
             data,
@@ -549,6 +566,17 @@ def sync_load_balancer_v2_expose(
                 error,
             )
             continue
+        except ClientError as error:
+            if _is_retryable_elbv2_client_error(error):
+                cleanup_safe = False
+                logger.warning(
+                    "Skipping ELBV2 IP target sync for account %s in region %s after AWS client retries were exhausted: %s",
+                    current_aws_account_id,
+                    region,
+                    error,
+                )
+                continue
+            raise
         _, _, target_data = _transform_load_balancer_v2_data(data)
         _load_load_balancer_v2_ip_targets(
             neo4j_session,
