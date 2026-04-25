@@ -156,7 +156,7 @@ def test_gateway_api_relationships_preserve_namespace_name_pairs(neo4j_session):
             "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
             "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/frontend-route",
             "hostnames": ["app.example.com"],
-            "creation_timestamp": "2021-10-07T06:21:40+00:00",
+            "creation_timestamp": 1633587700,
             "deletion_timestamp": None,
             "backend_service_qualified_names": [
                 f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-service",
@@ -174,7 +174,7 @@ def test_gateway_api_relationships_preserve_namespace_name_pairs(neo4j_session):
             "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
             "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
             "gateway_class_name": "nginx",
-            "creation_timestamp": "2021-10-07T06:21:06+00:00",
+            "creation_timestamp": 1633587666,
             "deletion_timestamp": None,
             "attached_route_qualified_names": [
                 f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/frontend-route",
@@ -186,7 +186,7 @@ def test_gateway_api_relationships_preserve_namespace_name_pairs(neo4j_session):
             "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[0]["name"],
             "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[0]['name']}/public-gateway",
             "gateway_class_name": "nginx",
-            "creation_timestamp": "2021-10-07T06:22:06+00:00",
+            "creation_timestamp": 1633587726,
             "deletion_timestamp": None,
             "attached_route_qualified_names": [],
         },
@@ -344,6 +344,117 @@ def test_sync_gateway_api_end_to_end(
             rel_direction_right=True,
         ) == {("public-gateway", "frontend-route")}
 
+        assert check_rels(
+            neo4j_session,
+            "KubernetesHTTPRoute",
+            "name",
+            "KubernetesService",
+            "name",
+            "TARGETS",
+            rel_direction_right=True,
+        ) == {
+            ("frontend-route", "api-service"),
+            ("frontend-route", "app-service"),
+        }
+    finally:
+        _cleanup_test_cluster(neo4j_session)
+
+
+@patch.object(cartography.intel.kubernetes.gateway_api, "get_gateways")
+@patch.object(cartography.intel.kubernetes.gateway_api, "get_http_routes")
+def test_sync_gateway_api_cleans_up_stale_nodes_and_rels(
+    mock_get_http_routes,
+    mock_get_gateways,
+    neo4j_session,
+):
+    """A second sync where a Gateway and an HTTPRoute have disappeared from the
+    cluster should remove the stale nodes and their ROUTES/TARGETS rels."""
+    _create_test_cluster(neo4j_session)
+
+    try:
+        namespace = KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"]
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+        }
+        k8s_client = MagicMock()
+        k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
+
+        first_gateways = deepcopy(KUBERNETES_GATEWAYS_RAW) + [
+            {
+                "apiVersion": "gateway.networking.k8s.io/v1",
+                "kind": "Gateway",
+                "metadata": {
+                    "name": "stale-gateway",
+                    "namespace": namespace,
+                    "uid": "gw-uid-stale-1",
+                    "creationTimestamp": "2021-10-07T06:21:06Z",
+                },
+                "spec": {"gatewayClassName": "nginx"},
+            },
+        ]
+        first_routes = deepcopy(KUBERNETES_HTTP_ROUTES_RAW) + [
+            {
+                "apiVersion": "gateway.networking.k8s.io/v1",
+                "kind": "HTTPRoute",
+                "metadata": {
+                    "name": "stale-route",
+                    "namespace": namespace,
+                    "uid": "hr-uid-stale-1",
+                    "creationTimestamp": "2021-10-07T06:21:40Z",
+                },
+                "spec": {
+                    "parentRefs": [{"name": "stale-gateway"}],
+                    "rules": [{"backendRefs": [{"name": "api-service"}]}],
+                },
+            },
+        ]
+        mock_get_gateways.return_value = first_gateways
+        mock_get_http_routes.return_value = first_routes
+
+        sync_gateway_api(
+            neo4j_session=neo4j_session,
+            client=k8s_client,
+            update_tag=TEST_UPDATE_TAG,
+            common_job_parameters=common_job_parameters,
+        )
+
+        assert check_nodes(neo4j_session, "KubernetesGateway", ["name"]) == {
+            ("public-gateway",),
+            ("stale-gateway",),
+        }
+        assert check_nodes(neo4j_session, "KubernetesHTTPRoute", ["name"]) == {
+            ("frontend-route",),
+            ("stale-route",),
+        }
+
+        next_update_tag = TEST_UPDATE_TAG + 1
+        common_job_parameters["UPDATE_TAG"] = next_update_tag
+        mock_get_gateways.return_value = deepcopy(KUBERNETES_GATEWAYS_RAW)
+        mock_get_http_routes.return_value = deepcopy(KUBERNETES_HTTP_ROUTES_RAW)
+
+        sync_gateway_api(
+            neo4j_session=neo4j_session,
+            client=k8s_client,
+            update_tag=next_update_tag,
+            common_job_parameters=common_job_parameters,
+        )
+
+        assert check_nodes(neo4j_session, "KubernetesGateway", ["name"]) == {
+            ("public-gateway",),
+        }
+        assert check_nodes(neo4j_session, "KubernetesHTTPRoute", ["name"]) == {
+            ("frontend-route",),
+        }
+        assert check_rels(
+            neo4j_session,
+            "KubernetesGateway",
+            "name",
+            "KubernetesHTTPRoute",
+            "name",
+            "ROUTES",
+            rel_direction_right=True,
+        ) == {("public-gateway", "frontend-route")}
         assert check_rels(
             neo4j_session,
             "KubernetesHTTPRoute",

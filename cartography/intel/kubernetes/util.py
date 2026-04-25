@@ -220,6 +220,19 @@ def get_epoch(date: datetime | None) -> int | None:
     return None
 
 
+def parse_rfc3339(value: str | None) -> datetime | None:
+    """
+    Parse an RFC3339 timestamp string (e.g. ``2024-01-02T03:04:05Z``) into a
+    datetime. The Kubernetes ``CustomObjectsApi`` returns metadata timestamps
+    as raw strings rather than as datetimes (unlike the typed apis), so callers
+    that need an epoch int should do ``get_epoch(parse_rfc3339(value))``.
+    """
+    if not value:
+        return None
+    # datetime.fromisoformat does not accept the trailing "Z" until Python 3.11.
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
 def k8s_paginate(
     list_func: Callable,
     raise_on_forbidden: bool = False,

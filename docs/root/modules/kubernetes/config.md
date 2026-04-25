@@ -21,12 +21,12 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 - `list clusterroles`
 - `list clusterrolebindings`
 - `list ingresses`
-- `list gateways` and `list httproutes` in the Gateway API group, when Gateway API CRDs are installed
 
 ### Optional Permissions
 
 These permissions are recommended but Cartography degrades gracefully if they are withheld: it logs a warning and skips the corresponding step. See each bullet for the precise behavior, since the trade-off differs per resource.
 
+- `list gateways` and `list httproutes` in the `gateway.networking.k8s.io` group — enables ingestion of `KubernetesGateway` and `KubernetesHTTPRoute` and the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path. The Gateway API CRDs are not installed on most clusters out of the box; if the CRDs are absent Cartography logs an info message and skips ingestion. If the CRDs are present but the verbs are not granted, Cartography logs a warning, skips ingestion, and continues with the rest of the cluster sync. When ingestion is skipped, the cleanup step is also skipped, so any previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes are preserved.
 - `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
 - `get configmaps` (EKS only) — enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. This is optional because:
   - Clusters that use [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively may not have an `aws-auth` ConfigMap at all.
@@ -77,7 +77,10 @@ rules:
   resources:
     - ingresses
   verbs: ["list"]
-# Gateway API resources
+# Gateway API resources (optional) — only useful when the Gateway API CRDs are
+# installed in the cluster. Cartography skips ingestion gracefully if the CRDs
+# are absent or the verbs are not granted. See the Optional Permissions section
+# above for behavior when these verbs are withheld.
 - apiGroups: ["gateway.networking.k8s.io"]
   resources:
     - gateways

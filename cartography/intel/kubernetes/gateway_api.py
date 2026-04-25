@@ -6,8 +6,10 @@ from kubernetes.client.exceptions import ApiException
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import parse_rfc3339
 from cartography.models.kubernetes.gateway_api import KubernetesGatewaySchema
 from cartography.models.kubernetes.gateway_api import KubernetesHTTPRouteSchema
 from cartography.util import timeit
@@ -28,6 +30,10 @@ def _ref_matches(
     group: str,
     kind: str,
 ) -> bool:
+    # Per the Gateway API spec, an empty/missing `group` means the core API group
+    # (`""`) and an empty/missing `kind` means `Service` for backendRefs and
+    # `Gateway` for parentRefs. `or` correctly treats both `None` and `""` as
+    # "use the default".
     return (ref.get("group") or default_group) == group and (
         ref.get("kind") or default_kind
     ) == kind
@@ -62,6 +68,19 @@ def _list_cluster_custom_objects(
                     "Skipping %s for cluster %s because the CRD is not installed.",
                     resource_name,
                     client.name,
+                )
+                return []
+
+            if err.status in (401, 403):
+                # Mirror k8s_paginate's default behavior: log a warning and skip
+                # the resource so a missing optional RBAC verb does not abort
+                # the rest of the cluster sync.
+                logger.warning(
+                    "Skipping %s for cluster %s due to %s from the API server. "
+                    "Grant `list` on this resource to ingest it.",
+                    resource_name,
+                    client.name,
+                    err.status,
                 )
                 return []
 
@@ -120,8 +139,12 @@ def transform_gateways(gateways: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "namespace": namespace,
                 "qualified_name": get_qualified_resource_name(namespace, name),
                 "gateway_class_name": spec.get("gatewayClassName"),
-                "creation_timestamp": metadata.get("creationTimestamp"),
-                "deletion_timestamp": metadata.get("deletionTimestamp"),
+                "creation_timestamp": get_epoch(
+                    parse_rfc3339(metadata.get("creationTimestamp"))
+                ),
+                "deletion_timestamp": get_epoch(
+                    parse_rfc3339(metadata.get("deletionTimestamp"))
+                ),
                 "attached_route_qualified_names": [],
             }
         )
@@ -184,8 +207,12 @@ def transform_http_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "namespace": namespace,
                 "qualified_name": get_qualified_resource_name(namespace, name),
                 "hostnames": spec.get("hostnames") or [],
-                "creation_timestamp": metadata.get("creationTimestamp"),
-                "deletion_timestamp": metadata.get("deletionTimestamp"),
+                "creation_timestamp": get_epoch(
+                    parse_rfc3339(metadata.get("creationTimestamp"))
+                ),
+                "deletion_timestamp": get_epoch(
+                    parse_rfc3339(metadata.get("deletionTimestamp"))
+                ),
                 "backend_service_qualified_names": [
                     get_qualified_resource_name(service_namespace, service_name)
                     for service_namespace, service_name in sorted(backend_pairs)
@@ -275,6 +302,9 @@ def sync_gateway_api(
     routes = transform_http_routes(get_http_routes(client))
     _enrich_gateways_with_attached_routes(gateways, routes)
 
+    # Load HTTPRoutes before Gateways: the Gateway -> HTTPRoute :ROUTES rel is
+    # matched by `qualified_name` via `one_to_many`, so the HTTPRoute nodes must
+    # already exist when Gateway is loaded.
     load_http_routes(
         neo4j_session,
         routes,
