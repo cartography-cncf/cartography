@@ -66,6 +66,7 @@ def _artifact_registry_giveup_handler(details: dict) -> None:
 def list_artifact_registry_resources(
     fetcher: Callable[[], Iterable[ResultT]],
 ) -> list[ResultT]:
+    # Retries rematerialize the pager from the beginning; these list calls are read-only.
     return list(fetcher())
 
 
