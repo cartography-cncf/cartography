@@ -10,4 +10,15 @@ GET_ELASTIC_IP_ADDRESSES = [
         "PublicIpv4Pool": "amazon",
         "NetworkBorderGroup": "us-east-1",
     },
+    {
+        "PublicIp": "192.168.1.101",
+        "AllocationId": "eipalloc-11111111111111111",
+        "AssociationId": "eipassoc-11111111111111111",
+        "Domain": "vpc",
+        "NetworkInterfaceId": "eni-11111111111111111",
+        "NetworkInterfaceOwnerId": "000000000000",
+        "PrivateIpAddress": "192.168.1.102",
+        "PublicIpv4Pool": "amazon",
+        "NetworkBorderGroup": "us-east-1",
+    },
 ]
