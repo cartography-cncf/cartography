@@ -439,90 +439,6 @@ def _sync_project_resources(
                     locations=vertex_locations,
                 )
 
-        # Policy bindings sync uses CAI gRPC client.
-        # We attempt policy bindings for all projects unless we've already encountered a permission error.
-        # CAI uses the service account's host project for quota by default.
-        policy_bindings_requested = (
-            requested_syncs is None or "policy_bindings" in requested_syncs
-        )
-        if policy_bindings_requested:
-            if policy_bindings_permission_ok is False:
-                policy_bindings_status = (
-                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
-                )
-            elif cai_enabled_on_first_project is None:
-                first_project_services = _services_enabled_on_project(
-                    build_client("serviceusage", "v1", credentials=credentials),
-                    project_id,
-                )
-                cai_enabled_on_first_project = (
-                    service_names.cai in first_project_services
-                )
-                if cai_enabled_on_first_project:
-                    logger.info(
-                        "CAI enabled, will sync policy bindings for all projects.",
-                    )
-                else:
-                    logger.info(
-                        "CAI not enabled on project %s, skipping policy bindings sync. "
-                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
-                        project_id,
-                    )
-                    policy_bindings_status = (
-                        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
-                    )
-            elif cai_enabled_on_first_project is False:
-                policy_bindings_status = (
-                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
-                )
-
-            if cai_enabled_on_first_project and policy_bindings_status is None:
-                # Lazily initialize CAI gRPC client for policy bindings.
-                if cai_grpc_client is None:
-                    cai_grpc_client = build_asset_client(
-                        credentials=credentials,
-                    )
-                logger.info(
-                    "Syncing IAM policies for GCP project %s.",
-                    project_id,
-                )
-                policy_bindings_status = policy_bindings.sync(
-                    neo4j_session,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                    cai_grpc_client,
-                )
-                # Track if we have permission. Once set to False (permission denied),
-                # the outer condition will skip policy_bindings for remaining projects.
-                if (
-                    policy_bindings_status
-                    == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
-                ):
-                    policy_bindings_permission_ok = False
-
-        if requested_syncs is None or "permission_relationships" in requested_syncs:
-            if (
-                policy_bindings_requested
-                and policy_bindings_status
-                != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
-            ):
-                assert policy_bindings_status is not None
-                status_label = policy_bindings_status.value.replace("_", " ")
-                logger.warning(
-                    "Skipping GCP permission relationships for project %s because policy bindings sync was %s. "
-                    "Preserving existing permission relationships for this project.",
-                    project_id,
-                    status_label,
-                )
-            else:
-                permission_relationships.sync(
-                    neo4j_session,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
-
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
             cloud_sql_cred = build_client(
@@ -694,6 +610,90 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+
+        # Policy bindings sync uses CAI gRPC client.
+        # Runs after all resource modules so that APPLIES_TO matchlinks can find
+        # target nodes (secretsmanager, artifact_registry, cloud_run, etc.).
+        policy_bindings_requested = (
+            requested_syncs is None or "policy_bindings" in requested_syncs
+        )
+        if policy_bindings_requested:
+            if policy_bindings_permission_ok is False:
+                policy_bindings_status = (
+                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+                )
+            elif cai_enabled_on_first_project is None:
+                first_project_services = _services_enabled_on_project(
+                    build_client("serviceusage", "v1", credentials=credentials),
+                    project_id,
+                )
+                cai_enabled_on_first_project = (
+                    service_names.cai in first_project_services
+                )
+                if cai_enabled_on_first_project:
+                    logger.info(
+                        "CAI enabled, will sync policy bindings for all projects.",
+                    )
+                else:
+                    logger.info(
+                        "CAI not enabled on project %s, skipping policy bindings sync. "
+                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
+                        project_id,
+                    )
+                    policy_bindings_status = (
+                        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
+                    )
+            elif cai_enabled_on_first_project is False:
+                policy_bindings_status = (
+                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
+                )
+
+            if cai_enabled_on_first_project and policy_bindings_status is None:
+                # Lazily initialize CAI gRPC client for policy bindings.
+                if cai_grpc_client is None:
+                    cai_grpc_client = build_asset_client(
+                        credentials=credentials,
+                    )
+                logger.info(
+                    "Syncing IAM policies for GCP project %s.",
+                    project_id,
+                )
+                policy_bindings_status = policy_bindings.sync(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cai_grpc_client,
+                )
+                # Track if we have permission. Once set to False (permission denied),
+                # the outer condition will skip policy_bindings for remaining projects.
+                if (
+                    policy_bindings_status
+                    == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+                ):
+                    policy_bindings_permission_ok = False
+
+        if requested_syncs is None or "permission_relationships" in requested_syncs:
+            if (
+                policy_bindings_requested
+                and policy_bindings_status
+                != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
+            ):
+                assert policy_bindings_status is not None
+                status_label = policy_bindings_status.value.replace("_", " ")
+                logger.warning(
+                    "Skipping GCP permission relationships for project %s because policy bindings sync was %s. "
+                    "Preserving existing permission relationships for this project.",
+                    project_id,
+                    status_label,
+                )
+            else:
+                permission_relationships.sync(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         # Clean up project-level IAM resources (service accounts and project roles)
         # Only run cleanup if IAM sync succeeded to avoid deleting valid data
