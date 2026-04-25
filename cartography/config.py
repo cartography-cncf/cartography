@@ -603,6 +603,9 @@ class Config:
             s3_bucket=docker_scout_s3_bucket,
             s3_prefix=docker_scout_s3_prefix,
         )
+        self.docker_scout_results_dir = docker_scout_results_dir
+        self.docker_scout_s3_bucket = docker_scout_s3_bucket
+        self.docker_scout_s3_prefix = docker_scout_s3_prefix
         self.trivy_source = _resolve_report_source_compatibility_shim(
             module="trivy",
             source=trivy_source,
@@ -610,8 +613,11 @@ class Config:
             s3_bucket=trivy_s3_bucket,
             s3_prefix=trivy_s3_prefix,
         )
+        self.trivy_s3_bucket = trivy_s3_bucket
+        self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
         self.ontology_devices_source = ontology_devices_source
+        self.trivy_results_dir = trivy_results_dir
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
         self.scaleway_org = scaleway_org
@@ -640,6 +646,9 @@ class Config:
             s3_bucket=syft_s3_bucket,
             s3_prefix=syft_s3_prefix,
         )
+        self.syft_results_dir = syft_results_dir
+        self.syft_s3_bucket = syft_s3_bucket
+        self.syft_s3_prefix = syft_s3_prefix
         self.workos_api_key = workos_api_key
         self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token
@@ -652,6 +661,9 @@ class Config:
             s3_bucket=aibom_s3_bucket,
             s3_prefix=aibom_s3_prefix,
         )
+        self.aibom_results_dir = aibom_results_dir
+        self.aibom_s3_bucket = aibom_s3_bucket
+        self.aibom_s3_prefix = aibom_s3_prefix
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key

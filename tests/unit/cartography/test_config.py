@@ -14,6 +14,8 @@ def test_config_legacy_s3_source_shim_matches_cli_normalization(caplog) -> None:
         )
 
     assert config.trivy_source == "s3://example-bucket/reports/trivy/"
+    assert config.trivy_s3_bucket == "example-bucket"
+    assert config.trivy_s3_prefix == "/reports/trivy/"
     assert "DEPRECATED: `trivy_s3_bucket`/`trivy_s3_prefix`" in caplog.text
     assert "Cartography v1.0.0" in caplog.text
 
@@ -40,6 +42,7 @@ def test_config_legacy_local_source_shim_emits_warning(caplog) -> None:
         )
 
     assert config.syft_source == "/tmp/syft-results"
+    assert config.syft_results_dir == "/tmp/syft-results"
     assert "DEPRECATED: `syft_results_dir`" in caplog.text
 
 
