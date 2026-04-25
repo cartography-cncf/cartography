@@ -5,7 +5,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
-from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy import sync_trivy_from_s3
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
@@ -23,11 +23,10 @@ TEST_REGION = "us-east-1"
 
 @patch.object(
     S3BucketReader,
-    "list_objects",
+    "list_reports",
     return_value=[
-        ObjectRef(
-            "s3",
-            "test-bucket",
+        ReportRef(
+            "s3://test-bucket/trivy-scans/000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890.json",
             "trivy-scans/000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890.json",
         ),
     ],

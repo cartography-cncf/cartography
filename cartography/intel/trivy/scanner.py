@@ -8,9 +8,9 @@ from neo4j import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.common.object_store import filter_object_refs
-from cartography.intel.common.object_store import ObjectRef
-from cartography.intel.common.object_store import read_text_document
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import read_text_report
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
@@ -348,9 +348,13 @@ def get_json_files_in_s3(
     """
     try:
         results = {
-            ref.key
-            for ref in filter_object_refs(
-                S3BucketReader(boto3_session).list_objects(s3_bucket, s3_prefix),
+            ref.name
+            for ref in filter_report_refs(
+                S3BucketReader(
+                    boto3_session,
+                    s3_bucket,
+                    s3_prefix,
+                ).list_reports(),
                 suffix=".json",
             )
         }
@@ -500,10 +504,10 @@ def sync_single_image_from_s3(
         boto3_session: boto3 session for S3 operations
     """
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
-    reader = S3BucketReader(boto3_session)
-    scan_data_json = read_text_document(
+    reader = S3BucketReader(boto3_session, s3_bucket, "")
+    scan_data_json = read_text_report(
         reader,
-        ObjectRef(provider="s3", bucket=s3_bucket, key=s3_object_key),
+        ReportRef(uri=f"s3://{s3_bucket}/{s3_object_key}", name=s3_object_key),
     )
 
     trivy_data = json.loads(scan_data_json)

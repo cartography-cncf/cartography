@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from cartography.intel.common.object_store import BucketReader
+    from cartography.intel.common.object_store import ReportReader
 
 _SOURCE_SCHEME_RE = re.compile(
     r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$",
@@ -140,25 +140,35 @@ def parse_report_source(raw_source: str) -> ReportSource:
     )
 
 
-def build_bucket_reader_for_source(
-    source: CloudReportSource,
+def build_report_reader_for_source(
+    source: ReportSource,
     *,
     azure_sp_auth: bool | None = None,
     azure_tenant_id: str | None = None,
     azure_client_id: str | None = None,
     azure_client_secret: str | None = None,
-) -> tuple["BucketReader", str, str]:
+) -> "ReportReader":
+    if isinstance(source, LocalReportSource):
+        from cartography.intel.common.object_store import LocalReportReader
+
+        return LocalReportReader(source.path)
+
     if isinstance(source, S3ReportSource):
         import boto3
 
         from cartography.intel.common.object_store import S3BucketReader
 
-        return S3BucketReader(boto3.Session()), source.bucket, source.prefix
+        return S3BucketReader(
+            boto3.Session(),
+            source.bucket,
+            source.prefix,
+            source.uri,
+        )
 
     if isinstance(source, GCSReportSource):
         from cartography.intel.common.object_store import GCSBucketReader
 
-        return GCSBucketReader(), source.bucket, source.prefix
+        return GCSBucketReader(source.bucket, source.prefix, source.uri)
 
     from cartography.intel.common.object_store import AzureBlobContainerReader
 
@@ -182,11 +192,31 @@ def build_bucket_reader_for_source(
 
         credential = AzureCliCredential()
 
-    return (
-        AzureBlobContainerReader(
-            source.account_name,
-            credential,
-        ),
+    return AzureBlobContainerReader(
+        source.account_name,
         source.container_name,
         source.prefix,
+        credential,
+        source.uri,
     )
+
+
+# DEPRECATED: build_bucket_reader_for_source() will be removed in v1.0.0.
+def build_bucket_reader_for_source(
+    source: CloudReportSource,
+    *,
+    azure_sp_auth: bool | None = None,
+    azure_tenant_id: str | None = None,
+    azure_client_id: str | None = None,
+    azure_client_secret: str | None = None,
+) -> tuple["ReportReader", str, str]:
+    reader = build_report_reader_for_source(
+        source,
+        azure_sp_auth=azure_sp_auth,
+        azure_tenant_id=azure_tenant_id,
+        azure_client_id=azure_client_id,
+        azure_client_secret=azure_client_secret,
+    )
+    if isinstance(source, AzureBlobReportSource):
+        return reader, source.container_name, source.prefix
+    return reader, source.bucket, source.prefix

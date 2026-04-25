@@ -5,18 +5,40 @@ from unittest.mock import patch
 import pytest
 
 from cartography.intel.common.object_store import AzureBlobContainerReader
-from cartography.intel.common.object_store import filter_object_refs
+from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import GCSBucketReader
-from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ObjectStoreParseError
-from cartography.intel.common.object_store import read_json_document
-from cartography.intel.common.object_store import read_text_document
+from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import read_text_report
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 
 
-def test_object_ref_uri() -> None:
-    ref = ObjectRef(provider="s3", bucket="example-bucket", key="reports/findings.json")
+def test_report_ref() -> None:
+    ref = ReportRef(
+        uri="s3://example-bucket/reports/findings.json", name="reports/findings.json"
+    )
     assert ref.uri == "s3://example-bucket/reports/findings.json"
+    assert ref.name == "reports/findings.json"
+
+
+def test_local_report_reader_lists_files_and_reads_bytes(tmp_path) -> None:
+    reports = tmp_path / "reports"
+    nested = reports / "nested"
+    nested.mkdir(parents=True)
+    report = nested / "findings.json"
+    report.write_bytes(b"hello")
+    (reports / ".hidden.json").write_bytes(b"hidden")
+
+    reader = LocalReportReader(str(reports))
+    refs = reader.list_reports()
+
+    assert refs == [
+        ReportRef(uri=str(report), name="nested/findings.json"),
+    ]
+    assert reader.source_uri == str(reports)
+    assert reader.read_bytes(refs[0]) == b"hello"
 
 
 def test_s3_bucket_reader_lists_objects_and_skips_pseudo_directories() -> None:
@@ -36,25 +58,33 @@ def test_s3_bucket_reader_lists_objects_and_skips_pseudo_directories() -> None:
         },
     ]
 
-    refs = S3BucketReader(session).list_objects("example-bucket", "reports/")
+    reader = S3BucketReader(session, "example-bucket", "reports/")
+    refs = reader.list_reports()
 
     assert refs == [
-        ObjectRef("s3", "example-bucket", "reports/findings-1.json"),
-        ObjectRef("s3", "example-bucket", "reports/findings-2.txt"),
-        ObjectRef("s3", "example-bucket", "reports/findings-3.json"),
+        ReportRef(
+            "s3://example-bucket/reports/findings-1.json", "reports/findings-1.json"
+        ),
+        ReportRef(
+            "s3://example-bucket/reports/findings-2.txt", "reports/findings-2.txt"
+        ),
+        ReportRef(
+            "s3://example-bucket/reports/findings-3.json", "reports/findings-3.json"
+        ),
     ]
+    assert reader.source_uri == "s3://example-bucket/reports/"
     assert session.client.call_count == 1
     assert session.client.call_args.args[0] == "s3"
     session.client.return_value.get_paginator.assert_called_once_with("list_objects_v2")
 
 
-def test_filter_object_refs_by_suffix() -> None:
+def test_filter_report_refs_by_suffix() -> None:
     refs = [
-        ObjectRef("s3", "example-bucket", "reports/a.json"),
-        ObjectRef("s3", "example-bucket", "reports/a.txt"),
+        ReportRef("s3://example-bucket/reports/a.json", "reports/a.json"),
+        ReportRef("s3://example-bucket/reports/a.txt", "reports/a.txt"),
     ]
 
-    assert filter_object_refs(refs, suffix=".json") == [refs[0]]
+    assert filter_report_refs(refs, suffix=".json") == [refs[0]]
 
 
 def test_s3_bucket_reader_reads_bytes() -> None:
@@ -63,8 +93,8 @@ def test_s3_bucket_reader_reads_bytes() -> None:
         "Body": MagicMock(read=MagicMock(return_value=b"hello")),
     }
 
-    data = S3BucketReader(session).read_bytes(
-        ObjectRef("s3", "example-bucket", "reports/findings.txt"),
+    data = S3BucketReader(session, "example-bucket", "reports/").read_bytes(
+        ReportRef("s3://example-bucket/reports/findings.txt", "reports/findings.txt"),
     )
 
     assert data == b"hello"
@@ -91,13 +121,17 @@ def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
     mock_get_gcp_credentials.return_value = fake_credentials
     mock_storage_client_cls.return_value = fake_client
 
-    reader = GCSBucketReader()
-    refs = reader.list_objects("example-bucket", "reports/")
+    reader = GCSBucketReader("example-bucket", "reports/")
+    refs = reader.list_reports()
 
-    assert refs == [ObjectRef("gs", "example-bucket", "reports/findings.json")]
+    assert refs == [
+        ReportRef("gs://example-bucket/reports/findings.json", "reports/findings.json")
+    ]
     assert (
         reader.read_bytes(
-            ObjectRef("gs", "example-bucket", "reports/findings.json"),
+            ReportRef(
+                "gs://example-bucket/reports/findings.json", "reports/findings.json"
+            ),
         )
         == b"hello"
     )
@@ -118,45 +152,39 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
     )
     mock_blob_service_client_cls.return_value = fake_service_client
 
-    reader = AzureBlobContainerReader("acct", object())
-    refs = reader.list_objects("container", "reports/")
+    reader = AzureBlobContainerReader("acct", "container", "reports/", object())
+    refs = reader.list_reports()
 
-    assert refs == [ObjectRef("azblob", "acct/container", "reports/findings.txt")]
+    assert refs == [
+        ReportRef(
+            "azblob://acct/container/reports/findings.txt",
+            "reports/findings.txt",
+        ),
+    ]
     assert (
         reader.read_bytes(
-            ObjectRef("azblob", "acct/container", "reports/findings.txt"),
+            ReportRef(
+                "azblob://acct/container/reports/findings.txt",
+                "reports/findings.txt",
+            ),
         )
         == b"hello"
     )
 
 
-def test_azure_blob_reader_rejects_cross_account_ref() -> None:
-    reader = AzureBlobContainerReader.__new__(AzureBlobContainerReader)
-    reader._account_name = "acct"
-    reader._client = MagicMock()
-
-    with pytest.raises(
-        ObjectStoreParseError,
-        match="Azure blob reference has invalid account or container information",
-    ):
-        reader.read_bytes(
-            ObjectRef("azblob", "otheracct/container", "reports/findings.txt"),
-        )
-
-
-def test_read_text_document_reports_source_on_decode_error() -> None:
+def test_read_text_report_reports_source_on_decode_error() -> None:
     reader = MagicMock()
-    ref = ObjectRef("s3", "example-bucket", "reports/bad.txt")
+    ref = ReportRef("s3://example-bucket/reports/bad.txt", "reports/bad.txt")
     reader.read_bytes.return_value = b"\x80"
 
     with pytest.raises(ObjectStoreParseError, match=ref.uri):
-        read_text_document(reader, ref)
+        read_text_report(reader, ref)
 
 
-def test_read_json_document_reports_source_on_parse_error() -> None:
+def test_read_json_report_reports_source_on_parse_error() -> None:
     reader = MagicMock()
-    ref = ObjectRef("s3", "example-bucket", "reports/bad.json")
+    ref = ReportRef("s3://example-bucket/reports/bad.json", "reports/bad.json")
     reader.read_bytes.return_value = b"{not-json"
 
     with pytest.raises(ObjectStoreParseError, match=ref.uri):
-        read_json_document(reader, ref)
+        read_json_report(reader, ref)

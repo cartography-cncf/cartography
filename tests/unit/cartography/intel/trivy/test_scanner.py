@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.common.object_store import ObjectRef
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -424,7 +424,7 @@ def test_sync_single_image_from_s3_load_error(
 
 
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.S3BucketReader.list_objects")
+@patch("cartography.intel.trivy.S3BucketReader.list_reports")
 def test_sync_trivy_from_s3_no_matches(
     mock_list_objects,
     mock_get_targets_and_aliases,
@@ -436,7 +436,7 @@ def test_sync_trivy_from_s3_no_matches(
     )
     mock_list_objects.return_value = []  # No scan results available
 
-    with pytest.raises(ValueError, match="No json scan results found in object store"):
+    with pytest.raises(ValueError, match="No json scan results found in report source"):
         sync_trivy_from_s3(
             neo4j_session=MagicMock(),
             trivy_s3_bucket="test-bucket",
@@ -450,7 +450,7 @@ def test_sync_trivy_from_s3_no_matches(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy.sync_single_image")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.S3BucketReader.list_objects")
+@patch("cartography.intel.trivy.S3BucketReader.list_reports")
 @patch("boto3.Session")
 def test_sync_trivy_from_s3_digest_files(
     mock_boto_session,
@@ -470,10 +470,9 @@ def test_sync_trivy_from_s3_digest_files(
         {digest_uri: display_uri},
     )
     mock_list_objects.return_value = [
-        ObjectRef(
-            provider="s3",
-            bucket="test-bucket",
-            key="trivy-scans/app@sha256abcdef.json",
+        ReportRef(
+            uri="s3://test-bucket/trivy-scans/app@sha256abcdef.json",
+            name="trivy-scans/app@sha256abcdef.json",
         ),
     ]
 

@@ -7,8 +7,6 @@ with DEPENDS_ON relationships between them.
 
 import json
 from unittest.mock import MagicMock
-from unittest.mock import mock_open
-from unittest.mock import patch
 
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
@@ -124,18 +122,8 @@ def test_sync_single_syft_creates_deployed_to_image(neo4j_session):
     assert actual_rels == expected_rels
 
 
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(SYFT_SAMPLE),
-)
-@patch(
-    "cartography.intel.syft._get_json_files_in_dir",
-    return_value={"/tmp/syft.json"},
-)
 def test_sync_syft_from_dir(
-    mock_list_dir_scan_results,
-    mock_file_open,
+    tmp_path,
     neo4j_session,
 ):
     """
@@ -146,10 +134,12 @@ def test_sync_syft_from_dir(
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
+    report_path = tmp_path / "syft.json"
+    report_path.write_text(json.dumps(SYFT_SAMPLE), encoding="utf-8")
 
     sync_syft_from_dir(
         neo4j_session,
-        "/tmp",
+        str(tmp_path),
         TEST_UPDATE_TAG,
         common_job_parameters,
     )

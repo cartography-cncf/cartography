@@ -12,9 +12,7 @@ File Naming Convention:
     - Syft JSON files should be named *.json
 """
 
-import json
 import logging
-import os
 from typing import Any
 
 import boto3
@@ -23,12 +21,12 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.common.object_store import BucketReader
-from cartography.intel.common.object_store import filter_object_refs
-from cartography.intel.common.object_store import read_json_document
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import S3BucketReader
-from cartography.intel.common.report_source import build_bucket_reader_for_source
-from cartography.intel.common.report_source import LocalReportSource
+from cartography.intel.common.report_source import build_report_reader_for_source
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.models.syft import SyftPackageSchema
@@ -60,15 +58,52 @@ def sync_single_syft(
     stat_handler.incr("syft_files_processed")
 
 
-def _get_json_files_in_dir(results_dir: str) -> set[str]:
-    """Return set of JSON file paths under a directory."""
-    results = set()
-    for root, _dirs, files in os.walk(results_dir):
-        for filename in files:
-            if filename.endswith(".json"):
-                results.add(os.path.join(root, filename))
-    logger.info("Found %d json files in %s", len(results), results_dir)
-    return results
+@timeit
+def sync_syft_from_report_reader(
+    neo4j_session: Session,
+    reader: ReportReader,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Sync Syft results from a local directory.
+
+    Args:
+        neo4j_session: Neo4j session
+        reader: Reader for listing and fetching reports
+        update_tag: Update timestamp
+        common_job_parameters: Common job parameters
+    """
+    logger.info("Using Syft scan results from %s", reader.source_uri)
+
+    json_files = filter_report_refs(
+        reader.list_reports(),
+        suffix=".json",
+    )
+
+    if not json_files:
+        logger.warning(
+            "Syft sync was configured, but no json files were found in %s. "
+            "This is OK if you only ran Trivy without Syft.",
+            reader.source_uri,
+        )
+        return
+
+    logger.info("Processing %d Syft result files from report source", len(json_files))
+
+    for ref in json_files:
+        logger.debug(
+            "Reading scan results from report source: %s",
+            ref.uri,
+        )
+        syft_data = read_json_report(reader, ref)
+        sync_single_syft(
+            neo4j_session,
+            syft_data,
+            update_tag,
+        )
+
+    cleanup_syft(neo4j_session, update_tag)
 
 
 @timeit
@@ -78,93 +113,13 @@ def sync_syft_from_dir(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """
-    Sync Syft results from a local directory.
-
-    Args:
-        neo4j_session: Neo4j session
-        results_dir: Path to directory containing Syft JSON files
-        update_tag: Update timestamp
-        common_job_parameters: Common job parameters
-    """
-    logger.info("Using Syft scan results from %s", results_dir)
-
-    json_files = _get_json_files_in_dir(results_dir)
-
-    if not json_files:
-        logger.warning(
-            "Syft sync was configured, but no json files were found in %s. "
-            "This is OK if you only ran Trivy without Syft.",
-            results_dir,
-        )
-        return
-
-    logger.info("Processing %d local Syft result files", len(json_files))
-
-    for file_path in json_files:
-        with open(file_path, encoding="utf-8") as f:
-            syft_data = json.load(f)
-        sync_single_syft(
-            neo4j_session,
-            syft_data,
-            update_tag,
-        )
-
-    cleanup_syft(neo4j_session, update_tag)
-
-
-@timeit
-def sync_syft_from_bucket_reader(
-    neo4j_session: Session,
-    source_uri: str,
-    reader: BucketReader,
-    bucket_name: str,
-    prefix: str,
-    update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    """
-    Sync Syft results from a cloud object store.
-
-    Args:
-        neo4j_session: Neo4j session
-        source_uri: Display URI for the configured source
-        reader: Reader for listing and fetching objects
-        bucket_name: Bucket or container name
-        prefix: Object prefix path
-        update_tag: Update timestamp
-        common_job_parameters: Common job parameters
-    """
-    logger.info("Using Syft scan results from %s", source_uri)
-
-    json_files = filter_object_refs(
-        reader.list_objects(bucket_name, prefix),
-        suffix=".json",
+    # DEPRECATED: sync_syft_from_dir() will be removed in v1.0.0.
+    sync_syft_from_report_reader(
+        neo4j_session,
+        LocalReportReader(results_dir),
+        update_tag,
+        common_job_parameters,
     )
-
-    if not json_files:
-        logger.warning(
-            "Syft sync was configured, but no json files were found in %s. "
-            "This is OK if you only ran Trivy without Syft.",
-            source_uri,
-        )
-        return
-
-    logger.info("Processing %d Syft result files from object store", len(json_files))
-
-    for ref in json_files:
-        logger.debug(
-            "Reading scan results from object store: %s",
-            ref.uri,
-        )
-        syft_data = read_json_document(reader, ref)
-        sync_single_syft(
-            neo4j_session,
-            syft_data,
-            update_tag,
-        )
-
-    cleanup_syft(neo4j_session, update_tag)
 
 
 @timeit
@@ -176,12 +131,14 @@ def sync_syft_from_s3(
     common_job_parameters: dict[str, Any],
     boto3_session: boto3.Session,
 ) -> None:
-    sync_syft_from_bucket_reader(
+    # DEPRECATED: sync_syft_from_s3() will be removed in v1.0.0.
+    sync_syft_from_report_reader(
         neo4j_session,
-        source_uri=f"s3://{syft_s3_bucket}/{syft_s3_prefix}",
-        reader=S3BucketReader(boto3_session),
-        bucket_name=syft_s3_bucket,
-        prefix=syft_s3_prefix,
+        reader=S3BucketReader(
+            boto3_session,
+            syft_s3_bucket,
+            syft_s3_prefix,
+        ),
         update_tag=update_tag,
         common_job_parameters=common_job_parameters,
     )
@@ -224,16 +181,7 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    if isinstance(source, LocalReportSource):
-        sync_syft_from_dir(
-            neo4j_session,
-            source.path,
-            config.update_tag,
-            common_job_parameters,
-        )
-        return
-
-    reader, bucket_name, prefix = build_bucket_reader_for_source(
+    reader = build_report_reader_for_source(
         source,
         azure_sp_auth=config.azure_sp_auth,
         azure_tenant_id=config.azure_tenant_id,
@@ -241,12 +189,9 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
         azure_client_secret=config.azure_client_secret,
     )
 
-    sync_syft_from_bucket_reader(
+    sync_syft_from_report_reader(
         neo4j_session,
-        source.uri,
         reader,
-        bucket_name,
-        prefix,
         config.update_tag,
         common_job_parameters,
     )

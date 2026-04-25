@@ -1,5 +1,5 @@
-import json
 import logging
+import os
 from typing import Any
 
 import boto3
@@ -11,12 +11,15 @@ from cartography.client.gcp.artifact_registry import get_gcp_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
-from cartography.intel.common.object_store import BucketReader
-from cartography.intel.common.object_store import filter_object_refs
-from cartography.intel.common.object_store import read_json_document
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import ListedReportReader
+from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import ReportReader
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
-from cartography.intel.common.report_source import build_bucket_reader_for_source
-from cartography.intel.common.report_source import LocalReportSource
+from cartography.intel.common.report_source import build_report_reader_for_source
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
@@ -215,12 +218,9 @@ def _prepare_trivy_data(
 
 
 @timeit
-def sync_trivy_from_bucket_reader(
+def sync_trivy_from_report_reader(
     neo4j_session: Session,
-    source_uri: str,
-    reader: BucketReader,
-    bucket_name: str,
-    prefix: str,
+    reader: ReportReader,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
@@ -229,38 +229,39 @@ def sync_trivy_from_bucket_reader(
 
     Args:
         neo4j_session: Neo4j session for database operations
-        source_uri: Display URI for the object store source
-        reader: Reader for listing and fetching objects
-        bucket_name: Bucket or container name
-        prefix: Prefix path containing scan results
+        reader: Reader for listing and fetching reports
         update_tag: Update tag for tracking
         common_job_parameters: Common job parameters for cleanup
     """
-    logger.info("Using Trivy scan results from %s", source_uri)
+    logger.info("Using Trivy scan results from %s", reader.source_uri)
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
-    json_files = filter_object_refs(
-        reader.list_objects(bucket_name, prefix),
+    json_files = filter_report_refs(
+        reader.list_reports(),
         suffix=".json",
     )
 
     if len(json_files) == 0:
         logger.error(
-            f"Trivy sync was configured, but there are no json scan results in {source_uri}. "
+            f"Trivy sync was configured, but there are no json scan results in {reader.source_uri}. "
             "Skipping Trivy sync to avoid potential data loss. "
             "Please check the configured source. We expect the json files to be named "
-            f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
+            "`<image_uri>.json` and to be in the configured report source. If the source is "
             "a folder, it MUST end with a trailing slash '/'. "
         )
-        raise ValueError("No json scan results found in object store.")
+        raise ValueError("No json scan results found in report source.")
 
-    logger.info(f"Processing {len(json_files)} Trivy result files from object store")
+    logger.info("Processing %d Trivy result files from report source", len(json_files))
     for ref in json_files:
         logger.debug(
-            "Reading scan results from object store: %s",
+            "Reading scan results from report source: %s",
             ref.uri,
         )
-        trivy_data = read_json_document(reader, ref)
+        try:
+            trivy_data = read_json_report(reader, ref)
+        except ObjectStoreParseError as exc:
+            logger.error("Failed to read Trivy data from %s: %s", ref.uri, exc)
+            continue
 
         prepared = _prepare_trivy_data(
             trivy_data,
@@ -291,12 +292,14 @@ def sync_trivy_from_s3(
     common_job_parameters: dict[str, Any],
     boto3_session: boto3.Session,
 ) -> None:
-    sync_trivy_from_bucket_reader(
+    # DEPRECATED: sync_trivy_from_s3() will be removed in v1.0.0.
+    sync_trivy_from_report_reader(
         neo4j_session,
-        source_uri=f"s3://{trivy_s3_bucket}/{trivy_s3_prefix}",
-        reader=S3BucketReader(boto3_session),
-        bucket_name=trivy_s3_bucket,
-        prefix=trivy_s3_prefix,
+        reader=S3BucketReader(
+            boto3_session,
+            trivy_s3_bucket,
+            trivy_s3_prefix,
+        ),
         update_tag=update_tag,
         common_job_parameters=common_job_parameters,
     )
@@ -310,45 +313,21 @@ def sync_trivy_from_dir(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """Sync Trivy scan results from local files for container images (ECR, GCP, and GitLab)."""
-    logger.info(f"Using Trivy scan results from {results_dir}")
-
-    image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
-    json_files: set[str] = get_json_files_in_dir(results_dir)
-
-    if not json_files:
-        logger.error(
-            f"Trivy sync was configured, but no json files were found in {results_dir}."
+    # DEPRECATED: sync_trivy_from_dir() will be removed in v1.0.0.
+    reader = LocalReportReader(results_dir)
+    refs = [
+        ReportRef(
+            uri=file_path,
+            name=os.path.relpath(file_path, results_dir),
         )
-        raise ValueError("No Trivy json results found on disk")
-
-    logger.info(f"Processing {len(json_files)} local Trivy result files")
-
-    for file_path in json_files:
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                trivy_data = json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to read Trivy data from {file_path}: {e}")
-            continue
-
-        prepared = _prepare_trivy_data(
-            trivy_data,
-            image_uris=image_uris,
-            digest_aliases=digest_aliases,
-            source=file_path,
-        )
-        if prepared is None:
-            continue
-
-        prepared_data, display_uri = prepared
-        sync_single_image(
-            neo4j_session,
-            prepared_data,
-            display_uri,
-            update_tag,
-        )
-
-    cleanup(neo4j_session, common_job_parameters)
+        for file_path in get_json_files_in_dir(results_dir)
+    ]
+    sync_trivy_from_report_reader(
+        neo4j_session,
+        ListedReportReader(results_dir, refs, reader.read_bytes),
+        update_tag,
+        common_job_parameters,
+    )
 
 
 @timeit
@@ -364,35 +343,19 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         return
 
     source = parse_report_source(config.trivy_source)
-
-    if isinstance(source, LocalReportSource):
-        common_job_parameters = {
-            "UPDATE_TAG": config.update_tag,
-        }
-        sync_trivy_from_dir(
-            neo4j_session,
-            source.path,
-            config.update_tag,
-            common_job_parameters,
-        )
-        return
-
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    reader, bucket_name, prefix = build_bucket_reader_for_source(
+    reader = build_report_reader_for_source(
         source,
         azure_sp_auth=config.azure_sp_auth,
         azure_tenant_id=config.azure_tenant_id,
         azure_client_id=config.azure_client_id,
         azure_client_secret=config.azure_client_secret,
     )
-    sync_trivy_from_bucket_reader(
+    sync_trivy_from_report_reader(
         neo4j_session,
-        source_uri=source.uri,
         reader=reader,
-        bucket_name=bucket_name,
-        prefix=prefix,
         update_tag=config.update_tag,
         common_job_parameters=common_job_parameters,
     )

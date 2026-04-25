@@ -1,6 +1,4 @@
-from pathlib import Path
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import pytest
 
@@ -16,17 +14,12 @@ def test_sync_docker_scout_from_dir_skips_unicode_decode_errors(
     report_path = tmp_path / "bad-report.txt"
     report_path.write_bytes(b"\x80")
 
-    with patch.object(
-        Path,
-        "read_text",
-        side_effect=UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte"),
-    ):
-        sync_docker_scout_from_dir(
-            neo4j_session,
-            str(tmp_path),
-            1,
-            {"UPDATE_TAG": 1},
-        )
+    sync_docker_scout_from_dir(
+        neo4j_session,
+        str(tmp_path),
+        1,
+        {"UPDATE_TAG": 1},
+    )
 
     assert f"Skipping unreadable Docker Scout report {report_path}" in caplog.text
 
