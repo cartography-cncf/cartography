@@ -1505,6 +1505,11 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 |state| The operational state of the Function App (e.g., Running, Stopped). |
 |default_host_name| The default hostname of the Function App. |
 |https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
+|is_container| `true` when the Function App is deployed from a container image (linuxFxVersion prefixed with `DOCKER|`); `false` for code-based runtimes. |
+|deployment_type| `"container"` when the Function App runs a container image, `"code"` otherwise. Derived from `is_container`. |
+|image_uri| Container image reference parsed from `linuxFxVersion` (without the `DOCKER|` prefix). Populated only when `is_container=true`. |
+|image_digest| Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
+|architecture_normalized| Canonical architecture for container-based Function Apps. Function Apps do not expose host architecture; Linux container plans are assumed to run on `amd64`. |
 
 #### Relationships
 
@@ -1516,6 +1521,18 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 - Azure Function Apps can be tagged with Azure Tags.
     ```cypher
     (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
+- Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
+    ```cypher
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    ```
+
+- Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```cypher
+    (AzureFunctionApp)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AzureAppService
@@ -1890,41 +1907,39 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
     (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
     ```
 
-### AzureContainerInstance
+### AzureGroupContainer
 
-Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureContainerInstance](#azurecontainerinstance)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., ECSContainer, KubernetesContainer).
-
-|**id**| The full resource ID of the Container Instance. |
-|name| The name of the Container Instance. |
-|location| The Azure region where the Container Instance is deployed. |
+|**id**| The full resource ID of the Container Group. |
+|name| The name of the Container Group. |
+|location| The Azure region where the Container Group is deployed. |
 |type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
-|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
-|ip_address| The public IP address of the Container Instance, if one is assigned. |
-|ip_address_type| The IP type of the Container Instance (`Public` or `Private`) when available. |
-|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+|provisioning_state| The deployment status of the Container Group (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Group, if one is assigned. |
+|ip_address_type| The IP type of the Container Group (`Public` or `Private`) when available. |
+|os_type| The operating system type of the Container Group (e.g., Linux or Windows). |
 
 #### Relationships
 
-- An Azure Container Instance is a resource within an Azure Subscription.
+- An Azure Container Group is a resource within an Azure Subscription.
     ```cypher
-    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    (AzureSubscription)-[:RESOURCE]->(:AzureGroupContainer)
     ```
-- Azure Container Instances can be tagged with Azure Tags.
+- Azure Container Groups can be tagged with Azure Tags.
     ```cypher
-    (AzureContainerInstance)-[:TAGGED]->(AzureTag)
+    (AzureGroupContainer)-[:TAGGED]->(AzureTag)
     ```
-- VNet-integrated Container Instances are attached to a Subnet.
+- VNet-integrated Container Groups are attached to a Subnet.
     ```cypher
-    (AzureContainerInstance)-[:ATTACHED_TO]->(:AzureSubnet)
+    (AzureGroupContainer)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
-- An Azure Container Instance (group) contains one or more AzureGroupContainers.
+- An Azure Container Group contains one or more AzureContainerInstances.
     ```cypher
-    (AzureContainerInstance)-[:CONTAINS]->(:AzureGroupContainer)
+    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
     ```
 
-### AzureGroupContainer
+### AzureContainerInstance
 
 Representation of an individual container within an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). A container group may run one or more containers — this node models each container separately to enable per-container image tracking.
 
@@ -1942,6 +1957,7 @@ Representation of an individual container within an [Azure Container Group](http
 | image_digest | The digest portion of the image reference (e.g., `sha256:abc...`), if the image was pinned by digest. `None` for tag-based references |
 | architecture | CPU architecture. Hardcoded to `amd64` — ACI does not expose host architecture and ARM64 support is not yet GA |
 | architecture_normalized | Canonical CPU architecture. Hardcoded to `amd64` |
+| state | Per-container runtime state from `instanceView.currentState.state` (e.g., `Running`, `Waiting`, `Terminated`). Distinct from the parent container group's `provisioning_state` |
 | cpu_request | CPU units requested by the container |
 | memory_request_gb | Memory (in GB) requested by the container |
 | cpu_limit | CPU limit for the container, if set |
@@ -1949,20 +1965,20 @@ Representation of an individual container within an [Azure Container Group](http
 
 #### Relationships
 
-- An AzureGroupContainer is a resource within an Azure Subscription.
+- An AzureContainerInstance is a resource within an Azure Subscription.
     ```cypher
-    (AzureSubscription)-[:RESOURCE]->(:AzureGroupContainer)
+    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
-- An Azure Container Instance (group) contains its AzureGroupContainers.
+- An Azure Container Group contains its AzureContainerInstances.
     ```cypher
-    (AzureContainerInstance)-[:CONTAINS]->(:AzureGroupContainer)
+    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
     ```
-- AzureGroupContainers are linked to the image they run when the image is pinned by digest.
+- AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher
-    (AzureGroupContainer)-[:HAS_IMAGE]->(ECRImage)
-    (AzureGroupContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
-    (AzureGroupContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    (AzureContainerInstance)-[:HAS_IMAGE]->(ECRImage)
+    (AzureContainerInstance)-[:HAS_IMAGE]->(GitLabContainerImage)
+    (AzureContainerInstance)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
+    (AzureContainerInstance)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 ### AzureLoadBalancer

@@ -348,7 +348,6 @@ Representation of a [Detected App](https://learn.microsoft.com/en-us/graph/api/r
 | **id** | Unique identifier for the detected app |
 | display_name | Name of the discovered application |
 | version | Version of the application |
-| size_in_byte | Size of the application in bytes |
 | device_count | Number of devices with this app installed |
 | publisher | Publisher of the application |
 | platform | Platform: `windows`, `ios`, `macOS`, `chromeOS`, etc. |
