@@ -8,6 +8,7 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
+from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
 )
@@ -271,10 +272,10 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         stale_tag=TEST_UPDATE_TAG - 1,
     )
 
-    cartography.intel.ontology.devices.link_ontology_nodes(
+    run_analysis_job(
+        "ontology_devices_linking.json",
         neo4j_session,
-        "devices",
-        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
     assert (
@@ -691,3 +692,137 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
         ("IPHONESPRING001", "IPHONESPRING001"),
         ("IPADSPRING001", "IPADSPRING001"),
     }
+
+
+def test_link_ontology_devices_from_jamf_computer_email(neo4j_session):
+    """Jamf computer email should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'HJSimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (:JamfComputer {
+            id: 'jamf-computer-1',
+            name: 'springfield-mac-01',
+            os_name: 'macOS',
+            os_version: '14.5',
+            model: 'MacBook Pro',
+            platform: 'macOS',
+            serial_number: 'SN-JAMF-COMP-001',
+            email: 'hjsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["jamf"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("hjsimpson@simpson.corp", "springfield-mac-01")}
+
+
+def test_link_ontology_devices_from_jamf_mobile_device_email(neo4j_session):
+    """Jamf mobile device email should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'mbsimpson@simpson.corp'})
+        SET u.email = 'mbsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (:JamfMobileDevice {
+            id: 'jamf-mobile-ownership-1',
+            display_name: 'marges-iphone',
+            os: 'iOS',
+            os_version: '17.5',
+            model: 'iPhone 15',
+            platform: 'iPhone',
+            serial_number: 'SN-JAMF-MOBILE-001',
+            email: 'MBSimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["jamf"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("mbsimpson@simpson.corp", "marges-iphone")}
+
+
+def test_link_ontology_devices_from_jamf_email_skips_empty_and_non_matching(
+    neo4j_session,
+):
+    """Jamf email-based ownership should ignore empty and non-matching emails."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'lisasimpson@simpson.corp'})
+        SET u.email = 'lisasimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (:JamfComputer {
+            id: 'jamf-computer-empty-email',
+            name: 'empty-email-mac',
+            serial_number: 'SN-JAMF-COMP-EMPTY',
+            os_name: 'macOS',
+            email: '',
+            lastupdated: $update_tag
+        })
+
+        CREATE (:JamfMobileDevice {
+            id: 'jamf-mobile-non-match',
+            display_name: 'non-match-phone',
+            serial_number: 'SN-JAMF-MOBILE-NOMATCH',
+            os: 'iOS',
+            email: 'bartsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["jamf"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:User {id: 'lisasimpson@simpson.corp'})-[r:OWNS]->(:Device)
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
+    )

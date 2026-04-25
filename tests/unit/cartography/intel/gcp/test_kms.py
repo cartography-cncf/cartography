@@ -7,28 +7,30 @@ from googleapiclient.errors import HttpError
 from cartography.intel.gcp.kms import get_kms_locations
 
 
+def _make_http_error(status: int, payload: dict) -> HttpError:
+    resp = MagicMock()
+    resp.status = status
+    return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
+
+
 def test_get_kms_locations_api_disabled_logs_concisely(monkeypatch, caplog):
     client = MagicMock()
     request = MagicMock()
     client.projects.return_value.locations.return_value.list.return_value = request
 
-    resp = MagicMock()
-    resp.status = 403
-    error = HttpError(
-        resp=resp,
-        content=json.dumps(
-            {
-                "error": {
-                    "message": "Cloud KMS API has not been used in project 123 before or it is disabled",
-                    "details": [
-                        {
-                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                            "reason": "SERVICE_DISABLED",
-                        }
-                    ],
-                }
+    error = _make_http_error(
+        403,
+        {
+            "error": {
+                "message": "Cloud KMS API has not been used in project 123 before or it is disabled",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                        "reason": "SERVICE_DISABLED",
+                    }
+                ],
             }
-        ).encode("utf-8"),
+        },
     )
 
     monkeypatch.setattr(
