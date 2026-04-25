@@ -2102,7 +2102,7 @@ Representation of an IPv6 address assigned to an EC2 network interface. Each `EC
 
 - NetworkInterfaces have IPv6 addresses.
     ```
-    (NetworkInterface)<-[IPV6_ADDRESS]-(EC2Ipv6Address)
+    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
     ```
 
 - AWSDNSRecord AAAA records can point to IPv6 addresses (via the shared `Ip` label).
@@ -3406,7 +3406,7 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 
 - NetworkInterfaces can have IPv6 addresses.
     ```
-    (NetworkInterface)<-[IPV6_ADDRESS]-(EC2Ipv6Address)
+    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
     ```
 
 -  EC2 Network Interfaces can be tagged with AWSTags.
