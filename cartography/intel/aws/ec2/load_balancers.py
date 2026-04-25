@@ -2,6 +2,10 @@ import logging
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -13,6 +17,39 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class ELBTransientRegionFailure(Exception):
+    pass
+
+
+TRANSIENT_REGION_EXCEPTIONS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
+
+RETRYABLE_ELB_ERROR_CODES = {
+    "InternalError",
+    "InternalFailure",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
+
+RETRYABLE_ELB_HTTP_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _is_retryable_elb_client_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code in RETRYABLE_ELB_ERROR_CODES
+        or status_code in RETRYABLE_ELB_HTTP_STATUS_CODES
+    )
 
 
 # DEPRECATED: Remove this migration function when releasing v1
@@ -152,8 +189,13 @@ def get_loadbalancer_data(
     )
     paginator = client.get_paginator("describe_load_balancers")
     elbs: list[dict] = []
-    for page in paginator.paginate():
-        elbs.extend(page["LoadBalancerDescriptions"])
+    try:
+        for page in paginator.paginate():
+            elbs.extend(page["LoadBalancerDescriptions"])
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBTransientRegionFailure(
+            "Encountered a transient regional ELB endpoint failure while calling DescribeLoadBalancers"
+        ) from error
     return elbs
 
 
@@ -215,6 +257,7 @@ def sync_load_balancers(
     common_job_parameters: dict,
 ) -> None:
     _migrate_legacy_loadbalancer_labels(neo4j_session)
+    cleanup_safe = True
 
     for region in regions:
         logger.info(
@@ -222,7 +265,28 @@ def sync_load_balancers(
             region,
             current_aws_account_id,
         )
-        data = get_loadbalancer_data(boto3_session, region)
+        try:
+            data = get_loadbalancer_data(boto3_session, region)
+        except ELBTransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping classic ELB sync for account %s in region %s after transient ELB failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
+        except ClientError as error:
+            if _is_retryable_elb_client_error(error):
+                cleanup_safe = False
+                logger.warning(
+                    "Skipping classic ELB sync for account %s in region %s after AWS client retries were exhausted: %s",
+                    current_aws_account_id,
+                    region,
+                    error,
+                )
+                continue
+            raise
         transformed_data, listener_data = transform_load_balancer_data(data)
 
         load_load_balancers(
@@ -232,4 +296,10 @@ def sync_load_balancers(
             neo4j_session, listener_data, region, current_aws_account_id, update_tag
         )
 
-    cleanup_load_balancers(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_load_balancers(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping classic ELB cleanup for account %s because one or more regions had transient ELB failures. Preserving last-known-good ELB state.",
+            current_aws_account_id,
+        )
