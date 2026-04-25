@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 
+from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
@@ -229,8 +230,7 @@ def parse_rfc3339(value: str | None) -> datetime | None:
     """
     if not value:
         return None
-    # datetime.fromisoformat does not accept the trailing "Z" until Python 3.11.
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return isoparse(value)
 
 
 def k8s_paginate(

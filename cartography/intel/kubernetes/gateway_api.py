@@ -71,19 +71,6 @@ def _list_cluster_custom_objects(
                 )
                 return []
 
-            if err.status in (401, 403):
-                # Mirror k8s_paginate's default behavior: log a warning and skip
-                # the resource so a missing optional RBAC verb does not abort
-                # the rest of the cluster sync.
-                logger.warning(
-                    "Skipping %s for cluster %s due to %s from the API server. "
-                    "Grant `list` on this resource to ingest it.",
-                    resource_name,
-                    client.name,
-                    err.status,
-                )
-                return []
-
             logger.warning(
                 "Failed to fetch %s resources for cluster %s: %s",
                 resource_name,
@@ -298,8 +285,29 @@ def sync_gateway_api(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    gateways = transform_gateways(get_gateways(client))
-    routes = transform_http_routes(get_http_routes(client))
+    try:
+        raw_gateways = get_gateways(client)
+        raw_routes = get_http_routes(client)
+    except ApiException as err:
+        if err.status in (401, 403):
+            # Skipping load + cleanup is intentional: if the operator previously
+            # granted these verbs and later revoked them, running cleanup would
+            # wipe the existing KubernetesGateway / KubernetesHTTPRoute subgraph
+            # for this cluster. This mirrors the pattern in `sync_secrets`.
+            logger.warning(
+                "Cartography lacks permission to list gateways/httproutes on "
+                "cluster %s (status %s). Skipping gateway-api sync and "
+                "preserving previously synced data. Grant `list gateways` and "
+                "`list httproutes` in the gateway.networking.k8s.io group to "
+                "enable ingestion.",
+                client.name,
+                err.status,
+            )
+            return
+        raise
+
+    gateways = transform_gateways(raw_gateways)
+    routes = transform_http_routes(raw_routes)
     _enrich_gateways_with_attached_routes(gateways, routes)
 
     # Load HTTPRoutes before Gateways: the Gateway -> HTTPRoute :ROUTES rel is

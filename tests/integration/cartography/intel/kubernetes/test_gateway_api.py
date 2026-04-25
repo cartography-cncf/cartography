@@ -3,6 +3,9 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
+from kubernetes.client.exceptions import ApiException
+
 import cartography.intel.kubernetes.gateway_api
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.gateway_api import load_gateways
@@ -466,6 +469,62 @@ def test_sync_gateway_api_cleans_up_stale_nodes_and_rels(
         ) == {
             ("frontend-route", "api-service"),
             ("frontend-route", "app-service"),
+        }
+    finally:
+        _cleanup_test_cluster(neo4j_session)
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@patch.object(cartography.intel.kubernetes.gateway_api, "get_gateways")
+@patch.object(cartography.intel.kubernetes.gateway_api, "get_http_routes")
+def test_sync_gateway_api_preserves_existing_data_on_permission_error(
+    mock_get_http_routes,
+    mock_get_gateways,
+    status,
+    neo4j_session,
+):
+    """If RBAC for gateway-api is revoked between syncs, the next sync must
+    preserve the previously ingested KubernetesGateway / KubernetesHTTPRoute
+    nodes (rather than wiping them via the cleanup step)."""
+    _create_test_cluster(neo4j_session)
+
+    try:
+        load_http_routes(
+            neo4j_session,
+            KUBERNETES_HTTP_ROUTES_DATA,
+            update_tag=TEST_UPDATE_TAG,
+            cluster_id=KUBERNETES_CLUSTER_IDS[0],
+            cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+        )
+        load_gateways(
+            neo4j_session,
+            KUBERNETES_GATEWAYS_DATA,
+            update_tag=TEST_UPDATE_TAG,
+            cluster_id=KUBERNETES_CLUSTER_IDS[0],
+            cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+        )
+
+        mock_get_gateways.side_effect = ApiException(status=status)
+        mock_get_http_routes.side_effect = ApiException(status=status)
+
+        k8s_client = MagicMock()
+        k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
+
+        sync_gateway_api(
+            neo4j_session=neo4j_session,
+            client=k8s_client,
+            update_tag=TEST_UPDATE_TAG + 1,
+            common_job_parameters={
+                "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+                "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+            },
+        )
+
+        assert check_nodes(neo4j_session, "KubernetesGateway", ["name"]) == {
+            ("public-gateway",),
+        }
+        assert check_nodes(neo4j_session, "KubernetesHTTPRoute", ["name"]) == {
+            ("frontend-route",),
         }
     finally:
         _cleanup_test_cluster(neo4j_session)
