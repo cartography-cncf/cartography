@@ -105,9 +105,14 @@ def _load_user_role(
     MATCH (user:OktaUser{id: $USER_ID})<-[:RESOURCE]-(org:OktaOrganization)
     WITH user,org
     UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
+    MERGE (role_node:OktaAdministrationRole:PermissionRole{id: role_data.type})
     ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
+    SET role_node.label = role_data.label,
+        role_node.lastupdated = $okta_update_tag,
+        role_node._ont_name = role_data.label,
+        role_node._ont_type = 'builtin',
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH user, role_node, org
     MERGE (user)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()
@@ -138,9 +143,14 @@ def _load_group_role(
     MATCH (group:OktaGroup{id: $GROUP_ID})<-[:RESOURCE]-(org:OktaOrganization)
     WITH group,org
     UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
+    MERGE (role_node:OktaAdministrationRole:PermissionRole{id: role_data.type})
     ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
+    SET role_node.label = role_data.label,
+        role_node.lastupdated = $okta_update_tag,
+        role_node._ont_name = role_data.label,
+        role_node._ont_type = 'builtin',
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH group, role_node, org
     MERGE (group)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()
