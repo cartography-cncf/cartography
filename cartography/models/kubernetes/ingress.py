@@ -22,6 +22,7 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
     rules: PropertyRef = PropertyRef("rules")
     annotations: PropertyRef = PropertyRef("annotations")
     default_backend: PropertyRef = PropertyRef("default_backend")
+    host_names: PropertyRef = PropertyRef("host_names")
     cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     load_balancer_dns_names: PropertyRef = PropertyRef("load_balancer_dns_names")

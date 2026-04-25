@@ -19,3 +19,9 @@
   permissions:
   - storage.objects.delete
   relationship_name: CAN_DELETE
+
+# Map principals that can access GCP Secret Manager secret versions.
+- target_label: GCPSecretManagerSecret
+  permissions:
+  - secretmanager.versions.access
+  relationship_name: CAN_READ

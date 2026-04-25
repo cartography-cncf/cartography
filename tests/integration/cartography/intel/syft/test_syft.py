@@ -80,6 +80,48 @@ def test_sync_single_syft_creates_depends_on(neo4j_session):
     assert actual_rels == EXPECTED_SYFT_PACKAGE_DEPENDENCIES
 
 
+def test_sync_single_syft_creates_deployed_to_image(neo4j_session):
+    """
+    Test that sync_single_syft creates DEPLOYED relationships to ontology Image nodes.
+    """
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+
+    # Create an ontology Image node with matching _ont_digest
+    neo4j_session.run(
+        """
+        MERGE (img:Image {id: 'test-image'})
+        SET img._ont_digest = 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
+            img.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    sync_single_syft(
+        neo4j_session,
+        SYFT_SAMPLE,
+        TEST_UPDATE_TAG,
+    )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "Image",
+        "_ont_digest",
+        "DEPLOYED",
+        rel_direction_right=True,
+    )
+
+    expected_rels = {
+        (
+            pkg_id,
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        for pkg_id in EXPECTED_SYFT_PACKAGES
+    }
+    assert actual_rels == expected_rels
+
+
 @patch(
     "builtins.open",
     new_callable=mock_open,

@@ -3,7 +3,7 @@
 
 Follow these steps to analyze AWS assets with Cartography.
 
-In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) library to retrieve assets from AWS and respects all settings and credentials passed to boto3. If you've used boto3 before, then you're already very familiar with setting up Cartography for AWS.
+In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) library to retrieve assets from AWS and follows boto3's normal credential resolution behavior. For retry behavior, Cartography now constructs its own shared botocore config for AWS clients, so Cartography-specific retry environment variables take precedence over ambient AWS retry env vars. If you've used boto3 before, then you're already very familiar with setting up Cartography for AWS.
 
 ### Very helpful references
 - Ensure your ~/.aws/credentials and ~/.aws/config files are set up correctly: https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html
@@ -15,7 +15,12 @@ In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) libra
 1. Set up an AWS identity (user, group, or role) for Cartography to use. Ensure that this identity has the built-in AWS [SecurityAudit policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_security-auditor) (arn:aws:iam::aws:policy/SecurityAudit) attached. This policy grants access to read security config metadata.
    1. If you want to use AWS Inspector, the SecurityAudit policy does not yet contain permissions for `inspector2`, so you will also need the [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
 1. Set up AWS credentials to this identity on your server, using a `config` and `credential` file.  For details, see AWS' [official guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
-1. [Optional] Configure AWS Retry settings using `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE` environment variables. This helps in API Rate Limit throttling and TooManyRequestException related errors. For details, see AWS' [official guide](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables).
+1. [Optional] Configure Cartography's shared AWS client retry behavior with these environment variables:
+   - `CARTOGRAPHY_AWS_RETRY_MODE`: Retry mode for Cartography-managed AWS clients. Valid values are `standard`, `adaptive`, and `legacy`. Default: `standard`.
+   - `CARTOGRAPHY_AWS_MAX_ATTEMPTS`: Max retry attempts for Cartography-managed AWS clients. Default: `3`.
+   - `CARTOGRAPHY_AWS_READ_TIMEOUT`: Read timeout in seconds for Cartography-managed AWS clients. Default: `120`.
+   - Lambda keeps narrower defaults for its own regional calls: read timeout `30` seconds and max attempts `2`, while still inheriting the shared retry mode unless explicitly overridden in code.
+   These settings help with API throttling and transient regional endpoint failures. They are separate from AWS SDK env vars like `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE`, because Cartography now builds botocore config objects itself for AWS clients.
 
 ### Multiple AWS Account Setup
 
@@ -95,7 +100,11 @@ There are many ways to allow Cartography to pull from more than one AWS account.
 
 		... etc ...
 		```
-1. [Optional] Configure AWS Retry settings using `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE` environment variables. This helps in API Rate Limit throttling and TooManyRequestException related errors. For details, see AWS' [official guide](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables).
+1. [Optional] Configure Cartography's shared AWS client retry behavior with:
+   - `CARTOGRAPHY_AWS_RETRY_MODE`
+   - `CARTOGRAPHY_AWS_MAX_ATTEMPTS`
+   - `CARTOGRAPHY_AWS_READ_TIMEOUT`
+   Default values and behavior are described in the single-account setup section above. These Cartography env vars control the botocore config objects Cartography builds for AWS clients.
 1. [Optional] Use regional STS endpoints to avoid `InvalidToken` errors when assuming roles across regions. Add `sts_regional_endpoints = regional` to your AWS config file or set the `AWS_STS_REGIONAL_ENDPOINTS=regional` environment variable. [AWS Docs](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html).
 
 ### Selective Syncing with `--aws-requested-syncs`

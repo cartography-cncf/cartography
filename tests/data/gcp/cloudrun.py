@@ -10,6 +10,14 @@ MOCK_SERVICES = {
             "uri": "https://test-service-abc123-uc.a.run.app",
             "ingress": "INGRESS_TRAFFIC_ALL",
             "latestReadyRevision": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+            "template": {
+                "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+                "containers": [
+                    {
+                        "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/test-image:latest",
+                    },
+                ],
+            },
         },
     ],
 }
@@ -81,6 +89,32 @@ MOCK_REVISION_WITH_DIGEST = [
         ],
         "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
         "logUri": "https://console.cloud.google.com/logs/viewer?project=test-project",
+    },
+]
+
+# Service mock whose template mirrors MOCK_REVISION_WITH_DIGEST (the latestReadyRevision spec
+# is exposed inline as service.template in the v2 API).
+MOCK_SERVICE_WITH_DIGEST = [
+    {
+        "name": "projects/test-project/locations/us-central1/services/test-service",
+        "labels": {},
+        "description": "Test Cloud Run service",
+        "uri": "https://test-service-abc123-uc.a.run.app",
+        "ingress": "INGRESS_TRAFFIC_ALL",
+        "latestReadyRevision": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+        "template": {
+            "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+            "containers": [
+                {
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/test-image"
+                    f"@{TEST_REVISION_PRIMARY_DIGEST}",
+                },
+                {
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/log-sidecar"
+                    f"@{TEST_REVISION_SIDECAR_DIGEST}",
+                },
+            ],
+        },
     },
 ]
 

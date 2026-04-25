@@ -68,7 +68,7 @@ def test_sync_skips_unsupported_region(
     mock_cleanup,
 ):
     boto3_session = MagicMock()
-    boto3_session.get_available_partitions.return_value = ["aws"]
+    boto3_session.get_partition_for_region.return_value = "aws"
     boto3_session.get_available_regions.return_value = ["us-east-1"]
 
     codebuild.sync(

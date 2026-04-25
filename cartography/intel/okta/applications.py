@@ -285,6 +285,7 @@ def _load_okta_applications(
     new_app._ont_name = app_data.label,
     new_app._ont_enabled = (app_data.status IN ['ACTIVE']),
     new_app._ont_protocol = app_data.sign_on_mode,
+    new_app._ont_source = 'okta',
     new_app.label = app_data.label,
     new_app.created = app_data.created,
     new_app.okta_last_updated = app_data.okta_last_updated,

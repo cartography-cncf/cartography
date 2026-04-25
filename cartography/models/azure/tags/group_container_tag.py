@@ -13,30 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class ContainerInstanceToTagRelProperties(CartographyRelProperties):
+class GroupContainerToTagRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ContainerInstanceToTagRel(CartographyRelSchema):
-    target_node_label: str = "AzureContainerInstance"
+class GroupContainerToTagRel(CartographyRelSchema):
+    target_node_label: str = "AzureGroupContainer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "TAGGED"
-    properties: ContainerInstanceToTagRelProperties = (
-        ContainerInstanceToTagRelProperties()
-    )
+    properties: GroupContainerToTagRelProperties = GroupContainerToTagRelProperties()
 
 
 @dataclass(frozen=True)
-class AzureContainerInstanceTagsSchema(CartographyNodeSchema):
+class AzureGroupContainerTagsSchema(CartographyNodeSchema):
     label: str = "AzureTag"
     properties: AzureTagProperties = AzureTagProperties()
     sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            ContainerInstanceToTagRel(),
+            GroupContainerToTagRel(),
         ],
     )

@@ -1,16 +1,32 @@
 import logging
+from collections import Counter
+from dataclasses import dataclass
+from functools import partial
+from urllib.parse import unquote
 
 import neo4j
+from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
+from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    DEFAULT_ARTIFACT_REGISTRY_WORKERS,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    fetch_artifact_registry_resources,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    list_artifact_registry_resources,
+)
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
@@ -28,8 +44,58 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class RepositoryArtifactFetchResult:
+    repository_name: str
+    repository_format: str
+    artifacts: list[dict]
+    cleanup_safe: bool
+
+
+@dataclass(frozen=True)
+class ArtifactRegistryArtifactSyncResult:
+    platform_images: list[dict]
+    cleanup_safe: bool
+
+
+def _extract_package_name(package: Package) -> str:
+    package_data = proto_message_to_dict(package)
+    raw_name = package_data.get("displayName") or package_data.get("name", "")
+    return unquote(raw_name.split("/packages/")[-1]) if raw_name else ""
+
+
+def _list_package_versions(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict]:
+    artifacts: list[dict] = []
+    packages = list_artifact_registry_resources(
+        lambda: client.list_packages(parent=repository_name)
+    )
+    for package in packages:
+        package_name = _extract_package_name(package)
+        try:
+            versions = list_artifact_registry_resources(
+                lambda: client.list_versions(parent=package.name)
+            )
+        except NotFound:
+            logger.debug(
+                "Package versions not found for package %s. The package may have been deleted during sync.",
+                package.name,
+            )
+            continue
+        for version in versions:
+            version_data = proto_message_to_dict(version)
+            version_data["packageName"] = package_name
+            artifacts.append(version_data)
+    return artifacts
+
+
 @timeit
-def get_docker_images(client: Resource, repository_name: str) -> list[dict] | None:
+def get_docker_images(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets Docker images for a repository.
 
@@ -37,44 +103,35 @@ def get_docker_images(client: Resource, repository_name: str) -> list[dict] | No
     :param repository_name: The full repository resource name.
     :return: List of Docker image dicts from the API, or None if the Artifact Registry API
              is not enabled or access is denied.
-    :raises HttpError: For errors other than API disabled or permission denied.
+    :raises GoogleAPICallError: For errors other than permission denied.
     """
     try:
-        images: list[dict] = []
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .dockerImages()
-            .list(parent=repository_name)
+        return [
+            proto_message_to_dict(image)
+            for image in list_artifact_registry_resources(
+                lambda: client.list_docker_images(parent=repository_name)
+            )
+        ]
+    except NotFound:
+        logger.debug(
+            "Docker images not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            images.extend(response.get("dockerImages", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .dockerImages()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return images
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve Docker images for repository %s due to permissions "
-                "issues or API not enabled. Skipping.",
-                repository_name,
-            )
-            return None
-        raise
+        return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Could not retrieve Docker images for repository %s due to permissions or auth error. Skipping. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict] | None:
+def get_maven_artifacts(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets Maven artifacts for a repository.
 
@@ -82,44 +139,35 @@ def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict] | 
     :param repository_name: The full repository resource name.
     :return: List of Maven artifact dicts from the API, or None if the Artifact Registry API
              is not enabled or access is denied.
-    :raises HttpError: For errors other than API disabled or permission denied.
+    :raises GoogleAPICallError: For errors other than permission denied.
     """
     try:
-        artifacts: list[dict] = []
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .mavenArtifacts()
-            .list(parent=repository_name)
+        return [
+            proto_message_to_dict(artifact)
+            for artifact in list_artifact_registry_resources(
+                lambda: client.list_maven_artifacts(parent=repository_name)
+            )
+        ]
+    except NotFound:
+        logger.debug(
+            "Maven artifacts not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            artifacts.extend(response.get("mavenArtifacts", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .mavenArtifacts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return artifacts
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve Maven artifacts for repository %s due to permissions "
-                "issues or API not enabled. Skipping.",
-                repository_name,
-            )
-            return None
-        raise
+        return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Could not retrieve Maven artifacts for repository %s due to permissions or auth error. Skipping. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_npm_packages(client: Resource, repository_name: str) -> list[dict] | None:
+def get_npm_packages(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets npm packages for a repository.
 
@@ -127,128 +175,102 @@ def get_npm_packages(client: Resource, repository_name: str) -> list[dict] | Non
     :param repository_name: The full repository resource name.
     :return: List of npm package dicts from the API, or None if the Artifact Registry API
              is not enabled or access is denied.
-    :raises HttpError: For errors other than API disabled or permission denied.
+    :raises GoogleAPICallError: For errors other than permission denied.
     """
     try:
-        packages: list[dict] = []
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .npmPackages()
-            .list(parent=repository_name)
+        return [
+            proto_message_to_dict(package)
+            for package in list_artifact_registry_resources(
+                lambda: client.list_npm_packages(parent=repository_name)
+            )
+        ]
+    except NotFound:
+        logger.debug(
+            "npm packages not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            packages.extend(response.get("npmPackages", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .npmPackages()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return packages
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve npm packages for repository %s due to permissions "
-                "issues or API not enabled. Skipping.",
-                repository_name,
-            )
-            return None
-        raise
+        return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Could not retrieve npm packages for repository %s due to permissions or auth error. Skipping. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_python_packages(client: Resource, repository_name: str) -> list[dict] | None:
+def get_python_packages(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets Python packages for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
     :return: List of Python package dicts from the API, or None if API is not enabled.
-    :raises HttpError: For errors other than API disabled or permission denied.
+    :raises GoogleAPICallError: For errors other than permission denied.
     """
     try:
-        packages: list[dict] = []
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .pythonPackages()
-            .list(parent=repository_name)
+        return [
+            proto_message_to_dict(package)
+            for package in list_artifact_registry_resources(
+                lambda: client.list_python_packages(parent=repository_name)
+            )
+        ]
+    except NotFound:
+        logger.debug(
+            "Python packages not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            packages.extend(response.get("pythonPackages", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .pythonPackages()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return packages
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve Python packages for repository %s due to permissions "
-                "issues or API not enabled. Skipping.",
-                repository_name,
-            )
-            return None
-        raise
+        return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Could not retrieve Python packages for repository %s due to permissions or auth error. Skipping. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_go_modules(client: Resource, repository_name: str) -> list[dict]:
+def get_go_modules(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets Go modules for a repository.
 
+    The Artifact Registry v1 API does not expose a ``goModules.list`` method;
+    Go modules are enumerated via the generic ``packages``/``versions`` endpoints.
+
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Go module dicts from the API.
+    :return: List of Go module version dicts, each enriched with ``packageName``.
     """
-    modules: list[dict] = []
     try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .goModules()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            modules.extend(response.get("goModules", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .goModules()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return modules
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Go modules for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+        return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "Go modules not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
         return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Failed to get Go modules for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
+def get_apt_artifacts(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets APT package versions for a repository.
 
@@ -256,43 +278,28 @@ def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
     :param repository_name: The full repository resource name.
     :return: List of APT package-version dicts from the API.
     """
-    artifacts: list[dict] = []
     try:
-        packages_resource = client.projects().locations().repositories().packages()
-        packages_request = packages_resource.list(parent=repository_name)
-        while packages_request is not None:
-            packages_response = gcp_api_execute_with_retry(packages_request)
-            for package in packages_response.get("packages", []):
-                package_name = (
-                    package.get("displayName")
-                    or package.get("name", "").split("/packages/")[-1]
-                )
-                versions_resource = packages_resource.versions()
-                versions_request = versions_resource.list(parent=package.get("name"))
-                while versions_request is not None:
-                    versions_response = gcp_api_execute_with_retry(versions_request)
-                    for version in versions_response.get("versions", []):
-                        version["packageName"] = package_name
-                        artifacts.append(version)
-                    versions_request = versions_resource.list_next(
-                        previous_request=versions_request,
-                        previous_response=versions_response,
-                    )
-            packages_request = packages_resource.list_next(
-                previous_request=packages_request,
-                previous_response=packages_response,
-            )
-        return artifacts
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get APT package versions for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+        return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "APT package versions not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
         return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Failed to get APT package versions for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 @timeit
-def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
+def get_yum_artifacts(
+    client: ArtifactRegistryClient,
+    repository_name: str,
+) -> list[dict] | None:
     """
     Gets YUM package versions for a repository.
 
@@ -300,39 +307,21 @@ def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
     :param repository_name: The full repository resource name.
     :return: List of YUM package-version dicts from the API.
     """
-    artifacts: list[dict] = []
     try:
-        packages_resource = client.projects().locations().repositories().packages()
-        packages_request = packages_resource.list(parent=repository_name)
-        while packages_request is not None:
-            packages_response = gcp_api_execute_with_retry(packages_request)
-            for package in packages_response.get("packages", []):
-                package_name = (
-                    package.get("displayName")
-                    or package.get("name", "").split("/packages/")[-1]
-                )
-                versions_resource = packages_resource.versions()
-                versions_request = versions_resource.list(parent=package.get("name"))
-                while versions_request is not None:
-                    versions_response = gcp_api_execute_with_retry(versions_request)
-                    for version in versions_response.get("versions", []):
-                        version["packageName"] = package_name
-                        artifacts.append(version)
-                    versions_request = versions_resource.list_next(
-                        previous_request=versions_request,
-                        previous_response=versions_response,
-                    )
-            packages_request = packages_resource.list_next(
-                previous_request=packages_request,
-                previous_response=packages_response,
-            )
-        return artifacts
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get YUM package versions for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
+        return _list_package_versions(client, repository_name)
+    except NotFound:
+        logger.debug(
+            "YUM package versions not found for repository %s. The repository may have been deleted during sync.",
+            repository_name,
         )
         return []
+    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
+        logger.warning(
+            "Failed to get YUM package versions for repository %s due to permissions or auth error. (%s)",
+            repository_name,
+            type(e).__name__,
+        )
+        return None
 
 
 def transform_docker_images(
@@ -512,11 +501,15 @@ def transform_go_modules(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Go modules to the GCPArtifactRegistryLanguagePackage node format.
+    Transforms Go module versions to the GCPArtifactRegistryLanguagePackage node format.
+
+    Each input entry is a version resource (from ``packages.versions.list``)
+    enriched with a ``packageName`` field identifying the parent module.
     """
     transformed: list[dict] = []
     for module in modules_data:
         name = module.get("name", "")
+        version = name.split("/versions/")[-1] if "/versions/" in name else None
 
         transformed.append(
             {
@@ -524,8 +517,8 @@ def transform_go_modules(
                 "name": name.split("/")[-1] if name else None,
                 "format": "GO",
                 "uri": None,
-                "version": module.get("version"),
-                "package_name": None,
+                "version": version,
+                "package_name": module.get("packageName"),
                 "create_time": module.get("createTime"),
                 "update_time": module.get("updateTime"),
                 "repository_id": repository_id,
@@ -616,6 +609,7 @@ def load_generic_artifacts(
         neo4j_session,
         GCPArtifactRegistryGenericArtifactSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -647,6 +641,7 @@ def load_docker_images(
         neo4j_session,
         GCPArtifactRegistryContainerImageSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -678,6 +673,7 @@ def load_language_packages(
         neo4j_session,
         GCPArtifactRegistryLanguagePackageSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -709,6 +705,7 @@ def load_helm_charts(
         neo4j_session,
         GCPArtifactRegistryHelmChartSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -761,15 +758,38 @@ def transform_image_manifests(
     return all_manifests
 
 
+def _get_repository_artifacts(
+    client: ArtifactRegistryClient,
+    repository: tuple[str, str],
+) -> RepositoryArtifactFetchResult:
+    repo_name, repo_format = repository
+    handlers = FORMAT_HANDLERS.get(repo_format)
+    if handlers is None:
+        logger.debug(
+            "No artifact handler for format %s in repository %s",
+            repo_format,
+            repo_name,
+        )
+        return RepositoryArtifactFetchResult(repo_name, repo_format, [], True)
+
+    get_func, _ = handlers
+    artifacts = get_func(client, repo_name)
+    if artifacts is None:
+        return RepositoryArtifactFetchResult(repo_name, repo_format, [], False)
+    return RepositoryArtifactFetchResult(repo_name, repo_format, artifacts, True)
+
+
 @timeit
 def sync_artifact_registry_artifacts(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ArtifactRegistryClient,
     repositories: list[dict],
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> list[dict]:
+    cleanup_safe: bool = True,
+    max_workers: int = DEFAULT_ARTIFACT_REGISTRY_WORKERS,
+) -> ArtifactRegistryArtifactSyncResult:
     """
     Syncs GCP Artifact Registry artifacts for all repositories.
 
@@ -779,44 +799,55 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: List of transformed platform image data (from imageManifests field).
+    :return: Artifact sync result containing platform images and cleanup-safety state.
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 
-    # Separate collections for different artifact types
     docker_images_raw: list[dict] = []
     docker_images_transformed: list[dict] = []
     helm_charts_transformed: list[dict] = []
     language_packages_transformed: list[dict] = []
     other_artifacts_transformed: list[dict] = []
+    candidate_repositories: list[tuple[str, str]] = []
 
     for repo in repositories:
         repo_name = repo.get("name")
         repo_format = repo.get("format")
 
-        if not repo_name or not repo_format:
+        if not isinstance(repo_name, str) or not isinstance(repo_format, str):
+            continue
+        candidate_repositories.append((repo_name, repo_format))
+
+    format_counts = Counter(repo_format for _, repo_format in candidate_repositories)
+    logger.info(
+        "Artifact Registry project %s has %d candidate repositories by format: %s",
+        project_id,
+        len(candidate_repositories),
+        dict(sorted(format_counts.items())),
+    )
+
+    fetch_repository_artifacts = partial(_get_repository_artifacts, client)
+    repository_results = fetch_artifact_registry_resources(
+        items=candidate_repositories,
+        fetch_for_item=fetch_repository_artifacts,
+        resource_type="artifacts by repository",
+        project_id=project_id,
+        max_workers=max_workers,
+    )
+
+    artifact_cleanup_safe = cleanup_safe
+    nonempty_repositories = 0
+    for result in repository_results:
+        artifact_cleanup_safe = artifact_cleanup_safe and result.cleanup_safe
+        if not result.artifacts:
             continue
 
-        handlers = FORMAT_HANDLERS.get(repo_format)
-        if handlers is None:
-            logger.debug(
-                f"No artifact handler for format {repo_format} in repository {repo_name}"
-            )
-            continue
+        nonempty_repositories += 1
+        repo_name = result.repository_name
+        repo_format = result.repository_format
+        artifacts_raw = result.artifacts
 
-        get_func, _ = handlers
-
-        artifacts_raw = get_func(client, repo_name)
-        if artifacts_raw is None:
-            # Skip this repository if API is not enabled or access denied
-            continue
-        if not artifacts_raw:
-            continue
-
-        # Route to appropriate collection based on format
         if repo_format == "DOCKER":
-            # Split Docker format artifacts by artifact type
-            # Helm charts are stored as OCI artifacts and identified via artifactType or mediaType
             for artifact in artifacts_raw:
                 artifact_type = artifact.get("artifactType", "")
                 media_type = artifact.get("mediaType", "")
@@ -828,23 +859,32 @@ def sync_artifact_registry_artifacts(
                         transform_helm_charts([artifact], repo_name, project_id)
                     )
                 else:
-                    # Actual Docker images - collect raw for manifest extraction
                     docker_images_raw.append(artifact)
                     docker_images_transformed.extend(
                         transform_docker_images([artifact], repo_name, project_id)
                     )
         elif repo_format in LANGUAGE_PACKAGE_FORMATS:
-            # Use the format-specific transformer from FORMAT_HANDLERS
-            _, transform_func = handlers
+            _, transform_func = FORMAT_HANDLERS[repo_format]
             language_packages_transformed.extend(
                 transform_func(artifacts_raw, repo_name, project_id)
             )
         else:
-            # APT, YUM, and any other formats use the unified schema
-            _, transform_func = handlers
+            _, transform_func = FORMAT_HANDLERS[repo_format]
             other_artifacts_transformed.extend(
                 transform_func(artifacts_raw, repo_name, project_id)
             )
+
+    logger.info(
+        "Collected Artifact Registry artifacts for project %s from %d/%d non-empty repositories: "
+        "docker_images=%d, helm_charts=%d, language_packages=%d, generic_artifacts=%d.",
+        project_id,
+        nonempty_repositories,
+        len(candidate_repositories),
+        len(docker_images_transformed),
+        len(helm_charts_transformed),
+        len(language_packages_transformed),
+        len(other_artifacts_transformed),
+    )
 
     # Load Docker images with the dedicated schema
     if docker_images_transformed:
@@ -868,14 +908,18 @@ def sync_artifact_registry_artifacts(
             neo4j_session, other_artifacts_transformed, project_id, update_tag
         )
 
-    # Cleanup all node types
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_docker_images(neo4j_session, cleanup_job_params)
-    cleanup_helm_charts(neo4j_session, cleanup_job_params)
-    cleanup_language_packages(neo4j_session, cleanup_job_params)
-    cleanup_generic_artifacts(neo4j_session, cleanup_job_params)
+    if artifact_cleanup_safe:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_docker_images(neo4j_session, cleanup_job_params)
+        cleanup_helm_charts(neo4j_session, cleanup_job_params)
+        cleanup_language_packages(neo4j_session, cleanup_job_params)
+        cleanup_generic_artifacts(neo4j_session, cleanup_job_params)
+    else:
+        logger.warning(
+            "Skipping Artifact Registry artifact cleanup for project %s because artifact discovery was incomplete.",
+            project_id,
+        )
 
-    # Extract and transform platform images from imageManifests field (no HTTP calls needed)
     platform_images = transform_image_manifests(docker_images_raw, project_id)
-    return platform_images
+    return ArtifactRegistryArtifactSyncResult(platform_images, artifact_cleanup_safe)

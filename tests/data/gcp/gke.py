@@ -63,6 +63,9 @@ GKE_RESPONSE = {
             },
             "legacyAbac": {},
             "shieldedNodes": {},
+            "workloadIdentityConfig": {
+                "workloadPool": "test-cluster.svc.id.goog",
+            },
             "ipAllocationPolicy": {
                 "useIpAliases": True,
                 "clusterIpv4Cidr": "0.0.0.0/14",

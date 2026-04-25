@@ -65,7 +65,7 @@ Canonical nodes are created by a **dedicated intel module** (`cartography.intel.
 2. The ontology intel module runs (configured via CLI options)
 3. It reads source nodes from the graph matching the configured sources of truth
 4. Creates `(:User:Ontology)` or `(:Device:Ontology)` canonical nodes
-5. Executes `OntologyRelMapping` queries to link canonical nodes
+5. Runs ontology analysis jobs to link canonical nodes
 
 **Configuration:**
 ```bash
@@ -184,8 +184,6 @@ your_service_mapping = OntologyMapping(
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
-from cartography.models.ontology.mapping.specs import OntologyRelMapping
-
 # Add your mapping to the file
 your_service_mapping = OntologyMapping(
     module_name="your_service",
@@ -201,19 +199,6 @@ your_service_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
                 OntologyFieldMapping(ontology_field="serial_number", node_field="serial"),
             ],
-        ),
-    ],
-    # Optional: Add relationship mappings to connect Users to Devices
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to User based on YourServiceUser-YourServiceDevice ownership",
-            query="""
-                MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)
-                MERGE (u)-[r:OWNS]->(d)
-                ON CREATE SET r.firstseen = timestamp()
-                SET r.lastupdated = $UPDATE_TAG
-            """,
-            iterative=False,
         ),
     ],
 )
@@ -350,22 +335,14 @@ In this example, AWS IAM users can be linked to existing User ontology nodes thr
 
 ## Step 5: Handle Complex Relationships
 
-For services that have user-device relationships, add relationship mappings:
+For services that have user-device relationships, add a statement to the appropriate ontology analysis job JSON file (e.g. `cartography/data/jobs/analysis/ontology_devices_linking.json`):
 
-```python
-# In your device mapping
-rels=[
-    OntologyRelMapping(
-        __comment__="Connect users to their devices",
-        query="""
-            MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)
-            MERGE (u)-[r:OWNS]->(d)
-            ON CREATE SET r.firstseen = timestamp()
-            SET r.lastupdated = $UPDATE_TAG
-        """,
-        iterative=False,
-    ),
-]
+```json
+{
+    "__comment": "Connect users to their devices via YourService",
+    "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+    "iterative": false
+}
 ```
 
 ## Testing Ontology Integration
@@ -429,6 +406,7 @@ Represents a user in Your Service.
 | `Tenant` | `> **Ontology Mapping**: This node has the extra label \`Tenant\` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).` |
 | `Database` | `> **Ontology Mapping**: This node has the extra label \`Database\` to enable cross-platform queries for databases across different systems (e.g., RDSInstance, DynamoDBTable, BigQueryDataset).` |
 | `ObjectStorage` | `> **Ontology Mapping**: This node has the extra label \`ObjectStorage\` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket, AzureStorageBlobContainer).` |
+| `FileStorage` | `> **Ontology Mapping**: This node has the extra label \`FileStorage\` to enable cross-platform queries for network file systems and shares across different systems (e.g., EfsFileSystem, AzureStorageFileShare).` |
 
 ### Example: AWSAccount with Tenant Label
 

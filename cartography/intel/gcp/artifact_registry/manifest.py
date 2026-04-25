@@ -9,6 +9,9 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
 from cartography.models.gcp.artifact_registry.platform_image import (
     GCPArtifactRegistryPlatformImageSchema,
 )
@@ -243,6 +246,7 @@ def load_manifests(
         neo4j_session,
         GCPArtifactRegistryPlatformImageSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )

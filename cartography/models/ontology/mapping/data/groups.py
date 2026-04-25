@@ -313,6 +313,22 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelAccessGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "duo": duo_mapping,
@@ -330,4 +346,5 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
     "kubernetes": kubernetes_mapping,
+    "vercel": vercel_mapping,
 }

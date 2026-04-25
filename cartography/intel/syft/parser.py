@@ -94,6 +94,11 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         dep_map.setdefault(child_id, []).append(parent_norm_id)
 
+    # Extract image digest from source metadata when available
+    source = data.get("source", {})
+    target = source.get("target", {}) if source.get("type") == "image" else {}
+    image_digest = target.get("digest")
+
     packages: list[dict[str, Any]] = []
     for artifact_id, artifact in artifacts.items():
         name = artifact.get("name")
@@ -119,6 +124,7 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "language": artifact.get("language"),
                 "found_by": artifact.get("foundBy"),
                 "dependency_ids": dep_map.get(artifact_id, []),
+                "ImageDigest": image_digest,
             }
         )
 

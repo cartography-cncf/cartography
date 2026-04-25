@@ -74,6 +74,7 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class CrowdstrikeCVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
+    cve_id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     base_score: PropertyRef = PropertyRef("base_score")
     base_severity: PropertyRef = PropertyRef("severity")

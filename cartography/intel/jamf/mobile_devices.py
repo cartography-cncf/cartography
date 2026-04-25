@@ -26,6 +26,33 @@ _SECTION_PARAMS = {
 }
 
 
+def _normalize_mobile_os(device_type: str | None) -> str | None:
+    """Normalize Jamf mobile device family values into OS-family values.
+
+    Jamf's v2 mobile inventory uses ``deviceType`` for mobile family/platform
+    values. In practice this may already be an OS-family value such as ``iOS``,
+    but some tenants and fixtures return hardware-family values such as
+    ``iPhone`` or ``iPad``. Normalize the known values here so the provider node
+    can expose a consistent OS-family field to the ontology.
+    """
+    if not device_type:
+        return None
+
+    normalized = device_type.strip().lower()
+    os_by_device_type = {
+        "ios": "iOS",
+        "iphone": "iOS",
+        "ipod": "iOS",
+        "ipados": "iPadOS",
+        "ipad": "iPadOS",
+        "tvos": "tvOS",
+        "apple tv": "tvOS",
+        "appletv": "tvOS",
+        "android": "Android",
+    }
+    return os_by_device_type.get(normalized)
+
+
 @timeit
 def get(
     api_session: requests.Session,
@@ -64,6 +91,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "last_inventory_update_date": general.get("lastInventoryUpdateDate"),
                 "last_enrolled_date": general.get("lastEnrolledDate"),
                 "platform": device.get("deviceType"),
+                "os": _normalize_mobile_os(device.get("deviceType")),
                 "os_version": general.get("osVersion"),
                 "os_build": general.get("osBuild"),
                 "serial_number": hardware.get("serialNumber"),

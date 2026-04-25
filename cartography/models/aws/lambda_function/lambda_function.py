@@ -34,10 +34,13 @@ class AWSLambdaNodeProperties(CartographyNodeProperties):
     lastupdatestatusreason: PropertyRef = PropertyRef("LastUpdateStatusReason")
     lastupdatestatusreasoncode: PropertyRef = PropertyRef("LastUpdateStatusReasonCode")
     packagetype: PropertyRef = PropertyRef("PackageType")
+    image_uri: PropertyRef = PropertyRef("image_uri")
+    image_digest: PropertyRef = PropertyRef("image_digest")
     signingprofileversionarn: PropertyRef = PropertyRef("SigningProfileVersionArn")
     signingjobarn: PropertyRef = PropertyRef("SigningJobArn")
     codesha256: PropertyRef = PropertyRef("CodeSha256")
     architectures: PropertyRef = PropertyRef("Architectures")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     masterarn: PropertyRef = PropertyRef("MasterArn")
     kmskeyarn: PropertyRef = PropertyRef("KMSKeyArn")
     anonymous_access: PropertyRef = PropertyRef("AnonymousAccess")
@@ -81,6 +84,60 @@ class AWSLambdaToPrincipalRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSLambdaToECRImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSLambdaToECRImageRel(CartographyRelSchema):
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: AWSLambdaToECRImageRelProperties = AWSLambdaToECRImageRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSLambdaToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSLambdaToGitLabContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: AWSLambdaToGitLabContainerImageRelProperties = (
+        AWSLambdaToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSLambdaToGCPArtifactRegistryContainerImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSLambdaToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: AWSLambdaToGCPArtifactRegistryContainerImageRelProperties = (
+        AWSLambdaToGCPArtifactRegistryContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSLambdaSchema(CartographyNodeSchema):
     label: str = "AWSLambda"
     properties: AWSLambdaNodeProperties = AWSLambdaNodeProperties()
@@ -89,5 +146,8 @@ class AWSLambdaSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSLambdaToPrincipalRel(),
+            AWSLambdaToECRImageRel(),
+            AWSLambdaToGitLabContainerImageRel(),
+            AWSLambdaToGCPArtifactRegistryContainerImageRel(),
         ],
     )

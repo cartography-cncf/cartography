@@ -11,6 +11,7 @@ from typing import List
 from typing import Optional
 
 import neo4j
+import requests
 from requests import Session
 
 from cartography.client.core.tx import load
@@ -29,6 +30,11 @@ BATCH_SIZE_DAYS = 120
 RESULTS_PER_PAGE = 2000
 DEFAULT_SLEEP_TIME = 3.0
 DELAYED_SLEEP_TIME = 6.0
+# urllib3 Retry on the session only covers errors raised inside urlopen(); the
+# response body is streamed by `requests` afterward, so body-read errors like
+# ChunkedEncodingError bypass that retry. Cover them explicitly here.
+MAX_BODY_READ_RETRIES = 5
+MAX_BODY_READ_BACKOFF_SECONDS = 32
 
 
 @timeit
@@ -93,20 +99,58 @@ def _call_cves_api(
 
     while params["resultsPerPage"] > 0 or params["startIndex"] < total_results:
         logger.info(f"Calling NIST NVD API at {url} with params {params}")
-        res = http_session.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=CONNECT_AND_READ_TIMEOUT,
-        )
-        res.raise_for_status()
-        data = res.json()
+        data = _get_cves_page(http_session, url, params, headers)
         _map_cve_dict(results, data)
         total_results = data["totalResults"]
         params["resultsPerPage"] = data["resultsPerPage"]
         params["startIndex"] += data["resultsPerPage"]
         time.sleep(sleep_between_requests)
     return results
+
+
+def _get_cves_page(
+    http_session: Session,
+    url: str,
+    params: Dict[str, Any],
+    headers: Dict[str, str],
+) -> Dict[Any, Any]:
+    """
+    Fetch a single page from the NIST NVD API with retry on transient body-read
+    and network errors that urllib3's session-level Retry does not cover.
+    """
+    for attempt in range(1, MAX_BODY_READ_RETRIES + 1):
+        try:
+            res = http_session.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=CONNECT_AND_READ_TIMEOUT,
+            )
+            res.raise_for_status()
+            return res.json()
+        except (
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ) as err:
+            if attempt >= MAX_BODY_READ_RETRIES:
+                logger.error(
+                    "NIST NVD: %s after %d attempts; giving up.",
+                    type(err).__name__,
+                    attempt,
+                    exc_info=True,
+                )
+                raise
+            sleep_seconds = min(2**attempt, MAX_BODY_READ_BACKOFF_SECONDS)
+            logger.warning(
+                "NIST NVD: %s on attempt %d/%d; retrying in %d seconds.",
+                type(err).__name__,
+                attempt,
+                MAX_BODY_READ_RETRIES,
+                sleep_seconds,
+            )
+            time.sleep(sleep_seconds)
+    raise RuntimeError("unreachable")  # pragma: no cover
 
 
 def get_cves_in_batches(

@@ -9,16 +9,29 @@ A -- RESOURCE --> DP(DevicePosture)
 A -- RESOURCE --> DPC(DevicePostureCondition)
 A -- RESOURCE --> G(Group)
 A -- RESOURCE --> T(Tag)
+A -- RESOURCE --> Grant(Grant)
+A -- RESOURCE --> S(Service)
 U -- OWNS --> D
 U -- MEMBER_OF --> G
+U -- INHERITED_MEMBER_OF --> G
 G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
 D -- TAGGED --> T
+S -- TAGGED --> T
 DP -- HAS_CONDITION --> DPC
 DPC -- REQUIRES --> PI
 D -- CONFORMS_TO --> DPC
 D -- CONFORMS_TO --> DP
+U -- SOURCE --> Grant
+G -- SOURCE --> Grant
+Grant -- DESTINATION --> T
+Grant -- DESTINATION --> G
+U -- CAN_ACCESS --> D
+U -- CAN_ACCESS --> S
+G -- CAN_ACCESS --> D
+G -- CAN_ACCESS --> S
+D -- CAN_ACCESS --> D
 ```
 
 ### TailscaleTailnet
@@ -42,7 +55,7 @@ Settings for a tailnet (aka Tenant).
 | posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
-- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag` belong to a `Tailnet`.
+- `User`, `Device`, `PostureIntegration`, `DevicePosture`, `DevicePostureCondition`, `Group`, `Tag`, `Grant`, `Service` belong to a `Tailnet`.
     ```
     (:TailscaleTailnet)-[:RESOURCE]->(
         :TailscaleUser,
@@ -51,7 +64,9 @@ Settings for a tailnet (aka Tenant).
         :TailscaleDevicePosture,
         :TailscaleDevicePostureCondition,
         :TailscaleGroup,
-        :Tailscale:Tag
+        :TailscaleTag,
+        :TailscaleGrant,
+        :TailscaleService
     )
     ```
 
@@ -92,9 +107,22 @@ Representation of a user within a tailnet.
     ```
     (:TailscaleUser)-[:MEMBER_OF]->(:TailscaleGroup)
     ```
+- `Users` are transitively member of a parent `Group` (resolved from sub-group hierarchy)
+    ```
+    (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
+    ```
 - `Users` own a `Tag`
     ```
     (:TailscaleUser)-[:OWNS]->(:TailscaleTag)
+    ```
+- `Users` can access `Devices` and `Services` (resolved from grants)
+    ```
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleDevice)
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
+- `Users` are sources of `Grants`
+    ```
+    (:TailscaleUser)-[:SOURCE]->(:TailscaleGrant)
     ```
 
 
@@ -177,10 +205,90 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
     ```
+
+
+### TailscaleGrant
+
+A grant rule from the Tailscale ACL/policy file. Grants define access rules with sources, destinations, and capabilities.
+
+| Field | Description |
+|-------|-------------|
+| id | Stable content-hash ID (eg. `grant:a1b2c3d4e5f6`). Computed from the grant's src, dst, ip, app, and srcPosture fields. |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| sources | Native list of source selectors (users, groups, tags). |
+| destinations | Native list of destination selectors (tags, groups, services, IPs). |
+| ip_rules | Native list of network capabilities (eg. `["tcp:443"]`). |
+| app_capabilities | JSON-serialized dict of application capabilities. |
+| src_posture | Native list of required posture policies for sources. |
+
+#### Relationships
+- `Grant` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleGrant)
+    ```
+- `Users` and `Groups` are sources of a `Grant`.
+    ```
+    (:TailscaleUser)-[:SOURCE]->(:TailscaleGrant)
+    (:TailscaleGroup)-[:SOURCE]->(:TailscaleGrant)
+    ```
+- `Grants` target `Tags` and `Groups` as destinations.
+    ```
+    (:TailscaleGrant)-[:DESTINATION]->(:TailscaleTag)
+    (:TailscaleGrant)-[:DESTINATION]->(:TailscaleGroup)
+    ```
+
+#### Resolved Access (CAN_ACCESS)
+
+Effective access relationships are resolved from grants and loaded as MatchLinks. The `granted_by` property on `CAN_ACCESS` is a list of grant IDs that justify the access.
+
+```
+(:TailscaleUser)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+(:TailscaleUser)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleService)
+(:TailscaleGroup)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+(:TailscaleGroup)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleService)
+(:TailscaleDevice)-[:CAN_ACCESS {granted_by: [...]}]->(:TailscaleDevice)
+```
+
+
+### TailscaleService
+
+A Tailscale Service published in the tailnet. Services are named resources backed by one or more device hosts, accessible via stable MagicDNS names.
+
+| Field | Description |
+|-------|-------------|
+| id | Service ID in grant selector format (eg. `svc:web-server`). |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| name | The unique name of the service. |
+| comment | An optional description for the service. |
+| ipv4_address | The IPv4 address assigned to the service. |
+| ipv6_address | The IPv6 address assigned to the service. |
+| ports | Native list of protocol:port pairs (eg. `["tcp:443"]`). |
+| tags | JSON-serialized list of tags associated with the service. |
+
+#### Relationships
+- `Service` belongs to a `Tailnet`.
+    ```
+    (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleService)
+    ```
+- `Services` are tagged with `Tags`.
+    ```
+    (:TailscaleService)-[:TAGGED]->(:TailscaleTag)
+    ```
+- `Users` and `Groups` can access `Services` (resolved from grants).
+    ```
+    (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
 - `Devices` can conform to posture conditions and full postures.
     ```
     (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePostureCondition)
     (:TailscaleDevice)-[:CONFORMS_TO]->(:TailscaleDevicePosture)
+    ```
+- `Devices` can access other `Devices` (resolved from grants and user access propagation)
+    ```
+    (:TailscaleDevice)-[:CAN_ACCESS]->(:TailscaleDevice)
     ```
 
 
@@ -293,9 +401,22 @@ A group in Tailscale (either `group` or `autogroup`).
     ```
     (:TailscaleGroup)-[:MEMBER_OF]->(:TailscaleGroup)
     ```
+- `Users` are transitively member of a parent `Group`
+    ```
+    (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
+    ```
 - `Group` own a `Tag`
     ```
     (:TailscaleGroup)-[:OWNS]->(:TailscaleTag)
+    ```
+- `Groups` can access `Devices` and `Services` (resolved from grants)
+    ```
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleDevice)
+    (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
+    ```
+- `Groups` are sources of `Grants`
+    ```
+    (:TailscaleGroup)-[:SOURCE]->(:TailscaleGrant)
     ```
 
 ### TailscaleTag

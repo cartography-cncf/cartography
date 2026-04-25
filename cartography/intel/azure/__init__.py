@@ -200,14 +200,14 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    container_instances.sync(
+    group_containers.sync_group_containers(
         neo4j_session,
         credentials,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
-    group_containers.sync_group_containers(
+    container_instances.sync(
         neo4j_session,
         credentials,
         subscription_id,
@@ -376,6 +376,16 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
         run_analysis_job(
             "azure_compute_asset_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        # DEPRECATED: compatibility migration that swaps the AzureContainerInstance
+        # and AzureGroupContainer labels so AzureContainerInstance now labels the
+        # individual container and AzureGroupContainer labels the group. Remove in
+        # v1.0.0.
+        run_analysis_job(
+            "azure_container_label_swap_migration.json",
             neo4j_session,
             common_job_parameters,
         )

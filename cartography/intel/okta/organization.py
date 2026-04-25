@@ -25,7 +25,7 @@ def create_okta_organization(
     ingest = """
     MERGE (org:OktaOrganization{id: $ORG_NAME})
     ON CREATE SET org.name = org.id, org.firstseen = timestamp(), org._ont_name = org.id
-    SET org.lastupdated = $okta_update_tag, org :Tenant
+    SET org.lastupdated = $okta_update_tag, org._ont_source = 'okta', org :Tenant
     """
 
     run_write_query(

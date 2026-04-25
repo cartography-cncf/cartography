@@ -1,5 +1,5 @@
 """
-Integration test for the Container -> Image RESOLVED_IMAGE analysis job.
+Integration test for the Container/Function -> Image RESOLVED_IMAGE analysis job.
 """
 
 from unittest.mock import MagicMock
@@ -7,17 +7,24 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
+import cartography.intel.gcp.cloudrun.service as cloudrun_service
 from cartography.util import run_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
+from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
 from tests.data.gcp.cloudrun import TEST_JOB_PRIMARY_DIGEST
 from tests.data.gcp.cloudrun import TEST_REVISION_PRIMARY_DIGEST
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "test-project"
+TEST_SERVICE_ID = "projects/test-project/locations/us-central1/services/test-service"
 TEST_REVISION_ID = "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc"
 TEST_JOB_ID = "projects/test-project/locations/us-west1/jobs/test-job"
+TEST_CLOUD_RUN_LOCATIONS = [
+    "projects/test-project/locations/us-central1",
+    "projects/test-project/locations/us-west1",
+]
 
 
 def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
@@ -55,16 +62,20 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
     ) == {("container-1", "sha256:deadbeef")}
 
 
+@patch("cartography.intel.gcp.cloudrun.service.get_services")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")
 def test_resolved_image_analysis_creates_rel_for_cloud_run(
     mock_get_jobs,
     mock_get_revisions,
+    mock_get_services,
     neo4j_session,
 ):
-    """Run Cloud Run revision and job through the real load path, then verify RESOLVED_IMAGE is created.
-
-    This proves the schema's :Container label assignment and the analysis job work end-to-end.
+    """Run Cloud Run service, revision and job through the real load path,
+    then verify RESOLVED_IMAGE is created on the per-container :Container nodes
+    for both Service and Job. Service and Job carry no ontology label of their
+    own, and Revision is a pure versioning marker — none of them get
+    RESOLVED_IMAGE.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
@@ -104,27 +115,38 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
 
     # Act: sync Cloud Run through the real load path
+    mock_get_services.return_value = MOCK_SERVICE_WITH_DIGEST
     mock_get_revisions.return_value = MOCK_REVISION_WITH_DIGEST
     mock_get_jobs.return_value = MOCK_JOB_WITH_DIGEST
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
+    mock_credentials = MagicMock()
 
-    cloudrun_revision.sync_revisions(
+    cloudrun_service.sync_services(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
+    )
+    cloudrun_revision.sync_revisions(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_job.sync_jobs(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     # Act: run the RESOLVED_IMAGE analysis job
@@ -134,7 +156,22 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: RESOLVED_IMAGE edges exist for both revision and job
+    # Assert: no :Function RESOLVED_IMAGE — Service no longer carries :Function.
+    assert (
+        check_rels(
+            neo4j_session,
+            "Function",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+    # Assert: RESOLVED_IMAGE on :Container for both the Service-side and Job-side individual containers.
+    service_primary_container_id = f"{TEST_SERVICE_ID}/containers/0"
+    job_primary_container_id = f"{TEST_JOB_ID}/containers/0"
     assert check_rels(
         neo4j_session,
         "Container",
@@ -143,9 +180,48 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         "id",
         "RESOLVED_IMAGE",
     ) == {
-        (TEST_REVISION_ID, TEST_REVISION_PRIMARY_DIGEST),
-        (TEST_JOB_ID, TEST_JOB_PRIMARY_DIGEST),
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
+        (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
     }
+
+    # Assert: Revision has no RESOLVED_IMAGE (pure versioning marker).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunRevision",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+    # Assert: Service has no RESOLVED_IMAGE (orchestrator, no ontology label).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunService",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+    # Assert: Job has no RESOLVED_IMAGE (orchestrator, no ontology label).
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudRunJob",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
 
 
 def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
@@ -194,3 +270,56 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
         "id",
         "RESOLVED_IMAGE",
     ) == {("container-ml-1", "sha256:childamd64")}
+
+
+def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_list(
+    neo4j_session,
+):
+    """GAR manifest lists should resolve through CONTAINS_IMAGE to the matching platform image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:GCPCloudRunServiceContainer {id: 'cloud-run-container-1'})
+        SET c.architecture_normalized = 'amd64',
+            c.lastupdated = $update_tag
+
+        MERGE (ml:GCPArtifactRegistryContainerImage:ImageManifestList {id: 'gar-manifest-list'})
+        SET ml.digest = 'sha256:manifestlist',
+            ml.lastupdated = $update_tag
+
+        MERGE (child_amd64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-amd64'})
+        SET child_amd64.digest = 'sha256:childamd64',
+            child_amd64._ont_architecture = 'amd64',
+            child_amd64.lastupdated = $update_tag
+
+        MERGE (child_arm64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-arm64'})
+        SET child_arm64.digest = 'sha256:childarm64',
+            child_arm64._ont_architecture = 'arm64',
+            child_arm64.lastupdated = $update_tag
+
+        MERGE (c)-[r:HAS_IMAGE]->(ml)
+        SET r.lastupdated = $update_tag
+
+        MERGE (ml)-[r1:CONTAINS_IMAGE]->(child_amd64)
+        SET r1.lastupdated = $update_tag
+
+        MERGE (ml)-[r2:CONTAINS_IMAGE]->(child_arm64)
+        SET r2.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("cloud-run-container-1", "gar-child-amd64")}

@@ -1,144 +1,74 @@
 """
-Utility functions for GCP Cloud Run intel module.
+Utility functions for GCP Cloud Run intel modules.
 """
 
 import logging
-from typing import Optional
-from typing import TypedDict
+from collections.abc import Callable
+from collections.abc import Iterable
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 
+from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import proto_message_to_dict
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-
-class CloudRunContainerImageMetadata(TypedDict):
-    container_image: str | None
-    container_images: list[str]
-    image_digest: str | None
-    image_digests: list[str]
+CLOUD_RUN_LABEL_BATCH_SIZE = 1000
+DEFAULT_CLOUD_RUN_LOCATION_WORKERS = 8
 
 
-def _extract_image_digest(image: str | None) -> str | None:
-    if not image or "@" not in image:
-        return None
-    _, digest = image.rsplit("@", 1)
-    return digest or None
+def _normalize_cloud_run_location_name(location_name: str) -> str:
+    if location_name.startswith("projects/"):
+        return location_name
+    return f"projects/{location_name}"
 
 
-def extract_container_image_metadata(
-    containers: list[dict] | None,
-) -> CloudRunContainerImageMetadata:
-    """
-    Extract first-container compatibility fields plus complete container image metadata.
-    """
-    container_images: list[str] = []
-    image_digests: list[str] = []
-
-    for container in containers or []:
-        image = container.get("image")
-        if not image:
-            continue
-        if image not in container_images:
-            container_images.append(image)
-
-        digest = _extract_image_digest(image)
-        if digest and digest not in image_digests:
-            image_digests.append(digest)
-
-    return {
-        "container_image": container_images[0] if container_images else None,
-        "container_images": container_images,
-        "image_digest": image_digests[0] if image_digests else None,
-        "image_digests": image_digests,
-    }
+def _cloud_run_location_short_name(location_name: str) -> str:
+    return location_name.rsplit("/", 1)[-1]
 
 
-def discover_cloud_run_locations(
+def _service_discovered_cloud_run_locations(
     client: Resource,
     project_id: str,
-    credentials: Optional[GoogleCredentials] = None,
-) -> set[str]:
-    """
-    Discovers GCP locations with Cloud Run resources.
-
-    Uses the v1 API's locations.list() method to get all available Cloud Run regions.
-    This ensures we don't miss regions that only have jobs (no services).
-    Falls back to discovering via services list if the v1 API call fails.
-    """
-    try:
-        # Use v1 API's locations.list() to get all Cloud Run regions.
-        # Prefer caller-provided credentials to avoid accidental fallback to ADC.
-        resolved_credentials = credentials or get_gcp_credentials()
-        v1_client = build_client("run", "v1", credentials=resolved_credentials)
-
-        parent = f"projects/{project_id}"
-        request = v1_client.projects().locations().list(name=parent)
-
-        locations_set = set()
-        while request is not None:
-            response = request.execute()
-            for location in response.get("locations", []):
-                location_name = location.get(
-                    "name"
-                )  # e.g., projects/foo/locations/us-central1
-                if location_name:
-                    # Normalize location name: ensure it has the 'projects/' prefix
-                    # The v1 API may return 'project-id/locations/region' without the prefix
-                    if not location_name.startswith("projects/"):
-                        location_name = f"projects/{location_name}"
-                    locations_set.add(location_name)
-            request = (
-                v1_client.projects()
-                .locations()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-
-        if locations_set:
-            logger.debug(
-                f"Discovered {len(locations_set)} Cloud Run locations via v1 API"
-            )
-            return locations_set
-        else:
-            logger.warning(
-                "v1 API returned no locations, falling back to service-based discovery"
-            )
-
-    except (HttpError, RuntimeError) as e:
-        # Fall back to service-based discovery for HTTP/API failures and when
-        # the v1 helper cannot initialize credentials in non-ADC environments.
-        logger.warning(
-            f"Could not discover locations via v1 API: {e}. "
-            f"Falling back to discovery via services list.",
-        )
-
-    # Fallback: discover locations by extracting them from service resource names
-    logger.debug("Using service-based discovery for Cloud Run locations")
+) -> list[str] | None:
+    logger.debug(
+        "Using service-based fallback discovery for Cloud Run locations in project %s.",
+        project_id,
+    )
     services_parent = f"projects/{project_id}/locations/-"
     services_request = (
         client.projects().locations().services().list(parent=services_parent)
     )
 
-    locations_set = set()
+    discovered_locations: set[str] = set()
     while services_request is not None:
-        services_response = services_request.execute()
-        services = services_response.get("services", [])
+        try:
+            services_response = services_request.execute()
+        except HttpError as e:
+            if is_api_disabled_error(e) or e.resp.status == 403:
+                logger.warning(
+                    "Could not retrieve Cloud Run locations on project %s due to permissions issues or API not enabled. "
+                    "Skipping sync to preserve existing data.",
+                    project_id,
+                )
+                return None
+            raise
 
-        # Extract unique locations from service resource names
-        # Format: projects/{project}/locations/{location}/services/{service}
-        for service in services:
+        for service in services_response.get("services", []):
             service_name = service.get("name", "")
             parts = service_name.split("/")
             if len(parts) >= 4:
-                # Reconstruct the location resource name: projects/{project}/locations/{location}
-                locations_set.add(f"projects/{parts[1]}/locations/{parts[3]}")
+                discovered_locations.add(f"projects/{parts[1]}/locations/{parts[3]}")
 
         services_request = (
             client.projects()
@@ -150,4 +80,218 @@ def discover_cloud_run_locations(
             )
         )
 
-    return locations_set
+    if not discovered_locations:
+        logger.warning(
+            "Cloud Run location discovery fell back to service-based probing but found no locations for project %s. "
+            "Skipping sync to preserve existing data.",
+            project_id,
+        )
+        return None
+
+    normalized_locations = sorted(discovered_locations)
+    logger.info(
+        "Discovered %s Cloud Run locations via fallback service probing for project %s.",
+        len(normalized_locations),
+        project_id,
+    )
+    return normalized_locations
+
+
+@timeit
+def discover_cloud_run_locations(
+    client: Resource,
+    project_id: str,
+    credentials: GoogleCredentials | None = None,
+) -> list[str] | None:
+    """
+    Discover Cloud Run locations for a project.
+
+    Returns:
+        list[str]: Sorted, deduped location resource names on successful discovery.
+        None: Discovery failed in a way that should preserve last-known-good data.
+    """
+    try:
+        resolved_credentials = credentials or get_gcp_credentials()
+        v1_client = build_client("run", "v1", credentials=resolved_credentials)
+        request = v1_client.projects().locations().list(name=f"projects/{project_id}")
+    except RuntimeError as e:
+        logger.warning(
+            "Could not initialize the Cloud Run v1 discovery helper for project %s: %s. "
+            "Falling back to service-based discovery.",
+            project_id,
+            e,
+        )
+        return _service_discovered_cloud_run_locations(client, project_id)
+
+    discovered_locations: set[str] = set()
+    while request is not None:
+        try:
+            response = request.execute()
+        except HttpError as e:
+            if is_api_disabled_error(e) or e.resp.status == 403:
+                logger.warning(
+                    "Could not retrieve Cloud Run locations on project %s due to permissions issues or API not enabled. "
+                    "Skipping sync to preserve existing data.",
+                    project_id,
+                )
+                return None
+
+            logger.warning(
+                "Cloud Run v1 location discovery failed for project %s with %s. Falling back to service-based discovery.",
+                project_id,
+                e,
+            )
+            return _service_discovered_cloud_run_locations(client, project_id)
+
+        for location in response.get("locations", []):
+            location_name = location.get("name")
+            if location_name:
+                discovered_locations.add(
+                    _normalize_cloud_run_location_name(location_name),
+                )
+
+        request = (
+            v1_client.projects()
+            .locations()
+            .list_next(
+                previous_request=request,
+                previous_response=response,
+            )
+        )
+
+    if not discovered_locations:
+        logger.warning(
+            "Cloud Run v1 location discovery returned no locations for project %s. "
+            "Falling back to service-based discovery.",
+            project_id,
+        )
+        return _service_discovered_cloud_run_locations(client, project_id)
+
+    normalized_locations = sorted(discovered_locations)
+    logger.info(
+        "Discovered %s cached Cloud Run locations for project %s.",
+        len(normalized_locations),
+        project_id,
+    )
+    return normalized_locations
+
+
+def list_cloud_run_resources_for_location(
+    *,
+    fetcher: Callable[[], Iterable[object]],
+    resource_type: str,
+    location: str,
+    project_id: str,
+) -> list[dict]:
+    location_name = _cloud_run_location_short_name(location)
+    try:
+        resources = [proto_message_to_dict(resource) for resource in fetcher()]
+    except NotFound:
+        logger.debug(
+            "Cloud Run %s not found in %s for project %s.",
+            resource_type,
+            location_name,
+            project_id,
+        )
+        return []
+    except PermissionDenied:
+        logger.warning(
+            "Access forbidden when trying to get Cloud Run %s in %s for project %s.",
+            resource_type,
+            location_name,
+            project_id,
+        )
+        return []
+    except GoogleAPICallError as e:
+        logger.error(
+            "Error getting Cloud Run %s in %s for project %s: %s",
+            resource_type,
+            location_name,
+            project_id,
+            e,
+            exc_info=True,
+        )
+        raise
+
+    logger.info(
+        "Found %s Cloud Run %s in %s for project %s",
+        len(resources),
+        resource_type,
+        location_name,
+        project_id,
+    )
+    return resources
+
+
+@timeit
+def fetch_cloud_run_resources_for_locations(
+    *,
+    locations: list[str],
+    project_id: str,
+    resource_type: str,
+    fetch_for_location: Callable[[str], list[dict]],
+    max_workers: int = DEFAULT_CLOUD_RUN_LOCATION_WORKERS,
+) -> list[dict]:
+    deduped_locations = list(dict.fromkeys(locations))
+    if not deduped_locations:
+        logger.info(
+            "No Cloud Run locations to query for %s in project %s.",
+            resource_type,
+            project_id,
+        )
+        return []
+
+    worker_count = min(max_workers, len(deduped_locations))
+    logger.info(
+        "Fetching Cloud Run %s across %s cached locations for project %s with max_workers=%s.",
+        resource_type,
+        len(deduped_locations),
+        project_id,
+        worker_count,
+    )
+
+    if worker_count <= 1:
+        all_resources = []
+        nonempty_locations = 0
+        for location in deduped_locations:
+            location_resources = fetch_for_location(location)
+            if location_resources:
+                nonempty_locations += 1
+                all_resources.extend(location_resources)
+        logger.info(
+            "Collected %s Cloud Run %s across %s/%s queried locations for project %s.",
+            len(all_resources),
+            resource_type,
+            nonempty_locations,
+            len(deduped_locations),
+            project_id,
+        )
+        return all_resources
+
+    resources_by_location: dict[str, list[dict]] = {}
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = {
+            executor.submit(fetch_for_location, location): location
+            for location in deduped_locations
+        }
+        for future in as_completed(futures):
+            location = futures[future]
+            resources_by_location[location] = future.result()
+
+    all_resources = []
+    nonempty_locations = 0
+    for location in deduped_locations:
+        location_resources = resources_by_location[location]
+        if location_resources:
+            nonempty_locations += 1
+            all_resources.extend(location_resources)
+
+    logger.info(
+        "Collected %s Cloud Run %s across %s/%s queried locations for project %s.",
+        len(all_resources),
+        resource_type,
+        nonempty_locations,
+        len(deduped_locations),
+        project_id,
+    )
+    return all_resources

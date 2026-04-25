@@ -21,6 +21,7 @@ from cartography.intel.aws.cloudtrail_management_events import (
 from cartography.intel.aws.cloudtrail_management_events import (
     transform_web_identity_role_events_to_role_assumptions,
 )
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from tests.data.aws.cloudtrail_management_events import (
     ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
@@ -60,11 +61,11 @@ SAMPLE_GITHUB_ASSUME_ROLE_WITH_WEB_IDENTITY_EVENT = {
     "EventId": "test-event-id-789",
     "UserIdentity": {
         "type": "WebIdentityUser",
-        "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
-        "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main",
+        "principalId": "repo:example-org/example-repo:ref:refs/heads/main",
+        "userName": "repo:example-org/example-repo:ref:refs/heads/main",
         "identityProvider": "token.actions.githubusercontent.com",
     },
-    "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
+    "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:example-org/example-repo:ref:refs/heads/main", "userName": "repo:example-org/example-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
 }
 
 
@@ -126,7 +127,7 @@ def test_transform_single_github_web_identity_role_event():
     assert len(result) == 1
 
     assumption = result[0]
-    assert assumption["source_repo_fullname"] == "sublimagesec/sublimage"
+    assert assumption["source_repo_fullname"] == "example-org/example-repo"
     assert (
         assumption["destination_principal_arn"]
         == "arn:aws:iam::987654321098:role/GitHubActionsRole"
@@ -201,6 +202,8 @@ def test_get_role_events_raise_transient_region_failure_on_503(getter):
 
     with pytest.raises(CloudTrailTransientRegionFailure):
         getter(boto3_session, "me-central-1", 24)
+
+    assert boto3_session.client.call_args.kwargs["config"] == get_botocore_config()
 
 
 @pytest.mark.parametrize(

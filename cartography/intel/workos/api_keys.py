@@ -44,7 +44,7 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
     """
     Fetch all API keys from WorkOS API.
 
-    API keys are listed per organization via client.organizations.list_api_keys().
+    API keys are listed per organization via client.api_keys.list_organization_api_keys().
 
     :param client: WorkOS API client
     :param organization_ids: List of organization IDs
@@ -55,7 +55,7 @@ def get(client: WorkOSClient, organization_ids: list[str]) -> list[dict[str, Any
 
     for org_id in organization_ids:
         org_keys = paginated_list(
-            client.organizations.list_api_keys,
+            client.api_keys.list_organization_api_keys,
             organization_id=org_id,
         )
         api_keys.extend(org_keys)
@@ -88,11 +88,7 @@ def transform(api_keys: list[Any]) -> list[dict[str, Any]]:
             "last_used_at": getattr(api_key, "last_used_at", None),
         }
 
-        if api_key.owner:
-            if api_key.owner.type == "organization":
-                key_dict["org_owner_id"] = api_key.owner.id
-            elif api_key.owner.type == "user":
-                key_dict["user_owner_id"] = api_key.owner.id
+        key_dict["org_owner_id"] = api_key.owner.id
         result.append(key_dict)
 
     return result

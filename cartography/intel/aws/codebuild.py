@@ -2,7 +2,6 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Set
 
 import boto3
 import neo4j
@@ -11,26 +10,14 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.service_regions import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.models.aws.codebuild.project import CodeBuildProjectSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _get_available_codebuild_regions(boto3_session: boto3.Session) -> Set[str]:
-    """
-    Return all known CodeBuild regions across available AWS partitions.
-    """
-    available_regions: Set[str] = set()
-    for partition in boto3_session.get_available_partitions():
-        available_regions.update(
-            boto3_session.get_available_regions(
-                "codebuild",
-                partition_name=partition,
-            ),
-        )
-    return available_regions
 
 
 @timeit
@@ -130,22 +117,18 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    available_regions = _get_available_codebuild_regions(boto3_session)
-    if not available_regions:
-        logger.warning(
-            "Could not determine available CodeBuild regions. Continuing with requested regions.",
+    codebuild_regions, unsupported_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "codebuild",
+            regions,
         )
-        codebuild_regions = regions
-    else:
-        codebuild_regions = []
-        for region in regions:
-            if region in available_regions:
-                codebuild_regions.append(region)
-            else:
-                logger.info(
-                    "Skipping CodeBuild sync for unsupported region '%s'.",
-                    region,
-                )
+    )
+    for region in unsupported_regions:
+        logger.info(
+            "Skipping CodeBuild sync for unsupported region '%s'.",
+            region,
+        )
 
     for region in codebuild_regions:
         logger.info(

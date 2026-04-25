@@ -19,6 +19,8 @@ class DeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("serial_number")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
+    instance_id: PropertyRef = PropertyRef("instance_id")
+    manufacturer: PropertyRef = PropertyRef("manufacturer")
     os: PropertyRef = PropertyRef("os")
     os_version: PropertyRef = PropertyRef("os_version")
     model: PropertyRef = PropertyRef("model")

@@ -57,14 +57,16 @@ azure_mapping = OntologyMapping(
             node_label="AzureContainerInstance",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
-                # image: Not exposed as a direct field in AzureContainerInstance node (image info is in nested container properties)
-                # image_digest: Not exposed as a direct field in AzureContainerInstance node
+                OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
-                    ontology_field="state", node_field="provisioning_state"
+                    ontology_field="image_digest", node_field="image_digest"
                 ),
-                # cpu: Not exposed as a direct field in AzureContainerInstance node
-                # memory: Not exposed as a direct field in AzureContainerInstance node
-                OntologyFieldMapping(ontology_field="region", node_field="location"),
+                # ACI exposes per-container runtime state via instanceView.currentState.state,
+                # distinct from the group's provisioning_state.
+                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                # cpu: Node exposes cpu_request/cpu_limit rather than a single cpu value; skip to avoid ambiguity
+                # memory: Node exposes memory_request_gb/memory_limit_gb (GB) which does not match the ontology MB unit
+                # region: Not per-container on Azure; location lives on the parent AzureGroupContainer
                 # namespace: Not applicable for Azure Container Instances (Azure does not use namespaces in this context)
                 # health_status: Not exposed as a direct field in AzureContainerInstance node
             ],
@@ -72,8 +74,47 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+# Cloud Run Service/Job container nodes are declarative spec entries, not runtime instances:
+# per-invocation runtime state lives on GCPCloudRunExecution (Jobs) or on serving revisions (Services).
+# We encode "running" statically so :Container consumers can query "containers that are running or
+# can be launched" uniformly across providers — once a Service/Job exists, its container spec is by
+# construction ready to run on the next request/execution.
+_GCP_CLOUDRUN_CONTAINER_FIELDS = [
+    OntologyFieldMapping(ontology_field="name", node_field="name"),
+    OntologyFieldMapping(ontology_field="image", node_field="image"),
+    OntologyFieldMapping(ontology_field="image_digest", node_field="image_digest"),
+    OntologyFieldMapping(
+        ontology_field="state",
+        node_field="",
+        special_handling="static_value",
+        extra={"value": "running"},
+    ),
+    # cpu: Not exposed as a direct field on the container node
+    # memory: Not exposed as a direct field on the container node
+    # region: Not per-container; location lives on the parent Job/Service
+    # namespace: Not applicable for Cloud Run
+    # health_status: Not exposed as a direct field on the container node
+]
+
+
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPCloudRunJobContainer",
+            fields=_GCP_CLOUDRUN_CONTAINER_FIELDS,
+        ),
+        OntologyNodeMapping(
+            node_label="GCPCloudRunServiceContainer",
+            fields=_GCP_CLOUDRUN_CONTAINER_FIELDS,
+        ),
+    ],
+)
+
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
     "azure": azure_mapping,
+    "gcp": gcp_mapping,
 }

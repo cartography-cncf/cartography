@@ -1,3 +1,5 @@
+from typing import Any
+from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -6,6 +8,9 @@ from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artif
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_maven_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artifacts
+from cartography.intel.gcp.artifact_registry.repository import (
+    ArtifactRegistryRepositorySyncResult,
+)
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_HELM_CHARTS
@@ -69,9 +74,17 @@ def _mock_get_yum_artifacts(client, repo_name):
 )
 @patch(
     "cartography.intel.gcp.artifact_registry.repository.get_artifact_registry_repositories",
-    return_value=MOCK_REPOSITORIES,
+    return_value=ArtifactRegistryRepositorySyncResult(
+        cast(list[dict[str, Any]], MOCK_REPOSITORIES),
+        True,
+    ),
+)
+@patch(
+    "cartography.intel.gcp.artifact_registry.build_artifact_registry_client",
+    return_value=MagicMock(name="artifact-registry-client"),
 )
 def test_sync_artifact_registry(
+    mock_build_artifact_registry_client,
     mock_get_repositories,
     neo4j_session,
 ):
@@ -81,16 +94,17 @@ def test_sync_artifact_registry(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
     mock_credentials = MagicMock()
 
     sync(
         neo4j_session,
-        mock_client,
         mock_credentials,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+    )
+    mock_build_artifact_registry_client.assert_called_once_with(
+        credentials=mock_credentials,
     )
 
     # Assert: Check repository nodes
@@ -227,6 +241,19 @@ def test_sync_artifact_registry(
         "GCPArtifactRegistryPlatformImage",
         "id",
         "HAS_MANIFEST",
+    ) == {
+        (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_AMD64_ID),
+        (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_ARM64_ID),
+    }
+
+    # Assert: Check ontology-standard manifest-list -> platform-image relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryContainerImage",
+        "id",
+        "GCPArtifactRegistryPlatformImage",
+        "id",
+        "CONTAINS_IMAGE",
     ) == {
         (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_AMD64_ID),
         (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_ARM64_ID),

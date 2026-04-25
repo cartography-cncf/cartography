@@ -356,7 +356,7 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
     ```
     (:KeycloakRole)-[:INCLUDES]->(:KeycloakRole)
     ```
-- `KeycloakRole` can indirectly grant scopes through composite role relationships (drawn by [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/keycloak_inheritance.json))
+- `KeycloakRole` can indirectly grant scopes through composite role relationships (computed by `cartography.intel.keycloak.inheritance`)
     ```
     (:KeycloakRole)-[:INDIRECT_GRANTS]->(:KeycloakScope)
     ```

@@ -54,6 +54,9 @@
 ```{include} ../modules/cve/schema.md
 ```
 
+```{include} ../modules/cve_metadata/schema.md
+```
+
 ```{include} ../modules/digitalocean/schema.md
 ```
 
@@ -132,6 +135,9 @@
 ```{include} ../modules/snipeit/schema.md
 ```
 
+```{include} ../modules/socketdev/schema.md
+```
+
 ```{include} ../modules/syft/schema.md
 ```
 
@@ -148,6 +154,9 @@
 ```
 
 ```{include} ../modules/ubuntu/schema.md
+```
+
+```{include} ../modules/vercel/schema.md
 ```
 
 ```{include} ../modules/workday/schema.md
