@@ -13,6 +13,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
+from cartography.models.aws.ec2.loadbalancerv2 import ELBV2TargetGroupSchema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2Schema
 from cartography.models.aws.ec2.loadbalancerv2 import LoadBalancerV2ToAWSLambdaMatchLink
 from cartography.models.aws.ec2.loadbalancerv2 import (
@@ -120,18 +121,20 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
 
 def _transform_load_balancer_v2_data(
     data: List[Dict],
-) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict]]:
     """
     Transform load balancer v2 data, extracting relationships into separate lists.
 
     Returns a tuple of:
     - Load balancer data list (includes SecurityGroupIds and SubnetIds for one_to_many)
     - Listener data list
+    - Target group node data list (one per distinct TargetGroupArn)
     - Target relationship data list (with target type info)
     """
     lb_data = []
     listener_data = []
     target_data = []
+    tg_by_arn: dict[str, dict] = {}
 
     for lb in data:
         dns_name = lb.get("DNSName")
@@ -177,8 +180,22 @@ def _transform_load_balancer_v2_data(
                 }
             )
 
-        # Extract target relationships
+        # Extract target group nodes and target relationships
         for target_group in lb.get("TargetGroups", []):
+            tg_arn = target_group["TargetGroupArn"]
+            if tg_arn in tg_by_arn:
+                tg_by_arn[tg_arn]["LoadBalancerId"].append(dns_name)
+            else:
+                tg_by_arn[tg_arn] = {
+                    "TargetGroupArn": tg_arn,
+                    "TargetGroupName": target_group.get("TargetGroupName"),
+                    "TargetType": target_group.get("TargetType"),
+                    "Protocol": target_group.get("Protocol"),
+                    "Port": target_group.get("Port"),
+                    "VpcId": target_group.get("VpcId"),
+                    "LoadBalancerId": [dns_name],
+                }
+
             target_type = target_group.get("TargetType")
             for target_id in target_group.get("Targets", []):
                 target_data.append(
@@ -186,13 +203,13 @@ def _transform_load_balancer_v2_data(
                         "LoadBalancerId": dns_name,
                         "TargetId": target_id,
                         "TargetType": target_type,
-                        "TargetGroupArn": target_group.get("TargetGroupArn"),
+                        "TargetGroupArn": tg_arn,
                         "Port": target_group.get("Port"),
                         "Protocol": target_group.get("Protocol"),
                     }
                 )
 
-    return lb_data, listener_data, target_data
+    return lb_data, listener_data, list(tg_by_arn.values()), target_data
 
 
 @timeit
@@ -204,7 +221,9 @@ def load_load_balancer_v2s(
     update_tag: int,
 ) -> None:
     # Transform data
-    lb_data, listener_data, target_data = _transform_load_balancer_v2_data(data)
+    lb_data, listener_data, tg_node_data, target_data = (
+        _transform_load_balancer_v2_data(data)
+    )
 
     # Load main load balancer nodes (includes security group and subnet relationships via schema)
     load(
@@ -215,6 +234,17 @@ def load_load_balancer_v2s(
         Region=region,
         AWS_ID=current_aws_account_id,
     )
+
+    # Load target group nodes
+    if tg_node_data:
+        load(
+            neo4j_session,
+            ELBV2TargetGroupSchema(),
+            tg_node_data,
+            lastupdated=update_tag,
+            Region=region,
+            AWS_ID=current_aws_account_id,
+        )
 
     # Load listener nodes
     if listener_data:
@@ -337,9 +367,34 @@ def load_load_balancer_v2_target_groups(
     target_groups: List[Dict],
     current_aws_account_id: str,
     update_tag: int,
+    region: str | None = None,
 ) -> None:
-    """Load EXPOSE relationships from LoadBalancerV2 to target resources."""
-    # Transform target groups to target data
+    """Load ELBV2TargetGroup nodes and EXPOSE relationships from LoadBalancerV2 to target resources."""
+    # Load target group nodes
+    tg_node_data = []
+    for tg in target_groups:
+        tg_node_data.append(
+            {
+                "TargetGroupArn": tg["TargetGroupArn"],
+                "TargetGroupName": tg.get("TargetGroupName"),
+                "TargetType": tg.get("TargetType"),
+                "Protocol": tg.get("Protocol"),
+                "Port": tg.get("Port"),
+                "VpcId": tg.get("VpcId"),
+                "LoadBalancerId": [load_balancer_id],
+            }
+        )
+    if tg_node_data:
+        load(
+            neo4j_session,
+            ELBV2TargetGroupSchema(),
+            tg_node_data,
+            lastupdated=update_tag,
+            Region=region,
+            AWS_ID=current_aws_account_id,
+        )
+
+    # Transform target groups to target data for EXPOSE relationships
     target_data = []
     for target_group in target_groups:
         target_type = target_group.get("TargetType")
@@ -388,6 +443,12 @@ def cleanup_load_balancer_v2s(
             common_job_parameters["AWS_ID"],
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
+
+    # Cleanup ELBV2TargetGroup nodes before LoadBalancerV2 so ELBV2_TARGET_GROUP rels detach first
+    GraphJob.from_node_schema(
+        ELBV2TargetGroupSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
 
     # Cleanup LoadBalancerV2 nodes
     GraphJob.from_node_schema(
@@ -470,7 +531,7 @@ def sync_load_balancer_v2_expose(
             current_aws_account_id,
         )
         data = get_loadbalancer_v2_data(boto3_session, region)
-        _, _, target_data = _transform_load_balancer_v2_data(data)
+        _, _, _, target_data = _transform_load_balancer_v2_data(data)
         _load_load_balancer_v2_ip_targets(
             neo4j_session,
             target_data,

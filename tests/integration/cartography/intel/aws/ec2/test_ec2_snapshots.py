@@ -56,6 +56,47 @@ def test_get_snapshots_in_use(neo4j_session):
     assert expected_snapshots == set(actual_snapshots)
 
 
+@patch.object(cartography.intel.aws.ec2.snapshots, "create_boto3_client")
+def test_get_snapshots_only_checks_owned_snapshot_visibility(mock_create_client):
+    client = MagicMock()
+    paginator = MagicMock()
+    paginator.paginate.side_effect = [
+        [
+            {
+                "Snapshots": [
+                    {
+                        "SnapshotId": "sn-owned",
+                        "OwnerId": TEST_ACCOUNT_ID,
+                    },
+                    {
+                        "SnapshotId": "sn-external",
+                        "OwnerId": "111111111111",
+                    },
+                ],
+            },
+        ],
+    ]
+    client.get_paginator.return_value = paginator
+    client.describe_snapshot_attribute.return_value = {
+        "CreateVolumePermissions": [{"Group": "all"}],
+    }
+    mock_create_client.return_value = client
+
+    snapshots = cartography.intel.aws.ec2.snapshots.get_snapshots(
+        MagicMock(),
+        TEST_REGION,
+        [],
+        TEST_ACCOUNT_ID,
+    )
+
+    assert snapshots[0]["Public"] is True
+    assert snapshots[1]["Public"] is None
+    client.describe_snapshot_attribute.assert_called_once_with(
+        SnapshotId="sn-owned",
+        Attribute="createVolumePermission",
+    )
+
+
 def test_load_snapshots(neo4j_session):
     data = tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS
     transformed = cartography.intel.aws.ec2.snapshots.transform_snapshots(data)
@@ -68,16 +109,16 @@ def test_load_snapshots(neo4j_session):
     )
 
     expected_nodes = {
-        "sn-01",
-        "sn-02",
+        ("sn-01", True, TEST_ACCOUNT_ID),
+        ("sn-02", False, TEST_ACCOUNT_ID),
     }
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:EBSSnapshot) RETURN r.id;
+        MATCH (r:EBSSnapshot) RETURN r.id, r.ispublic, r.ownerid;
         """,
     )
-    actual_nodes = {n["r.id"] for n in nodes}
+    actual_nodes = {(n["r.id"], n["r.ispublic"], n["r.ownerid"]) for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -153,14 +194,22 @@ def test_sync_ebs_snapshots(
 
     # Assert EBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
+        ("sn-01", True, "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", False, "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
             neo4j_session,
             "EBSSnapshot",
-            ["id", "description", "encrypted", "state", "volumeid", "volumesize"],
+            [
+                "id",
+                "ispublic",
+                "description",
+                "encrypted",
+                "state",
+                "volumeid",
+                "volumesize",
+            ],
         )
         == expected_snapshot_nodes
     )
@@ -214,6 +263,7 @@ def test_sync_ebs_snapshots(
         boto3_session,
         TEST_REGION,
         [],  # Empty list since get_snapshots_in_use is mocked to return empty list
+        TEST_ACCOUNT_ID,
     )
     # Note: CREATED_FROM relationships are not created in this test because volumes are not loaded
     # The relationships would be created if volumes existed in the graph
@@ -259,14 +309,22 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
 
     # Assert EBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
+        ("sn-01", True, "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", False, "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
             neo4j_session,
             "EBSSnapshot",
-            ["id", "description", "encrypted", "state", "volumeid", "volumesize"],
+            [
+                "id",
+                "ispublic",
+                "description",
+                "encrypted",
+                "state",
+                "volumeid",
+                "volumesize",
+            ],
         )
         == expected_snapshot_nodes
     )
