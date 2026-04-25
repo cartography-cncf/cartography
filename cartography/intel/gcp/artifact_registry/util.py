@@ -1,15 +1,21 @@
 import logging
 from collections.abc import Callable
+from collections.abc import Iterable
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypeVar
 
+import backoff
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 
+from cartography.intel.gcp.util import GCP_API_BACKOFF_BASE
+from cartography.intel.gcp.util import GCP_API_BACKOFF_MAX
+from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
+from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -19,6 +25,48 @@ DEFAULT_ARTIFACT_REGISTRY_WORKERS = 8
 
 ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")
+
+
+def _artifact_registry_backoff_handler(details: dict) -> None:
+    wait = details.get("wait", "unknown")
+    tries = details.get("tries", "unknown")
+    exc = details.get("exception")
+    logger.warning(
+        "Artifact Registry API retry: backing off %s seconds after %s tries due to %s.",
+        wait,
+        tries,
+        type(exc).__name__ if exc else "unknown error",
+    )
+
+
+def _artifact_registry_giveup_handler(details: dict) -> None:
+    exc = details.get("exception")
+    if isinstance(exc, Exception) and not is_retryable_gcp_http_error(exc):
+        return
+
+    tries = details.get("tries", "unknown")
+    logger.warning(
+        "Artifact Registry API retries exhausted after %s tries due to %s.",
+        tries,
+        type(exc).__name__ if exc else "unknown error",
+    )
+
+
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    GoogleAPICallError,
+    max_tries=GCP_API_MAX_RETRIES,
+    giveup=lambda e: not is_retryable_gcp_http_error(e),
+    on_backoff=_artifact_registry_backoff_handler,
+    on_giveup=_artifact_registry_giveup_handler,
+    logger=None,
+    base=GCP_API_BACKOFF_BASE,
+    max_value=GCP_API_BACKOFF_MAX,
+)
+def list_artifact_registry_resources(
+    fetcher: Callable[[], Iterable[ResultT]],
+) -> list[ResultT]:
+    return list(fetcher())
 
 
 def fetch_artifact_registry_resources(
@@ -65,20 +113,21 @@ def get_artifact_registry_locations(
     Gets all available Artifact Registry locations for a project.
     """
     try:
-        locations = [
-            location.location_id
-            for location in client.list_locations(
+        locations = list_artifact_registry_resources(
+            lambda: client.list_locations(
                 request={"name": f"projects/{project_id}"}
             ).locations
-            if location.location_id
+        )
+        location_ids = [
+            location.location_id for location in locations if location.location_id
         ]
 
         logger.info(
             "Found %d Artifact Registry locations for project %s.",
-            len(locations),
+            len(location_ids),
             project_id,
         )
-        return locations
+        return location_ids
 
     except PermissionDenied as e:
         logger.warning(

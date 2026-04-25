@@ -23,6 +23,9 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     fetch_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import (
+    list_artifact_registry_resources,
+)
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
@@ -66,10 +69,15 @@ def _list_package_versions(
     repository_name: str,
 ) -> list[dict]:
     artifacts: list[dict] = []
-    for package in client.list_packages(parent=repository_name):
+    packages = list_artifact_registry_resources(
+        lambda: client.list_packages(parent=repository_name)
+    )
+    for package in packages:
         package_name = _extract_package_name(package)
         try:
-            versions = client.list_versions(parent=package.name)
+            versions = list_artifact_registry_resources(
+                lambda: client.list_versions(parent=package.name)
+            )
         except NotFound:
             logger.debug(
                 "Package versions not found for package %s. The package may have been deleted during sync.",
@@ -100,7 +108,9 @@ def get_docker_images(
     try:
         return [
             proto_message_to_dict(image)
-            for image in client.list_docker_images(parent=repository_name)
+            for image in list_artifact_registry_resources(
+                lambda: client.list_docker_images(parent=repository_name)
+            )
         ]
     except NotFound:
         logger.debug(
@@ -134,7 +144,9 @@ def get_maven_artifacts(
     try:
         return [
             proto_message_to_dict(artifact)
-            for artifact in client.list_maven_artifacts(parent=repository_name)
+            for artifact in list_artifact_registry_resources(
+                lambda: client.list_maven_artifacts(parent=repository_name)
+            )
         ]
     except NotFound:
         logger.debug(
@@ -168,7 +180,9 @@ def get_npm_packages(
     try:
         return [
             proto_message_to_dict(package)
-            for package in client.list_npm_packages(parent=repository_name)
+            for package in list_artifact_registry_resources(
+                lambda: client.list_npm_packages(parent=repository_name)
+            )
         ]
     except NotFound:
         logger.debug(
@@ -201,7 +215,9 @@ def get_python_packages(
     try:
         return [
             proto_message_to_dict(package)
-            for package in client.list_python_packages(parent=repository_name)
+            for package in list_artifact_registry_resources(
+                lambda: client.list_python_packages(parent=repository_name)
+            )
         ]
     except NotFound:
         logger.debug(
