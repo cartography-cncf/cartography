@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from google.api_core.exceptions import InternalServerError
 from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.exceptions import TooManyRequests
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.util import classify_gcp_http_error
@@ -506,8 +507,10 @@ class TestIsRetryableGcpHttpError:
     def test_false_for_non_http_error(self):
         assert is_retryable_gcp_http_error(ValueError("not an HttpError")) is False
 
-    @pytest.mark.parametrize("error_cls", [InternalServerError, ServiceUnavailable])
-    def test_true_for_google_api_core_server_errors(self, error_cls):
+    @pytest.mark.parametrize(
+        "error_cls", [InternalServerError, ServiceUnavailable, TooManyRequests]
+    )
+    def test_true_for_retryable_google_api_core_errors(self, error_cls):
         assert is_retryable_gcp_http_error(error_cls("transient server error")) is True
 
 
