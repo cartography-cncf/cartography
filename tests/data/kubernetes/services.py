@@ -15,6 +15,7 @@ KUBERNETES_SERVICES_DATA = [
     {
         "uid": uuid4().hex,
         "name": "my-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-service",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": 1633581966,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
@@ -29,6 +30,7 @@ KUBERNETES_SERVICES_DATA = [
     {
         "uid": uuid4().hex,
         "name": "api-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-service",
         "creation_timestamp": 1633581600,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
@@ -41,6 +43,7 @@ KUBERNETES_SERVICES_DATA = [
     {
         "uid": uuid4().hex,
         "name": "app-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/app-service",
         "creation_timestamp": 1633581610,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
@@ -53,6 +56,7 @@ KUBERNETES_SERVICES_DATA = [
     {
         "uid": uuid4().hex,
         "name": "simple-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/simple-service",
         "creation_timestamp": 1633581620,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
@@ -71,6 +75,7 @@ KUBERNETES_LOADBALANCER_SERVICE_DATA = [
     {
         "uid": uuid4().hex,
         "name": "my-lb-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-lb-service",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
@@ -104,6 +109,7 @@ KUBERNETES_MULTI_LB_SERVICE_DATA = [
     {
         "uid": uuid4().hex,
         "name": "multi-lb-service",
+        "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/multi-lb-service",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
