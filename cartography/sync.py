@@ -20,10 +20,10 @@ import cartography.intel.cloudflare
 import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
+import cartography.intel.cve_metadata
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
-import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gitlab
@@ -35,6 +35,7 @@ import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.microsoft
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.ontology
@@ -46,12 +47,14 @@ import cartography.intel.sentinelone
 import cartography.intel.sentry
 import cartography.intel.slack
 import cartography.intel.snipeit
+import cartography.intel.socketdev
 import cartography.intel.spacelift
 import cartography.intel.subimage
 import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
 import cartography.intel.ubuntu
+import cartography.intel.vercel
 import cartography.intel.workday
 import cartography.intel.workos
 from cartography.config import Config
@@ -69,13 +72,14 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
+        "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
         "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
+        "cve_metadata": cartography.intel.cve_metadata.start_cve_metadata_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
         "openai": cartography.intel.openai.start_openai_ingestion,
@@ -94,6 +98,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "sentry": cartography.intel.sentry.start_sentry_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "socketdev": cartography.intel.socketdev.start_socketdev_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
@@ -107,6 +112,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
         "workos": cartography.intel.workos.start_workos_ingestion,
         "subimage": cartography.intel.subimage.start_subimage_ingestion,
+        "vercel": cartography.intel.vercel.start_vercel_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
@@ -303,7 +309,7 @@ class Sync:
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ("analysis", "create_indexes"):
+            if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)
@@ -521,12 +527,17 @@ def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
+    # DEPRECATED: compatibility alias for legacy module selection. Remove in v1.0.0.
+    _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
+
     validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
+        module = _MODULE_ALIASES.get(module, module)
 
         if module in TOP_LEVEL_MODULES.keys():
-            validated_modules.append(module)
+            if module not in validated_modules:
+                validated_modules.append(module)
         else:
             valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(

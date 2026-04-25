@@ -1,6 +1,6 @@
 ## Trivy Schema
 
-### TrivyImageFinding
+### TrivyImageFinding::Risk::CVE
 Representation of a vulnerability finding in a container image.
 
 | Field | Description |
@@ -30,28 +30,10 @@ Representation of a vulnerability finding in a container image.
 
 #### Relationships
 
-- A TrivyImageFinding affects an ECRImage.
+- A TrivyImageFinding affects an ontology Image (matched via `_ont_digest`).
 
     ```
-    (TrivyImageFinding)-[AFFECTS]->(ECRImage)
-    ```
-
-- A TrivyImageFinding affects a GCPArtifactRegistryContainerImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GCPArtifactRegistryContainerImage)
-    ```
-
-- A TrivyImageFinding affects a GCPArtifactRegistryPlatformImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- A TrivyImageFinding affects a GitLabContainerImage.
-
-    ```
-    (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
+    (TrivyImageFinding)-[AFFECTS]->(Image)
     ```
 
 ### TrivyPackage
@@ -73,28 +55,10 @@ Representation of a package installed in a container image, as detected by Trivy
 
 #### Relationships
 
-- A TrivyPackage is deployed in an ECRImage.
+- A TrivyPackage is deployed on an ontology Image (matched via `_ont_digest`).
 
     ```
-    (TrivyPackage)-[DEPLOYED]->(ECRImage)
-    ```
-
-- A TrivyPackage is deployed in a GCPArtifactRegistryContainerImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryContainerImage)
-    ```
-
-- A TrivyPackage is deployed in a GCPArtifactRegistryPlatformImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- A TrivyPackage is deployed in a GitLabContainerImage.
-
-    ```
-    (TrivyPackage)-[DEPLOYED]->(GitLabContainerImage)
+    (TrivyPackage)-[DEPLOYED]->(Image)
     ```
 
 - A TrivyPackage is affected by a TrivyImageFinding.

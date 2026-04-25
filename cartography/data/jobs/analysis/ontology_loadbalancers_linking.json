@@ -1,0 +1,10 @@
+{
+  "name": "Ontology - LoadBalancers relationship linking",
+  "statements": [
+    {
+      "__comment": "Link LoadBalancer to Container via ECSTask network interface path",
+      "query": "MATCH (lb:LoadBalancer {lastupdated: $UPDATE_TAG})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container) MERGE (lb)-[r:EXPOSE]->(c) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}

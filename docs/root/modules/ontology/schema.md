@@ -19,10 +19,12 @@ CL{{ComputeCluster}}
 DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
+FS{{FileStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
+EK{{EncryptionKey}}
 PR{{PermissionRole}}
 NAC{{NetworkAccessControl}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -35,6 +37,9 @@ IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
+CT -- HAS_IMAGE --> IM
+CT -- HAS_IMAGE --> IML
+CT -- RESOLVED_IMAGE --> IM
 ```
 
 :::{note}
@@ -112,6 +117,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  Jamf device emails, CrowdStrike host emails, and provider-native ownership edges are examples of signals Cartography can use to derive this relationship.
 - `User` can own one or many `APIKey` (semantic label):
     ```
     (:User)-[:OWNS]->(:APIKey)
@@ -173,14 +179,16 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| **id** | The unique identifier for the user. |
+| **id** | The unique identifier for the device. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
+| instance_id | Provider-specific instance identifier when available. |
+| manufacturer | Device manufacturer. |
 | os | OS running on the device. |
 | os_version | Version of the OS running on the device. |
 | model | Device model (e.g. ThinkPad Carbon X1 G11) |
-| platform | CPU architecture |
+| platform | Platform or device family reported by the source (e.g. `macOS`, `ios`). |
 | serial_number | Device serial number. |
 
 #### Relationships
@@ -193,6 +201,7 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
 
 
 ### APIKey
@@ -239,6 +248,24 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
 
+### EncryptionKey
+
+```{note}
+EncryptionKey is a semantic label.
+```
+
+An encryption key represents a cryptographic key managed by a cloud key management service.
+It generalizes concepts like AWS KMS Keys, GCP Cloud KMS CryptoKeys, and Azure Key Vault Keys.
+Encryption keys are used for data encryption, signing, and other cryptographic operations.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the encryption key (REQUIRED). |
+| _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
+| _ont_enabled | Whether the encryption key is currently enabled. |
+| _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+
 ### ComputeInstance
 
 ```{note}
@@ -266,7 +293,11 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services (`GCPCloudRunServiceContainer`) and Jobs (`GCPCloudRunJobContainer`).
+
+```{note}
+GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
+```
 
 | Field | Description |
 |-------|-------------|
@@ -279,6 +310,20 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+#### Relationships
+
+- `Container` references the image it was asked to run via `HAS_IMAGE` (created at ingest time by matching container runtime digest to image digest). The target may be either a single-platform `Image` or an `ImageManifestList`:
+    ```
+    (:Container)-[:HAS_IMAGE]->(:Image)
+    (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
+    ```
+- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
+    - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
+    ```
+    (:Container)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### ComputeCluster
@@ -403,6 +448,23 @@ It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azur
 | _ont_public | Whether the storage has public access (not available for all providers). |
 
 
+### FileStorage
+
+```{note}
+FileStorage is a semantic label.
+```
+
+A file storage represents a managed network file system or file share across different cloud providers.
+It generalizes concepts like AWS EFS and Azure Files shares, as opposed to object storage (S3-like)
+or block storage (EBS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the file system/share (REQUIRED). |
+| _ont_location | The region/location of the file storage. |
+| _ont_encrypted | Whether the storage is encrypted at rest. |
+
+
 ### Tenant
 
 ```{note}
@@ -472,7 +534,7 @@ Function is a semantic label.
 ```
 
 A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
-It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps. GCP Cloud Run Services and Jobs are orchestrators (not functions) — see the note in the Relationships section below.
 
 | Field | Description |
 |-------|-------------|
@@ -480,7 +542,20 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
-| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; GCP Cloud Functions are always `code`. |
+| _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`). |
+| _ont_image_digest | Content-addressable digest (`sha256:...`) of the container image, when the reference is digest-pinned. |
+
+#### Relationships
+
+- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
+    - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
+    ```
+    (:Function)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### CodeRepository
@@ -613,7 +688,7 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
     ```
-- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
@@ -691,6 +766,26 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 - `Image` can be linked to the public base image identified by Docker Scout:
     ```
     (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+
+- `TrivyPackage` nodes discovered by Trivy are deployed on an `Image`:
+    ```
+    (:TrivyPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `SyftPackage` nodes discovered by Syft are deployed on an `Image`:
+    ```
+    (:SyftPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `TrivyImageFinding` vulnerabilities discovered by Trivy affect an `Image`:
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Image)
+    ```
+
+- Canonical `Package` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
     ```
 
 

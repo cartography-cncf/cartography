@@ -58,30 +58,13 @@ class OntologyNodeMapping:
 
 
 @dataclass(frozen=True)
-class OntologyRelMapping:
-    """Mapping for a relationship in the ontology.
-
-    Attributes:
-        query: The query used to retrieve this relationship.
-        iterative: Whether this relationship requires batch processing (iterative) or can be created in a single query.
-        __comment__: An optional comment about this relationship.
-    """
-
-    query: str
-    iterative: bool = False
-    __comment__: str | None = None
-
-
-@dataclass(frozen=True)
 class OntologyMapping:
     """Ontology mapping for a specific module.
 
     Attributes:
         module_name: The name of the module.
         nodes: A list of OntologyNodeMapping defining the nodes for this module.
-        rels: A list of OntologyRelMapping defining the relationships for this module.
     """
 
     module_name: str
     nodes: list[OntologyNodeMapping]
-    rels: list[OntologyRelMapping] = field(default_factory=list)
