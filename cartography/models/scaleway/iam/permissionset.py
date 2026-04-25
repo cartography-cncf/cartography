@@ -50,4 +50,3 @@ class ScalewayPermissionSetSchema(CartographyNodeSchema):
     sub_resource_relationship: ScalewayPermissionSetToOrganizationRel = (
         ScalewayPermissionSetToOrganizationRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
