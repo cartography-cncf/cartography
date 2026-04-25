@@ -214,6 +214,34 @@ oci_mapping = OntologyMapping(
     ],
 )
 
+# Okta
+okta_mapping = OntologyMapping(
+    module_name="okta",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OktaAdministrationRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="label", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "builtin"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+    ],
+)
+
+
 # Scaleway
 scaleway_mapping = OntologyMapping(
     module_name="scaleway",
@@ -230,8 +258,55 @@ scaleway_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "builtin"},
                 ),
-                # _ont_scope: scope_type is a Scaleway enum (PROJECTS, ACCOUNTS, ...);
-                # a value mapping would be needed to normalize into ontology scopes.
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="scope_type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "projects": "project",
+                            "organization": "org",
+                            "account_root_user": "account",
+                        }
+                    },
+                ),
+            ],
+        ),
+    ],
+)
+
+# WorkOS
+workos_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "custom",
+                            "OrganizationRole": "custom",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "global",
+                            "OrganizationRole": "org",
+                        }
+                    },
+                ),
             ],
         ),
     ],
@@ -245,5 +320,7 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "cloudflare": cloudflare_mapping,
     "oci": oci_mapping,
+    "okta": okta_mapping,
     "scaleway": scaleway_mapping,
+    "workos": workos_mapping,
 }
