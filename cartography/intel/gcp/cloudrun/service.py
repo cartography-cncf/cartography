@@ -3,17 +3,18 @@ import re
 from typing import Any
 
 import neo4j
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.auth.credentials import Credentials as GoogleCredentials
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
+from cartography.intel.gcp.clients import build_cloud_run_service_client
+from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LABEL_BATCH_SIZE
+from cartography.intel.gcp.cloudrun.util import fetch_cloud_run_resources_for_locations
+from cartography.intel.gcp.cloudrun.util import list_cloud_run_resources_for_location
 from cartography.intel.gcp.labels import sync_labels
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
 from cartography.models.gcp.cloudrun.service_container import (
     GCPCloudRunServiceContainerSchema,
@@ -25,49 +26,37 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(
-    client: Resource, project_id: str, location: str = "-"
-) -> list[dict] | None:
+    project_id: str,
+    locations: list[str],
+    credentials: GoogleCredentials,
+) -> list[dict]:
     """
-    Gets GCP Cloud Run Services for a project and location.
-
-    Returns:
-        list[dict]: List of Cloud Run services (empty list if project has no services)
-        None: If the Cloud Run Admin API is not enabled or access is denied
-
-    Raises:
-        HttpError: For errors other than API disabled or permission denied
+    Get GCP Cloud Run Services for a project across cached locations.
     """
-    try:
-        services: list[dict] = []
-        parent = f"projects/{project_id}/locations/{location}"
-        request = client.projects().locations().services().list(parent=parent)
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            services.extend(response.get("services", []))
-            request = (
-                client.projects()
-                .locations()
-                .services()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return services
-    except HttpError as e:
-        if is_api_disabled_error(e):
-            logger.warning(
-                "Could not retrieve Cloud Run services on project %s due to permissions "
-                "issues or API not enabled. Skipping sync to preserve existing data.",
-                project_id,
-            )
-            return None
-        raise
+
+    client = build_cloud_run_service_client(credentials=credentials)
+
+    def fetch_for_location(location: str) -> list[dict]:
+        return list_cloud_run_resources_for_location(
+            fetcher=lambda: client.list_services(
+                parent=location,
+            ),
+            resource_type="services",
+            location=location,
+            project_id=project_id,
+        )
+
+    return fetch_cloud_run_resources_for_locations(
+        locations=locations,
+        project_id=project_id,
+        resource_type="services",
+        fetch_for_location=fetch_for_location,
+    )
 
 
 def transform_services(services_data: list[dict], project_id: str) -> list[dict]:
     """
-    Transforms the list of Cloud Run Service dicts into service-level records.
+    Transform the list of Cloud Run Service dicts into service-level records.
     """
     transformed: list[dict] = []
     for service in services_data:
@@ -102,7 +91,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
 
 def transform_containers(services_data: list[dict], project_id: str) -> list[dict]:
     """
-    Flattens service.template.containers[] into one record per individual container.
+    Flatten service.template.containers[] into one record per individual container.
     The Cloud Run v2 API returns the latestReadyRevision's spec inline as service.template,
     so this captures the current canonical container set per service.
     """
@@ -180,7 +169,8 @@ def cleanup_containers(
     common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(
-        GCPCloudRunServiceContainerSchema(), common_job_parameters
+        GCPCloudRunServiceContainerSchema(),
+        common_job_parameters,
     ).run(
         neo4j_session,
     )
@@ -189,37 +179,37 @@ def cleanup_containers(
 @timeit
 def sync_services(
     neo4j_session: neo4j.Session,
-    client: Resource,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    cloud_run_locations: list[str],
+    credentials: GoogleCredentials,
 ) -> None:
     """
-    Syncs GCP Cloud Run Services for a project.
+    Sync GCP Cloud Run Services for a project.
     """
-    logger.info(f"Syncing Cloud Run Services for project {project_id}.")
-    services_raw = get_services(client, project_id)
+    logger.info("Syncing Cloud Run Services for project %s.", project_id)
+    services_raw = get_services(project_id, cloud_run_locations, credentials)
+    if not services_raw:
+        logger.info("No Cloud Run services found for project %s.", project_id)
 
-    if services_raw is not None:
-        if not services_raw:
-            logger.info(f"No Cloud Run services found for project {project_id}.")
+    services = transform_services(services_raw, project_id)
+    load_services(neo4j_session, services, project_id, update_tag)
 
-        services = transform_services(services_raw, project_id)
-        load_services(neo4j_session, services, project_id, update_tag)
+    containers = transform_containers(services_raw, project_id)
+    load_containers(neo4j_session, containers, project_id, update_tag)
 
-        containers = transform_containers(services_raw, project_id)
-        load_containers(neo4j_session, containers, project_id, update_tag)
+    sync_labels(
+        neo4j_session,
+        services,
+        "cloud_run_service",
+        project_id,
+        update_tag,
+        common_job_parameters,
+        batch_size=CLOUD_RUN_LABEL_BATCH_SIZE,
+    )
 
-        sync_labels(
-            neo4j_session,
-            services,
-            "cloud_run_service",
-            project_id,
-            update_tag,
-            common_job_parameters,
-        )
-
-        cleanup_job_params = common_job_parameters.copy()
-        cleanup_job_params["project_id"] = project_id
-        cleanup_containers(neo4j_session, cleanup_job_params)
-        cleanup_services(neo4j_session, cleanup_job_params)
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["project_id"] = project_id
+    cleanup_containers(neo4j_session, cleanup_job_params)
+    cleanup_services(neo4j_session, cleanup_job_params)

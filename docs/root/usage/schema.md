@@ -54,6 +54,9 @@
 ```{include} ../modules/cve/schema.md
 ```
 
+```{include} ../modules/cve_metadata/schema.md
+```
+
 ```{include} ../modules/digitalocean/schema.md
 ```
 

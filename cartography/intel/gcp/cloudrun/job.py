@@ -1,22 +1,19 @@
 import logging
 import re
 from typing import Any
-from typing import Optional
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
-from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.clients import build_cloud_run_job_client
+from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LABEL_BATCH_SIZE
+from cartography.intel.gcp.cloudrun.util import fetch_cloud_run_resources_for_locations
+from cartography.intel.gcp.cloudrun.util import list_cloud_run_resources_for_location
 from cartography.intel.gcp.labels import sync_labels
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.models.gcp.cloudrun.job_container import GCPCloudRunJobContainerSchema
@@ -27,59 +24,37 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_jobs(
-    client: Resource,
     project_id: str,
-    location: str = "-",
-    credentials: Optional[GoogleCredentials] = None,
+    locations: list[str],
+    credentials: GoogleCredentials,
 ) -> list[dict]:
     """
-    Gets GCP Cloud Run Jobs for a project and location.
+    Get GCP Cloud Run Jobs for a project across cached locations.
     """
-    jobs: list[dict] = []
-    try:
-        if location == "-":
-            locations = discover_cloud_run_locations(
-                client,
-                project_id,
-                credentials=credentials,
-            )
-        else:
-            locations = {f"projects/{project_id}/locations/{location}"}
 
-        for loc_name in locations:
-            try:
-                request = client.projects().locations().jobs().list(parent=loc_name)
-                while request is not None:
-                    response = request.execute()
-                    jobs.extend(response.get("jobs", []))
-                    request = (
-                        client.projects()
-                        .locations()
-                        .jobs()
-                        .list_next(
-                            previous_request=request,
-                            previous_response=response,
-                        )
-                    )
-            except HttpError as e:
-                if e.resp.status == 403:
-                    logger.warning(
-                        f"Permission denied listing Cloud Run jobs in {loc_name}. Skipping location.",
-                    )
-                    continue
-                raise
+    client = build_cloud_run_job_client(credentials=credentials)
 
-        return jobs
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Cloud Run jobs for project {project_id} due to permissions or auth error: {e}",
+    def fetch_for_location(location: str) -> list[dict]:
+        return list_cloud_run_resources_for_location(
+            fetcher=lambda: client.list_jobs(
+                parent=location,
+            ),
+            resource_type="jobs",
+            location=location,
+            project_id=project_id,
         )
-        raise
+
+    return fetch_cloud_run_resources_for_locations(
+        locations=locations,
+        project_id=project_id,
+        resource_type="jobs",
+        fetch_for_location=fetch_for_location,
+    )
 
 
 def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
-    Transforms the list of Cloud Run Job dicts into job-level records (one per Job).
+    Transform the list of Cloud Run Job dicts into job-level records (one per Job).
     """
     transformed: list[dict] = []
     for job in jobs_data:
@@ -109,7 +84,7 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
 
 def transform_containers(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
-    Flattens the Job -> template.template.containers[] into one record per individual container.
+    Flatten the Job -> template.template.containers[] into one record per individual container.
     Each container node represents a single container spec in the Job's task template.
     """
     transformed: list[dict[str, Any]] = []
@@ -186,7 +161,8 @@ def cleanup_containers(
     common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(
-        GCPCloudRunJobContainerSchema(), common_job_parameters
+        GCPCloudRunJobContainerSchema(),
+        common_job_parameters,
     ).run(
         neo4j_session,
     )
@@ -195,19 +171,19 @@ def cleanup_containers(
 @timeit
 def sync_jobs(
     neo4j_session: neo4j.Session,
-    client: Resource,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-    credentials: Optional[GoogleCredentials] = None,
+    cloud_run_locations: list[str],
+    credentials: GoogleCredentials,
 ) -> None:
     """
-    Syncs GCP Cloud Run Jobs for a project.
+    Sync GCP Cloud Run Jobs for a project.
     """
-    logger.info(f"Syncing Cloud Run Jobs for project {project_id}.")
-    jobs_raw = get_jobs(client, project_id, credentials=credentials)
+    logger.info("Syncing Cloud Run Jobs for project %s.", project_id)
+    jobs_raw = get_jobs(project_id, cloud_run_locations, credentials)
     if not jobs_raw:
-        logger.info(f"No Cloud Run jobs found for project {project_id}.")
+        logger.info("No Cloud Run jobs found for project %s.", project_id)
 
     jobs = transform_jobs(jobs_raw, project_id)
     load_jobs(neo4j_session, jobs, project_id, update_tag)
@@ -222,6 +198,7 @@ def sync_jobs(
         project_id,
         update_tag,
         common_job_parameters,
+        batch_size=CLOUD_RUN_LABEL_BATCH_SIZE,
     )
 
     cleanup_job_params = common_job_parameters.copy()

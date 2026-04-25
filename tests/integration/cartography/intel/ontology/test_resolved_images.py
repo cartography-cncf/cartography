@@ -21,6 +21,10 @@ TEST_PROJECT_ID = "test-project"
 TEST_SERVICE_ID = "projects/test-project/locations/us-central1/services/test-service"
 TEST_REVISION_ID = "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc"
 TEST_JOB_ID = "projects/test-project/locations/us-west1/jobs/test-job"
+TEST_CLOUD_RUN_LOCATIONS = [
+    "projects/test-project/locations/us-central1",
+    "projects/test-project/locations/us-west1",
+]
 
 
 def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
@@ -118,28 +122,31 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
-    mock_client = MagicMock()
+    mock_credentials = MagicMock()
 
     cloudrun_service.sync_services(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_revision.sync_revisions(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
     cloudrun_job.sync_jobs(
         neo4j_session,
-        mock_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
     )
 
     # Act: run the RESOLVED_IMAGE analysis job
@@ -263,3 +270,56 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
         "id",
         "RESOLVED_IMAGE",
     ) == {("container-ml-1", "sha256:childamd64")}
+
+
+def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_list(
+    neo4j_session,
+):
+    """GAR manifest lists should resolve through CONTAINS_IMAGE to the matching platform image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:GCPCloudRunServiceContainer {id: 'cloud-run-container-1'})
+        SET c.architecture_normalized = 'amd64',
+            c.lastupdated = $update_tag
+
+        MERGE (ml:GCPArtifactRegistryContainerImage:ImageManifestList {id: 'gar-manifest-list'})
+        SET ml.digest = 'sha256:manifestlist',
+            ml.lastupdated = $update_tag
+
+        MERGE (child_amd64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-amd64'})
+        SET child_amd64.digest = 'sha256:childamd64',
+            child_amd64._ont_architecture = 'amd64',
+            child_amd64.lastupdated = $update_tag
+
+        MERGE (child_arm64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-arm64'})
+        SET child_arm64.digest = 'sha256:childarm64',
+            child_arm64._ont_architecture = 'arm64',
+            child_arm64.lastupdated = $update_tag
+
+        MERGE (c)-[r:HAS_IMAGE]->(ml)
+        SET r.lastupdated = $update_tag
+
+        MERGE (ml)-[r1:CONTAINS_IMAGE]->(child_amd64)
+        SET r1.lastupdated = $update_tag
+
+        MERGE (ml)-[r2:CONTAINS_IMAGE]->(child_arm64)
+        SET r2.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("cloud-run-container-1", "gar-child-amd64")}

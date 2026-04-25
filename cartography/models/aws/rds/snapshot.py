@@ -18,6 +18,7 @@ class RDSSnapshotNodeProperties(CartographyNodeProperties):
     db_snapshot_identifier: PropertyRef = PropertyRef(
         "DBSnapshotIdentifier", extra_index=True
     )
+    ispublic: PropertyRef = PropertyRef("Public")
     db_instance_identifier: PropertyRef = PropertyRef("DBInstanceIdentifier")
     snapshot_create_time: PropertyRef = PropertyRef("SnapshotCreateTime")
     engine: PropertyRef = PropertyRef("Engine")
