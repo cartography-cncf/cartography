@@ -214,6 +214,29 @@ oci_mapping = OntologyMapping(
     ],
 )
 
+# Scaleway
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayPermissionSet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "builtin"},
+                ),
+                # _ont_scope: scope_type is a Scaleway enum (PROJECTS, ACCOUNTS, ...);
+                # a value mapping would be needed to normalize into ontology scopes.
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
@@ -222,4 +245,5 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "cloudflare": cloudflare_mapping,
     "oci": oci_mapping,
+    "scaleway": scaleway_mapping,
 }

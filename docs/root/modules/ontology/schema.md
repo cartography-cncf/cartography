@@ -19,6 +19,7 @@ CL{{ComputeCluster}}
 DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
+FS{{FileStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
@@ -445,6 +446,23 @@ It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azur
 | _ont_encrypted | Whether the storage is encrypted. |
 | _ont_versioning | Whether versioning is enabled. |
 | _ont_public | Whether the storage has public access (not available for all providers). |
+
+
+### FileStorage
+
+```{note}
+FileStorage is a semantic label.
+```
+
+A file storage represents a managed network file system or file share across different cloud providers.
+It generalizes concepts like AWS EFS and Azure Files shares, as opposed to object storage (S3-like)
+or block storage (EBS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the file system/share (REQUIRED). |
+| _ont_location | The region/location of the file storage. |
+| _ont_encrypted | Whether the storage is encrypted at rest. |
 
 
 ### Tenant
