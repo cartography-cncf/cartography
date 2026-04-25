@@ -6,6 +6,7 @@ from typing import Callable
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
+from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
 from kubernetes.client import VersionApi
@@ -35,6 +36,21 @@ class K8CoreApiClient(CoreV1Api):
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8CustomObjectsApiClient(CustomObjectsApi):
     def __init__(
         self,
         name: str,
@@ -93,6 +109,7 @@ class K8sClient:
         self.networking = K8NetworkingApiClient(self.name, self.config_file)
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -111,6 +128,10 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
             ),
         )
     return clients
+
+
+def get_qualified_resource_name(namespace: str, name: str) -> str:
+    return f"{namespace}/{name}"
 
 
 def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
