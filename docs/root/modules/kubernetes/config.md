@@ -21,6 +21,7 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 - `list clusterroles`
 - `list clusterrolebindings`
 - `list ingresses`
+- `list gateways` and `list httproutes` in the Gateway API group, when Gateway API CRDs are installed
 
 ### Optional Permissions
 
@@ -75,6 +76,12 @@ rules:
 - apiGroups: ["networking.k8s.io"]
   resources:
     - ingresses
+  verbs: ["list"]
+# Gateway API resources
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources:
+    - gateways
+    - httproutes
   verbs: ["list"]
 # ConfigMaps (EKS only, optional) — only used to read the aws-auth ConfigMap for
 # legacy IAM identity mappings. Omit if your cluster uses EKS Access Entries
