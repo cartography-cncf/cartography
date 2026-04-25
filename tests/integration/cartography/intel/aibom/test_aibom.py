@@ -191,7 +191,7 @@ def _seed_multi_image_resolution_graph(neo4j_session) -> None:
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -480,7 +480,7 @@ def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_un
     ][0]
     relationship["source"]["instance_id"] = "missing-agent-instance"
     relationship["target"]["instance_id"] = "missing-model-instance"
-    mock_file_open.return_value.read.return_value = json.dumps(report)
+    mock_file_open.return_value.read.return_value = json.dumps(report).encode("utf-8")
 
     sync_aibom_from_dir(
         neo4j_session,
@@ -535,7 +535,7 @@ def test_sync_aibom_parses_flat_source_target_relationships(
             "target_category": "tool",
         },
     )
-    mock_file_open.return_value.read.return_value = json.dumps(report)
+    mock_file_open.return_value.read.return_value = json.dumps(report).encode("utf-8")
 
     sync_aibom_from_dir(
         neo4j_session,
@@ -561,7 +561,7 @@ def test_sync_aibom_parses_flat_source_target_relationships(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_INCOMPLETE_REPORT),
+    read_data=json.dumps(AIBOM_INCOMPLETE_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -594,7 +594,7 @@ def test_sync_aibom_keeps_scan_provenance_for_incomplete_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_UNMATCHED_REPORT),
+    read_data=json.dumps(AIBOM_UNMATCHED_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -634,7 +634,7 @@ def test_sync_aibom_keeps_scan_provenance_for_unmatched_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT),
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -737,7 +737,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",

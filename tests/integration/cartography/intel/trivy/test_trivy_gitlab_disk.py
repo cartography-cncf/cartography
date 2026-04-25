@@ -60,7 +60,7 @@ def _create_test_org(neo4j_session):
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_SAMPLE),
+    read_data=json.dumps(TRIVY_GITLAB_SAMPLE).encode("utf-8"),
 )
 @patch.object(
     cartography.intel.trivy,
@@ -218,7 +218,7 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_AMD64),
+    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_AMD64).encode("utf-8"),
 )
 @patch.object(
     cartography.intel.trivy,
@@ -287,7 +287,7 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_ARM64),
+    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_ARM64).encode("utf-8"),
 )
 @patch.object(
     cartography.intel.trivy,
@@ -352,7 +352,7 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTI_REPO_DIGESTS),
+    read_data=json.dumps(TRIVY_GITLAB_MULTI_REPO_DIGESTS).encode("utf-8"),
 )
 @patch.object(
     cartography.intel.trivy,

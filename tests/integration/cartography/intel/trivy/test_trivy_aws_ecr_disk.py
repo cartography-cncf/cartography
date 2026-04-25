@@ -23,7 +23,7 @@ TEST_REGION = "us-east-1"
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_SAMPLE),
+    read_data=json.dumps(TRIVY_SAMPLE).encode("utf-8"),
 )
 @patch.object(
     cartography.intel.trivy,

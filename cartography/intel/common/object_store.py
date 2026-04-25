@@ -53,12 +53,7 @@ class LocalReportReader:
 
     def read_bytes(self, ref: ReportRef) -> bytes:
         with open(ref.uri, "rb") as file_pointer:
-            data = file_pointer.read()
-        # unittest.mock.mock_open ignores the binary-mode flag and returns the
-        # configured read_data verbatim; many existing tests pass a str.
-        if isinstance(data, str):
-            return data.encode("utf-8")
-        return data
+            return file_pointer.read()
 
 
 class ListedReportReader:
