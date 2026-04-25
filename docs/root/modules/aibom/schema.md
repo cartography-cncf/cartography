@@ -18,7 +18,7 @@ Representation of one scanned target within the AIBOM output. In practice this i
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Stable hash of matched image identity + scanner metadata + source key |
 | **image_uri** | Image URI provided in the report envelope |
-| manifest_digest | Canonical image digest resolved from `image_uri`, when available |
+| manifest_digests | Canonical image digests resolved from `image_uri`, when available |
 | image_matched | Whether `image_uri` resolved to an `Image` node already in the graph |
 | scan_scope | Scanner input scope |
 | report_location | Local file path or `s3://` object URI used for ingestion |
@@ -78,7 +78,7 @@ Representation of one detected AI component occurrence within a source.
 | model_name | Optional model name emitted by the source; queryable metadata rather than part of the stable logical fingerprint |
 | framework | Optional framework emitted by the source |
 | label | Optional source-defined label or custom concept emitted by AIBOM; queryable metadata rather than part of the stable logical fingerprint |
-| manifest_digest | Digest of the canonical image used for graph linking |
+| manifest_digests | Digests of the canonical images used for graph linking |
 
 `AIBOMComponent` also gets conditional category labels for discoverability:
 
@@ -145,7 +145,7 @@ Representation of a workflow/function context emitted by AIBOM.
 ### Linking constraints
 
 - If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against any node carrying the `:Image` ontology label. No graph traversal is needed.
-- For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage` as a provider-specific fallback, preferring `type = "manifest_list"` over `type = "image"`.
+- For tag-based URIs (`repo:tag`), AIBOM resolves digests via `ECRRepositoryImage` → `ECRImage` as a provider-specific fallback. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests.
 - A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> Image` links, and `AIBOMComponent` nodes are not materialized until a canonical digest is resolved.
 
 ### Example queries
@@ -153,17 +153,17 @@ Representation of a workflow/function context emitted by AIBOM.
 Find production images that contain agent components:
 
 ```cypher
-MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
 MATCH (source)-[:HAS_COMPONENT]->(component:AIBOMComponent)
 WHERE component.category = 'agent'
-RETURN source.image_uri, img.digest, collect(component.name)
+RETURN source.image_uri, img._ont_digest, collect(component.name)
 ```
 
 Find agent-to-tool relationships:
 
 ```cypher
-MATCH (img:ECRImage)<-[:DETECTED_IN]-(agent:AIAgent)-[:USES_TOOL]->(tool:AITool)
-RETURN img.digest, agent.name, tool.name
+MATCH (img:Image)<-[:DETECTED_IN]-(agent:AIAgent)-[:USES_TOOL]->(tool:AITool)
+RETURN img._ont_digest, agent.name, tool.name
 ```
 
 Group equivalent agents across rebuilds:

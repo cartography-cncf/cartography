@@ -287,12 +287,13 @@ def test_sync_aibom_from_dir(
         neo4j_session,
         "AIBOMSource",
         "source_key",
-        "ECRImage",
-        "type",
+        "Image",
+        "_ont_digest",
         "SCANNED_IMAGE",
         rel_direction_right=True,
     ) == {
-        (TEST_SOURCE_KEY, "manifest_list"),
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
     }
 
     assert check_rels(
@@ -408,23 +409,49 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
     neo4j_session,
     tmp_path,
 ):
-    _seed_multi_image_resolution_graph(neo4j_session)
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
-    second_source_key = "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository@sha256:fake"
-    second_report = copy.deepcopy(AIBOM_REPORT)
-    second_report["image_uri"] = TEST_SINGLE_PLATFORM_IMAGE_URI
-    second_report["report"]["aibom_analysis"]["sources"] = {
-        second_source_key: copy.deepcopy(
-            second_report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+    # Seed two distinct ontology Image nodes
+    digest_a = "sha256:logicalidtestaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    digest_b = "sha256:logicalidtestbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    for digest in [digest_a, digest_b]:
+        neo4j_session.run(
+            """
+            MERGE (img:ECRImage:Image {id: $digest})
+            SET img.digest = $digest,
+                img._ont_digest = $digest,
+                img.type = 'image',
+                img.lastupdated = $lastupdated
+            """,
+            digest=digest,
+            lastupdated=TEST_UPDATE_TAG,
+        )
+
+    image_uri_a = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/repo-a@{digest_a}"
+    image_uri_b = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/repo-b@{digest_b}"
+
+    report_a = copy.deepcopy(AIBOM_REPORT)
+    report_a["image_uri"] = image_uri_a
+    report_a["report"]["aibom_analysis"]["sources"] = {
+        image_uri_a: copy.deepcopy(
+            report_a["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+        ),
+    }
+
+    report_b = copy.deepcopy(AIBOM_REPORT)
+    report_b["image_uri"] = image_uri_b
+    report_b["report"]["aibom_analysis"]["sources"] = {
+        image_uri_b: copy.deepcopy(
+            report_b["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
         ),
     }
 
     (tmp_path / "aibom-1.json").write_text(
-        json.dumps(AIBOM_REPORT),
+        json.dumps(report_a),
         encoding="utf-8",
     )
     (tmp_path / "aibom-2.json").write_text(
-        json.dumps(second_report),
+        json.dumps(report_b),
         encoding="utf-8",
     )
 
@@ -435,7 +462,9 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    # Two reports × 6 components each = 12 unique component nodes
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 12
+    # Same 6 logical_ids shared across both images
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["logical_id"])) == 6
 
     row = neo4j_session.run(
@@ -460,13 +489,13 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
         neo4j_session,
         "AIAgent",
         "logical_id",
-        "ECRImage",
-        "digest",
+        "Image",
+        "_ont_digest",
         "DETECTED_IN",
         rel_direction_right=True,
     ) >= {
-        (agent_logical_id, tests.data.aws.ecr.MANIFEST_LIST_DIGEST),
-        (agent_logical_id, tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
+        (agent_logical_id, digest_a),
+        (agent_logical_id, digest_b),
     }
 
 
