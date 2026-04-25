@@ -10,7 +10,7 @@ The AIBOM module uses a mostly source-faithful model with one pragmatic simplifi
 
 ### AIBOMSource
 
-Representation of one scanned target within the AIBOM output. In practice this is the node you traverse from `ECRImage` to reach the rest of the AI inventory.
+Representation of one scanned target within the AIBOM output. In practice this is the node you traverse from `Image` to reach the rest of the AI inventory.
 
 | Field | Description |
 |-------|-------------|
@@ -18,8 +18,8 @@ Representation of one scanned target within the AIBOM output. In practice this i
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Stable hash of matched image identity + scanner metadata + source key |
 | **image_uri** | Image URI provided in the report envelope |
-| manifest_digest | Canonical `ECRImage.digest` resolved from `image_uri`, when available |
-| image_matched | Whether `image_uri` resolved to an `ECRImage` already in the graph |
+| manifest_digest | Canonical image digest resolved from `image_uri`, when available |
+| image_matched | Whether `image_uri` resolved to an `Image` node already in the graph |
 | scan_scope | Scanner input scope |
 | report_location | Local file path or `s3://` object URI used for ingestion |
 | scanner_name | Scanner name |
@@ -44,7 +44,7 @@ Representation of one scanned target within the AIBOM output. In practice this i
 - A source points to the canonical image it scanned when that image exists in the graph.
 
     ```
-    (:AIBOMSource)-[:SCANNED_IMAGE]->(:ECRImage)
+    (:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
     ```
 
 - A source contains component occurrences.
@@ -78,7 +78,7 @@ Representation of one detected AI component occurrence within a source.
 | model_name | Optional model name emitted by the source; queryable metadata rather than part of the stable logical fingerprint |
 | framework | Optional framework emitted by the source |
 | label | Optional source-defined label or custom concept emitted by AIBOM; queryable metadata rather than part of the stable logical fingerprint |
-| manifest_digest | Digest of the canonical `ECRImage` used for graph linking |
+| manifest_digest | Digest of the canonical image used for graph linking |
 
 `AIBOMComponent` also gets conditional category labels for discoverability:
 
@@ -94,7 +94,7 @@ Representation of one detected AI component occurrence within a source.
 - A component occurrence is detected in the canonical image resolved for the report.
 
     ```
-    (:AIBOMComponent)-[:DETECTED_IN]->(:ECRImage)
+    (:AIBOMComponent)-[:DETECTED_IN]->(:Image)
     ```
 
 - A component may participate in one or more workflow contexts.
@@ -144,9 +144,9 @@ Representation of a workflow/function context emitted by AIBOM.
 
 ### Linking constraints
 
-- If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against `ECRImage` nodes. No graph traversal is needed.
-- For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage`, preferring `type = "manifest_list"` over `type = "image"`.
-- A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> ECRImage` links, and `AIBOMComponent` nodes are not materialized until a canonical digest is resolved.
+- If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against any node carrying the `:Image` ontology label. No graph traversal is needed.
+- For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage` as a provider-specific fallback, preferring `type = "manifest_list"` over `type = "image"`.
+- A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> Image` links, and `AIBOMComponent` nodes are not materialized until a canonical digest is resolved.
 
 ### Example queries
 

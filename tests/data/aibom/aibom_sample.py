@@ -1,3 +1,43 @@
+TEST_ONTOLOGY_IMAGE_DIGEST = (
+    "sha256:ontologyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_ONTOLOGY_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/ontology-repository"
+    f"@{TEST_ONTOLOGY_IMAGE_DIGEST}"
+)
+TEST_ONTOLOGY_SOURCE_KEY = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/ontology-repository"
+    f"@{TEST_ONTOLOGY_IMAGE_DIGEST}"
+)
+
+TEST_TAG_SINGLE_PLATFORM_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/tag-single-platform-repository:latest"
+)
+# Digest of the ECRImage node that the tag resolves to
+TEST_TAG_SINGLE_PLATFORM_DIGEST = (
+    "sha256:tagsingleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_TAG_SINGLE_PLATFORM_SOURCE_KEY = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/tag-single-platform-repository:latest"
+)
+
+TEST_TAG_MANIFEST_LIST_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/tag-multi-arch-repository:v2.0"
+)
+# Digests of the ECRImage nodes that the tag resolves to (manifest list and its children)
+TEST_TAG_MANIFEST_LIST_DIGEST = (
+    "sha256:tagmlaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_TAG_MANIFEST_LIST_AMD64_DIGEST = (
+    "sha256:tagamd64aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_TAG_MANIFEST_LIST_ARM64_DIGEST = (
+    "sha256:tagarm64aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+TEST_TAG_MANIFEST_LIST_SOURCE_KEY = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/tag-multi-arch-repository:v2.0"
+)
+
 TEST_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
 )
@@ -231,6 +271,175 @@ AIBOM_REPORT = {
                                 "line_number": 299,
                                 "category": "other",
                                 "instance_id": "json_loads_299",
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
+AIBOM_ONTOLOGY_REPORT = {
+    "image_uri": TEST_ONTOLOGY_IMAGE_URI,
+    "scan_scope": "/srv/app",
+    "scanner": {
+        "name": "cisco-aibom",
+        "version": "0.4.0",
+    },
+    "report": {
+        "aibom_analysis": {
+            "metadata": {
+                "analyzer_version": "0.4.0",
+                "status": "completed",
+            },
+            "summary": {
+                "total_sources": 1,
+                "status": "completed",
+                "categories": {
+                    "agent": 1,
+                    "model": 1,
+                },
+            },
+            "sources": {
+                TEST_ONTOLOGY_SOURCE_KEY: {
+                    "summary": {
+                        "status": "completed",
+                        "source_kind": "container_image",
+                    },
+                    "workflows": [],
+                    "relationships": [
+                        {
+                            "relationship_type": "USES_LLM",
+                            "source": {
+                                "instance_id": "ont_agent_main",
+                                "name": "pydantic_ai.Agent",
+                                "category": "agent",
+                            },
+                            "target": {
+                                "instance_id": "ont_model_primary",
+                                "name": "openai:gpt-4.1-mini",
+                                "category": "model",
+                            },
+                        },
+                    ],
+                    "components": {
+                        "agent": [
+                            {
+                                "name": "pydantic_ai.Agent",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 34,
+                                "category": "agent",
+                                "instance_id": "ont_agent_main",
+                                "assigned_target": "assistant",
+                                "framework": "pydantic_ai",
+                                "label": "customer_assistant",
+                            },
+                        ],
+                        "model": [
+                            {
+                                "name": "openai:gpt-4.1-mini",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 35,
+                                "category": "model",
+                                "instance_id": "ont_model_primary",
+                                "model_name": "gpt-4.1-mini",
+                                "framework": "openai",
+                                "label": "primary_llm",
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
+AIBOM_TAG_SINGLE_PLATFORM_REPORT = {
+    "image_uri": TEST_TAG_SINGLE_PLATFORM_IMAGE_URI,
+    "scan_scope": "/srv/app",
+    "scanner": {
+        "name": "cisco-aibom",
+        "version": "0.4.0",
+    },
+    "report": {
+        "aibom_analysis": {
+            "metadata": {
+                "analyzer_version": "0.4.0",
+                "status": "completed",
+            },
+            "summary": {
+                "total_sources": 1,
+                "status": "completed",
+                "categories": {
+                    "agent": 1,
+                },
+            },
+            "sources": {
+                TEST_TAG_SINGLE_PLATFORM_SOURCE_KEY: {
+                    "summary": {
+                        "status": "completed",
+                        "source_kind": "container_image",
+                    },
+                    "workflows": [],
+                    "relationships": [],
+                    "components": {
+                        "agent": [
+                            {
+                                "name": "pydantic_ai.Agent",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 34,
+                                "category": "agent",
+                                "instance_id": "tag_sp_agent",
+                                "framework": "pydantic_ai",
+                                "label": "customer_assistant",
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
+AIBOM_TAG_MANIFEST_LIST_REPORT = {
+    "image_uri": TEST_TAG_MANIFEST_LIST_IMAGE_URI,
+    "scan_scope": "/srv/app",
+    "scanner": {
+        "name": "cisco-aibom",
+        "version": "0.4.0",
+    },
+    "report": {
+        "aibom_analysis": {
+            "metadata": {
+                "analyzer_version": "0.4.0",
+                "status": "completed",
+            },
+            "summary": {
+                "total_sources": 1,
+                "status": "completed",
+                "categories": {
+                    "agent": 1,
+                },
+            },
+            "sources": {
+                TEST_TAG_MANIFEST_LIST_SOURCE_KEY: {
+                    "summary": {
+                        "status": "completed",
+                        "source_kind": "container_image",
+                    },
+                    "workflows": [],
+                    "relationships": [],
+                    "components": {
+                        "agent": [
+                            {
+                                "name": "pydantic_ai.Agent",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 34,
+                                "category": "agent",
+                                "instance_id": "tag_ml_agent",
+                                "framework": "pydantic_ai",
+                                "label": "customer_assistant",
                             },
                         ],
                     },
