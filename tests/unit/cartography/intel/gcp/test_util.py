@@ -510,7 +510,7 @@ class TestIsRetryableGcpHttpError:
     @pytest.mark.parametrize(
         "error_cls", [InternalServerError, ServiceUnavailable, TooManyRequests]
     )
-    def test_true_for_google_api_core_server_errors(self, error_cls):
+    def test_true_for_retryable_google_api_core_errors(self, error_cls):
         assert is_retryable_gcp_http_error(error_cls("transient server error")) is True
 
 

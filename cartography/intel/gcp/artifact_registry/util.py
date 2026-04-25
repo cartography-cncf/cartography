@@ -28,13 +28,22 @@ ResultT = TypeVar("ResultT")
 
 
 def _artifact_registry_backoff_handler(details: dict) -> None:
-    wait = details.get("wait", "unknown")
-    tries = details.get("tries", "unknown")
+    wait = details.get("wait")
+    if isinstance(wait, (int, float)):
+        wait_display = f"{wait:0.1f}"
+    elif wait is None:
+        wait_display = "unknown"
+    else:
+        wait_display = str(wait)
+
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
     exc = details.get("exception")
     logger.warning(
         "Artifact Registry API retry: backing off %s seconds after %s tries due to %s.",
-        wait,
-        tries,
+        wait_display,
+        tries_display,
         type(exc).__name__ if exc else "unknown error",
     )
 
