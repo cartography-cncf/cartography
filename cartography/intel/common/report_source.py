@@ -239,7 +239,7 @@ def resolve_legacy_report_source(
     s3_prefix: str | None,
     names: LegacyReportSourceNames,
 ) -> str | None:
-    if source and (local_path or s3_bucket or s3_prefix):
+    if source is not None and (local_path or s3_bucket or s3_prefix):
         raise ValueError(
             f"Cannot use {names.source} with deprecated source flags "
             f"({names.local}, {names.s3_bucket}, {names.s3_prefix}).",
@@ -252,7 +252,7 @@ def resolve_legacy_report_source(
     if s3_prefix and not s3_bucket:
         raise ValueError(f"{names.s3_prefix} requires {names.s3_bucket}.")
 
-    if source:
+    if source is not None:
         parse_report_source(source)
         return source
 
