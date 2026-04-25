@@ -2992,6 +2992,44 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
     (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
 
+### AppRunnerService
+Representation of an AWS [App Runner Service](https://docs.aws.amazon.com/apprunner/latest/api/API_Service.html).
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The Amazon Resource Name (ARN) of the service |
+| **arn** | The Amazon Resource Name (ARN) of the service |
+| name | The name of the service |
+| region | The region the service runs in |
+| service_url | The public URL of the service |
+| status | The current state of the service (e.g. RUNNING, PAUSED) |
+| created_at | Timestamp of service creation |
+| updated_at | Timestamp of the last service update |
+| cpu | CPU allocated to each instance |
+| memory | Memory allocated to each instance |
+| image_identifier | Container image identifier when the service sources from ECR |
+| code_repository_url | Source repository URL when the service sources from a code repo |
+| auto_deployments_enabled | Whether App Runner auto-deploys on source changes |
+| access_role_arn | ARN of the role used to pull source images from private ECR |
+| instance_role_arn | ARN of the role assumed by the running service to call AWS APIs |
+| egress_type | Outbound network configuration (DEFAULT or VPC) |
+| is_publicly_accessible | Whether the service is reachable from the public internet |
+
+#### Relationships
+- App Runner Services are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AppRunnerService)
+    ```
+- App Runner Services use an access role to pull images from private ECR.
+    ```
+    (AppRunnerService)-[USES_ACCESS_ROLE]->(AWSRole)
+    ```
+- App Runner Services assume an instance role at runtime to call AWS APIs. This edge enables traversal of `iam:PassRole` + `apprunner:CreateService` privilege escalation paths.
+    ```
+    (AppRunnerService)-[USES_INSTANCE_ROLE]->(AWSRole)
+    ```
+
 ### EventBridgeRule
 Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListRules.html)
 | Field | Description |
