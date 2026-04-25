@@ -111,7 +111,8 @@ def _load_user_role(
         role_node.lastupdated = $okta_update_tag,
         role_node._ont_name = role_data.label,
         role_node._ont_type = 'builtin',
-        role_node._ont_scope = 'org'
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH user, role_node, org
     MERGE (user)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()
@@ -148,7 +149,8 @@ def _load_group_role(
         role_node.lastupdated = $okta_update_tag,
         role_node._ont_name = role_data.label,
         role_node._ont_type = 'builtin',
-        role_node._ont_scope = 'org'
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH group, role_node, org
     MERGE (group)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()

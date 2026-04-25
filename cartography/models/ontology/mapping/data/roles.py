@@ -290,7 +290,7 @@ workos_mapping = OntologyMapping(
                     special_handling="mapping",
                     extra={
                         "map": {
-                            "EnvironmentRole": "builtin",
+                            "EnvironmentRole": "custom",
                             "OrganizationRole": "custom",
                         }
                     },
