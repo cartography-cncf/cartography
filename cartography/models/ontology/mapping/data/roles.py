@@ -259,9 +259,15 @@ scaleway_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="scope",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "org"},
+                    node_field="scope_type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "projects": "project",
+                            "organization": "org",
+                            "account_root_user": "account",
+                        }
+                    },
                 ),
             ],
         ),
@@ -280,15 +286,25 @@ workos_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "builtin"},
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "builtin",
+                            "OrganizationRole": "custom",
+                        }
+                    },
                 ),
                 OntologyFieldMapping(
                     ontology_field="scope",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "org"},
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "global",
+                            "OrganizationRole": "org",
+                        }
+                    },
                 ),
             ],
         ),
