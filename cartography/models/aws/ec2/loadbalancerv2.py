@@ -13,6 +13,104 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
+# ELBV2TargetGroup Schema
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("TargetGroupArn")
+    arn: PropertyRef = PropertyRef("TargetGroupArn", extra_index=True)
+    name: PropertyRef = PropertyRef("TargetGroupName")
+    target_type: PropertyRef = PropertyRef("TargetType")
+    protocol: PropertyRef = PropertyRef("Protocol")
+    port: PropertyRef = PropertyRef("Port")
+    vpc_id: PropertyRef = PropertyRef("VpcId")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ELBV2TargetGroupToAWSAccountRelProperties = (
+        ELBV2TargetGroupToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToLoadBalancerV2RelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
+    target_node_label: str = "AWSLoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("LoadBalancerId", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ELBV2_TARGET_GROUP"
+    properties: ELBV2TargetGroupToLoadBalancerV2RelProperties = (
+        ELBV2TargetGroupToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupSchema(CartographyNodeSchema):
+    label: str = "ELBV2TargetGroup"
+    properties: ELBV2TargetGroupNodeProperties = ELBV2TargetGroupNodeProperties()
+    sub_resource_relationship: ELBV2TargetGroupToAWSAccountRel = (
+        ELBV2TargetGroupToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ELBV2TargetGroupToLoadBalancerV2Rel()],
+    )
+
+
+# ELBV2TargetGroup -> ECSService MatchLink
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToECSServiceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    container_name: PropertyRef = PropertyRef("ContainerName")
+    container_port: PropertyRef = PropertyRef("ContainerPort")
+
+
+@dataclass(frozen=True)
+class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
+    """(:ELBV2TargetGroup)-[:TARGETS]->(:ECSService)"""
+
+    target_node_label: str = "ECSService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ServiceArn")},
+    )
+    source_node_label: str = "ELBV2TargetGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("TargetGroupArn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TARGETS"
+    properties: ELBV2TargetGroupToECSServiceRelProperties = (
+        ELBV2TargetGroupToECSServiceRelProperties()
+    )
+
+
 # LoadBalancerV2 Schema
 
 
