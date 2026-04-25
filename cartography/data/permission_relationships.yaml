@@ -56,3 +56,8 @@
   - rds:StopDBInstance
   - rds:StartDBInstance
   relationship_name: CAN_ADMINISTER
+# Map principals that can execute commands in ECS tasks.
+- target_label: ECSTask
+  permissions:
+  - ecs:ExecuteCommand
+  relationship_name: CAN_EXECUTE_COMMAND

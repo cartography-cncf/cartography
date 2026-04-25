@@ -30,6 +30,9 @@ from cartography.models.ontology.mapping.data.dnszones import DNSZONES_ONTOLOGY_
 from cartography.models.ontology.mapping.data.encryptionkeys import (
     ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.file_storage import (
+    FILE_STORAGE_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.firewalls import (
     FIREWALLS_ONTOLOGY_MAPPING,
 )
@@ -96,6 +99,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "dnsrecords": DNSRECORDS_ONTOLOGY_MAPPING,
     "dnszones": DNSZONES_ONTOLOGY_MAPPING,
     "encryptionkeys": ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
+    "filestorage": FILE_STORAGE_ONTOLOGY_MAPPING,
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,

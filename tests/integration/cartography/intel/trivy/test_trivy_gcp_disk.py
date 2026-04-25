@@ -1,10 +1,15 @@
 import json
+from typing import Any
+from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
+from cartography.intel.gcp.artifact_registry.repository import (
+    ArtifactRegistryRepositorySyncResult,
+)
 from cartography.intel.trivy import sync_trivy_from_dir
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_PLATFORM_IMAGES
@@ -63,9 +68,17 @@ async def _mock_get_all_manifests_async(
 )
 @patch(
     "cartography.intel.gcp.artifact_registry.repository.get_artifact_registry_repositories",
-    return_value=MOCK_REPOSITORIES,
+    return_value=ArtifactRegistryRepositorySyncResult(
+        cast(list[dict[str, Any]], MOCK_REPOSITORIES),
+        True,
+    ),
+)
+@patch(
+    "cartography.intel.gcp.artifact_registry.build_artifact_registry_client",
+    return_value=MagicMock(name="artifact-registry-client"),
 )
 def test_sync_trivy_gcp(
+    mock_build_artifact_registry_client,
     mock_get_repositories,
     mock_get_manifests,
     mock_list_dir_scan_results,
@@ -89,16 +102,17 @@ def test_sync_trivy_gcp(
     }
 
     # First sync GCP Artifact Registry container images and platform images
-    mock_client = MagicMock()
     mock_credentials = MagicMock()
 
     sync(
         neo4j_session,
-        mock_client,
         mock_credentials,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
+    )
+    mock_build_artifact_registry_client.assert_called_once_with(
+        credentials=mock_credentials,
     )
 
     # Act - sync Trivy results

@@ -13,6 +13,7 @@ from google.cloud.aiplatform_v1.services.feature_registry_service import (
 )
 from google.cloud.aiplatform_v1.services.model_service import ModelServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service import PipelineServiceClient
+from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.asset_v1 import AssetServiceClient
 from google.cloud.run_v2 import ExecutionsClient
 from google.cloud.run_v2 import JobsClient
@@ -88,6 +89,18 @@ def build_asset_client(
         quota_project_id=quota_project_id,
     )
     return AssetServiceClient(credentials=resolved_credentials)
+
+
+def build_artifact_registry_client(
+    credentials: GoogleCredentials | None = None,
+    quota_project_id: str | None = None,
+) -> ArtifactRegistryClient:
+    return ArtifactRegistryClient(
+        credentials=_resolve_credentials(
+            credentials=credentials,
+            quota_project_id=quota_project_id,
+        ),
+    )
 
 
 def build_vertex_ai_model_client(

@@ -241,6 +241,7 @@ okta_mapping = OntologyMapping(
     ],
 )
 
+
 # Scaleway
 scaleway_mapping = OntologyMapping(
     module_name="scaleway",
