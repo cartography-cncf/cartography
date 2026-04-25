@@ -5,6 +5,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cartography-cncf/cartography/badge)](https://scorecard.dev/viewer/?uri=github.com/cartography-cncf/cartography)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9637/badge)](https://www.bestpractices.dev/projects/9637)
 ![build](https://github.com/cartography-cncf/cartography/actions/workflows/publish-to-ghcr-and-pypi.yml/badge.svg)
+[![ACMM Level](https://img.shields.io/endpoint?url=https%3A%2F%2Fconsole.kubestellar.io%2Fapi%2Facmm%2Fbadge%3Frepo%3Dcartography-cncf%2Fcartography)](https://console.kubestellar.io/acmm?repo=cartography-cncf%2Fcartography&utm_source=github&utm_medium=badge&utm_campaign=acmm-outreach)
 
 [Documentation](https://cartography-cncf.github.io/cartography/)
 </div>
