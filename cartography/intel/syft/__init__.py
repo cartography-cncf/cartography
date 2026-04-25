@@ -65,15 +65,7 @@ def sync_syft_from_report_reader(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """
-    Sync Syft results from a local directory.
-
-    Args:
-        neo4j_session: Neo4j session
-        reader: Reader for listing and fetching reports
-        update_tag: Update timestamp
-        common_job_parameters: Common job parameters
-    """
+    """Sync Syft results from a report reader."""
     logger.info("Using Syft scan results from %s", reader.source_uri)
 
     json_files = filter_report_refs(

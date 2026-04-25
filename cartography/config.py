@@ -1,64 +1,21 @@
-import logging
-
-logger = logging.getLogger(__name__)
-_DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION = "v1.0.0"
-
-
 def _resolve_report_source_compatibility_shim(
     *,
+    module: str,
     source: str | None,
     local_path: str | None,
     s3_bucket: str | None,
     s3_prefix: str | None,
-    source_name: str,
-    local_name: str,
-    s3_bucket_name: str,
-    s3_prefix_name: str,
 ) -> str | None:
-    from cartography.intel.common.report_source import build_s3_source
-    from cartography.intel.common.report_source import parse_report_source
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import resolve_legacy_report_source
 
-    if source and (local_path or s3_bucket or s3_prefix):
-        raise ValueError(
-            f"Cannot use `{source_name}` with deprecated source fields "
-            f"(`{local_name}`, `{s3_bucket_name}`, `{s3_prefix_name}`).",
-        )
-
-    if local_path and (s3_bucket or s3_prefix):
-        raise ValueError(
-            f"Cannot use both `{local_name}` and `{s3_bucket_name}`/`{s3_prefix_name}`. "
-            f"Use `{source_name}` instead.",
-        )
-
-    if s3_prefix and not s3_bucket:
-        raise ValueError(f"`{s3_prefix_name}` requires `{s3_bucket_name}`.")
-
-    if source:
-        return source
-
-    if local_path:
-        logger.warning(
-            "DEPRECATED: `%s` will be removed in Cartography %s; use `%s` instead.",
-            local_name,
-            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
-            source_name,
-        )
-        parse_report_source(local_path)
-        return local_path
-
-    if s3_bucket:
-        logger.warning(
-            "DEPRECATED: `%s`/`%s` will be removed in Cartography %s; use `%s` instead.",
-            s3_bucket_name,
-            s3_prefix_name,
-            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
-            source_name,
-        )
-        resolved_source = build_s3_source(s3_bucket, s3_prefix)
-        parse_report_source(resolved_source)
-        return resolved_source
-
-    return None
+    return resolve_legacy_report_source(
+        source=source,
+        local_path=local_path,
+        s3_bucket=s3_bucket,
+        s3_prefix=s3_prefix,
+        names=LegacyReportSourceNames.for_config(module),
+    )
 
 
 class Config:
@@ -638,38 +595,23 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
-        # DEPRECATED: `docker_scout_results_dir` and `docker_scout_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v1.0.0.
+        # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_compatibility_shim(
+            module="docker_scout",
             source=docker_scout_source,
             local_path=docker_scout_results_dir,
             s3_bucket=docker_scout_s3_bucket,
             s3_prefix=docker_scout_s3_prefix,
-            source_name="docker_scout_source",
-            local_name="docker_scout_results_dir",
-            s3_bucket_name="docker_scout_s3_bucket",
-            s3_prefix_name="docker_scout_s3_prefix",
         )
-        self.docker_scout_results_dir = docker_scout_results_dir
-        self.docker_scout_s3_bucket = docker_scout_s3_bucket
-        self.docker_scout_s3_prefix = docker_scout_s3_prefix
-        # DEPRECATED: `trivy_results_dir` and `trivy_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v1.0.0.
         self.trivy_source = _resolve_report_source_compatibility_shim(
+            module="trivy",
             source=trivy_source,
             local_path=trivy_results_dir,
             s3_bucket=trivy_s3_bucket,
             s3_prefix=trivy_s3_prefix,
-            source_name="trivy_source",
-            local_name="trivy_results_dir",
-            s3_bucket_name="trivy_s3_bucket",
-            s3_prefix_name="trivy_s3_prefix",
         )
-        self.trivy_s3_bucket = trivy_s3_bucket
-        self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
         self.ontology_devices_source = ontology_devices_source
-        self.trivy_results_dir = trivy_results_dir
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
         self.scaleway_org = scaleway_org
@@ -691,41 +633,25 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
-        # DEPRECATED: `syft_results_dir` and `syft_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v1.0.0.
         self.syft_source = _resolve_report_source_compatibility_shim(
+            module="syft",
             source=syft_source,
             local_path=syft_results_dir,
             s3_bucket=syft_s3_bucket,
             s3_prefix=syft_s3_prefix,
-            source_name="syft_source",
-            local_name="syft_results_dir",
-            s3_bucket_name="syft_s3_bucket",
-            s3_prefix_name="syft_s3_prefix",
         )
-        self.syft_results_dir = syft_results_dir
-        self.syft_s3_bucket = syft_s3_bucket
-        self.syft_s3_prefix = syft_s3_prefix
         self.workos_api_key = workos_api_key
         self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
-        # DEPRECATED: `aibom_results_dir` and `aibom_s3_*` compatibility shim.
-        # These legacy source flags will be removed in Cartography v1.0.0.
         self.aibom_source = _resolve_report_source_compatibility_shim(
+            module="aibom",
             source=aibom_source,
             local_path=aibom_results_dir,
             s3_bucket=aibom_s3_bucket,
             s3_prefix=aibom_s3_prefix,
-            source_name="aibom_source",
-            local_name="aibom_results_dir",
-            s3_bucket_name="aibom_s3_bucket",
-            s3_prefix_name="aibom_s3_prefix",
         )
-        self.aibom_results_dir = aibom_results_dir
-        self.aibom_s3_bucket = aibom_s3_bucket
-        self.aibom_s3_prefix = aibom_s3_prefix
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key

@@ -17,16 +17,6 @@ class ReportRef:
     name: str
 
 
-# DEPRECATED: ObjectRef will be removed in v1.0.0. Use ReportRef.
-class ObjectRef(ReportRef):
-    def __init__(self, provider: str, bucket: str, key: str) -> None:
-        object.__setattr__(self, "uri", f"{provider}://{bucket}/{key}")
-        object.__setattr__(self, "name", key)
-        object.__setattr__(self, "provider", provider)
-        object.__setattr__(self, "bucket", bucket)
-        object.__setattr__(self, "key", key)
-
-
 class ReportReader(Protocol):
     source_uri: str
 
@@ -64,6 +54,8 @@ class LocalReportReader:
     def read_bytes(self, ref: ReportRef) -> bytes:
         with open(ref.uri, "rb") as file_pointer:
             data = file_pointer.read()
+        # unittest.mock.mock_open ignores the binary-mode flag and returns the
+        # configured read_data verbatim; many existing tests pass a str.
         if isinstance(data, str):
             return data.encode("utf-8")
         return data
@@ -101,42 +93,23 @@ class S3BucketReader:
         self._client = create_boto3_client(boto3_session, "s3")
 
     def list_reports(self) -> list[ReportRef]:
-        return self._list_reports(self._bucket, self._prefix)
-
-    def _list_reports(self, bucket: str, prefix: str) -> list[ReportRef]:
         paginator = self._client.get_paginator("list_objects_v2")
         refs: list[ReportRef] = []
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for page in paginator.paginate(Bucket=self._bucket, Prefix=self._prefix):
             for obj in page.get("Contents", []):
                 key = obj["Key"]
                 if key.endswith("/"):
                     continue
                 refs.append(
                     ReportRef(
-                        uri=f"s3://{bucket}/{key}",
+                        uri=f"s3://{self._bucket}/{key}",
                         name=key,
                     ),
                 )
         return refs
 
-    # DEPRECATED: list_objects() will be removed in v1.0.0.
-    def list_objects(
-        self,
-        bucket: str | None = None,
-        prefix: str | None = None,
-    ) -> list[ReportRef]:
-        if bucket is None and prefix is None:
-            return self.list_reports()
-        return self._list_reports(
-            bucket or self._bucket,
-            self._prefix if prefix is None else prefix,
-        )
-
     def read_bytes(self, ref: ReportRef) -> bytes:
-        response = self._client.get_object(
-            Bucket=getattr(ref, "bucket", self._bucket),
-            Key=getattr(ref, "key", ref.name),
-        )
+        response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
         return response["Body"].read()
 
 
@@ -267,10 +240,3 @@ def _build_cloud_source_uri(provider: str, bucket: str, prefix: str | None) -> s
     if normalized_prefix:
         return f"{provider}://{bucket}/{normalized_prefix}"
     return f"{provider}://{bucket}"
-
-
-# DEPRECATED: compatibility aliases will be removed in v1.0.0.
-BucketReader = ReportReader
-filter_object_refs = filter_report_refs
-read_text_document = read_text_report
-read_json_document = read_json_report

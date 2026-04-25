@@ -8,8 +8,8 @@ import typer
 from typing_extensions import Annotated
 
 from cartography.config import Config
-from cartography.intel.common.report_source import build_s3_source
-from cartography.intel.common.report_source import parse_report_source
+from cartography.intel.common.report_source import LegacyReportSourceNames
+from cartography.intel.common.report_source import resolve_legacy_report_source
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -184,60 +184,22 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
 
 def _resolve_report_source_option(
     *,
+    module: str,
     source: str | None,
     local_path: str | None,
     s3_bucket: str | None,
     s3_prefix: str | None,
-    source_flag: str,
-    local_flag: str,
-    s3_bucket_flag: str,
-    s3_prefix_flag: str,
 ) -> str | None:
-    if source and (local_path or s3_bucket or s3_prefix):
-        raise typer.BadParameter(
-            f"Cannot use {source_flag} with deprecated source flags "
-            f"({local_flag}, {s3_bucket_flag}, {s3_prefix_flag}).",
+    try:
+        return resolve_legacy_report_source(
+            source=source,
+            local_path=local_path,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+            names=LegacyReportSourceNames.for_cli(module),
         )
-
-    if local_path and (s3_bucket or s3_prefix):
-        raise typer.BadParameter(
-            f"Cannot use both {local_flag} and {s3_bucket_flag}/{s3_prefix_flag}. "
-            f"Use {source_flag} instead.",
-        )
-
-    if s3_prefix and not s3_bucket:
-        raise typer.BadParameter(
-            f"{s3_prefix_flag} requires {s3_bucket_flag}.",
-        )
-
-    if source:
-        try:
-            parse_report_source(source)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
-        return source
-
-    if local_path:
-        logger.warning(
-            "DEPRECATED: %s will be removed in Cartography v1.0.0; use %s instead.",
-            local_flag,
-            source_flag,
-        )
-        parse_report_source(local_path)
-        return local_path
-
-    if s3_bucket:
-        logger.warning(
-            "DEPRECATED: %s/%s will be removed in Cartography v1.0.0; use %s instead.",
-            s3_bucket_flag,
-            s3_prefix_flag,
-            source_flag,
-        )
-        resolved_source = build_s3_source(s3_bucket, s3_prefix)
-        parse_report_source(resolved_source)
-        return resolved_source
-
-    return None
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 class CLI:
@@ -2340,44 +2302,32 @@ class CLI:
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
             docker_scout_source = _resolve_report_source_option(
+                module="docker_scout",
                 source=docker_scout_source,
                 local_path=docker_scout_results_dir,
                 s3_bucket=docker_scout_s3_bucket,
                 s3_prefix=docker_scout_s3_prefix,
-                source_flag="--docker-scout-source",
-                local_flag="--docker-scout-results-dir",
-                s3_bucket_flag="--docker-scout-s3-bucket",
-                s3_prefix_flag="--docker-scout-s3-prefix",
             )
             trivy_source = _resolve_report_source_option(
+                module="trivy",
                 source=trivy_source,
                 local_path=trivy_results_dir,
                 s3_bucket=trivy_s3_bucket,
                 s3_prefix=trivy_s3_prefix,
-                source_flag="--trivy-source",
-                local_flag="--trivy-results-dir",
-                s3_bucket_flag="--trivy-s3-bucket",
-                s3_prefix_flag="--trivy-s3-prefix",
             )
             syft_source = _resolve_report_source_option(
+                module="syft",
                 source=syft_source,
                 local_path=syft_results_dir,
                 s3_bucket=syft_s3_bucket,
                 s3_prefix=syft_s3_prefix,
-                source_flag="--syft-source",
-                local_flag="--syft-results-dir",
-                s3_bucket_flag="--syft-s3-bucket",
-                s3_prefix_flag="--syft-s3-prefix",
             )
             aibom_source = _resolve_report_source_option(
+                module="aibom",
                 source=aibom_source,
                 local_path=aibom_results_dir,
                 s3_bucket=aibom_s3_bucket,
                 s3_prefix=aibom_s3_prefix,
-                source_flag="--aibom-source",
-                local_flag="--aibom-results-dir",
-                s3_bucket_flag="--aibom-s3-bucket",
-                s3_prefix_flag="--aibom-s3-prefix",
             )
 
             if docker_scout_source:

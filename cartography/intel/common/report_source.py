@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -5,6 +6,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cartography.intel.common.object_store import ReportReader
+
+logger = logging.getLogger(__name__)
+
+_DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION = "v1.0.0"
 
 _SOURCE_SCHEME_RE = re.compile(
     r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$",
@@ -65,8 +70,6 @@ ReportSource = LocalReportSource | CloudReportSource
 
 
 def build_s3_source(bucket: str, prefix: str | None = None) -> str:
-    # Object-store prefixes should not start at the bucket root, but a trailing
-    # slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"s3://{bucket}/{normalized_prefix}"
@@ -74,8 +77,6 @@ def build_s3_source(bucket: str, prefix: str | None = None) -> str:
 
 
 def build_gcs_source(bucket: str, prefix: str | None = None) -> str:
-    # Object-store prefixes should not start at the bucket root, but a trailing
-    # slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"gs://{bucket}/{normalized_prefix}"
@@ -87,8 +88,6 @@ def build_azblob_source(
     container_name: str,
     prefix: str | None = None,
 ) -> str:
-    # Object-store prefixes should not start at the container root, but a
-    # trailing slash is meaningful for callers that list folder-like prefixes.
     normalized_prefix = (prefix or "").lstrip("/")
     if normalized_prefix:
         return f"azblob://{account_name}/{container_name}/{normalized_prefix}"
@@ -201,22 +200,82 @@ def build_report_reader_for_source(
     )
 
 
-# DEPRECATED: build_bucket_reader_for_source() will be removed in v1.0.0.
-def build_bucket_reader_for_source(
-    source: CloudReportSource,
+@dataclass(frozen=True)
+class LegacyReportSourceNames:
+    """Display strings used in deprecation warnings and errors from
+    `resolve_legacy_report_source`. The CLI passes flag names like
+    `--trivy-source`; Config passes backtick-wrapped attribute names."""
+
+    source: str
+    local: str
+    s3_bucket: str
+    s3_prefix: str
+
+    @classmethod
+    def for_cli(cls, module: str) -> "LegacyReportSourceNames":
+        base = f"--{module.replace('_', '-')}"
+        return cls(
+            source=f"{base}-source",
+            local=f"{base}-results-dir",
+            s3_bucket=f"{base}-s3-bucket",
+            s3_prefix=f"{base}-s3-prefix",
+        )
+
+    @classmethod
+    def for_config(cls, module: str) -> "LegacyReportSourceNames":
+        return cls(
+            source=f"`{module}_source`",
+            local=f"`{module}_results_dir`",
+            s3_bucket=f"`{module}_s3_bucket`",
+            s3_prefix=f"`{module}_s3_prefix`",
+        )
+
+
+def resolve_legacy_report_source(
     *,
-    azure_sp_auth: bool | None = None,
-    azure_tenant_id: str | None = None,
-    azure_client_id: str | None = None,
-    azure_client_secret: str | None = None,
-) -> tuple["ReportReader", str, str]:
-    reader = build_report_reader_for_source(
-        source,
-        azure_sp_auth=azure_sp_auth,
-        azure_tenant_id=azure_tenant_id,
-        azure_client_id=azure_client_id,
-        azure_client_secret=azure_client_secret,
-    )
-    if isinstance(source, AzureBlobReportSource):
-        return reader, source.container_name, source.prefix
-    return reader, source.bucket, source.prefix
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    names: LegacyReportSourceNames,
+) -> str | None:
+    if source and (local_path or s3_bucket or s3_prefix):
+        raise ValueError(
+            f"Cannot use {names.source} with deprecated source flags "
+            f"({names.local}, {names.s3_bucket}, {names.s3_prefix}).",
+        )
+    if local_path and (s3_bucket or s3_prefix):
+        raise ValueError(
+            f"Cannot use both {names.local} and {names.s3_bucket}/{names.s3_prefix}. "
+            f"Use {names.source} instead.",
+        )
+    if s3_prefix and not s3_bucket:
+        raise ValueError(f"{names.s3_prefix} requires {names.s3_bucket}.")
+
+    if source:
+        parse_report_source(source)
+        return source
+
+    if local_path:
+        logger.warning(
+            "DEPRECATED: %s will be removed in Cartography %s; use %s instead.",
+            names.local,
+            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+            names.source,
+        )
+        parse_report_source(local_path)
+        return local_path
+
+    if s3_bucket:
+        logger.warning(
+            "DEPRECATED: %s/%s will be removed in Cartography %s; use %s instead.",
+            names.s3_bucket,
+            names.s3_prefix,
+            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+            names.source,
+        )
+        resolved_source = build_s3_source(s3_bucket, s3_prefix)
+        parse_report_source(resolved_source)
+        return resolved_source
+
+    return None
