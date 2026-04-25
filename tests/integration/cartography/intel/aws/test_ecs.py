@@ -155,6 +155,65 @@ def test_load_ecs_services(neo4j_session, *args):
     }
 
 
+def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
+    # Seed AWSAccount and ECS cluster
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $update_tag, aws :Tenant
+        """,
+        aws_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ecs.load_ecs_clusters(
+        neo4j_session,
+        tests.data.aws.ecs.GET_ECS_CLUSTERS,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Seed an ELBV2TargetGroup node matching the ARN in GET_ECS_SERVICES fixture
+    tg_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/test_group/0000000000090000"
+    neo4j_session.run(
+        """
+        MERGE (tg:ELBV2TargetGroup{id: $tg_arn})
+        ON CREATE SET tg.firstseen = timestamp()
+        SET tg.lastupdated = $update_tag
+        """,
+        tg_arn=tg_arn,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Load ECS services (this also loads the TG→ECSService matchlinks)
+    cartography.intel.aws.ecs.load_ecs_services(
+        neo4j_session,
+        CLUSTER_ARN,
+        tests.data.aws.ecs.GET_ECS_SERVICES,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert the TARGETS edge exists with the right properties
+    result = neo4j_session.run(
+        """
+        MATCH (tg:ELBV2TargetGroup {id: $tg_arn})-[r:TARGETS]->(svc:ECSService)
+        RETURN svc.id AS svc_id, r.container_name AS container_name, r.container_port AS container_port
+        """,
+        tg_arn=tg_arn,
+    )
+    records = [dict(r) for r in result]
+    assert len(records) == 1
+    assert (
+        records[0]["svc_id"]
+        == "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service"
+    )
+    assert records[0]["container_name"] == "test_container"
+    assert records[0]["container_port"] == 8080
+
+
 def test_load_ecs_tasks(neo4j_session, *args):
     # Arrange
     data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)

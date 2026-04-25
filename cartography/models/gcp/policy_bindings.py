@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -90,4 +92,39 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
             GCPPolicyBindingToPrincipalRel(),
             GCPPolicyBindingToRoleRel(),
         ]
+    )
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingAppliesToRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
+    """
+    MatchLink schema that connects a GCPPolicyBinding to the concrete resource
+    node it applies to.
+
+    target_node_label is set dynamically at instantiation (e.g. "GCPProject",
+    "GCPBucket") so a single binding can be matched unambiguously by (id, label)
+    — raw resource_id alone is ambiguous across resource types.
+    """
+
+    source_node_label: str = "GCPPolicyBinding"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("binding_id")},
+    )
+    target_node_label: str = "GCPResource"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "APPLIES_TO"
+    properties: GCPPolicyBindingAppliesToRelProperties = (
+        GCPPolicyBindingAppliesToRelProperties()
     )
