@@ -96,6 +96,7 @@ dependencies = [
     "scaleway>=2.10.0",
     "google-cloud-resource-manager>=1.14.2",
     "google-cloud-asset>=1.0.0",
+    "google-cloud-artifact-registry>=1.21.0",
     "google-cloud-aiplatform>=1.127.0",
     "google-cloud-run>=0.13.0",
     "types-aiobotocore-ecr>=3.1.0",

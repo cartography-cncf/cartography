@@ -96,10 +96,30 @@ aws_mapping = OntologyMapping(
     ],
 )
 
+# Microsoft Entra
+microsoft_mapping = OntologyMapping(
+    module_name="microsoft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="EntraServicePrincipal",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="display_name", required=True
+                ),
+                # email: Not available
+                OntologyFieldMapping(
+                    ontology_field="active", node_field="account_enabled"
+                ),
+            ],
+        ),
+    ],
+)
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "aws": aws_mapping,
+    "microsoft": microsoft_mapping,
 }
