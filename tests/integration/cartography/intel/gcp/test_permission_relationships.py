@@ -148,7 +148,7 @@ def test_sync_gcp_permission_relationships(
     mock_asset_client = MagicMock()
 
     # Sync org-level IAM (predefined roles) first
-    cartography.intel.gcp.iam.sync_org_iam(
+    org_roles = cartography.intel.gcp.iam.sync_org_iam(
         neo4j_session,
         mock_iam_client,
         COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
@@ -157,7 +157,7 @@ def test_sync_gcp_permission_relationships(
     )
 
     # Sync project-level IAM (service accounts and project custom roles)
-    cartography.intel.gcp.iam.sync(
+    project_roles = cartography.intel.gcp.iam.sync(
         neo4j_session,
         mock_iam_client,
         TEST_PROJECT_ID,
@@ -179,12 +179,16 @@ def test_sync_gcp_permission_relationships(
         GSUITE_COMMON_PARAMS,
     )
 
-    cartography.intel.gcp.policy_bindings.sync(
+    role_permissions_by_name = cartography.intel.gcp.iam.build_role_permissions_by_name(
+        org_roles + project_roles
+    )
+    policy_bindings_result = cartography.intel.gcp.policy_bindings.sync(
         neo4j_session,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        role_permissions_by_name,
     )
 
     cartography.intel.gcp.storage.sync_gcp_buckets(
@@ -210,6 +214,7 @@ def test_sync_gcp_permission_relationships(
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        policy_bindings_result.permission_context,
     )
 
     # ASSERT
