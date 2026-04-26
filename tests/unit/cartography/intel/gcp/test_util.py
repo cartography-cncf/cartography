@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from google.api_core.exceptions import InternalServerError
 from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.exceptions import TooManyRequests
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.util import classify_gcp_http_error
@@ -261,6 +262,60 @@ class TestGetErrorReason:
         error = HttpError(mock_resp, error_content)
         assert get_error_reason(error) == "BILLING_DISABLED"
 
+    def test_extracts_reason_from_precondition_failure_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "BILLING_DISABLED"
+
+    def test_prefers_detail_reason_over_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        },
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "RATE_LIMIT_EXCEEDED",
+                            "domain": "googleapis.com",
+                        },
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "RATE_LIMIT_EXCEEDED"
+
     def test_extracts_reason_from_standard_errors_array(self):
         mock_resp = MagicMock()
         mock_resp.status = 403
@@ -289,6 +344,56 @@ class TestIsBillingDisabledError:
         ).encode("utf-8")
         error = HttpError(mock_resp, error_content)
         assert is_billing_disabled_error(error) is True
+
+    def test_true_for_precondition_failure_billing_disabled_payload(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": (
+                        "Billing is disabled for project 123456789. Enable it by "
+                        "visiting https://console.cloud.google.com/billing/projects "
+                        "and associating your project with a billing account."
+                    ),
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_false_when_structured_non_billing_reason_has_billing_like_message(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "PERMISSION_DENIED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is False
 
     def test_false_when_unrelated_403(self):
         mock_resp = MagicMock()
@@ -402,8 +507,10 @@ class TestIsRetryableGcpHttpError:
     def test_false_for_non_http_error(self):
         assert is_retryable_gcp_http_error(ValueError("not an HttpError")) is False
 
-    @pytest.mark.parametrize("error_cls", [InternalServerError, ServiceUnavailable])
-    def test_true_for_google_api_core_server_errors(self, error_cls):
+    @pytest.mark.parametrize(
+        "error_cls", [InternalServerError, ServiceUnavailable, TooManyRequests]
+    )
+    def test_true_for_retryable_google_api_core_errors(self, error_cls):
         assert is_retryable_gcp_http_error(error_cls("transient server error")) is True
 
 

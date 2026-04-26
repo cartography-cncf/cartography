@@ -1,0 +1,31 @@
+REPOSITORIES_RESPONSE = {
+    "results": [
+        {
+            "id": "repo-001",
+            "name": "frontend-app",
+            "slug": "frontend-app",
+            "description": "Main frontend application",
+            "visibility": "private",
+            "archived": False,
+            "default_branch": {"name": "main", "type": None},
+            "homepage": "https://example.com",
+            "workspace": "acme-corp",
+            "created_at": "2024-01-15T10:30:00Z",
+            "updated_at": "2024-06-01T14:22:00Z",
+        },
+        {
+            "id": "repo-002",
+            "name": "backend-api",
+            "slug": "backend-api",
+            "description": "Backend REST API",
+            "visibility": "private",
+            "archived": False,
+            "default_branch": "main",
+            "homepage": None,
+            "workspace": "acme-corp",
+            "created_at": "2024-02-20T16:45:00Z",
+            "updated_at": "2024-06-10T09:15:00Z",
+        },
+    ],
+    "nextPage": None,
+}

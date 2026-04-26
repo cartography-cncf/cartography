@@ -1,105 +1,123 @@
-import json
-import logging
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
-from googleapiclient.errors import HttpError
+from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import PermissionDenied
+from google.api_core.exceptions import ServiceUnavailable
 
+from cartography.intel.gcp.artifact_registry.util import (
+    fetch_artifact_registry_resources,
+)
 from cartography.intel.gcp.artifact_registry.util import get_artifact_registry_locations
+from cartography.intel.gcp.artifact_registry.util import (
+    list_artifact_registry_resources,
+)
+from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 
 
-def _make_http_error(status: int, payload: dict) -> HttpError:
-    resp = MagicMock()
-    resp.status = status
-    return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
-
-
-def _make_client() -> tuple[MagicMock, MagicMock]:
-    client = MagicMock()
-    request = MagicMock()
-    client.projects.return_value.locations.return_value.list.return_value = request
-    return client, request
-
-
-def test_get_artifact_registry_locations_success(monkeypatch):
-    client, _request = _make_client()
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.util.gcp_api_execute_with_retry",
-        lambda _req: {
-            "locations": [{"locationId": "us-central1"}, {"locationId": "europe-west1"}]
-        },
+def test_get_artifact_registry_locations_success():
+    client = SimpleNamespace(
+        list_locations=lambda request: SimpleNamespace(
+            locations=[
+                SimpleNamespace(location_id="us-central1"),
+                SimpleNamespace(location_id="europe-west1"),
+            ]
+        )
     )
 
     locations = get_artifact_registry_locations(client, "test-project")
     assert locations == ["us-central1", "europe-west1"]
 
 
-def test_get_artifact_registry_locations_billing_disabled_returns_empty(
-    monkeypatch, caplog
-):
-    client, _request = _make_client()
-    billing_error = _make_http_error(
-        403,
-        {
-            "error": {
-                "message": "This API method requires billing to be enabled.",
-                "details": [
-                    {
-                        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                        "reason": "BILLING_DISABLED",
-                    }
-                ],
-            }
-        },
-    )
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.util.gcp_api_execute_with_retry",
-        lambda _req: (_ for _ in ()).throw(billing_error),
-    )
+def test_get_artifact_registry_locations_forbidden_returns_none(caplog):
+    def _raise_permission_denied(request):
+        raise PermissionDenied("permission denied")
 
-    with caplog.at_level(logging.WARNING):
-        locations = get_artifact_registry_locations(client, "test-project")
-
-    assert locations == []
-    assert "HTTP 403 BILLING_DISABLED" in caplog.text
-    assert "googleapiclient.errors.HttpError" not in caplog.text
-
-
-def test_get_artifact_registry_locations_forbidden_returns_empty(monkeypatch):
-    client, _request = _make_client()
-    forbidden_error = _make_http_error(
-        403,
-        {
-            "error": {
-                "message": "Permission denied",
-                "errors": [{"reason": "forbidden"}],
-            }
-        },
-    )
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.util.gcp_api_execute_with_retry",
-        lambda _req: (_ for _ in ()).throw(forbidden_error),
-    )
+    client = SimpleNamespace(list_locations=_raise_permission_denied)
 
     locations = get_artifact_registry_locations(client, "test-project")
-    assert locations == []
+
+    assert locations is None
+    assert "Skipping Artifact Registry cleanup" in caplog.text
 
 
-def test_get_artifact_registry_locations_unknown_error_raises(monkeypatch):
-    client, _request = _make_client()
-    server_error = _make_http_error(
-        500,
-        {
-            "error": {
-                "message": "internal error",
-                "errors": [{"reason": "backendError"}],
-            }
-        },
-    )
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.util.gcp_api_execute_with_retry",
-        lambda _req: (_ for _ in ()).throw(server_error),
-    )
+@patch("time.sleep", return_value=None)
+def test_get_artifact_registry_locations_retries_transient_gapic_error(_):
+    calls = 0
 
-    with pytest.raises(HttpError):
+    def _list_locations(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ServiceUnavailable("transient backend error")
+        return SimpleNamespace(locations=[SimpleNamespace(location_id="us-central1")])
+
+    client = SimpleNamespace(list_locations=_list_locations)
+
+    assert get_artifact_registry_locations(client, "test-project") == ["us-central1"]
+    assert calls == 2
+
+
+def test_list_artifact_registry_resources_does_not_retry_non_retryable_gapic_error():
+    calls = 0
+
+    def _fetcher():
+        nonlocal calls
+        calls += 1
+        raise PermissionDenied("permission denied")
+
+    with pytest.raises(PermissionDenied):
+        list_artifact_registry_resources(_fetcher)
+
+    assert calls == 1
+
+
+@patch("time.sleep", return_value=None)
+def test_list_artifact_registry_resources_raises_after_exhausting_retries(_):
+    calls = 0
+
+    def _fetcher():
+        nonlocal calls
+        calls += 1
+        raise ServiceUnavailable("transient backend error")
+
+    with pytest.raises(ServiceUnavailable):
+        list_artifact_registry_resources(_fetcher)
+
+    assert calls == GCP_API_MAX_RETRIES
+
+
+def test_get_artifact_registry_locations_unknown_error_raises(caplog):
+    def _raise_api_error(request):
+        raise GoogleAPICallError("backend error")
+
+    client = SimpleNamespace(list_locations=_raise_api_error)
+
+    with pytest.raises(GoogleAPICallError):
         get_artifact_registry_locations(client, "test-project")
+
+
+def test_fetch_artifact_registry_resources_preserves_input_order():
+    result = fetch_artifact_registry_resources(
+        items=[3, 1, 2],
+        fetch_for_item=lambda item: item * 10,
+        resource_type="test resources",
+        project_id="test-project",
+        max_workers=3,
+    )
+
+    assert result == [30, 10, 20]
+
+
+def test_fetch_artifact_registry_resources_propagates_unexpected_errors():
+    def _raise(item):
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        fetch_artifact_registry_resources(
+            items=[1],
+            fetch_for_item=_raise,
+            resource_type="test resources",
+            project_id="test-project",
+        )

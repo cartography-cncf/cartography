@@ -1,9 +1,19 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
 
+from cartography.intel.aws.s3 import FETCH_FAILED
+from cartography.intel.aws.s3 import get_acl
+from cartography.intel.aws.s3 import get_bucket_logging
+from cartography.intel.aws.s3 import get_bucket_ownership_controls
+from cartography.intel.aws.s3 import get_encryption
+from cartography.intel.aws.s3 import get_policy
+from cartography.intel.aws.s3 import get_public_access_block
 from cartography.intel.aws.s3 import get_s3_bucket_list
+from cartography.intel.aws.s3 import get_versioning
 
 
 def _make_client_error(status_code, headers=None):
@@ -84,3 +94,64 @@ def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
 
     result = get_s3_bucket_list(mock_session)
     assert result["Buckets"][0]["Region"] is None
+
+
+def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
+    """A timeout on one bucket should not stop region discovery for surrounding buckets."""
+    mock_session = MagicMock()
+    mock_client = mock_session.client.return_value
+
+    mock_client.list_buckets.return_value = {
+        "Buckets": [
+            {"Name": "first-bucket"},
+            {"Name": "slow-bucket"},
+            {"Name": "last-bucket"},
+        ],
+    }
+    mock_client.head_bucket.side_effect = [
+        {
+            "BucketRegion": "us-east-1",
+            "ResponseMetadata": {"HTTPHeaders": {}},
+        },
+        ConnectTimeoutError(
+            endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
+            error="timed out",
+        ),
+        {
+            "BucketRegion": "eu-west-1",
+            "ResponseMetadata": {"HTTPHeaders": {}},
+        },
+    ]
+
+    result = get_s3_bucket_list(mock_session)
+    assert result["Buckets"] == [
+        {"Name": "first-bucket", "Region": "us-east-1"},
+        {"Name": "slow-bucket", "Region": None},
+        {"Name": "last-bucket", "Region": "eu-west-1"},
+    ]
+
+
+@pytest.mark.parametrize(
+    "getter,client_method",
+    [
+        (get_policy, "get_bucket_policy"),
+        (get_acl, "get_bucket_acl"),
+        (get_encryption, "get_bucket_encryption"),
+        (get_versioning, "get_bucket_versioning"),
+        (get_public_access_block, "get_public_access_block"),
+        (get_bucket_ownership_controls, "get_bucket_ownership_controls"),
+        (get_bucket_logging, "get_bucket_logging"),
+    ],
+)
+def test_s3_detail_fetchers_connect_timeout_returns_fetch_failed(
+    getter,
+    client_method,
+):
+    bucket = {"Name": "slow-bucket"}
+    client = MagicMock()
+    getattr(client, client_method).side_effect = ConnectTimeoutError(
+        endpoint_url="https://slow-bucket.s3.me-south-1.amazonaws.com/",
+        error="timed out",
+    )
+
+    assert getter(bucket, client) is FETCH_FAILED

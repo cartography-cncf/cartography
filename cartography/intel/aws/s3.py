@@ -14,7 +14,9 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
@@ -45,11 +47,17 @@ stat_handler = get_stats_client(__name__)
 
 BUCKET_BATCH_SIZE = 50
 
+S3_DETAIL_TRANSPORT_ERRORS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
-# Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
-# When a fetch returns FETCH_FAILED, we skip loading that property group to preserve existing data.
+
+# Sentinel value to indicate a fetch operation failed (vs None for "no configuration").
+# When a fetch returns FETCH_FAILED, we skip loading that property group for this sync.
 class _FetchFailed:
-    """Sentinel indicating fetch failure - preserves existing data in Neo4j."""
+    """Sentinel indicating that a detail fetch failed and should be skipped."""
 
     _instance = None
 
@@ -66,6 +74,21 @@ FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
 MaybeFailed = Union[Optional[Dict], _FetchFailed]
+
+
+def _handle_s3_detail_transport_error(
+    bucket_name: str,
+    detail_name: str,
+    error: Exception,
+) -> _FetchFailed:
+    logger.warning(
+        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Skipping this detail group.",
+        detail_name,
+        bucket_name,
+        error.__class__.__name__,
+        error,
+    )
+    return FETCH_FAILED
 
 
 @timeit
@@ -101,6 +124,12 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             else:
                 raise
+        except (ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError):
+            bucket["Region"] = None
+            logger.warning(
+                "skipping bucket='%s' region discovery due to transport timeout/connection error.",
+                bucket["Name"],
+            )
     return buckets
 
 
@@ -130,7 +159,7 @@ def get_s3_bucket_details(
     Each value can be:
     - A dict with the configuration data
     - None indicating no configuration exists (valid state)
-    - FETCH_FAILED indicating the fetch failed and existing data should be preserved
+    - FETCH_FAILED indicating the fetch failed and the detail group should not be loaded
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
@@ -206,11 +235,8 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "policy", error)
 
 
 @timeit
@@ -226,11 +252,8 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "ACL", error)
 
 
 @timeit
@@ -246,11 +269,8 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "encryption", error)
 
 
 @timeit
@@ -266,11 +286,8 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "versioning", error)
 
 
 @timeit
@@ -289,12 +306,12 @@ def get_public_access_block(
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "public access block",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -312,12 +329,12 @@ def get_bucket_ownership_controls(
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "ownership controls",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -333,11 +350,12 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
+    except S3_DETAIL_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "logging status",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -374,7 +392,7 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
         )
         return (True, False)
 
-    # Fetch failures - should preserve existing data
+    # Fetch failures - skip loading the affected detail group for this sync.
     # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
         logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
@@ -454,7 +472,7 @@ def _merge_bucket_details(
     into separate data structures for each composite schema.
 
     Uses the Composite Node Pattern: returns separate lists for each property group,
-    allowing us to skip loading a group when its fetch failed (preserving existing data).
+    allowing us to skip loading a group when its fetch failed.
 
     Returns a dict with:
         - base_buckets: List of bucket dicts with base properties (always populated)
@@ -648,8 +666,7 @@ def load_s3_details(
     Merge bucket details with basic bucket data and load using composite schemas.
 
     Uses the Composite Node Pattern: each property group is loaded separately,
-    so if a fetch fails for one group, we skip loading that group and preserve
-    existing data in Neo4j.
+    so if a fetch fails for one group, we skip loading that group for this sync.
     """
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)

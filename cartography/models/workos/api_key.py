@@ -63,23 +63,6 @@ class WorkOSAPIKeyToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class WorkOSAPIKeyToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:WorkOSUser)-[:OWNS]->(:WorkOSAPIKey)
-class WorkOSAPIKeyToUserRel(CartographyRelSchema):
-    target_node_label: str = "WorkOSUser"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("user_owner_id")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "OWNS"
-    properties: WorkOSAPIKeyToUserRelProperties = WorkOSAPIKeyToUserRelProperties()
-
-
-@dataclass(frozen=True)
 class WorkOSAPIKeySchema(CartographyNodeSchema):
     label: str = "WorkOSAPIKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
@@ -88,5 +71,5 @@ class WorkOSAPIKeySchema(CartographyNodeSchema):
         WorkOSAPIKeyToEnvironmentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[WorkOSAPIKeyToOrganizationRel(), WorkOSAPIKeyToUserRel()],
+        rels=[WorkOSAPIKeyToOrganizationRel()],
     )
