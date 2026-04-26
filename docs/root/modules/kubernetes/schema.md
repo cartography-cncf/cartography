@@ -217,6 +217,7 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 |-------|-------------|
 | **id** | UID of the kubernetes service |
 | **name** | Name of the kubernetes service |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match the service from cross-namespace references such as `HTTPRoute.spec.rules[].backendRefs` |
 | creation\_timestamp | Timestamp of the creation time of the kubernetes service |
 | deletion\_timestamp | Timestamp of the deletion time of the kubernetes service |
 | **namespace** | The Kubernetes namespace where this service is deployed |
@@ -283,6 +284,70 @@ An Ingress is an API object that manages external access to services in a cluste
 - `KubernetesIngress` uses an `AWSLoadBalancerV2`. Matched by the DNS hostname from the Ingress status to the load balancer's DNS name.
     ```
     (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+### KubernetesGateway
+Representation of a [Gateway API Gateway.](https://gateway-api.sigs.k8s.io/api-types/gateway/) Sourced from `gateway.networking.k8s.io/v1`. Only ingested when the Gateway API CRDs are installed in the cluster.
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Gateway |
+| **name** | Name of the Gateway |
+| **namespace** | The Kubernetes namespace where this Gateway is deployed |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match the Gateway from `HTTPRoute.spec.parentRefs` |
+| gateway\_class\_name | Name of the `GatewayClass` referenced by `spec.gatewayClassName` |
+| creation\_timestamp | Epoch seconds of `metadata.creationTimestamp` |
+| deletion\_timestamp | Epoch seconds of `metadata.deletionTimestamp` |
+| **cluster\_name** | Name of the Kubernetes cluster where this Gateway is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesGateway` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGateway)
+    ```
+
+- `KubernetesGateway` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesGateway)
+    ```
+
+- `KubernetesGateway` routes traffic to `KubernetesHTTPRoute` resources whose `spec.parentRefs` reference it. Cross-namespace references are honored via the route's `parentRefs[].namespace` field.
+    ```
+    (:KubernetesGateway)-[:ROUTES]->(:KubernetesHTTPRoute)
+    ```
+
+### KubernetesHTTPRoute
+Representation of a [Gateway API HTTPRoute.](https://gateway-api.sigs.k8s.io/api-types/httproute/) Sourced from `gateway.networking.k8s.io/v1`. Only ingested when the Gateway API CRDs are installed in the cluster.
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the HTTPRoute |
+| **name** | Name of the HTTPRoute |
+| **namespace** | The Kubernetes namespace where this HTTPRoute is deployed |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match this HTTPRoute from `Gateway` parents |
+| hostnames | List of hostnames from `spec.hostnames` |
+| creation\_timestamp | Epoch seconds of `metadata.creationTimestamp` |
+| deletion\_timestamp | Epoch seconds of `metadata.deletionTimestamp` |
+| **cluster\_name** | Name of the Kubernetes cluster where this HTTPRoute is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesHTTPRoute` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesHTTPRoute)
+    ```
+
+- `KubernetesHTTPRoute` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesHTTPRoute)
+    ```
+
+- `KubernetesHTTPRoute` targets `KubernetesService` resources via `spec.rules[].backendRefs`. Only refs whose group/kind resolve to the core `Service` type are considered.
+    ```
+    (:KubernetesHTTPRoute)-[:TARGETS]->(:KubernetesService)
     ```
 
 ### KubernetesSecret
