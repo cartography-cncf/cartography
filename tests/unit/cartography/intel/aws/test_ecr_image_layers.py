@@ -18,6 +18,155 @@ from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 
 
+def test_load_ecr_image_layers_flattens_relationships(monkeypatch):
+    load_mock = MagicMock()
+    load_matchlinks_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+    monkeypatch.setattr(ecr_layers, "load_matchlinks", load_matchlinks_mock)
+
+    layers = [
+        {
+            "diff_id": "sha256:layer-1",
+            "is_empty": False,
+            "next_diff_ids": ["sha256:layer-2", "sha256:layer-3"],
+            "head_image_ids": ["sha256:image-1"],
+            "tail_image_ids": ["sha256:image-2"],
+        },
+        {
+            "diff_id": "sha256:layer-2",
+            "is_empty": False,
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layers(
+        MagicMock(),
+        layers,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    assert load_mock.call_args.args[1].__class__.__name__ == "ECRImageLayerNodeSchema"
+    assert load_mock.call_args.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+
+    next_call, head_call, tail_call = load_matchlinks_mock.call_args_list
+    assert next_call.args[1].__class__.__name__ == "ECRImageLayerNextMatchLinkSchema"
+    assert next_call.args[2] == [
+        {"source_diff_id": "sha256:layer-1", "target_diff_id": "sha256:layer-2"},
+        {"source_diff_id": "sha256:layer-1", "target_diff_id": "sha256:layer-3"},
+    ]
+    assert head_call.args[1].__class__.__name__ == "ECRImageLayerHeadMatchLinkSchema"
+    assert head_call.args[2] == [
+        {"image_id": "sha256:image-1", "diff_id": "sha256:layer-1"},
+    ]
+    assert tail_call.args[1].__class__.__name__ == "ECRImageLayerTailMatchLinkSchema"
+    assert tail_call.args[2] == [
+        {"image_id": "sha256:image-2", "diff_id": "sha256:layer-1"},
+    ]
+    assert all(
+        call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+        for call in load_matchlinks_mock.call_args_list
+    )
+    assert all(
+        call.kwargs["_sub_resource_id"] == "123456789012"
+        for call in load_matchlinks_mock.call_args_list
+    )
+
+
+def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
+    load_mock = MagicMock()
+    load_matchlinks_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+    monkeypatch.setattr(ecr_layers, "load_matchlinks", load_matchlinks_mock)
+
+    memberships = [
+        {
+            "imageDigest": "sha256:image-1",
+            "layer_diff_ids": ["sha256:layer-1", "sha256:layer-2"],
+        },
+        {
+            "imageDigest": "sha256:image-2",
+            "layer_diff_ids": ["sha256:layer-3"],
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layer_memberships(
+        MagicMock(),
+        memberships,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    assert (
+        load_mock.call_args.args[1].__class__.__name__
+        == "ECRImageLayerEnrichmentSchema"
+    )
+    assert load_mock.call_args.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+
+    assert (
+        load_matchlinks_mock.call_args.args[1].__class__.__name__
+        == "ECRImageHasLayerMatchLinkSchema"
+    )
+    assert load_matchlinks_mock.call_args.args[2] == [
+        {"image_id": "sha256:image-1", "diff_id": "sha256:layer-1"},
+        {"image_id": "sha256:image-1", "diff_id": "sha256:layer-2"},
+        {"image_id": "sha256:image-2", "diff_id": "sha256:layer-3"},
+    ]
+    assert (
+        load_matchlinks_mock.call_args.kwargs["batch_size"]
+        == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+    )
+    assert load_matchlinks_mock.call_args.kwargs["_sub_resource_id"] == "123456789012"
+
+
+def test_cleanup_runs_legacy_and_matchlink_cleanup_jobs(monkeypatch):
+    from_node_schema_mock = MagicMock(return_value=MagicMock())
+    from_matchlink_mock = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_matchlink",
+        from_matchlink_mock,
+    )
+
+    neo4j_session = MagicMock()
+    ecr_layers.cleanup(
+        neo4j_session,
+        {
+            "UPDATE_TAG": 123,
+            "AWS_ID": "123456789012",
+        },
+    )
+
+    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
+        "ECRImageLayerSchema"
+    )
+
+    assert [
+        call.args[0].__class__.__name__ for call in from_matchlink_mock.call_args_list
+    ] == [
+        "ECRImageLayerNextMatchLinkSchema",
+        "ECRImageLayerHeadMatchLinkSchema",
+        "ECRImageLayerTailMatchLinkSchema",
+        "ECRImageHasLayerMatchLinkSchema",
+    ]
+    assert all(
+        call.args[1:] == ("AWSAccount", "123456789012", 123)
+        for call in from_matchlink_mock.call_args_list
+    )
+    assert all(
+        call.kwargs["iterationsize"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+        for call in from_matchlink_mock.call_args_list
+    )
+    assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
+    assert from_matchlink_mock.return_value.run.call_count == 4
+
+
 @pytest.mark.parametrize(
     "input_uri,expected_repo_uri",
     [

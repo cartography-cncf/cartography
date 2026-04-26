@@ -8,8 +8,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -234,4 +236,66 @@ class ECRImageSchema(CartographyNodeSchema):
                 conditions={"type": "manifest_list"},
             ),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
+    """Load ECRImage layer/provenance properties without fan-out HAS_LAYER edges."""
+
+    label: str = "ECRImage"
+    properties: ECRImageNodeProperties = ECRImageNodeProperties()
+    sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECRImageToParentImageRel(),
+            ECRImageContainsImageRel(),
+            ECRImageAttestsRel(),
+        ],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"type": "image"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageAttestation",
+                conditions={"type": "attestation"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"type": "manifest_list"},
+            ),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageHasLayerMatchLinkRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageHasLayerMatchLinkSchema(CartographyRelSchema):
+    target_node_label: str = "ECRImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("diff_id")}
+    )
+    source_node_label: str = "ECRImage"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("image_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_LAYER"
+    properties: ECRImageHasLayerMatchLinkRelProperties = (
+        ECRImageHasLayerMatchLinkRelProperties()
     )
