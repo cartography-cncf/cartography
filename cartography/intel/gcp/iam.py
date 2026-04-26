@@ -213,6 +213,16 @@ def transform_project_roles(
     return result
 
 
+def build_role_permissions_by_name(
+    roles: list[dict[str, Any]],
+) -> dict[str, list[str]]:
+    return {
+        role["name"]: role.get("includedPermissions", [])
+        for role in roles
+        if role.get("name")
+    }
+
+
 @timeit
 def load_org_roles(
     neo4j_session: neo4j.Session,
@@ -334,7 +344,7 @@ def sync_org_iam(
     org_id: str,
     gcp_update_tag: int,
     common_job_parameters: Dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync organization-level IAM resources (predefined roles + custom org roles).
 
@@ -367,6 +377,7 @@ def sync_org_iam(
 
     # Load roles with organization as parent
     load_org_roles(neo4j_session, roles, org_id, gcp_update_tag)
+    return roles
 
 
 @timeit
@@ -376,7 +387,7 @@ def sync(
     project_id: str,
     gcp_update_tag: int,
     common_job_parameters: Dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GCP IAM resources for a given project.
 
@@ -412,6 +423,8 @@ def sync(
         f"Found {len(project_roles_raw)} custom project roles in project {project_id}"
     )
 
-    if project_roles_raw:
-        roles = transform_project_roles(project_roles_raw, project_id)
+    roles = transform_project_roles(project_roles_raw, project_id)
+    if roles:
         load_project_roles(neo4j_session, roles, project_id, gcp_update_tag)
+
+    return roles

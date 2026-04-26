@@ -10,7 +10,6 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
@@ -19,6 +18,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
+GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
 
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
@@ -180,53 +180,57 @@ def iter_permission_relationship_batches(
 
 
 @timeit
-def get_principals_for_project(
-    neo4j_session: neo4j.Session, project_id: str
-) -> dict[str, Any]:
+def build_principals_from_policy_bindings(
+    policy_bindings: list[dict[str, Any]],
+    role_permissions_by_name: dict[str, list[str]],
+    project_id: str,
+) -> GCPPrincipalPermissionContext:
     """
-    Get all principals (users, service accounts, groups) with their policy bindings
-    for a given GCP project.
+    Build the permission evaluation input directly from the current sync's
+    transformed policy bindings and IAM role payloads.
     """
-    get_principals_query = """
-    MATCH
-    (project:GCPProject{id: $ProjectId})-[:RESOURCE]->
-    (binding:GCPPolicyBinding)-[:GRANTS_ROLE]->
-    (role:GCPRole)
-    MATCH
-    (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
-    WHERE binding.has_condition = false
-    RETURN
-    DISTINCT principal.email as principal_email, binding.id as binding_id,
-    binding.resource as binding_resource, role.permissions as role_permissions
-    """
+    principals: GCPPrincipalPermissionContext = {}
+    compiled_assignments: dict[str, dict[str, Any]] = {}
+    skipped_conditional = 0
+    skipped_missing_roles = 0
+    total_member_assignments = 0
 
-    results = neo4j_session.execute_read(
-        read_list_of_dicts_tx,
-        get_principals_query,
-        ProjectId=project_id,
+    for binding in policy_bindings:
+        if binding["has_condition"]:
+            skipped_conditional += 1
+            continue
+
+        role = binding["role"]
+        role_permissions = role_permissions_by_name.get(role)
+        if role_permissions is None:
+            skipped_missing_roles += 1
+            continue
+
+        binding_id = binding["id"]
+        if binding_id not in compiled_assignments:
+            compiled_assignments[binding_id] = {
+                "permissions": compile_permissions_from_role(role_permissions),
+                "scope": compile_gcp_regex(
+                    resolve_gcp_scope(binding["resource"], project_id)
+                ),
+            }
+
+        for principal_email in binding["members"]:
+            principals.setdefault(principal_email, {})[binding_id] = (
+                compiled_assignments[binding_id]
+            )
+            total_member_assignments += 1
+
+    logger.info(
+        "Built GCP permission evaluation context for project '%s': bindings=%d, usable_bindings=%d, member_assignments=%d, principals=%d, skipped_conditional=%d, skipped_missing_roles=%d",
+        project_id,
+        len(policy_bindings),
+        len(compiled_assignments),
+        total_member_assignments,
+        len(principals),
+        skipped_conditional,
+        skipped_missing_roles,
     )
-
-    principals: dict[str, Any] = {}
-    for r in results:
-        principal_email = r["principal_email"]
-        binding_id = r["binding_id"]
-        binding_resource = r["binding_resource"]
-        role_permissions = r["role_permissions"] or []
-
-        if principal_email not in principals:
-            principals[principal_email] = {}
-
-        # Compile permissions from role
-        compiled_permissions = compile_permissions_from_role(role_permissions)
-        compiled_scope = compile_gcp_regex(
-            resolve_gcp_scope(binding_resource, project_id)
-        )
-
-        principals[principal_email][binding_id] = {
-            "permissions": compiled_permissions,
-            "scope": compiled_scope,
-        }
-
     return principals
 
 
@@ -348,7 +352,7 @@ def load_principal_mappings(
 @timeit
 def evaluate_and_load_permission_relationships(
     neo4j_session: neo4j.Session,
-    principals: dict[str, Any],
+    principals: GCPPrincipalPermissionContext,
     resource_dict: dict[str, str],
     permissions: list[str],
     matchlink_schema: GCPPermissionMatchLink,
@@ -442,6 +446,7 @@ def sync(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    principals: GCPPrincipalPermissionContext,
 ) -> None:
     logger.info("Syncing GCP Permission Relationships for project '%s'.", project_id)
 
@@ -453,13 +458,10 @@ def sync(
         )
         return
 
-    # 1. GET - Fetch all GCP principals in suitable dict format
-    principals = get_principals_for_project(neo4j_session, project_id)
-
-    # 2. PARSE - Parse relationship file
+    # 1. PARSE - Parse relationship file
     relationship_mapping = parse_permission_relationships_file(pr_file)
 
-    # 3. EVALUATE - Evaluate each relationship and resource ID
+    # 2. EVALUATE - Evaluate each relationship and resource ID
     for rpr in relationship_mapping:
         if not is_valid_gcp_rpr(rpr):
             logger.error(f"Invalid permission relationship configuration: {rpr}")

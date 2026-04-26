@@ -156,6 +156,9 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         GSUITE_COMMON_PARAMS,
     )
+    role_permissions_by_name = cartography.intel.gcp.iam.build_role_permissions_by_name(
+        tests.data.gcp.policy_bindings.MOCK_IAM_ROLES
+    )
 
     # ACT
     cartography.intel.gcp.policy_bindings.sync(
@@ -164,6 +167,7 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        role_permissions_by_name,
     )
 
     # ASSERT
@@ -353,11 +357,12 @@ def test_sync_gcp_policy_bindings_permission_denied(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        {},
     )
 
     # ASSERT - sync should return a skipped status and not raise an exception
     assert (
-        result
+        result.status
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
     )
     mock_get_policy_bindings.assert_called_once()
