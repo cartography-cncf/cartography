@@ -13,12 +13,14 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch as batch_items
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
+GCP_POLICY_BINDING_READ_BATCH_SIZE = 500
 
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
@@ -187,27 +189,84 @@ def get_principals_for_project(
     Get all principals (users, service accounts, groups) with their policy bindings
     for a given GCP project.
     """
+    binding_ids = get_policy_binding_ids_for_project(neo4j_session, project_id)
+    logger.info(
+        "Found %d GCP policy bindings eligible for permission relationships in project '%s'.",
+        len(binding_ids),
+        project_id,
+    )
+    if not binding_ids:
+        return {}
+
+    principals: dict[str, Any] = {}
+    for binding_ids_batch in batch_items(
+        binding_ids,
+        size=GCP_POLICY_BINDING_READ_BATCH_SIZE,
+    ):
+        logger.debug(
+            "Fetching GCP principal policy bindings for project '%s' with %d binding ids.",
+            project_id,
+            len(binding_ids_batch),
+        )
+        results = get_principal_rows_for_policy_bindings(
+            neo4j_session,
+            project_id,
+            binding_ids_batch,
+        )
+        merge_principal_rows(principals, results, project_id)
+
+    return principals
+
+
+def get_policy_binding_ids_for_project(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+) -> list[str]:
+    get_binding_ids_query = """
+    MATCH (:GCPProject{id: $ProjectId})-[:RESOURCE]->(binding:GCPPolicyBinding)
+    WHERE binding.has_condition = false
+    RETURN DISTINCT binding.id
+    ORDER BY binding.id
+    """
+    return neo4j_session.execute_read(
+        read_list_of_values_tx,
+        get_binding_ids_query,
+        ProjectId=project_id,
+    )
+
+
+def get_principal_rows_for_policy_bindings(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    binding_ids: list[str],
+) -> list[dict[str, Any]]:
     get_principals_query = """
     MATCH
     (project:GCPProject{id: $ProjectId})-[:RESOURCE]->
     (binding:GCPPolicyBinding)-[:GRANTS_ROLE]->
     (role:GCPRole)
-    MATCH
-    (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
+    MATCH (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
     WHERE binding.has_condition = false
+    AND binding.id IN $BindingIds
     RETURN
     DISTINCT principal.email as principal_email, binding.id as binding_id,
     binding.resource as binding_resource, role.permissions as role_permissions
     """
 
-    results = neo4j_session.execute_read(
+    return neo4j_session.execute_read(
         read_list_of_dicts_tx,
         get_principals_query,
         ProjectId=project_id,
+        BindingIds=binding_ids,
     )
 
-    principals: dict[str, Any] = {}
-    for r in results:
+
+def merge_principal_rows(
+    principals: dict[str, Any],
+    rows: list[dict[str, Any]],
+    project_id: str,
+) -> None:
+    for r in rows:
         principal_email = r["principal_email"]
         binding_id = r["binding_id"]
         binding_resource = r["binding_resource"]
@@ -226,8 +285,6 @@ def get_principals_for_project(
             "permissions": compiled_permissions,
             "scope": compiled_scope,
         }
-
-    return principals
 
 
 def compile_permissions_from_role(role_permissions: list[str]) -> dict[str, Any]:

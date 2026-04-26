@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -30,6 +31,119 @@ def _build_policy_bindings(
             "scope": permission_relationships.compile_gcp_regex(scope),
         }
     }
+
+
+def _normalize_principals(principals: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for principal_email, bindings in principals.items():
+        normalized[principal_email] = {}
+        for binding_id, binding_data in bindings.items():
+            normalized[principal_email][binding_id] = {
+                "permissions": [
+                    pattern.pattern
+                    for pattern in binding_data["permissions"]["permissions"]
+                ],
+                "denied_permissions": [
+                    pattern.pattern
+                    for pattern in binding_data["permissions"]["denied_permissions"]
+                ],
+                "scope": binding_data["scope"].pattern,
+            }
+    return normalized
+
+
+def test_get_principals_for_project_reads_policy_bindings_in_batches(monkeypatch):
+    monkeypatch.setattr(
+        permission_relationships,
+        "GCP_POLICY_BINDING_READ_BATCH_SIZE",
+        2,
+    )
+    rows_by_binding_id = {
+        "binding-1": [
+            {
+                "principal_email": "alice@example.com",
+                "binding_id": "binding-1",
+                "binding_resource": "//cloudresourcemanager.googleapis.com/projects/project-abc",
+                "role_permissions": ["storage.objects.get"],
+            }
+        ],
+        "binding-2": [
+            {
+                "principal_email": "bob@example.com",
+                "binding_id": "binding-2",
+                "binding_resource": "//storage.googleapis.com/buckets/bucket-2",
+                "role_permissions": ["storage.objects.get"],
+            }
+        ],
+        "binding-3": [
+            {
+                "principal_email": "alice@example.com",
+                "binding_id": "binding-3",
+                "binding_resource": "//storage.googleapis.com/buckets/bucket-3",
+                "role_permissions": ["storage.objects.create"],
+            }
+        ],
+    }
+    binding_batches = []
+
+    def execute_read(tx_func, query, **kwargs):
+        if tx_func is permission_relationships.read_list_of_values_tx:
+            assert kwargs == {"ProjectId": TEST_PROJECT_ID}
+            return ["binding-1", "binding-2", "binding-3"]
+
+        assert tx_func is permission_relationships.read_list_of_dicts_tx
+        assert kwargs["ProjectId"] == TEST_PROJECT_ID
+        binding_batches.append(kwargs["BindingIds"])
+        return [
+            row
+            for binding_id in kwargs["BindingIds"]
+            for row in rows_by_binding_id[binding_id]
+        ]
+
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.side_effect = execute_read
+
+    principals = permission_relationships.get_principals_for_project(
+        neo4j_session,
+        TEST_PROJECT_ID,
+    )
+
+    assert binding_batches == [["binding-1", "binding-2"], ["binding-3"]]
+    assert neo4j_session.execute_read.call_count == 3
+    assert _normalize_principals(principals) == {
+        "alice@example.com": {
+            "binding-1": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/.*",
+            },
+            "binding-3": {
+                "permissions": ["storage\\.objects\\.create"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/resource/bucket-3",
+            },
+        },
+        "bob@example.com": {
+            "binding-2": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/resource/bucket-2",
+            },
+        },
+    }
+
+
+def test_get_principals_for_project_returns_empty_without_policy_bindings():
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = []
+
+    principals = permission_relationships.get_principals_for_project(
+        neo4j_session,
+        TEST_PROJECT_ID,
+    )
+
+    assert principals == {}
+    neo4j_session.execute_read.assert_called_once()
 
 
 def test_iter_permission_relationship_batches_preserves_matches():
