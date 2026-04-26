@@ -241,6 +241,7 @@ def get_principals_for_project(
     return principals
 
 
+@timeit
 def get_policy_binding_ids_for_project(
     neo4j_session: neo4j.Session,
     project_id: str,
@@ -258,6 +259,7 @@ def get_policy_binding_ids_for_project(
     )
 
 
+@timeit
 def get_principal_rows_for_policy_bindings(
     neo4j_session: neo4j.Session,
     project_id: str,
