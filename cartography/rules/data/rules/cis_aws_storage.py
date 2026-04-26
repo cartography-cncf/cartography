@@ -542,3 +542,33 @@ cis_aws_2_3_1_ebs_encryption = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 3.1.1: S3 bucket policy is set to deny HTTP requests
+# Missing datamodel or evidence: parsed S3 bucket policy statements, conditions, and effect evaluation for aws:SecureTransport or s3:TlsVersion deny rules
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 3.1.2: MFA Delete is enabled on S3 buckets
+# Missing datamodel or evidence: none; current rule covers the technical state, but v6 classifies this control as manual
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 3.1.3: All data in Amazon S3 has been discovered, classified, and secured when necessary
+# Missing datamodel or evidence: Macie job configuration or equivalent S3 data classification findings
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 3.2.2: Auto Minor Version Upgrade is enabled for RDS instances
+# Missing datamodel or evidence: RDS field auto_minor_version_upgrade
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 3.2.3: RDS instances are not publicly accessible
+# Missing datamodel or evidence: none; current RDS nodes already expose publicly_accessible, but the corresponding rule is not implemented yet
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 3.3.1: Encryption is enabled for EFS file systems
+# Missing datamodel or evidence: EFS file system inventory with encrypted state
+# =============================================================================

@@ -314,3 +314,43 @@ cis_aws_3_7_cloudtrail_encryption = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 4.1: CloudTrail is enabled in all regions
+# Missing datamodel or evidence: none; current multi-region trail rule is close, but v6 additionally expects logging enabled and all management read/write events captured on at least one active multi-region trail
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.3: AWS Config is enabled in all regions
+# Missing datamodel or evidence: AWS Config recorder and delivery channel inventory plus recorder status per region
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.4: Server access logging is enabled on the CloudTrail S3 bucket
+# Missing datamodel or evidence: linkage between CloudTrail trails and their destination S3 buckets plus the logging state of those specific buckets
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.6: Rotation for customer-created symmetric CMKs is enabled
+# Missing datamodel or evidence: KMS key inventory including KeySpec or equivalent symmetric-key discriminator and KeyRotationEnabled state
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.7: VPC flow logging is enabled in all VPCs
+# Missing datamodel or evidence: VPC Flow Log inventory and delivery status per VPC
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.8: Object-level logging for write events is enabled for S3 buckets
+# Missing datamodel or evidence: CloudTrail event selectors and S3 data event coverage for write-only or all object events
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.9: Object-level logging for read events is enabled for S3 buckets
+# Missing datamodel or evidence: CloudTrail event selectors and S3 data event coverage for read-only or all object events
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 5.16: AWS Security Hub is enabled
+# Missing datamodel or evidence: Security Hub regional hub subscription state
+# =============================================================================

@@ -403,3 +403,23 @@ cis_aws_5_7_ec2_imdsv2 = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 6.1.1: EBS volume encryption is enabled in all regions
+# Missing datamodel or evidence: regional EBS encryption-by-default account setting, distinct from per-volume encrypted state
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.1.2: CIFS access is restricted to trusted networks
+# Missing datamodel or evidence: none; current security group datamodel appears sufficient, but the corresponding rule for port 445 is not implemented yet
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.2: No Network ACLs allow ingress from 0.0.0.0/0 to remote administration ports
+# Missing datamodel or evidence: Network ACL inventory, rule entries, and subnet associations
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.6: Routing tables for VPC peering are least access
+# Missing datamodel or evidence: route table entries, peering connection targets, and organization-defined least-access routing baseline
+# =============================================================================

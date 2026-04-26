@@ -412,3 +412,48 @@ cis_aws_1_18_expired_certificates = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 2.3: No root user account access key exists
+# Missing datamodel or evidence: root account summary or credential report fields such as AccountAccessKeysPresent
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.4: MFA is enabled for the root user account
+# Missing datamodel or evidence: root account summary fields such as AccountMFAEnabled and AccountPasswordPresent
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.7: IAM password policy requires minimum length of 14 or greater
+# Missing datamodel or evidence: IAM account password policy fields such as MinimumPasswordLength
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.8: IAM password policy prevents password reuse
+# Missing datamodel or evidence: IAM account password policy field PasswordReusePrevention
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.9: MFA is enabled for all IAM users that have a console password
+# Missing datamodel or evidence: credential report fields for password_enabled and mfa_active on IAM users
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.15: IAM policies that allow full *:* administrative privileges are not attached
+# Missing datamodel or evidence: parsed policy documents for managed and inline IAM policies, plus attachments to users, groups, and roles
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.16: A support role has been created to manage incidents with AWS Support
+# Missing datamodel or evidence: AWSSupportAccess managed policy attachments or equivalent support role relationships
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.17: IAM instance roles are used for AWS resource access from instances
+# Missing datamodel or evidence: EC2 instance profile or IAM role attachment state, plus secret-scanning evidence for embedded AWS credentials
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.19: IAM External Access Analyzer is enabled for all regions
+# Missing datamodel or evidence: IAM Access Analyzer inventory and regional analyzer status
+# =============================================================================
