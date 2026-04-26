@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 
+from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
@@ -218,6 +219,18 @@ def get_epoch(date: datetime | None) -> int | None:
     if date:
         return int(date.timestamp())
     return None
+
+
+def parse_rfc3339(value: str | None) -> datetime | None:
+    """
+    Parse an RFC3339 timestamp string (e.g. ``2024-01-02T03:04:05Z``) into a
+    datetime. The Kubernetes ``CustomObjectsApi`` returns metadata timestamps
+    as raw strings rather than as datetimes (unlike the typed apis), so callers
+    that need an epoch int should do ``get_epoch(parse_rfc3339(value))``.
+    """
+    if not value:
+        return None
+    return isoparse(value)
 
 
 def k8s_paginate(
