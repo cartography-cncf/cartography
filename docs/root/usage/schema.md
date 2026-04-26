@@ -141,6 +141,9 @@
 ```{include} ../modules/syft/schema.md
 ```
 
+```{include} ../modules/sysdig/schema.md
+```
+
 ```{include} ../modules/spacelift/schema.md
 ```
 

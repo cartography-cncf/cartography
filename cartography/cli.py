@@ -55,6 +55,7 @@ PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
+PANEL_SYSDIG = "Sysdig Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
@@ -109,6 +110,7 @@ MODULE_PANELS = {
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
+    "sysdig": PANEL_SYSDIG,
     "aibom": PANEL_AIBOM,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
@@ -1448,6 +1450,54 @@ class CLI:
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Sysdig Options
+            # =================================================================
+            sysdig_api_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--sysdig-api-token-env-var",
+                    help="Environment variable name containing Sysdig API token.",
+                    rich_help_panel=PANEL_SYSDIG,
+                    hidden=PANEL_SYSDIG not in visible_panels,
+                ),
+            ] = None,
+            sysdig_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--sysdig-api-url",
+                    help="Sysdig API base URL.",
+                    rich_help_panel=PANEL_SYSDIG,
+                    hidden=PANEL_SYSDIG not in visible_panels,
+                ),
+            ] = "https://api.us1.sysdig.com",
+            sysdig_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--sysdig-tenant-id",
+                    help="Stable tenant id for Sysdig data. Defaults to the API hostname.",
+                    rich_help_panel=PANEL_SYSDIG,
+                    hidden=PANEL_SYSDIG not in visible_panels,
+                ),
+            ] = None,
+            sysdig_runtime_event_lookback_hours: Annotated[
+                int,
+                typer.Option(
+                    "--sysdig-runtime-event-lookback-hours",
+                    help="Runtime event lookback window in hours.",
+                    rich_help_panel=PANEL_SYSDIG,
+                    hidden=PANEL_SYSDIG not in visible_panels,
+                ),
+            ] = 24,
+            sysdig_page_size: Annotated[
+                int,
+                typer.Option(
+                    "--sysdig-page-size",
+                    help="SysQL query page size.",
+                    rich_help_panel=PANEL_SYSDIG,
+                    hidden=PANEL_SYSDIG not in visible_panels,
+                ),
+            ] = 1000,
             # AIBOM Options
             # =================================================================
             aibom_s3_bucket: Annotated[
@@ -2255,6 +2305,21 @@ class CLI:
             if syft_results_dir:
                 logger.debug("Syft results dir: %s", syft_results_dir)
 
+            # Read Sysdig API token
+            sysdig_api_token = None
+            if sysdig_api_token_env_var:
+                logger.debug(
+                    "Reading Sysdig API token from environment variable %s",
+                    sysdig_api_token_env_var,
+                )
+                sysdig_api_token = os.environ.get(sysdig_api_token_env_var)
+            if sysdig_runtime_event_lookback_hours < 1:
+                raise typer.BadParameter(
+                    "--sysdig-runtime-event-lookback-hours must be at least 1"
+                )
+            if sysdig_page_size < 1:
+                raise typer.BadParameter("--sysdig-page-size must be at least 1")
+
             # Log AIBOM config
             if aibom_s3_bucket:
                 logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
@@ -2481,6 +2546,11 @@ class CLI:
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
                 syft_results_dir=syft_results_dir,
+                sysdig_api_token=sysdig_api_token,
+                sysdig_api_url=sysdig_api_url,
+                sysdig_tenant_id=sysdig_tenant_id,
+                sysdig_runtime_event_lookback_hours=sysdig_runtime_event_lookback_hours,
+                sysdig_page_size=sysdig_page_size,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
                 aibom_results_dir=aibom_results_dir,

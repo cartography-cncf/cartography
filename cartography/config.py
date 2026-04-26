@@ -275,6 +275,16 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type sysdig_api_token: str
+    :param sysdig_api_token: Sysdig API token. Optional.
+    :type sysdig_api_url: str
+    :param sysdig_api_url: Sysdig API base URL. Optional.
+    :type sysdig_tenant_id: str
+    :param sysdig_tenant_id: Stable tenant id for Sysdig data. Optional.
+    :type sysdig_runtime_event_lookback_hours: int
+    :param sysdig_runtime_event_lookback_hours: Runtime event lookback window in hours. Optional.
+    :type sysdig_page_size: int
+    :param sysdig_page_size: SysQL query page size. Optional.
     :type workos_api_key: str
     :param workos_api_key: WorkOS API key. Optional.
     :type workos_client_id: str
@@ -432,6 +442,11 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        sysdig_api_token=None,
+        sysdig_api_url="https://api.us1.sysdig.com",
+        sysdig_tenant_id=None,
+        sysdig_runtime_event_lookback_hours=24,
+        sysdig_page_size=1000,
         workos_api_key=None,
         workos_client_id=None,
         sentry_token=None,
@@ -591,6 +606,11 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.sysdig_api_token = sysdig_api_token
+        self.sysdig_api_url = sysdig_api_url
+        self.sysdig_tenant_id = sysdig_tenant_id
+        self.sysdig_runtime_event_lookback_hours = sysdig_runtime_event_lookback_hours
+        self.sysdig_page_size = sysdig_page_size
         self.workos_api_key = workos_api_key
         self.workos_client_id = workos_client_id
         self.sentry_token = sentry_token

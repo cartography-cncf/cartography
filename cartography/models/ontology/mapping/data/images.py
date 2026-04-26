@@ -65,8 +65,26 @@ gitlab_mapping = OntologyMapping(
     ],
 )
 
+sysdig_mapping = OntologyMapping(
+    module_name="sysdig",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SysdigImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture"
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
     "gitlab": gitlab_mapping,
+    "sysdig": sysdig_mapping,
 }

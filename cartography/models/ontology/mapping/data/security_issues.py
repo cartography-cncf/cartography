@@ -113,8 +113,63 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+sysdig_mapping = OntologyMapping(
+    module_name="sysdig",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SysdigSecurityFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="severity", node_field="severity"),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="first_seen"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SysdigRiskFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="severity", node_field="severity"),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="first_seen"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SysdigRuntimeEventSummary",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="severity", node_field="severity"),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="first_seen"
+                ),
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "azure": azure_mapping,
+    "sysdig": sysdig_mapping,
 }

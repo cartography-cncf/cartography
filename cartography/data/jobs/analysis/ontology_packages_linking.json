@@ -12,8 +12,18 @@
       "iterative": false
     },
     {
+      "__comment": "Link Package to ontology Image via SysdigPackage DEPLOYED",
+      "query": "MATCH (p:Package)-[:DETECTED_AS]->(sp:SysdigPackage)-[:DEPLOYED]->(img:Image) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
       "__comment": "Link TrivyImageFinding AFFECTS to canonical Package via TrivyPackage",
       "query": "MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:Package) MERGE (f)-[r:AFFECTS]->(p) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link SysdigVulnerabilityFinding AFFECTS to canonical Package via SysdigPackage",
+      "query": "MATCH (f:SysdigVulnerabilityFinding)-[:AFFECTS]->(sp:SysdigPackage)<-[:DETECTED_AS]-(p:Package) MERGE (f)-[r:AFFECTS]->(p) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {

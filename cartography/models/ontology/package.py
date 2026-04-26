@@ -51,6 +51,18 @@ class PackageToSyftPackageRel(CartographyRelSchema):
     properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
+# (:Package)-[:DETECTED_AS]->(:SysdigPackage)
+@dataclass(frozen=True)
+class PackageToSysdigPackageRel(CartographyRelSchema):
+    target_node_label: str = "SysdigPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
 # (:Package)-[:DETECTED_AS]->(:SocketDevDependency)
 @dataclass(frozen=True)
 class PackageToSocketDevDependencyRel(CartographyRelSchema):
@@ -117,6 +129,17 @@ class TrivyImageFindingToPackageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SysdigVulnerabilityFindingToPackageRel(CartographyRelSchema):
+    target_node_label: str = "SysdigVulnerabilityFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
+@dataclass(frozen=True)
 class PackageSchema(CartographyNodeSchema):
     label: str = "Package"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
@@ -128,10 +151,12 @@ class PackageSchema(CartographyNodeSchema):
         rels=[
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
+            PackageToSysdigPackageRel(),
             PackageToSocketDevDependencyRel(),
             PackageToOntologyImageRel(),
             PackageToTrivyFixRel(),
             PackageToPackageDependsOnRel(),
             TrivyImageFindingToPackageRel(),
+            SysdigVulnerabilityFindingToPackageRel(),
         ],
     )
