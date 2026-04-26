@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 from collections.abc import Iterator
 from string import Template
 from typing import Any
@@ -199,21 +200,43 @@ def get_principals_for_project(
         return {}
 
     principals: dict[str, Any] = {}
+    compiled_assignments: dict[str, dict[str, Any]] = {}
+    total_rows = 0
+    read_batches = 0
     for binding_ids_batch in batch_items(
         binding_ids,
         size=GCP_POLICY_BINDING_READ_BATCH_SIZE,
     ):
-        logger.debug(
-            "Fetching GCP principal policy bindings for project '%s' with %d binding ids.",
-            project_id,
-            len(binding_ids_batch),
-        )
+        batch_start = time.perf_counter()
         results = get_principal_rows_for_policy_bindings(
             neo4j_session,
             project_id,
             binding_ids_batch,
         )
-        merge_principal_rows(principals, results, project_id)
+        merge_principal_rows(
+            principals,
+            results,
+            project_id,
+            compiled_assignments,
+        )
+        total_rows += len(results)
+        read_batches += 1
+        logger.debug(
+            "Processed GCP principal policy binding batch for project '%s': binding_count=%d elapsed=%.3fs",
+            project_id,
+            len(binding_ids_batch),
+            time.perf_counter() - batch_start,
+        )
+
+    logger.info(
+        "Completed GCP principal read for permission relationships in project '%s': eligible_bindings=%d, read_batches=%d, rows=%d, principals=%d, bindings=%d",
+        project_id,
+        len(binding_ids),
+        read_batches,
+        total_rows,
+        len(principals),
+        len(compiled_assignments),
+    )
 
     return principals
 
@@ -265,26 +288,26 @@ def merge_principal_rows(
     principals: dict[str, Any],
     rows: list[dict[str, Any]],
     project_id: str,
+    compiled_assignments: dict[str, dict[str, Any]],
 ) -> None:
     for r in rows:
         principal_email = r["principal_email"]
         binding_id = r["binding_id"]
-        binding_resource = r["binding_resource"]
-        role_permissions = r["role_permissions"] or []
 
         if principal_email not in principals:
             principals[principal_email] = {}
 
-        # Compile permissions from role
-        compiled_permissions = compile_permissions_from_role(role_permissions)
-        compiled_scope = compile_gcp_regex(
-            resolve_gcp_scope(binding_resource, project_id)
-        )
+        if binding_id not in compiled_assignments:
+            binding_resource = r["binding_resource"]
+            role_permissions = r["role_permissions"] or []
+            compiled_assignments[binding_id] = {
+                "permissions": compile_permissions_from_role(role_permissions),
+                "scope": compile_gcp_regex(
+                    resolve_gcp_scope(binding_resource, project_id)
+                ),
+            }
 
-        principals[principal_email][binding_id] = {
-            "permissions": compiled_permissions,
-            "scope": compiled_scope,
-        }
+        principals[principal_email][binding_id] = compiled_assignments[binding_id]
 
 
 def compile_permissions_from_role(role_permissions: list[str]) -> dict[str, Any]:

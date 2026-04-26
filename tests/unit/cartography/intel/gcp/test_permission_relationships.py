@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -133,6 +134,74 @@ def test_get_principals_for_project_reads_policy_bindings_in_batches(monkeypatch
     }
 
 
+def test_get_principals_for_project_logs_batch_diagnostics(monkeypatch, caplog):
+    monkeypatch.setattr(
+        permission_relationships,
+        "GCP_POLICY_BINDING_READ_BATCH_SIZE",
+        2,
+    )
+    rows_by_binding_id = {
+        "binding-1": [
+            {
+                "principal_email": "alice@example.com",
+                "binding_id": "binding-1",
+                "binding_resource": "//cloudresourcemanager.googleapis.com/projects/project-abc",
+                "role_permissions": ["storage.objects.get"],
+            }
+        ],
+        "binding-2": [
+            {
+                "principal_email": "bob@example.com",
+                "binding_id": "binding-2",
+                "binding_resource": "//storage.googleapis.com/buckets/bucket-2",
+                "role_permissions": ["storage.objects.get"],
+            }
+        ],
+        "binding-3": [
+            {
+                "principal_email": "alice@example.com",
+                "binding_id": "binding-3",
+                "binding_resource": "//storage.googleapis.com/buckets/bucket-3",
+                "role_permissions": ["storage.objects.create"],
+            }
+        ],
+    }
+
+    def execute_read(tx_func, query, **kwargs):
+        if tx_func is permission_relationships.read_list_of_values_tx:
+            return ["binding-1", "binding-2", "binding-3"]
+
+        return [
+            row
+            for binding_id in kwargs["BindingIds"]
+            for row in rows_by_binding_id[binding_id]
+        ]
+
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.side_effect = execute_read
+
+    with caplog.at_level(logging.DEBUG):
+        permission_relationships.get_principals_for_project(
+            neo4j_session,
+            TEST_PROJECT_ID,
+        )
+
+    assert any(
+        "binding_count=2" in record.message and "elapsed=" in record.message
+        for record in caplog.records
+        if record.levelno == logging.DEBUG
+    )
+    assert any(
+        "eligible_bindings=3" in record.message
+        and "read_batches=2" in record.message
+        and "rows=3" in record.message
+        and "principals=2" in record.message
+        and "bindings=3" in record.message
+        for record in caplog.records
+        if record.levelno == logging.INFO
+    )
+
+
 def test_get_principals_for_project_returns_empty_without_policy_bindings():
     neo4j_session = MagicMock()
     neo4j_session.execute_read.return_value = []
@@ -144,6 +213,68 @@ def test_get_principals_for_project_returns_empty_without_policy_bindings():
 
     assert principals == {}
     neo4j_session.execute_read.assert_called_once()
+
+
+def test_merge_principal_rows_reuses_compiled_assignments_per_binding():
+    principals: dict[str, Any] = {}
+    compiled_assignments: dict[str, Any] = {}
+    rows = [
+        {
+            "principal_email": "alice@example.com",
+            "binding_id": "binding-1",
+            "binding_resource": "//storage.googleapis.com/buckets/shared-bucket",
+            "role_permissions": ["storage.objects.get"],
+        },
+        {
+            "principal_email": "bob@example.com",
+            "binding_id": "binding-1",
+            "binding_resource": "//storage.googleapis.com/buckets/shared-bucket",
+            "role_permissions": ["storage.objects.get"],
+        },
+    ]
+    compiled_permissions = {"permissions": ["compiled"], "denied_permissions": []}
+    compiled_scope = MagicMock()
+
+    with (
+        patch.object(
+            permission_relationships,
+            "compile_permissions_from_role",
+            return_value=compiled_permissions,
+        ) as mock_compile_permissions,
+        patch.object(
+            permission_relationships,
+            "resolve_gcp_scope",
+            return_value="project/project-abc/resource/shared-bucket",
+        ),
+        patch.object(
+            permission_relationships,
+            "compile_gcp_regex",
+            return_value=compiled_scope,
+        ) as mock_compile_scope,
+    ):
+        permission_relationships.merge_principal_rows(
+            principals,
+            rows,
+            TEST_PROJECT_ID,
+            compiled_assignments,
+        )
+
+    mock_compile_permissions.assert_called_once_with(["storage.objects.get"])
+    mock_compile_scope.assert_called_once_with(
+        "project/project-abc/resource/shared-bucket"
+    )
+    assert (
+        principals["alice@example.com"]["binding-1"]["permissions"]
+        is compiled_permissions
+    )
+    assert (
+        principals["bob@example.com"]["binding-1"]["permissions"]
+        is compiled_permissions
+    )
+    assert principals["alice@example.com"]["binding-1"]["scope"] is compiled_scope
+    assert principals["bob@example.com"]["binding-1"]["scope"] is compiled_scope
+    assert compiled_assignments["binding-1"]["permissions"] is compiled_permissions
+    assert compiled_assignments["binding-1"]["scope"] is compiled_scope
 
 
 def test_iter_permission_relationship_batches_preserves_matches():
