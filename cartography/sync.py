@@ -51,6 +51,7 @@ import cartography.intel.socketdev
 import cartography.intel.spacelift
 import cartography.intel.subimage
 import cartography.intel.syft
+import cartography.intel.sysdig
 import cartography.intel.tailscale
 import cartography.intel.trivy
 import cartography.intel.ubuntu
@@ -105,6 +106,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "docker_scout": cartography.intel.docker_scout.start_docker_scout_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
+        "sysdig": cartography.intel.sysdig.start_sysdig_ingestion,
         "aibom": cartography.intel.aibom.start_aibom_ingestion,
         "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
