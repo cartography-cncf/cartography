@@ -252,7 +252,7 @@ async def _fetch_all_image_provenance(
         async with semaphore:
             return await _process_single_image(client, auth_token, artifact)
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
         total = len(tasks)
 
