@@ -114,11 +114,10 @@ def test_build_scoped_matchlink_query(_mock_get_cartography_version):
     link_query = build_matchlink_query(rel_schema)
 
     expected = """
-        MATCH (source_sub_resource:AWSAccount{id: $_sub_resource_id})
-        MATCH (target_sub_resource:AWSAccount{id: $_sub_resource_id})
+        MATCH (sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
-            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
-            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
+            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(sub_resource)
+            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET r.firstseen = timestamp()
             SET

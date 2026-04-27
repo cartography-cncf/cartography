@@ -1592,24 +1592,24 @@ def _build_matchlink_sub_resource_match(
     )
 
 
-def _build_scoped_matchlink_endpoint_match(
-    endpoint_var: str,
-    endpoint_label: str,
+def _matcher_signature(
     matcher: TargetNodeMatcher | SourceNodeMatcher,
-    sub_resource_var: str,
-    sub_resource: MatchLinkSubResource,
-) -> str:
-    if sub_resource.direction == LinkDirection.INWARD:
-        rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
-    else:
-        rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
-    return Template(
-        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
-    ).safe_substitute(
-        endpoint_var=endpoint_var,
-        endpoint_label=endpoint_label,
-        match_clause=_build_match_clause(matcher),
-        rel_pattern=rel_pattern,
+) -> dict[str, dict]:
+    # PropertyRef has no __eq__, so compare via its __dict__. asdict() can't help
+    # because PropertyRef is not a dataclass and is passed through by reference.
+    return {key: vars(prop_ref) for key, prop_ref in vars(matcher).items()}
+
+
+def _matchlink_sub_resources_equal(
+    a: MatchLinkSubResource,
+    b: MatchLinkSubResource,
+) -> bool:
+    return (
+        a.target_node_label == b.target_node_label
+        and a.direction == b.direction
+        and a.rel_label == b.rel_label
+        and _matcher_signature(a.target_node_matcher)
+        == _matcher_signature(b.target_node_matcher)
     )
 
 
@@ -1617,23 +1617,22 @@ def _build_matchlink_endpoint_match(
     endpoint_var: str,
     endpoint_label: str,
     matcher: TargetNodeMatcher | SourceNodeMatcher,
-    sub_resource_var: str,
+    sub_resource_var: str | None,
     sub_resource: MatchLinkSubResource | None,
 ) -> str:
-    if not sub_resource:
-        return Template(
-            "MATCH ($endpoint_var:$endpoint_label{$match_clause})"
-        ).safe_substitute(
-            endpoint_var=endpoint_var,
-            endpoint_label=endpoint_label,
-            match_clause=_build_match_clause(matcher),
-        )
-    return _build_scoped_matchlink_endpoint_match(
-        endpoint_var,
-        endpoint_label,
-        matcher,
-        sub_resource_var,
-        sub_resource,
+    rel_pattern = ""
+    if sub_resource and sub_resource_var:
+        if sub_resource.direction == LinkDirection.INWARD:
+            rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
+        else:
+            rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+    return Template(
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+    ).safe_substitute(
+        endpoint_var=endpoint_var,
+        endpoint_label=endpoint_label,
+        match_clause=_build_match_clause(matcher),
+        rel_pattern=rel_pattern,
     )
 
 
@@ -1707,6 +1706,10 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     source_sub_resource = rel_schema.source_node_sub_resource
     target_sub_resource = rel_schema.target_node_sub_resource
 
+    source_sub_resource_var: str | None = None
+    target_sub_resource_var: str | None = None
+    sub_resource_match_statements: list[str] = []
+
     if source_sub_resource or target_sub_resource:
         matchlink_query_template = Template(
             """
@@ -1722,22 +1725,35 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
                 $set_rel_properties_statement;
         """
         )
-        sub_resource_matches = []
-        if source_sub_resource:
-            sub_resource_matches.append(
+        if (
+            source_sub_resource
+            and target_sub_resource
+            and _matchlink_sub_resources_equal(source_sub_resource, target_sub_resource)
+        ):
+            # Same sub-resource on both sides — match it once and reuse the
+            # variable to avoid a redundant index lookup per query.
+            source_sub_resource_var = "sub_resource"
+            target_sub_resource_var = "sub_resource"
+            sub_resource_match_statements.append(
                 _build_matchlink_sub_resource_match(
-                    "source_sub_resource",
-                    source_sub_resource,
+                    source_sub_resource_var, source_sub_resource
                 ),
             )
-        if target_sub_resource:
-            sub_resource_matches.append(
-                _build_matchlink_sub_resource_match(
-                    "target_sub_resource",
-                    target_sub_resource,
-                ),
-            )
-        sub_resource_match = "\n        ".join(sub_resource_matches)
+        else:
+            if source_sub_resource:
+                source_sub_resource_var = "source_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        source_sub_resource_var, source_sub_resource
+                    ),
+                )
+            if target_sub_resource:
+                target_sub_resource_var = "target_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        target_sub_resource_var, target_sub_resource
+                    ),
+                )
     else:
         matchlink_query_template = Template(
             """
@@ -1752,13 +1768,13 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
                 $set_rel_properties_statement;
         """
         )
-        sub_resource_match = ""
+    sub_resource_match = "\n        ".join(sub_resource_match_statements)
 
     source_match = _build_matchlink_endpoint_match(
         "from",
         rel_schema.source_node_label,
         rel_schema.source_node_matcher,
-        "source_sub_resource",
+        source_sub_resource_var,
         source_sub_resource,
     )
 
@@ -1766,7 +1782,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         "to",
         rel_schema.target_node_label,
         rel_schema.target_node_matcher,
-        "target_sub_resource",
+        target_sub_resource_var,
         target_sub_resource,
     )
 
