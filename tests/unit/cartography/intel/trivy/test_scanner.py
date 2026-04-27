@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cartography.intel.common.object_store import ObjectStoreParseError
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
@@ -309,7 +310,9 @@ def test_sync_single_image_from_s3_read_error(mock_boto3_session):
     )
 
     # Act & Assert
-    with pytest.raises(ClientError):
+    with pytest.raises(
+        ObjectStoreParseError, match=f"s3://{s3_bucket}/{s3_object_key}"
+    ):
         sync_single_image_from_s3(
             mock_neo4j_session,
             image_uri,

@@ -105,6 +105,15 @@ def test_s3_bucket_reader_reads_bytes() -> None:
     )
 
 
+def test_s3_bucket_reader_wraps_read_errors() -> None:
+    session = MagicMock()
+    session.client.return_value.get_object.side_effect = RuntimeError("boom")
+    ref = ReportRef("s3://example-bucket/reports/findings.txt", "reports/findings.txt")
+
+    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+        S3BucketReader(session, "example-bucket", "reports/").read_bytes(ref)
+
+
 @patch("google.cloud.storage.Client")
 @patch("cartography.intel.gcp.clients.get_gcp_credentials")
 def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
@@ -139,6 +148,23 @@ def test_gcs_bucket_reader_lists_objects_and_reads_bytes(
     mock_storage_client_cls.assert_called_once_with(credentials=fake_credentials)
 
 
+@patch("google.cloud.storage.Client")
+@patch("cartography.intel.gcp.clients.get_gcp_credentials")
+def test_gcs_bucket_reader_wraps_read_errors(
+    _mock_get_gcp_credentials,
+    mock_storage_client_cls,
+) -> None:
+    fake_client = MagicMock()
+    fake_client.bucket.return_value.blob.return_value.download_as_bytes.side_effect = (
+        RuntimeError("boom")
+    )
+    mock_storage_client_cls.return_value = fake_client
+    ref = ReportRef("gs://example-bucket/reports/findings.txt", "reports/findings.txt")
+
+    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+        GCSBucketReader("example-bucket", "reports/").read_bytes(ref)
+
+
 @patch("azure.storage.blob.BlobServiceClient")
 def test_azure_blob_reader_lists_objects_and_reads_bytes(
     mock_blob_service_client_cls,
@@ -171,6 +197,26 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
         )
         == b"hello"
     )
+
+
+@patch("azure.storage.blob.BlobServiceClient")
+def test_azure_blob_reader_wraps_read_errors(
+    mock_blob_service_client_cls,
+) -> None:
+    fake_service_client = MagicMock()
+    fake_service_client.get_blob_client.return_value.download_blob.return_value.readall.side_effect = RuntimeError(
+        "boom"
+    )
+    mock_blob_service_client_cls.return_value = fake_service_client
+    ref = ReportRef(
+        "azblob://acct/container/reports/findings.txt",
+        "reports/findings.txt",
+    )
+
+    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+        AzureBlobContainerReader("acct", "container", "reports/", object()).read_bytes(
+            ref,
+        )
 
 
 def test_read_text_report_reports_source_on_decode_error() -> None:

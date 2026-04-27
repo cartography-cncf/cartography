@@ -346,6 +346,7 @@ def get_json_files_in_s3(
     Returns:
         Set of S3 object keys for JSON files in the S3 prefix
     """
+    # DEPRECATED: get_json_files_in_s3() will be removed in v1.0.0.
     try:
         results = {
             ref.name
@@ -503,6 +504,7 @@ def sync_single_image_from_s3(
         s3_object_key: S3 object key for this image's scan results
         boto3_session: boto3 session for S3 operations
     """
+    # DEPRECATED: sync_single_image_from_s3() will be removed in v1.0.0.
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
     reader = S3BucketReader(boto3_session, s3_bucket, "")
     scan_data_json = read_text_report(

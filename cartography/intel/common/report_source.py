@@ -146,6 +146,7 @@ class LegacyReportSourceNames:
 
     @classmethod
     def for_cli(cls, module: str) -> "LegacyReportSourceNames":
+        # CLI flags use dashes even when Config fields use underscores.
         base = f"--{module.replace('_', '-')}"
         return cls(
             source=f"{base}-source",

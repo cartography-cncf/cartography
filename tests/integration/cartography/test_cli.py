@@ -145,7 +145,7 @@ def test_cli_trivy_legacy_results_dir_sets_source(caplog):
     config = sync.run.call_args[0][1]
     assert config.trivy_source == "/tmp/trivy-results"
     assert config.trivy_results_dir == "/tmp/trivy-results"
-    assert "DEPRECATED: --trivy-results-dir" in caplog.text
+    assert caplog.text.count("DEPRECATED: --trivy-results-dir") == 1
 
 
 def test_cli_trivy_legacy_s3_flags_preserve_config_fields(caplog):

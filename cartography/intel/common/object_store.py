@@ -12,6 +12,9 @@ from google.cloud import storage
 
 import cartography.intel.gcp.clients as gcp_clients
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.common.report_source import build_azblob_source
+from cartography.intel.common.report_source import build_gcs_source
+from cartography.intel.common.report_source import build_s3_source
 
 
 @dataclass(frozen=True)
@@ -21,6 +24,12 @@ class ReportRef:
 
 
 class ReportReader(Protocol):
+    """Source-bound reader for report ingestion.
+
+    source_uri is the configured source locator used for logging and provenance.
+    ReportRef.uri identifies each listed report.
+    """
+
     source_uri: str
 
     def list_reports(self) -> list[ReportRef]:
@@ -88,7 +97,7 @@ class S3BucketReader:
         prefix: str = "",
         source_uri: str | None = None,
     ) -> None:
-        self.source_uri = source_uri or _build_cloud_source_uri("s3", bucket, prefix)
+        self.source_uri = source_uri or build_s3_source(bucket, prefix)
         self._bucket = bucket
         self._prefix = prefix
         self._client = create_boto3_client(boto3_session, "s3")
@@ -110,8 +119,11 @@ class S3BucketReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
-        response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
-        return response["Body"].read()
+        try:
+            response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
+            return response["Body"].read()
+        except Exception as exc:
+            raise ObjectStoreParseError(ref.uri, "Failed to read S3 report") from exc
 
 
 class GCSBucketReader:
@@ -121,7 +133,7 @@ class GCSBucketReader:
         prefix: str = "",
         source_uri: str | None = None,
     ) -> None:
-        self.source_uri = source_uri or _build_cloud_source_uri("gs", bucket, prefix)
+        self.source_uri = source_uri or build_gcs_source(bucket, prefix)
         self._bucket = bucket
         self._prefix = prefix
         credentials = gcp_clients.get_gcp_credentials()
@@ -141,9 +153,12 @@ class GCSBucketReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
-        bucket = self._client.bucket(self._bucket)
-        blob = bucket.blob(ref.name)
-        return blob.download_as_bytes()
+        try:
+            bucket = self._client.bucket(self._bucket)
+            blob = bucket.blob(ref.name)
+            return blob.download_as_bytes()
+        except Exception as exc:
+            raise ObjectStoreParseError(ref.uri, "Failed to read GCS report") from exc
 
 
 class AzureBlobContainerReader:
@@ -155,9 +170,9 @@ class AzureBlobContainerReader:
         credential: Any,
         source_uri: str | None = None,
     ) -> None:
-        self.source_uri = source_uri or _build_cloud_source_uri(
-            "azblob",
-            f"{account_name}/{container_name}",
+        self.source_uri = source_uri or build_azblob_source(
+            account_name,
+            container_name,
             prefix,
         )
         self._account_name = account_name
@@ -183,11 +198,17 @@ class AzureBlobContainerReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
-        blob_client = self._client.get_blob_client(
-            container=self._container_name,
-            blob=ref.name,
-        )
-        return blob_client.download_blob().readall()
+        try:
+            blob_client = self._client.get_blob_client(
+                container=self._container_name,
+                blob=ref.name,
+            )
+            return blob_client.download_blob().readall()
+        except Exception as exc:
+            raise ObjectStoreParseError(
+                ref.uri,
+                "Failed to read Azure Blob report",
+            ) from exc
 
 
 def filter_report_refs(
@@ -228,10 +249,3 @@ def read_json_report(
         return json.loads(read_text_report(reader, ref))
     except json.JSONDecodeError as exc:
         raise ObjectStoreParseError(ref.uri, "Failed to parse JSON document") from exc
-
-
-def _build_cloud_source_uri(provider: str, bucket: str, prefix: str | None) -> str:
-    normalized_prefix = (prefix or "").lstrip("/")
-    if normalized_prefix:
-        return f"{provider}://{bucket}/{normalized_prefix}"
-    return f"{provider}://{bucket}"
