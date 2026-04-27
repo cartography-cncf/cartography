@@ -13,6 +13,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
+from cartography.intel.gcp.clients import _resolve_credentials
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
@@ -224,14 +225,15 @@ async def _process_single_image(
 
 
 async def _fetch_all_image_provenance(
-    credentials: GoogleCredentials,
+    credentials: GoogleCredentials | None,
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     max_concurrent: int = 50,
 ) -> list[dict[str, Any]]:
-    if not credentials.valid:
-        credentials.refresh(Request())
-    auth_token = credentials.token
+    resolved = _resolve_credentials(credentials)
+    if not resolved.valid:
+        resolved.refresh(Request())
+    auth_token = resolved.token
 
     single_images = [
         a
@@ -317,7 +319,7 @@ def _build_layer_dicts(
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    credentials: GoogleCredentials,
+    credentials: GoogleCredentials | None,
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     update_tag: int,
