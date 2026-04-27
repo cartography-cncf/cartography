@@ -230,6 +230,25 @@ def make_source_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> SourceNode
 
 
 @dataclass(frozen=True)
+class MatchLinkSubResource:
+    """
+    Sub-resource scoping metadata for load_matchlinks() source or target matches.
+
+    This helper lets a MatchLink schema opt into matching an endpoint through its
+    sub-resource relationship, such as:
+        MATCH (from:Child {id: item.child_id})<-[:RESOURCE]-(sub_resource)
+
+    Direction follows the same convention as CartographyRelSchema: it describes
+    the relationship from the MatchLink endpoint node to the sub-resource node.
+    """
+
+    target_node_label: str
+    target_node_matcher: TargetNodeMatcher
+    direction: LinkDirection
+    rel_label: str
+
+
+@dataclass(frozen=True)
 class CartographyRelSchema(abc.ABC):
     """
     Abstract base class representing a cartography relationship schema.
@@ -368,6 +387,30 @@ class CartographyRelSchema(abc.ABC):
 
             Use `make_source_node_matcher()` to create the matcher with the
             appropriate key-value pairs for your specific use case.
+        """
+        return None
+
+    @property
+    def source_node_sub_resource(self) -> MatchLinkSubResource | None:
+        """
+        Optional sub-resource scope for load_matchlinks() source node matches.
+
+        When set, build_matchlink_query() first matches this sub-resource from
+        kwargs and then matches the source node through the configured relationship.
+        This is opt-in because not all MatchLink source labels are safely scoped
+        by the same sub-resource used for cleanup.
+        """
+        return None
+
+    @property
+    def target_node_sub_resource(self) -> MatchLinkSubResource | None:
+        """
+        Optional sub-resource scope for load_matchlinks() target node matches.
+
+        When set, build_matchlink_query() first matches this sub-resource from
+        kwargs and then matches the target node through the configured relationship.
+        This is opt-in because not all MatchLink target labels are safely scoped
+        by the same sub-resource used for cleanup.
         """
         return None
 

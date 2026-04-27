@@ -254,6 +254,44 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
     ).run(neo4j_session)
 ```
 
+### Optional Sub-Resource-Scoped MatchLinks
+
+MatchLinks can opt into matching source and/or target nodes through their sub-resource relationship. This is useful when a MatchLink endpoint is only unique within a tenant, account, project, or similar sub-resource.
+
+Use `MatchLinkSubResource` on the MatchLink schema:
+
+```python
+from cartography.models.core.relationships import MatchLinkSubResource
+
+@dataclass(frozen=True)
+class YourMatchLinkSchema(CartographyRelSchema):
+    # ... normal MatchLink fields ...
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="YourTenant",
+        target_node_matcher=make_target_node_matcher({
+            "id": PropertyRef("_sub_resource_id", set_in_kwargs=True),
+        }),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+```
+
+This changes the generated source match from a label-wide node lookup:
+
+```cypher
+MATCH (from:YourNode{id: item.source_id})
+```
+
+to a scoped match through the sub-resource:
+
+```cypher
+MATCH (source_sub_resource:YourTenant{id: $_sub_resource_id})
+MATCH (from:YourNode{id: item.source_id})<-[:RESOURCE]-(source_sub_resource)
+```
+
+Only enable this when the endpoint is guaranteed to be connected to the same sub-resource supplied to `load_matchlinks()`. For broad semantic labels or cross-module labels, review each endpoint separately and scope only the side that is semantically safe.
+
 ---
 
 ## Multiple Intel Modules Modifying the Same Node Type

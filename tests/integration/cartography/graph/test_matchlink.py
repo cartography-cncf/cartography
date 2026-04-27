@@ -10,6 +10,9 @@ import pytest
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
+from tests.data.graph.matchlink.iam_permissions import (
+    PrincipalToS3BucketScopedPermissionRel,
+)
 from tests.integration.util import check_rels
 
 # Test data constants
@@ -17,6 +20,8 @@ TEST_UPDATE_TAG_1 = 1111
 TEST_UPDATE_TAG_2 = 2222
 TEST_ACCOUNT_1 = "9876"
 TEST_ACCOUNT_2 = "1234"
+TEST_SCOPED_ACCOUNT_1 = "scoped-account-1"
+TEST_SCOPED_ACCOUNT_2 = "scoped-account-2"
 
 
 def _setup_test_data(neo4j_session: neo4j.Session, update_tag: int) -> None:
@@ -74,6 +79,39 @@ def _setup_test_data(neo4j_session: neo4j.Session, update_tag: int) -> None:
             "account_id": TEST_ACCOUNT_2,
             "p3_arn": "arn:aws:iam::1234:role/Admin",
             "b4_name": "www-bucket",
+            "update_tag": update_tag,
+        },
+    )
+
+
+def _setup_duplicate_matchlink_test_data(
+    neo4j_session: neo4j.Session, update_tag: int
+) -> None:
+    """
+    Set up duplicate source and target matcher values across two accounts.
+
+    The duplicate properties intentionally model the case where a MatchLink's
+    endpoint matcher is only unique inside its sub-resource.
+    """
+    neo4j_session.run(
+        """
+        CREATE (acc1:AWSAccount {id: $account_1, lastupdated: $update_tag})
+        CREATE (p1:AWSPrincipal {principal_arn: $principal_arn, lastupdated: $update_tag})
+        CREATE (b1:S3Bucket {name: $bucket_name, lastupdated: $update_tag})
+        CREATE (acc1)-[:RESOURCE {lastupdated: $update_tag}]->(p1)
+        CREATE (acc1)-[:RESOURCE {lastupdated: $update_tag}]->(b1)
+
+        CREATE (acc2:AWSAccount {id: $account_2, lastupdated: $update_tag})
+        CREATE (p2:AWSPrincipal {principal_arn: $principal_arn, lastupdated: $update_tag})
+        CREATE (b2:S3Bucket {name: $bucket_name, lastupdated: $update_tag})
+        CREATE (acc2)-[:RESOURCE {lastupdated: $update_tag}]->(p2)
+        CREATE (acc2)-[:RESOURCE {lastupdated: $update_tag}]->(b2)
+        """,
+        {
+            "account_1": TEST_SCOPED_ACCOUNT_1,
+            "account_2": TEST_SCOPED_ACCOUNT_2,
+            "principal_arn": "shared-principal",
+            "bucket_name": "shared-bucket",
             "update_tag": update_tag,
         },
     )
@@ -227,6 +265,57 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         f"Data isolation test failed: Account {TEST_ACCOUNT_2} relationships "
         f"should be set to timestamp {TEST_UPDATE_TAG_1}"
     )
+
+
+def test_scoped_matchlinks_do_not_cross_sub_resources(neo4j_session):
+    matchlink = PrincipalToS3BucketScopedPermissionRel()
+    _setup_duplicate_matchlink_test_data(neo4j_session, TEST_UPDATE_TAG_1)
+
+    load_matchlinks(
+        neo4j_session,
+        matchlink,
+        [
+            {
+                "principal_arn": "shared-principal",
+                "BucketName": "shared-bucket",
+                "permission_action": "s3:GetObject",
+            },
+        ],
+        UPDATE_TAG=TEST_UPDATE_TAG_1,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=TEST_SCOPED_ACCOUNT_1,
+    )
+
+    scoped_counts = neo4j_session.run(
+        """
+        MATCH (account:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
+        WHERE account.id IN $account_ids
+        MATCH (account)-[:RESOURCE]->(bucket:S3Bucket)
+        OPTIONAL MATCH (principal)-[r:CAN_ACCESS]->(bucket)
+        RETURN account.id AS account_id, count(r) AS rel_count
+        ORDER BY account_id
+        """,
+        {"account_ids": [TEST_SCOPED_ACCOUNT_1, TEST_SCOPED_ACCOUNT_2]},
+    )
+
+    assert [(row["account_id"], row["rel_count"]) for row in scoped_counts] == [
+        (TEST_SCOPED_ACCOUNT_1, 1),
+        (TEST_SCOPED_ACCOUNT_2, 0),
+    ]
+
+    cross_scope_count = neo4j_session.run(
+        """
+        MATCH (source_account:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
+        MATCH (target_account:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
+        MATCH (principal)-[r:CAN_ACCESS]->(bucket)
+        WHERE source_account.id IN $account_ids
+            AND target_account.id IN $account_ids
+            AND source_account.id <> target_account.id
+        RETURN count(r) AS rel_count
+        """,
+        {"account_ids": [TEST_SCOPED_ACCOUNT_1, TEST_SCOPED_ACCOUNT_2]},
+    ).single()["rel_count"]
+    assert cross_scope_count == 0
 
 
 def test_load_rels_missing_kwargs(neo4j_session):
