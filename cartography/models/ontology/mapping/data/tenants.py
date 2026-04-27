@@ -383,6 +383,21 @@ workos_tenants_mapping = OntologyMapping(
 
 # SubImage: No field to map in SubImageTenant (minimal properties beyond id)
 
+# Sysdig
+sysdig_mapping = OntologyMapping(
+    module_name="sysdig",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SysdigTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 # Socket.dev
 socketdev_mapping = OntologyMapping(
     module_name="socketdev",
@@ -437,6 +452,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "socketdev": socketdev_mapping,
+    "sysdig": sysdig_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
 }
