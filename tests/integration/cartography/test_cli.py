@@ -70,23 +70,29 @@ def test_cli_help_hides_deprecated_report_source_flags(capsys):
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "--trivy-source" in captured.out
-    assert "--syft-source" in captured.out
-    assert "--aibom-source" in captured.out
-    assert "--docker-scout-source" in captured.out
+    for flag in (
+        "--trivy-source",
+        "--syft-source",
+        "--aibom-source",
+        "--docker-scout-source",
+    ):
+        assert flag in captured.out
 
-    assert "--trivy-results-dir" not in captured.out
-    assert "--trivy-s3-bucket" not in captured.out
-    assert "--trivy-s3-prefix" not in captured.out
-    assert "--syft-results-dir" not in captured.out
-    assert "--syft-s3-bucket" not in captured.out
-    assert "--syft-s3-prefix" not in captured.out
-    assert "--aibom-results-dir" not in captured.out
-    assert "--aibom-s3-bucket" not in captured.out
-    assert "--aibom-s3-prefix" not in captured.out
-    assert "--docker-scout-results-dir" not in captured.out
-    assert "--docker-scout-s3-bucket" not in captured.out
-    assert "--docker-scout-s3-prefix" not in captured.out
+    for flag in (
+        "--trivy-results-dir",
+        "--trivy-s3-bucket",
+        "--trivy-s3-prefix",
+        "--syft-results-dir",
+        "--syft-s3-bucket",
+        "--syft-s3-prefix",
+        "--aibom-results-dir",
+        "--aibom-s3-bucket",
+        "--aibom-s3-prefix",
+        "--docker-scout-results-dir",
+        "--docker-scout-s3-bucket",
+        "--docker-scout-s3-prefix",
+    ):
+        assert flag not in captured.out
     sync.run.assert_not_called()
 
 

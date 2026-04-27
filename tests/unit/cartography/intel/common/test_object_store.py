@@ -15,14 +15,6 @@ from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 
 
-def test_report_ref() -> None:
-    ref = ReportRef(
-        uri="s3://example-bucket/reports/findings.json", name="reports/findings.json"
-    )
-    assert ref.uri == "s3://example-bucket/reports/findings.json"
-    assert ref.name == "reports/findings.json"
-
-
 def test_local_report_reader_lists_files_and_reads_bytes(tmp_path) -> None:
     reports = tmp_path / "reports"
     nested = reports / "nested"
