@@ -427,7 +427,7 @@ _aibom_nist_ai_agent_inventory = Fact(
         "models, tools, memory stores, prompts, and embeddings each agent uses."
     ),
     cypher_query="""
-    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     WITH DISTINCT source, img, agent
     OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModel)
@@ -465,7 +465,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
-        coalesce(source.manifest_digest, img.digest) AS manifest_digest,
+        img._ont_digest AS manifest_digest,
         source.scanner_name AS scanner_name,
         source.scanner_version AS scanner_version,
         agent.id AS agent_component_id,
@@ -487,7 +487,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     ORDER BY image_uri, agent_name
     """,
     cypher_visual_query="""
-    MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH p1=(source)-[:HAS_COMPONENT]->(agent:AIAgent)
     OPTIONAL MATCH p2=(agent)-[:USES_MODEL]->(:AIModel)
     OPTIONAL MATCH p3=(agent)-[:USES_TOOL]->(:AITool)
@@ -497,7 +497,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:ECRImage)
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     RETURN COUNT(DISTINCT agent) AS count
     """,
@@ -542,7 +542,7 @@ nist_ai_aibom_agent_inventory = Rule(
 class NistAiAibomCoverageGapOutput(Finding):
     source_id: str | None = None
     image_uri: str | None = None
-    manifest_digest: str | None = None
+    manifest_digests: list[str] | None = None
     report_location: str | None = None
     scanner_name: str | None = None
     scanner_version: str | None = None
@@ -558,7 +558,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     name="AIBOM coverage and provenance gaps",
     description=(
         "Finds AIBOM sources that did not complete successfully or failed to map "
-        "to a canonical ECR image, indicating gaps in deployed AI inventory."
+        "to a canonical image, indicating gaps in deployed AI inventory."
     ),
     cypher_query="""
     MATCH (source:AIBOMSource)
@@ -575,7 +575,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
-        source.manifest_digest AS manifest_digest,
+        source.manifest_digests AS manifest_digests,
         source.report_location AS report_location,
         source.scanner_name AS scanner_name,
         source.scanner_version AS scanner_version,
@@ -595,7 +595,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
             source.analysis_status IS NOT NULL
             AND toLower(source.analysis_status) <> 'completed'
         )
-    OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:ECRImage)
+    OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:Image)
     RETURN source, p
     """,
     cypher_count_query="""

@@ -8,7 +8,7 @@ Cartography does not run the scanner in this module. It only ingests JSON artifa
 
 Traditional image inventory tells you what packages and vulnerabilities exist in a container. It does not tell you whether that container includes AI agents, models, prompts, tools, memory layers, or other agentic building blocks.
 
-This module adds that missing inventory layer and ties it to the production graph through `ECRImage`, so you can ask questions such as:
+This module adds that missing inventory layer and ties it to the production graph through the `:Image` ontology label, so you can ask questions such as:
 
 - Which production images contain AI agents?
 - Which agents use tools, prompts, models, or memory?
@@ -51,27 +51,25 @@ The native source payload may optionally include:
 
 The module preserves those optional fields when present.
 
-### ECR-first linking behavior
+### Image linking behavior
 
-AIBOM resolves each report to the most canonical `ECRImage` already in the graph:
+AIBOM links scan results to any node carrying the `:Image` ontology label, making it provider-agnostic across ECR, GCP Artifact Registry, GitLab Container Registry, and other supported registries.
 
-1. Prefer `ECRImage` nodes where `type = "manifest_list"`.
-1. Fall back to `ECRImage` nodes where `type = "image"` only when no manifest list exists for the tagged image.
-
-This avoids duplicating detections across platform-specific child images while still supporting single-platform images.
+- **Digest-based URIs** (`repo@sha256:...`): The digest is extracted directly and verified against `:Image` nodes via `_ont_digest`. No provider-specific traversal is needed.
+- **Tag-based URIs** (`repo:tag`): A provider-specific fallback resolves the tag via `ECRRepositoryImage` → `ECRImage`. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests, creating one-to-many relationships from a single source or component to multiple platform images.
 
 ### Provenance behavior
 
 Cartography now preserves source provenance even when component inventory is not loaded:
 
 - If a source has a non-`completed` status, Cartography loads `AIBOMSource` but skips components, workflows, and relationships.
-- If `image_uri` does not resolve to an `ECRImage`, Cartography still loads `AIBOMSource` with `image_matched = false` for troubleshooting.
+- If `image_uri` does not resolve to an `Image` node, Cartography still loads `AIBOMSource` with `image_matched = false` for troubleshooting.
 
 This makes stale coverage, failed scans, and mismatched image URIs visible in the graph instead of silently disappearing.
 
 ### Prerequisite
 
-Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` nodes exist. In the default sync order AIBOM runs after AWS automatically.
+Run image provider ingestion (ECR, GCP Artifact Registry, GitLab, etc.) before AIBOM ingestion so `:Image` nodes with `_ont_digest` exist in the graph. For tag-based URI resolution, `ECRRepositoryImage` nodes must also exist. In the default sync order AIBOM runs after provider modules automatically.
 
 ### Results layout
 

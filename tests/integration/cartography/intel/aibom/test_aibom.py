@@ -11,12 +11,13 @@ from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.common.object_store import ReportRef
+from tests.data.aibom.aibom_sample import AIBOM_DIGEST_BASED_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
+from tests.data.aibom.aibom_sample import TEST_DIGEST_BASED_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
-from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -147,47 +148,6 @@ def _seed_single_platform_graph(neo4j_session) -> None:
         )
 
 
-def _seed_image_resolution(
-    neo4j_session,
-    image_uri: str,
-    digest: str,
-    image_type: str,
-) -> None:
-    neo4j_session.run(
-        """
-        MERGE (img:ECRImage {id: $digest})
-        SET img.digest = $digest,
-            img.type = $image_type,
-            img.lastupdated = $lastupdated
-        MERGE (repo_img:ECRRepositoryImage {id: $image_uri})
-        SET repo_img.lastupdated = $lastupdated
-        MERGE (repo_img)-[r:IMAGE]->(img)
-        SET r.lastupdated = $lastupdated
-        """,
-        digest=digest,
-        image_type=image_type,
-        image_uri=image_uri,
-        lastupdated=TEST_UPDATE_TAG,
-    )
-
-
-def _seed_multi_image_resolution_graph(neo4j_session) -> None:
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    _seed_image_resolution(
-        neo4j_session,
-        TEST_IMAGE_URI,
-        tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
-        "manifest_list",
-    )
-    _seed_image_resolution(
-        neo4j_session,
-        TEST_SINGLE_PLATFORM_IMAGE_URI,
-        tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
-        "image",
-    )
-
-
 @patch(
     "builtins.open",
     new_callable=mock_open,
@@ -275,12 +235,13 @@ def test_sync_aibom_from_dir(
         neo4j_session,
         "AIBOMSource",
         "source_key",
-        "ECRImage",
-        "type",
+        "Image",
+        "_ont_digest",
         "SCANNED_IMAGE",
         rel_direction_right=True,
     ) == {
-        (TEST_SOURCE_KEY, "manifest_list"),
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
     }
 
     assert check_rels(
@@ -396,23 +357,37 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
     neo4j_session,
     tmp_path,
 ):
-    _seed_multi_image_resolution_graph(neo4j_session)
+    # Seed a manifest list graph which creates two child Image nodes (amd64 + arm64)
+    _seed_manifest_list_graph(neo4j_session)
 
-    second_source_key = "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository@sha256:fake"
-    second_report = copy.deepcopy(AIBOM_REPORT)
-    second_report["image_uri"] = TEST_SINGLE_PLATFORM_IMAGE_URI
-    second_report["report"]["aibom_analysis"]["sources"] = {
-        second_source_key: copy.deepcopy(
-            second_report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+    digest_a = tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST
+    digest_b = tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST
+    repo = "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository"
+    image_uri_a = f"{repo}@{digest_a}"
+    image_uri_b = f"{repo}@{digest_b}"
+
+    report_a = copy.deepcopy(AIBOM_REPORT)
+    report_a["image_uri"] = image_uri_a
+    report_a["report"]["aibom_analysis"]["sources"] = {
+        image_uri_a: copy.deepcopy(
+            report_a["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+        ),
+    }
+
+    report_b = copy.deepcopy(AIBOM_REPORT)
+    report_b["image_uri"] = image_uri_b
+    report_b["report"]["aibom_analysis"]["sources"] = {
+        image_uri_b: copy.deepcopy(
+            report_b["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
         ),
     }
 
     (tmp_path / "aibom-1.json").write_text(
-        json.dumps(AIBOM_REPORT),
+        json.dumps(report_a),
         encoding="utf-8",
     )
     (tmp_path / "aibom-2.json").write_text(
-        json.dumps(second_report),
+        json.dumps(report_b),
         encoding="utf-8",
     )
 
@@ -423,7 +398,9 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    # Two reports × 6 components each = 12 unique component nodes
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 12
+    # Same 6 logical_ids shared across both images
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["logical_id"])) == 6
 
     row = neo4j_session.run(
@@ -448,13 +425,13 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
         neo4j_session,
         "AIAgent",
         "logical_id",
-        "ECRImage",
-        "digest",
+        "Image",
+        "_ont_digest",
         "DETECTED_IN",
         rel_direction_right=True,
     ) >= {
-        (agent_logical_id, tests.data.aws.ecr.MANIFEST_LIST_DIGEST),
-        (agent_logical_id, tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
+        (agent_logical_id, digest_a),
+        (agent_logical_id, digest_b),
     }
 
 
@@ -816,3 +793,170 @@ def test_cleanup_aibom_removes_stale_nodes(
     assert len(check_nodes(neo4j_session, "AIBOMSource", ["id"])) == 1
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 6
     assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_DIGEST_BASED_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-ontology.json"},
+)
+def test_sync_aibom_ontology_image_rels(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_single_platform_graph(neo4j_session)
+
+    digest = tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # AIBOMSource --SCANNED_IMAGE--> Image
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Image",
+        "_ont_digest",
+        "SCANNED_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_DIGEST_BASED_IMAGE_URI, digest),
+    }
+
+    # AIBOMComponent (AIAgent) --DETECTED_IN--> Image
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "Image",
+        "_ont_digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", digest),
+    }
+
+    # AIBOMComponent (AIModel) --DETECTED_IN--> Image
+    assert check_rels(
+        neo4j_session,
+        "AIModel",
+        "name",
+        "Image",
+        "_ont_digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("openai:gpt-4.1-mini", digest),
+    }
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-tag-sp.json"},
+)
+def test_sync_aibom_tag_single_platform_image_rels(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_single_platform_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # AIBOMSource --SCANNED_IMAGE--> Image
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Image",
+        "_ont_digest",
+        "SCANNED_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
+    }
+
+    # AIAgent --DETECTED_IN--> Image
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "Image",
+        "_ont_digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
+    }
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-tag-ml.json"},
+)
+def test_sync_aibom_tag_manifest_list_fans_out_to_child_images(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # AIBOMSource --SCANNED_IMAGE--> both child Image nodes
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Image",
+        "_ont_digest",
+        "SCANNED_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
+        (TEST_SOURCE_KEY, tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
+    }
+
+    # AIAgent --DETECTED_IN--> both child Image nodes
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "Image",
+        "_ont_digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
+        ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
+    }
