@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from collections.abc import Iterator
@@ -11,6 +10,18 @@ from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.aibom.loader import load_aibom_document
 from cartography.intel.aibom.parser import parse_aibom_document
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import ListedReportReader
+from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import ReportReader
+from cartography.intel.common.object_store import ReportRef
+from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.common.report_reader_builder import (
+    build_report_reader_for_source,
+)
+from cartography.intel.common.report_source import parse_report_source
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
@@ -28,66 +39,16 @@ def _get_json_files_in_dir(results_dir: str) -> set[str]:
     return results
 
 
-def _get_json_files_in_s3(
-    s3_bucket: str,
-    s3_prefix: str,
-    s3_client: Any,
-) -> set[str]:
-    results: set[str] = set()
-
-    paginator = s3_client.get_paginator("list_objects_v2")
-    page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-
-    for page in page_iterator:
-        if "Contents" not in page:
-            continue
-
-        for obj in page["Contents"]:
-            object_key = obj["Key"]
-            if object_key.endswith(".json") and object_key.startswith(s3_prefix):
-                results.add(object_key)
-
-    logger.info(
-        "Found %d AIBOM json files in s3://%s/%s",
-        len(results),
-        s3_bucket,
-        s3_prefix,
-    )
-    return results
-
-
-def _iter_documents_from_dir(
-    json_files: set[str],
+def _iter_documents_from_report_reader(
+    json_files: list[ReportRef],
+    reader: ReportReader,
 ) -> Iterator[tuple[str, dict[str, Any]]]:
-    """Yield (source_label, document) pairs from local JSON files."""
-    for file_path in json_files:
+    """Yield (source_label, document) pairs from report source documents."""
+    for ref in json_files:
+        source = ref.uri
         try:
-            with open(file_path, encoding="utf-8") as file_pointer:
-                document = json.load(file_pointer)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            logger.warning("Skipping unreadable AIBOM report %s: %s", file_path, exc)
-            continue
-
-        if not isinstance(document, dict):
-            logger.warning("Skipping AIBOM report %s: expected JSON object", file_path)
-            continue
-
-        yield file_path, document
-
-
-def _iter_documents_from_s3(
-    json_files: set[str],
-    s3_bucket: str,
-    s3_client: Any,
-) -> Iterator[tuple[str, dict[str, Any]]]:
-    """Yield (source_label, document) pairs from S3 objects."""
-    for object_key in json_files:
-        source = f"s3://{s3_bucket}/{object_key}"
-        try:
-            response = s3_client.get_object(Bucket=s3_bucket, Key=object_key)
-            scan_data_json = response["Body"].read().decode("utf-8")
-            document = json.loads(scan_data_json)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            document = read_json_report(reader, ref)
+        except ObjectStoreParseError as exc:
             logger.warning("Skipping unreadable AIBOM report %s: %s", source, exc)
             continue
 
@@ -130,25 +91,52 @@ def _ingest_aibom_reports(
 
 
 @timeit
+def sync_aibom_from_report_reader(
+    neo4j_session: Session,
+    reader: ReportReader,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    logger.info("Using AIBOM results from %s", reader.source_uri)
+
+    json_files = filter_report_refs(
+        reader.list_reports(),
+        suffix=".json",
+    )
+    if not json_files:
+        logger.warning(
+            "AIBOM sync was configured, but no json files were found in %s",
+            reader.source_uri,
+        )
+        return
+
+    _ingest_aibom_reports(
+        neo4j_session,
+        _iter_documents_from_report_reader(json_files, reader),
+        update_tag,
+        common_job_parameters,
+    )
+
+
+@timeit
 def sync_aibom_from_dir(
     neo4j_session: Session,
     results_dir: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info("Using AIBOM results from %s", results_dir)
-
-    json_files = _get_json_files_in_dir(results_dir)
-    if not json_files:
-        logger.warning(
-            "AIBOM sync was configured, but no json files were found in %s",
-            results_dir,
+    # DEPRECATED: sync_aibom_from_dir() will be removed in v1.0.0.
+    reader = LocalReportReader(results_dir)
+    refs = [
+        ReportRef(
+            uri=file_path,
+            name=os.path.relpath(file_path, results_dir),
         )
-        return
-
-    _ingest_aibom_reports(
+        for file_path in _get_json_files_in_dir(results_dir)
+    ]
+    sync_aibom_from_report_reader(
         neo4j_session,
-        _iter_documents_from_dir(json_files),
+        ListedReportReader(results_dir, refs, reader.read_bytes),
         update_tag,
         common_job_parameters,
     )
@@ -163,54 +151,39 @@ def sync_aibom_from_s3(
     common_job_parameters: dict[str, Any],
     boto3_session: boto3.Session,
 ) -> None:
-    logger.info("Using AIBOM results from s3://%s/%s", aibom_s3_bucket, aibom_s3_prefix)
-
-    s3_client = boto3_session.client("s3")
-
-    json_files = _get_json_files_in_s3(aibom_s3_bucket, aibom_s3_prefix, s3_client)
-    if not json_files:
-        logger.warning(
-            "AIBOM sync was configured, but no json files were found in bucket %s with prefix %s",
+    # DEPRECATED: sync_aibom_from_s3() will be removed in v1.0.0.
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        S3BucketReader(
+            boto3_session,
             aibom_s3_bucket,
             aibom_s3_prefix,
-        )
-        return
-
-    _ingest_aibom_reports(
-        neo4j_session,
-        _iter_documents_from_s3(json_files, aibom_s3_bucket, s3_client),
-        update_tag,
-        common_job_parameters,
+        ),
+        update_tag=update_tag,
+        common_job_parameters=common_job_parameters,
     )
 
 
 @timeit
 def start_aibom_ingestion(neo4j_session: Session, config: Config) -> None:
-    if not config.aibom_s3_bucket and not config.aibom_results_dir:
+    if not config.aibom_source:
         logger.info("AIBOM configuration not provided. Skipping AIBOM ingestion.")
         return
 
+    source = parse_report_source(config.aibom_source)
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-
-    if config.aibom_results_dir:
-        sync_aibom_from_dir(
-            neo4j_session,
-            config.aibom_results_dir,
-            config.update_tag,
-            common_job_parameters,
-        )
-        return
-
-    if config.aibom_s3_bucket:
-        aibom_s3_prefix = config.aibom_s3_prefix if config.aibom_s3_prefix else ""
-        boto3_session = boto3.Session()
-        sync_aibom_from_s3(
-            neo4j_session,
-            config.aibom_s3_bucket,
-            aibom_s3_prefix,
-            config.update_tag,
-            common_job_parameters,
-            boto3_session,
-        )
+    reader = build_report_reader_for_source(
+        source,
+        azure_sp_auth=config.azure_sp_auth,
+        azure_tenant_id=config.azure_tenant_id,
+        azure_client_id=config.azure_client_id,
+        azure_client_secret=config.azure_client_secret,
+    )
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        reader,
+        config.update_tag,
+        common_job_parameters,
+    )

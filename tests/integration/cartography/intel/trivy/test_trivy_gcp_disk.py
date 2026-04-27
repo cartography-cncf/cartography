@@ -50,7 +50,7 @@ async def _mock_get_all_manifests_async(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GCP_SAMPLE),
+    read_data=json.dumps(TRIVY_GCP_SAMPLE).encode("utf-8"),
 )
 @patch(
     "cartography.intel.trivy.get_json_files_in_dir",
