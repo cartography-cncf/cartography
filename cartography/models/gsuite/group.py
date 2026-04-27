@@ -25,6 +25,7 @@ class GSuiteGroupNodeProperties(CartographyNodeProperties):
 
     # Group identifiers and basic info
     group_id: PropertyRef = PropertyRef("id")  # Alias for id
+    principal_id: PropertyRef = PropertyRef("email", extra_index=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")

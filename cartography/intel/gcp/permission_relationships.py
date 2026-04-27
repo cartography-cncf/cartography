@@ -134,11 +134,11 @@ def calculate_permission_relationships_for_resource(
     permissions: list[str],
 ) -> list[dict[str, Any]]:
     allowed_mappings: list[dict[str, Any]] = []
-    for principal_email, policy_bindings in principals.items():
+    for principal_id, policy_bindings in principals.items():
         if principal_allowed_on_resource(policy_bindings, resource_scope, permissions):
             allowed_mappings.append(
                 {
-                    "principal_email": principal_email,
+                    "principal_id": principal_id,
                     "resource_id": resource_id,
                 }
             )
@@ -184,7 +184,7 @@ def get_principals_for_project(
     neo4j_session: neo4j.Session, project_id: str
 ) -> dict[str, Any]:
     """
-    Get all principals (users, service accounts, groups) with their policy bindings
+    Get all principals with their policy bindings
     for a given GCP project.
     """
     get_principals_query = """
@@ -196,7 +196,7 @@ def get_principals_for_project(
     (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
     WHERE binding.has_condition = false
     RETURN
-    DISTINCT principal.email as principal_email, binding.id as binding_id,
+    DISTINCT principal.principal_id as principal_id, binding.id as binding_id,
     binding.resource as binding_resource, role.permissions as role_permissions
     """
 
@@ -208,13 +208,13 @@ def get_principals_for_project(
 
     principals: dict[str, Any] = {}
     for r in results:
-        principal_email = r["principal_email"]
+        principal_id = r["principal_id"]
         binding_id = r["binding_id"]
         binding_resource = r["binding_resource"]
         role_permissions = r["role_permissions"] or []
 
-        if principal_email not in principals:
-            principals[principal_email] = {}
+        if principal_id not in principals:
+            principals[principal_id] = {}
 
         # Compile permissions from role
         compiled_permissions = compile_permissions_from_role(role_permissions)
@@ -222,7 +222,7 @@ def get_principals_for_project(
             resolve_gcp_scope(binding_resource, project_id)
         )
 
-        principals[principal_email][binding_id] = {
+        principals[principal_id][binding_id] = {
             "permissions": compiled_permissions,
             "scope": compiled_scope,
         }

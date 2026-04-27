@@ -22,6 +22,7 @@ class GoogleWorkspaceUserNodeProperties(CartographyNodeProperties):
 
     # User identifiers and basic info
     user_id: PropertyRef = PropertyRef("id")  # Alias for id
+    principal_id: PropertyRef = PropertyRef("primaryEmail", extra_index=True)
     primary_email: PropertyRef = PropertyRef("primaryEmail", extra_index=True)
     email: PropertyRef = PropertyRef(
         "primaryEmail", extra_index=True

@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -22,11 +23,19 @@ from google.protobuf.json_format import MessageToDict
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.models.gcp.policy_bindings import GCPExternalPrincipalSchema
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_SUPPORTED_EMAIL_MEMBER_TYPES = {"user", "serviceAccount", "group"}
+_WORKLOAD_IDENTITY_MEMBER_RE = re.compile(
+    r"^(?P<principal_type>principal|principalSet)://iam\.googleapis\.com/"
+    r"projects/(?P<project_number>[^/]+)/locations/(?P<location>[^/]+)/"
+    r"workloadIdentityPools/(?P<pool_id>[^/]+)(?:/(?P<selector>.+))?$"
+)
 
 
 @dataclass(frozen=True)
@@ -184,6 +193,67 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
         # version) resolve to the nearest ancestor in the ontology via the
         # mapping order defined above.
         return mapping.label, "/".join(parts[: marker_idx + 2])
+    return None, None
+
+
+def _parse_workload_identity_member(member: str) -> dict[str, str | None] | None:
+    match = _WORKLOAD_IDENTITY_MEMBER_RE.match(member)
+    if not match:
+        return None
+
+    selector = match.group("selector")
+    if selector is None:
+        return None
+
+    selector_type = None
+    selector_name = None
+    selector_value = None
+    if selector == "*":
+        selector_type = "pool"
+        selector_value = "*"
+    elif selector:
+        selector_type, _, selector_value = selector.partition("/")
+        if not selector_value:
+            return None
+        if selector_type.startswith("attribute."):
+            selector_name = selector_type.removeprefix("attribute.")
+            selector_type = "attribute"
+        elif selector_type not in {"subject", "group"}:
+            return None
+
+    principal_type = match.group("principal_type")
+    if principal_type == "principal" and selector_type != "subject":
+        return None
+    if principal_type == "principalSet" and selector_type == "subject":
+        return None
+
+    return {
+        "id": member,
+        "principal_id": member,
+        "principal_type": principal_type,
+        "workload_identity_pool_project_number": match.group("project_number"),
+        "location": match.group("location"),
+        "workload_identity_pool_id": match.group("pool_id"),
+        "selector_type": selector_type,
+        "selector_name": selector_name,
+        "selector_value": selector_value,
+    }
+
+
+def _transform_policy_member(
+    member: str,
+) -> tuple[str | None, dict[str, str | None] | None]:
+    if ":" not in member:
+        return None, None
+
+    member_type, identifier = member.split(":", 1)
+    if member_type in _SUPPORTED_EMAIL_MEMBER_TYPES:
+        return identifier, None
+
+    external_principal = _parse_workload_identity_member(member)
+    if external_principal:
+        return member, external_principal
+
     return None, None
 
 
@@ -354,9 +424,12 @@ def get_policy_bindings(
     }
 
 
-def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
+def transform_bindings(
+    data: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, str | None]]]:
     project_id = data["project_id"]
     bindings: dict[tuple[str, str, str | None], dict[str, Any]] = {}
+    external_principals: dict[str, dict[str, str | None]] = {}
 
     for policy_result in data["policy_results"]:
         for policy in policy_result.get("policies", []):
@@ -382,18 +455,14 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 if not role or not members:
                     continue
 
-                # Filter members to only user:, serviceAccount:, and group: types
-                # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
                 for member in members:
-                    if ":" not in member:
-                        continue
-                    member_type, identifier = member.split(":", 1)
-                    if member_type in ("user", "serviceAccount", "group"):
-                        # Store only the email part
-                        filtered_members.append(identifier)
+                    principal_id, external_principal = _transform_policy_member(member)
+                    if principal_id:
+                        filtered_members.append(principal_id)
+                    if external_principal:
+                        external_principals[member] = external_principal
 
-                # Don't process if members(principals) are not from the supported types. For example -> allUsers:, allAuthenticatedUsers, etc.
                 if not filtered_members:
                     continue
 
@@ -410,7 +479,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 if key in bindings:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
-                    bindings[key]["members"] = list(existing_members)
+                    bindings[key]["members"] = sorted(existing_members)
                 else:
                     # Generate unique ID that includes condition expression hash
                     condition_hash = ""
@@ -438,7 +507,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "condition_expression": condition_expression,
                     }
 
-    return list(bindings.values())
+    return list(bindings.values()), list(external_principals.values())
 
 
 def _group_applies_to_links(
@@ -466,9 +535,19 @@ def _group_applies_to_links(
 def load_bindings(
     neo4j_session: neo4j.Session,
     bindings: list[dict[str, Any]],
+    external_principals: list[dict[str, str | None]],
     project_id: str,
     update_tag: int,
 ) -> None:
+    if external_principals:
+        load(
+            neo4j_session,
+            GCPExternalPrincipalSchema(),
+            external_principals,
+            lastupdated=update_tag,
+            PROJECT_ID=project_id,
+        )
+
     load(
         neo4j_session,
         GCPPolicyBindingSchema(),
@@ -497,6 +576,10 @@ def cleanup(
 
     GraphJob.from_node_schema(
         GCPPolicyBindingSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        GCPExternalPrincipalSchema(),
         common_job_parameters,
     ).run(neo4j_session)
 
@@ -573,8 +656,16 @@ def sync(
         )
         return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
 
-    transformed_bindings_data = transform_bindings(bindings_data)
+    transformed_bindings, transformed_external_principals = transform_bindings(
+        bindings_data
+    )
 
-    load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
+    load_bindings(
+        neo4j_session,
+        transformed_bindings,
+        transformed_external_principals,
+        project_id,
+        update_tag,
+    )
     cleanup(neo4j_session, common_job_parameters)
     return PolicyBindingsSyncStatus.SUCCESS
