@@ -25,42 +25,49 @@ def _extract_digest(image_uri: str) -> str | None:
     return None
 
 
-def _resolve_digest_for_source(
+def _resolve_digests_for_source(
     neo4j_session: Session,
     image_uri: str,
-) -> str | None:
-    """Resolve an image URI to an ECRImage digest.
+) -> list[str]:
+    """Resolve an image URI to ontology Image digests.
 
-    For digest-based URIs (repo@sha256:...), extracts the digest directly.
-    For tag-based URIs (repo:tag), looks up via ECRRepositoryImage → ECRImage.
+    For digest-based URIs (repo@sha256:...), extracts the digest directly
+    and verifies it exists on any node carrying the :Image label.
 
-    Returns the digest string or None if no match is found.
+    For tag-based URIs (repo:tag), looks up via ECRRepositoryImage → ECRImage
+    as a provider-specific fallback. Returns single-platform image digests
+    directly, and for manifest lists traverses CONTAINS_IMAGE to return
+    all child single-platform image digests.
+
+    Returns a list of digest strings (empty if no match is found).
     """
     # Fast path: digest is in the URI itself
     digest = _extract_digest(image_uri)
     if digest:
         # Verify the digest actually exists in the graph before accepting it.
         exists = neo4j_session.run(
-            "MATCH (img:ECRImage {digest: $digest}) RETURN img.digest LIMIT 1",
+            "MATCH (img:Image {_ont_digest: $digest}) RETURN img._ont_digest LIMIT 1",
             digest=digest,
         ).single()
-        return digest if exists else None
+        return [digest] if exists else []
 
-    # Slow path: tag-based URI, need to resolve via the graph
-    row = neo4j_session.run(
+    # Slow path: tag-based URI — currently only supported for ECR.
+    # Returns single-platform images directly, and for manifest lists
+    # traverses to the child single-platform images.
+    rows = neo4j_session.run(
         """
         MATCH (:ECRRepositoryImage {id: $image_uri})-[:IMAGE]->(img:ECRImage)
-        WHERE img.type IN ['manifest_list', 'image']
-        RETURN img.digest AS digest, img.type AS type
-        ORDER BY CASE img.type WHEN 'manifest_list' THEN 0 ELSE 1 END
-        LIMIT 1
+        WHERE img.type = 'image'
+        RETURN img.digest AS digest
+        UNION
+        MATCH (:ECRRepositoryImage {id: $image_uri})-[:IMAGE]->(:ECRImage)-[:CONTAINS_IMAGE]->(child:ECRImage)
+        WHERE child.type = 'image'
+        RETURN child.digest AS digest
         """,
         image_uri=image_uri,
-    ).single()
+    )
 
-    if row:
-        return row["digest"]
-    return None
+    return [row["digest"] for row in rows]
 
 
 def load_aibom_document(
@@ -68,17 +75,17 @@ def load_aibom_document(
     document: ParsedAIBOMDocument,
     update_tag: int,
 ) -> None:
-    manifest_digest = _resolve_digest_for_source(
+    manifest_digests = _resolve_digests_for_source(
         neo4j_session,
         document.image_uri,
     )
-    transformed_document = transform_aibom_document(document, manifest_digest)
+    transformed_document = transform_aibom_document(document, manifest_digests)
 
     for source in document.sources:
         stat_handler.incr("aibom_sources_total")
 
         source_status = (source.source_status or "completed").lower()
-        if source_status == "completed" and manifest_digest:
+        if source_status == "completed" and manifest_digests:
             stat_handler.incr("aibom_sources_matched")
         elif source_status != "completed":
             stat_handler.incr("aibom_sources_skipped_incomplete")

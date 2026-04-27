@@ -17,7 +17,7 @@ class AIBOMSourceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     image_uri: PropertyRef = PropertyRef("image_uri", extra_index=True)
-    manifest_digest: PropertyRef = PropertyRef("manifest_digest", extra_index=True)
+    manifest_digests: PropertyRef = PropertyRef("manifest_digests", extra_index=True)
     image_matched: PropertyRef = PropertyRef("image_matched", extra_index=True)
     scan_scope: PropertyRef = PropertyRef("scan_scope")
     report_location: PropertyRef = PropertyRef("report_location")
@@ -48,9 +48,9 @@ class AIBOMSourceToImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AIBOMSourceToImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("manifest_digest")},
+        {"_ont_digest": PropertyRef("manifest_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SCANNED_IMAGE"
