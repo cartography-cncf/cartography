@@ -1,15 +1,16 @@
+import importlib
 import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from cartography.intel.common.object_store import ReportReader
+import boto3
+from azure import identity as azure_identity
+
+import cartography.intel.common.object_store as object_store
+from cartography.intel.common.object_store import ReportReader
 
 logger = logging.getLogger(__name__)
-
-_DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION = "v1.0.0"
 
 _SOURCE_SCHEME_RE = re.compile(
     r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$",
@@ -146,18 +147,12 @@ def build_report_reader_for_source(
     azure_tenant_id: str | None = None,
     azure_client_id: str | None = None,
     azure_client_secret: str | None = None,
-) -> "ReportReader":
+) -> ReportReader:
     if isinstance(source, LocalReportSource):
-        from cartography.intel.common.object_store import LocalReportReader
-
-        return LocalReportReader(source.path)
+        return object_store.LocalReportReader(source.path)
 
     if isinstance(source, S3ReportSource):
-        import boto3
-
-        from cartography.intel.common.object_store import S3BucketReader
-
-        return S3BucketReader(
+        return object_store.S3BucketReader(
             boto3.Session(),
             source.bucket,
             source.prefix,
@@ -165,16 +160,13 @@ def build_report_reader_for_source(
         )
 
     if isinstance(source, GCSReportSource):
-        from cartography.intel.common.object_store import GCSBucketReader
-
-        return GCSBucketReader(source.bucket, source.prefix, source.uri)
-
-    from cartography.intel.common.object_store import AzureBlobContainerReader
+        return object_store.GCSBucketReader(source.bucket, source.prefix, source.uri)
 
     if azure_sp_auth:
-        from cartography.intel.azure.util.credentials import Authenticator
-
-        authenticator = Authenticator()
+        credentials_module = importlib.import_module(
+            "cartography.intel.azure.util.credentials",
+        )
+        authenticator = credentials_module.Authenticator()
         credentials = authenticator.authenticate_sp(
             tenant_id=azure_tenant_id,
             client_id=azure_client_id,
@@ -187,11 +179,9 @@ def build_report_reader_for_source(
             )
         credential = credentials.credential
     else:
-        from azure.identity import AzureCliCredential
+        credential = azure_identity.AzureCliCredential()
 
-        credential = AzureCliCredential()
-
-    return AzureBlobContainerReader(
+    return object_store.AzureBlobContainerReader(
         source.account_name,
         source.container_name,
         source.prefix,
@@ -262,7 +252,7 @@ def resolve_legacy_report_source(
             logger.warning(
                 "DEPRECATED: %s will be removed in Cartography %s; use %s instead.",
                 names.local,
-                _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+                "v1.0.0",
                 names.source,
             )
         parse_report_source(local_path)
@@ -274,7 +264,7 @@ def resolve_legacy_report_source(
                 "DEPRECATED: %s/%s will be removed in Cartography %s; use %s instead.",
                 names.s3_bucket,
                 names.s3_prefix,
-                _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+                "v1.0.0",
                 names.source,
             )
         resolved_source = build_s3_source(s3_bucket, s3_prefix)
