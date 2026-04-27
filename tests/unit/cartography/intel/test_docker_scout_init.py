@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
-
 from cartography.intel.docker_scout import sync_docker_scout_from_dir
 from cartography.intel.docker_scout import sync_docker_scout_from_s3
 
@@ -53,7 +51,7 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     )
 
 
-def test_sync_docker_scout_from_s3_propagates_read_failures() -> None:
+def test_sync_docker_scout_from_s3_skips_read_failures(caplog) -> None:
     neo4j_session = MagicMock()
     boto3_session = MagicMock()
     s3_client = MagicMock()
@@ -63,12 +61,16 @@ def test_sync_docker_scout_from_s3_propagates_read_failures() -> None:
     s3_client.get_object.side_effect = PermissionError("access denied")
     boto3_session.client.return_value = s3_client
 
-    with pytest.raises(PermissionError, match="access denied"):
-        sync_docker_scout_from_s3(
-            neo4j_session,
-            "example-bucket",
-            "reports/",
-            1,
-            {"UPDATE_TAG": 1},
-            boto3_session,
-        )
+    sync_docker_scout_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        1,
+        {"UPDATE_TAG": 1},
+        boto3_session,
+    )
+
+    assert (
+        "Skipping unreadable Docker Scout report s3://example-bucket/reports/forbidden-report.txt"
+        in caplog.text
+    )
