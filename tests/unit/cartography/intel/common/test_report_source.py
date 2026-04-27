@@ -11,7 +11,9 @@ from cartography.intel.common.report_source import GCSReportSource
 from cartography.intel.common.report_source import LegacyReportSourceNames
 from cartography.intel.common.report_source import LocalReportSource
 from cartography.intel.common.report_source import parse_report_source
-from cartography.intel.common.report_source import resolve_legacy_report_source
+from cartography.intel.common.report_source import (
+    resolve_report_source_with_legacy_fields,
+)
 from cartography.intel.common.report_source import S3ReportSource
 
 
@@ -76,9 +78,11 @@ def test_parse_report_source_rejects_unknown_scheme() -> None:
         parse_report_source("ftp://example.com/reports")
 
 
-def test_resolve_legacy_report_source_rejects_explicit_empty_source() -> None:
+def test_resolve_report_source_with_legacy_fields_rejects_explicit_empty_source() -> (
+    None
+):
     with pytest.raises(ValueError, match="Report source cannot be empty"):
-        resolve_legacy_report_source(
+        resolve_report_source_with_legacy_fields(
             source="",
             local_path=None,
             s3_bucket=None,
@@ -87,11 +91,11 @@ def test_resolve_legacy_report_source_rejects_explicit_empty_source() -> None:
         )
 
 
-def test_resolve_legacy_report_source_rejects_explicit_empty_source_with_legacy() -> (
+def test_resolve_report_source_with_legacy_fields_rejects_explicit_empty_source_with_legacy() -> (
     None
 ):
     with pytest.raises(ValueError, match="Cannot use --trivy-source"):
-        resolve_legacy_report_source(
+        resolve_report_source_with_legacy_fields(
             source="",
             local_path="/tmp/results",
             s3_bucket=None,
@@ -100,9 +104,9 @@ def test_resolve_legacy_report_source_rejects_explicit_empty_source_with_legacy(
         )
 
 
-def test_resolve_legacy_report_source_treats_none_source_as_unset() -> None:
+def test_resolve_report_source_with_legacy_fields_treats_none_source_as_unset() -> None:
     assert (
-        resolve_legacy_report_source(
+        resolve_report_source_with_legacy_fields(
             source=None,
             local_path=None,
             s3_bucket=None,
@@ -113,9 +117,11 @@ def test_resolve_legacy_report_source_treats_none_source_as_unset() -> None:
     )
 
 
-def test_resolve_legacy_report_source_rejects_explicit_empty_local_path() -> None:
+def test_resolve_report_source_with_legacy_fields_rejects_explicit_empty_local_path() -> (
+    None
+):
     with pytest.raises(ValueError, match="Report source cannot be empty"):
-        resolve_legacy_report_source(
+        resolve_report_source_with_legacy_fields(
             source=None,
             local_path="",
             s3_bucket=None,

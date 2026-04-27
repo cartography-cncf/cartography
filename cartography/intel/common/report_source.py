@@ -136,7 +136,7 @@ def parse_report_source(raw_source: str) -> ReportSource:
 @dataclass(frozen=True)
 class LegacyReportSourceNames:
     """Display strings used in deprecation warnings and errors from
-    `resolve_legacy_report_source`. The CLI passes flag names like
+    `resolve_report_source_with_legacy_fields`. The CLI passes flag names like
     `--trivy-source`; Config passes backtick-wrapped attribute names."""
 
     source: str
@@ -164,7 +164,7 @@ class LegacyReportSourceNames:
         )
 
 
-def resolve_legacy_report_source(
+def resolve_report_source_with_legacy_fields(
     *,
     source: str | None,
     local_path: str | None,

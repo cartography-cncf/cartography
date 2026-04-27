@@ -1,8 +1,10 @@
 from cartography.intel.common.report_source import LegacyReportSourceNames
-from cartography.intel.common.report_source import resolve_legacy_report_source
+from cartography.intel.common.report_source import (
+    resolve_report_source_with_legacy_fields,
+)
 
 
-def _resolve_report_source_compatibility_shim(
+def _resolve_report_source_config(
     *,
     module: str,
     source: str | None,
@@ -11,7 +13,7 @@ def _resolve_report_source_compatibility_shim(
     s3_prefix: str | None,
     warn_on_legacy: bool = True,
 ) -> str | None:
-    return resolve_legacy_report_source(
+    return resolve_report_source_with_legacy_fields(
         source=source,
         local_path=local_path,
         s3_bucket=s3_bucket,
@@ -600,7 +602,7 @@ class Config:
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
-        self.docker_scout_source = _resolve_report_source_compatibility_shim(
+        self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
             source=docker_scout_source,
             local_path=docker_scout_results_dir,
@@ -611,7 +613,7 @@ class Config:
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
         self.docker_scout_s3_prefix = docker_scout_s3_prefix
-        self.trivy_source = _resolve_report_source_compatibility_shim(
+        self.trivy_source = _resolve_report_source_config(
             module="trivy",
             source=trivy_source,
             local_path=trivy_results_dir,
@@ -645,7 +647,7 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
-        self.syft_source = _resolve_report_source_compatibility_shim(
+        self.syft_source = _resolve_report_source_config(
             module="syft",
             source=syft_source,
             local_path=syft_results_dir,
@@ -661,7 +663,7 @@ class Config:
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
-        self.aibom_source = _resolve_report_source_compatibility_shim(
+        self.aibom_source = _resolve_report_source_config(
             module="aibom",
             source=aibom_source,
             local_path=aibom_results_dir,

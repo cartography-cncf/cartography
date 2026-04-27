@@ -9,7 +9,9 @@ from typing_extensions import Annotated
 
 from cartography.config import Config
 from cartography.intel.common.report_source import LegacyReportSourceNames
-from cartography.intel.common.report_source import resolve_legacy_report_source
+from cartography.intel.common.report_source import (
+    resolve_report_source_with_legacy_fields,
+)
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -191,7 +193,7 @@ def _resolve_report_source_option(
     s3_prefix: str | None,
 ) -> str | None:
     try:
-        return resolve_legacy_report_source(
+        return resolve_report_source_with_legacy_fields(
             source=source,
             local_path=local_path,
             s3_bucket=s3_bucket,
