@@ -18,6 +18,128 @@ from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 
 
+def test_load_ecr_image_layers_flattens_relationships(monkeypatch):
+    load_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+
+    layers = [
+        {
+            "diff_id": "sha256:layer-1",
+            "is_empty": False,
+            "next_diff_ids": ["sha256:layer-2", "sha256:layer-3"],
+            "head_image_ids": ["sha256:image-1"],
+            "tail_image_ids": ["sha256:image-2"],
+        },
+        {
+            "diff_id": "sha256:layer-2",
+            "is_empty": False,
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layers(
+        MagicMock(),
+        layers,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    node_call, next_call, head_call, tail_call = load_mock.call_args_list
+    assert node_call.args[1].__class__.__name__ == "ECRImageLayerNodeSchema"
+    assert node_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+    assert next_call.args[1].__class__.__name__ == "ECRImageLayerNextRelSchema"
+    assert next_call.args[2] == [
+        {"diff_id": "sha256:layer-1", "next_diff_ids": ["sha256:layer-2"]},
+        {"diff_id": "sha256:layer-1", "next_diff_ids": ["sha256:layer-3"]},
+    ]
+    assert head_call.args[1].__class__.__name__ == "ECRImageLayerHeadRelSchema"
+    assert head_call.args[2] == [
+        {"head_image_ids": ["sha256:image-1"], "diff_id": "sha256:layer-1"},
+    ]
+    assert tail_call.args[1].__class__.__name__ == "ECRImageLayerTailRelSchema"
+    assert tail_call.args[2] == [
+        {"tail_image_ids": ["sha256:image-2"], "diff_id": "sha256:layer-1"},
+    ]
+    assert all(
+        call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+        for call in load_mock.call_args_list[1:]
+    )
+
+
+def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
+    load_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+
+    memberships = [
+        {
+            "imageDigest": "sha256:image-1",
+            "layer_diff_ids": ["sha256:layer-1", "sha256:layer-2"],
+        },
+        {
+            "imageDigest": "sha256:image-2",
+            "layer_diff_ids": ["sha256:layer-3"],
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layer_memberships(
+        MagicMock(),
+        memberships,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    enrichment_call = load_mock.call_args_list[0]
+    has_layer_call = load_mock.call_args_list[1]
+    assert enrichment_call.args[1].__class__.__name__ == "ECRImageLayerEnrichmentSchema"
+    assert enrichment_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+    assert has_layer_call.args[1].__class__.__name__ == "ECRImageHasLayerRelSchema"
+    assert has_layer_call.args[2] == [
+        {"imageDigest": "sha256:image-1", "layer_diff_ids": ["sha256:layer-1"]},
+        {"imageDigest": "sha256:image-1", "layer_diff_ids": ["sha256:layer-2"]},
+        {"imageDigest": "sha256:image-2", "layer_diff_ids": ["sha256:layer-3"]},
+    ]
+    assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+
+
+def test_cleanup_runs_layer_and_has_layer_cleanup_jobs(monkeypatch):
+    from_node_schema_mock = MagicMock(return_value=MagicMock())
+    graph_statement_mock = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(
+        ecr_layers,
+        "GraphStatement",
+        graph_statement_mock,
+    )
+
+    neo4j_session = MagicMock()
+    ecr_layers.cleanup(
+        neo4j_session,
+        {
+            "UPDATE_TAG": 123,
+            "AWS_ID": "123456789012",
+        },
+    )
+
+    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
+        "ECRImageLayerSchema"
+    )
+    assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
+    graph_statement_mock.assert_called_once()
+    assert graph_statement_mock.call_args.args[1] == {
+        "UPDATE_TAG": 123,
+        "AWS_ID": "123456789012",
+    }
+    assert graph_statement_mock.call_args.kwargs["iterationsize"] == (
+        ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+    )
+    assert graph_statement_mock.return_value.run.call_args.args == (neo4j_session,)
+
+
 @pytest.mark.parametrize(
     "input_uri,expected_repo_uri",
     [
