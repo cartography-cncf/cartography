@@ -19,7 +19,6 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_container_parent_image
@@ -695,9 +694,8 @@ def load_ecr_image_layers(
     """
     Load image layers into Neo4j.
 
-    Uses a conservative batch size (ECR_LAYER_LOAD_BATCH_SIZE) to avoid Neo4j
-    transaction memory limits, since layer objects can contain large arrays of
-    relationships.
+    Load layer nodes separately from NEXT/HEAD/TAIL relationships so each
+    transaction handles a bounded amount of node or relationship data.
     """
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
@@ -772,9 +770,8 @@ def load_ecr_image_layer_memberships(
     """
     Load image layer memberships into Neo4j.
 
-    Uses a conservative batch size (ECR_LAYER_MEMBERSHIP_BATCH_SIZE) to avoid
-    Neo4j transaction memory limits, since membership objects can contain large
-    arrays of layer diff_ids.
+    Load ECRImage layer metadata separately from HAS_LAYER relationships so
+    each transaction handles a bounded amount of node or relationship data.
     """
     load(
         neo4j_session,
@@ -1163,29 +1160,6 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
-    _cleanup_has_layer_relationships(neo4j_session, common_job_parameters)
-
-
-def _cleanup_has_layer_relationships(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict,
-) -> None:
-    statement = GraphStatement(
-        """
-        MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:ECRImage)
-            -[r:HAS_LAYER]->(:ECRImageLayer)
-        WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r
-        RETURN count(*) AS TotalCompleted
-        """,
-        common_job_parameters,
-        iterative=True,
-        iterationsize=ECR_LAYER_REL_BATCH_SIZE,
-        parent_job_name="HAS_LAYER",
-        parent_job_sequence_num=1,
-    )
-    statement.run(neo4j_session)
 
 
 @timeit

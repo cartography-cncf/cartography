@@ -102,18 +102,12 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
     assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
 
 
-def test_cleanup_runs_layer_and_has_layer_cleanup_jobs(monkeypatch):
+def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     from_node_schema_mock = MagicMock(return_value=MagicMock())
-    graph_statement_mock = MagicMock(return_value=MagicMock())
     monkeypatch.setattr(
         ecr_layers.GraphJob,
         "from_node_schema",
         from_node_schema_mock,
-    )
-    monkeypatch.setattr(
-        ecr_layers,
-        "GraphStatement",
-        graph_statement_mock,
     )
 
     neo4j_session = MagicMock()
@@ -129,15 +123,6 @@ def test_cleanup_runs_layer_and_has_layer_cleanup_jobs(monkeypatch):
         "ECRImageLayerSchema"
     )
     assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
-    graph_statement_mock.assert_called_once()
-    assert graph_statement_mock.call_args.args[1] == {
-        "UPDATE_TAG": 123,
-        "AWS_ID": "123456789012",
-    }
-    assert graph_statement_mock.call_args.kwargs["iterationsize"] == (
-        ecr_layers.ECR_LAYER_REL_BATCH_SIZE
-    )
-    assert graph_statement_mock.return_value.run.call_args.args == (neo4j_session,)
 
 
 @pytest.mark.parametrize(
