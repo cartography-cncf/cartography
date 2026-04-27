@@ -740,7 +740,7 @@ def test_load_no_metrics_for_empty_data(
     mock_logger.info.assert_not_called()
 
 
-@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.execute_write_with_retry")
 @patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
 @patch("cartography.client.core.tx.build_matchlink_query")
 @patch("cartography.client.core.tx.stat_handler")
@@ -750,9 +750,9 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_stat_handler,
     mock_build_query,
     mock_ensure_indexes,
-    mock_load_graph_data,
+    mock_execute_write_with_retry,
 ):
-    """load_matchlinks() should emit a metric and log the count of loaded relationships."""
+    """load_matchlinks() should emit a metric and log the count of created relationships."""
     from cartography.client.core.tx import load_matchlinks
 
     # Setup mocks
@@ -762,6 +762,8 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_rel_schema.source_node_label = "EC2Instance"
     mock_rel_schema.target_node_label = "AWSVpc"
     mock_build_query.return_value = "UNWIND ..."
+    # All rows match: created == attempted
+    mock_execute_write_with_retry.return_value = 2
 
     test_data = [
         {"source_id": "1", "target_id": "a"},
@@ -777,22 +779,80 @@ def test_load_matchlinks_emits_metrics_and_logs(
         _sub_resource_id="123456",
     )
 
-    # Verify metric includes source and target labels for disambiguation
+    # Verify metric reflects the actual number of relationships created/matched
     mock_stat_handler.incr.assert_called_once_with(
         "relationship.ec2instance.connected_to.awsvpc.loaded", 2
     )
 
-    # Verify info log was emitted
+    # Verify info log was emitted (no warning since attempted == created)
     mock_logger.info.assert_called_once_with(
-        "Loaded %d (%s)-[%s]->(%s) relationships",
+        "Created %d (%s)-[%s]->(%s) relationships",
         2,
         "EC2Instance",
         "CONNECTED_TO",
         "AWSVpc",
     )
+    mock_logger.warning.assert_not_called()
 
 
-@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.execute_write_with_retry")
+@patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
+@patch("cartography.client.core.tx.build_matchlink_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_matchlinks_warns_when_some_rows_did_not_match(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_execute_write_with_retry,
+):
+    """load_matchlinks() should warn when fewer relationships are created than attempted."""
+    from cartography.client.core.tx import load_matchlinks
+
+    mock_session = MagicMock()
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.rel_label = "CONNECTED_TO"
+    mock_rel_schema.source_node_label = "EC2Instance"
+    mock_rel_schema.target_node_label = "AWSVpc"
+    mock_build_query.return_value = "UNWIND ..."
+    # Only 1 of 3 rows had matching source+target nodes
+    mock_execute_write_with_retry.return_value = 1
+
+    test_data = [
+        {"source_id": "1", "target_id": "a"},
+        {"source_id": "2", "target_id": "b"},
+        {"source_id": "3", "target_id": "c"},
+    ]
+
+    load_matchlinks(
+        mock_session,
+        mock_rel_schema,
+        test_data,
+        lastupdated=12345,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id="123456",
+    )
+
+    # Metric reflects only the relationships that were actually created/matched
+    mock_stat_handler.incr.assert_called_once_with(
+        "relationship.ec2instance.connected_to.awsvpc.loaded", 1
+    )
+
+    # A warning is emitted, not an info, because some rows did not match
+    mock_logger.warning.assert_called_once_with(
+        "Created %d/%d (%s)-[%s]->(%s) relationships; %d row(s) had no matching source/target node.",
+        1,
+        3,
+        "EC2Instance",
+        "CONNECTED_TO",
+        "AWSVpc",
+        2,
+    )
+    mock_logger.info.assert_not_called()
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
 @patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
 @patch("cartography.client.core.tx.build_matchlink_query")
 @patch("cartography.client.core.tx.stat_handler")
@@ -802,7 +862,7 @@ def test_load_matchlinks_no_metrics_for_empty_data(
     mock_stat_handler,
     mock_build_query,
     mock_ensure_indexes,
-    mock_load_graph_data,
+    mock_execute_write_with_retry,
 ):
     """load_matchlinks() should not emit metrics when there's no data to load."""
     from cartography.client.core.tx import load_matchlinks
@@ -823,3 +883,4 @@ def test_load_matchlinks_no_metrics_for_empty_data(
     # Verify no metric was emitted (function returns early for empty data)
     mock_stat_handler.incr.assert_not_called()
     mock_logger.info.assert_not_called()
+    mock_logger.warning.assert_not_called()

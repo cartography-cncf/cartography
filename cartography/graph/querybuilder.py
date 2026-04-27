@@ -1640,7 +1640,8 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             SET
                 r._module_name = "$module_name",
                 r._module_version = "$module_version",
-                $set_rel_properties_statement;
+                $set_rel_properties_statement
+        RETURN count(r) AS rels_created;
         """
     )
 

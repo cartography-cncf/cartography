@@ -615,6 +615,28 @@ def write_list_of_dicts_tx(
     tx.run(query, kwargs).consume()
 
 
+def _write_matchlinks_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
+) -> int:
+    """
+    Execute a matchlink write query and return the number of relationships
+    actually created or matched by the MERGE clause.
+
+    The matchlink query (built by ``build_matchlink_query``) ends with
+    ``RETURN count(r) AS rels_created``, where rows are emitted only when both
+    source and target ``MATCH`` clauses succeed. This makes the returned count
+    a reliable measure of the relationships truly written, rather than the
+    number of records sent to the query.
+    """
+    result = tx.run(query, kwargs)
+    record = result.single()
+    rels_created = int(record["rels_created"]) if record else 0
+    result.consume()
+    return rels_created
+
+
 def load_graph_data(
     neo4j_session: neo4j.Session,
     query: str,
@@ -886,22 +908,40 @@ def load_matchlinks(
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
     matchlink_query = build_matchlink_query(rel_schema)
     logger.debug(f"Matchlink query: {matchlink_query}")
-    load_graph_data(
-        neo4j_session, matchlink_query, dict_list, batch_size=batch_size, **kwargs
-    )
+
+    rels_created = 0
+    for data_batch in batch(dict_list, size=batch_size):
+        rels_created += execute_write_with_retry(
+            neo4j_session,
+            _write_matchlinks_tx,
+            matchlink_query,
+            DictList=data_batch,
+            **kwargs,
+        )
 
     # Emit metrics for loaded relationships
-    rel_count = len(dict_list)
+    attempted = len(dict_list)
     src_label = (rel_schema.source_node_label or "unknown").lower()
     tgt_label = rel_schema.target_node_label.lower()
     stat_handler.incr(
         f"relationship.{src_label}.{rel_schema.rel_label.lower()}.{tgt_label}.loaded",
-        rel_count,
+        rels_created,
     )
-    logger.info(
-        "Loaded %d (%s)-[%s]->(%s) relationships",
-        rel_count,
-        rel_schema.source_node_label,
-        rel_schema.rel_label,
-        rel_schema.target_node_label,
-    )
+    if rels_created != attempted:
+        logger.warning(
+            "Created %d/%d (%s)-[%s]->(%s) relationships; %d row(s) had no matching source/target node.",
+            rels_created,
+            attempted,
+            rel_schema.source_node_label,
+            rel_schema.rel_label,
+            rel_schema.target_node_label,
+            attempted - rels_created,
+        )
+    else:
+        logger.info(
+            "Created %d (%s)-[%s]->(%s) relationships",
+            rels_created,
+            rel_schema.source_node_label,
+            rel_schema.rel_label,
+            rel_schema.target_node_label,
+        )
