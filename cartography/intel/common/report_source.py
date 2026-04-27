@@ -1,14 +1,7 @@
-import importlib
 import logging
 import os
 import re
 from dataclasses import dataclass
-
-import boto3
-from azure import identity as azure_identity
-
-import cartography.intel.common.object_store as object_store
-from cartography.intel.common.object_store import ReportReader
 
 logger = logging.getLogger(__name__)
 
@@ -140,56 +133,6 @@ def parse_report_source(raw_source: str) -> ReportSource:
     )
 
 
-def build_report_reader_for_source(
-    source: ReportSource,
-    *,
-    azure_sp_auth: bool | None = None,
-    azure_tenant_id: str | None = None,
-    azure_client_id: str | None = None,
-    azure_client_secret: str | None = None,
-) -> ReportReader:
-    if isinstance(source, LocalReportSource):
-        return object_store.LocalReportReader(source.path)
-
-    if isinstance(source, S3ReportSource):
-        return object_store.S3BucketReader(
-            boto3.Session(),
-            source.bucket,
-            source.prefix,
-            source.uri,
-        )
-
-    if isinstance(source, GCSReportSource):
-        return object_store.GCSBucketReader(source.bucket, source.prefix, source.uri)
-
-    if azure_sp_auth:
-        credentials_module = importlib.import_module(
-            "cartography.intel.azure.util.credentials",
-        )
-        authenticator = credentials_module.Authenticator()
-        credentials = authenticator.authenticate_sp(
-            tenant_id=azure_tenant_id,
-            client_id=azure_client_id,
-            client_secret=azure_client_secret,
-        )
-
-        if credentials is None:
-            raise RuntimeError(
-                "Azure Blob report source was configured, but Azure credentials are not available.",
-            )
-        credential = credentials.credential
-    else:
-        credential = azure_identity.AzureCliCredential()
-
-    return object_store.AzureBlobContainerReader(
-        source.account_name,
-        source.container_name,
-        source.prefix,
-        credential,
-        source.uri,
-    )
-
-
 @dataclass(frozen=True)
 class LegacyReportSourceNames:
     """Display strings used in deprecation warnings and errors from
@@ -230,24 +173,26 @@ def resolve_legacy_report_source(
     names: LegacyReportSourceNames,
     warn_on_legacy: bool = True,
 ) -> str | None:
-    if source is not None and (local_path or s3_bucket or s3_prefix):
+    if source is not None and (
+        local_path is not None or s3_bucket is not None or s3_prefix is not None
+    ):
         raise ValueError(
             f"Cannot use {names.source} with deprecated source flags "
             f"({names.local}, {names.s3_bucket}, {names.s3_prefix}).",
         )
-    if local_path and (s3_bucket or s3_prefix):
+    if local_path is not None and (s3_bucket is not None or s3_prefix is not None):
         raise ValueError(
             f"Cannot use both {names.local} and {names.s3_bucket}/{names.s3_prefix}. "
             f"Use {names.source} instead.",
         )
-    if s3_prefix and not s3_bucket:
+    if s3_prefix is not None and s3_bucket is None:
         raise ValueError(f"{names.s3_prefix} requires {names.s3_bucket}.")
 
     if source is not None:
         parse_report_source(source)
         return source
 
-    if local_path:
+    if local_path is not None:
         if warn_on_legacy:
             logger.warning(
                 "DEPRECATED: %s will be removed in Cartography %s; use %s instead.",
@@ -258,7 +203,7 @@ def resolve_legacy_report_source(
         parse_report_source(local_path)
         return local_path
 
-    if s3_bucket:
+    if s3_bucket is not None:
         if warn_on_legacy:
             logger.warning(
                 "DEPRECATED: %s/%s will be removed in Cartography %s; use %s instead.",

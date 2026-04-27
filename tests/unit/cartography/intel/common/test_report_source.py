@@ -3,8 +3,10 @@ from unittest.mock import patch
 
 import pytest
 
+from cartography.intel.common.report_reader_builder import (
+    build_report_reader_for_source,
+)
 from cartography.intel.common.report_source import AzureBlobReportSource
-from cartography.intel.common.report_source import build_report_reader_for_source
 from cartography.intel.common.report_source import GCSReportSource
 from cartography.intel.common.report_source import LegacyReportSourceNames
 from cartography.intel.common.report_source import LocalReportSource
@@ -109,6 +111,17 @@ def test_resolve_legacy_report_source_treats_none_source_as_unset() -> None:
         )
         is None
     )
+
+
+def test_resolve_legacy_report_source_rejects_explicit_empty_local_path() -> None:
+    with pytest.raises(ValueError, match="Report source cannot be empty"):
+        resolve_legacy_report_source(
+            source=None,
+            local_path="",
+            s3_bucket=None,
+            s3_prefix=None,
+            names=LegacyReportSourceNames.for_cli("trivy"),
+        )
 
 
 @patch("cartography.intel.common.object_store.LocalReportReader")

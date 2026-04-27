@@ -19,7 +19,9 @@ from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
-from cartography.intel.common.report_source import build_report_reader_for_source
+from cartography.intel.common.report_reader_builder import (
+    build_report_reader_for_source,
+)
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir

@@ -46,6 +46,14 @@ def test_config_legacy_local_source_shim_emits_warning(caplog) -> None:
     assert "DEPRECATED: `syft_results_dir`" in caplog.text
 
 
+def test_config_rejects_empty_legacy_local_source() -> None:
+    with pytest.raises(ValueError, match="Report source cannot be empty"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            syft_results_dir="",
+        )
+
+
 def test_config_rejects_source_with_legacy_s3_fields() -> None:
     with pytest.raises(ValueError, match="Cannot use `trivy_source`"):
         Config(

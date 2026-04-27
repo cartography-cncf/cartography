@@ -10,7 +10,6 @@ import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
-from cartography.intel.common.object_store import ReportRef
 from tests.data.aibom.aibom_sample import AIBOM_DIGEST_BASED_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
@@ -705,28 +704,22 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
 
     boto3_session = MagicMock()
     s3_client = MagicMock()
+    s3_client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/aibom-bad-encoding.json"}]},
+    ]
     s3_client.get_object.return_value = {
         "Body": MagicMock(read=MagicMock(return_value=b"\x80")),
     }
     boto3_session.client.return_value = s3_client
 
-    with patch(
-        "cartography.intel.aibom.S3BucketReader.list_reports",
-        return_value=[
-            ReportRef(
-                "s3://example-bucket/reports/aibom-bad-encoding.json",
-                "reports/aibom-bad-encoding.json",
-            ),
-        ],
-    ):
-        sync_aibom_from_s3(
-            neo4j_session,
-            "example-bucket",
-            "reports/",
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-            boto3_session,
-        )
+    sync_aibom_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        boto3_session,
+    )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
     assert (

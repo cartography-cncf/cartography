@@ -1,4 +1,5 @@
-import importlib
+from cartography.intel.common.report_source import LegacyReportSourceNames
+from cartography.intel.common.report_source import resolve_legacy_report_source
 
 
 def _resolve_report_source_compatibility_shim(
@@ -10,13 +11,12 @@ def _resolve_report_source_compatibility_shim(
     s3_prefix: str | None,
     warn_on_legacy: bool = True,
 ) -> str | None:
-    report_source = importlib.import_module("cartography.intel.common.report_source")
-    return report_source.resolve_legacy_report_source(
+    return resolve_legacy_report_source(
         source=source,
         local_path=local_path,
         s3_bucket=s3_bucket,
         s3_prefix=s3_prefix,
-        names=report_source.LegacyReportSourceNames.for_config(module),
+        names=LegacyReportSourceNames.for_config(module),
         warn_on_legacy=warn_on_legacy,
     )
 
