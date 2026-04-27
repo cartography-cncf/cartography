@@ -7,10 +7,8 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -123,64 +121,40 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class ECRImageLayerMatchLinkRelProperties(CartographyRelProperties):
+class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("diff_id")
+    diff_id: PropertyRef = PropertyRef("diff_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label",
-        set_in_kwargs=True,
-    )
-    _sub_resource_id: PropertyRef = PropertyRef(
-        "_sub_resource_id",
-        set_in_kwargs=True,
+
+
+@dataclass(frozen=True)
+class ECRImageLayerNextRelSchema(CartographyNodeSchema):
+    """Load bounded NEXT relationship rows without reloading layer metadata."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerToNextRel()],
     )
 
 
 @dataclass(frozen=True)
-class ECRImageLayerNextMatchLinkSchema(CartographyRelSchema):
-    target_node_label: str = "ECRImageLayer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("target_diff_id")}
-    )
-    source_node_label: str = "ECRImageLayer"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"diff_id": PropertyRef("source_diff_id")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "NEXT"
-    properties: ECRImageLayerMatchLinkRelProperties = (
-        ECRImageLayerMatchLinkRelProperties()
+class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
+    """Load bounded HEAD relationship rows without reloading layer metadata."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerHeadOfImageRel()],
     )
 
 
 @dataclass(frozen=True)
-class ECRImageLayerHeadMatchLinkSchema(CartographyRelSchema):
-    target_node_label: str = "ECRImageLayer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("diff_id")}
-    )
-    source_node_label: str = "ECRImage"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("image_id")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HEAD"
-    properties: ECRImageLayerMatchLinkRelProperties = (
-        ECRImageLayerMatchLinkRelProperties()
-    )
+class ECRImageLayerTailRelSchema(CartographyNodeSchema):
+    """Load bounded TAIL relationship rows without reloading layer metadata."""
 
-
-@dataclass(frozen=True)
-class ECRImageLayerTailMatchLinkSchema(CartographyRelSchema):
-    target_node_label: str = "ECRImageLayer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("diff_id")}
-    )
-    source_node_label: str = "ECRImage"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("image_id")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TAIL"
-    properties: ECRImageLayerMatchLinkRelProperties = (
-        ECRImageLayerMatchLinkRelProperties()
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerTailOfImageRel()],
     )

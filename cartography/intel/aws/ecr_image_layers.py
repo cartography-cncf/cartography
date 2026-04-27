@@ -18,20 +18,20 @@ from botocore.exceptions import ClientError
 from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
-from cartography.models.aws.ecr.image import ECRImageHasLayerMatchLinkSchema
+from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
 from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
-from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadMatchLinkSchema
-from cartography.models.aws.ecr.image_layer import ECRImageLayerNextMatchLinkSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadRelSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerNextRelSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerNodeSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
-from cartography.models.aws.ecr.image_layer import ECRImageLayerTailMatchLinkSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerTailRelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -648,11 +648,11 @@ def transform_ecr_image_layers(
     return layers, memberships
 
 
-def _build_next_relationships(image_layers: list[dict]) -> list[dict[str, str]]:
+def _build_next_relationships(image_layers: list[dict]) -> list[dict[str, Any]]:
     return [
         {
-            "source_diff_id": layer["diff_id"],
-            "target_diff_id": next_diff_id,
+            "diff_id": layer["diff_id"],
+            "next_diff_ids": [next_diff_id],
         }
         for layer in image_layers
         for next_diff_id in layer.get("next_diff_ids", [])
@@ -662,22 +662,22 @@ def _build_next_relationships(image_layers: list[dict]) -> list[dict[str, str]]:
 def _build_image_to_layer_relationships(
     image_layers: list[dict],
     image_id_field: str,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     return [
         {
-            "image_id": image_id,
             "diff_id": layer["diff_id"],
+            image_id_field: [image_id],
         }
         for layer in image_layers
         for image_id in layer.get(image_id_field, [])
     ]
 
 
-def _build_has_layer_relationships(memberships: list[dict]) -> list[dict[str, str]]:
+def _build_has_layer_relationships(memberships: list[dict]) -> list[dict[str, Any]]:
     return [
         {
-            "image_id": membership["imageDigest"],
-            "diff_id": diff_id,
+            "imageDigest": membership["imageDigest"],
+            "layer_diff_ids": [diff_id],
         }
         for membership in memberships
         for diff_id in membership.get("layer_diff_ids", [])
@@ -718,14 +718,12 @@ def load_ecr_image_layers(
         len(next_relationships),
         region,
     )
-    load_matchlinks(
+    load(
         neo4j_session,
-        ECRImageLayerNextMatchLinkSchema(),
+        ECRImageLayerNextRelSchema(),
         next_relationships,
         batch_size=ECR_LAYER_REL_BATCH_SIZE,
         lastupdated=aws_update_tag,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
     )
 
     head_relationships = _build_image_to_layer_relationships(
@@ -737,14 +735,12 @@ def load_ecr_image_layers(
         len(head_relationships),
         region,
     )
-    load_matchlinks(
+    load(
         neo4j_session,
-        ECRImageLayerHeadMatchLinkSchema(),
+        ECRImageLayerHeadRelSchema(),
         head_relationships,
         batch_size=ECR_LAYER_REL_BATCH_SIZE,
         lastupdated=aws_update_tag,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
     )
 
     tail_relationships = _build_image_to_layer_relationships(
@@ -756,14 +752,12 @@ def load_ecr_image_layers(
         len(tail_relationships),
         region,
     )
-    load_matchlinks(
+    load(
         neo4j_session,
-        ECRImageLayerTailMatchLinkSchema(),
+        ECRImageLayerTailRelSchema(),
         tail_relationships,
         batch_size=ECR_LAYER_REL_BATCH_SIZE,
         lastupdated=aws_update_tag,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
     )
 
 
@@ -798,14 +792,12 @@ def load_ecr_image_layer_memberships(
         len(has_layer_relationships),
         region,
     )
-    load_matchlinks(
+    load(
         neo4j_session,
-        ECRImageHasLayerMatchLinkSchema(),
+        ECRImageHasLayerRelSchema(),
         has_layer_relationships,
         batch_size=ECR_LAYER_REL_BATCH_SIZE,
         lastupdated=aws_update_tag,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
     )
 
 
@@ -1168,27 +1160,32 @@ async def fetch_image_layers_async(
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     logger.debug("Running image layer cleanup job.")
-    # Use the legacy fan-out schema for cleanup so pre-existing NEXT/HEAD/TAIL
-    # relationships created before matchlink loading are swept by update tag.
     GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
-    update_tag = common_job_parameters["UPDATE_TAG"]
-    aws_account_id = common_job_parameters["AWS_ID"]
-    matchlink_cleanup_jobs = [
-        ECRImageLayerNextMatchLinkSchema(),
-        ECRImageLayerHeadMatchLinkSchema(),
-        ECRImageLayerTailMatchLinkSchema(),
-        ECRImageHasLayerMatchLinkSchema(),
-    ]
-    for rel_schema in matchlink_cleanup_jobs:
-        GraphJob.from_matchlink(
-            rel_schema,
-            "AWSAccount",
-            aws_account_id,
-            update_tag,
-            iterationsize=ECR_LAYER_REL_BATCH_SIZE,
-        ).run(neo4j_session)
+    _cleanup_has_layer_relationships(neo4j_session, common_job_parameters)
+
+
+def _cleanup_has_layer_relationships(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    statement = GraphStatement(
+        """
+        MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:ECRImage)
+            -[r:HAS_LAYER]->(:ECRImageLayer)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r
+        RETURN count(*) AS TotalCompleted
+        """,
+        common_job_parameters,
+        iterative=True,
+        iterationsize=ECR_LAYER_REL_BATCH_SIZE,
+        parent_job_name="HAS_LAYER",
+        parent_job_sequence_num=1,
+    )
+    statement.run(neo4j_session)
 
 
 @timeit
