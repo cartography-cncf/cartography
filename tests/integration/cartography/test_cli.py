@@ -1,5 +1,6 @@
 import logging
 import unittest.mock
+from typing import get_args
 
 import typer
 
@@ -62,23 +63,40 @@ def test_cli_short_help_flag(capsys):
     sync.run.assert_not_called()
 
 
-def test_cli_help_hides_deprecated_report_source_flags(capsys, monkeypatch):
-    monkeypatch.setenv("COLUMNS", "120")
+def test_cli_help_hides_deprecated_report_source_flags(capsys):
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
+    app = cli._build_app(cartography.cli._parse_selected_modules_from_argv(["--help"]))
+    annotations = app.registered_commands[0].callback.__annotations__
+
+    for field in (
+        "trivy_source",
+        "syft_source",
+        "aibom_source",
+        "docker_scout_source",
+    ):
+        assert get_args(annotations[field])[1].hidden is False
+
+    for field in (
+        "trivy_results_dir",
+        "trivy_s3_bucket",
+        "trivy_s3_prefix",
+        "syft_results_dir",
+        "syft_s3_bucket",
+        "syft_s3_prefix",
+        "aibom_results_dir",
+        "aibom_s3_bucket",
+        "aibom_s3_prefix",
+        "docker_scout_results_dir",
+        "docker_scout_s3_bucket",
+        "docker_scout_s3_prefix",
+    ):
+        assert get_args(annotations[field])[1].hidden is True
 
     exit_code = cli.main(["--help"])
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    for flag in (
-        "--trivy-source",
-        "--syft-source",
-        "--aibom-source",
-        "--docker-scout-source",
-    ):
-        assert flag in captured.out
-
     for flag in (
         "--trivy-results-dir",
         "--trivy-s3-bucket",
