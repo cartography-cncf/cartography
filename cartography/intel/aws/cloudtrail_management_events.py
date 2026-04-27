@@ -104,7 +104,9 @@ def get_assume_role_events(
 
     all_events = _collect_lookup_events(page_iterator)
 
-    logger.debug(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
+    logger.debug(
+        f"Retrieved {len(all_events)} AssumeRole events from region '{region}'"
+    )
 
     return all_events
 

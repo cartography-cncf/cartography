@@ -93,7 +93,9 @@ def get_all_container_repository_tags(
             tag["_repository_location"] = repository_location
         all_tags.extend(tags)
 
-    logger.debug(f"Fetched {len(all_tags)} tags across {len(repositories)} repositories")
+    logger.debug(
+        f"Fetched {len(all_tags)} tags across {len(repositories)} repositories"
+    )
     return all_tags
 
 

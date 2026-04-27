@@ -96,7 +96,9 @@ def transform_entities_to_run_map(
     This function processes entities to extract EC2 instance IDs and maps them to
     the runs that created or updated them.
     """
-    logger.debug(f"Transforming {len(entities_data)} entities into run-to-instances map")
+    logger.debug(
+        f"Transforming {len(entities_data)} entities into run-to-instances map"
+    )
 
     run_to_instances: dict[str, list[dict[str, str]]] = {}
 
