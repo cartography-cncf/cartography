@@ -116,24 +116,6 @@ class TestTransformArtifacts:
         # a has no deps (image-root is not an artifact)
         assert pkg_by_id["npm|pkg-a|1.0.0"]["dependency_ids"] == []
 
-    def test_extract_image_digests_from_legacy_source_target(self):
-        data = {
-            "source": {
-                "type": "image",
-                "target": {
-                    "digest": "sha256:target",
-                    "manifestDigest": "sha256:manifest",
-                    "repoDigests": ["repo.example/app@sha256:repo"],
-                },
-            },
-        }
-
-        assert _extract_image_digests(data) == [
-            "sha256:target",
-            "sha256:manifest",
-            "sha256:repo",
-        ]
-
     def test_extract_image_digests_from_current_source_metadata(self):
         data = {
             "source": {
@@ -153,25 +135,24 @@ class TestTransformArtifacts:
             "sha256:index",
         ]
 
-    def test_extract_image_digests_deduplicates_and_ignores_source_version(self):
+    def test_extract_image_digests_deduplicates_and_ignores_non_metadata_fields(self):
         data = {
             "source": {
                 "type": "image",
                 "version": "sha256:not-image-metadata",
                 "target": {
-                    "digest": "sha256:target",
-                    "manifestDigest": "sha256:target",
-                    "repoDigests": ["repo.example/app@sha256:repo"],
+                    "digest": "sha256:ignored-target",
+                    "manifestDigest": "sha256:ignored-manifest",
+                    "repoDigests": ["repo.example/app@sha256:ignored-repo"],
                 },
                 "metadata": {
                     "manifestDigest": "sha256:metadata",
-                    "repoDigests": ["repo.example/app@sha256:target"],
+                    "repoDigests": ["repo.example/app@sha256:repo"],
                 },
             },
         }
 
         assert _extract_image_digests(data) == [
-            "sha256:target",
-            "sha256:repo",
             "sha256:metadata",
+            "sha256:repo",
         ]

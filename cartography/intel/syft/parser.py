@@ -73,19 +73,13 @@ def _append_repo_digests(digests: list[str], repo_digests: Any) -> None:
 
 def _extract_image_digests(data: dict[str, Any]) -> list[str]:
     """
-    Extract image digest candidates from legacy and current Syft source shapes.
+    Extract image digest candidates from Syft's current source metadata shape.
     """
     source = data.get("source", {})
     if not isinstance(source, dict) or source.get("type") != "image":
         return []
 
     digests: list[str] = []
-
-    target = source.get("target", {})
-    if isinstance(target, dict):
-        _append_digest(digests, target.get("digest"))
-        _append_digest(digests, target.get("manifestDigest"))
-        _append_repo_digests(digests, target.get("repoDigests"))
 
     metadata = source.get("metadata", {})
     if isinstance(metadata, dict):

@@ -53,7 +53,7 @@ SYFT_TRIVY_OVERLAP_SAMPLE = {
     ],
     "source": {
         "type": "image",
-        "target": {"digest": TEST_IMAGE_DIGEST},
+        "metadata": {"manifestDigest": TEST_IMAGE_DIGEST},
     },
 }
 
