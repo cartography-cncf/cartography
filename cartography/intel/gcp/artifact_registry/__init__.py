@@ -87,7 +87,7 @@ def sync(
         )
 
     # Enrich images with build provenance and layer data from OCI configs
-    if artifact_result.cleanup_safe and artifact_result.docker_images_raw:
+    if artifact_result.docker_images_raw:
         sync_supply_chain(
             neo4j_session,
             credentials,
@@ -95,4 +95,5 @@ def sync(
             project_id,
             update_tag,
             common_job_parameters,
+            cleanup_safe=artifact_result.cleanup_safe,
         )

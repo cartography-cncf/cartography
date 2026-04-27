@@ -97,7 +97,11 @@ async def _fetch_image_config(
     if not manifest:
         return None, None
 
-    config_descriptor = manifest.get("config", {})
+    # Skip attestation manifests (they reference a subject image, not a runnable config)
+    if manifest.get("subject"):
+        return None, None
+
+    config_descriptor = manifest.get("config") or {}
     config_digest = config_descriptor.get("digest")
     config_media_type = config_descriptor.get("mediaType", "")
 
@@ -126,7 +130,7 @@ async def _fetch_attestation_provenance(
     if not index:
         return {}
 
-    for ref_manifest in index.get("manifests", []):
+    for ref_manifest in index.get("manifests") or []:
         artifact_type = ref_manifest.get("artifactType", "")
         if (
             "provenance" not in artifact_type.lower()
@@ -143,7 +147,7 @@ async def _fetch_attestation_provenance(
         if not att_manifest:
             continue
 
-        for layer in att_manifest.get("layers", []):
+        for layer in att_manifest.get("layers") or []:
             layer_mt = layer.get("mediaType", "").lower()
             if "in-toto" not in layer_mt and "provenance" not in layer_mt:
                 continue
@@ -324,6 +328,7 @@ def sync(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    cleanup_safe: bool = True,
 ) -> None:
     """
     Enrich GCP Artifact Registry container images with build provenance and layer data.
@@ -381,13 +386,19 @@ def sync(
             PROJECT_ID=project_id,
         )
 
-    # Cleanup stale layers
-    cleanup_params = common_job_parameters.copy()
-    cleanup_params["PROJECT_ID"] = project_id
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryImageLayerSchema(),
-        cleanup_params,
-    ).run(neo4j_session)
+    # Cleanup stale layers only when artifact discovery was complete
+    if cleanup_safe:
+        cleanup_params = common_job_parameters.copy()
+        cleanup_params["PROJECT_ID"] = project_id
+        GraphJob.from_node_schema(
+            GCPArtifactRegistryImageLayerSchema(),
+            cleanup_params,
+        ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping image layer cleanup for project %s because artifact discovery was incomplete.",
+            project_id,
+        )
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
