@@ -215,6 +215,8 @@ def build_principals_from_policy_bindings(
                 ),
             }
 
+        # Share the compiled assignment across members of the same binding. Treat
+        # it as read-only during relationship evaluation.
         for principal_email in binding["members"]:
             principals.setdefault(principal_email, {})[binding_id] = (
                 compiled_assignments[binding_id]

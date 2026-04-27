@@ -216,11 +216,13 @@ def transform_project_roles(
 def build_role_permissions_by_name(
     roles: list[dict[str, Any]],
 ) -> dict[str, list[str]]:
-    return {
-        role["name"]: role.get("includedPermissions", [])
-        for role in roles
-        if role.get("name")
-    }
+    role_permissions_by_name: dict[str, list[str]] = {}
+    for role in roles:
+        name = role.get("name")
+        permissions = role.get("includedPermissions")
+        if name and permissions:
+            role_permissions_by_name[name] = permissions
+    return role_permissions_by_name
 
 
 @timeit

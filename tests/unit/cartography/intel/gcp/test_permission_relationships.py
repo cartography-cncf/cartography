@@ -143,12 +143,28 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
         },
     ]
     with caplog.at_level(logging.DEBUG):
-        permission_relationships.build_principals_from_policy_bindings(
+        principals = permission_relationships.build_principals_from_policy_bindings(
             policy_bindings,
             {"roles/storage.objectViewer": ["storage.objects.get"]},
             TEST_PROJECT_ID,
         )
 
+    assert _normalize_principals(principals) == {
+        "alice@example.com": {
+            "binding-1": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/.*",
+            },
+        },
+        "bob@example.com": {
+            "binding-2": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/resource/bucket-2",
+            },
+        },
+    }
     assert any(
         "usable_bindings=2" in record.message
         and "member_assignments=2" in record.message
