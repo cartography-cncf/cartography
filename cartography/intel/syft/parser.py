@@ -74,6 +74,8 @@ def _append_repo_digests(digests: list[str], repo_digests: Any) -> None:
 def _extract_image_digests(data: dict[str, Any]) -> list[str]:
     """
     Extract image digest candidates from Syft's current source metadata shape.
+
+    The order is deterministic: manifestDigest first, then repoDigests.
     """
     source = data.get("source", {})
     if not isinstance(source, dict) or source.get("type") != "image":
@@ -134,6 +136,12 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         dep_map.setdefault(child_id, []).append(parent_norm_id)
 
     image_digests = _extract_image_digests(data)
+    source = data.get("source", {})
+    if isinstance(source, dict) and source.get("type") == "image" and not image_digests:
+        logger.warning(
+            "Syft image source did not include image digest candidates; "
+            "SyftPackage DEPLOYED relationships to Image nodes will be skipped.",
+        )
 
     packages: list[dict[str, Any]] = []
     for artifact_id, artifact in artifacts.items():

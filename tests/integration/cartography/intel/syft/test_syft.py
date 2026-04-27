@@ -75,6 +75,17 @@ SYFT_CURRENT_REPO_DIGEST_SOURCE_SAMPLE = {
     },
 }
 
+SYFT_NO_DIGEST_SOURCE_SAMPLE = {
+    **SYFT_SAMPLE,
+    "source": {
+        "id": "sha256:source",
+        "name": "alpine",
+        "version": "3.19",
+        "type": "image",
+        "metadata": {},
+    },
+}
+
 
 def _sync_ecr_repository_images(
     neo4j_session,
@@ -313,6 +324,34 @@ def test_sync_single_syft_creates_deployed_from_repo_digest_candidate(
 
     expected_rels = {(pkg_id, "sha256:platform") for pkg_id in EXPECTED_SYFT_PACKAGES}
     assert actual_rels == expected_rels
+
+
+def test_sync_single_syft_skips_deployed_without_image_digest_candidates(
+    neo4j_session,
+):
+    """
+    Test malformed Syft image metadata does not create package-to-image links.
+    """
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+    _sync_single_platform_image(neo4j_session, "sha256:platform")
+
+    sync_single_syft(
+        neo4j_session,
+        SYFT_NO_DIGEST_SOURCE_SAMPLE,
+        TEST_UPDATE_TAG,
+    )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "Image",
+        "_ont_digest",
+        "DEPLOYED",
+        rel_direction_right=True,
+    )
+
+    assert actual_rels == set()
 
 
 @patch(

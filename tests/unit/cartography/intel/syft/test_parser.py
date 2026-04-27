@@ -135,7 +135,7 @@ class TestTransformArtifacts:
             "sha256:index",
         ]
 
-    def test_extract_image_digests_deduplicates_and_ignores_non_metadata_fields(self):
+    def test_extract_image_digests_ignores_source_version_and_target(self):
         data = {
             "source": {
                 "type": "image",
@@ -156,3 +156,38 @@ class TestTransformArtifacts:
             "sha256:metadata",
             "sha256:repo",
         ]
+
+    def test_extract_image_digests_returns_empty_without_metadata_digests(self):
+        data = {
+            "source": {
+                "type": "image",
+                "metadata": {
+                    "manifestDigest": "not-a-digest",
+                    "repoDigests": ["alpine:3.19", "alpine@not-a-digest"],
+                },
+            },
+        }
+
+        assert _extract_image_digests(data) == []
+
+    def test_transform_artifacts_warns_when_image_source_has_no_digest_candidates(
+        self,
+        caplog,
+    ):
+        data = {
+            "artifacts": [
+                {"id": "a", "name": "pkg-a", "version": "1.0.0", "type": "npm"},
+            ],
+            "artifactRelationships": [],
+            "source": {
+                "type": "image",
+                "metadata": {},
+            },
+        }
+
+        packages = transform_artifacts(data)
+
+        assert packages[0]["ImageDigestCandidates"] == []
+        assert (
+            "Syft image source did not include image digest candidates" in caplog.text
+        )
