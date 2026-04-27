@@ -927,7 +927,7 @@ def load_matchlinks(
         f"relationship.{src_label}.{rel_schema.rel_label.lower()}.{tgt_label}.loaded",
         rels_created,
     )
-    if rels_created != attempted:
+    if rels_created < attempted:
         logger.warning(
             "Created %d/%d (%s)-[%s]->(%s) relationships; %d row(s) had no matching source/target node.",
             rels_created,
@@ -938,10 +938,14 @@ def load_matchlinks(
             attempted - rels_created,
         )
     else:
+        # rels_created may exceed attempted when a single input row matches
+        # multiple source or target nodes (e.g. one-to-many matchers, or
+        # non-unique match properties), causing a fan-out.
         logger.info(
-            "Created %d (%s)-[%s]->(%s) relationships",
+            "Created %d (%s)-[%s]->(%s) relationships from %d input row(s)",
             rels_created,
             rel_schema.source_node_label,
             rel_schema.rel_label,
             rel_schema.target_node_label,
+            attempted,
         )

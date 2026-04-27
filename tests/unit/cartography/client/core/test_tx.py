@@ -786,11 +786,12 @@ def test_load_matchlinks_emits_metrics_and_logs(
 
     # Verify info log was emitted (no warning since attempted == created)
     mock_logger.info.assert_called_once_with(
-        "Created %d (%s)-[%s]->(%s) relationships",
+        "Created %d (%s)-[%s]->(%s) relationships from %d input row(s)",
         2,
         "EC2Instance",
         "CONNECTED_TO",
         "AWSVpc",
+        2,
     )
     mock_logger.warning.assert_not_called()
 
@@ -850,6 +851,59 @@ def test_load_matchlinks_warns_when_some_rows_did_not_match(
         2,
     )
     mock_logger.info.assert_not_called()
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+@patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
+@patch("cartography.client.core.tx.build_matchlink_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_matchlinks_handles_fan_out_without_warning(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_execute_write_with_retry,
+):
+    """When a row matches multiple source/target nodes, rels_created can exceed
+    the number of attempted input rows. That is not an error, so no warning."""
+    from cartography.client.core.tx import load_matchlinks
+
+    mock_session = MagicMock()
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.rel_label = "CONNECTED_TO"
+    mock_rel_schema.source_node_label = "EC2Instance"
+    mock_rel_schema.target_node_label = "AWSVpc"
+    mock_build_query.return_value = "UNWIND ..."
+    # 2 rows fan out into 5 relationships (e.g. one-to-many target match)
+    mock_execute_write_with_retry.return_value = 5
+
+    test_data = [
+        {"source_id": "1", "target_ids": ["a", "b", "c"]},
+        {"source_id": "2", "target_ids": ["d", "e"]},
+    ]
+
+    load_matchlinks(
+        mock_session,
+        mock_rel_schema,
+        test_data,
+        lastupdated=12345,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id="123456",
+    )
+
+    mock_stat_handler.incr.assert_called_once_with(
+        "relationship.ec2instance.connected_to.awsvpc.loaded", 5
+    )
+    mock_logger.info.assert_called_once_with(
+        "Created %d (%s)-[%s]->(%s) relationships from %d input row(s)",
+        5,
+        "EC2Instance",
+        "CONNECTED_TO",
+        "AWSVpc",
+        2,
+    )
+    mock_logger.warning.assert_not_called()
 
 
 @patch("cartography.client.core.tx.execute_write_with_retry")
