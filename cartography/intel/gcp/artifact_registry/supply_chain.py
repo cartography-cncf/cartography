@@ -60,33 +60,56 @@ async def _fetch_json(
         return None
 
 
+async def _fetch_manifest_with_digest(
+    http_client: httpx.AsyncClient,
+    url: str,
+    auth_token: str,
+    accept: str,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Fetch a manifest and return (manifest_json, subject_digest)."""
+    headers = {"Authorization": f"Bearer {auth_token}", "Accept": accept}
+    try:
+        resp = await http_client.get(url, headers=headers, timeout=30.0)
+        resp.raise_for_status()
+        digest = resp.headers.get("Docker-Content-Digest")
+        return resp.json(), digest
+    except (httpx.HTTPError, json.JSONDecodeError) as e:
+        logger.debug("Failed to fetch %s: %s", url, e)
+        return None, None
+
+
 async def _fetch_image_config(
     http_client: httpx.AsyncClient,
     auth_token: str,
     registry: str,
     image_path: str,
     reference: str,
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Fetch OCI image config and return (config, manifest_digest)."""
     manifest_url = build_manifest_url(registry, image_path, reference)
-    manifest = await _fetch_json(
-        http_client, manifest_url, auth_token, ALL_MANIFEST_ACCEPT
+    manifest, manifest_digest = await _fetch_manifest_with_digest(
+        http_client,
+        manifest_url,
+        auth_token,
+        ALL_MANIFEST_ACCEPT,
     )
     if not manifest:
-        return None
+        return None, None
 
     config_descriptor = manifest.get("config", {})
     config_digest = config_descriptor.get("digest")
     config_media_type = config_descriptor.get("mediaType", "")
 
     if not config_digest:
-        return None
+        return None, None
     if any(
         frag in config_media_type.lower() for frag in ATTESTATION_MEDIA_TYPE_FRAGMENTS
     ):
-        return None
+        return None, None
 
     blob_url = build_blob_url(registry, image_path, config_digest)
-    return await _fetch_json(http_client, blob_url, auth_token)
+    config = await _fetch_json(http_client, blob_url, auth_token)
+    return config, manifest_digest
 
 
 async def _fetch_attestation_provenance(
@@ -157,7 +180,7 @@ async def _process_single_image(
 
     registry, image_path, reference = parsed
 
-    config = await _fetch_image_config(
+    config, manifest_digest = await _fetch_image_config(
         http_client, auth_token, registry, image_path, reference
     )
     if not config:
@@ -165,17 +188,19 @@ async def _process_single_image(
 
     provenance = extract_provenance_from_oci_config(config)
 
-    # OCI labels are fast but not always present; fall back to the Referrers API
+    # OCI labels are fast but not always present; fall back to the Referrers API.
+    # The Referrers endpoint requires a digest, not a tag.
     if not provenance.get("source_uri"):
-        digest = uri.split("@")[-1] if "@" in uri else reference
-        slsa_provenance = await _fetch_attestation_provenance(
-            http_client,
-            auth_token,
-            registry,
-            image_path,
-            digest,
-        )
-        provenance.update(slsa_provenance)
+        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+        if subject_digest and subject_digest.startswith("sha256:"):
+            slsa_provenance = await _fetch_attestation_provenance(
+                http_client,
+                auth_token,
+                registry,
+                image_path,
+                subject_digest,
+            )
+            provenance.update(slsa_provenance)
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
 
@@ -257,29 +282,33 @@ async def _fetch_all_image_provenance(
 def _build_layer_dicts(
     enrichments: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Deduplicate and build ImageLayer node dicts from enrichment results."""
+    """Deduplicate and build ImageLayer node dicts from enrichment results.
+
+    Creates a node for every diff_id. History commands are matched to
+    diff_ids by skipping empty-layer entries (which have no diff_id),
+    but layers are still created even when history is absent or truncated.
+    """
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
 
     for enrichment in enrichments:
         diff_ids = enrichment.get("layer_diff_ids", [])
         history_entries = enrichment.get("layer_history", [])
 
+        # Map diff_id index → history command by skipping empty layers
+        history_by_idx: dict[int, str] = {}
         non_empty_idx = 0
         for entry in history_entries:
-            is_empty = entry.get("empty_layer", False)
-            if is_empty:
+            if entry.get("empty_layer", False):
                 continue
-            if non_empty_idx >= len(diff_ids):
-                break
-
-            diff_id = diff_ids[non_empty_idx]
+            history_by_idx[non_empty_idx] = entry.get("created_by", "")
             non_empty_idx += 1
 
+        for idx, diff_id in enumerate(diff_ids):
             if diff_id not in layers_by_diff_id:
                 layers_by_diff_id[diff_id] = {
                     "diff_id": diff_id,
                     "is_empty": False,
-                    "history": entry.get("created_by", ""),
+                    "history": history_by_idx.get(idx),
                 }
 
     return list(layers_by_diff_id.values())
