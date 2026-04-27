@@ -1,3 +1,11 @@
+import tests.data.aws.ecr
+
+# Digest-based URI pointing at the single-platform ECR image created by _seed_single_platform_graph
+TEST_DIGEST_BASED_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository"
+    f"@{tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST}"
+)
+
 TEST_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
 )
@@ -231,6 +239,81 @@ AIBOM_REPORT = {
                                 "line_number": 299,
                                 "category": "other",
                                 "instance_id": "json_loads_299",
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
+AIBOM_DIGEST_BASED_REPORT = {
+    "image_uri": TEST_DIGEST_BASED_IMAGE_URI,
+    "scan_scope": "/srv/app",
+    "scanner": {
+        "name": "cisco-aibom",
+        "version": "0.4.0",
+    },
+    "report": {
+        "aibom_analysis": {
+            "metadata": {
+                "analyzer_version": "0.4.0",
+                "status": "completed",
+            },
+            "summary": {
+                "total_sources": 1,
+                "status": "completed",
+                "categories": {
+                    "agent": 1,
+                    "model": 1,
+                },
+            },
+            "sources": {
+                TEST_DIGEST_BASED_IMAGE_URI: {
+                    "summary": {
+                        "status": "completed",
+                        "source_kind": "container_image",
+                    },
+                    "workflows": [],
+                    "relationships": [
+                        {
+                            "relationship_type": "USES_LLM",
+                            "source": {
+                                "instance_id": "ont_agent_main",
+                                "name": "pydantic_ai.Agent",
+                                "category": "agent",
+                            },
+                            "target": {
+                                "instance_id": "ont_model_primary",
+                                "name": "openai:gpt-4.1-mini",
+                                "category": "model",
+                            },
+                        },
+                    ],
+                    "components": {
+                        "agent": [
+                            {
+                                "name": "pydantic_ai.Agent",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 34,
+                                "category": "agent",
+                                "instance_id": "ont_agent_main",
+                                "assigned_target": "assistant",
+                                "framework": "pydantic_ai",
+                                "label": "customer_assistant",
+                            },
+                        ],
+                        "model": [
+                            {
+                                "name": "openai:gpt-4.1-mini",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 35,
+                                "category": "model",
+                                "instance_id": "ont_model_primary",
+                                "model_name": "gpt-4.1-mini",
+                                "framework": "openai",
+                                "label": "primary_llm",
                             },
                         ],
                     },
