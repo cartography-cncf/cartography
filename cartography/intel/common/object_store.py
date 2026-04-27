@@ -52,8 +52,11 @@ class LocalReportReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
-        with open(ref.uri, "rb") as file_pointer:
-            return file_pointer.read()
+        try:
+            with open(ref.uri, "rb") as file_pointer:
+                return file_pointer.read()
+        except OSError as exc:
+            raise ObjectStoreParseError(ref.uri, "Failed to read local report") from exc
 
 
 class ListedReportReader:

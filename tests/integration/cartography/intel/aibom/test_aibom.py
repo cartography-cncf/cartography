@@ -696,6 +696,30 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
     )
 
 
+@patch("builtins.open", side_effect=FileNotFoundError("gone"))
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-deleted.json"},
+)
+def test_sync_aibom_skips_local_read_errors(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+    caplog,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
+    assert "Skipping unreadable AIBOM report /tmp/aibom-deleted.json" in caplog.text
+
+
 def test_sync_aibom_skips_s3_unicode_decode_errors(
     neo4j_session,
     caplog,

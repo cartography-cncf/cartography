@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from cartography.intel.common.object_store import ReportRef
+from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -504,3 +505,33 @@ def test_sync_trivy_from_s3_digest_files(
     mock_sync_single_image.assert_called_once()
     normalized_payload = mock_sync_single_image.call_args[0][1]
     assert normalized_payload["ArtifactName"] == digest_uri
+
+
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_sync_trivy_from_report_reader_skips_cleanup_after_parse_failure(
+    mock_get_targets_and_aliases,
+    mock_cleanup,
+):
+    mock_get_targets_and_aliases.return_value = (
+        {"123456789012.dkr.ecr.us-west-2.amazonaws.com/app:latest"},
+        {},
+    )
+    reader = MagicMock()
+    reader.source_uri = "s3://example-bucket/reports/trivy/"
+    reader.list_reports.return_value = [
+        ReportRef(
+            "s3://example-bucket/reports/trivy/app.json",
+            "reports/trivy/app.json",
+        ),
+    ]
+    reader.read_bytes.return_value = b"{not-json"
+
+    sync_trivy_from_report_reader(
+        neo4j_session=MagicMock(),
+        reader=reader,
+        update_tag=123,
+        common_job_parameters={},
+    )
+
+    mock_cleanup.assert_not_called()

@@ -41,6 +41,15 @@ def test_local_report_reader_lists_files_and_reads_bytes(tmp_path) -> None:
     assert reader.read_bytes(refs[0]) == b"hello"
 
 
+def test_local_report_reader_wraps_read_errors(tmp_path) -> None:
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    ref = ReportRef(uri=str(reports / "deleted.json"), name="deleted.json")
+
+    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+        LocalReportReader(str(reports)).read_bytes(ref)
+
+
 def test_s3_bucket_reader_lists_objects_and_skips_pseudo_directories() -> None:
     session = MagicMock()
     session.client.return_value.get_paginator.return_value.paginate.return_value = [

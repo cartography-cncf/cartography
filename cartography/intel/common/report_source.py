@@ -238,6 +238,7 @@ def resolve_legacy_report_source(
     s3_bucket: str | None,
     s3_prefix: str | None,
     names: LegacyReportSourceNames,
+    warn_on_legacy: bool = True,
 ) -> str | None:
     if source is not None and (local_path or s3_bucket or s3_prefix):
         raise ValueError(
@@ -257,23 +258,25 @@ def resolve_legacy_report_source(
         return source
 
     if local_path:
-        logger.warning(
-            "DEPRECATED: %s will be removed in Cartography %s; use %s instead.",
-            names.local,
-            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
-            names.source,
-        )
+        if warn_on_legacy:
+            logger.warning(
+                "DEPRECATED: %s will be removed in Cartography %s; use %s instead.",
+                names.local,
+                _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+                names.source,
+            )
         parse_report_source(local_path)
         return local_path
 
     if s3_bucket:
-        logger.warning(
-            "DEPRECATED: %s/%s will be removed in Cartography %s; use %s instead.",
-            names.s3_bucket,
-            names.s3_prefix,
-            _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
-            names.source,
-        )
+        if warn_on_legacy:
+            logger.warning(
+                "DEPRECATED: %s/%s will be removed in Cartography %s; use %s instead.",
+                names.s3_bucket,
+                names.s3_prefix,
+                _DEPRECATED_REPORT_SOURCE_REMOVAL_VERSION,
+                names.source,
+            )
         resolved_source = build_s3_source(s3_bucket, s3_prefix)
         parse_report_source(resolved_source)
         return resolved_source

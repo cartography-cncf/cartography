@@ -5,6 +5,7 @@ def _resolve_report_source_compatibility_shim(
     local_path: str | None,
     s3_bucket: str | None,
     s3_prefix: str | None,
+    warn_on_legacy: bool = True,
 ) -> str | None:
     from cartography.intel.common.report_source import LegacyReportSourceNames
     from cartography.intel.common.report_source import resolve_legacy_report_source
@@ -15,6 +16,7 @@ def _resolve_report_source_compatibility_shim(
         s3_bucket=s3_bucket,
         s3_prefix=s3_prefix,
         names=LegacyReportSourceNames.for_config(module),
+        warn_on_legacy=warn_on_legacy,
     )
 
 
@@ -486,6 +488,7 @@ class Config:
         neo4j_max_transaction_retry_time=None,
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
+        _warn_on_legacy_report_source=True,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -602,6 +605,7 @@ class Config:
             local_path=docker_scout_results_dir,
             s3_bucket=docker_scout_s3_bucket,
             s3_prefix=docker_scout_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
         )
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
@@ -612,6 +616,7 @@ class Config:
             local_path=trivy_results_dir,
             s3_bucket=trivy_s3_bucket,
             s3_prefix=trivy_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
         )
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
@@ -645,6 +650,7 @@ class Config:
             local_path=syft_results_dir,
             s3_bucket=syft_s3_bucket,
             s3_prefix=syft_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
         )
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
@@ -660,6 +666,7 @@ class Config:
             local_path=aibom_results_dir,
             s3_bucket=aibom_s3_bucket,
             s3_prefix=aibom_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
         )
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket

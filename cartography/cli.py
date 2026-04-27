@@ -2301,28 +2301,28 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
-            docker_scout_source = _resolve_report_source_option(
+            resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
                 local_path=docker_scout_results_dir,
                 s3_bucket=docker_scout_s3_bucket,
                 s3_prefix=docker_scout_s3_prefix,
             )
-            trivy_source = _resolve_report_source_option(
+            resolved_trivy_source = _resolve_report_source_option(
                 module="trivy",
                 source=trivy_source,
                 local_path=trivy_results_dir,
                 s3_bucket=trivy_s3_bucket,
                 s3_prefix=trivy_s3_prefix,
             )
-            syft_source = _resolve_report_source_option(
+            resolved_syft_source = _resolve_report_source_option(
                 module="syft",
                 source=syft_source,
                 local_path=syft_results_dir,
                 s3_bucket=syft_s3_bucket,
                 s3_prefix=syft_s3_prefix,
             )
-            aibom_source = _resolve_report_source_option(
+            resolved_aibom_source = _resolve_report_source_option(
                 module="aibom",
                 source=aibom_source,
                 local_path=aibom_results_dir,
@@ -2330,14 +2330,14 @@ class CLI:
                 s3_prefix=aibom_s3_prefix,
             )
 
-            if docker_scout_source:
-                logger.debug("Docker Scout source: %s", docker_scout_source)
-            if trivy_source:
-                logger.debug("Trivy source: %s", trivy_source)
-            if syft_source:
-                logger.debug("Syft source: %s", syft_source)
-            if aibom_source:
-                logger.debug("AIBOM source: %s", aibom_source)
+            if resolved_docker_scout_source:
+                logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
+            if resolved_trivy_source:
+                logger.debug("Trivy source: %s", resolved_trivy_source)
+            if resolved_syft_source:
+                logger.debug("Syft source: %s", resolved_syft_source)
+            if resolved_aibom_source:
+                logger.debug("AIBOM source: %s", resolved_aibom_source)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -2550,9 +2550,21 @@ class CLI:
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
                 docker_scout_source=docker_scout_source,
+                docker_scout_results_dir=docker_scout_results_dir,
+                docker_scout_s3_bucket=docker_scout_s3_bucket,
+                docker_scout_s3_prefix=docker_scout_s3_prefix,
                 trivy_source=trivy_source,
+                trivy_results_dir=trivy_results_dir,
+                trivy_s3_bucket=trivy_s3_bucket,
+                trivy_s3_prefix=trivy_s3_prefix,
                 syft_source=syft_source,
+                syft_results_dir=syft_results_dir,
+                syft_s3_bucket=syft_s3_bucket,
+                syft_s3_prefix=syft_s3_prefix,
                 aibom_source=aibom_source,
+                aibom_results_dir=aibom_results_dir,
+                aibom_s3_bucket=aibom_s3_bucket,
+                aibom_s3_prefix=aibom_s3_prefix,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
@@ -2580,6 +2592,7 @@ class CLI:
                 workos_client_id=workos_client_id,
                 ubuntu_security_enabled=ubuntu_security_enabled,
                 ubuntu_security_api_url=ubuntu_security_api_url,
+                _warn_on_legacy_report_source=False,
             )
 
             # Run the sync

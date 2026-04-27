@@ -252,6 +252,7 @@ def sync_trivy_from_report_reader(
         raise ValueError("No json scan results found in report source.")
 
     logger.info("Processing %d Trivy result files from report source", len(json_files))
+    failed_report_count = 0
     for ref in json_files:
         logger.debug(
             "Reading scan results from report source: %s",
@@ -261,6 +262,7 @@ def sync_trivy_from_report_reader(
             trivy_data = read_json_report(reader, ref)
         except ObjectStoreParseError as exc:
             logger.error("Failed to read Trivy data from %s: %s", ref.uri, exc)
+            failed_report_count += 1
             continue
 
         prepared = _prepare_trivy_data(
@@ -279,6 +281,13 @@ def sync_trivy_from_report_reader(
             display_uri,
             update_tag,
         )
+
+    if failed_report_count:
+        logger.warning(
+            "Skipping Trivy cleanup because %d report(s) failed to read or parse.",
+            failed_report_count,
+        )
+        return
 
     cleanup(neo4j_session, common_job_parameters)
 
