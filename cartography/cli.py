@@ -1401,7 +1401,7 @@ class CLI:
                     "--docker-scout-results-dir",
                     help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v1.0.0.
@@ -1411,7 +1411,7 @@ class CLI:
                     "--docker-scout-s3-bucket",
                     help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v1.0.0.
@@ -1421,7 +1421,7 @@ class CLI:
                     "--docker-scout-s3-prefix",
                     help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -1443,7 +1443,7 @@ class CLI:
                     "--trivy-s3-bucket",
                     help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v1.0.0.
@@ -1453,7 +1453,7 @@ class CLI:
                     "--trivy-s3-prefix",
                     help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v1.0.0.
@@ -1463,7 +1463,7 @@ class CLI:
                     "--trivy-results-dir",
                     help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -1485,7 +1485,7 @@ class CLI:
                     "--syft-s3-bucket",
                     help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v1.0.0.
@@ -1495,7 +1495,7 @@ class CLI:
                     "--syft-s3-prefix",
                     help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--syft-results-dir` will be removed in Cartography v1.0.0.
@@ -1505,7 +1505,7 @@ class CLI:
                     "--syft-results-dir",
                     help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # AIBOM Options
@@ -1526,7 +1526,7 @@ class CLI:
                     "--aibom-s3-bucket",
                     help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v1.0.0.
@@ -1536,7 +1536,7 @@ class CLI:
                     "--aibom-s3-prefix",
                     help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v1.0.0.
@@ -1546,7 +1546,7 @@ class CLI:
                     "--aibom-results-dir",
                     help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================

@@ -88,7 +88,7 @@ This requires the role running Cartography to have `s3:ListBucket`, `s3:GetObjec
 
 `--docker-scout-source` also accepts `gs://bucket/prefix` and `azblob://account/container/prefix`.
 
-The legacy `--docker-scout-results-dir`, `--docker-scout-s3-bucket`, and `--docker-scout-s3-prefix` flags are still accepted as compatibility shims, but they are deprecated in favor of `--docker-scout-source`.
+Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--docker-scout-source`.
 
 ### What Gets Created
 

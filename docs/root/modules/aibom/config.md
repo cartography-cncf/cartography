@@ -93,7 +93,7 @@ cartography \
 
 `--aibom-source` also accepts `gs://bucket/prefix` and `azblob://account/container/prefix`.
 
-The legacy `--aibom-results-dir`, `--aibom-s3-bucket`, and `--aibom-s3-prefix` flags are still accepted as compatibility shims, but they are deprecated in favor of `--aibom-source`.
+Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--aibom-source`.
 
 ### Observability counters
 

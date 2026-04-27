@@ -61,7 +61,7 @@ To use Trivy with Cartography,
 
     Cartography will ingest every `.json` file under the provided directory. Each scan is matched to an ECR image by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields, so file names may contain any characters.
 
-    The legacy `--trivy-results-dir`, `--trivy-s3-bucket`, and `--trivy-s3-prefix` flags are still accepted as compatibility shims, but they are deprecated in favor of `--trivy-source`.
+    Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--trivy-source`.
 
 ## Notes on running Trivy
 
