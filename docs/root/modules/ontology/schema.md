@@ -19,6 +19,7 @@ CL{{ComputeCluster}}
 DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
+FS{{FileStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
@@ -447,6 +448,23 @@ It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azur
 | _ont_public | Whether the storage has public access (not available for all providers). |
 
 
+### FileStorage
+
+```{note}
+FileStorage is a semantic label.
+```
+
+A file storage represents a managed network file system or file share across different cloud providers.
+It generalizes concepts like AWS EFS and Azure Files shares, as opposed to object storage (S3-like)
+or block storage (EBS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the file system/share (REQUIRED). |
+| _ont_location | The region/location of the file storage. |
+| _ont_encrypted | Whether the storage is encrypted at rest. |
+
+
 ### Tenant
 
 ```{note}
@@ -670,7 +688,7 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
     ```
-- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
@@ -748,6 +766,26 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 - `Image` can be linked to the public base image identified by Docker Scout:
     ```
     (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+
+- `TrivyPackage` nodes discovered by Trivy are deployed on an `Image`:
+    ```
+    (:TrivyPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `SyftPackage` nodes discovered by Syft are deployed on an `Image`:
+    ```
+    (:SyftPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `TrivyImageFinding` vulnerabilities discovered by Trivy affect an `Image`:
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Image)
+    ```
+
+- Canonical `Package` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
     ```
 
 

@@ -2,23 +2,13 @@
   "name": "Ontology - Packages relationship linking",
   "statements": [
     {
-      "__comment": "Link Package to ECRImage via TrivyPackage DEPLOYED",
-      "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:ECRImage) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Link Package to ontology Image via TrivyPackage DEPLOYED",
+      "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
-      "__comment": "Link Package to GCPArtifactRegistryContainerImage via TrivyPackage DEPLOYED",
-      "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:GCPArtifactRegistryContainerImage) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-      "iterative": false
-    },
-    {
-      "__comment": "Link Package to GCPArtifactRegistryPlatformImage via TrivyPackage DEPLOYED",
-      "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:GCPArtifactRegistryPlatformImage) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-      "iterative": false
-    },
-    {
-      "__comment": "Link Package to GitLabContainerImage via TrivyPackage DEPLOYED",
-      "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:GitLabContainerImage) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Link Package to ontology Image via SyftPackage DEPLOYED",
+      "query": "MATCH (p:Package)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image) MERGE (p)-[r:DEPLOYED]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {

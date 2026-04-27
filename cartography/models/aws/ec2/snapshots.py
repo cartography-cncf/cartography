@@ -16,6 +16,8 @@ class EBSSnapshotNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("SnapshotId")
     snapshotid: PropertyRef = PropertyRef("SnapshotId", extra_index=True)
     description: PropertyRef = PropertyRef("Description")
+    ownerid: PropertyRef = PropertyRef("OwnerId")
+    ispublic: PropertyRef = PropertyRef("Public")
     encrypted: PropertyRef = PropertyRef("Encrypted")
     progress: PropertyRef = PropertyRef("Progress")
     starttime: PropertyRef = PropertyRef("StartTime")

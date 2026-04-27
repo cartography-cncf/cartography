@@ -25,6 +25,12 @@ Representation of a software package discovered by Syft, created from Syft's `ar
     (SyftPackage)-[:DEPENDS_ON]->(SyftPackage)
     ```
 
+- A SyftPackage is deployed on an ontology Image (matched via `_ont_digest`).
+
+    ```
+    (SyftPackage)-[:DEPLOYED]->(Image)
+    ```
+
 - A canonical Package (ontology) is detected as a SyftPackage.
 
     ```
