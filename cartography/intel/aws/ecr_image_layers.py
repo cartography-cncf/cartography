@@ -24,8 +24,13 @@ from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
-from cartography.models.aws.ecr.image import ECRImageSchema
+from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
+from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadRelSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerNextRelSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerNodeSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerTailRelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -39,8 +44,11 @@ EMPTY_LAYER_DIFF_ID = (
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
 )
 
-# Keep per-transaction memory low; each record fan-outs to many relationships.
+# Keep per-transaction memory low; each node record can carry large layer metadata.
 ECR_LAYER_BATCH_SIZE = 200
+# Matchlink rows are simple source/target pairs, so use larger batches while
+# keeping relationship transactions bounded and predictable.
+ECR_LAYER_REL_BATCH_SIZE = 1000
 
 # ECR manifest media types
 ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
@@ -639,6 +647,42 @@ def transform_ecr_image_layers(
     return layers, memberships
 
 
+def _build_next_relationships(image_layers: list[dict]) -> list[dict[str, Any]]:
+    return [
+        {
+            "diff_id": layer["diff_id"],
+            "next_diff_ids": [next_diff_id],
+        }
+        for layer in image_layers
+        for next_diff_id in layer.get("next_diff_ids", [])
+    ]
+
+
+def _build_image_to_layer_relationships(
+    image_layers: list[dict],
+    image_id_field: str,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "diff_id": layer["diff_id"],
+            image_id_field: [image_id],
+        }
+        for layer in image_layers
+        for image_id in layer.get(image_id_field, [])
+    ]
+
+
+def _build_has_layer_relationships(memberships: list[dict]) -> list[dict[str, Any]]:
+    return [
+        {
+            "imageDigest": membership["imageDigest"],
+            "layer_diff_ids": [diff_id],
+        }
+        for membership in memberships
+        for diff_id in membership.get("layer_diff_ids", [])
+    ]
+
+
 @timeit
 def load_ecr_image_layers(
     neo4j_session: neo4j.Session,
@@ -650,9 +694,8 @@ def load_ecr_image_layers(
     """
     Load image layers into Neo4j.
 
-    Uses a conservative batch size (ECR_LAYER_LOAD_BATCH_SIZE) to avoid Neo4j
-    transaction memory limits, since layer objects can contain large arrays of
-    relationships.
+    Load layer nodes separately from NEXT/HEAD/TAIL relationships so each
+    transaction handles a bounded amount of node or relationship data.
     """
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
@@ -660,11 +703,59 @@ def load_ecr_image_layers(
 
     load(
         neo4j_session,
-        ECRImageLayerSchema(),
+        ECRImageLayerNodeSchema(),
         image_layers,
         batch_size=ECR_LAYER_BATCH_SIZE,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
+    )
+
+    next_relationships = _build_next_relationships(image_layers)
+    logger.info(
+        "Loading %d ECR image layer NEXT relationships for region %s into graph.",
+        len(next_relationships),
+        region,
+    )
+    load(
+        neo4j_session,
+        ECRImageLayerNextRelSchema(),
+        next_relationships,
+        batch_size=ECR_LAYER_REL_BATCH_SIZE,
+        lastupdated=aws_update_tag,
+    )
+
+    head_relationships = _build_image_to_layer_relationships(
+        image_layers,
+        "head_image_ids",
+    )
+    logger.info(
+        "Loading %d ECR image HEAD relationships for region %s into graph.",
+        len(head_relationships),
+        region,
+    )
+    load(
+        neo4j_session,
+        ECRImageLayerHeadRelSchema(),
+        head_relationships,
+        batch_size=ECR_LAYER_REL_BATCH_SIZE,
+        lastupdated=aws_update_tag,
+    )
+
+    tail_relationships = _build_image_to_layer_relationships(
+        image_layers,
+        "tail_image_ids",
+    )
+    logger.info(
+        "Loading %d ECR image TAIL relationships for region %s into graph.",
+        len(tail_relationships),
+        region,
+    )
+    load(
+        neo4j_session,
+        ECRImageLayerTailRelSchema(),
+        tail_relationships,
+        batch_size=ECR_LAYER_REL_BATCH_SIZE,
+        lastupdated=aws_update_tag,
     )
 
 
@@ -679,18 +770,31 @@ def load_ecr_image_layer_memberships(
     """
     Load image layer memberships into Neo4j.
 
-    Uses a conservative batch size (ECR_LAYER_MEMBERSHIP_BATCH_SIZE) to avoid
-    Neo4j transaction memory limits, since membership objects can contain large
-    arrays of layer diff_ids.
+    Load ECRImage layer metadata separately from HAS_LAYER relationships so
+    each transaction handles a bounded amount of node or relationship data.
     """
     load(
         neo4j_session,
-        ECRImageSchema(),
+        ECRImageLayerEnrichmentSchema(),
         memberships,
         batch_size=ECR_LAYER_BATCH_SIZE,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
+    )
+
+    has_layer_relationships = _build_has_layer_relationships(memberships)
+    logger.info(
+        "Loading %d ECR image HAS_LAYER relationships for region %s into graph.",
+        len(has_layer_relationships),
+        region,
+    )
+    load(
+        neo4j_session,
+        ECRImageHasLayerRelSchema(),
+        has_layer_relationships,
+        batch_size=ECR_LAYER_REL_BATCH_SIZE,
+        lastupdated=aws_update_tag,
     )
 
 
