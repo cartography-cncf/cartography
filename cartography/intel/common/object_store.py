@@ -7,7 +7,10 @@ from typing import Iterable
 from typing import Protocol
 
 import boto3
+from azure.storage import blob as azure_blob
+from google.cloud import storage
 
+import cartography.intel.gcp.clients as gcp_clients
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 
 
@@ -118,14 +121,10 @@ class GCSBucketReader:
         prefix: str = "",
         source_uri: str | None = None,
     ) -> None:
-        from google.cloud import storage
-
-        from cartography.intel.gcp.clients import get_gcp_credentials
-
         self.source_uri = source_uri or _build_cloud_source_uri("gs", bucket, prefix)
         self._bucket = bucket
         self._prefix = prefix
-        credentials = get_gcp_credentials()
+        credentials = gcp_clients.get_gcp_credentials()
         self._client = storage.Client(credentials=credentials)
 
     def list_reports(self) -> list[ReportRef]:
@@ -156,8 +155,6 @@ class AzureBlobContainerReader:
         credential: Any,
         source_uri: str | None = None,
     ) -> None:
-        from azure.storage.blob import BlobServiceClient
-
         self.source_uri = source_uri or _build_cloud_source_uri(
             "azblob",
             f"{account_name}/{container_name}",
@@ -166,7 +163,7 @@ class AzureBlobContainerReader:
         self._account_name = account_name
         self._container_name = container_name
         self._prefix = prefix
-        self._client = BlobServiceClient(
+        self._client = azure_blob.BlobServiceClient(
             account_url=f"https://{account_name}.blob.core.windows.net",
             credential=credential,
         )
