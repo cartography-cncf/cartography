@@ -1,4 +1,5 @@
 from cartography.graph.querybuilder import build_create_index_queries
+from cartography.models.aws.dynamodb.tables import DynamoDBTableSchema
 from cartography.models.aws.emr import EMRClusterSchema
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetSchema,
@@ -40,3 +41,9 @@ def test_build_create_index_queries_for_emr():
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_region);",
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_version);",
     }.issubset(set(result))
+
+
+def test_build_create_index_queries_for_dynamodb_table_arn():
+    result = build_create_index_queries(DynamoDBTableSchema())
+
+    assert "CREATE INDEX IF NOT EXISTS FOR (n:DynamoDBTable) ON (n.arn);" in result
