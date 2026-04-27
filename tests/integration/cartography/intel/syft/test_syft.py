@@ -55,7 +55,7 @@ SYFT_CURRENT_SOURCE_SAMPLE = {
     },
 }
 
-SYFT_CURRENT_DIGEST_SOURCE_SAMPLE = {
+SYFT_CURRENT_REPO_DIGEST_SOURCE_SAMPLE = {
     **SYFT_SAMPLE,
     "source": {
         "id": "sha256:source",
@@ -286,18 +286,18 @@ def test_sync_single_syft_creates_deployed_to_current_source_image_digest(
     assert actual_rels == expected_rels
 
 
-def test_sync_single_syft_creates_deployed_to_digest_qualified_image(
+def test_sync_single_syft_creates_deployed_from_repo_digest_candidate(
     neo4j_session,
 ):
     """
-    Test digest-qualified current Syft output links to the scanned platform Image.
+    Test current Syft repoDigests can link to the scanned platform Image.
     """
     neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
     _sync_single_platform_image(neo4j_session, "sha256:platform")
 
     sync_single_syft(
         neo4j_session,
-        SYFT_CURRENT_DIGEST_SOURCE_SAMPLE,
+        SYFT_CURRENT_REPO_DIGEST_SOURCE_SAMPLE,
         TEST_UPDATE_TAG,
     )
 
