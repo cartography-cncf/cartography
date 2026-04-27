@@ -17,7 +17,6 @@ from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
 from tests.data.aibom.aibom_sample import TEST_DIGEST_BASED_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
-from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -146,47 +145,6 @@ def _seed_single_platform_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
-
-
-def _seed_image_resolution(
-    neo4j_session,
-    image_uri: str,
-    digest: str,
-    image_type: str,
-) -> None:
-    neo4j_session.run(
-        """
-        MERGE (img:ECRImage {id: $digest})
-        SET img.digest = $digest,
-            img.type = $image_type,
-            img.lastupdated = $lastupdated
-        MERGE (repo_img:ECRRepositoryImage {id: $image_uri})
-        SET repo_img.lastupdated = $lastupdated
-        MERGE (repo_img)-[r:IMAGE]->(img)
-        SET r.lastupdated = $lastupdated
-        """,
-        digest=digest,
-        image_type=image_type,
-        image_uri=image_uri,
-        lastupdated=TEST_UPDATE_TAG,
-    )
-
-
-def _seed_multi_image_resolution_graph(neo4j_session) -> None:
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    _seed_image_resolution(
-        neo4j_session,
-        TEST_IMAGE_URI,
-        tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
-        "manifest_list",
-    )
-    _seed_image_resolution(
-        neo4j_session,
-        TEST_SINGLE_PLATFORM_IMAGE_URI,
-        tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
-        "image",
-    )
 
 
 @patch(
