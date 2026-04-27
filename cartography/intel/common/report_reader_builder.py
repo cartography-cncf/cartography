@@ -5,6 +5,7 @@ from azure import identity as azure_identity
 
 import cartography.intel.common.object_store as object_store
 from cartography.intel.common.object_store import ReportReader
+from cartography.intel.common.report_source import AzureBlobReportSource
 from cartography.intel.common.report_source import GCSReportSource
 from cartography.intel.common.report_source import LocalReportSource
 from cartography.intel.common.report_source import ReportSource
@@ -32,6 +33,9 @@ def build_report_reader_for_source(
 
     if isinstance(source, GCSReportSource):
         return object_store.GCSBucketReader(source.bucket, source.prefix, source.uri)
+
+    if not isinstance(source, AzureBlobReportSource):
+        raise ValueError(f"Unsupported report source type: {type(source).__name__}")
 
     if azure_sp_auth:
         credentials_module = importlib.import_module(

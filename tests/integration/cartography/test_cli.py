@@ -62,7 +62,8 @@ def test_cli_short_help_flag(capsys):
     sync.run.assert_not_called()
 
 
-def test_cli_help_hides_deprecated_report_source_flags(capsys):
+def test_cli_help_hides_deprecated_report_source_flags(capsys, monkeypatch):
+    monkeypatch.setenv("COLUMNS", "120")
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
 

@@ -176,6 +176,11 @@ def test_build_report_reader_for_gcs(mock_reader_cls) -> None:
     mock_reader_cls.assert_called_once_with("bucket", "prefix", "gs://bucket/prefix")
 
 
+def test_build_report_reader_for_source_rejects_unknown_source_type() -> None:
+    with pytest.raises(ValueError, match="Unsupported report source type"):
+        build_report_reader_for_source(object())  # type: ignore[arg-type]
+
+
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
 @patch("azure.identity.AzureCliCredential")
 def test_build_report_reader_for_azure_cli_auth(

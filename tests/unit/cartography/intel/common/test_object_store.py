@@ -33,6 +33,19 @@ def test_local_report_reader_lists_files_and_reads_bytes(tmp_path) -> None:
     assert reader.read_bytes(refs[0]) == b"hello"
 
 
+def test_local_report_reader_accepts_single_file(tmp_path) -> None:
+    report = tmp_path / "findings.json"
+    report.write_bytes(b"hello")
+
+    reader = LocalReportReader(str(report))
+    refs = reader.list_reports()
+
+    assert refs == [
+        ReportRef(uri=str(report), name="findings.json"),
+    ]
+    assert reader.read_bytes(refs[0]) == b"hello"
+
+
 def test_local_report_reader_wraps_read_errors(tmp_path) -> None:
     reports = tmp_path / "reports"
     reports.mkdir()

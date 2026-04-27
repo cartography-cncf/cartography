@@ -51,6 +51,9 @@ class LocalReportReader:
         self._root = Path(source_path)
 
     def list_reports(self) -> list[ReportRef]:
+        if self._root.is_file():
+            return [ReportRef(uri=str(self._root), name=self._root.name)]
+
         refs: list[ReportRef] = []
         for path in self._root.rglob("*"):
             if not path.is_file() or path.name.startswith("."):
