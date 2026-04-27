@@ -218,7 +218,7 @@ def sync(
     project_id: str,
     gcp_update_tag: int,
     common_job_parameters: Dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GCP IAM resources for a given project using Cloud Asset Inventory API.
 
@@ -262,3 +262,5 @@ def sync(
 
     if roles:
         load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)
+
+    return roles

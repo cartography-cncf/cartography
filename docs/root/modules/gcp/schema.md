@@ -925,10 +925,12 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
 Representation of a Workload Identity Federation principal discovered from a GCP IAM policy binding member such as `principal://iam.googleapis.com/...` or `principalSet://iam.googleapis.com/...`.
 
+> **Ontology Mapping**: This node has the extra label `GCPPrincipal` so it can participate in GCP IAM principal relationships alongside `GCPUser`, `GCPGroup`, and `GCPServiceAccount`.
+
 | Field                                  | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| id                                     | The full IAM principal identifier.                                |
-| principal_id                           | The stable GCP principal identifier used for permission matching. |
+| **id**                                 | The full IAM principal identifier.                                |
+| **principal_id**                       | The stable GCP principal identifier used for permission matching. |
 | principal_type                         | `principal` or `principalSet`.                                    |
 | workload_identity_pool_project_number  | The project number that owns the workload identity pool.          |
 | location                               | The workload identity pool location.                              |
