@@ -247,6 +247,15 @@ class MatchLinkSubResource:
     direction: LinkDirection
     rel_label: str
 
+    def __post_init__(self) -> None:
+        for key, property_ref in vars(self.target_node_matcher).items():
+            if not property_ref.set_in_kwargs:
+                raise ValueError(
+                    "MatchLinkSubResource target_node_matcher PropertyRefs must "
+                    f"have set_in_kwargs=True. Got {key}="
+                    f"PropertyRef({property_ref.name!r})."
+                )
+
 
 @dataclass(frozen=True)
 class CartographyRelSchema(abc.ABC):

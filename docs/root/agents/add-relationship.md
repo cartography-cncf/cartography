@@ -290,7 +290,7 @@ MATCH (source_sub_resource:YourTenant{id: $_sub_resource_id})
 MATCH (from:YourNode{id: item.source_id})<-[:RESOURCE]-(source_sub_resource)
 ```
 
-Only enable this when the endpoint is guaranteed to be connected to the same sub-resource supplied to `load_matchlinks()`. For broad semantic labels or cross-module labels, review each endpoint separately and scope only the side that is semantically safe.
+Only enable this when the endpoint is guaranteed to be connected to the same sub-resource supplied to `load_matchlinks()`. `MatchLinkSubResource.target_node_matcher` must use `PropertyRef(..., set_in_kwargs=True)` because the sub-resource is matched before `UNWIND $DictList AS item`. For broad semantic labels or cross-module labels, review each endpoint separately and scope only the side that is semantically safe.
 
 ---
 
