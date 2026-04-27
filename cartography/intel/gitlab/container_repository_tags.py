@@ -94,7 +94,7 @@ def get_all_container_repository_tags(
         all_tags.extend(tags)
 
     logger.debug(
-        f"Fetched {len(all_tags)} tags across {len(repositories)} repositories"
+        "Fetched %s tags across %s repositories", len(all_tags), len(repositories)
     )
     return all_tags
 

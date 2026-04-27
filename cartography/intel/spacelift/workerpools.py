@@ -35,7 +35,7 @@ def get_worker_pools(
     response = call_spacelift_api(session, api_endpoint, GET_WORKER_POOLS_QUERY)
     worker_pools_data = response.get("data", {}).get("workerPools", [])
 
-    logger.debug(f"Retrieved {len(worker_pools_data)} Spacelift worker pools")
+    logger.debug("Retrieved %s Spacelift worker pools", len(worker_pools_data))
     return worker_pools_data
 
 

@@ -36,7 +36,7 @@ async def get_app_role_assignments_for_app(
     :param app_id: Application ID
     :return: Generator of app role assignment data as dicts
     """
-    logger.debug(f"Fetching role assignments for application: {app_id}")
+    logger.debug("Fetching role assignments for application: %s", app_id)
 
     # Query the graph to get the service principal ID for this application
     query = """

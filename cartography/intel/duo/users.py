@@ -45,7 +45,7 @@ def _transform_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Reformat the data before loading
     """
-    logger.debug(f"Transforming {len(users)} duo users")
+    logger.debug("Transforming %s duo users", len(users))
     transformed_users = []
     for user in users:
         transformed_user = {

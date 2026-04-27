@@ -84,8 +84,11 @@ def get_assume_role_events(
     start_time = end_time - timedelta(hours=lookback_hours)
 
     logger.debug(
-        f"Fetching CloudTrail AssumeRole events for region '{region}' "
-        f"from {start_time} to {end_time} ({lookback_hours} hours)"
+        "Fetching CloudTrail AssumeRole events for region '%s' from %s to %s (%s hours)",
+        region,
+        start_time,
+        end_time,
+        lookback_hours,
     )
 
     paginator = client.get_paginator("lookup_events")
@@ -105,7 +108,7 @@ def get_assume_role_events(
     all_events = _collect_lookup_events(page_iterator)
 
     logger.debug(
-        f"Retrieved {len(all_events)} AssumeRole events from region '{region}'"
+        "Retrieved %s AssumeRole events from region '%s'", len(all_events), region
     )
 
     return all_events
@@ -137,8 +140,11 @@ def get_saml_role_events(
     start_time = end_time - timedelta(hours=lookback_hours)
 
     logger.debug(
-        f"Fetching CloudTrail AssumeRoleWithSAML events for region '{region}' "
-        f"from {start_time} to {end_time} ({lookback_hours} hours)"
+        "Fetching CloudTrail AssumeRoleWithSAML events for region '%s' from %s to %s (%s hours)",
+        region,
+        start_time,
+        end_time,
+        lookback_hours,
     )
 
     paginator = client.get_paginator("lookup_events")
@@ -158,7 +164,9 @@ def get_saml_role_events(
     all_events = _collect_lookup_events(page_iterator)
 
     logger.debug(
-        f"Retrieved {len(all_events)} AssumeRoleWithSAML events from region '{region}'"
+        "Retrieved %s AssumeRoleWithSAML events from region '%s'",
+        len(all_events),
+        region,
     )
 
     return all_events
@@ -190,8 +198,11 @@ def get_web_identity_role_events(
     start_time = end_time - timedelta(hours=lookback_hours)
 
     logger.debug(
-        f"Fetching CloudTrail AssumeRoleWithWebIdentity events for region '{region}' "
-        f"from {start_time} to {end_time} ({lookback_hours} hours)"
+        "Fetching CloudTrail AssumeRoleWithWebIdentity events for region '%s' from %s to %s (%s hours)",
+        region,
+        start_time,
+        end_time,
+        lookback_hours,
     )
 
     paginator = client.get_paginator("lookup_events")
@@ -211,7 +222,9 @@ def get_web_identity_role_events(
     all_events = _collect_lookup_events(page_iterator)
 
     logger.debug(
-        f"Retrieved {len(all_events)} AssumeRoleWithWebIdentity events from region '{region}'"
+        "Retrieved %s AssumeRoleWithWebIdentity events from region '%s'",
+        len(all_events),
+        region,
     )
 
     return all_events
@@ -239,7 +252,7 @@ def transform_assume_role_events_to_role_assumptions(
     """
     aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.debug(
-        f"Transforming {len(events)} CloudTrail AssumeRole events to role assumptions"
+        "Transforming %s CloudTrail AssumeRole events to role assumptions", len(events)
     )
 
     for event in events:
@@ -321,7 +334,8 @@ def transform_saml_role_events_to_role_assumptions(
     """
     aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.debug(
-        f"Transforming {len(events)} CloudTrail AssumeRoleWithSAML events to role assumptions"
+        "Transforming %s CloudTrail AssumeRoleWithSAML events to role assumptions",
+        len(events),
     )
 
     for event in events:
@@ -400,7 +414,8 @@ def transform_web_identity_role_events_to_role_assumptions(
     """
     github_aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.debug(
-        f"Transforming {len(events)} CloudTrail AssumeRoleWithWebIdentity events to role assumptions"
+        "Transforming %s CloudTrail AssumeRoleWithWebIdentity events to role assumptions",
+        len(events),
     )
 
     for event in events:
@@ -717,10 +732,10 @@ def sync_assume_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.debug(f"Processing CloudTrail events for region {region}")
+        logger.debug("Processing CloudTrail events for region %s", region)
 
         # Process AssumeRole events specifically
-        logger.debug(f"Fetching AssumeRole events specifically for region {region}")
+        logger.debug("Fetching AssumeRole events specifically for region %s", region)
         try:
             assume_role_events = get_assume_role_events(
                 boto3_session=boto3_session,
@@ -750,7 +765,9 @@ def sync_assume_role_events(
         )
         total_role_assumptions += len(assume_role_assumptions)
         logger.debug(
-            f"Loaded {len(assume_role_assumptions)} AssumeRole assumptions for region {region}"
+            "Loaded %s AssumeRole assumptions for region %s",
+            len(assume_role_assumptions),
+            region,
         )
 
     if cleanup_safe:
@@ -818,11 +835,11 @@ def sync_saml_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.debug(f"Processing CloudTrail SAML events for region {region}")
+        logger.debug("Processing CloudTrail SAML events for region %s", region)
 
         # Process AssumeRoleWithSAML events specifically
         logger.debug(
-            f"Fetching AssumeRoleWithSAML events specifically for region {region}"
+            "Fetching AssumeRoleWithSAML events specifically for region %s", region
         )
         try:
             saml_role_events = get_saml_role_events(
@@ -852,7 +869,9 @@ def sync_saml_role_events(
         )
         total_saml_role_assumptions += len(saml_role_assumptions)
         logger.debug(
-            f"Loaded {len(saml_role_assumptions)} SAML role assumptions for region {region}"
+            "Loaded %s SAML role assumptions for region %s",
+            len(saml_role_assumptions),
+            region,
         )
 
     logger.info(
@@ -912,11 +931,12 @@ def sync_web_identity_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.debug(f"Processing CloudTrail WebIdentity events for region {region}")
+        logger.debug("Processing CloudTrail WebIdentity events for region %s", region)
 
         # Process AssumeRoleWithWebIdentity events specifically
         logger.debug(
-            f"Fetching AssumeRoleWithWebIdentity events specifically for region {region}"
+            "Fetching AssumeRoleWithWebIdentity events specifically for region %s",
+            region,
         )
         try:
             web_identity_role_events = get_web_identity_role_events(
@@ -948,7 +968,9 @@ def sync_web_identity_role_events(
         )
         total_web_identity_role_assumptions += len(web_identity_role_assumptions)
         logger.debug(
-            f"Loaded {len(web_identity_role_assumptions)} WebIdentity role assumptions for region {region}"
+            "Loaded %s WebIdentity role assumptions for region %s",
+            len(web_identity_role_assumptions),
+            region,
         )
 
     logger.info(

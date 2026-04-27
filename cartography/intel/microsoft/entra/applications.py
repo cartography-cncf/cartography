@@ -74,7 +74,7 @@ async def get_entra_applications(
             )
             raise
 
-    logger.debug(f"Retrieved {count} Entra applications total")
+    logger.debug("Retrieved %s Entra applications total", count)
 
 
 def transform_applications(

@@ -97,7 +97,7 @@ def transform_entities_to_run_map(
     the runs that created or updated them.
     """
     logger.debug(
-        f"Transforming {len(entities_data)} entities into run-to-instances map"
+        "Transforming %s entities into run-to-instances map", len(entities_data)
     )
 
     run_to_instances: dict[str, list[dict[str, str]]] = {}
@@ -183,7 +183,9 @@ def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any
             run["stack"] = stack_id
             all_runs.append(run)
 
-    logger.debug(f"Retrieved {len(all_runs)} Spacelift runs from {len(stacks)} stacks")
+    logger.debug(
+        "Retrieved %s Spacelift runs from %s stacks", len(all_runs), len(stacks)
+    )
     return all_runs
 
 
@@ -193,7 +195,7 @@ def transform_runs(
     account_id: str,
 ) -> list[dict[str, Any]]:
 
-    logger.debug(f"Transforming {len(runs_data)} runs")
+    logger.debug("Transforming %s runs", len(runs_data))
 
     result: list[dict[str, Any]] = []
 

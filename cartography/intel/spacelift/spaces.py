@@ -32,7 +32,7 @@ def get_spaces(session: requests.Session, api_endpoint: str) -> list[dict[str, A
     response = call_spacelift_api(session, api_endpoint, GET_SPACES_QUERY)
     spaces_data = response.get("data", {}).get("spaces", [])
 
-    logger.debug(f"Retrieved {len(spaces_data)} Spacelift spaces")
+    logger.debug("Retrieved %s Spacelift spaces", len(spaces_data))
     return spaces_data
 
 

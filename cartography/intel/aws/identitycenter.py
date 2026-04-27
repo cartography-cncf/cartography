@@ -369,7 +369,7 @@ def get_user_permissionsets(
     Although a permissionset can be assigned to multiple accounts, it is possible for the user
     to be assigned to just a subset of those!
     """
-    logger.debug(f"Getting permissionsets for {len(users)} users")
+    logger.debug("Getting permissionsets for %s users", len(users))
     client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     user_permissionsets = []
 
@@ -404,7 +404,7 @@ def get_group_permissionsets(
     """
     Get permissionsets for SSO groups, taking into account which accounts the group is assigned to.
     """
-    logger.debug(f"Getting permissionsets for {len(groups)} groups")
+    logger.debug("Getting permissionsets for %s groups", len(groups))
     client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     group_permissionsets: list[dict[str, Any]] = []
 

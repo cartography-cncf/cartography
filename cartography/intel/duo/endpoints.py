@@ -45,7 +45,7 @@ def _transform_endpoints(endpoints: List[Dict[str, Any]]) -> List[Dict[str, Any]
     """
     Reformat the data before loading
     """
-    logger.debug(f"Transforming {len(endpoints)} duo endpoints")
+    logger.debug("Transforming %s duo endpoints", len(endpoints))
     transformed_endpoints = []
     for endpoint in endpoints:
         transformed_endpoint = {

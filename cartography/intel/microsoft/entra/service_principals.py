@@ -66,7 +66,7 @@ async def get_entra_service_principals(
             )
             raise
 
-    logger.debug(f"Retrieved {count} Entra service principals total")
+    logger.debug("Retrieved %s Entra service principals total", count)
 
 
 async def get_service_principal_by_app_id(
