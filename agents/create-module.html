@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Creating a New Cartography Module - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Creating Security Rules" href="create-rule.html" /><link rel="prev" title="Adding Analysis Jobs to Cartography Modules" href="analysis-jobs.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Creating a New Cartography Module"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve_metadata/schema.html">CVE Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/microsoft/schema.html">Microsoft Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Agent Procedures</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="add-node-type.html">Adding a New Node Type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="add-relationship.html">Adding a New Relationship</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analysis-jobs.html">Adding Analysis Jobs to Cartography Modules</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Creating a New Cartography Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="create-rule.html">Creating Security Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enrich-ontology.html">Enriching the Ontology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="refactor-legacy.html">Refactoring Legacy Code to Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html">Troubleshooting Guide</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#table-of-contents">Table of Contents</a></li>
+<li><a class="reference internal" href="#module-structure">Module Structure</a><ul>
+<li><a class="reference internal" href="#main-entry-point-init-py">Main Entry Point (<code class="docutils literal notranslate">py</span></code>)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-sync-pattern-get-transform-load-cleanup">The Sync Pattern: Get, Transform, Load, Cleanup</a><ul>
+<li><a class="reference internal" href="#get-fetching-data">GET: Fetching Data</a></li>
+<li><a class="reference internal" href="#transform-shaping-data">TRANSFORM: Shaping Data</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-model-defining-nodes-and-relationships">Data Model: Defining Nodes and Relationships</a><ul>
+<li><a class="reference internal" href="#node-properties">Node Properties</a></li>
+<li><a class="reference internal" href="#node-schema">Node Schema</a></li>
+<li><a class="reference internal" href="#sub-resource-relationships-always-point-to-tenant-like-objects">Sub-Resource Relationships: Always Point to Tenant-Like Objects</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+<li><a class="reference internal" href="#loading-data">Loading Data</a></li>
+<li><a class="reference internal" href="#cleanup-jobs">Cleanup Jobs</a></li>
+<li><a class="reference internal" href="#analysis-jobs-optional">Analysis Jobs (Optional)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#configuration-and-credentials">Configuration and Credentials</a><ul>
+<li><a class="reference internal" href="#adding-cli-arguments">Adding CLI Arguments</a></li>
+<li><a class="reference internal" href="#configuration-object">Configuration Object</a></li>
+<li><a class="reference internal" href="#validation-in-module">Validation in Module</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#testing-your-module">Testing Your Module</a><ul>
+<li><a class="reference internal" href="#test-data">Test Data</a></li>
+<li><a class="reference internal" href="#integration-tests">Integration Tests</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#schema-documentation">Schema Documentation</a><ul>
+<li><a class="reference internal" href="#documentation-conventions">Documentation Conventions</a></li>
+<li><a class="reference internal" href="#example-documentation">Example Documentation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#file-structure-template">File Structure Template</a></li>
+<li><a class="reference internal" href="#common-pitfalls">Common Pitfalls</a><ul>
+<li><a class="reference internal" href="#import-errors">Import Errors</a></li>
+<li><a class="reference internal" href="#schema-validation-errors">Schema Validation Errors</a></li>
+<li><a class="reference internal" href="#relationships-not-created">Relationships Not Created</a></li>
+<li><a class="reference internal" href="#cleanup-job-failures">Cleanup Job Failures</a></li>
+<li><a class="reference internal" href="#date-handling">Date Handling</a></li>
+<li><a class="reference internal" href="#performance-issues">Performance Issues</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#coding-conventions">Coding Conventions</a><ul>
+<li><a class="reference internal" href="#error-handling-principles">Error Handling Principles</a><ul>
+<li><a class="reference internal" href="#fail-loudly-when-assumptions-break">Fail Loudly When Assumptions Break</a></li>
+<li><a class="reference internal" href="#required-vs-optional-field-access">Required vs Optional Field Access</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#type-hints-style-guide">Type Hints Style Guide</a></li>
+<li><a class="reference internal" href="#logging-guidelines">Logging Guidelines</a><ul>
+<li><a class="reference internal" href="#log-levels">Log Levels</a></li>
+<li><a class="reference internal" href="#logging-format">Logging Format</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#final-checklist">Final Checklist</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/agents/create-module.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Agent Procedures</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Creating a New Cartography Module</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/create-module.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/create-module.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/create-module.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/create-module.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/agents/create-module.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="creating-a-new-cartography-module">
+<h1>Creating a New Cartography Module<a class="headerlink" href="#creating-a-new-cartography-module" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Related docs</strong>: <span class="xref myst">Main AGENTS.md</span> | <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Add Node Type</span></a> | <a class="reference internal" href="add-relationship.html"><span class="std std-doc">Add Relationship</span></a> | <a class="reference internal" href="analysis-jobs.html"><span class="std std-doc">Analysis Jobs</span></a></p>
+</div></blockquote>
+<p>This guide walks you through creating a new Cartography intel module from scratch, covering the complete sync pattern, data model definitions, and testing.</p>
+<section id="table-of-contents">
+<h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#module-structure"><span class="xref myst">Module Structure</span></a> - File organization and entry points</p></li>
+<li><p><a class="reference internal" href="#the-sync-pattern-get-transform-load-cleanup"><span class="xref myst">The Sync Pattern</span></a> - GET, TRANSFORM, LOAD, CLEANUP</p></li>
+<li><p><a class="reference internal" href="#data-model-defining-nodes-and-relationships"><span class="xref myst">Data Model</span></a> - Nodes, properties, and relationships</p></li>
+<li><p><a class="reference internal" href="#configuration-and-credentials"><span class="xref myst">Configuration and Credentials</span></a> - CLI args and validation</p></li>
+<li><p><a class="reference internal" href="#testing-your-module"><span class="xref myst">Testing Your Module</span></a> - Integration tests and test data</p></li>
+<li><p><a class="reference internal" href="#schema-documentation"><span class="xref myst">Schema Documentation</span></a> - Documenting your schema</p></li>
+<li><p><a class="reference internal" href="#coding-conventions"><span class="xref myst">Coding Conventions</span></a> - Error handling, type hints, logging</p></li>
+<li><p><a class="reference internal" href="#common-pitfalls"><span class="xref myst">Common Pitfalls</span></a> - Troubleshooting common issues</p></li>
+<li><p><a class="reference internal" href="#final-checklist"><span class="xref myst">Final Checklist</span></a> - Pre-submission checklist</p></li>
+</ol>
+</section>
+<section id="module-structure">
+<h2>Module Structure<a class="headerlink" href="#module-structure" title="Link to this heading">¶</a></h2>
+<p>Every Cartography intel module follows this structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography/intel/your_module/
+</span><span data-line="2">├── __init__.py          # Main entry point with sync orchestration
+</span><span data-line="3">├── users.py             # Domain-specific sync modules (users, devices, etc.)
+</span><span data-line="4">├── devices.py           # Additional domain modules as needed
+</span><span data-line="5">└── ...
+</span><span data-line="6">
+</span><span data-line="7">cartography/models/your_module/
+</span><span data-line="8">├── user.py              # Data model definitions
+</span><span data-line="9">├── tenant.py            # Tenant/account model
+</span><span data-line="10">└── ...
+</span></pre></div>
+</div>
+<section id="main-entry-point-init-py">
+<h3>Main Entry Point (<code class="docutils literal notranslate"><span class="pre">__init__.py</span></code>)<a class="headerlink" href="#main-entry-point-init-py" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">neo4j</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">timeit</span>
+</span><span data-line="5"><span class="kn">import</span><span class="w"> </span><span class="nn">cartography.intel.your_module.users</span>
+</span><span data-line="6">
+</span><span data-line="7">
+</span><span data-line="8"><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span><span data-line="9">
+</span><span data-line="10">
+</span><span data-line="11"><span class="nd">@timeit</span>
+</span><span data-line="12"><span class="k">def</span><span class="w"> </span><span class="nf">start_your_module_ingestion</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="13"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="14"><span class="sd">    Main entry point for your module ingestion</span>
+</span><span data-line="15"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="16">    <span class="c1"># Validate configuration</span>
+</span><span data-line="17">    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">your_module_api_key</span><span class="p">:</span>
+</span><span data-line="18">        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Your module import is not configured - skipping this module.&quot;</span><span class="p">)</span>
+</span><span data-line="19">        <span class="k">return</span>
+</span><span data-line="20">
+</span><span data-line="21">    <span class="c1"># Set up common job parameters for cleanup</span>
+</span><span data-line="22">    <span class="n">common_job_parameters</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="23">        <span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="24">        <span class="s2">&quot;TENANT_ID&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">your_module_tenant_id</span><span class="p">,</span>  <span class="c1"># if applicable</span>
+</span><span data-line="25">    <span class="p">}</span>
+</span><span data-line="26">
+</span><span data-line="27">    <span class="c1"># Call domain-specific sync functions</span>
+</span><span data-line="28">    <span class="n">cartography</span><span class="o">.</span><span class="n">intel</span><span class="o">.</span><span class="n">your_module</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">sync</span><span class="p">(</span>
+</span><span data-line="29">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="30">        <span class="n">config</span><span class="o">.</span><span class="n">your_module_api_key</span><span class="p">,</span>
+</span><span data-line="31">        <span class="n">config</span><span class="o">.</span><span class="n">your_module_tenant_id</span><span class="p">,</span>
+</span><span data-line="32">        <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="33">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="34">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="the-sync-pattern-get-transform-load-cleanup">
+<h2>The Sync Pattern: Get, Transform, Load, Cleanup<a class="headerlink" href="#the-sync-pattern-get-transform-load-cleanup" title="Link to this heading">¶</a></h2>
+<p>Every sync function follows this exact pattern:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@timeit</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">sync</span><span class="p">(</span>
+</span><span data-line="3">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">tenant_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">common_job_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+</span><span data-line="8"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="9"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="10"><span class="sd">    Main sync entry point for the module.</span>
+</span><span data-line="11"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="12">    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting MyResource sync&quot;</span><span class="p">)</span>
+</span><span data-line="13">
+</span><span data-line="14">    <span class="c1"># 1. GET - Fetch data from API</span>
+</span><span data-line="15">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Fetching MyResource data from API&quot;</span><span class="p">)</span>
+</span><span data-line="16">    <span class="n">raw_data</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">api_key</span><span class="p">,</span> <span class="n">tenant_id</span><span class="p">)</span>
+</span><span data-line="17">
+</span><span data-line="18">    <span class="c1"># 2. TRANSFORM - Shape data for ingestion</span>
+</span><span data-line="19">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Transforming </span><span class="si">%d</span><span class="s2"> MyResource items&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw_data</span><span class="p">))</span>
+</span><span data-line="20">    <span class="n">transformed_data</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+</span><span data-line="21">
+</span><span data-line="22">    <span class="c1"># 3. LOAD - Ingest to Neo4j using data model</span>
+</span><span data-line="23">    <span class="n">load_users</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">transformed_data</span><span class="p">,</span> <span class="n">tenant_id</span><span class="p">,</span> <span class="n">update_tag</span><span class="p">)</span>
+</span><span data-line="24">
+</span><span data-line="25">    <span class="c1"># 4. CLEANUP - Remove stale data</span>
+</span><span data-line="26">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running MyResource cleanup job&quot;</span><span class="p">)</span>
+</span><span data-line="27">    <span class="n">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span><span data-line="28">
+</span><span data-line="29">    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Completed MyResource sync&quot;</span><span class="p">)</span>
+</span><span data-line="30">
+</span><span data-line="31">
+</span><span data-line="32"><span class="k">def</span><span class="w"> </span><span class="nf">load_users</span><span class="p">(</span>
+</span><span data-line="33">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="34">    <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+</span><span data-line="35">    <span class="n">tenant_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="36">    <span class="n">update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="37"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="38">    <span class="n">load</span><span class="p">(</span>
+</span><span data-line="39">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="40">        <span class="n">MyResourceSchema</span><span class="p">(),</span>
+</span><span data-line="41">        <span class="n">data</span><span class="p">,</span>
+</span><span data-line="42">        <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="43">        <span class="n">TENANT_ID</span><span class="o">=</span><span class="n">tenant_id</span><span class="p">,</span>
+</span><span data-line="44">    <span class="p">)</span>
+</span><span data-line="45">
+</span><span data-line="46">
+</span><span data-line="47"><span class="k">def</span><span class="w"> </span><span class="nf">sync_for_parent</span><span class="p">(</span>
+</span><span data-line="48">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="49">    <span class="n">parent_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="50">    <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
+</span><span data-line="51">    <span class="n">common_job_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+</span><span data-line="52"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="53"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="54"><span class="sd">    Sync resources for a specific parent (e.g., project, account, region).</span>
+</span><span data-line="55"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="56">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Syncing MyResource for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">parent_id</span><span class="p">)</span>
+</span><span data-line="57">
+</span><span data-line="58">    <span class="n">data</span> <span class="o">=</span> <span class="n">get_for_parent</span><span class="p">(</span><span class="n">parent_id</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+</span><span data-line="59">
+</span><span data-line="60">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Transforming </span><span class="si">%d</span><span class="s2"> MyResource for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">parent_id</span><span class="p">)</span>
+</span><span data-line="61">    <span class="n">transformed</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</span><span data-line="62">
+</span><span data-line="63">    <span class="n">load_users</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">transformed</span><span class="p">,</span> <span class="n">parent_id</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">[</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">])</span>
+</span></pre></div>
+</div>
+<section id="get-fetching-data">
+<h3>GET: Fetching Data<a class="headerlink" href="#get-fetching-data" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get</span></code> function should be “dumb” - just fetch data and raise exceptions on failure:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@timeit</span>
+</span><span data-line="2"><span class="nd">@aws_handle_regions</span>  <span class="c1"># Handles common AWS errors like region availability, only for AWS modules.</span>
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tenant_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="4"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="5"><span class="sd">    Fetch data from external API</span>
+</span><span data-line="6"><span class="sd">    Should be simple and raise exceptions on failure</span>
+</span><span data-line="7"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="8">    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="9">        <span class="s2">&quot;api_key&quot;</span><span class="p">:</span> <span class="n">api_key</span><span class="p">,</span>
+</span><span data-line="10">        <span class="s2">&quot;tenant_id&quot;</span><span class="p">:</span> <span class="n">tenant_id</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">}</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span><span class="p">()</span>
+</span><span data-line="14">    <span class="n">response</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+</span><span data-line="15">        <span class="s2">&quot;https://api.yourservice.com/users&quot;</span><span class="p">,</span>
+</span><span data-line="16">        <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
+</span><span data-line="17">        <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>  <span class="c1"># (connect_timeout, read_timeout)</span>
+</span><span data-line="18">    <span class="p">)</span>
+</span><span data-line="19">    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>  <span class="c1"># Raise exception on HTTP error</span>
+</span><span data-line="20">    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p><strong>Key Principles for <code class="docutils literal notranslate"><span class="pre">get()</span></code> Functions:</strong></p>
+<ol class="arabic">
+<li><p><strong>Minimal Error Handling</strong>: Avoid adding try/except blocks in <code class="docutils literal notranslate"><span class="pre">get()</span></code> functions. Let errors propagate up to the caller.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DON&#39;T: Add complex error handling in get()</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">get_users</span><span class="p">(</span><span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="3">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="4">        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</span><span data-line="5">        <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</span><span data-line="6">        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span data-line="7">    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">HTTPError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span data-line="8">        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">401</span><span class="p">:</span>
+</span><span data-line="9">            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Invalid API key&quot;</span><span class="p">)</span>
+</span><span data-line="10">        <span class="k">elif</span> <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">429</span><span class="p">:</span>
+</span><span data-line="11">            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Rate limit exceeded&quot;</span><span class="p">)</span>
+</span><span data-line="12">        <span class="k">raise</span>
+</span><span data-line="13">    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span data-line="14">        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Network error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span data-line="15">        <span class="k">raise</span>
+</span><span data-line="16">
+</span><span data-line="17"><span class="c1"># DO: Keep it simple and let errors propagate</span>
+</span><span data-line="18"><span class="k">def</span><span class="w"> </span><span class="nf">get_users</span><span class="p">(</span><span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="19">    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</span><span data-line="20">    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</span><span data-line="21">    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Use Decorators</strong>: For AWS modules, use <code class="docutils literal notranslate"><span class="pre">&#64;aws_handle_regions</span></code> to handle common AWS errors:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@timeit</span>
+</span><span data-line="2"><span class="nd">@aws_handle_regions</span>  <span class="c1"># Handles region availability, throttling, etc.</span>
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">get_ec2_instances</span><span class="p">(</span><span class="n">boto3_session</span><span class="p">:</span> <span class="n">boto3</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+</span><span data-line="4">    <span class="n">client</span> <span class="o">=</span> <span class="n">boto3_session</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ec2&quot;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="n">region</span><span class="p">)</span>
+</span><span data-line="5">    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">describe_instances</span><span class="p">()[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">]</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Fail Loudly</strong>: If an error occurs, let it propagate up to the caller. This helps users identify and fix issues quickly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DON&#39;T: Silently continue on error</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">get_data</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="3">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="4">        <span class="k">return</span> <span class="n">api</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+</span><span data-line="5">    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span data-line="6">        <span class="k">return</span> <span class="p">{}</span>  <span class="c1"># Silently continue with empty data</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># DO: Let errors propagate</span>
+</span><span data-line="9"><span class="k">def</span><span class="w"> </span><span class="nf">get_data</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="10">    <span class="k">return</span> <span class="n">api</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>  <span class="c1"># Let errors propagate to caller</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Timeout Configuration</strong>: Set appropriate timeouts to avoid hanging:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DO: Set timeouts</span>
+</span><span data-line="2"><span class="n">response</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+</span><span data-line="3">    <span class="s2">&quot;https://api.service.com/users&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>  <span class="c1"># (connect_timeout, read_timeout)</span>
+</span><span data-line="6"><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="transform-shaping-data">
+<h3>TRANSFORM: Shaping Data<a class="headerlink" href="#transform-shaping-data" title="Link to this heading">¶</a></h3>
+<p>Transform data to make it easier to ingest. Handle required vs optional fields carefully:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="n">api_result</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+</span><span data-line="2"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="3"><span class="sd">    Transform API data for Neo4j ingestion</span>
+</span><span data-line="4"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="5">    <span class="n">result</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="6">
+</span><span data-line="7">    <span class="k">for</span> <span class="n">user_data</span> <span class="ow">in</span> <span class="n">api_result</span><span class="p">[</span><span class="s2">&quot;users&quot;</span><span class="p">]:</span>
+</span><span data-line="8">        <span class="n">transformed_user</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="9">            <span class="c1"># Required fields - use direct access (will raise KeyError if missing)</span>
+</span><span data-line="10">            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
+</span><span data-line="11">            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="p">[</span><span class="s2">&quot;email&quot;</span><span class="p">],</span>
+</span><span data-line="12">
+</span><span data-line="13">            <span class="c1"># Optional fields - use .get() with None default</span>
+</span><span data-line="14">            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+</span><span data-line="15">            <span class="s2">&quot;last_login&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_login&quot;</span><span class="p">),</span>
+</span><span data-line="16">        <span class="p">}</span>
+</span><span data-line="17">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_user</span><span class="p">)</span>
+</span><span data-line="18">
+</span><span data-line="19">    <span class="k">return</span> <span class="n">result</span>
+</span></pre></div>
+</div>
+<p><strong>Key Principles:</strong></p>
+<ul class="simple">
+<li><p><strong>Required fields</strong>: Use <code class="docutils literal notranslate"><span class="pre">data[&quot;field&quot;]</span></code> - let it fail if missing</p></li>
+<li><p><strong>Optional fields</strong>: Use <code class="docutils literal notranslate"><span class="pre">data.get(&quot;field&quot;)</span></code> - defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code></p></li>
+<li><p><strong>Consistency</strong>: Use <code class="docutils literal notranslate"><span class="pre">None</span></code> for missing values, not empty strings</p></li>
+</ul>
+</section>
+</section>
+<section id="data-model-defining-nodes-and-relationships">
+<h2>Data Model: Defining Nodes and Relationships<a class="headerlink" href="#data-model-defining-nodes-and-relationships" title="Link to this heading">¶</a></h2>
+<p>Modern Cartography uses a declarative data model. Here’s how to define your schema:</p>
+<section id="node-properties">
+<h3>Node Properties<a class="headerlink" href="#node-properties" title="Link to this heading">¶</a></h3>
+<p>Define the properties that will be stored on your node:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.common</span><span class="w"> </span><span class="kn">import</span> <span class="n">PropertyRef</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.nodes</span><span class="w"> </span><span class="kn">import</span> <span class="n">CartographyNodeProperties</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceUserNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="7">    <span class="c1"># Required unique identifier</span>
+</span><span data-line="8">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+</span><span data-line="9">
+</span><span data-line="10">    <span class="c1"># Automatic fields (set by cartography)</span>
+</span><span data-line="11">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="c1"># Business fields from your API</span>
+</span><span data-line="14">    <span class="n">email</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Create index for queries</span>
+</span><span data-line="15">    <span class="n">name</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+</span><span data-line="16">    <span class="n">created_at</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">)</span>
+</span><span data-line="17">    <span class="n">last_login</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;last_login&quot;</span><span class="p">)</span>
+</span><span data-line="18">    <span class="n">is_admin</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;is_admin&quot;</span><span class="p">)</span>
+</span><span data-line="19">
+</span><span data-line="20">    <span class="c1"># Fields from kwargs (same for all records in a batch)</span>
+</span><span data-line="21">    <span class="n">tenant_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;TENANT_ID&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p><strong>PropertyRef Parameters:</strong></p>
+<ul class="simple">
+<li><p>First parameter: Key in your data dict or kwarg name. Use keys when you are ingesting a list of records. Use kwargs when you want to set the same value for all records in the list of records.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">extra_index=True</span></code>: Create database index for better query performance</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">set_in_kwargs=True</span></code>: Value comes from kwargs passed to <code class="docutils literal notranslate"><span class="pre">load()</span></code>, not from individual records</p></li>
+</ul>
+<blockquote>
+<div><p>For advanced node configurations (extra labels, ontology integration), see <a class="reference internal" href="add-node-type.html"><span class="std std-doc">Adding a New Node Type</span></a>.</p>
+</div></blockquote>
+</section>
+<section id="node-schema">
+<h3>Node Schema<a class="headerlink" href="#node-schema" title="Link to this heading">¶</a></h3>
+<p>Define your complete node schema:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.nodes</span><span class="w"> </span><span class="kn">import</span> <span class="n">CartographyNodeSchema</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.relationships</span><span class="w"> </span><span class="kn">import</span> <span class="n">OtherRelationships</span>
+</span><span data-line="3">
+</span><span data-line="4">
+</span><span data-line="5"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceUserSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="7">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;YourServiceUser&quot;</span>                              <span class="c1"># Neo4j node label</span>
+</span><span data-line="8">    <span class="n">properties</span><span class="p">:</span> <span class="n">YourServiceUserNodeProperties</span> <span class="o">=</span> <span class="n">YourServiceUserNodeProperties</span><span class="p">()</span>
+</span><span data-line="9">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">YourServiceTenantToUserRel</span> <span class="o">=</span> <span class="n">YourServiceTenantToUserRel</span><span class="p">()</span>
+</span><span data-line="10">
+</span><span data-line="11">    <span class="c1"># Optional: Additional relationships</span>
+</span><span data-line="12">    <span class="n">other_relationships</span><span class="p">:</span> <span class="n">OtherRelationships</span> <span class="o">=</span> <span class="n">OtherRelationships</span><span class="p">([</span>
+</span><span data-line="13">        <span class="n">YourServiceUserToHumanRel</span><span class="p">(),</span>  <span class="c1"># Connect to Human nodes</span>
+</span><span data-line="14">    <span class="p">])</span>
+</span></pre></div>
+</div>
+</section>
+<section id="sub-resource-relationships-always-point-to-tenant-like-objects">
+<h3>Sub-Resource Relationships: Always Point to Tenant-Like Objects<a class="headerlink" href="#sub-resource-relationships-always-point-to-tenant-like-objects" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">sub_resource_relationship</span></code> should <strong>always</strong> refer to a tenant-like object that represents the ownership or organizational boundary of the resource. This is crucial for proper data organization and cleanup operations.</p>
+<p><strong>Correct Examples:</strong></p>
+<ul class="simple">
+<li><p><strong>AWS Resources</strong>: Point to <code class="docutils literal notranslate"><span class="pre">AWSAccount</span></code> (tenant = AWS account)</p></li>
+<li><p><strong>Azure Resources</strong>: Point to <code class="docutils literal notranslate"><span class="pre">AzureSubscription</span></code> (tenant = Azure subscription)</p></li>
+<li><p><strong>GCP Resources</strong>: Point to <code class="docutils literal notranslate"><span class="pre">GCPProject</span></code> (tenant = GCP project)</p></li>
+<li><p><strong>SaaS Applications</strong>: Point to <code class="docutils literal notranslate"><span class="pre">YourServiceTenant</span></code> (tenant = organization/company)</p></li>
+<li><p><strong>GitHub Resources</strong>: Point to <code class="docutils literal notranslate"><span class="pre">GitHubOrganization</span></code> (tenant = GitHub org)</p></li>
+</ul>
+<p><strong>Incorrect Examples:</strong></p>
+<ul class="simple">
+<li><p>Pointing to a parent resource that’s not tenant-like (e.g., <code class="docutils literal notranslate"><span class="pre">ECSTaskDefinition</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">ECSTask</span></code>)</p></li>
+<li><p>Pointing to infrastructure components (e.g., <code class="docutils literal notranslate"><span class="pre">ECSContainer</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">ECSTask</span></code>)</p></li>
+<li><p>Pointing to logical groupings that aren’t organizational boundaries</p></li>
+</ul>
+<p><strong>Example: AWS ECS Container Definitions</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># CORRECT: Container definitions belong to AWS accounts</span>
+</span><span data-line="2"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">ECSContainerDefinitionSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="4">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ECSContainerDefinition&quot;</span>
+</span><span data-line="5">    <span class="n">properties</span><span class="p">:</span> <span class="n">ECSContainerDefinitionNodeProperties</span> <span class="o">=</span> <span class="n">ECSContainerDefinitionNodeProperties</span><span class="p">()</span>
+</span><span data-line="6">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">ECSContainerDefinitionToAWSAccountRel</span> <span class="o">=</span> <span class="n">ECSContainerDefinitionToAWSAccountRel</span><span class="p">()</span>
+</span><span data-line="7">    <span class="n">other_relationships</span><span class="p">:</span> <span class="n">OtherRelationships</span> <span class="o">=</span> <span class="n">OtherRelationships</span><span class="p">([</span>
+</span><span data-line="8">        <span class="n">ECSContainerDefinitionToTaskDefinitionRel</span><span class="p">(),</span>  <span class="c1"># Business relationship</span>
+</span><span data-line="9">    <span class="p">])</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="c1"># CORRECT: Relationship to AWS Account (tenant-like)</span>
+</span><span data-line="12"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="13"><span class="k">class</span><span class="w"> </span><span class="nc">ECSContainerDefinitionToAWSAccountRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="14">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSAccount&quot;</span>
+</span><span data-line="15">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="16">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;AWS_ID&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span data-line="17">    <span class="p">})</span>
+</span><span data-line="18">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>
+</span><span data-line="19">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RESOURCE&quot;</span>
+</span><span data-line="20">    <span class="n">properties</span><span class="p">:</span> <span class="n">ECSContainerDefinitionToAWSAccountRelProperties</span> <span class="o">=</span> <span class="n">ECSContainerDefinitionToAWSAccountRelProperties</span><span class="p">()</span>
+</span><span data-line="21">
+</span><span data-line="22"><span class="c1"># CORRECT: Business relationship to task definition (not tenant-like)</span>
+</span><span data-line="23"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="24"><span class="k">class</span><span class="w"> </span><span class="nc">ECSContainerDefinitionToTaskDefinitionRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="25">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ECSTaskDefinition&quot;</span>
+</span><span data-line="26">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="27">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_taskDefinitionArn&quot;</span><span class="p">),</span>
+</span><span data-line="28">    <span class="p">})</span>
+</span><span data-line="29">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>
+</span><span data-line="30">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;HAS_CONTAINER_DEFINITION&quot;</span>
+</span><span data-line="31">    <span class="n">properties</span><span class="p">:</span> <span class="n">ECSContainerDefinitionToTaskDefinitionRelProperties</span> <span class="o">=</span> <span class="n">ECSContainerDefinitionToTaskDefinitionRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p><strong>Why This Matters:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Cleanup Operations</strong>: Cartography uses the sub-resource relationship to determine which data to clean up during sync operations</p></li>
+<li><p><strong>Data Organization</strong>: Tenant-like objects provide natural boundaries for data organization</p></li>
+<li><p><strong>Access Control</strong>: Tenant relationships enable proper access control and data isolation</p></li>
+<li><p><strong>Consistency</strong>: Following this pattern ensures consistent data modeling across all modules</p></li>
+</ol>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<p>Define how your nodes connect to other nodes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.relationships</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span data-line="2">    <span class="n">CartographyRelSchema</span><span class="p">,</span> <span class="n">CartographyRelProperties</span><span class="p">,</span> <span class="n">LinkDirection</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">make_target_node_matcher</span><span class="p">,</span> <span class="n">TargetNodeMatcher</span>
+</span><span data-line="4"><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="c1"># Relationship properties (usually just lastupdated)</span>
+</span><span data-line="7"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceTenantToUserRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="9">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="c1"># The relationship itself</span>
+</span><span data-line="12"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="13"><span class="k">class</span><span class="w"> </span><span class="nc">YourServiceTenantToUserRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="14">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;YourServiceTenant&quot;</span>                <span class="c1"># What we&#39;re connecting to</span>
+</span><span data-line="15">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="16">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;TENANT_ID&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>     <span class="c1"># Match on tenant.id = TENANT_ID kwarg</span>
+</span><span data-line="17">    <span class="p">})</span>
+</span><span data-line="18">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>             <span class="c1"># Tenant points to User</span>
+</span><span data-line="19">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RESOURCE&quot;</span>                                 <span class="c1"># Relationship label</span>
+</span><span data-line="20">    <span class="n">properties</span><span class="p">:</span> <span class="n">YourServiceTenantToUserRelProperties</span> <span class="o">=</span> <span class="n">YourServiceTenantToUserRelProperties</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p><strong>Relationship Directions:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LinkDirection.INWARD</span></code>: <code class="docutils literal notranslate"><span class="pre">(:YourServiceTenant)-[:RESOURCE]-&gt;(:YourServiceUser)</span></code> - Used for sub_resource relationships</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LinkDirection.OUTWARD</span></code>: <code class="docutils literal notranslate"><span class="pre">(:YourServiceUser)-[:RESOURCE]-&gt;(:YourServiceTenant)</span></code> - Rarely used for RESOURCE</p></li>
+</ul>
+<blockquote>
+<div><p>For advanced relationship patterns (MatchLinks, one-to-many, cross-module relationships), see <a class="reference internal" href="add-relationship.html"><span class="std std-doc">Adding a New Relationship</span></a>.</p>
+</div></blockquote>
+</section>
+<section id="loading-data">
+<h3>Loading Data<a class="headerlink" href="#loading-data" title="Link to this heading">¶</a></h3>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">load</span></code> function with your schema:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.client.core.tx</span><span class="w"> </span><span class="kn">import</span> <span class="n">load</span>
+</span><span data-line="2">
+</span><span data-line="3">
+</span><span data-line="4"><span class="k">def</span><span class="w"> </span><span class="nf">load_users</span><span class="p">(</span>
+</span><span data-line="5">    <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+</span><span data-line="7">    <span class="n">tenant_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="9"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="10">    <span class="c1"># Load tenant first (if it doesn&#39;t exist)</span>
+</span><span data-line="11">    <span class="n">load</span><span class="p">(</span>
+</span><span data-line="12">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="13">        <span class="n">YourServiceTenantSchema</span><span class="p">(),</span>
+</span><span data-line="14">        <span class="p">[{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">tenant_id</span><span class="p">}],</span>
+</span><span data-line="15">        <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="16">    <span class="p">)</span>
+</span><span data-line="17">
+</span><span data-line="18">    <span class="c1"># Load users with relationships</span>
+</span><span data-line="19">    <span class="n">load</span><span class="p">(</span>
+</span><span data-line="20">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="21">        <span class="n">YourServiceUserSchema</span><span class="p">(),</span>
+</span><span data-line="22">        <span class="n">data</span><span class="p">,</span>
+</span><span data-line="23">        <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="24">        <span class="n">TENANT_ID</span><span class="o">=</span><span class="n">tenant_id</span><span class="p">,</span>  <span class="c1"># This becomes available as PropertyRef(&quot;TENANT_ID&quot;, set_in_kwargs=True)</span>
+</span><span data-line="25">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="cleanup-jobs">
+<h3>Cleanup Jobs<a class="headerlink" href="#cleanup-jobs" title="Link to this heading">¶</a></h3>
+<p>Always implement cleanup to remove stale data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.graph.job</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphJob</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="4"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="5"><span class="sd">    Remove nodes that weren&#39;t updated in this sync run</span>
+</span><span data-line="6"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="7">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running Your Service cleanup job&quot;</span><span class="p">)</span>
+</span><span data-line="8">
+</span><span data-line="9">    <span class="c1"># Cleanup users</span>
+</span><span data-line="10">    <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_node_schema</span><span class="p">(</span><span class="n">YourServiceUserSchema</span><span class="p">(),</span> <span class="n">common_job_parameters</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="analysis-jobs-optional">
+<h3>Analysis Jobs (Optional)<a class="headerlink" href="#analysis-jobs-optional" title="Link to this heading">¶</a></h3>
+<p>For modules that require post-ingestion graph enrichment (e.g., internet exposure analysis, permission inheritance), add analysis job calls at the end of your main ingestion function. See <a class="reference internal" href="analysis-jobs.html"><span class="std std-doc">Adding Analysis Jobs</span></a> for detailed patterns and examples.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_analysis_job</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="nd">@timeit</span>
+</span><span data-line="4"><span class="k">def</span><span class="w"> </span><span class="nf">start_your_module_ingestion</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="5">    <span class="c1"># ... sync all resources ...</span>
+</span><span data-line="6">
+</span><span data-line="7">    <span class="c1"># Optional: Run analysis jobs after all data is synced</span>
+</span><span data-line="8">    <span class="n">run_analysis_job</span><span class="p">(</span>
+</span><span data-line="9">        <span class="s2">&quot;your_module_analysis.json&quot;</span><span class="p">,</span>
+</span><span data-line="10">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="11">        <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="12">    <span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="configuration-and-credentials">
+<h2>Configuration and Credentials<a class="headerlink" href="#configuration-and-credentials" title="Link to this heading">¶</a></h2>
+<section id="adding-cli-arguments">
+<h3>Adding CLI Arguments<a class="headerlink" href="#adding-cli-arguments" title="Link to this heading">¶</a></h3>
+<p>Add your configuration options in <code class="docutils literal notranslate"><span class="pre">cartography/cli.py</span></code>. The CLI uses <a class="reference external" href="https://typer.tiangolo.com/">Typer</a> with options organized into help panels.</p>
+<ol class="arabic simple">
+<li><p><strong>Add a panel constant</strong> at the top of the file:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">PANEL_YOUR_SERVICE</span> <span class="o">=</span> <span class="s2">&quot;Your Service Options&quot;</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p><strong>Add the panel to MODULE_PANELS</strong> mapping:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MODULE_PANELS</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="2">    <span class="c1"># ... existing modules ...</span>
+</span><span data-line="3">    <span class="s2">&quot;yourservice&quot;</span><span class="p">:</span> <span class="n">PANEL_YOUR_SERVICE</span><span class="p">,</span>
+</span><span data-line="4"><span class="p">}</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p><strong>Add options</strong> in the <code class="docutils literal notranslate"><span class="pre">run()</span></code> function inside <code class="docutils literal notranslate"><span class="pre">_build_app()</span></code>:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># =================================================================</span>
+</span><span data-line="2"><span class="c1"># Your Service Options</span>
+</span><span data-line="3"><span class="c1"># =================================================================</span>
+</span><span data-line="4"><span class="n">your_service_api_key_env_var</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="5">    <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="6">    <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+</span><span data-line="7">        <span class="s2">&quot;--your-service-api-key-env-var&quot;</span><span class="p">,</span>
+</span><span data-line="8">        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Environment variable name containing Your Service API key.&quot;</span><span class="p">,</span>
+</span><span data-line="9">        <span class="n">rich_help_panel</span><span class="o">=</span><span class="n">PANEL_YOUR_SERVICE</span><span class="p">,</span>
+</span><span data-line="10">        <span class="n">hidden</span><span class="o">=</span><span class="n">PANEL_YOUR_SERVICE</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visible_panels</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">),</span>
+</span><span data-line="12"><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="13"><span class="n">your_service_tenant_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="14">    <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="15">    <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+</span><span data-line="16">        <span class="s2">&quot;--your-service-tenant-id&quot;</span><span class="p">,</span>
+</span><span data-line="17">        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Your Service tenant ID.&quot;</span><span class="p">,</span>
+</span><span data-line="18">        <span class="n">rich_help_panel</span><span class="o">=</span><span class="n">PANEL_YOUR_SERVICE</span><span class="p">,</span>
+</span><span data-line="19">        <span class="n">hidden</span><span class="o">=</span><span class="n">PANEL_YOUR_SERVICE</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visible_panels</span><span class="p">,</span>
+</span><span data-line="20">    <span class="p">),</span>
+</span><span data-line="21"><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p><strong>Read secrets from environment</strong> and pass to Config (in the <code class="docutils literal notranslate"><span class="pre">run()</span></code> function body):</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Read Your Service API key</span>
+</span><span data-line="2"><span class="n">your_service_api_key</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="3"><span class="k">if</span> <span class="n">your_service_api_key_env_var</span><span class="p">:</span>
+</span><span data-line="4">    <span class="n">your_service_api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">your_service_api_key_env_var</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p><strong>Add to Config constructor call</strong>:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">config</span> <span class="o">=</span> <span class="n">cartography</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span>
+</span><span data-line="2">    <span class="c1"># ... existing fields ...</span>
+</span><span data-line="3">    <span class="n">your_service_api_key</span><span class="o">=</span><span class="n">your_service_api_key</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">your_service_tenant_id</span><span class="o">=</span><span class="n">your_service_tenant_id</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="configuration-object">
+<h3>Configuration Object<a class="headerlink" href="#configuration-object" title="Link to this heading">¶</a></h3>
+<p>Add fields to <code class="docutils literal notranslate"><span class="pre">cartography/config.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
+</span><span data-line="2">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span data-line="3">        <span class="bp">self</span><span class="p">,</span>
+</span><span data-line="4">        <span class="c1"># ... existing fields ...</span>
+</span><span data-line="5">        <span class="n">your_service_api_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span data-line="6">        <span class="n">your_service_tenant_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span data-line="7">    <span class="p">):</span>
+</span><span data-line="8">        <span class="c1"># ... existing assignments ...</span>
+</span><span data-line="9">        <span class="bp">self</span><span class="o">.</span><span class="n">your_service_api_key</span> <span class="o">=</span> <span class="n">your_service_api_key</span>
+</span><span data-line="10">        <span class="bp">self</span><span class="o">.</span><span class="n">your_service_tenant_id</span> <span class="o">=</span> <span class="n">your_service_tenant_id</span>
+</span></pre></div>
+</div>
+</section>
+<section id="validation-in-module">
+<h3>Validation in Module<a class="headerlink" href="#validation-in-module" title="Link to this heading">¶</a></h3>
+<p>Always validate your configuration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">start_your_service_ingestion</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="2">    <span class="c1"># Validate required configuration</span>
+</span><span data-line="3">    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">your_service_api_key</span><span class="p">:</span>
+</span><span data-line="4">        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Your Service API key not configured - skipping module&quot;</span><span class="p">)</span>
+</span><span data-line="5">        <span class="k">return</span>
+</span><span data-line="6">
+</span><span data-line="7">    <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">your_service_tenant_id</span><span class="p">:</span>
+</span><span data-line="8">        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Your Service tenant ID not configured - skipping module&quot;</span><span class="p">)</span>
+</span><span data-line="9">        <span class="k">return</span>
+</span><span data-line="10">
+</span><span data-line="11">    <span class="c1"># Use the API key from config (already resolved from environment by CLI)</span>
+</span><span data-line="12">    <span class="n">api_key</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">your_service_api_key</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="testing-your-module">
+<h2>Testing Your Module<a class="headerlink" href="#testing-your-module" title="Link to this heading">¶</a></h2>
+<p><strong>Key Principle: Test outcomes, not implementation details.</strong></p>
+<p>Focus on verifying that data is written to the graph as expected, rather than testing internal function parameters or implementation details. Mock external dependencies (APIs, databases) when necessary, but avoid brittle parameter testing.</p>
+<section id="test-data">
+<h3>Test Data<a class="headerlink" href="#test-data" title="Link to this heading">¶</a></h3>
+<p>Create mock data in <code class="docutils literal notranslate"><span class="pre">tests/data/your_service/</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># tests/data/your_service/users.py</span>
+</span><span data-line="2"><span class="n">MOCK_USERS_RESPONSE</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="3">    <span class="s2">&quot;users&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span data-line="4">        <span class="p">{</span>
+</span><span data-line="5">            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;user-123&quot;</span><span class="p">,</span>
+</span><span data-line="6">            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;alice@example.com&quot;</span><span class="p">,</span>
+</span><span data-line="7">            <span class="s2">&quot;display_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice Smith&quot;</span><span class="p">,</span>
+</span><span data-line="8">            <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="s2">&quot;2023-01-15T10:30:00Z&quot;</span><span class="p">,</span>
+</span><span data-line="9">            <span class="s2">&quot;last_login&quot;</span><span class="p">:</span> <span class="s2">&quot;2023-12-01T14:22:00Z&quot;</span><span class="p">,</span>
+</span><span data-line="10">            <span class="s2">&quot;is_admin&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="11">        <span class="p">},</span>
+</span><span data-line="12">        <span class="p">{</span>
+</span><span data-line="13">            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;user-456&quot;</span><span class="p">,</span>
+</span><span data-line="14">            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;bob@example.com&quot;</span><span class="p">,</span>
+</span><span data-line="15">            <span class="s2">&quot;display_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Bob Jones&quot;</span><span class="p">,</span>
+</span><span data-line="16">            <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="s2">&quot;2023-02-20T16:45:00Z&quot;</span><span class="p">,</span>
+</span><span data-line="17">            <span class="s2">&quot;last_login&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># Never logged in</span>
+</span><span data-line="18">            <span class="s2">&quot;is_admin&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="19">        <span class="p">},</span>
+</span><span data-line="20">    <span class="p">]</span>
+</span><span data-line="21"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="integration-tests">
+<h3>Integration Tests<a class="headerlink" href="#integration-tests" title="Link to this heading">¶</a></h3>
+<p>Test actual Neo4j loading in <code class="docutils literal notranslate"><span class="pre">tests/integration/cartography/intel/your_service/</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># tests/integration/cartography/intel/your_service/test_users.py</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">unittest.mock</span><span class="w"> </span><span class="kn">import</span> <span class="n">patch</span>
+</span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">cartography.intel.your_service.users</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.data.your_service.users</span><span class="w"> </span><span class="kn">import</span> <span class="n">MOCK_USERS_RESPONSE</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.integration.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_nodes</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">tests.integration.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_rels</span>
+</span><span data-line="7">
+</span><span data-line="8">
+</span><span data-line="9"><span class="n">TEST_UPDATE_TAG</span> <span class="o">=</span> <span class="mi">123456789</span>
+</span><span data-line="10"><span class="n">TEST_TENANT_ID</span> <span class="o">=</span> <span class="s2">&quot;tenant-123&quot;</span>
+</span><span data-line="11">
+</span><span data-line="12"><span class="nd">@patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span>
+</span><span data-line="13">    <span class="n">cartography</span><span class="o">.</span><span class="n">intel</span><span class="o">.</span><span class="n">your_service</span><span class="o">.</span><span class="n">users</span><span class="p">,</span>
+</span><span data-line="14">    <span class="s2">&quot;get&quot;</span><span class="p">,</span>
+</span><span data-line="15">    <span class="n">return_value</span><span class="o">=</span><span class="n">MOCK_USERS_RESPONSE</span><span class="p">,</span>
+</span><span data-line="16"><span class="p">)</span>
+</span><span data-line="17"><span class="k">def</span><span class="w"> </span><span class="nf">test_sync_users</span><span class="p">(</span><span class="n">mock_api</span><span class="p">,</span> <span class="n">neo4j_session</span><span class="p">):</span>
+</span><span data-line="18"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span data-line="19"><span class="sd">    Test that users sync correctly and create proper nodes and relationships</span>
+</span><span data-line="20"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="21">    <span class="c1"># Act - Use the sync function instead of calling load directly</span>
+</span><span data-line="22">    <span class="n">cartography</span><span class="o">.</span><span class="n">intel</span><span class="o">.</span><span class="n">your_service</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">sync</span><span class="p">(</span>
+</span><span data-line="23">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="24">        <span class="s2">&quot;fake-api-key&quot;</span><span class="p">,</span>
+</span><span data-line="25">        <span class="n">TEST_TENANT_ID</span><span class="p">,</span>
+</span><span data-line="26">        <span class="n">TEST_UPDATE_TAG</span><span class="p">,</span>
+</span><span data-line="27">        <span class="p">{</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">TEST_UPDATE_TAG</span><span class="p">,</span> <span class="s2">&quot;TENANT_ID&quot;</span><span class="p">:</span> <span class="n">TEST_TENANT_ID</span><span class="p">},</span>
+</span><span data-line="28">    <span class="p">)</span>
+</span><span data-line="29">
+</span><span data-line="30">    <span class="c1"># DO: Test outcomes - verify data is written to the graph as expected</span>
+</span><span data-line="31">    <span class="c1"># Assert - Use check_nodes() instead of raw Neo4j queries.</span>
+</span><span data-line="32">    <span class="n">expected_nodes</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="33">        <span class="p">(</span><span class="s2">&quot;user-123&quot;</span><span class="p">,</span> <span class="s2">&quot;alice@example.com&quot;</span><span class="p">),</span>
+</span><span data-line="34">        <span class="p">(</span><span class="s2">&quot;user-456&quot;</span><span class="p">,</span> <span class="s2">&quot;bob@example.com&quot;</span><span class="p">),</span>
+</span><span data-line="35">    <span class="p">}</span>
+</span><span data-line="36">    <span class="k">assert</span> <span class="n">check_nodes</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="s2">&quot;YourServiceUser&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="n">expected_nodes</span>
+</span><span data-line="37">
+</span><span data-line="38">    <span class="c1"># Verify tenant was created</span>
+</span><span data-line="39">    <span class="n">expected_tenant_nodes</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="40">        <span class="p">(</span><span class="n">TEST_TENANT_ID</span><span class="p">,),</span>
+</span><span data-line="41">    <span class="p">}</span>
+</span><span data-line="42">    <span class="k">assert</span> <span class="n">check_nodes</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="s2">&quot;YourServiceTenant&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="n">expected_tenant_nodes</span>
+</span><span data-line="43">
+</span><span data-line="44">    <span class="c1"># Assert relationships are created correctly.</span>
+</span><span data-line="45">    <span class="c1"># Use check_rels() instead of raw Neo4j queries for relationships</span>
+</span><span data-line="46">    <span class="n">expected_rels</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="47">        <span class="p">(</span><span class="s2">&quot;user-123&quot;</span><span class="p">,</span> <span class="n">TEST_TENANT_ID</span><span class="p">),</span>
+</span><span data-line="48">        <span class="p">(</span><span class="s2">&quot;user-456&quot;</span><span class="p">,</span> <span class="n">TEST_TENANT_ID</span><span class="p">),</span>
+</span><span data-line="49">    <span class="p">}</span>
+</span><span data-line="50">    <span class="k">assert</span> <span class="p">(</span>
+</span><span data-line="51">        <span class="n">check_rels</span><span class="p">(</span>
+</span><span data-line="52">            <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="53">            <span class="s2">&quot;YourServiceUser&quot;</span><span class="p">,</span>
+</span><span data-line="54">            <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+</span><span data-line="55">            <span class="s2">&quot;YourServiceTenant&quot;</span><span class="p">,</span>
+</span><span data-line="56">            <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+</span><span data-line="57">            <span class="s2">&quot;RESOURCE&quot;</span><span class="p">,</span>
+</span><span data-line="58">            <span class="n">rel_direction_right</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span data-line="59">        <span class="p">)</span>
+</span><span data-line="60">        <span class="o">==</span> <span class="n">expected_rels</span>
+</span><span data-line="61">    <span class="p">)</span>
+</span></pre></div>
+</div>
+<p><strong>What to Test:</strong></p>
+<ul class="simple">
+<li><p><strong>Outcomes</strong>: Nodes created with correct properties</p></li>
+<li><p><strong>Outcomes</strong>: Relationships created between expected nodes</p></li>
+</ul>
+<p><strong>What NOT to Test:</strong></p>
+<ul class="simple">
+<li><p><strong>Implementation</strong>: Function parameters passed to mocks (brittle!)</p></li>
+<li><p><strong>Implementation</strong>: Internal function call order</p></li>
+<li><p><strong>Implementation</strong>: Mock call counts unless absolutely necessary</p></li>
+</ul>
+<p><strong>When to Mock:</strong></p>
+<ul class="simple">
+<li><p>External APIs (AWS, Azure, third-party services) - provide test data</p></li>
+<li><p>Database connections - avoid real connections</p></li>
+<li><p>Network calls - avoid real network requests</p></li>
+</ul>
+<p><strong>When NOT to Mock:</strong></p>
+<ul class="simple">
+<li><p>Internal Cartography functions</p></li>
+<li><p>Data transformation logic</p></li>
+<li><p>The function that is being tested</p></li>
+</ul>
+</section>
+</section>
+<section id="schema-documentation">
+<h2>Schema Documentation<a class="headerlink" href="#schema-documentation" title="Link to this heading">¶</a></h2>
+<p>Always document your schema in <code class="docutils literal notranslate"><span class="pre">docs/root/modules/your_service/schema.md</span></code>. Follow these formatting conventions:</p>
+<section id="documentation-conventions">
+<h3>Documentation Conventions<a class="headerlink" href="#documentation-conventions" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Title Levels</strong>:</p>
+<ul class="simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">###</span></code> (h3) for node names</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">####</span></code> (h4) for the “Relationships” subsection</p></li>
+</ul>
+</li>
+<li><p><strong>Indexed Fields in Bold</strong>:</p>
+<ul class="simple">
+<li><p>Mark indexed fields (primary key, extra_index=True) with <strong>bold</strong> in the table</p></li>
+<li><p>Example: <code class="docutils literal notranslate"><span class="pre">|**id**|</span> <span class="pre">The</span> <span class="pre">unique</span> <span class="pre">identifier|</span></code></p></li>
+</ul>
+</li>
+<li><p><strong>Ontology Mapping Note</strong> (if applicable):</p>
+<ul class="simple">
+<li><p>Add a blockquote after the node description for nodes with semantic labels</p></li>
+<li><p>See <a class="reference internal" href="enrich-ontology.html#documenting-ontology-integration"><span class="std std-ref">Enriching the Ontology</span></a> for the standard phrase format</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="example-documentation">
+<h3>Example Documentation<a class="headerlink" href="#example-documentation" title="Link to this heading">¶</a></h3>
+<div class="highlight-markdown notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gu">## Your Service Schema</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="gu">### YourServiceUser</span>
+</span><span data-line="4">
+</span><span data-line="5">Represents a user in Your Service.
+</span><span data-line="6">
+</span><span data-line="7"><span class="k">&gt; </span><span class="ge">**Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).</span>
+</span><span data-line="8">
+</span><span data-line="9">| Field | Description |
+</span><span data-line="10">|-------|-------------|
+</span><span data-line="11">| firstseen | Timestamp of when a sync job first discovered this node |
+</span><span data-line="12">| lastupdated | Timestamp of the last time the node was updated |
+</span><span data-line="13">| <span class="gs">**id**</span> | Unique user identifier |
+</span><span data-line="14">| <span class="gs">**email**</span> | User email address (indexed for queries) |
+</span><span data-line="15">| name | User display name |
+</span><span data-line="16">| created_at | Account creation timestamp |
+</span><span data-line="17">| last_login | Last login timestamp |
+</span><span data-line="18">| is_admin | Admin privileges flag |
+</span><span data-line="19">
+</span><span data-line="20"><span class="gu">#### Relationships</span>
+</span><span data-line="21">
+</span><span data-line="22"><span class="k">-</span><span class="w"> </span>YourServiceUser belong to YourServiceTenant.
+</span><span data-line="23"><span class="sb">    ```cypher</span>
+</span><span data-line="24"><span class="w">    </span><span class="p">(:</span><span class="n">YourServiceTenant</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">YourServiceUser</span><span class="p">)</span>
+</span><span data-line="25"><span class="sb">    ```</span>
+</span><span data-line="26">
+</span><span data-line="27"><span class="k">-</span><span class="w"> </span>YourServiceUser may be connected to Human nodes.
+</span><span data-line="28"><span class="sb">    ```cypher</span>
+</span><span data-line="29"><span class="w">    </span><span class="p">(:</span><span class="n">Human</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">IDENTITY_YOUR_SERVICE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">YourServiceUser</span><span class="p">)</span>
+</span><span data-line="30"><span class="sb">    ```</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="file-structure-template">
+<h2>File Structure Template<a class="headerlink" href="#file-structure-template" title="Link to this heading">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography/intel/your_service/
+</span><span data-line="2">├── __init__.py          # Main entry point
+</span><span data-line="3">└── entities.py          # Domain sync modules
+</span><span data-line="4">
+</span><span data-line="5">cartography/models/your_service/
+</span><span data-line="6">├── entity.py            # Data model definitions
+</span><span data-line="7">└── tenant.py            # Tenant model
+</span><span data-line="8">
+</span><span data-line="9">tests/data/your_service/
+</span><span data-line="10">└── entities.py          # Mock test data
+</span><span data-line="11">
+</span><span data-line="12">tests/unit/cartography/intel/your_service/
+</span><span data-line="13">└── test_entities.py     # Unit tests
+</span><span data-line="14">
+</span><span data-line="15">tests/integration/cartography/intel/your_service/
+</span><span data-line="16">└── test_entities.py     # Integration tests
+</span></pre></div>
+</div>
+</section>
+<section id="common-pitfalls">
+<h2>Common Pitfalls<a class="headerlink" href="#common-pitfalls" title="Link to this heading">¶</a></h2>
+<section id="import-errors">
+<h3>Import Errors<a class="headerlink" href="#import-errors" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: ModuleNotFoundError for your new module</span>
+</span><span data-line="2"><span class="c1"># Solution: Ensure __init__.py files exist in all directories</span>
+</span><span data-line="3"><span class="n">cartography</span><span class="o">/</span><span class="n">intel</span><span class="o">/</span><span class="n">your_service</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span>
+</span><span data-line="4"><span class="n">cartography</span><span class="o">/</span><span class="n">models</span><span class="o">/</span><span class="n">your_service</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span>
+</span></pre></div>
+</div>
+</section>
+<section id="schema-validation-errors">
+<h3>Schema Validation Errors<a class="headerlink" href="#schema-validation-errors" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: &quot;PropertyRef validation failed&quot;</span>
+</span><span data-line="2"><span class="c1"># Solution: Check dataclass syntax and PropertyRef definitions</span>
+</span><span data-line="3"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Don&#39;t forget frozen=True!</span>
+</span><span data-line="4"><span class="k">class</span><span class="w"> </span><span class="nc">YourNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="5">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>  <span class="c1"># Must have type annotation</span>
+</span></pre></div>
+</div>
+</section>
+<section id="relationships-not-created">
+<h3>Relationships Not Created<a class="headerlink" href="#relationships-not-created" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Relationships not created</span>
+</span><span data-line="2"><span class="c1"># Solution: Ensure target nodes exist before creating relationships</span>
+</span><span data-line="3"><span class="c1"># Load parent nodes first:</span>
+</span><span data-line="4"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">TenantSchema</span><span class="p">(),</span> <span class="n">tenant_data</span><span class="p">,</span> <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">)</span>
+</span><span data-line="5"><span class="c1"># Then load child nodes with relationships:</span>
+</span><span data-line="6"><span class="n">load</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">,</span> <span class="n">UserSchema</span><span class="p">(),</span> <span class="n">user_data</span><span class="p">,</span> <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span> <span class="n">TENANT_ID</span><span class="o">=</span><span class="n">tenant_id</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="cleanup-job-failures">
+<h3>Cleanup Job Failures<a class="headerlink" href="#cleanup-job-failures" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: &quot;GraphJob failed&quot; during cleanup</span>
+</span><span data-line="2"><span class="c1"># Solution: Check common_job_parameters structure</span>
+</span><span data-line="3"><span class="n">common_job_parameters</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="4">    <span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">update_tag</span><span class="p">,</span>  <span class="c1"># Must match what&#39;s set on nodes</span>
+</span><span data-line="5">    <span class="s2">&quot;TENANT_ID&quot;</span><span class="p">:</span> <span class="n">tenant_id</span><span class="p">,</span>           <span class="c1"># If using scoped cleanup (default)</span>
+</span><span data-line="6"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="date-handling">
+<h3>Date Handling<a class="headerlink" href="#date-handling" title="Link to this heading">¶</a></h3>
+<p>Neo4j 4+ supports native Python datetime objects and ISO 8601 strings:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DON&#39;T: Manually parse dates or convert to epoch timestamps</span>
+</span><span data-line="2"><span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">dt_parse</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">user_data</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># DO: Pass datetime values directly - Neo4j handles them natively</span>
+</span><span data-line="5"><span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">)</span>
+</span><span data-line="6"><span class="s2">&quot;last_login&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_login&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="performance-issues">
+<h3>Performance Issues<a class="headerlink" href="#performance-issues" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Problem: Slow queries</span>
+</span><span data-line="2"><span class="c1"># Solution: Add indexes to frequently queried fields</span>
+</span><span data-line="3"><span class="n">email</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># Note: Fields in target_node_matcher are indexed automatically</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="coding-conventions">
+<h2>Coding Conventions<a class="headerlink" href="#coding-conventions" title="Link to this heading">¶</a></h2>
+<section id="error-handling-principles">
+<h3>Error Handling Principles<a class="headerlink" href="#error-handling-principles" title="Link to this heading">¶</a></h3>
+<section id="fail-loudly-when-assumptions-break">
+<h4>Fail Loudly When Assumptions Break<a class="headerlink" href="#fail-loudly-when-assumptions-break" title="Link to this heading">¶</a></h4>
+<p>Cartography likes to fail loudly so that broken assumptions bubble exceptions up to operators instead of being papered over.</p>
+<ul class="simple">
+<li><p>When key assumptions your code relies upon stop being true, <strong>stop execution immediately</strong> and let the error propagate.</p></li>
+<li><p>Lean toward propagating errors up to callers instead of logging a warning inside a <code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">except</span></code> block and continuing.</p></li>
+<li><p>If you’re confident data should always exist, access it directly. Allow natural <code class="docutils literal notranslate"><span class="pre">KeyError</span></code>, <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code>, or <code class="docutils literal notranslate"><span class="pre">IndexError</span></code> exceptions to signal corruption.</p></li>
+<li><p>Never manufacture “safe” default return values for required data.</p></li>
+<li><p>Avoid <code class="docutils literal notranslate"><span class="pre">hasattr()</span></code>/<code class="docutils literal notranslate"><span class="pre">getattr()</span></code> for required fields - rely on schemas and tests to detect breakage.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DON&#39;T: Catch base exceptions and continue silently</span>
+</span><span data-line="2"><span class="k">try</span><span class="p">:</span>
+</span><span data-line="3">    <span class="n">risky_operation</span><span class="p">()</span>
+</span><span data-line="4"><span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span data-line="5">    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Something went wrong&quot;</span><span class="p">)</span>
+</span><span data-line="6">    <span class="k">pass</span>  <span class="c1"># Silently continue - BAD!</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># DO: Let errors propagate or handle specifically</span>
+</span><span data-line="9"><span class="n">result</span> <span class="o">=</span> <span class="n">risky_operation</span><span class="p">()</span>  <span class="c1"># Let it fail if something is wrong</span>
+</span></pre></div>
+</div>
+</section>
+<section id="required-vs-optional-field-access">
+<h4>Required vs Optional Field Access<a class="headerlink" href="#required-vs-optional-field-access" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">transform_user</span><span class="p">(</span><span class="n">user_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="2">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="3">        <span class="c1"># Required field - let it raise KeyError if missing</span>
+</span><span data-line="4">        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
+</span><span data-line="5">        <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="p">[</span><span class="s2">&quot;email&quot;</span><span class="p">],</span>
+</span><span data-line="6">
+</span><span data-line="7">        <span class="c1"># Optional field - gracefully handle missing data</span>
+</span><span data-line="8">        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;display_name&quot;</span><span class="p">),</span>
+</span><span data-line="9">        <span class="s2">&quot;phone&quot;</span><span class="p">:</span> <span class="n">user_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;phone_number&quot;</span><span class="p">),</span>
+</span><span data-line="10">    <span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="type-hints-style-guide">
+<h3>Type Hints Style Guide<a class="headerlink" href="#type-hints-style-guide" title="Link to this heading">¶</a></h3>
+<p>Use Python 3.9+ style type hints:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DO: Use built-in type hints (Python 3.9+)</span>
+</span><span data-line="2"><span class="k">def</span><span class="w"> </span><span class="nf">get_users</span><span class="p">(</span><span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+</span><span data-line="3">    <span class="o">...</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># DO: Use union operator for optional types</span>
+</span><span data-line="6"><span class="k">def</span><span class="w"> </span><span class="nf">process_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="7">    <span class="o">...</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="c1"># DON&#39;T: Use objects from typing module (Dict, List, Optional)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="logging-guidelines">
+<h3>Logging Guidelines<a class="headerlink" href="#logging-guidelines" title="Link to this heading">¶</a></h3>
+<section id="log-levels">
+<h4>Log Levels<a class="headerlink" href="#log-levels" title="Link to this heading">¶</a></h4>
+<p>Use appropriate log levels to reduce noise in production:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Usage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code></p></td>
+<td><p>Framework-level component failures that cause cascading errors</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ERROR</span></code></p></td>
+<td><p>Explicit errors raised at the module level</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">WARNING</span></code></p></td>
+<td><p>Transient errors or configuration issues that do not stop the module</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">INFO</span></code></p></td>
+<td><p>High-level milestones (module start/finish) and significant summary statistics</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">DEBUG</span></code></p></td>
+<td><p>Everything else: granular job details, empty result sets, raw data</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Key Principle</strong>: <code class="docutils literal notranslate"><span class="pre">INFO</span></code> should be reserved for actionable, high-level events. Empty states like “Loaded 0 results” or routine operations like “Graph job executed” belong in <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DO: Use INFO for significant milestones</span>
+</span><span data-line="2"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting </span><span class="si">%s</span><span class="s2"> ingestion for tenant </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">module_name</span><span class="p">,</span> <span class="n">tenant_id</span><span class="p">)</span>
+</span><span data-line="3"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Completed </span><span class="si">%s</span><span class="s2"> sync&quot;</span><span class="p">,</span> <span class="n">module_name</span><span class="p">)</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># DO: Use DEBUG for granular details</span>
+</span><span data-line="6"><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running cleanup job for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">schema_name</span><span class="p">)</span>
+</span><span data-line="7"><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Fetched </span><span class="si">%s</span><span class="s2"> results from API&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+</span><span data-line="8"><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Transforming </span><span class="si">%s</span><span class="s2"> items&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="c1"># DON&#39;T: Use INFO for routine operations</span>
+</span><span data-line="11"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Graph job executed&quot;</span><span class="p">)</span>  <span class="c1"># Should be DEBUG</span>
+</span><span data-line="12"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fetched 0 users&quot;</span><span class="p">)</span>     <span class="c1"># Should be DEBUG</span>
+</span></pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note</strong>: Do not log the number of nodes or relationships loaded. This is handled automatically by the <code class="docutils literal notranslate"><span class="pre">load()</span></code> function in <code class="docutils literal notranslate"><span class="pre">cartography/client/core/tx.py</span></code>.</p>
+</div></blockquote>
+</section>
+<section id="logging-format">
+<h4>Logging Format<a class="headerlink" href="#logging-format" title="Link to this heading">¶</a></h4>
+<p>Use lazy evaluation with <code class="docutils literal notranslate"><span class="pre">%s</span></code> formatting instead of f-strings. This avoids string interpolation when the log level is not active:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># DO: Use % formatting (lazy evaluation)</span>
+</span><span data-line="2"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Processing </span><span class="si">%s</span><span class="s2"> users for tenant </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">tenant_id</span><span class="p">)</span>
+</span><span data-line="3"><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;API response: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response_data</span><span class="p">)</span>
+</span><span data-line="4"><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Rate limited, retrying in </span><span class="si">%s</span><span class="s2"> seconds&quot;</span><span class="p">,</span> <span class="n">retry_delay</span><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="c1"># DON&#39;T: Use f-strings (eager evaluation)</span>
+</span><span data-line="7"><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2"> users for tenant </span><span class="si">{</span><span class="n">tenant_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span data-line="8"><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;API response: </span><span class="si">{</span><span class="n">response_data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="final-checklist">
+<h2>Final Checklist<a class="headerlink" href="#final-checklist" title="Link to this heading">¶</a></h2>
+<p>Before submitting your module:</p>
+<ul class="simple">
+<li><p>[ ] <strong>Configuration</strong>: CLI args, config validation, credential handling</p></li>
+<li><p>[ ] <strong>Sync Pattern</strong>: get() -&gt; transform() -&gt; load() -&gt; cleanup()</p></li>
+<li><p>[ ] <strong>Data Model</strong>: Node properties, relationships, proper typing</p></li>
+<li><p>[ ] <strong>Schema Fields</strong>: Only use standard fields in <code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code>/<code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> subclasses</p></li>
+<li><p>[ ] <strong>Scoped Cleanup</strong>: Verify <code class="docutils literal notranslate"><span class="pre">scoped_cleanup=True</span></code> (default) for tenant-scoped resources</p></li>
+<li><p>[ ] <strong>Error Handling</strong>: Specific exceptions, required vs optional fields</p></li>
+<li><p>[ ] <strong>Testing</strong>: Integration tests for sync functions</p></li>
+<li><p>[ ] <strong>Documentation</strong>: Schema docs, docstrings, inline comments</p></li>
+<li><p>[ ] <strong>Cleanup</strong>: Proper cleanup job implementation</p></li>
+<li><p>[ ] <strong>Indexing</strong>: Extra indexes on frequently queried fields</p></li>
+<li><p>[ ] <strong>Analysis Jobs</strong> (optional): If your module needs post-ingestion enrichment, see <a class="reference internal" href="analysis-jobs.html"><span class="std std-doc">Analysis Jobs</span></a></p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="analysis-jobs.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Adding Analysis Jobs to Cartography Modules</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="create-rule.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Creating Security Rules</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>
