@@ -64,7 +64,7 @@ def _transform_people_data(
     :return: Tuple of (people_list, manager_relationships_list)
     """
     people = directory_data.get("Report_Entry", [])
-    logger.info(f"Transforming {len(people)} people from Workday")
+    logger.debug(f"Transforming {len(people)} people from Workday")
 
     people_transformed = []
     manager_relationships = []

@@ -20,7 +20,7 @@ def get_organization(gitlab_url: str, token: str, org_id: int) -> dict[str, Any]
     """
     Fetch a specific top-level group (organization) from GitLab by ID.
     """
-    logger.info(f"Fetching organization ID {org_id} from {gitlab_url}")
+    logger.debug(f"Fetching organization ID {org_id} from {gitlab_url}")
     return get_single(gitlab_url, token, f"/api/v4/groups/{org_id}")
 
 

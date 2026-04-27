@@ -73,7 +73,7 @@ query {
 
 @timeit
 def get_entities(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift entities")
+    logger.debug("Fetching Spacelift entities")
 
     response = call_spacelift_api(session, api_endpoint, GET_ENTITIES_QUERY)
     stacks = response.get("data", {}).get("stacks", [])
@@ -96,7 +96,7 @@ def transform_entities_to_run_map(
     This function processes entities to extract EC2 instance IDs and maps them to
     the runs that created or updated them.
     """
-    logger.info(f"Transforming {len(entities_data)} entities into run-to-instances map")
+    logger.debug(f"Transforming {len(entities_data)} entities into run-to-instances map")
 
     run_to_instances: dict[str, list[dict[str, str]]] = {}
 
@@ -167,7 +167,7 @@ def transform_entities_to_run_map(
 
 @timeit
 def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift runs")
+    logger.debug("Fetching Spacelift runs")
 
     response = call_spacelift_api(session, api_endpoint, GET_RUNS_QUERY)
     stacks = response.get("data", {}).get("stacks", [])
@@ -181,7 +181,7 @@ def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any
             run["stack"] = stack_id
             all_runs.append(run)
 
-    logger.info(f"Retrieved {len(all_runs)} Spacelift runs from {len(stacks)} stacks")
+    logger.debug(f"Retrieved {len(all_runs)} Spacelift runs from {len(stacks)} stacks")
     return all_runs
 
 
@@ -191,7 +191,7 @@ def transform_runs(
     account_id: str,
 ) -> list[dict[str, Any]]:
 
-    logger.info(f"Transforming {len(runs_data)} runs")
+    logger.debug(f"Transforming {len(runs_data)} runs")
 
     result: list[dict[str, Any]] = []
 

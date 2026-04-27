@@ -36,7 +36,7 @@ def _get_users(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all users data
     https://duo.com/docs/adminapi#users
     """
-    logger.info("Fetching Duo users")
+    logger.debug("Fetching Duo users")
     return client.get_users()
 
 
@@ -45,7 +45,7 @@ def _transform_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Reformat the data before loading
     """
-    logger.info(f"Transforming {len(users)} duo users")
+    logger.debug(f"Transforming {len(users)} duo users")
     transformed_users = []
     for user in users:
         transformed_user = {
