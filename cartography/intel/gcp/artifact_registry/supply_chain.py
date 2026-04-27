@@ -295,12 +295,12 @@ def _build_layer_dicts(
         history_entries = enrichment.get("layer_history", [])
 
         # Map diff_id index → history command by skipping empty layers
-        history_by_idx: dict[int, str] = {}
+        history_by_idx: dict[int, str | None] = {}
         non_empty_idx = 0
         for entry in history_entries:
             if entry.get("empty_layer", False):
                 continue
-            history_by_idx[non_empty_idx] = entry.get("created_by", "")
+            history_by_idx[non_empty_idx] = entry.get("created_by") or None
             non_empty_idx += 1
 
         for idx, diff_id in enumerate(diff_ids):
