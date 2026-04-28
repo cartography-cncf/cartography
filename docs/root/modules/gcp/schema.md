@@ -1632,7 +1632,6 @@ Representation of a container image filesystem layer extracted from the OCI imag
 |-------|-------------|
 | **id** | The layer diff ID (content-addressable hash, e.g., `sha256:...`) |
 | diff_id | Same as id; the layer diff ID |
-| is_empty | Whether this is an empty (metadata-only) layer |
 | history | The Dockerfile command that created this layer (e.g., `RUN apt-get install ...`) |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |

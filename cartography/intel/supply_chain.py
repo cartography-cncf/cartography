@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -819,6 +820,34 @@ def unwrap_attestation_predicate(predicate: Any) -> dict[str, Any] | None:
             return nested_predicate if isinstance(nested_predicate, dict) else None
 
     return predicate
+
+
+def decode_attestation_blob_to_predicate(
+    blob: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Extract an in-toto SLSA predicate from an attestation blob.
+
+    Supports two common shapes:
+    - DSSE/cosign envelopes where the blob contains a base64-encoded `payload`
+      that decodes to an in-toto statement
+    - Raw in-toto statements where the blob already has `predicate` directly
+    """
+    payload_b64 = blob.get("payload")
+    if payload_b64:
+        try:
+            payload = json.loads(base64.b64decode(str(payload_b64)).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            logger.debug("Failed to decode DSSE attestation payload")
+            return None
+        if isinstance(payload, dict) and "predicate" in payload:
+            return unwrap_attestation_predicate(payload.get("predicate"))
+        return None
+
+    if "predicate" in blob:
+        return unwrap_attestation_predicate(blob.get("predicate"))
+
+    return None
 
 
 def get_slsa_dependency_list(predicate: dict[str, Any]) -> list[dict[str, Any]]:
