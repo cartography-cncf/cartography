@@ -4,12 +4,17 @@ from typing import Dict
 from typing import Set
 from typing import Type
 
+import pytest
+
 import cartography.models
+from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
@@ -99,3 +104,18 @@ def test_sub_resource_relationship():
                 UserWarning,
             )
         # TODO: assert len(nodes) > 1
+
+
+def test_matchlink_sub_resource_requires_kwargs_matcher():
+    with pytest.raises(
+        ValueError,
+        match="MatchLinkSubResource target_node_matcher PropertyRefs must have set_in_kwargs=True",
+    ):
+        MatchLinkSubResource(
+            target_node_label="AWSAccount",
+            target_node_matcher=make_target_node_matcher(
+                {"id": PropertyRef("account_id")},
+            ),
+            direction=LinkDirection.INWARD,
+            rel_label="RESOURCE",
+        )
