@@ -1,9 +1,3 @@
-from cartography.intel.common.report_source import LegacyReportSourceNames
-from cartography.intel.common.report_source import (
-    resolve_report_source_with_legacy_fields,
-)
-
-
 def _resolve_report_source_config(
     *,
     module: str,
@@ -13,6 +7,11 @@ def _resolve_report_source_config(
     s3_prefix: str | None,
     warn_on_legacy: bool = True,
 ) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
     return resolve_report_source_with_legacy_fields(
         source=source,
         local_path=local_path,

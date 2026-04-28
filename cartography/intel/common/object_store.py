@@ -6,12 +6,6 @@ from typing import Callable
 from typing import Iterable
 from typing import Protocol
 
-import boto3
-from azure.storage import blob as azure_blob
-from google.cloud import storage
-
-import cartography.intel.gcp.clients as gcp_clients
-from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.common.report_source import build_azblob_source
 from cartography.intel.common.report_source import build_gcs_source
 from cartography.intel.common.report_source import build_s3_source
@@ -95,11 +89,13 @@ class ListedReportReader:
 class S3BucketReader:
     def __init__(
         self,
-        boto3_session: boto3.Session,
+        boto3_session: Any,
         bucket: str,
         prefix: str = "",
         source_uri: str | None = None,
     ) -> None:
+        from cartography.intel.aws.util.botocore_config import create_boto3_client
+
         self.source_uri = source_uri or build_s3_source(bucket, prefix)
         self._bucket = bucket
         self._prefix = prefix
@@ -122,10 +118,13 @@ class S3BucketReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
+        from botocore.exceptions import BotoCoreError
+        from botocore.exceptions import ClientError
+
         try:
             response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
             return response["Body"].read()
-        except Exception as exc:
+        except (BotoCoreError, ClientError) as exc:
             raise ObjectStoreParseError(ref.uri, "Failed to read S3 report") from exc
 
 
@@ -139,6 +138,10 @@ class GCSBucketReader:
         self.source_uri = source_uri or build_gcs_source(bucket, prefix)
         self._bucket = bucket
         self._prefix = prefix
+        from google.cloud import storage
+
+        import cartography.intel.gcp.clients as gcp_clients
+
         credentials = gcp_clients.get_gcp_credentials()
         self._client = storage.Client(credentials=credentials)
 
@@ -156,11 +159,13 @@ class GCSBucketReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
+        from google.api_core import exceptions as google_exceptions
+
         try:
             bucket = self._client.bucket(self._bucket)
             blob = bucket.blob(ref.name)
             return blob.download_as_bytes()
-        except Exception as exc:
+        except google_exceptions.GoogleAPIError as exc:
             raise ObjectStoreParseError(ref.uri, "Failed to read GCS report") from exc
 
 
@@ -181,6 +186,8 @@ class AzureBlobContainerReader:
         self._account_name = account_name
         self._container_name = container_name
         self._prefix = prefix
+        from azure.storage import blob as azure_blob
+
         self._client = azure_blob.BlobServiceClient(
             account_url=f"https://{account_name}.blob.core.windows.net",
             credential=credential,
@@ -201,13 +208,15 @@ class AzureBlobContainerReader:
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
+        from azure.core import exceptions as azure_exceptions
+
         try:
             blob_client = self._client.get_blob_client(
                 container=self._container_name,
                 blob=ref.name,
             )
             return blob_client.download_blob().readall()
-        except Exception as exc:
+        except azure_exceptions.AzureError as exc:
             raise ObjectStoreParseError(
                 ref.uri,
                 "Failed to read Azure Blob report",

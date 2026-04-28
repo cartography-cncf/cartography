@@ -63,15 +63,27 @@ CloudReportSource = S3ReportSource | GCSReportSource | AzureBlobReportSource
 ReportSource = LocalReportSource | CloudReportSource
 
 
+def _normalize_cloud_prefix(provider: str, prefix: str | None = None) -> str:
+    raw_prefix = prefix or ""
+    normalized_prefix = raw_prefix.lstrip("/")
+    if raw_prefix != normalized_prefix:
+        logger.debug(
+            "%s report source prefix %r had leading slashes removed.",
+            provider,
+            raw_prefix,
+        )
+    return normalized_prefix
+
+
 def build_s3_source(bucket: str, prefix: str | None = None) -> str:
-    normalized_prefix = (prefix or "").lstrip("/")
+    normalized_prefix = _normalize_cloud_prefix("S3", prefix)
     if normalized_prefix:
         return f"s3://{bucket}/{normalized_prefix}"
     return f"s3://{bucket}"
 
 
 def build_gcs_source(bucket: str, prefix: str | None = None) -> str:
-    normalized_prefix = (prefix or "").lstrip("/")
+    normalized_prefix = _normalize_cloud_prefix("GCS", prefix)
     if normalized_prefix:
         return f"gs://{bucket}/{normalized_prefix}"
     return f"gs://{bucket}"
@@ -82,7 +94,7 @@ def build_azblob_source(
     container_name: str,
     prefix: str | None = None,
 ) -> str:
-    normalized_prefix = (prefix or "").lstrip("/")
+    normalized_prefix = _normalize_cloud_prefix("Azure Blob", prefix)
     if normalized_prefix:
         return f"azblob://{account_name}/{container_name}/{normalized_prefix}"
     return f"azblob://{account_name}/{container_name}"

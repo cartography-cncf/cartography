@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import AzureBlobReportSource
+from cartography.intel.common.report_source import build_s3_source
 from cartography.intel.common.report_source import GCSReportSource
 from cartography.intel.common.report_source import LegacyReportSourceNames
 from cartography.intel.common.report_source import LocalReportSource
@@ -40,6 +42,14 @@ def test_parse_s3_report_source() -> None:
         bucket="example-bucket",
         prefix="reports/trivy/",
     )
+
+
+def test_build_s3_source_logs_leading_slash_normalization(caplog) -> None:
+    with caplog.at_level(logging.DEBUG):
+        source = build_s3_source("example-bucket", "/reports/trivy/")
+
+    assert source == "s3://example-bucket/reports/trivy/"
+    assert "had leading slashes removed" in caplog.text
 
 
 def test_parse_report_source_accepts_uppercase_scheme() -> None:
@@ -200,6 +210,41 @@ def test_build_report_reader_for_azure_cli_auth(
     )
 
     assert reader is fake_reader
+    mock_reader_cls.assert_called_once_with(
+        "acct",
+        "container",
+        "prefix",
+        fake_credential,
+        "azblob://acct/container/prefix",
+    )
+
+
+@patch("cartography.intel.common.object_store.AzureBlobContainerReader")
+@patch("azure.identity.AzureCliCredential")
+def test_build_report_reader_for_azure_cli_auth_warns_on_ignored_sp_fields(
+    mock_credential_cls,
+    mock_reader_cls,
+    caplog,
+) -> None:
+    fake_reader = mock_reader_cls.return_value
+    fake_credential = mock_credential_cls.return_value
+
+    with caplog.at_level(logging.WARNING):
+        reader = build_report_reader_for_source(
+            AzureBlobReportSource(
+                raw="azblob://acct/container/prefix",
+                account_name="acct",
+                container_name="container",
+                prefix="prefix",
+            ),
+            azure_sp_auth=False,
+            azure_tenant_id="tenant-id",
+            azure_client_id="client-id",
+            azure_client_secret="client-secret",
+        )
+
+    assert reader is fake_reader
+    assert "azure_sp_auth is disabled" in caplog.text
     mock_reader_cls.assert_called_once_with(
         "acct",
         "container",

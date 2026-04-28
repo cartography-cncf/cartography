@@ -1,7 +1,5 @@
 import importlib
-
-import boto3
-from azure import identity as azure_identity
+import logging
 
 import cartography.intel.common.object_store as object_store
 from cartography.intel.common.object_store import ReportReader
@@ -10,6 +8,8 @@ from cartography.intel.common.report_source import GCSReportSource
 from cartography.intel.common.report_source import LocalReportSource
 from cartography.intel.common.report_source import ReportSource
 from cartography.intel.common.report_source import S3ReportSource
+
+logger = logging.getLogger(__name__)
 
 
 def build_report_reader_for_source(
@@ -24,6 +24,8 @@ def build_report_reader_for_source(
         return object_store.LocalReportReader(source.path)
 
     if isinstance(source, S3ReportSource):
+        import boto3
+
         return object_store.S3BucketReader(
             boto3.Session(),
             source.bucket,
@@ -54,6 +56,12 @@ def build_report_reader_for_source(
             )
         credential = credentials.credential
     else:
+        if azure_tenant_id or azure_client_id or azure_client_secret:
+            logger.warning(
+                "Azure service principal report-source settings were provided but azure_sp_auth is disabled; using Azure CLI credentials.",
+            )
+        from azure import identity as azure_identity
+
         credential = azure_identity.AzureCliCredential()
 
     return object_store.AzureBlobContainerReader(

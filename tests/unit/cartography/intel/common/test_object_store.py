@@ -119,8 +119,13 @@ def test_s3_bucket_reader_reads_bytes() -> None:
 
 
 def test_s3_bucket_reader_wraps_read_errors() -> None:
+    from botocore.exceptions import ClientError
+
     session = MagicMock()
-    session.client.return_value.get_object.side_effect = RuntimeError("boom")
+    session.client.return_value.get_object.side_effect = ClientError(
+        {"Error": {"Code": "NoSuchKey", "Message": "not found"}},
+        "GetObject",
+    )
     ref = ReportRef("s3://example-bucket/reports/findings.txt", "reports/findings.txt")
 
     with pytest.raises(ObjectStoreParseError, match=ref.uri):
@@ -167,9 +172,11 @@ def test_gcs_bucket_reader_wraps_read_errors(
     _mock_get_gcp_credentials,
     mock_storage_client_cls,
 ) -> None:
+    from google.api_core import exceptions as google_exceptions
+
     fake_client = MagicMock()
     fake_client.bucket.return_value.blob.return_value.download_as_bytes.side_effect = (
-        RuntimeError("boom")
+        google_exceptions.NotFound("not found")
     )
     mock_storage_client_cls.return_value = fake_client
     ref = ReportRef("gs://example-bucket/reports/findings.txt", "reports/findings.txt")
@@ -216,9 +223,11 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
 def test_azure_blob_reader_wraps_read_errors(
     mock_blob_service_client_cls,
 ) -> None:
+    from azure.core import exceptions as azure_exceptions
+
     fake_service_client = MagicMock()
-    fake_service_client.get_blob_client.return_value.download_blob.return_value.readall.side_effect = RuntimeError(
-        "boom"
+    fake_service_client.get_blob_client.return_value.download_blob.return_value.readall.side_effect = azure_exceptions.ResourceNotFoundError(
+        "not found"
     )
     mock_blob_service_client_cls.return_value = fake_service_client
     ref = ReportRef(
