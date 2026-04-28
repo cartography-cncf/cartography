@@ -176,4 +176,5 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     cartography.intel.crowdstrike.cleanup(neo4j_session, next_params)
 
     assert check_nodes(neo4j_session, "CrowdstrikeFinding", ["id"]) == set()
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == set()
     assert check_nodes(neo4j_session, "SpotlightVulnerability", ["id"]) == set()
