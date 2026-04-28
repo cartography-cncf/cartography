@@ -274,8 +274,8 @@ assert check_rels(
 
 ### Integration Test Boundary
 
-- Integration tests may seed prerequisite graph state with Cypher, but should exercise real Cartography `sync_*`, `load()`, and cleanup functions whenever practical.
-- Prefer mocking only external boundaries such as API clients, service discovery, credentials, and network responses. Mock Cartography sync functions only for unit-style caller-wiring tests.
+- Integration tests may seed prerequisite graph state with Cypher, but should exercise real Cartography `sync()` / `sync_*()` flows end-to-end whenever practical.
+- Prefer mocking only external boundaries such as API clients, service discovery, credentials, and network responses; do not mock Cartography internal sync, load, or cleanup functions in integration tests.
 
 ---
 
