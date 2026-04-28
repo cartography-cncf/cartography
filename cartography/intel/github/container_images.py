@@ -17,7 +17,6 @@ from typing import Any
 from typing import cast
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -110,25 +109,21 @@ def _process_manifest(
         config_digest = config_ref.get("digest")
         if config_digest:
             if config_digest not in config_cache:
-                # Only swallow 404 (blob legitimately missing). Auth and 5xx
-                # errors propagate so the sync fails loudly rather than
-                # silently dropping layer/architecture data.
-                try:
-                    config_cache[config_digest] = fetch_ghcr_blob(
-                        token,
-                        repository_name,
-                        config_digest,
-                    )
-                except requests.exceptions.HTTPError as err:
-                    if err.response is None or err.response.status_code != 404:
-                        raise
+                # fetch_ghcr_blob returns None on 404 and raises on every other
+                # HTTP error, so the sync fails loudly on auth/5xx and only the
+                # legitimate "blob missing" case yields None here.
+                config_cache[config_digest] = fetch_ghcr_blob(
+                    token,
+                    repository_name,
+                    config_digest,
+                )
+                if config_cache[config_digest] is None:
                     logger.warning(
                         "GHCR config blob %s missing for %s (404); image "
                         "will be ingested without layer/arch metadata.",
                         config_digest,
                         repository_name,
                     )
-                    config_cache[config_digest] = None
             config_blob = config_cache[config_digest]
             if config_blob is not None:
                 manifest["_config"] = config_blob
