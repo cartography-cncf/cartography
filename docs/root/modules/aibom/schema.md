@@ -59,7 +59,7 @@ Representation of one scanned target within the AIBOM output. In practice this i
     (:AIBOMSource)-[:HAS_WORKFLOW]->(:AIBOMWorkflow)
     ```
 
-- An analysis job creates a shortcut edge from a source to every container running the scanned image. This is computed by joining through the shared `:Image` node and covers three cases: direct image match, both sides referencing the same `ImageManifestList`, and the manifest-list-to-child-image hop.
+- An analysis job creates a shortcut edge from a source to every container running the scanned image. This is computed by joining `SCANNED_IMAGE` with `RESOLVED_IMAGE` on the same concrete `:Image` node, inheriting the architecture matching and determinism guards from `resolved_image_analysis.json`.
 
     ```
     (:AIBOMSource)-[:RUNS_ON]->(:Container)
