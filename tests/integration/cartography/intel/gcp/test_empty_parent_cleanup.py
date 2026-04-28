@@ -68,7 +68,7 @@ def test_project_resource_sync_cleans_bigtable_children_with_empty_instances(
     _create_stale_project_resource(
         neo4j_session,
         "GCPBigtableBackup",
-        "projects/test-project/instances/inst/clusters/c1/backups/old-backup",
+        "projects/test-project/instances/inst/clusters/old-cluster/backups/old-backup",
     )
 
     credentials = MagicMock()
