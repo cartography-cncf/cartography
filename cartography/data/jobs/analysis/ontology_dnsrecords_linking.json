@@ -1,0 +1,86 @@
+{
+  "name": "Ontology - DNSRecords relationship linking",
+  "statements": [
+    {
+      "__comment": "Cleanup: remove stale analysis-created DNS_POINTS_TO edges from DNSRecord nodes",
+      "query": "MATCH (:DNSRecord)-[r:DNS_POINTS_TO]->() WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Link DNSRecord to KubernetesIngress where the record name matches an ingress host",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names MERGE (dns)-[r:DNS_POINTS_TO]->(ing) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AWSLoadBalancerV2 via _ont_value (scalar, covers AWS/Cloudflare/Vercel records)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (lb:AWSLoadBalancerV2) WHERE toLower(toString(dns._ont_value)) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to AWSLoadBalancerV2 via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (lb:AWSLoadBalancerV2) WHERE toLower(val) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AWSLoadBalancer via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (lb:AWSLoadBalancer) WHERE toLower(toString(dns._ont_value)) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to AWSLoadBalancer via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (lb:AWSLoadBalancer) WHERE toLower(val) = toLower(lb.dnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(lb) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to CloudFrontDistribution via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (cf:CloudFrontDistribution) WHERE toLower(toString(dns._ont_value)) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to CloudFrontDistribution via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (cf:CloudFrontDistribution) WHERE toLower(val) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to EC2Instance via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (i:EC2Instance) WHERE toLower(toString(dns._ont_value)) = toLower(i.publicdnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to EC2Instance via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (i:EC2Instance) WHERE toLower(val) = toLower(i.publicdnsname) MERGE (dns)-[r:DNS_POINTS_TO]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to GCPInstance via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (i:GCPInstance) WHERE toLower(toString(dns._ont_value)) = toLower(i.hostname) MERGE (dns)-[r:DNS_POINTS_TO]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to GCPInstance via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (i:GCPInstance) WHERE toLower(val) = toLower(i.hostname) MERGE (dns)-[r:DNS_POINTS_TO]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AzureAppService via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (app:AzureAppService) WHERE toLower(toString(dns._ont_value)) = toLower(app.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(app) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to AzureAppService via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (app:AzureAppService) WHERE toLower(val) = toLower(app.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(app) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link DNSRecord to AzureFunctionApp via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (func:AzureFunctionApp) WHERE toLower(toString(dns._ont_value)) = toLower(func.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(func) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link GCPRecordSet to AzureFunctionApp via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (func:AzureFunctionApp) WHERE toLower(val) = toLower(func.default_host_name) MERGE (dns)-[r:DNS_POINTS_TO]->(func) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}

@@ -33,7 +33,9 @@ class GitLabDependencyFileNodeProperties(CartographyNodeProperties):
     filename: PropertyRef = PropertyRef(
         "filename", extra_index=True
     )  # File name (e.g., "package.json")
+    project_id: PropertyRef = PropertyRef("project_id")
     project_url: PropertyRef = PropertyRef("project_url")  # Parent project URL
+    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -55,7 +57,10 @@ class GitLabProjectHasDependencyFileRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url")},
+        {
+            "id": PropertyRef("project_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DEPENDENCY_FILE"
@@ -81,7 +86,10 @@ class GitLabDependencyFileToProjectRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url", set_in_kwargs=True)}
+        {
+            "id": PropertyRef("project_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

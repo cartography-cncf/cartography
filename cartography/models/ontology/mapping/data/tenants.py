@@ -108,7 +108,7 @@ digitalocean_mapping = OntologyMapping(
 
 # Entra (formerly Azure AD)
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraTenant",
@@ -190,6 +190,8 @@ googleworkspace_mapping = OntologyMapping(
 
 # GSuite (legacy): No field to map in GSuiteTenant (minimal properties)
 
+# Jamf: No field to map in JamfTenant (minimal properties)
+
 # Kandji: No field to map in KandjiTenant (minimal properties)
 
 
@@ -267,6 +269,23 @@ scaleway_mapping = OntologyMapping(
 )
 
 
+# Sentry
+sentry_mapping = OntologyMapping(
+    module_name="sentry",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentryOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # SentinelOne
 sentinelone_mapping = OntologyMapping(
     module_name="sentinelone",
@@ -324,9 +343,79 @@ slack_mapping = OntologyMapping(
 # Duo
 # DuoApiHost: No field to map in DuoApiHost (minimal properties)
 
+# JumpCloud
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
+# WorkOS Tenant mapping
+workos_tenants_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Available via WorkOSOrganizationDomain relationship
+            ],
+        ),
+    ],
+)
+
+
+# SubImage: No field to map in SubImageTenant (minimal properties beyond id)
+
+# Socket.dev
+socketdev_mapping = OntologyMapping(
+    module_name="socketdev",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SocketDevOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
+# Vercel
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
@@ -334,7 +423,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "digitalocean": digitalocean_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "googleworkspace": googleworkspace_mapping,
@@ -342,7 +431,12 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
+    "jumpcloud": jumpcloud_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
+    "socketdev": socketdev_mapping,
+    "workos": workos_tenants_mapping,
+    "vercel": vercel_mapping,
 }

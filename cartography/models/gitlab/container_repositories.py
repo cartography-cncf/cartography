@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -56,7 +57,10 @@ class GitLabContainerRepositoryToOrgRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -72,6 +76,7 @@ class GitLabContainerRepositorySchema(CartographyNodeSchema):
     """
 
     label: str = "GitLabContainerRepository"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ContainerRegistry"])
     properties: GitLabContainerRepositoryNodeProperties = (
         GitLabContainerRepositoryNodeProperties()
     )

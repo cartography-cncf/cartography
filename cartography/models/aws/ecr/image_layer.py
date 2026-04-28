@@ -18,6 +18,7 @@ class ECRImageLayerNodeProperties(CartographyNodeProperties):
     diff_id: PropertyRef = PropertyRef("diff_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     is_empty: PropertyRef = PropertyRef("is_empty")
+    history: PropertyRef = PropertyRef("history")
 
 
 @dataclass(frozen=True)
@@ -105,3 +106,55 @@ class ECRImageLayerSchema(CartographyNodeSchema):
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])
+
+
+@dataclass(frozen=True)
+class ECRImageLayerNodeSchema(CartographyNodeSchema):
+    """Load ECRImageLayer nodes without high-fanout one-to-many relationships."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
+    sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
+        ECRImageLayerToAWSAccountRel()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])
+
+
+@dataclass(frozen=True)
+class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("diff_id")
+    diff_id: PropertyRef = PropertyRef("diff_id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECRImageLayerNextRelSchema(CartographyNodeSchema):
+    """Load bounded NEXT relationship rows without reloading layer metadata."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerToNextRel()],
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
+    """Load bounded HEAD relationship rows without reloading layer metadata."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerHeadOfImageRel()],
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageLayerTailRelSchema(CartographyNodeSchema):
+    """Load bounded TAIL relationship rows without reloading layer metadata."""
+
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageLayerTailOfImageRel()],
+    )

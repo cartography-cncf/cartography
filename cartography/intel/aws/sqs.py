@@ -11,6 +11,7 @@ from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sqs.queue import SQSQueueSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_sqs_queue_list(boto3_session: boto3.session.Session, region: str) -> List[str]:
-    client = boto3_session.client("sqs", region_name=region)
+    client = create_boto3_client(boto3_session, "sqs", region_name=region)
     paginator = client.get_paginator("list_queues")
     queues: List[Any] = []
     for page in paginator.paginate():
@@ -33,10 +34,11 @@ def get_sqs_queue_list(boto3_session: boto3.session.Session, region: str) -> Lis
 @aws_handle_regions
 def get_sqs_queue_attributes(
     boto3_session: boto3.session.Session,
+    region: str,
     queue_urls: List[str],
 ) -> List[Tuple[str, Any]]:
     """Iterates over all SQS queues and returns a list of (url, attributes)."""
-    client = boto3_session.client("sqs")
+    client = create_boto3_client(boto3_session, "sqs", region_name=region)
 
     queue_attributes = []
     for queue_url in queue_urls:
@@ -126,7 +128,7 @@ def sync(
         queue_urls = get_sqs_queue_list(boto3_session, region)
         if not queue_urls:
             continue
-        queue_attributes = get_sqs_queue_attributes(boto3_session, queue_urls)
+        queue_attributes = get_sqs_queue_attributes(boto3_session, region, queue_urls)
         transformed = transform_sqs_queues(queue_attributes)
         load_sqs_queues(
             neo4j_session,

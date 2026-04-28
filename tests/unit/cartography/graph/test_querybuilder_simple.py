@@ -1,6 +1,6 @@
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.version import get_cartography_version
 from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import (
     FakeEmpSchema,
 )
@@ -41,7 +41,7 @@ def test_build_ingestion_query_with_sub_resource():
     """
     Test creating a simple node schema with a sub resource relationship.
     """
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(SimpleNodeWithSubResourceSchema())
 
     # Act
@@ -59,8 +59,7 @@ def test_build_ingestion_query_with_sub_resource():
                 i.property2 = item.property2
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (j:SubResource{{id: $sub_resource_id}})
                 WITH i, item, j WHERE j IS NOT NULL
                 MERGE (i)<-[r:RELATIONSHIP_LABEL]-(j)
@@ -79,7 +78,7 @@ def test_build_ingestion_query_with_sub_resource():
 
 
 def test_build_ingestion_query_case_insensitive_match():
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(FakeEmpSchema())
 
     query = build_ingestion_query(FakeEmpSchema())
@@ -96,8 +95,7 @@ def test_build_ingestion_query_case_insensitive_match():
                 i.github_username = item.github_username
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (n0:GitHubUser)
                 WHERE
                     toLower(n0.username) = toLower(item.github_username)
@@ -118,7 +116,7 @@ def test_build_ingestion_query_case_insensitive_match():
 
 
 def test_build_ingestion_query_fuzzy_case_insensitive():
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(FakeEmp2Schema())
 
     query = build_ingestion_query(FakeEmp2Schema())
@@ -135,8 +133,7 @@ def test_build_ingestion_query_fuzzy_case_insensitive():
                 i.github_username = item.github_username
 
         WITH i, item
-        CALL {{
-            WITH i, item
+        CALL (i, item) {{
             OPTIONAL MATCH (n0:GitHubUser)
             WHERE
                 toLower(n0.username) CONTAINS toLower(item.github_username)

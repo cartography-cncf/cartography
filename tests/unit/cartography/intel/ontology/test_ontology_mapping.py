@@ -21,9 +21,12 @@ ALL_MAPPINGS = {
 OLD_FORMAT_NODES = [
     "OktaUser",
     "OktaApplication",
+    "OktaGroup",
     "OktaOrganization",
+    "OktaAdministrationRole",
     "AWSAccount",
     "EntraTenant",  # main label is AzureTenant
+    "GitHubRepository",
 ]
 
 
@@ -35,6 +38,41 @@ def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema
         if node_class.label == node_label:
             models.append(node_class)
     return models
+
+
+def _get_models_with_properties_for_label(
+    node_label: str,
+) -> list[Type[CartographyNodeSchema]]:
+    """
+    Get all models that can contribute properties to nodes with the given label.
+    This includes:
+    1. Models with the exact label
+    2. Models targeting any of the extra_node_labels of the primary models (composite schemas)
+    """
+    # First get the primary models for this label
+    primary_models = _get_model_by_node_label(node_label)
+    all_models = list(primary_models)
+
+    # Collect all extra_node_labels from primary models
+    # Need to instantiate to get the actual value (property returns None on class if not defined)
+    # Extract label strings from both string labels and ConditionalNodeLabel objects
+    extra_labels: set[str] = set()
+    for model_class in primary_models:
+        model_instance = model_class()
+        if model_instance.extra_node_labels:
+            for label in model_instance.extra_node_labels.labels:
+                if isinstance(label, str):
+                    extra_labels.add(label)
+                else:
+                    # ConditionalNodeLabel - extract the label attribute
+                    extra_labels.add(label.label)
+
+    # Find composite schemas that target these extra labels
+    for extra_label in extra_labels:
+        composite_models = _get_model_by_node_label(extra_label)
+        all_models.extend(composite_models)
+
+    return all_models
 
 
 def test_ontology_mapping_modules():
@@ -58,6 +96,30 @@ def test_ontology_mapping_categories():
         ), f"Module '{category}' not found in ONTOLOGY_MODELS."
 
 
+def test_ontology_primary_labels_are_reserved_for_ontology_models():
+    # Ontology primary labels (e.g. Package, UserAccount) must only be owned by
+    # ontology model classes. Reusing them in provider/raw schemas causes
+    # collisions in ontology matching and migration logic.
+    ontology_labels = {model().label for model in ONTOLOGY_MODELS.values()}
+    violations: set[str] = set()
+
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        if node_class.__module__.startswith("cartography.models.ontology"):
+            continue
+        if node_class.label in ontology_labels:
+            violations.add(
+                f"{node_class.__module__}.{node_class.__name__} uses reserved ontology label '{node_class.label}'.",
+            )
+
+    assert (
+        not violations
+    ), "Ontology primary labels are reserved for ontology schemas only.\n" + "\n".join(
+        sorted(violations)
+    )
+
+
 def test_ontology_mapping_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
@@ -70,8 +132,9 @@ def test_ontology_mapping_fields():
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
                 if node.node_label in OLD_FORMAT_NODES:
                     continue
-                # Load the model classes for the module
-                model_classes = _get_model_by_node_label(node.node_label)
+                # Load all model classes that can contribute properties to this node
+                # This includes primary models and composite schemas targeting extra labels
+                model_classes = _get_models_with_properties_for_label(node.node_label)
                 assert len(model_classes) > 0, (
                     f"Model class for node label '{node.node_label}' "
                     f"in module '{module_name}' not found."

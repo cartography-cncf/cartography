@@ -51,6 +51,7 @@ LIST_INSTANCES = [
     {
         "InstanceArn": "arn:aws:sso:::instance/ssoins-12345678901234567",
         "IdentityStoreId": "d-1234567890",
+        "OwnerAccountId": "1234567890",
         "InstanceStatus": "ACTIVE",
         "CreatedDate": "2023-01-01T00:00:00Z",
         "LastModifiedDate": "2023-01-01T00:00:00Z",

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -65,6 +66,20 @@ class GCPArtifactRegistryPlatformImageToDockerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:GCPArtifactRegistryContainerImage)-[:CONTAINS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+class GCPArtifactRegistryPlatformImageToParentImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("parent_artifact_id")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS_IMAGE"
+    properties: GCPArtifactRegistryPlatformImageToArtifactRelProperties = (
+        GCPArtifactRegistryPlatformImageToArtifactRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryPlatformImageSchema(CartographyNodeSchema):
     label: str = "GCPArtifactRegistryPlatformImage"
     properties: GCPArtifactRegistryPlatformImageNodeProperties = (
@@ -76,5 +91,7 @@ class GCPArtifactRegistryPlatformImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPArtifactRegistryPlatformImageToDockerImageRel(),
+            GCPArtifactRegistryPlatformImageToParentImageRel(),
         ]
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Image"])

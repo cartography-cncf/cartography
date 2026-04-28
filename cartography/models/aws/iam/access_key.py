@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -28,26 +29,6 @@ class AccountAccessKeyNodeProperties(CartographyNodeProperties):
     lastuseddate_dt: PropertyRef = PropertyRef("lastuseddate_dt")
     lastusedservice: PropertyRef = PropertyRef("lastusedservice")
     lastusedregion: PropertyRef = PropertyRef("lastusedregion")
-
-
-@dataclass(frozen=True)
-class AWSUserToAccountAccessKeyRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AWSUserToAccountAccessKeyRel(CartographyRelSchema):
-    target_node_label: str = "AccountAccessKey"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "accesskeyid": PropertyRef("accesskeyid"),
-        }
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "AWS_ACCESS_KEY"
-    properties: AWSUserToAccountAccessKeyRelProperties = (
-        AWSUserToAccountAccessKeyRelProperties()
-    )
 
 
 @dataclass(frozen=True)
@@ -93,6 +74,7 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
     label: str = "AccountAccessKey"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (
         AccountAccessKeyToAWSAccountRel()
@@ -100,6 +82,5 @@ class AccountAccessKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AccountAccessKeyToAWSUserRel(),
-            AccountAccessKeyToAWSAccountRel(),
         ]
     )

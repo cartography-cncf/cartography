@@ -3,6 +3,7 @@ import datetime
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
@@ -105,6 +106,125 @@ def test__get_role_tags_no_tags(mocker):
     assert result == []
 
 
+def test__get_role_tags_no_such_entity(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_role_list_data",
+        return_value={
+            "Roles": [
+                {
+                    "RoleName": "deleted-role",
+                    "Arn": "deleted-role-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.meta.client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.Role.side_effect = NoSuchEntityException()
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_role_tags(mock_session)
+
+    assert result == []
+
+
+def test__get_user_tags_valid_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_user_list_data",
+        return_value={
+            "Users": [
+                {
+                    "UserName": "test-user",
+                    "Arn": "test-user-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_user = mocker.Mock()
+    mock_user.tags = [
+        {
+            "Key": "k1",
+            "Value": "v1",
+        },
+    ]
+    mock_client.User.return_value = mock_user
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_user_tags(mock_session)
+
+    assert result == [
+        {
+            "ResourceARN": "test-user-arn",
+            "Tags": [
+                {
+                    "Key": "k1",
+                    "Value": "v1",
+                },
+            ],
+        },
+    ]
+
+
+def test__get_user_tags_no_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_user_list_data",
+        return_value={
+            "Users": [
+                {
+                    "UserName": "test-user",
+                    "Arn": "test-user-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_user = mocker.Mock()
+    mock_user.tags = []
+    mock_client.User.return_value = mock_user
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_user_tags(mock_session)
+
+    assert result == []
+
+
+def test__get_user_tags_no_such_entity(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_user_list_data",
+        return_value={
+            "Users": [
+                {
+                    "UserName": "deleted-user",
+                    "Arn": "deleted-user-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.meta.client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.User.side_effect = NoSuchEntityException()
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_user_tags(mock_session)
+
+    assert result == []
+
+
 def test_transform_policy_data_correctly_creates_lists_of_statements():
     # "pol-name" is a policy containing a single statement
     # See https://github.com/cartography-cncf/cartography/issues/1102
@@ -168,3 +288,36 @@ def test_transform_server_certificates():
     assert isinstance(result[0]["UploadDate"], datetime.datetime)
     assert result[0]["Expiration"] == datetime.datetime(2024, 1, 1, 0, 0, 0)
     assert result[0]["UploadDate"] == datetime.datetime(2023, 1, 1, 0, 0, 0)
+
+
+def test_transform_mfa_devices():
+    raw_data = LIST_MFA_DEVICES
+    result = iam.transform_mfa_devices(raw_data)
+    assert len(result) == 3
+
+    assert result[0]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0"
+    assert result[0]["username"] == "user-0"
+    assert result[0]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[0]["enabledate"] == "2024-01-15 10:30:00"
+    assert isinstance(result[0]["enabledate_dt"], datetime.datetime)
+    assert result[0]["enabledate_dt"] == datetime.datetime(2024, 1, 15, 10, 30, 0)
+
+    assert result[1]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0-backup"
+    assert result[1]["username"] == "user-0"
+    assert result[1]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[1]["enabledate"] == "2024-02-20 14:45:00"
+    assert isinstance(result[1]["enabledate_dt"], datetime.datetime)
+    assert result[1]["enabledate_dt"] == datetime.datetime(2024, 2, 20, 14, 45, 0)
+
+    assert result[2]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-1"
+    assert result[2]["username"] == "user-1"
+    assert result[2]["user_arn"] == "arn:aws:iam::000000000000:user/user-1"
+    assert result[2]["enabledate"] == "2023-12-01 09:00:00"
+    assert isinstance(result[2]["enabledate_dt"], datetime.datetime)
+    assert result[2]["enabledate_dt"] == datetime.datetime(2023, 12, 1, 9, 0, 0)
+
+
+def test_transform_mfa_devices_empty():
+    raw_data = []
+    result = iam.transform_mfa_devices(raw_data)
+    assert result == []

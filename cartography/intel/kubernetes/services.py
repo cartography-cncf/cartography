@@ -10,6 +10,7 @@ from kubernetes.client.models import V1Service
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -91,6 +92,9 @@ def transform_services(
             "creation_timestamp": get_epoch(service.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(service.metadata.deletion_timestamp),
             "namespace": service.metadata.namespace,
+            "qualified_name": get_qualified_resource_name(
+                service.metadata.namespace, service.metadata.name
+            ),
             "type": service.spec.type,
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,
@@ -136,7 +140,6 @@ def load_services(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(services)} KubernetesServices")
     load(
         session,
         KubernetesServiceSchema(),

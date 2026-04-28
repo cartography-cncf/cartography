@@ -19,8 +19,13 @@ class APIGatewayRestAPINodeProperties(CartographyNodeProperties):
     disableexecuteapiendpoint: PropertyRef = PropertyRef("disableExecuteApiEndpoint")
     region: PropertyRef = PropertyRef("region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Policy-level access: True if resource policy allows anonymous/public access
     anonymous_access: PropertyRef = PropertyRef("anonymous_access")
     anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
+    # Network-level exposure: Based on endpoint configuration type
+    # EDGE/REGIONAL = internet exposed, PRIVATE = VPC only
+    endpoint_type: PropertyRef = PropertyRef("endpoint_type", extra_index=True)
+    exposed_internet: PropertyRef = PropertyRef("exposed_internet", extra_index=True)
 
 
 @dataclass(frozen=True)

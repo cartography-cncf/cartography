@@ -1,5 +1,4 @@
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import cartography.intel.aws.codebuild
 from cartography.intel.aws.codebuild import sync
@@ -13,15 +12,17 @@ TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(
-    cartography.intel.aws.codebuild,
-    "get_all_codebuild_projects",
-    return_value=GET_PROJECTS,
-)
-def test_sync_cloudwatch(mock_get_projects, neo4j_session):
+def test_sync_cloudwatch(mocker, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
+    boto3_session.get_partition_for_region.return_value = "aws"
+    boto3_session.get_available_regions.return_value = [TEST_REGION]
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mocker.patch.object(
+        cartography.intel.aws.codebuild,
+        "get_all_codebuild_projects",
+        return_value=GET_PROJECTS,
+    )
 
     # Act
     sync(

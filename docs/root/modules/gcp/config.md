@@ -15,8 +15,12 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
-| `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
+| `roles/bigquery.dataViewer` | List/get BigQuery datasets, tables, and routines | Optional |
+| `roles/bigquery.connectionUser` | List BigQuery connections | Optional |
+| `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) and enable permission relationship syncs that depend on those bindings | Optional |
 | `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
+| `roles/run.viewer` | List/get Cloud Run services, jobs, and executions | Optional |
+| `roles/notebooks.viewer` | List/get Vertex AI Workbench (Notebooks API) resources | Optional |
 
 To grant a role at the organization level:
 ```bash
@@ -59,11 +63,14 @@ gcloud services enable dns.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudkms.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable bigtableadmin.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable sqladmin.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable bigquery.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable bigqueryconnection.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudfunctions.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable secretmanager.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable artifactregistry.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable run.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable aiplatform.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable notebooks.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudasset.googleapis.com --project=YOUR_HOST_PROJECT
 ```
 
@@ -75,12 +82,16 @@ If you set `GOOGLE_CLOUD_QUOTA_PROJECT` to override the default quota project, e
 
 If an API is not enabled on your host/quota project, Cartography will log a warning and skip syncing that resource type rather than crashing. Other modules will continue normally.
 
+Some services also emit per-location permission warnings (for example Cloud Run in restricted regions). Cartography logs these and skips only affected locations.
+
 ### Cloud Asset Inventory (CAI)
 
 Cartography uses the [Cloud Asset Inventory API](https://cloud.google.com/asset-inventory/docs/overview) for two features:
 
 1. **IAM Fallback**: When the IAM API is disabled on a target project, Cartography falls back to CAI to retrieve service accounts and custom roles.
 2. **Policy Bindings**: Sync effective IAM policies (including inherited policies from parent orgs/folders) for all resources.
+
+GCP permission relationship syncs depend on the current run's policy binding context. In practice, that means permission relationship syncs require the CAI-backed policy bindings sync to succeed in the same run.
 
 #### Setup
 
@@ -101,5 +112,6 @@ When using a service account, CAI API calls are automatically billed against the
 
 #### Limitations
 
-- **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Predefined roles are fetched separately from the IAM API and included in the fallback sync.
+- **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Note: The CAI fallback only syncs service accounts and project-level custom roles. Predefined roles and organization-level custom roles are synced separately at the organization level via the IAM API.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
+- **Permission Relationships**: Depend on policy bindings being refreshed in the same sync run. If CAI is unavailable or `roles/cloudasset.viewer` is missing, permission relationships will not have the policy binding data they need and will be skipped for that project.

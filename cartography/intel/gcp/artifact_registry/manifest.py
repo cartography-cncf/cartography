@@ -9,6 +9,9 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
 from cartography.models.gcp.artifact_registry.platform_image import (
     GCPArtifactRegistryPlatformImageSchema,
 )
@@ -23,23 +26,19 @@ MANIFEST_LIST_MEDIA_TYPES = {
 }
 
 
-def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
+def parse_docker_image_uri(uri: str) -> tuple[str, str, str] | None:
     """
-    Parses a Docker image URI to extract the registry URL and reference.
+    Parse a Docker image URI into registry, image path, and reference components.
 
     :param uri: Docker image URI (e.g., us-docker.pkg.dev/project/repo/image@sha256:...)
-    :return: Tuple of (registry_base_url, manifest_path) or None if parsing fails.
+    :return: Tuple of (registry, image_path, reference) or None if parsing fails.
     """
-    # URI format: {location}-docker.pkg.dev/{project}/{repo}/{image}@{digest}
-    # or: {location}-docker.pkg.dev/{project}/{repo}/{image}:{tag}
     if not uri:
         return None
 
-    # Split off the digest or tag
     if "@" in uri:
         base, reference = uri.rsplit("@", 1)
     elif ":" in uri and "-docker.pkg.dev" in uri:
-        # Find the last colon that's part of the tag (not the port)
         parts = uri.split("/")
         if ":" in parts[-1]:
             base = uri.rsplit(":", 1)[0]
@@ -49,17 +48,21 @@ def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
     else:
         return None
 
-    # Parse the base to get registry and image path
-    # base = {location}-docker.pkg.dev/{project}/{repo}/{image}
     parts = base.split("/")
     if len(parts) < 4:
         return None
 
     registry = parts[0]
     image_path = "/".join(parts[1:])
+    return registry, image_path, reference
 
-    manifest_url = f"https://{registry}/v2/{image_path}/manifests/{reference}"
-    return manifest_url, reference
+
+def build_manifest_url(registry: str, image_path: str, reference: str) -> str:
+    return f"https://{registry}/v2/{image_path}/manifests/{reference}"
+
+
+def build_blob_url(registry: str, image_path: str, digest: str) -> str:
+    return f"https://{registry}/v2/{image_path}/blobs/{digest}"
 
 
 async def get_manifest_list_async(
@@ -75,12 +78,13 @@ async def get_manifest_list_async(
     :param image_uri: The Docker image URI.
     :return: List of platform manifest dicts from the manifest list.
     """
-    parsed = _get_registry_url_from_uri(image_uri)
+    parsed = parse_docker_image_uri(image_uri)
     if not parsed:
         logger.debug(f"Could not parse image URI: {image_uri}")
         return []
 
-    manifest_url, _ = parsed
+    registry, image_path, reference = parsed
+    manifest_url = build_manifest_url(registry, image_path, reference)
 
     try:
         headers = {
@@ -243,6 +247,7 @@ def load_manifests(
         neo4j_session,
         GCPArtifactRegistryPlatformImageSchema(),
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )

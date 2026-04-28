@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -26,12 +27,14 @@ class GitLabGroupNodeProperties(CartographyNodeProperties):
     Groups are nested within a GitLab organization and can contain other groups and projects.
     """
 
-    id: PropertyRef = PropertyRef("web_url")  # Unique identifier
+    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab group ID
     name: PropertyRef = PropertyRef("name", extra_index=True)  # Display name
     path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
     full_path: PropertyRef = PropertyRef(
         "full_path", extra_index=True
     )  # Full hierarchy path
+    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
+    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
     parent_id: PropertyRef = PropertyRef(
@@ -59,7 +62,10 @@ class GitLabGroupToParentGroupRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("parent_group_url")},
+        {
+            "id": PropertyRef("parent_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
@@ -86,7 +92,10 @@ class GitLabGroupToOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -107,6 +116,7 @@ class GitLabGroupSchema(CartographyNodeSchema):
 
     label: str = "GitLabGroup"
     properties: GitLabGroupNodeProperties = GitLabGroupNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitLabGroupToParentGroupRel(),  # Child group -> Parent group (nested hierarchy)

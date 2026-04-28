@@ -23,8 +23,9 @@ def assert_trivy_findings(neo4j_session: Session) -> None:
 
 
 def assert_trivy_packages(neo4j_session: Session) -> None:
-    """Assert Package nodes exist with expected values."""
-    assert check_nodes(neo4j_session, "Package", ["id", "name", "version"]) == {
+    """Assert Package nodes exist with expected values (vulnerable + non-vulnerable)."""
+    assert check_nodes(neo4j_session, "TrivyPackage", ["id", "name", "version"]) == {
+        # Vulnerable packages (from Vulnerabilities array)
         ("0.14.0|h11", "h11", "0.14.0"),
         ("1.20.1-2+deb12u2|krb5-locales", "krb5-locales", "1.20.1-2+deb12u2"),
         ("1.20.1-2+deb12u2|libk5crypto3", "libk5crypto3", "1.20.1-2+deb12u2"),
@@ -39,18 +40,113 @@ def assert_trivy_packages(neo4j_session: Session) -> None:
         ("4.19.0-2|libtasn1-6", "libtasn1-6", "4.19.0-2"),
         ("5.36.0-7+deb12u1|perl-base", "perl-base", "5.36.0-7+deb12u1"),
         ("5.4.1-0.2|liblzma5", "liblzma5", "5.4.1-0.2"),
+        # Non-vulnerable packages (from Packages array only)
+        ("2.6.1|apt", "apt", "2.6.1"),
+        ("5.2.15-2+b2|bash", "bash", "5.2.15-2+b2"),
+        ("2.31.0|requests", "requests", "2.31.0"),
+        ("2.0.7|urllib3", "urllib3", "2.0.7"),
     }
 
 
 def assert_all_trivy_relationships(neo4j_session: Session) -> None:
     """Assert all Trivy relationships are correctly created."""
-    # Package to ECRImage relationships
+    # Package to TrivyFix relationships
     assert check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
-        "ECRImage",
+        "TrivyFix",
         "id",
+        "SHOULD_UPDATE_TO",
+        rel_direction_right=True,
+    ) == {
+        ("0.14.0|h11", "0.16.0|h11"),
+        ("1.20.1-2+deb12u2|krb5-locales", "1.20.1-2+deb12u3|krb5-locales"),
+        ("1.20.1-2+deb12u2|libk5crypto3", "1.20.1-2+deb12u3|libk5crypto3"),
+        ("1.20.1-2+deb12u2|libkrb5-3", "1.20.1-2+deb12u3|libkrb5-3"),
+        ("1.20.1-2+deb12u2|libkrb5support0", "1.20.1-2+deb12u3|libkrb5support0"),
+        ("12.2.0-14|gcc-12-base", "12.2.0-14+deb12u1|gcc-12-base"),
+        ("12.2.0-14|libstdc++6", "12.2.0-14+deb12u1|libstdc++6"),
+        ("1:4.13+dfsg1-1+b1|login", "1:4.13+dfsg1-1+deb12u1|login"),
+        ("1:4.13+dfsg1-1+b1|passwd", "1:4.13+dfsg1-1+deb12u1|passwd"),
+        ("3.0.15-1~deb12u1|libssl3", "3.0.16-1~deb12u1|libssl3"),
+        ("3.0.15-1~deb12u1|openssl", "3.0.16-1~deb12u1|openssl"),
+        ("4.19.0-2|libtasn1-6", "4.19.0-2+deb12u1|libtasn1-6"),
+        ("5.36.0-7+deb12u1|perl-base", "5.36.0-7+deb12u2|perl-base"),
+        ("5.4.1-0.2|liblzma5", "5.4.1-1|liblzma5"),
+    }
+
+    # TrivyFix to TrivyImageFinding relationships
+    assert check_rels(
+        neo4j_session,
+        "TrivyFix",
+        "id",
+        "TrivyImageFinding",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        ("0.16.0|h11", "TIF|CVE-2025-43859"),
+        ("1.20.1-2+deb12u3|krb5-locales", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u3|krb5-locales", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u3|libk5crypto3", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u3|libk5crypto3", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u3|libkrb5-3", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u3|libkrb5-3", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u3|libkrb5support0", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u3|libkrb5support0", "TIF|CVE-2025-24528"),
+        ("12.2.0-14+deb12u1|gcc-12-base", "TIF|CVE-2023-4039"),
+        ("12.2.0-14+deb12u1|libstdc++6", "TIF|CVE-2023-4039"),
+        ("1:4.13+dfsg1-1+deb12u1|login", "TIF|CVE-2023-29383"),
+        ("1:4.13+dfsg1-1+deb12u1|login", "TIF|CVE-2023-4641"),
+        ("1:4.13+dfsg1-1+deb12u1|passwd", "TIF|CVE-2023-29383"),
+        ("1:4.13+dfsg1-1+deb12u1|passwd", "TIF|CVE-2023-4641"),
+        ("3.0.16-1~deb12u1|libssl3", "TIF|CVE-2024-13176"),
+        ("3.0.16-1~deb12u1|openssl", "TIF|CVE-2024-13176"),
+        ("4.19.0-2+deb12u1|libtasn1-6", "TIF|CVE-2024-12133"),
+        ("5.36.0-7+deb12u2|perl-base", "TIF|CVE-2024-56406"),
+        ("5.4.1-1|liblzma5", "TIF|CVE-2025-31115"),
+    }
+
+    # Package to TrivyImageFinding relationships
+    assert check_rels(
+        neo4j_session,
+        "TrivyPackage",
+        "id",
+        "TrivyImageFinding",
+        "id",
+        "AFFECTS",
+        rel_direction_right=False,
+    ) == {
+        ("0.14.0|h11", "TIF|CVE-2025-43859"),
+        ("1.20.1-2+deb12u2|krb5-locales", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u2|krb5-locales", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u2|libk5crypto3", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u2|libk5crypto3", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u2|libkrb5-3", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u2|libkrb5-3", "TIF|CVE-2025-24528"),
+        ("1.20.1-2+deb12u2|libkrb5support0", "TIF|CVE-2024-26462"),
+        ("1.20.1-2+deb12u2|libkrb5support0", "TIF|CVE-2025-24528"),
+        ("12.2.0-14|gcc-12-base", "TIF|CVE-2023-4039"),
+        ("12.2.0-14|libstdc++6", "TIF|CVE-2023-4039"),
+        ("1:4.13+dfsg1-1+b1|login", "TIF|CVE-2023-29383"),
+        ("1:4.13+dfsg1-1+b1|login", "TIF|CVE-2023-4641"),
+        ("1:4.13+dfsg1-1+b1|passwd", "TIF|CVE-2023-29383"),
+        ("1:4.13+dfsg1-1+b1|passwd", "TIF|CVE-2023-4641"),
+        ("3.0.15-1~deb12u1|libssl3", "TIF|CVE-2024-13176"),
+        ("3.0.15-1~deb12u1|openssl", "TIF|CVE-2024-13176"),
+        ("4.19.0-2|libtasn1-6", "TIF|CVE-2024-12133"),
+        ("5.36.0-7+deb12u1|perl-base", "TIF|CVE-2024-56406"),
+        ("5.4.1-0.2|liblzma5", "TIF|CVE-2025-31115"),
+    }
+
+    # Package to ontology Image relationships (via _ont_digest)
+    assert check_rels(
+        neo4j_session,
+        "TrivyPackage",
+        "id",
+        "Image",
+        "_ont_digest",
         "DEPLOYED",
         rel_direction_right=True,
     ) == {
@@ -110,105 +206,32 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
             "5.4.1-0.2|liblzma5",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
+        # Non-vulnerable packages from Packages array
+        (
+            "2.6.1|apt",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "5.2.15-2+b2|bash",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "2.31.0|requests",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "2.0.7|urllib3",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
     }
 
-    # Package to TrivyFix relationships
-    assert check_rels(
-        neo4j_session,
-        "Package",
-        "id",
-        "TrivyFix",
-        "id",
-        "SHOULD_UPDATE_TO",
-        rel_direction_right=True,
-    ) == {
-        ("0.14.0|h11", "0.16.0|h11"),
-        ("1.20.1-2+deb12u2|krb5-locales", "1.20.1-2+deb12u3|krb5-locales"),
-        ("1.20.1-2+deb12u2|libk5crypto3", "1.20.1-2+deb12u3|libk5crypto3"),
-        ("1.20.1-2+deb12u2|libkrb5-3", "1.20.1-2+deb12u3|libkrb5-3"),
-        ("1.20.1-2+deb12u2|libkrb5support0", "1.20.1-2+deb12u3|libkrb5support0"),
-        ("12.2.0-14|gcc-12-base", "12.2.0-14+deb12u1|gcc-12-base"),
-        ("12.2.0-14|libstdc++6", "12.2.0-14+deb12u1|libstdc++6"),
-        ("1:4.13+dfsg1-1+b1|login", "1:4.13+dfsg1-1+deb12u1|login"),
-        ("1:4.13+dfsg1-1+b1|passwd", "1:4.13+dfsg1-1+deb12u1|passwd"),
-        ("3.0.15-1~deb12u1|libssl3", "3.0.16-1~deb12u1|libssl3"),
-        ("3.0.15-1~deb12u1|openssl", "3.0.16-1~deb12u1|openssl"),
-        ("4.19.0-2|libtasn1-6", "4.19.0-2+deb12u1|libtasn1-6"),
-        ("5.36.0-7+deb12u1|perl-base", "5.36.0-7+deb12u2|perl-base"),
-        ("5.4.1-0.2|liblzma5", "5.4.1-1|liblzma5"),
-    }
-
-    # TrivyFix to TrivyImageFinding relationships
-    assert check_rels(
-        neo4j_session,
-        "TrivyFix",
-        "id",
-        "TrivyImageFinding",
-        "id",
-        "APPLIES_TO",
-        rel_direction_right=True,
-    ) == {
-        ("0.16.0|h11", "TIF|CVE-2025-43859"),
-        ("1.20.1-2+deb12u3|krb5-locales", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u3|krb5-locales", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u3|libk5crypto3", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u3|libk5crypto3", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u3|libkrb5-3", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u3|libkrb5-3", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u3|libkrb5support0", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u3|libkrb5support0", "TIF|CVE-2025-24528"),
-        ("12.2.0-14+deb12u1|gcc-12-base", "TIF|CVE-2023-4039"),
-        ("12.2.0-14+deb12u1|libstdc++6", "TIF|CVE-2023-4039"),
-        ("1:4.13+dfsg1-1+deb12u1|login", "TIF|CVE-2023-29383"),
-        ("1:4.13+dfsg1-1+deb12u1|login", "TIF|CVE-2023-4641"),
-        ("1:4.13+dfsg1-1+deb12u1|passwd", "TIF|CVE-2023-29383"),
-        ("1:4.13+dfsg1-1+deb12u1|passwd", "TIF|CVE-2023-4641"),
-        ("3.0.16-1~deb12u1|libssl3", "TIF|CVE-2024-13176"),
-        ("3.0.16-1~deb12u1|openssl", "TIF|CVE-2024-13176"),
-        ("4.19.0-2+deb12u1|libtasn1-6", "TIF|CVE-2024-12133"),
-        ("5.36.0-7+deb12u2|perl-base", "TIF|CVE-2024-56406"),
-        ("5.4.1-1|liblzma5", "TIF|CVE-2025-31115"),
-    }
-
-    # Package to TrivyImageFinding relationships
-    assert check_rels(
-        neo4j_session,
-        "Package",
-        "id",
-        "TrivyImageFinding",
-        "id",
-        "AFFECTS",
-        rel_direction_right=False,
-    ) == {
-        ("0.14.0|h11", "TIF|CVE-2025-43859"),
-        ("1.20.1-2+deb12u2|krb5-locales", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u2|krb5-locales", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u2|libk5crypto3", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u2|libk5crypto3", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u2|libkrb5-3", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u2|libkrb5-3", "TIF|CVE-2025-24528"),
-        ("1.20.1-2+deb12u2|libkrb5support0", "TIF|CVE-2024-26462"),
-        ("1.20.1-2+deb12u2|libkrb5support0", "TIF|CVE-2025-24528"),
-        ("12.2.0-14|gcc-12-base", "TIF|CVE-2023-4039"),
-        ("12.2.0-14|libstdc++6", "TIF|CVE-2023-4039"),
-        ("1:4.13+dfsg1-1+b1|login", "TIF|CVE-2023-29383"),
-        ("1:4.13+dfsg1-1+b1|login", "TIF|CVE-2023-4641"),
-        ("1:4.13+dfsg1-1+b1|passwd", "TIF|CVE-2023-29383"),
-        ("1:4.13+dfsg1-1+b1|passwd", "TIF|CVE-2023-4641"),
-        ("3.0.15-1~deb12u1|libssl3", "TIF|CVE-2024-13176"),
-        ("3.0.15-1~deb12u1|openssl", "TIF|CVE-2024-13176"),
-        ("4.19.0-2|libtasn1-6", "TIF|CVE-2024-12133"),
-        ("5.36.0-7+deb12u1|perl-base", "TIF|CVE-2024-56406"),
-        ("5.4.1-0.2|liblzma5", "TIF|CVE-2025-31115"),
-    }
-
-    # TrivyImageFinding to ECRImage relationships
+    # TrivyImageFinding to ontology Image relationships (via _ont_digest)
     assert check_rels(
         neo4j_session,
         "TrivyImageFinding",
         "id",
-        "ECRImage",
-        "id",
+        "Image",
+        "_ont_digest",
         "AFFECTS",
         rel_direction_right=True,
     ) == {
@@ -255,41 +278,6 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
     }
 
 
-def assert_trivy_gitlab_image_relationships(
-    neo4j_session: Session,
-    expected_package_rels: set,
-    expected_finding_rels: set,
-) -> None:
-    """Assert Trivy relationships to GitLabContainerImage are correctly created."""
-    # Package to GitLabContainerImage relationships (DEPLOYED)
-    assert (
-        check_rels(
-            neo4j_session,
-            "Package",
-            "id",
-            "GitLabContainerImage",
-            "id",
-            "DEPLOYED",
-            rel_direction_right=True,
-        )
-        == expected_package_rels
-    )
-
-    # TrivyImageFinding to GitLabContainerImage relationships (AFFECTS)
-    assert (
-        check_rels(
-            neo4j_session,
-            "TrivyImageFinding",
-            "id",
-            "GitLabContainerImage",
-            "id",
-            "AFFECTS",
-            rel_direction_right=True,
-        )
-        == expected_finding_rels
-    )
-
-
 def assert_trivy_finding_extended_fields(neo4j_session: Session) -> None:
     """Assert TrivyImageFinding nodes have extended fields populated."""
     result = neo4j_session.run(
@@ -319,7 +307,7 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
     """Assert Package nodes have extended fields populated."""
     result = neo4j_session.run(
         """
-        MATCH (p:Package)
+        MATCH (p:TrivyPackage)
         WHERE p.purl IS NOT NULL
         RETURN p.id AS id, p.purl AS purl, p.pkg_id AS pkg_id
         LIMIT 5
@@ -330,3 +318,38 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
     for row in result:
         assert row["purl"] is not None, f"purl should be set for {row['id']}"
         assert row["pkg_id"] is not None, f"pkg_id should be set for {row['id']}"
+
+
+def assert_trivy_image_relationships(
+    neo4j_session: Session,
+    expected_package_rels: set,
+    expected_finding_rels: set,
+) -> None:
+    """Assert Trivy relationships to ontology Image nodes are correctly created."""
+    # TrivyPackage to ontology Image relationships (DEPLOYED)
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyPackage",
+            "id",
+            "Image",
+            "_ont_digest",
+            "DEPLOYED",
+            rel_direction_right=True,
+        )
+        == expected_package_rels
+    )
+
+    # TrivyImageFinding to ontology Image relationships (AFFECTS)
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyImageFinding",
+            "id",
+            "Image",
+            "_ont_digest",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == expected_finding_rels
+    )

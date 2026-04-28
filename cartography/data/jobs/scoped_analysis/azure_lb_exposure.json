@@ -1,0 +1,15 @@
+{
+  "name": "Azure LB EXPOSE relationships",
+  "statements": [
+    {
+      "__comment": "Cleanup stale EXPOSE rels from LBs in this subscription",
+      "query": "MATCH (s:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(lb:AzureLoadBalancer)-[r:EXPOSE]->() WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
+      "iterative": false
+    },
+    {
+      "__comment": "Create EXPOSE rels from exposed LBs to private VMs behind them",
+      "query": "MATCH (s:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(lb:AzureLoadBalancer{exposed_internet: true})-[:CONTAINS]->(:AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(nic:AzureNetworkInterface)-[:ATTACHED_TO]->(vm:AzureVirtualMachine) WHERE NOT (nic)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress) MERGE (lb)-[r:EXPOSE]->(vm) SET r.lastupdated = $UPDATE_TAG, r.exposure_type = 'via_lb_only'",
+      "iterative": false
+    }
+  ]
+}

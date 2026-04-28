@@ -163,7 +163,7 @@ def get_awssso_okta_groups(
            <-[:RESOURCE]-(:OktaOrganization{id: $okta_org_id})
     RETURN g.id as group_id, g.name as group_name
     """
-    result = neo4j_session.read_transaction(
+    result = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         query,
         okta_org_id=okta_org_id,
@@ -193,7 +193,7 @@ def get_awssso_role_arn(
     WHERE SPLIT(role.name, '_')[1..-1][0] = $role_hint
     RETURN role.arn AS role_arn
     """
-    return neo4j_session.read_transaction(
+    return neo4j_session.execute_read(
         read_single_value_tx,
         query,
         account_id=account_id,
@@ -256,7 +256,7 @@ def _load_okta_group_to_awssso_roles(
     group_to_role: list[GroupRole],
     okta_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_awssso_tx, group_to_role, okta_update_tag)
+    neo4j_session.execute_write(_load_awssso_tx, group_to_role, okta_update_tag)
 
 
 @timeit

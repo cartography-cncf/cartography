@@ -909,8 +909,8 @@ def test_sync_gcp_firewall_rules_with_target_tags(
         tests.data.gcp.compute.VPC_RESPONSE_2,
     ],
 )
-def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
-    """Test that cleanup removes VPCs from other projects because it is not scoped."""
+def test_vpc_cleanup_scoped_to_project(mock_get_vpcs, neo4j_session):
+    """Test that VPC cleanup is scoped to the current project and preserves other projects' VPCs."""
     # Arrange
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
     neo4j_session.run("MATCH (n) DETACH DELETE n")

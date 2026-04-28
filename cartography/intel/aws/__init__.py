@@ -12,6 +12,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -28,6 +29,29 @@ from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
+
+
+# DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
+def _normalize_requested_syncs(aws_requested_syncs: Iterable[str]) -> list[str]:
+    """
+    Auto-include dependent sync phases for backward compatibility.
+    E.g., requesting 'ec2:load_balancer_v2' alone will auto-include 'ec2:load_balancer_v2:expose'.
+    """
+    # Preserve order + dedupe
+    requested_syncs = list(dict.fromkeys(aws_requested_syncs))
+    requested_syncs_set = set(requested_syncs)
+
+    if (
+        "ec2:load_balancer_v2" in requested_syncs_set
+        and "ec2:load_balancer_v2:expose" not in requested_syncs_set
+    ):
+        requested_syncs.append("ec2:load_balancer_v2:expose")
+        logger.info(
+            "Auto-including 'ec2:load_balancer_v2:expose' because "
+            "'ec2:load_balancer_v2' was requested.",
+        )
+
+    return requested_syncs
 
 
 def _build_aws_sync_kwargs(
@@ -56,8 +80,11 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
-    aioboto3_session: aioboto3.Session = aioboto3.Session(),
+    aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
+    if aioboto3_session is None:
+        aioboto3_session = aioboto3.Session()
+
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -70,6 +97,8 @@ def _sync_one_account(
         update_tag,
         common_job_parameters,
     )
+
+    aws_requested_syncs = _normalize_requested_syncs(aws_requested_syncs)
 
     # Validate that all requested syncs exist
     requested_syncs_set = set(aws_requested_syncs)
@@ -86,7 +115,15 @@ def _sync_one_account(
         "ec2:images": ["ec2:instance"],
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
+        "ec2:load_balancer_v2:expose": [
+            "ec2:load_balancer_v2",
+            "ec2:network_interface",
+        ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
+        # `ecs` creates IS_INSTANCE rels (ECSContainerInstance→EC2Instance) and
+        # TARGETS matchlinks (ELBV2TargetGroup→ECSService)
+        "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
+        "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -140,6 +177,22 @@ def _sync_one_account(
         common_job_parameters,
     )
 
+    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
+        requested_syncs_set
+    ):
+        run_scoped_analysis_job(
+            "aws_lb_container_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
+        run_scoped_analysis_job(
+            "aws_lb_nacl_direct.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",
@@ -180,7 +233,7 @@ def _autodiscover_accounts(
     logger.info("Trying to autodiscover accounts.")
     try:
         # Fetch all accounts
-        client = boto3_session.client("organizations")
+        client = create_boto3_client(boto3_session, "organizations")
         paginator = client.get_paginator("list_accounts")
         accounts: List[Dict] = []
         for page in paginator.paginate():
@@ -214,14 +267,13 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
 
     failed_account_ids = []
     exception_tracebacks = []
-
-    num_accounts = len(accounts)
 
     for profile_name, account_id in accounts.items():
         logger.info(
@@ -230,13 +282,11 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-            aioboto3_session = aioboto3.Session()
-        else:
-            boto3_session = boto3.Session(profile_name=profile_name)
-            aioboto3_session = aioboto3.Session(profile_name=profile_name)
+        # When use_explicit_profile is set, honor configured profiles (hub/spoke STS assume-role configs, #1142/#1185).
+        # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -305,6 +355,14 @@ def _perform_aws_analysis(
     """
     requested_syncs_as_set = set(requested_syncs)
 
+    run_analysis_and_ensure_deps(
+        "aws_ip_node_label_migration.json",
+        {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     ec2_asset_exposure_requirements = {
         "ec2:instance",
         "ec2:security_group",
@@ -345,7 +403,7 @@ def _perform_aws_analysis(
 
     run_analysis_and_ensure_deps(
         "aws_ecs_asset_exposure.json",
-        {"ecs", "ec2:load_balancer_v2"},
+        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
@@ -360,6 +418,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_guardduty_severity_threshold": config.aws_guardduty_severity_threshold,
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
+        "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
     }
     try:
         boto3_session = boto3.Session()
@@ -401,6 +460,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         requested_syncs = parse_and_validate_aws_requested_syncs(
             config.aws_requested_syncs,
         )
+    requested_syncs = _normalize_requested_syncs(requested_syncs)
 
     if config.aws_regions:
         regions = parse_and_validate_aws_regions(config.aws_regions)
@@ -415,6 +475,9 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
+        # stays decoupled from the CLI option should the two ever diverge.
+        use_explicit_profile=config.aws_sync_all_profiles,
     )
 
     if sync_successful:

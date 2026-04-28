@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.rds.cluster import RDSClusterSchema
 from cartography.models.aws.rds.event_subscription import RDSEventSubscriptionSchema
 from cartography.models.aws.rds.instance import RDSInstanceSchema
@@ -24,6 +25,26 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
+def _rds_snapshot_is_public(client: Any, snapshot: Dict[str, Any]) -> bool:
+    if snapshot.get("SnapshotType") != "manual":
+        return False
+
+    response = client.describe_db_snapshot_attributes(
+        DBSnapshotIdentifier=snapshot["DBSnapshotIdentifier"],
+    )
+
+    attributes = response.get("DBSnapshotAttributesResult", {}).get(
+        "DBSnapshotAttributes",
+        [],
+    )
+    for attribute in attributes:
+        if attribute.get("AttributeName") != "restore":
+            continue
+        if "all" in attribute.get("AttributeValues", []):
+            return True
+    return False
+
+
 @timeit
 @aws_handle_regions
 def get_rds_cluster_data(
@@ -33,7 +54,7 @@ def get_rds_cluster_data(
     """
     Create an RDS boto3 client and grab all the DBClusters.
     """
-    client = boto3_session.client("rds", region_name=region)
+    client = create_boto3_client(boto3_session, "rds", region_name=region)
     paginator = client.get_paginator("describe_db_clusters")
     instances: List[Any] = []
     for page in paginator.paginate():
@@ -72,7 +93,7 @@ def get_rds_instance_data(
     """
     Create an RDS boto3 client and grab all the DBInstances.
     """
-    client = boto3_session.client("rds", region_name=region)
+    client = create_boto3_client(boto3_session, "rds", region_name=region)
     paginator = client.get_paginator("describe_db_instances")
     instances: List[Any] = []
     for page in paginator.paginate():
@@ -111,8 +132,10 @@ def get_rds_snapshot_data(
     """
     Create an RDS boto3 client and grab all the DBSnapshots.
     """
-    client = boto3_session.client("rds", region_name=region)
+    client = create_boto3_client(boto3_session, "rds", region_name=region)
     snapshots = list(aws_paginate(client, "describe_db_snapshots", "DBSnapshots"))
+    for snapshot in snapshots:
+        snapshot["Public"] = _rds_snapshot_is_public(client, snapshot)
     return snapshots
 
 
@@ -143,7 +166,7 @@ def get_rds_event_subscription_data(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("rds", region_name=region)
+    client = create_boto3_client(boto3_session, "rds", region_name=region)
     paginator = client.get_paginator("describe_event_subscriptions")
     subscriptions = []
     for page in paginator.paginate():

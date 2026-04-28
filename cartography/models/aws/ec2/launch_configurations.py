@@ -18,7 +18,7 @@ class LaunchConfigurationNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     image_id: PropertyRef = PropertyRef("ImageId")
     key_name: PropertyRef = PropertyRef("KeyName")
-    name: PropertyRef = PropertyRef("LaunchConfigurationName")
+    name: PropertyRef = PropertyRef("LaunchConfigurationName", extra_index=True)
     security_groups: PropertyRef = PropertyRef("SecurityGroups")
     instance_type: PropertyRef = PropertyRef("InstanceType")
     kernel_id: PropertyRef = PropertyRef("KernelId")

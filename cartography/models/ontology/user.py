@@ -41,11 +41,72 @@ class UserToUserAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class UserToOntologyNodeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# Cleanup-only relationship definitions for custom ontology links.
+# These relations are created by ontology analysis jobs, not by load(UserSchema()).
+# The PropertyRef values intentionally reference fields absent from user load payloads so
+# standard ingestion never creates them, while schema-driven cleanup still knows about them.
+
+
+@dataclass(frozen=True)
+class UserToAWSSSOUserHasAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSSSOUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_awssso_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ACCOUNT"
+    properties: UserToOntologyNodeRelProperties = UserToOntologyNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class UserToGitHubUserHasAccountRel(CartographyRelSchema):
+    target_node_label: str = "GitHubUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_github_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ACCOUNT"
+    properties: UserToOntologyNodeRelProperties = UserToOntologyNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class UserToAPIKeyOwnsRel(CartographyRelSchema):
+    target_node_label: str = "APIKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_apikey_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNS"
+    properties: UserToOntologyNodeRelProperties = UserToOntologyNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class UserToThirdPartyAppAuthorizedRel(CartographyRelSchema):
+    target_node_label: str = "ThirdPartyApp"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_thirdpartyapp_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AUTHORIZED"
+    properties: UserToOntologyNodeRelProperties = UserToOntologyNodeRelProperties()
+
+
+@dataclass(frozen=True)
 class UserSchema(CartographyNodeSchema):
     label: str = "User"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
     properties: UserNodeProperties = UserNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[UserToUserAccountRel()],
+        rels=[
+            UserToUserAccountRel(),
+            UserToAWSSSOUserHasAccountRel(),
+            UserToGitHubUserHasAccountRel(),
+            UserToAPIKeyOwnsRel(),
+            UserToThirdPartyAppAuthorizedRel(),
+        ],
     )

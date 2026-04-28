@@ -1,6 +1,6 @@
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.version import get_cartography_version
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetSchema,
 )
@@ -10,7 +10,7 @@ from tests.unit.cartography.graph.helpers import (
 
 
 def test_build_ingestion_query_complex():
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(InterestingAssetSchema())
 
     # Act
@@ -29,8 +29,7 @@ def test_build_ingestion_query_complex():
                 i:AnotherNodeLabel:YetAnotherNodeLabel
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (j:SubResource{{id: $sub_resource_id}})
                 WITH i, item, j WHERE j IS NOT NULL
                 MERGE (i)<-[r:RELATIONSHIP_LABEL]-(j)
@@ -43,7 +42,6 @@ def test_build_ingestion_query_complex():
                     r.yet_another_rel_field = item.YetAnotherRelField
 
                 UNION
-                WITH i, item
                 OPTIONAL MATCH (n0:HelloAsset)
                 WHERE
                     n0.id = item.hello_asset_id
@@ -56,7 +54,6 @@ def test_build_ingestion_query_complex():
                     r0.lastupdated = $lastupdated
 
                 UNION
-                WITH i, item
                 OPTIONAL MATCH (n1:WorldAsset)
                 WHERE
                     n1.id = item.world_asset_id

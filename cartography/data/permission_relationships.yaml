@@ -18,7 +18,21 @@
   - dynamodb:GetItem
   - dynamodb:GetRecords
   - dynamodb:Query
+  - dynamodb:Scan
   relationship_name: CAN_QUERY
+# Map principals that can write data to DynamoDB.
+- target_label: DynamoDBTable
+  permissions:
+  - dynamodb:PutItem
+  - dynamodb:UpdateItem
+  - dynamodb:DeleteItem
+  - dynamodb:BatchWriteItem
+  relationship_name: CAN_WRITE
+# Map principals that can retrieve secrets from Secrets Manager.
+- target_label: SecretsManagerSecret
+  permissions:
+  - secretsmanager:GetSecretValue
+  relationship_name: GET_SECRET
 # Map principals that can administer RedshiftClusters.
 - target_label: RedshiftCluster
   permissions:
@@ -27,3 +41,23 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
+# Map principals that can query RDS instances via IAM database authentication.
+- target_label: RDSInstance
+  permissions:
+  - rds-db:connect
+  relationship_name: CAN_QUERY
+# Map principals that can administer RDS instances.
+- target_label: RDSInstance
+  permissions:
+  - rds:*
+  - rds:ModifyDBInstance
+  - rds:DeleteDBInstance
+  - rds:RebootDBInstance
+  - rds:StopDBInstance
+  - rds:StartDBInstance
+  relationship_name: CAN_ADMINISTER
+# Map principals that can execute commands in ECS tasks.
+- target_label: ECSTask
+  permissions:
+  - ecs:ExecuteCommand
+  relationship_name: CAN_EXECUTE_COMMAND

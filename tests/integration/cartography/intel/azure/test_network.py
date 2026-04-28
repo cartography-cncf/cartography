@@ -46,9 +46,10 @@ def test_sync_network(
     )
 
     # Create prerequisite AzureVirtualMachine nodes for the NIC-VM relationships
+    # Use lowercased IDs to match the transform which lowercases VIRTUAL_MACHINE_ID
     for nic in MOCK_NETWORK_INTERFACES:
         if nic.get("virtual_machine"):
-            vm_id = nic["virtual_machine"]["id"]
+            vm_id = nic["virtual_machine"]["id"].lower()
             neo4j_session.run(
                 "MERGE (vm:AzureVirtualMachine{id: $vm_id}) SET vm.lastupdated = $tag",
                 vm_id=vm_id,
@@ -248,7 +249,7 @@ def test_sync_network(
     expected_nic_vm_rels = set()
     for nic in MOCK_NETWORK_INTERFACES:
         if nic.get("virtual_machine"):
-            expected_nic_vm_rels.add((nic["id"], nic["virtual_machine"]["id"]))
+            expected_nic_vm_rels.add((nic["id"], nic["virtual_machine"]["id"].lower()))
 
     actual_nic_vm_rels = check_rels(
         neo4j_session,

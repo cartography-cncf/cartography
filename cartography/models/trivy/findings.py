@@ -51,21 +51,10 @@ class TrivyFindingToImageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyFindingToImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+class TrivyFindingToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "AFFECTS"
-    properties: TrivyFindingToImageRelProperties = TrivyFindingToImageRelProperties()
-
-
-@dataclass(frozen=True)
-class TrivyFindingToGitLabImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
+        {"_ont_digest": PropertyRef("ImageDigest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
@@ -80,7 +69,6 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TrivyFindingToImageRel(),
-            TrivyFindingToGitLabImageRel(),
+            TrivyFindingToOntologyImageRel(),
         ],
     )

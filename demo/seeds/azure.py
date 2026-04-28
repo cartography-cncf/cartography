@@ -1,9 +1,11 @@
 import cartography.intel.azure.compute
 import cartography.intel.azure.cosmosdb
+import cartography.intel.azure.firewall
 import cartography.intel.azure.sql
 import cartography.intel.azure.storage
 import tests.data.azure.compute
 import tests.data.azure.cosmosdb
+import tests.data.azure.firewall
 import tests.data.azure.sql
 import tests.data.azure.storage
 from demo.seeds.base import Seed
@@ -22,6 +24,7 @@ class AzureSeed(Seed):
         self._seed_cosmosdb()
         self._seed_sql()
         self._seed_storage()
+        self._seed_firewall()
 
     def _seed_subscription(self):
         self.neo4j_session.run(
@@ -288,6 +291,39 @@ class AzureSeed(Seed):
         cartography.intel.azure.storage._load_blob_containers(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_BLOB_CONTAINERS,
+            SUBSCRIPTION_ID,
+            self.update_tag,
+        )
+
+    def _seed_firewall(self) -> None:
+        from typing import Any
+        from typing import cast
+
+        # Transform the test data
+        transformed_firewalls = cartography.intel.azure.firewall.transform_firewalls(
+            cast(list[dict[str, Any]], tests.data.azure.firewall.DESCRIBE_FIREWALLS),
+        )
+        transformed_policies = (
+            cartography.intel.azure.firewall.transform_firewall_policies(
+                cast(
+                    list[dict[str, Any]],
+                    tests.data.azure.firewall.DESCRIBE_FIREWALL_POLICIES,
+                ),
+            )
+        )
+
+        # Load firewall policies first (firewalls reference them)
+        cartography.intel.azure.firewall.load_firewall_policies(
+            self.neo4j_session,
+            transformed_policies,
+            SUBSCRIPTION_ID,
+            self.update_tag,
+        )
+
+        # Load firewalls
+        cartography.intel.azure.firewall.load_firewalls(
+            self.neo4j_session,
+            transformed_firewalls,
             SUBSCRIPTION_ID,
             self.update_tag,
         )

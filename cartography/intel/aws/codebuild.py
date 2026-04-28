@@ -8,7 +8,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.service_regions import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.models.aws.codebuild.project import CodeBuildProjectSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -22,8 +26,8 @@ def get_all_codebuild_projects(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
 
-    client = boto3_session.client(
-        "codebuild", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "codebuild", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("list_projects")
 
@@ -113,7 +117,20 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    for region in regions:
+    codebuild_regions, unsupported_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "codebuild",
+            regions,
+        )
+    )
+    for region in unsupported_regions:
+        logger.info(
+            "Skipping CodeBuild sync for unsupported region '%s'.",
+            region,
+        )
+
+    for region in codebuild_regions:
         logger.info(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )

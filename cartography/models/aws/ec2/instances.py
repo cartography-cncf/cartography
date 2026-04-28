@@ -38,7 +38,20 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     bootmode: PropertyRef = PropertyRef("BootMode")
     instancelifecycle: PropertyRef = PropertyRef("InstanceLifecycle")
     hibernationoptions: PropertyRef = PropertyRef("HibernationOption")
+    metadatahttptokens: PropertyRef = PropertyRef(
+        "MetadataHttpTokens", extra_index=True
+    )
+    metadatahttpputresponsehoplimit: PropertyRef = PropertyRef(
+        "MetadataHttpPutResponseHopLimit"
+    )
+    metadatahttpendpoint: PropertyRef = PropertyRef("MetadataHttpEndpoint")
+    metadatahttpprotocolipv6: PropertyRef = PropertyRef("MetadataHttpProtocolIpv6")
+    metadatainstancetags: PropertyRef = PropertyRef("MetadataInstanceTags")
+    imdsaccessmode: PropertyRef = PropertyRef("ImdsAccessMode")
+    imdsv1enabled: PropertyRef = PropertyRef("ImdsV1Enabled")
+    imdsv2required: PropertyRef = PropertyRef("ImdsV2Required")
     eks_cluster_name: PropertyRef = PropertyRef("EksClusterName")
+    ipv6address: PropertyRef = PropertyRef("IPv6Address")
 
 
 @dataclass(frozen=True)

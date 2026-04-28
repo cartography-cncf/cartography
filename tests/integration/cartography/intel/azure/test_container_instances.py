@@ -2,30 +2,45 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.container_instances as container_instances
-from tests.data.azure.container_instances import MOCK_CONTAINER_GROUPS
+from tests.data.azure.container_instances import MOCK_CONTAINER_GROUP_WITH_CONTAINERS
+from tests.data.azure.container_instances import TEST_CONTAINER_GROUP_ID
+from tests.data.azure.container_instances import TEST_GROUP_CONTAINER_DIGEST
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
+TEST_CONTAINER_ID = f"{TEST_CONTAINER_GROUP_ID}/my-container"
 
 
 @patch("cartography.intel.azure.container_instances.get_container_instances")
-def test_sync_container_instances(mock_get, neo4j_session):
-    """
-    Test that we can correctly sync Azure Container Instance data and relationships.
-    """
-    # Arrange
-    mock_get.return_value = MOCK_CONTAINER_GROUPS
+def test_has_image_rel(mock_get, neo4j_session):
+    mock_get.return_value = MOCK_CONTAINER_GROUP_WITH_CONTAINERS
 
-    # Create the prerequisite AzureSubscription node
     neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
+        "MERGE (s:AzureSubscription {id: $id}) SET s.lastupdated = $tag",
+        id=TEST_SUBSCRIPTION_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (g:AzureGroupContainer {id: $id}) SET g.lastupdated = $tag",
+        id=TEST_CONTAINER_GROUP_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:ECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_GROUP_CONTAINER_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryContainerImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_GROUP_CONTAINER_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (img:GCPArtifactRegistryPlatformImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        digest=TEST_GROUP_CONTAINER_DIGEST,
+        tag=TEST_UPDATE_TAG,
     )
 
     common_job_parameters = {
@@ -33,7 +48,6 @@ def test_sync_container_instances(mock_get, neo4j_session):
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
     }
 
-    # Act
     container_instances.sync(
         neo4j_session,
         MagicMock(),
@@ -42,87 +56,75 @@ def test_sync_container_instances(mock_get, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert Nodes
-    expected_nodes = {
-        (
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
-            "my-test-aci",
-        ),
-    }
-    actual_nodes = check_nodes(neo4j_session, "AzureContainerInstance", ["id", "name"])
-    assert actual_nodes == expected_nodes
-
-    # Assert Relationships
-    expected_rels = {
-        (
-            TEST_SUBSCRIPTION_ID,
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
-        ),
-    }
-    actual_rels = check_rels(
+    assert check_rels(
         neo4j_session,
-        "AzureSubscription",
-        "id",
         "AzureContainerInstance",
         "id",
-        "RESOURCE",
-    )
-    assert actual_rels == expected_rels
+        "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureContainerInstance",
+        "id",
+        "GCPArtifactRegistryContainerImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureContainerInstance",
+        "id",
+        "GCPArtifactRegistryPlatformImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
 
 
-def test_load_container_instance_tags(neo4j_session):
-    """
-    Test that we can correctly sync Azure Container Instance tags.
-    """
-    # 1. Arrange: Create the prerequisite AzureSubscription node
+@patch("cartography.intel.azure.container_instances.get_container_instances")
+def test_container_ontology_mapping(mock_get, neo4j_session):
+    mock_get.return_value = MOCK_CONTAINER_GROUP_WITH_CONTAINERS
+
     neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
+        "MERGE (s:AzureSubscription {id: $id}) SET s.lastupdated = $tag",
+        id=TEST_SUBSCRIPTION_ID,
+        tag=TEST_UPDATE_TAG,
     )
 
-    transformed_data = container_instances.transform_container_instances(
-        MOCK_CONTAINER_GROUPS
-    )
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+    }
 
-    container_instances.load_container_instances(
-        neo4j_session, transformed_data, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
-    )
-
-    # 2. Act: Load the tags
-    container_instances.load_container_instance_tags(
+    container_instances.sync(
         neo4j_session,
+        MagicMock(),
         TEST_SUBSCRIPTION_ID,
-        transformed_data,
         TEST_UPDATE_TAG,
+        common_job_parameters,
     )
 
-    # 3. Assert: Check for the 2 unique tags
-    expected_tags = {
-        f"{TEST_SUBSCRIPTION_ID}|env:prod",
-        f"{TEST_SUBSCRIPTION_ID}|service:container-instance",
-    }
-    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
-    actual_tags = {n["t.id"] for n in tag_nodes}
-    assert actual_tags == expected_tags
+    assert check_nodes(neo4j_session, "Container", ["id"]) == {(TEST_CONTAINER_ID,)}
 
-    # 4. Assert: Check the relationship
-    expected_rels = {
-        (MOCK_CONTAINER_GROUPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
-        (
-            MOCK_CONTAINER_GROUPS[0]["id"],
-            f"{TEST_SUBSCRIPTION_ID}|service:container-instance",
-        ),
-    }
-    actual_rels = check_rels(
-        neo4j_session,
-        "AzureContainerInstance",
-        "id",
-        "AzureTag",
-        "id",
-        "TAGGED",
+    result = neo4j_session.run(
+        """
+        MATCH (c:AzureContainerInstance {id: $id})
+        RETURN c._ont_name AS name,
+               c._ont_image AS image,
+               c._ont_image_digest AS image_digest,
+               c._ont_state AS state,
+               c._ont_source AS source
+        """,
+        id=TEST_CONTAINER_ID,
     )
-    assert actual_rels == expected_rels
+    ont_data = [dict(r) for r in result][0]
+    assert ont_data == {
+        "name": "my-container",
+        "image": f"myregistry.azurecr.io/myimage@{TEST_GROUP_CONTAINER_DIGEST}",
+        "image_digest": TEST_GROUP_CONTAINER_DIGEST,
+        "state": "Running",
+        "source": "azure",
+    }

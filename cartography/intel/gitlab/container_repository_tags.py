@@ -126,19 +126,20 @@ def transform_container_repository_tags(
 def load_container_repository_tags(
     neo4j_session: neo4j.Session,
     tags: list[dict[str, Any]],
-    org_url: str,
+    org_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
     Load GitLab container repository tags into the graph.
     """
-    logger.info(f"Loading {len(tags)} container repository tags for {org_url}")
     load(
         neo4j_session,
         GitLabContainerRepositoryTagSchema(),
         tags,
         lastupdated=update_tag,
-        org_url=org_url,
+        org_id=org_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -162,7 +163,7 @@ def sync_container_repository_tags(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
     token: str,
-    org_url: str,
+    org_id: int,
     repositories: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
@@ -170,12 +171,18 @@ def sync_container_repository_tags(
     """
     Sync GitLab container repository tags for an organization.
     """
-    logger.info(f"Syncing container repository tags for organization {org_url}")
+    logger.info(f"Syncing container repository tags for organization {org_id}")
 
     raw_tags = get_all_container_repository_tags(gitlab_url, token, repositories)
 
     transformed = transform_container_repository_tags(raw_tags)
-    load_container_repository_tags(neo4j_session, transformed, org_url, update_tag)
+    load_container_repository_tags(
+        neo4j_session,
+        transformed,
+        org_id,
+        gitlab_url,
+        update_tag,
+    )
     cleanup_container_repository_tags(neo4j_session, common_job_parameters)
 
     return raw_tags

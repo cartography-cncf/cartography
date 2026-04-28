@@ -22,7 +22,7 @@ def get_gitlab_container_images(
     WHERE img.uri IS NOT NULL AND img.digest IS NOT NULL
     RETURN img.uri AS uri, img.digest AS digest
     """
-    return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+    return neo4j_session.execute_read(read_list_of_tuples_tx, query)
 
 
 @timeit
@@ -40,4 +40,4 @@ def get_gitlab_container_tags(
     WHERE tag.location IS NOT NULL
     RETURN tag.location AS location, tag.digest AS digest
     """
-    return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+    return neo4j_session.execute_read(read_list_of_tuples_tx, query)

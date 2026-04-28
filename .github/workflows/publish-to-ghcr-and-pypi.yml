@@ -9,24 +9,55 @@ on:
 permissions: {}
 
 jobs:
+  coverage-artifact:
+    name: Build coverage artifact
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
+      - name: Run combined coverage
+        run: make test_coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report-release
+          path: coverage.xml
+          if-no-files-found: warn
+
   # 1. Publish to PyPI
   build-and-publish-to-pypi:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - name: Install uv
-        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Build a binary wheel and a source tarball
         run: uv build
       - name: Publish distribution 📦 to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: github.event_name == 'release'
         # --check-url checks if files already exist on PyPI before uploading.
         # If the version already exists, it skips without failing, allowing
         # downstream jobs (Docker build) to proceed on re-runs.
@@ -48,7 +79,7 @@ jobs:
     steps:
       # See: https://docs.docker.com/build/ci/github-actions/multi-platform/#build-and-load-multi-platform-images
       - name: Set up Docker
-        uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4.7.0
+        uses: docker/setup-docker-action@1a6edb0ba9ac496f6850236981f15d8f9a82254d # v5.0.0
         with:
           daemon-config: |
             {
@@ -58,9 +89,11 @@ jobs:
               }
             }
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: ghcr.io/${{ github.repository }}
           # Only tag as 'latest' for stable releases (not prereleases)
@@ -74,13 +107,13 @@ jobs:
 
       # Install QEMU for multi-architecture builds
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ghcr.io
           # This is the user that triggered the Workflow. In this case, it will
@@ -97,16 +130,17 @@ jobs:
       # Get the cartography version from the GitHub release event metadata and verify it's available on PyPI
       - name: Extract version and verify PyPI availability
         id: version
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
         run: |
-          echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-          VERSION="${{ github.event.release.tag_name }}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Waiting for cartography==$VERSION to be available on PyPI..."
 
           # Poll PyPI for up to 5 minutes
           MAX_ATTEMPTS=30
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if pip index versions cartography 2>&1 | grep -q "$VERSION"; then
+            if curl --fail --silent --show-error "https://pypi.org/pypi/cartography/$VERSION/json" > /dev/null; then
               echo "✅ cartography==$VERSION is now available on PyPI"
               exit 0
             fi
@@ -119,7 +153,7 @@ jobs:
           exit 1
 
       - name: Build and push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           file: Dockerfile
           context: .

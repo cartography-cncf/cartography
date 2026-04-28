@@ -5,11 +5,10 @@ graph LR
 
 O(GitLabOrganization) -- RESOURCE --> G(GitLabGroup)
 O -- RESOURCE --> P(GitLabProject)
+O -- RESOURCE --> U(GitLabUser)
 G -- MEMBER_OF --> G
 P -- MEMBER_OF --> G
-U(GitLabUser) -- MEMBER_OF --> O
 U -- MEMBER_OF --> G
-U -- MEMBER_OF --> P
 U -- COMMITTED_TO --> P
 P -- RESOURCE --> B(GitLabBranch)
 P -- RESOURCE --> DF(GitLabDependencyFile)
@@ -19,11 +18,15 @@ DF -- HAS_DEP --> D
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
+O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
-CR -- HAS_TAG --> CT
-CT -- REFERENCES --> CI
+CR -- REPO_IMAGE --> CT
+CR -. HAS_TAG .-> CT
+CT -- IMAGE --> CI
+CT -. REFERENCES .-> CI
 CI -- CONTAINS_IMAGE --> CI
+CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
 
 %% Trivy Vulnerability Scanning
@@ -39,14 +42,16 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab organization/group |
+| **id** | The numeric GitLab organization ID |
 | **name** | Name of the organization |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| **web_url** | Web URL of the organization |
 | description | Description of the organization |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID (null for top-level organizations) |
 | created_at | GitLab timestamp from when the organization was created |
+| **gitlab_url** | GitLab instance URL |
 
 #### Relationships
 
@@ -62,27 +67,28 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
     (GitLabOrganization)-[RESOURCE]->(GitLabProject)
     ```
 
-- GitLabUsers can be members of GitLabOrganizations with different access levels.
+- GitLabOrganizations contain GitLabUsers.
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
 ### GitLabGroup
 
 Representation of a GitLab nested subgroup. Groups can contain other groups (creating a hierarchy) and projects.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab group |
+| **id** | The numeric GitLab group ID |
 | **name** | Name of the group |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| **web_url** | Web URL of the group |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the group |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID |
@@ -114,18 +120,22 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-### GitLabProject
+### GitLabProject:GitLabRepository
 
-Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups.
+Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups. The `GitLabRepository` label is included for backwards compatibility with existing queries.
+
+> **Ontology Mapping**: This node has the extra label `CodeRepository` to enable cross-platform queries for source code repositories across different systems (e.g., GitHubRepository).
 
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab project |
+| **id** | The numeric GitLab project ID |
 | **name** | Name of the project |
 | **path** | URL path slug |
 | **path_with_namespace** | Full path including namespace |
+| **web_url** | Web URL of the project |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the project |
 | visibility | Visibility level (private, internal, public) |
 | default_branch | Default branch name (e.g., main, master) |
@@ -183,25 +193,18 @@ ORDER BY project_count DESC
     (GitLabProject)-[MEMBER_OF]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects with different access levels.
-
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
-
 - GitLabUsers who have committed to GitLabProjects are tracked with commit activity data.
 
     ```
-    (GitLabUser)-[COMMITTED_TO]->(GitLabProject)
+    (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
 
     This relationship includes the following properties:
     - **commit_count**: Number of commits made by the user to the project
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
+
+    Commit authors are matched to GitLab users by email address when available, with a display-name fallback for current members. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 
@@ -223,14 +226,20 @@ ORDER BY project_count DESC
 
 ### GitLabUser
 
-Representation of a GitLab user. Users can be members of organizations, groups, and projects.
+Representation of a GitLab user. Users belong to an organization and can be members of groups. Commit activity is tracked to show which users have contributed code to projects.
+
+**Note:** Only current members of the organization and its groups are synced. Former members and external contributors who are not current members are not tracked.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, GitHubUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab user |
+| **id** | The numeric GitLab user ID |
 | **username** | Username of the user |
+| **web_url** | Web URL of the user |
+| **gitlab_url** | GitLab instance URL |
 | name | Full name of the user |
 | state | State of the user (active, blocked, etc.) |
 | email | Email address of the user (if public) |
@@ -238,29 +247,28 @@ Representation of a GitLab user. Users can be members of organizations, groups, 
 
 #### Relationships
 
-- GitLabUsers can be members of GitLabOrganizations.
+- GitLabUsers belong to GitLabOrganizations (for cleanup scoping).
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
 
-- GitLabUsers can be members of GitLabGroups.
+- GitLabUsers can be members of GitLabGroups with access levels.
 
     ```
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects.
+    The `role` property can be: owner, maintainer, developer, reporter, guest.
+    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-- GitLabUsers who have committed to GitLabProjects are tracked.
+- GitLabUsers who have committed to GitLabProjects are tracked with commit activity.
 
     ```
     (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
+
+    This relationship is created by analyzing git commits and matching commit authors to current GitLab members by email address when available, with a display-name fallback.
 
 ### GitLabBranch
 
@@ -341,6 +349,8 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
 Representation of a GitLab container registry repository. Each project can have multiple container repositories at different paths (e.g., project root, /app, /worker).
 
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
@@ -367,12 +377,20 @@ Representation of a GitLab container registry repository. Each project can have 
 - GitLabContainerRepositories have GitLabContainerRepositoryTags.
 
     ```
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
+    ```
+
+    Legacy compatibility edge still emitted by the current implementation:
+
+    ```
     (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
     ```
 
 ### GitLabContainerRepositoryTag
 
 Representation of a tag within a GitLab container repository. Tags are human-readable pointers to container images.
+
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries (e.g., ECRRepositoryImage).
 
 | Field | Description |
 |-------|--------------|
@@ -399,10 +417,16 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 - GitLabContainerRepositoryTags belong to GitLabContainerRepositories.
 
     ```
-    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
     ```
 
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
+
+    ```
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
+    ```
+
+    Legacy compatibility edge still emitted by the current implementation:
 
     ```
     (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
@@ -412,20 +436,28 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 
 Representation of a container image identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
 
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GCPArtifactRegistryContainerImage).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The image digest (e.g., `sha256:abc123...`) |
-| digest | Same as id, the image digest |
-| uri | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
+| **digest** | Same as id, the image digest |
+| **uri** | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
 | media_type | OCI/Docker media type of the manifest |
 | schema_version | Manifest schema version |
-| type | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| **type** | Either `image` (single platform) or `manifest_list` (multi-arch) |
 | architecture | CPU architecture (e.g., `amd64`, `arm64`) - null for manifest lists |
 | os | Operating system (e.g., `linux`) - null for manifest lists |
 | variant | Architecture variant (e.g., `v8`) - null for manifest lists |
 | child_image_digests | List of child image digests (only for manifest lists) |
+| layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
+| head_layer_diff_id | Diff_id of the first (base) layer in this image |
+| tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
+| **source_uri** | Normalized VCS URL extracted from image provenance |
+| source_revision | Commit SHA extracted from image provenance |
+| source_file | Source definition file extracted from image provenance (for example `Dockerfile`) |
 
 #### Relationships
 
@@ -444,7 +476,7 @@ Representation of a container image identified by its digest. Images are content
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
 
     ```
-    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
     ```
 
 - GitLabContainerImageAttestations attest to GitLabContainerImages.
@@ -463,6 +495,70 @@ Representation of a container image identified by its digest. Images are content
 
     ```
     (Package)-[DEPLOYED]->(GitLabContainerImage)
+    ```
+
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+
+    ```
+    (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
+    ```
+
+### GitLabContainerImageLayer
+
+Representation of a container image layer. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication mechanism.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers across different systems (e.g., ECRImageLayer). This enables identifying shared layers and vulnerabilities across multiple container registries.
+
+**Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication, as the same layer content may have different compressed digests but will always have the same uncompressed diff_id.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The uncompressed layer digest from the image config (e.g., `sha256:abc123...`) |
+| diff_id | Same as id, the uncompressed layer digest (content hash) |
+| digest | Compressed layer digest from the manifest (may differ between registries for the same content) |
+| media_type | OCI/Docker media type (e.g., `application/vnd.docker.image.rootfs.diff.tar.gzip`) |
+| size | Size of the layer in bytes (compressed) |
+
+#### Relationships
+
+- GitLabContainerImageLayers belong to GitLabOrganizations (for cleanup and cross-image deduplication).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImageLayers form a linked list using NEXT relationships.
+
+    ```
+    (GitLabContainerImageLayer)-[NEXT]->(GitLabContainerImageLayer)
+    ```
+
+    This creates a chain from base layer to topmost layer, allowing traversal of the layer stack. A layer may have multiple NEXT pointers if different images branch from that layer.
+
+- GitLabContainerImages point to their first (base) layer.
+
+    ```
+    (GitLabContainerImage)-[HEAD]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages point to their last (topmost) layer.
+
+    ```
+    (GitLabContainerImage)-[TAIL]->(GitLabContainerImageLayer)
     ```
 
 ### GitLabContainerImageAttestation
@@ -499,7 +595,7 @@ Representation of a container image attestation (signature or provenance). Attes
 Get all container images with their tags:
 
 ```cypher
-MATCH (repo:GitLabContainerRepository)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)-[:REFERENCES]->(img:GitLabContainerImage)
+MATCH (repo:GitLabContainerRepository)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN repo.name, tag.name, img.digest, img.architecture, img.os
 ```
 
@@ -521,9 +617,54 @@ Get the full container registry hierarchy:
 
 ```cypher
 MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
-OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
-OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
+OPTIONAL MATCH (repo)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)
+OPTIONAL MATCH (tag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
+```
+
+Find layers shared across multiple images (layer deduplication):
+
+```cypher
+MATCH (img:GitLabContainerImage)-[:HAS_LAYER]->(layer:GitLabContainerImageLayer)
+WITH layer, count(DISTINCT img) AS image_count
+WHERE image_count > 1
+RETURN layer.diff_id, layer.size, image_count
+ORDER BY image_count DESC
+```
+
+Traverse the layer stack of an image (base to top):
+
+```cypher
+MATCH (img:GitLabContainerImage {digest: 'sha256:abc...'})-[:HEAD]->(first:GitLabContainerImageLayer)
+MATCH path = (first)-[:NEXT*0..]->(layer:GitLabContainerImageLayer)
+RETURN layer.diff_id, layer.size, length(path) AS layer_position
+ORDER BY layer_position
+```
+
+#### Cross-Provider Layer Queries
+
+Since layers are keyed by `diff_id` and have the `ImageLayer` label, you can query layers across different container registries:
+
+Find layers shared between GitLab and ECR:
+
+```cypher
+MATCH (layer:ImageLayer)
+WITH layer
+MATCH (gitlab_img:GitLabContainerImage)-[:HAS_LAYER]->(layer)
+MATCH (ecr_img:ECRImage)-[:HAS_LAYER]->(layer)
+RETURN layer.diff_id,
+       count(DISTINCT gitlab_img) AS gitlab_images,
+       count(DISTINCT ecr_img) AS ecr_images
+```
+
+Find vulnerable layers across all providers:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img)-[:HAS_LAYER]->(layer:ImageLayer)
+WHERE vuln.severity IN ['CRITICAL', 'HIGH']
+WITH layer, collect(DISTINCT vuln.name) AS vulns, collect(DISTINCT labels(img)[0]) AS providers
+RETURN layer.diff_id, layer.size, vulns, providers
+ORDER BY size(vulns) DESC
 ```
 
 #### Trivy Integration Queries

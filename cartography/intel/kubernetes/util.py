@@ -3,13 +3,16 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 
+from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
+from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
+from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,21 @@ class K8CoreApiClient(CoreV1Api):
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8CustomObjectsApiClient(CustomObjectsApi):
     def __init__(
         self,
         name: str,
@@ -92,6 +110,7 @@ class K8sClient:
         self.networking = K8NetworkingApiClient(self.name, self.config_file)
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -112,20 +131,120 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
     return clients
 
 
+def get_qualified_resource_name(namespace: str, name: str) -> str:
+    return f"{namespace}/{name}"
+
+
+def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
+    return KubeConfigMerger(kubeconfig)
+
+
+def get_kubeconfig_tls_diagnostics(
+    context_name: str, kubeconfig: str
+) -> dict[str, Any]:
+    diagnostics: dict[str, Any] = {
+        "api_server_url": None,
+        "kubeconfig_insecure_skip_tls_verify": None,
+        "kubeconfig_has_certificate_authority_data": False,
+        "kubeconfig_has_certificate_authority_file": False,
+        "kubeconfig_ca_file_path": None,
+        "kubeconfig_has_client_certificate": False,
+        "kubeconfig_has_client_key": False,
+        "kubeconfig_tls_configuration_status": "unknown",
+    }
+
+    try:
+        merged_config = _get_kubeconfig_merger(kubeconfig).config
+    except Exception as err:
+        logger.warning(
+            "Unable to parse kubeconfig '%s' for context '%s': %s",
+            kubeconfig,
+            context_name,
+            err,
+        )
+        return diagnostics
+
+    context = merged_config["contexts"].get_with_name(context_name, safe=True)
+    if context is None:
+        return diagnostics
+
+    context_details = context.safe_get("context") or {}
+    cluster_name = context_details.get("cluster")
+    user_name = context_details.get("user")
+    if not cluster_name:
+        return diagnostics
+
+    cluster = merged_config["clusters"].get_with_name(cluster_name, safe=True)
+    if cluster is None:
+        return diagnostics
+
+    cluster_details = cluster.safe_get("cluster") or {}
+    diagnostics["api_server_url"] = cluster_details.get("server")
+
+    insecure_skip_tls_verify = cluster_details.get("insecure-skip-tls-verify")
+    diagnostics["kubeconfig_insecure_skip_tls_verify"] = insecure_skip_tls_verify
+    diagnostics["kubeconfig_has_certificate_authority_data"] = bool(
+        cluster_details.get("certificate-authority-data"),
+    )
+    ca_file_path = cluster_details.get("certificate-authority")
+    diagnostics["kubeconfig_has_certificate_authority_file"] = bool(ca_file_path)
+    diagnostics["kubeconfig_ca_file_path"] = ca_file_path
+
+    if user_name:
+        user = merged_config["users"].get_with_name(user_name, safe=True)
+        if user is not None:
+            user_details = user.safe_get("user") or {}
+            diagnostics["kubeconfig_has_client_certificate"] = bool(
+                user_details.get("client-certificate")
+                or user_details.get("client-certificate-data"),
+            )
+            diagnostics["kubeconfig_has_client_key"] = bool(
+                user_details.get("client-key") or user_details.get("client-key-data"),
+            )
+
+    if insecure_skip_tls_verify is True:
+        diagnostics["kubeconfig_tls_configuration_status"] = "insecure_skip_tls"
+    elif (
+        diagnostics["kubeconfig_has_certificate_authority_data"]
+        or diagnostics["kubeconfig_has_certificate_authority_file"]
+    ):
+        diagnostics["kubeconfig_tls_configuration_status"] = "valid_config"
+    else:
+        diagnostics["kubeconfig_tls_configuration_status"] = "missing_ca_material"
+
+    return diagnostics
+
+
 def get_epoch(date: datetime | None) -> int | None:
     if date:
         return int(date.timestamp())
     return None
 
 
+def parse_rfc3339(value: str | None) -> datetime | None:
+    """
+    Parse an RFC3339 timestamp string (e.g. ``2024-01-02T03:04:05Z``) into a
+    datetime. The Kubernetes ``CustomObjectsApi`` returns metadata timestamps
+    as raw strings rather than as datetimes (unlike the typed apis), so callers
+    that need an epoch int should do ``get_epoch(parse_rfc3339(value))``.
+    """
+    if not value:
+        return None
+    return isoparse(value)
+
+
 def k8s_paginate(
     list_func: Callable,
+    raise_on_forbidden: bool = False,
     **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
     Handles pagination for a Kubernetes API call.
 
     :param list_func: The list function to call (e.g. client.core.list_pod_for_all_namespaces)
+    :param raise_on_forbidden: When True, re-raise ApiException with status 401/403 so the caller
+        can handle missing permissions (used for optional RBAC verbs). Other ApiExceptions are still
+        logged and swallowed.
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
     :return: A list of all resources returned by the list function
     """
@@ -168,6 +287,8 @@ def k8s_paginate(
                 break
 
         except ApiException as e:
+            if raise_on_forbidden and e.status in (401, 403):
+                raise
             logger.error(
                 f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
             )
