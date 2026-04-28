@@ -10,11 +10,17 @@ import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
+from cartography.intel.kubernetes.pods import load_containers
+from cartography.util import run_analysis_job
 from tests.data.aibom.aibom_sample import AIBOM_DIGEST_BASED_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
+from tests.data.aibom.aibom_sample import CONTAINER_ON_MANIFEST_LIST
+from tests.data.aibom.aibom_sample import CONTAINER_ON_SINGLE_PLATFORM
+from tests.data.aibom.aibom_sample import TEST_CLUSTER_ID
+from tests.data.aibom.aibom_sample import TEST_CLUSTER_NAME
 from tests.data.aibom.aibom_sample import TEST_DIGEST_BASED_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
@@ -953,3 +959,102 @@ def test_sync_aibom_tag_manifest_list_fans_out_to_child_images(
         ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
         ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
     }
+
+
+def _seed_aibom_with_containers(neo4j_session, ecr_seed_fn, containers):
+    """Seed ECR images, load AIBOM, load containers, then run the analysis jobs."""
+    ecr_seed_fn(neo4j_session)
+
+    # Prerequisite cluster node for container sub_resource_relationship
+    neo4j_session.run(
+        "MERGE (c:KubernetesCluster {id: $id}) SET c.lastupdated = $tag",
+        id=TEST_CLUSTER_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    load_containers(
+        neo4j_session,
+        containers,
+        TEST_UPDATE_TAG,
+        cluster_id=TEST_CLUSTER_ID,
+        cluster_name=TEST_CLUSTER_NAME,
+    )
+
+    # RESOLVED_IMAGE must exist before RUNS_ON can join through it.
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    run_analysis_job(
+        "aibom_runs_on_container_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom.json"},
+)
+def test_runs_on_analysis_direct_image(mock_json_files, mock_file_open, neo4j_session):
+    """RUNS_ON is created when AIBOMSource and Container share the same concrete Image."""
+    _seed_aibom_with_containers(
+        neo4j_session,
+        _seed_single_platform_graph,
+        [CONTAINER_ON_SINGLE_PLATFORM],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Container",
+        "id",
+        "RUNS_ON",
+        rel_direction_right=True,
+    ) == {(TEST_SOURCE_KEY, CONTAINER_ON_SINGLE_PLATFORM["uid"])}
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom.json"},
+)
+def test_runs_on_analysis_via_resolved_manifest_list(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    """RUNS_ON is created when a manifest-list-backed Container resolves to a concrete child Image that matches the AIBOMSource's SCANNED_IMAGE."""
+    _seed_aibom_with_containers(
+        neo4j_session,
+        _seed_manifest_list_graph,
+        [CONTAINER_ON_MANIFEST_LIST],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Container",
+        "id",
+        "RUNS_ON",
+        rel_direction_right=True,
+    ) == {(TEST_SOURCE_KEY, CONTAINER_ON_MANIFEST_LIST["uid"])}

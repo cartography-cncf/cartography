@@ -31,7 +31,7 @@ def get_knowledge_bases(
     """
     Retrieve all knowledge bases in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock knowledge bases in region %s", region)
+    logger.debug("Fetching Bedrock knowledge bases in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock-agent",
