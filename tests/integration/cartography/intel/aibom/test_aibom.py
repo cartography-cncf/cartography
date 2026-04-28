@@ -938,8 +938,8 @@ def test_sync_aibom_tag_manifest_list_fans_out_to_child_images(
     }
 
 
-def _seed_aibom_with_containers(neo4j_session, aibom_report, ecr_seed_fn, containers):
-    """Seed ECR images, load AIBOM, load containers, then run the analysis job."""
+def _seed_aibom_with_containers(neo4j_session, ecr_seed_fn, containers):
+    """Seed ECR images, load AIBOM, load containers, then run the analysis jobs."""
     ecr_seed_fn(neo4j_session)
 
     # Prerequisite cluster node for container sub_resource_relationship
@@ -964,6 +964,12 @@ def _seed_aibom_with_containers(neo4j_session, aibom_report, ecr_seed_fn, contai
         cluster_name=TEST_CLUSTER_NAME,
     )
 
+    # RESOLVED_IMAGE must exist before RUNS_ON can join through it.
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
     run_analysis_job(
         "aibom_runs_on_container_analysis.json",
         neo4j_session,
@@ -984,7 +990,6 @@ def test_runs_on_analysis_direct_image(mock_json_files, mock_file_open, neo4j_se
     """RUNS_ON is created when AIBOMSource and Container share the same concrete Image."""
     _seed_aibom_with_containers(
         neo4j_session,
-        AIBOM_SINGLE_PLATFORM_REPORT,
         _seed_single_platform_graph,
         [CONTAINER_ON_SINGLE_PLATFORM],
     )
@@ -1017,7 +1022,6 @@ def test_runs_on_analysis_manifest_list_reverse_hop(
     """RUNS_ON is created when AIBOMSource scans a child Image and the Container's HAS_IMAGE points at the parent ImageManifestList."""
     _seed_aibom_with_containers(
         neo4j_session,
-        AIBOM_REPORT,
         _seed_manifest_list_graph,
         [CONTAINER_ON_MANIFEST_LIST],
     )

@@ -19,6 +19,7 @@ CONTAINER_ON_MANIFEST_LIST = {
     "image_pull_policy": "Always",
     "status_image_id": "ml-image-id",
     "status_image_sha": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+    "architecture_normalized": "amd64",
     "status_ready": True,
     "status_started": True,
     "status_state": "running",
