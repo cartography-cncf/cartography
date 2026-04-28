@@ -318,9 +318,8 @@ _repository_without_slsa_provenance_fact = Fact(
         "SLSA attestation."
     ),
     cypher_query="""
-    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo)
-    WHERE (repo:GitHubRepository OR repo:GitLabProject)
-      AND r.match_method <> 'provenance'
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
     WITH repo, collect(DISTINCT r.match_method) AS match_methods,
          count(DISTINCT i) AS image_count
     RETURN repo.id AS repo_id, repo.name AS repo_name,
@@ -329,15 +328,13 @@ _repository_without_slsa_provenance_fact = Fact(
     ORDER BY repo.name
     """,
     cypher_visual_query="""
-    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo)
-    WHERE (repo:GitHubRepository OR repo:GitLabProject)
-      AND r.match_method <> 'provenance'
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo)
-    WHERE (repo:GitHubRepository OR repo:GitLabProject)
-      AND r.match_method <> 'provenance'
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
     RETURN count(DISTINCT repo) AS count
     """,
     module=Module.SUBIMAGE,
@@ -357,11 +354,10 @@ repository_without_slsa_provenance = Rule(
     id="repository_without_slsa_provenance",
     name="Repository Without SLSA Provenance",
     description=(
-        "Detects repositories with at least one image linked via "
-        "PACKAGED_FROM whose match_method is not 'provenance'. SLSA "
-        "provenance attestations give the strongest source-to-image "
-        "guarantee; repos relying on Dockerfile analysis should adopt "
-        "SLSA-compliant builds."
+        "SLSA provenance attestations are the only source-to-image link "
+        "trusted enough to guarantee build traceability. Repositories "
+        "still relying on Dockerfile analysis lack that guarantee and "
+        "should adopt SLSA-compliant builds."
     ),
     output_model=RepositoryWithoutSLSAProvenanceOutput,
     tags=(
