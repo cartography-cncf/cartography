@@ -908,6 +908,18 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
     (GCPPolicyBinding)-[:GRANTS_ROLE]->(GCPRole)
     ```
 
+- GCPPolicyBindings apply to the concrete resource they govern. The edge is
+  created only when the bound resource is already present in the graph, and
+  supports `GCPProject`, `GCPFolder`, `GCPOrganization`, `GCPBucket`,
+  `GCPKeyRing`, `GCPCryptoKey`, `GCPSecretManagerSecret`,
+  `GCPSecretManagerSecretVersion`, `GCPArtifactRegistryRepository`,
+  `GCPCloudRunService`, `GCPInstance`, `GCPVpc`, `GCPSubnet`, and
+  `GCPFirewall` targets.
+
+    ```
+    (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
 ### GCPBigtableInstance
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
@@ -1524,6 +1536,7 @@ graph LR
     Repository -->|CONTAINS| LanguagePackage
     Repository -->|CONTAINS| GenericArtifact
     ContainerImage -->|HAS_MANIFEST| PlatformImage
+    ContainerImage -->|CONTAINS_IMAGE| PlatformImage
     TrivyFinding -->|AFFECTS| ContainerImage
     Package -->|DEPLOYED| ContainerImage
 ```
@@ -1610,6 +1623,7 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 - GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages (for multi-architecture images).
     ```
     (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    (GCPArtifactRegistryContainerImage)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 - TrivyImageFindings affect GCPArtifactRegistryContainerImages.
@@ -1762,6 +1776,7 @@ Representation of a platform-specific manifest within a multi-architecture Docke
 - GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
     ```
     (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    (GCPArtifactRegistryContainerImage)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryPlatformImage)
     ```
 
 #### Trivy Integration Queries

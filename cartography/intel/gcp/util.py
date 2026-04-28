@@ -14,6 +14,7 @@ from typing import List
 
 import backoff
 from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
 from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
 
@@ -72,7 +73,7 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
-    if isinstance(exc, ServerError):
+    if isinstance(exc, (ServerError, TooManyRequests)):
         return True
     if not isinstance(exc, HttpError):
         return False

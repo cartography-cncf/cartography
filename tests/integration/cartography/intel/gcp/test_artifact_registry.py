@@ -245,3 +245,16 @@ def test_sync_artifact_registry(
         (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_AMD64_ID),
         (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_ARM64_ID),
     }
+
+    # Assert: Check ontology-standard manifest-list -> platform-image relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryContainerImage",
+        "id",
+        "GCPArtifactRegistryPlatformImage",
+        "id",
+        "CONTAINS_IMAGE",
+    ) == {
+        (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_AMD64_ID),
+        (TEST_DOCKER_IMAGE_ID, TEST_PLATFORM_IMAGE_ARM64_ID),
+    }

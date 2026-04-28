@@ -21,6 +21,9 @@ from cartography.intel.gcp.artifact_registry.util import (
     fetch_artifact_registry_resources,
 )
 from cartography.intel.gcp.artifact_registry.util import get_artifact_registry_locations
+from cartography.intel.gcp.artifact_registry.util import (
+    list_artifact_registry_resources,
+)
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.repository import (
     GCPArtifactRegistryRepositorySchema,
@@ -52,7 +55,9 @@ def _list_repositories_for_location(
         parent = f"projects/{project_id}/locations/{location}"
         repositories = [
             proto_message_to_dict(repository)
-            for repository in client.list_repositories(parent=parent)
+            for repository in list_artifact_registry_resources(
+                lambda: client.list_repositories(parent=parent)
+            )
         ]
         return LocationRepositoryFetchResult(location, repositories, True)
     except PermissionDenied as e:

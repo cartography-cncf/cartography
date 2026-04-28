@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import time
+from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
 from typing import Any
@@ -19,11 +20,175 @@ from google.cloud.asset_v1.types import SearchAllIamPoliciesRequest
 from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.permission_relationships import (
+    build_principals_from_policy_bindings,
+)
+from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
+from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _FullNameMapping:
+    """
+    Rule that maps a Cloud Asset full resource name to a Cartography node.
+
+    - ``service_prefix``: the full name must start with this (e.g.
+      ``"//cloudkms.googleapis.com/"``).
+    - ``marker``: the path segment identifying the resource type (e.g.
+      ``"cryptoKeys"``). The segment immediately after the marker is the name.
+    - ``label``: Cartography node label.
+    - ``id_mode``:
+        * ``"last_segment"``   — just the name (GCPProject, GCPBucket).
+        * ``"type_prefixed"``  — ``"{marker}/{name}"`` (GCPFolder, GCPOrganization).
+        * ``"full_path"``      — the whole path up to and including the name
+          (KMS, Secrets, Artifact Registry, Cloud Run, Compute).
+    """
+
+    service_prefix: str
+    marker: str
+    label: str
+    id_mode: str
+
+
+# Order matters within a given service_prefix: more specific mappings first so
+# nested resource types win (e.g. a cryptoKey full name also contains
+# ``/keyRings/``, so GCPCryptoKey must precede GCPKeyRing).
+_FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
+    # Cloud Resource Manager.
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "projects",
+        "GCPProject",
+        "last_segment",
+    ),
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "folders",
+        "GCPFolder",
+        "type_prefixed",
+    ),
+    _FullNameMapping(
+        "//cloudresourcemanager.googleapis.com/",
+        "organizations",
+        "GCPOrganization",
+        "type_prefixed",
+    ),
+    # Cloud Storage.
+    _FullNameMapping(
+        "//storage.googleapis.com/",
+        "buckets",
+        "GCPBucket",
+        "last_segment",
+    ),
+    # KMS — cryptoKey wins over keyRing (nested).
+    _FullNameMapping(
+        "//cloudkms.googleapis.com/",
+        "cryptoKeys",
+        "GCPCryptoKey",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//cloudkms.googleapis.com/",
+        "keyRings",
+        "GCPKeyRing",
+        "full_path",
+    ),
+    # Secret Manager — version wins over secret (nested).
+    _FullNameMapping(
+        "//secretmanager.googleapis.com/",
+        "versions",
+        "GCPSecretManagerSecretVersion",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//secretmanager.googleapis.com/",
+        "secrets",
+        "GCPSecretManagerSecret",
+        "full_path",
+    ),
+    # Artifact Registry.
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
+        "repositories",
+        "GCPArtifactRegistryRepository",
+        "full_path",
+    ),
+    # Cloud Run services.
+    _FullNameMapping(
+        "//run.googleapis.com/",
+        "services",
+        "GCPCloudRunService",
+        "full_path",
+    ),
+    # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
+    # which matches the path left after stripping the service prefix.
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "instances",
+        "GCPInstance",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "networks",
+        "GCPVpc",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "subnetworks",
+        "GCPSubnet",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "firewalls",
+        "GCPFirewall",
+        "full_path",
+    ),
+]
+
+
+def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
+    """
+    Parse a GCP Cloud Asset full resource name and return the matching
+    (target_node_label, target_id) pair when the resource type is part of the
+    Cartography ontology, or (None, None) otherwise.
+
+    Full resource name format: ``//{service}.googleapis.com/{path}``.
+    """
+    for mapping in _FULL_NAME_MAPPINGS:
+        if not full_name.startswith(mapping.service_prefix):
+            continue
+        path = full_name[len(mapping.service_prefix) :].rstrip("/")
+        if not path:
+            continue
+        parts = path.split("/")
+        try:
+            marker_idx = parts.index(mapping.marker)
+        except ValueError:
+            continue
+        if marker_idx + 1 >= len(parts):
+            continue
+        name_segment = parts[marker_idx + 1]
+        if not name_segment:
+            continue
+        if mapping.id_mode == "last_segment":
+            return mapping.label, name_segment
+        if mapping.id_mode == "type_prefixed":
+            return mapping.label, f"{mapping.marker}/{name_segment}"
+        # full_path: keep everything up to and including the resource name.
+        # Sub-paths (e.g. a policy on a secret version, or on a cryptoKey
+        # version) resolve to the nearest ancestor in the ontology via the
+        # mapping order defined above.
+        return mapping.label, "/".join(parts[: marker_idx + 2])
+    return None, None
 
 
 class PolicyBindingsSyncStatus(str, Enum):
@@ -32,6 +197,12 @@ class PolicyBindingsSyncStatus(str, Enum):
     SKIPPED_PERMISSION_DENIED = "skipped_permission_denied"
     SKIPPED_RATE_LIMIT = "skipped_rate_limit"
     SKIPPED_RETRY_EXHAUSTED = "skipped_retry_exhausted"
+
+
+@dataclass(frozen=True)
+class PolicyBindingsSyncResult:
+    status: PolicyBindingsSyncStatus
+    permission_context: GCPPrincipalPermissionContext
 
 
 CAI_POLICY_BINDINGS_RETRY_INITIAL = 1.0
@@ -280,6 +451,27 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
     return list(bindings.values())
 
 
+def _group_applies_to_links(
+    bindings: list[dict[str, Any]],
+) -> dict[str, list[dict[str, str]]]:
+    """
+    Group bindings by the Cartography label of their bound resource so
+    load_matchlinks can be invoked once per target label. Bindings whose
+    resource type is not yet in the ontology are silently dropped here — the
+    binding node is still created by the main load(), just without an
+    APPLIES_TO edge.
+    """
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for binding in bindings:
+        label, target_id = _parse_full_resource_name(binding["resource"])
+        if not label or not target_id:
+            continue
+        grouped.setdefault(label, []).append(
+            {"binding_id": binding["id"], "target_id": target_id},
+        )
+    return grouped
+
+
 @timeit
 def load_bindings(
     neo4j_session: neo4j.Session,
@@ -295,6 +487,16 @@ def load_bindings(
         PROJECT_ID=project_id,
     )
 
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            links,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPProject",
+            _sub_resource_id=project_id,
+        )
+
 
 @timeit
 def cleanup(
@@ -308,6 +510,19 @@ def cleanup(
         common_job_parameters,
     ).run(neo4j_session)
 
+    project_id = common_job_parameters["PROJECT_ID"]
+    update_tag = common_job_parameters["UPDATE_TAG"]
+    # Run a matchlink cleanup for every target label we know how to map. This
+    # clears stale APPLIES_TO edges even if no binding in this sync targeted
+    # that label.
+    for target_label in {mapping.label for mapping in _FULL_NAME_MAPPINGS}:
+        GraphJob.from_matchlink(
+            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
+
 
 @timeit
 def sync(
@@ -316,7 +531,8 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
-) -> PolicyBindingsSyncStatus:
+    role_permissions_by_name: dict[str, list[str]],
+) -> PolicyBindingsSyncResult:
     """
     Sync GCP IAM policy bindings for a project.
 
@@ -334,7 +550,10 @@ def sync(
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED,
+            {},
+        )
     except RetryError as e:
         if _is_rate_limit_retry_error(e):
             logger.warning(
@@ -343,14 +562,20 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings retries exhausted for project %s after transient gRPC errors. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
     except (DeadlineExceeded, ResourceExhausted, ServiceUnavailable) as e:
         if isinstance(e, ResourceExhausted):
             logger.warning(
@@ -359,17 +584,31 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings failed for project %s with a transient gRPC error. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
 
     transformed_bindings_data = transform_bindings(bindings_data)
+    permission_context = build_principals_from_policy_bindings(
+        transformed_bindings_data,
+        role_permissions_by_name,
+        project_id,
+    )
 
     load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    return PolicyBindingsSyncStatus.SUCCESS
+    return PolicyBindingsSyncResult(
+        PolicyBindingsSyncStatus.SUCCESS,
+        permission_context,
+    )

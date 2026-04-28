@@ -50,6 +50,19 @@ def _create_test_organization(neo4j_session):
     )
 
 
+def _create_test_bucket(neo4j_session):
+    """Create a test GCP bucket node to verify APPLIES_TO relationship wiring."""
+    neo4j_session.run(
+        """
+        MERGE (bucket:GCPBucket{id: $bucket_id})
+        ON CREATE SET bucket.firstseen = timestamp()
+        SET bucket.lastupdated = $update_tag
+        """,
+        bucket_id="test-bucket",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.policy_bindings,
     "get_policy_bindings",
@@ -107,6 +120,7 @@ def test_sync_gcp_policy_bindings(
     # ARRANGE
     _create_test_project(neo4j_session)
     _create_test_organization(neo4j_session)
+    _create_test_bucket(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
     mock_asset_client = MagicMock()
@@ -142,6 +156,9 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         GSUITE_COMMON_PARAMS,
     )
+    role_permissions_by_name = cartography.intel.gcp.iam.build_role_permissions_by_name(
+        tests.data.gcp.policy_bindings.MOCK_IAM_ROLES
+    )
 
     # ACT
     cartography.intel.gcp.policy_bindings.sync(
@@ -150,6 +167,7 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        role_permissions_by_name,
     )
 
     # ASSERT
@@ -270,6 +288,47 @@ def test_sync_gcp_policy_bindings(
         ),
     }
 
+    # Check GCPPolicyBinding to GCPProject APPLIES_TO relationships
+    # (only created when the bound resource node already exists in the graph)
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPProject",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+            TEST_PROJECT_ID,
+        ),
+    }
+
+    # Check GCPPolicyBinding to GCPBucket APPLIES_TO relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPBucket",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+            "test-bucket",
+        ),
+    }
+
 
 @patch.object(
     cartography.intel.gcp.policy_bindings,
@@ -298,11 +357,12 @@ def test_sync_gcp_policy_bindings_permission_denied(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        {},
     )
 
     # ASSERT - sync should return a skipped status and not raise an exception
     assert (
-        result
+        result.status
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
     )
     mock_get_policy_bindings.assert_called_once()
