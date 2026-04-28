@@ -1,0 +1,277 @@
+"""Integration tests for the GHCR (packages + container registry) sync."""
+
+import base64
+import json
+from unittest.mock import patch
+
+import cartography.intel.github.container_image_attestations
+import cartography.intel.github.container_images
+import cartography.intel.github.packages
+from tests.data.github.packages import CONFIG_BLOBS_BY_DIGEST
+from tests.data.github.packages import DIGEST_API_AMD64
+from tests.data.github.packages import DIGEST_API_ARM64
+from tests.data.github.packages import DIGEST_API_INDEX
+from tests.data.github.packages import DIGEST_API_LATEST
+from tests.data.github.packages import DIGEST_WORKER
+from tests.data.github.packages import GET_CONTAINER_PACKAGES
+from tests.data.github.packages import LAYER_DIFF_A
+from tests.data.github.packages import LAYER_DIFF_B
+from tests.data.github.packages import LAYER_DIFF_C
+from tests.data.github.packages import MANIFESTS_BY_REFERENCE
+from tests.data.github.packages import PACKAGE_VERSIONS_BY_NAME
+from tests.data.github.packages import SLSA_STATEMENT_API_LATEST
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+
+TEST_UPDATE_TAG = 123456789
+TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
+TEST_GITHUB_URL = "https://api.github.com/graphql"
+TEST_ORG = "simpsoncorp"
+FAKE_TOKEN = "fake-pat"
+
+ORG_URL = f"https://github.com/{TEST_ORG}"
+REPO_URL = f"https://github.com/{TEST_ORG}/sample_repo"
+
+
+def _seed_org_and_repo(neo4j_session):
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization {id: $org_url})
+        SET org.username = $org_login
+        MERGE (repo:GitHubRepository {id: $repo_url})
+        SET repo.name = 'sample_repo'
+        MERGE (repo)-[:OWNER]->(org)
+        """,
+        org_url=ORG_URL,
+        org_login=TEST_ORG,
+        repo_url=REPO_URL,
+    )
+
+
+def _packages_pagination_side_effect(token, base_url, endpoint, result_key):
+    if "/packages" in endpoint and "versions" not in endpoint:
+        return GET_CONTAINER_PACKAGES
+    if "/versions" in endpoint:
+        # endpoint shape: /orgs/{org}/packages/container/{name}/versions?...
+        # parse the package name out of the path.
+        path = endpoint.split("?")[0]
+        parts = path.split("/")
+        package_name = parts[parts.index("container") + 1]
+        return PACKAGE_VERSIONS_BY_NAME.get(package_name, [])
+    return []
+
+
+def _manifest_side_effect(token, repository_name, reference, **kwargs):
+    return MANIFESTS_BY_REFERENCE.get((repository_name, reference))
+
+
+def _blob_side_effect(token, repository_name, blob_digest, **kwargs):
+    return CONFIG_BLOBS_BY_DIGEST.get(blob_digest)
+
+
+def _attestation_response(digest):
+    if digest != DIGEST_API_LATEST:
+        return {"attestations": []}
+    payload = base64.b64encode(
+        json.dumps(SLSA_STATEMENT_API_LATEST).encode("utf-8"),
+    ).decode("ascii")
+    return {
+        "attestations": [
+            {
+                "id": 9001,
+                "predicate_type": SLSA_STATEMENT_API_LATEST["predicateType"],
+                "bundle": {"dsseEnvelope": {"payload": payload}},
+            },
+        ],
+    }
+
+
+def _attestation_side_effect(endpoint, token, base_url, params=None):
+    # endpoint: /orgs/{org}/attestations/{digest}?per_page=100. The digest is
+    # URL-encoded (`:` -> `%3A`) so we decode it before lookup.
+    from urllib.parse import unquote
+
+    digest = unquote(endpoint.split("/attestations/")[1].split("?")[0])
+    return _attestation_response(digest)
+
+
+@patch.object(
+    cartography.intel.github.container_image_attestations,
+    "call_github_rest_api",
+    side_effect=_attestation_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_blob",
+    side_effect=_blob_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_manifest",
+    side_effect=_manifest_side_effect,
+)
+@patch(
+    "cartography.intel.github.packages.fetch_all_rest_api_pages",
+    side_effect=_packages_pagination_side_effect,
+)
+def test_sync_ghcr_full_pipeline(
+    mock_pages,
+    mock_manifest,
+    mock_blob,
+    mock_attestations,
+    neo4j_session,
+):
+    _seed_org_and_repo(neo4j_session)
+
+    # Act
+    packages = cartography.intel.github.packages.sync_packages(
+        neo4j_session,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+    raw_manifests, _, tag_rows = (
+        cartography.intel.github.container_images.sync_container_images(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            packages,
+            TEST_UPDATE_TAG,
+            TEST_JOB_PARAMS,
+        )
+    )
+    cartography.intel.github.container_image_tags.sync_container_image_tags(
+        neo4j_session,
+        TEST_ORG,
+        tag_rows,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+    cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+        neo4j_session,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORG,
+        raw_manifests,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+
+    # Packages
+    assert check_nodes(neo4j_session, "GitHubPackage", ["name", "uri"]) == {
+        ("api", "ghcr.io/simpsoncorp/api"),
+        ("worker", "ghcr.io/simpsoncorp/worker"),
+    }
+    # GitHubPackage gets the ContainerRegistry generic label
+    assert check_nodes(neo4j_session, "ContainerRegistry", ["name"]) >= {
+        ("api",),
+        ("worker",),
+    }
+
+    # HAS_PACKAGE only for the package that has a repository link
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubPackage",
+        "name",
+        "HAS_PACKAGE",
+        rel_direction_right=True,
+    ) == {(REPO_URL, "api")}
+
+    # Container images: 4 manifests (latest single + index + 2 children) + worker
+    image_digests = check_nodes(neo4j_session, "GitHubContainerImage", ["digest"])
+    assert image_digests == {
+        (DIGEST_API_LATEST,),
+        (DIGEST_API_INDEX,),
+        (DIGEST_API_AMD64,),
+        (DIGEST_API_ARM64,),
+        (DIGEST_WORKER,),
+    }
+
+    # Generic ontology labels
+    assert check_nodes(neo4j_session, "Image", ["digest"]) >= {
+        (DIGEST_API_LATEST,),
+        (DIGEST_API_AMD64,),
+        (DIGEST_API_ARM64,),
+        (DIGEST_WORKER,),
+    }
+    assert (DIGEST_API_INDEX,) in check_nodes(
+        neo4j_session,
+        "ImageManifestList",
+        ["digest"],
+    )
+
+    # Layers: A, B, C de-duplicated across images
+    assert check_nodes(neo4j_session, "GitHubContainerImageLayer", ["diff_id"]) == {
+        (LAYER_DIFF_A,),
+        (LAYER_DIFF_B,),
+        (LAYER_DIFF_C,),
+    }
+    assert check_nodes(neo4j_session, "ImageLayer", ["diff_id"]) >= {
+        (LAYER_DIFF_A,),
+        (LAYER_DIFF_B,),
+        (LAYER_DIFF_C,),
+    }
+
+    # CONTAINS_IMAGE from the manifest list to the two children
+    assert check_rels(
+        neo4j_session,
+        "GitHubContainerImage",
+        "digest",
+        "GitHubContainerImage",
+        "digest",
+        "CONTAINS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (DIGEST_API_INDEX, DIGEST_API_AMD64),
+        (DIGEST_API_INDEX, DIGEST_API_ARM64),
+    }
+
+    # Tag nodes (3 unique URIs)
+    assert check_nodes(neo4j_session, "GitHubContainerImageTag", ["uri"]) == {
+        ("ghcr.io/simpsoncorp/api:latest",),
+        ("ghcr.io/simpsoncorp/api:v1.0.0",),
+        ("ghcr.io/simpsoncorp/api:v1.1.0",),
+        ("ghcr.io/simpsoncorp/worker:latest",),
+    }
+
+    # Cross-registry edges expected by supply_chain.py:
+    # (:ContainerRegistry)-[:REPO_IMAGE]->(:ImageTag)-[:IMAGE]->(:Image)
+    assert check_rels(
+        neo4j_session,
+        "GitHubPackage",
+        "name",
+        "GitHubContainerImageTag",
+        "uri",
+        "REPO_IMAGE",
+        rel_direction_right=True,
+    ) >= {
+        ("api", "ghcr.io/simpsoncorp/api:latest"),
+        ("api", "ghcr.io/simpsoncorp/api:v1.0.0"),
+        ("api", "ghcr.io/simpsoncorp/api:v1.1.0"),
+        ("worker", "ghcr.io/simpsoncorp/worker:latest"),
+    }
+
+    # Attestation node + provenance enrichment on the image
+    assert check_nodes(
+        neo4j_session,
+        "GitHubContainerImageAttestation",
+        ["attests_digest"],
+    ) == {(DIGEST_API_LATEST,)}
+
+    enriched = neo4j_session.run(
+        """
+        MATCH (img:GitHubContainerImage {digest: $digest})
+        RETURN img.source_uri AS uri,
+               img.source_revision AS rev,
+               img.source_file AS file
+        """,
+        digest=DIGEST_API_LATEST,
+    ).single()
+    assert enriched["uri"] == "https://github.com/simpsoncorp/sample_repo"
+    assert enriched["rev"] == "abc123def456abc123def456abc123def4567890"
+    assert enriched["file"] == ".github/workflows/build.yml"
