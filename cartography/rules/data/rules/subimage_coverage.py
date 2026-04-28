@@ -169,7 +169,7 @@ _container_image_not_found_fact = Fact(
     ),
     cypher_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
@@ -179,7 +179,7 @@ _container_image_not_found_fact = Fact(
     """,
     cypher_visual_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
@@ -187,7 +187,7 @@ _container_image_not_found_fact = Fact(
     """,
     cypher_count_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     RETURN count(c) AS count
