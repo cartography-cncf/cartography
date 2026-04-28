@@ -7,6 +7,7 @@ Only `package_type=container` packages are fetched — other package types
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
@@ -24,6 +25,19 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class ContainerPackagesFetchResult:
+    """Result of fetching the org's container packages list.
+
+    ``cleanup_safe`` is False when the endpoint was unavailable (404 on older
+    GHES, for instance). Cleanup must be skipped in that case so an outage
+    does not purge previously-synced ``GitHubPackage`` nodes.
+    """
+
+    packages: list[dict[str, Any]]
+    cleanup_safe: bool
+
+
 def _ghcr_uri(org_login: str, package_name: str) -> str:
     """Build the canonical lowercase GHCR URI for a package."""
     return f"ghcr.io/{org_login.lower()}/{package_name.lower()}"
@@ -34,28 +48,30 @@ def get_container_packages(
     token: Any,
     api_url: str,
     organization: str,
-) -> list[dict[str, Any]]:
+) -> ContainerPackagesFetchResult:
     """
     Fetch every container package owned by ``organization`` via the GitHub
-    REST API. Returns the raw payloads (one per package).
+    REST API. Returns the raw payloads alongside a ``cleanup_safe`` flag.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = (
         f"/orgs/{quote(organization)}/packages?package_type=container&per_page=100"
     )
     try:
-        return fetch_all_rest_api_pages(
+        packages = fetch_all_rest_api_pages(
             token, base_url, endpoint, result_key="packages"
         )
+        return ContainerPackagesFetchResult(packages=packages, cleanup_safe=True)
     except requests.exceptions.HTTPError as err:
         # Older GitHub Enterprise versions don't expose this endpoint.
         if err.response is not None and err.response.status_code == 404:
             logger.warning(
                 "GitHub Packages endpoint not available for org %s (404). "
-                "GHCR sync will be skipped for this organization.",
+                "GHCR sync will be skipped and cleanup deferred so previously "
+                "synced packages are not purged by an endpoint outage.",
                 organization,
             )
-            return []
+            return ContainerPackagesFetchResult(packages=[], cleanup_safe=False)
         raise
 
 
@@ -95,23 +111,25 @@ def transform_packages(
     raw_packages: list[dict[str, Any]],
     organization: str,
 ) -> list[dict[str, Any]]:
-    """Shape the package payload for ingestion."""
+    """Shape the package payload for ingestion.
+
+    ``name`` and ``html_url`` are required fields per the REST API contract;
+    we let ``KeyError`` surface if GitHub ever returns a malformed payload so
+    the failure is loud rather than silently dropping the package.
+    """
     transformed: list[dict[str, Any]] = []
     for pkg in raw_packages:
-        name = pkg.get("name")
-        if not name:
-            continue
         repository = pkg.get("repository") or {}
         repository_url = (
             repository.get("html_url") if isinstance(repository, dict) else None
         )
         transformed.append(
             {
-                "name": name,
+                "name": pkg["name"],
                 "package_type": pkg.get("package_type", "container"),
                 "visibility": pkg.get("visibility"),
-                "uri": _ghcr_uri(organization, name),
-                "html_url": pkg.get("html_url"),
+                "uri": _ghcr_uri(organization, pkg["name"]),
+                "html_url": pkg["html_url"],
                 "repository_url": repository_url,
                 "created_at": pkg.get("created_at"),
                 "updated_at": pkg.get("updated_at"),
@@ -154,15 +172,16 @@ def sync_packages(
     organization: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> list[dict[str, Any]]:
+) -> ContainerPackagesFetchResult:
     """
-    Sync container packages for ``organization``. Returns the transformed
-    package list so downstream syncs (versions, tags, attestations) can reuse
-    it without re-fetching.
+    Sync container packages for ``organization``. Returns the fetch result
+    (transformed packages + ``cleanup_safe`` flag) so downstream syncs can
+    reuse the data and so the orchestrator can propagate the cleanup_safe
+    signal.
     """
     org_url = f"https://github.com/{organization}"
-    raw_packages = get_container_packages(token, api_url, organization)
-    packages = transform_packages(raw_packages, organization)
+    fetch_result = get_container_packages(token, api_url, organization)
+    packages = transform_packages(fetch_result.packages, organization)
     if packages:
         logger.info(
             "Loading %d GitHub container packages for org %s",
@@ -170,10 +189,20 @@ def sync_packages(
             organization,
         )
         load_packages(neo4j_session, packages, org_url, update_tag)
-    cleanup_params = dict(common_job_parameters)
-    cleanup_params["org_url"] = org_url
-    cleanup_packages(neo4j_session, cleanup_params)
-    return packages
+    if fetch_result.cleanup_safe:
+        cleanup_params = dict(common_job_parameters)
+        cleanup_params["org_url"] = org_url
+        cleanup_packages(neo4j_session, cleanup_params)
+    else:
+        logger.warning(
+            "Skipping GitHubPackage cleanup for org %s because the packages "
+            "endpoint discovery was incomplete.",
+            organization,
+        )
+    return ContainerPackagesFetchResult(
+        packages=packages,
+        cleanup_safe=fetch_result.cleanup_safe,
+    )
 
 
 __all__ = [

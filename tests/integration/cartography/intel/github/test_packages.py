@@ -124,7 +124,7 @@ def test_sync_ghcr_full_pipeline(
     _seed_org_and_repo(neo4j_session)
 
     # Act
-    packages = cartography.intel.github.packages.sync_packages(
+    fetch_result = cartography.intel.github.packages.sync_packages(
         neo4j_session,
         FAKE_TOKEN,
         TEST_GITHUB_URL,
@@ -132,13 +132,14 @@ def test_sync_ghcr_full_pipeline(
         TEST_UPDATE_TAG,
         TEST_JOB_PARAMS,
     )
+    assert fetch_result.cleanup_safe is True
     raw_manifests, _, tag_rows = (
         cartography.intel.github.container_images.sync_container_images(
             neo4j_session,
             FAKE_TOKEN,
             TEST_GITHUB_URL,
             TEST_ORG,
-            packages,
+            fetch_result.packages,
             TEST_UPDATE_TAG,
             TEST_JOB_PARAMS,
         )

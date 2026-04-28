@@ -678,12 +678,11 @@ def _ghcr_auth_header(token: Any) -> str:
     """
     Build the Authorization header value for GHCR's OCI Distribution API.
 
-    GHCR accepts a base64-encoded personal access token (with read:packages)
-    as a Bearer credential. The same encoding is what `docker login ghcr.io`
-    submits.
+    A GitHub PAT with the ``read:packages`` scope is sent as a plain Bearer
+    credential. Base64 encoding only applies to ``docker login`` (HTTP Basic
+    of ``user:pat``); the OCI v2 API expects the PAT itself.
     """
-    raw = _resolve_token(token).encode("utf-8")
-    return f"Bearer {base64.b64encode(raw).decode('ascii')}"
+    return f"Bearer {_resolve_token(token)}"
 
 
 def fetch_ghcr_manifest(

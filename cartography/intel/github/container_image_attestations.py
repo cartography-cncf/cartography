@@ -152,6 +152,15 @@ def get_attestations_for_digest(
     organization: str,
     digest: str,
 ) -> list[dict[str, Any]]:
+    """Fetch attestations for one image digest.
+
+    Per the GitHub Attestations REST API, a 404 on
+    ``/orgs/{org}/attestations/{digest}`` is the documented response when the
+    digest has no attestations (it is *not* an error). Only that case is
+    converted into an empty list; every other HTTP error propagates so the
+    sync aborts before cleanup runs and existing attestation nodes are not
+    silently purged.
+    """
     base_url = rest_api_base_url(api_url)
     endpoint = _attestations_endpoint(organization, digest)
     try:

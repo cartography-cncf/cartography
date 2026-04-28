@@ -132,7 +132,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
         # Sync GHCR (container packages, image manifests, tags, attestations).
         # Runs before supply_chain.sync so the latter can correlate digests.
-        ghcr_packages = cartography.intel.github.packages.sync_packages(
+        ghcr_result = cartography.intel.github.packages.sync_packages(
             neo4j_session,
             token,
             api_url,
@@ -140,7 +140,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             common_job_parameters["UPDATE_TAG"],
             common_job_parameters,
         )
-        if ghcr_packages:
+        if ghcr_result.packages:
             (
                 ghcr_manifests,
                 _ghcr_manifest_lists,
@@ -150,7 +150,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 token,
                 api_url,
                 org_name,
-                ghcr_packages,
+                ghcr_result.packages,
                 common_job_parameters["UPDATE_TAG"],
                 common_job_parameters,
             )

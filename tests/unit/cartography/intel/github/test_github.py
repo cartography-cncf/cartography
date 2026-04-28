@@ -13,6 +13,7 @@ from requests import Response
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
+import cartography.intel.github.packages
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
@@ -24,6 +25,13 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github.repos.cleanup_global_resources")
 @patch("cartography.intel.github.users.cleanup")
 @patch("cartography.intel.github.supply_chain.sync")
+@patch(
+    "cartography.intel.github.packages.sync_packages",
+    return_value=cartography.intel.github.packages.ContainerPackagesFetchResult(
+        packages=[],
+        cleanup_safe=True,
+    ),
+)
 @patch("cartography.intel.github.repos.get", return_value=[])
 @patch("cartography.intel.github.commits.sync_github_commits")
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
@@ -41,6 +49,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_get_repos_from_graph: Mock,
     mock_sync_github_commits: Mock,
     mock_get_repos: Mock,
+    mock_packages_sync: Mock,
     mock_supply_chain_sync: Mock,
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,
