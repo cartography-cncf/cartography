@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+from botocore.exceptions import ClientError
+
 from cartography.intel.docker_scout import sync_docker_scout_from_dir
 from cartography.intel.docker_scout import sync_docker_scout_from_s3
 
@@ -58,7 +60,10 @@ def test_sync_docker_scout_from_s3_skips_read_failures(caplog) -> None:
     s3_client.get_paginator.return_value.paginate.return_value = [
         {"Contents": [{"Key": "reports/forbidden-report.txt"}]},
     ]
-    s3_client.get_object.side_effect = PermissionError("access denied")
+    s3_client.get_object.side_effect = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "access denied"}},
+        "GetObject",
+    )
     boto3_session.client.return_value = s3_client
 
     sync_docker_scout_from_s3(
