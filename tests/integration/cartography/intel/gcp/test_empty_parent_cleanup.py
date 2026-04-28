@@ -31,14 +31,48 @@ def _create_gcp_project(neo4j_session, project_id: str, update_tag: int):
     )
 
 
-def test_project_resource_sync_runs_bigtable_child_syncs_with_empty_instances():
+def _create_stale_project_resource(
+    neo4j_session,
+    label: str,
+    resource_id: str,
+    project_id: str = TEST_PROJECT_ID,
+):
+    neo4j_session.run(
+        f"""
+        MERGE (r:{label} {{id: $resource_id}})
+        SET r.lastupdated = $old_tag
+        WITH r
+        MATCH (p:GCPProject {{id: $project_id}})
+        MERGE (p)-[:RESOURCE]->(r)
+        """,
+        resource_id=resource_id,
+        project_id=project_id,
+        old_tag=TEST_UPDATE_TAG - 1000,
+    )
+
+
+def test_project_resource_sync_cleans_bigtable_children_with_empty_instances(
+    neo4j_session,
+):
     """
-    Verify that Bigtable child syncs run when instance sync succeeds with [].
+    Verify real Bigtable child syncs clean stale data when instances sync returns [].
 
     This covers the project-level orchestration path where truthy checks on
     instances_raw would skip child cleanup when all instances were deleted.
     """
-    neo4j_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_gcp_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _create_stale_project_resource(
+        neo4j_session,
+        "GCPBigtableCluster",
+        "projects/test-project/instances/inst/clusters/old-cluster",
+    )
+    _create_stale_project_resource(
+        neo4j_session,
+        "GCPBigtableBackup",
+        "projects/test-project/instances/inst/clusters/c1/backups/old-backup",
+    )
+
     credentials = MagicMock()
     bigtable_client = MagicMock()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
@@ -50,22 +84,25 @@ def test_project_resource_sync_runs_bigtable_child_syncs_with_empty_instances():
         ),
         patch("cartography.intel.gcp.build_client", return_value=bigtable_client),
         patch(
-            "cartography.intel.gcp.bigtable_instance.sync_bigtable_instances",
+            "cartography.intel.gcp.bigtable_instance.get_bigtable_instances",
             return_value=[],
         ),
         patch(
-            "cartography.intel.gcp.bigtable_cluster.sync_bigtable_clusters",
-            return_value=[],
-        ) as mock_cluster_sync,
+            "cartography.intel.gcp.bigtable_cluster.get_bigtable_clusters",
+            side_effect=AssertionError("clusters should not be fetched"),
+        ),
         patch(
-            "cartography.intel.gcp.bigtable_table.sync_bigtable_tables"
-        ) as mock_table_sync,
+            "cartography.intel.gcp.bigtable_table.get_bigtable_tables",
+            side_effect=AssertionError("tables should not be fetched"),
+        ),
         patch(
-            "cartography.intel.gcp.bigtable_app_profile.sync_bigtable_app_profiles"
-        ) as mock_app_profile_sync,
+            "cartography.intel.gcp.bigtable_app_profile.get_bigtable_app_profiles",
+            side_effect=AssertionError("app profiles should not be fetched"),
+        ),
         patch(
-            "cartography.intel.gcp.bigtable_backup.sync_bigtable_backups"
-        ) as mock_backup_sync,
+            "cartography.intel.gcp.bigtable_backup.get_bigtable_backups",
+            side_effect=AssertionError("backups should not be fetched"),
+        ),
     ):
         gcp._sync_project_resources(
             neo4j_session,
@@ -76,24 +113,27 @@ def test_project_resource_sync_runs_bigtable_child_syncs_with_empty_instances():
             requested_syncs={"bigtable"},
         )
 
-    mock_cluster_sync.assert_called_once()
-    assert mock_cluster_sync.call_args.args[2] == []
-    mock_table_sync.assert_called_once()
-    assert mock_table_sync.call_args.args[2] == []
-    mock_app_profile_sync.assert_called_once()
-    assert mock_app_profile_sync.call_args.args[2] == []
-    mock_backup_sync.assert_called_once()
-    assert mock_backup_sync.call_args.args[2] == []
+    assert check_nodes(neo4j_session, "GCPBigtableCluster", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GCPBigtableBackup", ["id"]) == set()
 
 
-def test_project_resource_sync_runs_backup_sync_with_empty_clusters():
+def test_project_resource_sync_cleans_bigtable_backups_with_empty_clusters(
+    neo4j_session,
+):
     """
-    Verify that backup sync runs when cluster sync succeeds with [].
+    Verify real backup sync cleans stale data when cluster sync returns [].
 
     This covers the project-level orchestration path where truthy checks on
     clusters_raw would skip backup cleanup when all clusters were deleted.
     """
-    neo4j_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_gcp_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _create_stale_project_resource(
+        neo4j_session,
+        "GCPBigtableBackup",
+        "projects/test-project/instances/inst/clusters/c1/backups/old-backup",
+    )
+
     credentials = MagicMock()
     bigtable_client = MagicMock()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
@@ -106,18 +146,24 @@ def test_project_resource_sync_runs_backup_sync_with_empty_clusters():
         ),
         patch("cartography.intel.gcp.build_client", return_value=bigtable_client),
         patch(
-            "cartography.intel.gcp.bigtable_instance.sync_bigtable_instances",
+            "cartography.intel.gcp.bigtable_instance.get_bigtable_instances",
             return_value=instances_raw,
         ),
         patch(
-            "cartography.intel.gcp.bigtable_cluster.sync_bigtable_clusters",
+            "cartography.intel.gcp.bigtable_cluster.get_bigtable_clusters",
             return_value=[],
         ),
-        patch("cartography.intel.gcp.bigtable_table.sync_bigtable_tables"),
-        patch("cartography.intel.gcp.bigtable_app_profile.sync_bigtable_app_profiles"),
         patch(
-            "cartography.intel.gcp.bigtable_backup.sync_bigtable_backups"
-        ) as mock_backup_sync,
+            "cartography.intel.gcp.bigtable_table.get_bigtable_tables", return_value=[]
+        ),
+        patch(
+            "cartography.intel.gcp.bigtable_app_profile.get_bigtable_app_profiles",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.bigtable_backup.get_bigtable_backups",
+            side_effect=AssertionError("backups should not be fetched"),
+        ),
     ):
         gcp._sync_project_resources(
             neo4j_session,
@@ -128,20 +174,29 @@ def test_project_resource_sync_runs_backup_sync_with_empty_clusters():
             requested_syncs={"bigtable"},
         )
 
-    mock_backup_sync.assert_called_once()
-    assert mock_backup_sync.call_args.args[2] == []
+    assert check_nodes(neo4j_session, "GCPBigtableBackup", ["id"]) == set()
 
 
-def test_project_resource_sync_runs_deployed_model_sync_with_empty_endpoints():
+def test_project_resource_sync_cleans_deployed_models_with_empty_endpoints(
+    neo4j_session,
+):
     """
-    Verify that deployed model sync runs when endpoint sync succeeds with [].
+    Verify real deployed model sync cleans stale data when endpoint sync returns [].
 
     This covers the project-level orchestration path where truthy checks on
     endpoints_raw would skip deployed model cleanup when all endpoints were deleted.
     """
-    neo4j_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_gcp_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _create_stale_project_resource(
+        neo4j_session,
+        "GCPVertexAIDeployedModel",
+        "projects/test-project/locations/us-central1/endpoints/123/deployedModels/456",
+    )
+
     credentials = MagicMock()
     aiplatform_client = MagicMock()
+    aiplatform_client._http.credentials = MagicMock()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
 
     with (
@@ -151,15 +206,30 @@ def test_project_resource_sync_runs_deployed_model_sync_with_empty_endpoints():
         ),
         patch("cartography.intel.gcp.build_client", return_value=aiplatform_client),
         patch("cartography.intel.gcp.get_vertex_ai_locations", return_value=["us"]),
-        patch("cartography.intel.gcp.sync_vertex_ai_models"),
-        patch("cartography.intel.gcp.sync_vertex_ai_endpoints", return_value=[]),
         patch(
-            "cartography.intel.gcp.sync_vertex_ai_deployed_models"
-        ) as mock_deployed_model_sync,
-        patch("cartography.intel.gcp.sync_workbench_instances"),
-        patch("cartography.intel.gcp.sync_training_pipelines"),
-        patch("cartography.intel.gcp.sync_feature_groups"),
-        patch("cartography.intel.gcp.sync_vertex_ai_datasets"),
+            "cartography.intel.gcp.vertex.models.get_vertex_ai_models_for_location",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.vertex.endpoints.get_vertex_ai_endpoints_for_location",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.vertex.instances.get_workbench_api_locations",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.vertex.training_pipelines.get_vertex_ai_training_pipelines_for_location",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.vertex.feature_groups.get_feature_groups_for_location",
+            return_value=[],
+        ),
+        patch(
+            "cartography.intel.gcp.vertex.datasets.get_vertex_ai_datasets_for_location",
+            return_value=[],
+        ),
     ):
         gcp._sync_project_resources(
             neo4j_session,
@@ -170,8 +240,7 @@ def test_project_resource_sync_runs_deployed_model_sync_with_empty_endpoints():
             requested_syncs={"aiplatform"},
         )
 
-    mock_deployed_model_sync.assert_called_once()
-    assert mock_deployed_model_sync.call_args.args[1] == []
+    assert check_nodes(neo4j_session, "GCPVertexAIDeployedModel", ["id"]) == set()
 
 
 def test_backup_cleanup_runs_with_empty_clusters(neo4j_session):
