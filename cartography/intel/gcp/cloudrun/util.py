@@ -213,7 +213,7 @@ def list_cloud_run_resources_for_location(
         )
         raise
 
-    logger.info(
+    logger.debug(
         "Found %s Cloud Run %s in %s for project %s",
         len(resources),
         resource_type,
