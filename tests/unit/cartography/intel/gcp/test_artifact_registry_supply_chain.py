@@ -239,11 +239,23 @@ class _FakeClient:
         return self._responses[url]
 
 
-def _fake_token_manager():
+def _fake_credentials(token="abc", quota_project_id=None):
+    """Build a MagicMock that mimics google-auth Credentials.apply()."""
     creds = MagicMock()
-    creds.token = "abc"
-    creds.refresh = MagicMock()
-    return _TokenManager(creds)
+    creds.token = token
+    creds.quota_project_id = quota_project_id
+
+    def _apply(headers, token=None):
+        headers["Authorization"] = f"Bearer {creds.token}"
+        if creds.quota_project_id:
+            headers["x-goog-user-project"] = creds.quota_project_id
+
+    creds.apply.side_effect = _apply
+    return creds
+
+
+def _fake_token_manager():
+    return _TokenManager(_fake_credentials())
 
 
 @pytest.mark.asyncio
@@ -328,9 +340,8 @@ async def test_fetch_attestation_provenance_decodes_dsse_envelope():
 
 
 @pytest.mark.asyncio
-async def test_fetch_json_refreshes_token_on_401(monkeypatch):
-    creds = MagicMock()
-    creds.token = "first-token"
+async def test_fetch_json_refreshes_token_on_401():
+    creds = _fake_credentials(token="first-token")
 
     def _refresh(_request):
         creds.token = "second-token"
@@ -356,3 +367,23 @@ async def test_fetch_json_refreshes_token_on_401(monkeypatch):
     assert result == {"ok": True}
     assert calls == ["Bearer first-token", "Bearer second-token"]
     assert manager.generation == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_json_applies_quota_project_header():
+    creds = _fake_credentials(token="t", quota_project_id="my-quota-proj")
+    manager = _TokenManager(creds)
+
+    captured: dict[str, str] = {}
+
+    async def fake_get(url, headers=None, timeout=None):
+        captured.update(headers)
+        return _FakeResponse(200, json_body={"ok": True})
+
+    client = MagicMock()
+    client.get = fake_get
+
+    await supply_chain._fetch_json(client, "https://example.test/v2/x", manager)
+
+    assert captured.get("Authorization") == "Bearer t"
+    assert captured.get("x-goog-user-project") == "my-quota-proj"

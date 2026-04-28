@@ -44,13 +44,17 @@ ATTESTATION_MEDIA_TYPE_FRAGMENTS = {"attestation", "in-toto"}
 
 
 class _TokenManager:
-    """Holds GCP credentials and exposes a token that can be refreshed on 401.
+    """Holds GCP credentials and exposes auth that can be refreshed on 401.
 
     The Docker Registry API rejects expired bearer tokens with a 401, which can
     happen mid-run on long enrichment passes against large registries. The
     manager refreshes the underlying credentials at most once per generation:
     concurrent 401s observe the same generation and only one task triggers the
     refresh, the others retry with the freshly minted token.
+
+    Auth headers are applied via google-auth's ``credentials.apply`` so we keep
+    parity with the official client behavior (Authorization plus
+    x-goog-user-project when a quota project is configured).
     """
 
     def __init__(self, credentials: GoogleCredentials) -> None:
@@ -59,12 +63,11 @@ class _TokenManager:
         self._generation = 0
 
     @property
-    def token(self) -> str:
-        return self._credentials.token
-
-    @property
     def generation(self) -> int:
         return self._generation
+
+    def apply_auth(self, headers: dict[str, str]) -> None:
+        self._credentials.apply(headers)
 
     async def refresh(self, observed_generation: int) -> None:
         async with self._lock:
@@ -83,9 +86,10 @@ async def _fetch_json(
     """Fetch a JSON document. Refreshes credentials once on 401, otherwise raises."""
     for attempt in range(2):
         observed_generation = token_manager.generation
-        headers: dict[str, str] = {"Authorization": f"Bearer {token_manager.token}"}
+        headers: dict[str, str] = {}
         if accept:
             headers["Accept"] = accept
+        token_manager.apply_auth(headers)
         resp = await http_client.get(url, headers=headers, timeout=30.0)
         if resp.status_code == 401 and attempt == 0:
             logger.debug("Got 401 from %s, refreshing GCP credentials", url)
@@ -105,7 +109,8 @@ async def _fetch_manifest_with_digest(
     """Fetch a manifest and return (manifest_json, subject_digest). Raises on errors."""
     for attempt in range(2):
         observed_generation = token_manager.generation
-        headers = {"Authorization": f"Bearer {token_manager.token}", "Accept": accept}
+        headers: dict[str, str] = {"Accept": accept}
+        token_manager.apply_auth(headers)
         resp = await http_client.get(url, headers=headers, timeout=30.0)
         if resp.status_code == 401 and attempt == 0:
             logger.debug("Got 401 from %s, refreshing GCP credentials", url)
