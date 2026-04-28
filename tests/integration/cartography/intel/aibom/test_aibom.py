@@ -1014,12 +1014,12 @@ def test_runs_on_analysis_direct_image(mock_json_files, mock_file_open, neo4j_se
     "cartography.intel.aibom._get_json_files_in_dir",
     return_value={"/tmp/aibom.json"},
 )
-def test_runs_on_analysis_manifest_list_reverse_hop(
+def test_runs_on_analysis_via_resolved_manifest_list(
     mock_json_files,
     mock_file_open,
     neo4j_session,
 ):
-    """RUNS_ON is created when AIBOMSource scans a child Image and the Container's HAS_IMAGE points at the parent ImageManifestList."""
+    """RUNS_ON is created when a manifest-list-backed Container resolves to a concrete child Image that matches the AIBOMSource's SCANNED_IMAGE."""
     _seed_aibom_with_containers(
         neo4j_session,
         _seed_manifest_list_graph,
