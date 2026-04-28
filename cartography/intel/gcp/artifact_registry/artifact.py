@@ -14,6 +14,7 @@ from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry.util import apply_conditional_labels
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -26,12 +27,22 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
 from cartography.models.gcp.artifact_registry.container_image import (
     GCPArtifactRegistryContainerImageSchema,
+)
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryProjectToContainerImageRel,
+)
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryRepositoryToContainerImageRel,
 )
 from cartography.models.gcp.artifact_registry.helm_chart import (
     GCPArtifactRegistryHelmChartSchema,
@@ -637,13 +648,58 @@ def load_docker_images(
     """
     Loads GCPArtifactRegistryContainerImage nodes and their relationships.
     """
-    load(
+    if not data:
+        return
+
+    schema = GCPArtifactRegistryContainerImageSchema()
+    load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryContainerImageSchema(),
+        schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        apply_labels=False,
+        progress_description=(
+            f"Artifact Registry container image nodes for project {project_id}"
+        ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    # Container image conditional labels are scoped through the project RESOURCE
+    # relationship, so apply them once after nodes and that relationship exist.
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToContainerImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry container image project RESOURCE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    apply_conditional_labels(
+        neo4j_session,
+        schema,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryToContainerImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry container image repository CONTAINS relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 

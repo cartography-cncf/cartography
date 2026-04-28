@@ -7,13 +7,25 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
+from cartography.models.gcp.artifact_registry.platform_image import (
+    GCPArtifactRegistryContainerImageContainsPlatformImageRel,
+)
+from cartography.models.gcp.artifact_registry.platform_image import (
+    GCPArtifactRegistryContainerImageToPlatformImageRel,
+)
 from cartography.models.gcp.artifact_registry.platform_image import (
     GCPArtifactRegistryPlatformImageSchema,
+)
+from cartography.models.gcp.artifact_registry.platform_image import (
+    GCPArtifactRegistryProjectToPlatformImageRel,
 )
 from cartography.util import timeit
 
@@ -242,13 +254,63 @@ def load_manifests(
     """
     Loads GCPArtifactRegistryPlatformImage nodes and their relationships.
     """
-    load(
+    if not data:
+        return
+
+    schema = GCPArtifactRegistryPlatformImageSchema()
+    load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryPlatformImageSchema(),
+        schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry platform image nodes for project {project_id}"
+        ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    # Platform images only have the static Image label from the node phase.
+    # Relationship phases are modeled as MatchLinks between existing nodes.
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToPlatformImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry platform image project RESOURCE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryContainerImageToPlatformImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry platform image HAS_MANIFEST relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryContainerImageContainsPlatformImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry platform image CONTAINS_IMAGE relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 
