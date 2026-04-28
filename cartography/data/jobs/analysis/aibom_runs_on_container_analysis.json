@@ -1,0 +1,26 @@
+{
+  "name": "AIBOMSource RUNS_ON Container analysis",
+  "statements": [
+    {
+      "__comment": "Cleanup: remove stale RUNS_ON edges from AIBOMSource to Container from previous runs.",
+      "query": "MATCH (:AIBOMSource)-[r:RUNS_ON]->(:Container) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Create RUNS_ON by traversing AIBOMSource -[:SCANNED_IMAGE]-> Image <-[:HAS_IMAGE]- Container. Excludes ImageManifestList so the join is a deterministic digest-level match.",
+      "query": "MATCH (a:AIBOMSource)-[:SCANNED_IMAGE]->(i:Image)<-[:HAS_IMAGE]-(c:Container) WHERE NOT i:ImageManifestList MERGE (a)-[r:RUNS_ON]->(c) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Create RUNS_ON when both AIBOMSource and Container point to the same ImageManifestList directly.",
+      "query": "MATCH (a:AIBOMSource)-[:SCANNED_IMAGE]->(ml:ImageManifestList)<-[:HAS_IMAGE]-(c:Container) MERGE (a)-[r:RUNS_ON]->(c) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Create RUNS_ON for AIBOMSources whose SCANNED_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the platform child Image, then back to the Container via HAS_IMAGE.",
+      "query": "MATCH (a:AIBOMSource)-[:SCANNED_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image)<-[:HAS_IMAGE]-(c:Container) MERGE (a)-[r:RUNS_ON]->(c) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}

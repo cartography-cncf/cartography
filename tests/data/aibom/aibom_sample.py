@@ -1,3 +1,65 @@
+import tests.data.aws.ecr
+
+TEST_CLUSTER_ID = "arn:aws:eks:us-east-1:000000000000:cluster/test-cluster"
+TEST_CLUSTER_NAME = "test-cluster"
+
+# Container whose status_image_sha matches the manifest list digest.
+CONTAINER_ON_MANIFEST_LIST = {
+    "uid": "container-on-ml",
+    "name": "ml-container",
+    "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0",
+    "namespace": "default",
+    "pod_id": "pod-ml",
+    "image_pull_policy": "Always",
+    "status_image_id": "ml-image-id",
+    "status_image_sha": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+    "status_ready": True,
+    "status_started": True,
+    "status_state": "running",
+    "memory_request": None,
+    "cpu_request": None,
+    "memory_limit": None,
+    "cpu_limit": None,
+}
+
+# Container whose status_image_sha matches a child (amd64) of the manifest list.
+CONTAINER_ON_CHILD_IMAGE = {
+    "uid": "container-on-child",
+    "name": "child-container",
+    "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0",
+    "namespace": "default",
+    "pod_id": "pod-child",
+    "image_pull_policy": "Always",
+    "status_image_id": "child-image-id",
+    "status_image_sha": tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
+    "status_ready": True,
+    "status_started": True,
+    "status_state": "running",
+    "memory_request": None,
+    "cpu_request": None,
+    "memory_limit": None,
+    "cpu_limit": None,
+}
+
+# Container whose status_image_sha matches the single-platform digest.
+CONTAINER_ON_SINGLE_PLATFORM = {
+    "uid": "container-on-sp",
+    "name": "sp-container",
+    "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest",
+    "namespace": "default",
+    "pod_id": "pod-sp",
+    "image_pull_policy": "Always",
+    "status_image_id": "sp-image-id",
+    "status_image_sha": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
+    "status_ready": True,
+    "status_started": True,
+    "status_state": "running",
+    "memory_request": None,
+    "cpu_request": None,
+    "memory_limit": None,
+    "cpu_limit": None,
+}
+
 TEST_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
 )
