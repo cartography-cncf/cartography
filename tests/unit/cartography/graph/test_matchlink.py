@@ -22,6 +22,9 @@ from tests.data.graph.matchlink.iam_permissions import (
 from tests.data.graph.matchlink.iam_permissions import (
     PrincipalToS3BucketTargetScopedPermissionRel,
 )
+from tests.data.graph.matchlink.iam_permissions import (
+    PrincipalToS3BucketUnequalScopedPermissionRel,
+)
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
 )
@@ -118,6 +121,33 @@ def test_build_scoped_matchlink_query(_mock_get_cartography_version):
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(sub_resource)
             MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(sub_resource)
+            MERGE (from)-[r:CAN_ACCESS]->(to)
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
+                r._module_version = "3.14.16",
+                r.lastupdated = $UPDATE_TAG,
+                r.permission_action = item.permission_action,
+                r._sub_resource_label = $_sub_resource_label,
+                r._sub_resource_id = $_sub_resource_id;
+    """
+
+    actual_query = remove_leading_whitespace_and_empty_lines(link_query)
+    expected_query = remove_leading_whitespace_and_empty_lines(expected)
+    assert actual_query == expected_query
+
+
+@patch("cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16")
+def test_build_unequal_scoped_matchlink_query(_mock_get_cartography_version):
+    rel_schema = PrincipalToS3BucketUnequalScopedPermissionRel()
+    link_query = build_matchlink_query(rel_schema)
+
+    expected = """
+        MATCH (source_sub_resource:AWSAccount{id: $_sub_resource_id})
+        MATCH (target_sub_resource:AWSOrganization{id: $_sub_resource_id})
+        UNWIND $DictList as item
+            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
+            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET r.firstseen = timestamp()
             SET
