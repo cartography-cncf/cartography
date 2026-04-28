@@ -74,3 +74,10 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
+    # Create RUNS_ON shortcut edges from :AIBOMSource to :Container by joining through the shared :Image.
+    # Runs after resolved_image_analysis so all semantic labels and HAS_IMAGE edges are in place.
+    run_analysis_job(
+        "aibom_runs_on_container_analysis.json",
+        neo4j_session,
+        common_job_parameters,
+    )

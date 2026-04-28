@@ -57,7 +57,7 @@ def get_epss_scores(
                 logger.warning("Skipping malformed EPSS entry: %s", entry)
                 continue
 
-    logger.info("Fetched EPSS scores for %d CVEs", len(results))
+    logger.debug("Fetched EPSS scores for %d CVEs", len(results))
     return results
 
 

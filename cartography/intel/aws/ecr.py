@@ -38,7 +38,7 @@ def get_ecr_repositories(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    logger.info("Getting ECR repositories for region '%s'.", region)
+    logger.debug("Getting ECR repositories for region '%s'.", region)
     client = create_boto3_client(boto3_session, "ecr", region_name=region)
     paginator = client.get_paginator("describe_repositories")
     ecr_repositories: List[Dict] = []

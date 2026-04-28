@@ -82,7 +82,7 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         page += 1
         request_data["page"] = page
 
-    logger.info("Retrieved %d Semgrep SCA vulns in %d pages.", len(all_vulns), page)
+    logger.debug("Retrieved %d Semgrep SCA vulns in %d pages.", len(all_vulns), page)
     return all_vulns
 
 
