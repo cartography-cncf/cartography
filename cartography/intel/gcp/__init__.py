@@ -138,6 +138,7 @@ def _sync_project_resources(
     common_job_parameters: Dict,
     credentials: GoogleCredentials,
     requested_syncs: Set[str] | None = None,
+    org_role_permissions_by_name: dict[str, list[str]] | None = None,
 ) -> None:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
@@ -173,6 +174,10 @@ def _sync_project_resources(
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
         policy_bindings_status: policy_bindings.PolicyBindingsSyncStatus | None = None
+        permission_context: (
+            permission_relationships.GCPPrincipalPermissionContext | None
+        ) = None
+        role_permissions_by_name = dict(org_role_permissions_by_name or {})
         enabled_services = _services_enabled_on_project(
             build_client("serviceusage", "v1", credentials=credentials),
             project_id,
@@ -251,12 +256,15 @@ def _sync_project_resources(
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
             iam_cred = build_client("iam", "v1", credentials=credentials)
-            iam.sync(
+            project_roles = iam.sync(
                 neo4j_session,
                 iam_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+            )
+            role_permissions_by_name.update(
+                iam.build_role_permissions_by_name(project_roles)
             )
             iam_sync_succeeded = True
         if service_names.kms in enabled_services:
@@ -290,12 +298,15 @@ def _sync_project_resources(
                 project_id,
             )
             try:
-                cai.sync(
+                project_roles = cai.sync(
                     neo4j_session,
                     cai_rest_client,
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
+                )
+                role_permissions_by_name.update(
+                    iam.build_role_permissions_by_name(project_roles)
                 )
                 iam_sync_succeeded = True
             except HttpError as e:
@@ -658,13 +669,16 @@ def _sync_project_resources(
                     "Syncing IAM policies for GCP project %s.",
                     project_id,
                 )
-                policy_bindings_status = policy_bindings.sync(
+                policy_bindings_result = policy_bindings.sync(
                     neo4j_session,
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
                     cai_grpc_client,
+                    role_permissions_by_name,
                 )
+                policy_bindings_status = policy_bindings_result.status
+                permission_context = policy_bindings_result.permission_context
                 # Track if we have permission. Once set to False (permission denied),
                 # the outer condition will skip policy_bindings for remaining projects.
                 if (
@@ -673,10 +687,18 @@ def _sync_project_resources(
                 ):
                     policy_bindings_permission_ok = False
 
-        if requested_syncs is None or "permission_relationships" in requested_syncs:
-            if (
-                policy_bindings_requested
-                and policy_bindings_status
+        permission_relationships_requested = (
+            requested_syncs is None or "permission_relationships" in requested_syncs
+        )
+        if permission_relationships_requested:
+            if not policy_bindings_requested:
+                logger.warning(
+                    "Skipping GCP permission relationships for project %s because policy bindings were not requested. "
+                    "Permission relationships are calculated from policy bindings in the same sync run.",
+                    project_id,
+                )
+            elif (
+                policy_bindings_status
                 != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
             ):
                 assert policy_bindings_status is not None
@@ -688,11 +710,13 @@ def _sync_project_resources(
                     status_label,
                 )
             else:
+                assert permission_context is not None
                 permission_relationships.sync(
                     neo4j_session,
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
+                    permission_context,
                 )
 
         # Clean up project-level IAM resources (service accounts and project roles)
@@ -849,13 +873,16 @@ def start_gcp_ingestion(
                 f"Syncing organization-level IAM for {org_resource_name}",
             )
             iam_client = build_client("iam", "v1", credentials=credentials)
-            iam.sync_org_iam(
+            org_roles = iam.sync_org_iam(
                 neo4j_session,
                 iam_client,
                 org_resource_name,
                 config.update_tag,
                 common_job_parameters,
             )
+            org_role_permissions_by_name = iam.build_role_permissions_by_name(org_roles)
+        else:
+            org_role_permissions_by_name = {}
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
         _sync_project_resources(
@@ -865,6 +892,7 @@ def start_gcp_ingestion(
             common_job_parameters,
             credentials=credentials,
             requested_syncs=requested_syncs,
+            org_role_permissions_by_name=org_role_permissions_by_name,
         )
 
         # Clean up org-level roles for this org (after all project resources have been synced)
