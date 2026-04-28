@@ -474,7 +474,7 @@ def _get_dep_manifests_for_repos(
                 exc_info=True,
             )
 
-    logger.info("Fetched dependency manifests for %d repos.", len(result))
+    logger.debug("Fetched dependency manifests for %d repos.", len(result))
     return result
 
 

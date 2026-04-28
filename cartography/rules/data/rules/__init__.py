@@ -123,6 +123,9 @@ from cartography.rules.data.rules.policy_administration_privileges import (
 from cartography.rules.data.rules.subimage_coverage import aws_account_not_synced
 from cartography.rules.data.rules.subimage_coverage import container_image_not_found
 from cartography.rules.data.rules.subimage_coverage import (
+    repository_without_slsa_provenance,
+)
+from cartography.rules.data.rules.subimage_coverage import (
     subimage_framework_disabled_module_enabled,
 )
 from cartography.rules.data.rules.subimage_coverage import (
@@ -164,6 +167,7 @@ RULES = {
     subimage_module_not_configured.id: subimage_module_not_configured,
     subimage_framework_disabled_module_enabled.id: subimage_framework_disabled_module_enabled,
     container_image_not_found.id: container_image_not_found,
+    repository_without_slsa_provenance.id: repository_without_slsa_provenance,
     aws_account_not_synced.id: aws_account_not_synced,
     # Security Rules
     compute_instance_exposed.id: compute_instance_exposed,
