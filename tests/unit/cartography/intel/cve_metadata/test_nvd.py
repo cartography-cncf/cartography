@@ -1,6 +1,8 @@
 import copy
 from datetime import datetime
+from unittest.mock import MagicMock
 
+from cartography.intel.cve_metadata import nvd
 from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
@@ -121,3 +123,48 @@ def test_merge_nvd_into_cves():
     assert cves[0]["baseScore"] == 6.1
     # CVE not in NVD should remain a stub
     assert "baseScore" not in cves[1]
+
+
+def test_get_nvd_cves_from_feeds_skips_pre_2002_years(monkeypatch):
+    http_session = MagicMock()
+    cve_ids_in_graph = {"CVE-1999-0001", "CVE-2002-0001"}
+
+    captured_years = []
+
+    def _fake_download(_http_session, year):
+        captured_years.append(year)
+        return {"vulnerabilities": []}
+
+    monkeypatch.setattr(nvd, "_download_nvd_feed", _fake_download)
+
+    result = nvd._get_nvd_cves_from_feeds(http_session, cve_ids_in_graph)
+    assert result == {}
+    assert captured_years == ["2002"]
+
+
+def test_get_nvd_cves_from_feeds_maps_pre_2002_years_to_2002_feed(monkeypatch):
+    http_session = MagicMock()
+    cve_ids_in_graph = {"CVE-1999-0001"}
+
+    captured_years = []
+
+    def _fake_download(_http_session, year):
+        captured_years.append(year)
+        return {
+            "vulnerabilities": [
+                {
+                    "cve": {
+                        "id": "CVE-1999-0001",
+                        "descriptions": [
+                            {"lang": "en", "value": "old vulnerability"},
+                        ],
+                    },
+                },
+            ],
+        }
+
+    monkeypatch.setattr(nvd, "_download_nvd_feed", _fake_download)
+
+    result = nvd._get_nvd_cves_from_feeds(http_session, cve_ids_in_graph)
+    assert set(result) == {"CVE-1999-0001"}
+    assert captured_years == ["2002"]
