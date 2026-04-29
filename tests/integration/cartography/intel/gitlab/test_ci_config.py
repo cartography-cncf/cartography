@@ -219,14 +219,16 @@ def test_sync_ci_config_falls_back_to_raw_when_lint_denied(neo4j_session, monkey
     )
     assert {key for _, key in var_rels} == {"DATABASE_URL", "DEPLOY_TOKEN"}
 
-    # HAS_CI_CONFIG project relationship still exists.
+    # The cleanup-scoping RESOURCE edge from project → config still exists.
+    # (There is no separate HAS_CI_CONFIG edge — it would duplicate RESOURCE
+    # since each project has exactly one CIConfig.)
     config_rels = check_rels(
         neo4j_session,
         "GitLabProject",
         "id",
         "GitLabCIConfig",
         "id",
-        "HAS_CI_CONFIG",
+        "RESOURCE",
     )
     assert config_rels == {(TEST_PROJECT_ID, f"{TEST_PROJECT_ID}:.gitlab-ci.yml")}
 

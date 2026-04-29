@@ -46,31 +46,10 @@ class GitLabCIConfigNodeProperties(CartographyNodeProperties):
 
 
 # =============================================================================
-# Config <-> Project (sub-resource and HAS_CI_CONFIG)
+# Config -> Project (sub-resource only — there is exactly one CIConfig per
+# project, so the standard `RESOURCE` edge already encodes ownership and a
+# separate `HAS_CI_CONFIG` semantic edge would be redundant.)
 # =============================================================================
-
-
-@dataclass(frozen=True)
-class GitLabProjectHasCIConfigRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GitLabProjectHasCIConfigRel(CartographyRelSchema):
-    """`(:GitLabProject)-[:HAS_CI_CONFIG]->(:GitLabCIConfig)`."""
-
-    target_node_label: str = "GitLabProject"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "id": PropertyRef("project_id"),
-            "gitlab_url": PropertyRef("gitlab_url"),
-        },
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_CI_CONFIG"
-    properties: GitLabProjectHasCIConfigRelProperties = (
-        GitLabProjectHasCIConfigRelProperties()
-    )
 
 
 @dataclass(frozen=True)
@@ -135,8 +114,5 @@ class GitLabCIConfigSchema(CartographyNodeSchema):
     properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
     sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [
-            GitLabProjectHasCIConfigRel(),
-            GitLabCIConfigToCIVariableRel(),
-        ],
+        [GitLabCIConfigToCIVariableRel()],
     )

@@ -30,8 +30,7 @@ P -- RESOURCE --> E
 E -- HAS_CI_VARIABLE --> CV_P
 
 %% CI/CD Config (.gitlab-ci.yml)
-P -- HAS_CI_CONFIG --> CC(GitLabCIConfig)
-P -- RESOURCE --> CC
+P -- RESOURCE --> CC(GitLabCIConfig)
 CC -- USES_INCLUDE --> CI_INC(GitLabCIInclude)
 P -- RESOURCE --> CI_INC
 CC -- REFERENCES_VARIABLE --> CV_P
@@ -933,10 +932,11 @@ the two cases.
 
 #### Relationships
 
-- A `GitLabCIConfig` belongs to a `GitLabProject`.
+- A `GitLabCIConfig` belongs to a `GitLabProject` (1-to-1, encoded by the
+  cleanup-scoping `RESOURCE` edge — no separate `HAS_CI_CONFIG` edge to
+  avoid redundancy).
 
     ```cypher
-    (:GitLabProject)-[:HAS_CI_CONFIG]->(:GitLabCIConfig)
     (:GitLabProject)-[:RESOURCE]->(:GitLabCIConfig)
     ```
 
