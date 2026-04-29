@@ -25,7 +25,7 @@ def start_semgrep_ingestion(
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    if not config.semgrep_app_token and not config.semgrep_oss_source:
+    if config.semgrep_app_token is None and config.semgrep_oss_source is None:
         logger.info(
             "Semgrep import is not configured - skipping this module. See docs to configure.",
         )
@@ -60,7 +60,7 @@ def start_semgrep_ingestion(
             common_job_parameters,
         )
 
-    if config.semgrep_oss_source:
+    if config.semgrep_oss_source is not None:
         source = parse_report_source(config.semgrep_oss_source)
         with build_report_reader_for_source(
             source,

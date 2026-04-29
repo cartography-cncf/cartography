@@ -42,6 +42,7 @@ def _looks_like_semgrep_oss_report(document: Any) -> bool:
     return required_keys.issubset(first.keys())
 
 
+@timeit
 def get_semgrep_oss_reports(
     reader: ReportReader,
 ) -> list[tuple[ReportRef, dict[str, Any]]]:

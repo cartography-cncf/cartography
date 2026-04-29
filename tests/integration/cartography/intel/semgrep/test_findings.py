@@ -1,12 +1,15 @@
-from unittest.mock import MagicMock
+from pathlib import Path
 from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
-import cartography.intel.semgrep.ossfindings
 import tests.data.semgrep.deployment
 import tests.data.semgrep.sast
 import tests.data.semgrep.sca
+from cartography.intel.common.report_reader_builder import (
+    build_report_reader_for_source,
+)
+from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
 from cartography.intel.semgrep.ossfindings import _build_oss_sast_finding_id
@@ -447,32 +450,29 @@ def test_sync_findings(
     }
 
 
-@patch.object(
-    cartography.intel.semgrep.ossfindings,
-    "get_semgrep_oss_reports",
-    return_value=[
-        (
-            MagicMock(uri="s3://bucket/semgrep-oss-report.json"),
-            tests.data.semgrep.sast.OSS_SAST_REPORT,
-        ),
-    ],
-)
-def test_sync_oss_sast_findings(mock_get_reports, neo4j_session):
+def test_sync_oss_sast_findings(neo4j_session):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_github_repos(neo4j_session)
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
-    reader = MagicMock()
+    fixture_path = (
+        Path(__file__).resolve().parents[4]
+        / "data"
+        / "semgrep"
+        / "oss_sast_report.json"
+    )
+    source = parse_report_source(str(fixture_path))
 
     # Act
-    sync_oss_semgrep_sast_findings(
-        neo4j_session,
-        reader,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
+    with build_report_reader_for_source(source) as reader:
+        sync_oss_semgrep_sast_findings(
+            neo4j_session,
+            reader,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
 
     # Build expected finding IDs from test data
     results = tests.data.semgrep.sast.OSS_SAST_REPORT["results"]
