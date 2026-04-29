@@ -40,9 +40,10 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
-   | **Packages** | Read | Optional | GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography logs a `403 Forbidden` warning on `/orgs/{org}/packages` and skips GHCR ingestion. |
    | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
    | **Variables** | Read | Optional | Organization variables for Actions workflows. |
+
+   > **Note:** Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). To enable GHCR (GitHub Container Registry) ingestion — packages, image manifests, layers, tags, and SLSA attestations — use a classic PAT (Option B) with the `read:packages` scope or a GitHub App.
 
    > **Note:** The Secrets permission only provides access to secret **metadata** (name, creation date, update date). GitHub never exposes the actual secret values through its API—they are encrypted and cannot be retrieved.
 
@@ -177,7 +178,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
-| `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | Grant `Organization -> Packages: Read` (fine-grained) or the `read:packages` scope (classic). Without it, GHCR (container packages, images, layers, tags, attestations) is skipped. |
+| `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires the `read:packages` scope on a classic PAT (or a GitHub App). Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |
