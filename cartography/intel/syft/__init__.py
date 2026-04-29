@@ -128,8 +128,12 @@ def sync_syft_from_dir(
     logger.info("Processing %d local Syft result files", len(json_files))
 
     for file_path in json_files:
-        with open(file_path, encoding="utf-8") as f:
-            syft_data = json.load(f)
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                syft_data = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error("Failed to read Syft data from %s: %s", file_path, e)
+            continue
         sync_single_syft(
             neo4j_session,
             syft_data,
