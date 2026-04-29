@@ -1,3 +1,27 @@
+def _resolve_report_source_config(
+    *,
+    module: str,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    warn_on_legacy: bool = True,
+) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
+    return resolve_report_source_with_legacy_fields(
+        source=source,
+        local_path=local_path,
+        s3_bucket=s3_bucket,
+        s3_prefix=s3_prefix,
+        names=LegacyReportSourceNames.for_config(module),
+        warn_on_legacy=warn_on_legacy,
+    )
+
+
 class Config:
     """
     A common interface for cartography configuration.
@@ -212,12 +236,18 @@ class Config:
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
+    :type docker_scout_source: str
+    :param docker_scout_source: Report source locator for Docker Scout reports. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type docker_scout_s3_bucket: str
     :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_s3_prefix: str
     :param docker_scout_s3_prefix: S3 prefix path for Docker Scout recommendation text reports. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_source: str
+    :param trivy_source: Report source locator for Trivy results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     :type ontology_users_source: str
@@ -271,6 +301,9 @@ class Config:
     :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
     :type syft_results_dir: str
     :param syft_results_dir: Local directory containing Syft JSON results. Optional.
+    :type syft_source: str
+    :param syft_source: Report source locator for Syft results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type syft_s3_bucket: str
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
@@ -287,6 +320,9 @@ class Config:
     :param sentry_host: Sentry host URL, defaults to https://sentry.io. Optional.
     :type aibom_results_dir: str
     :param aibom_results_dir: Local directory containing AIBOM JSON results. Optional.
+    :type aibom_source: str
+    :param aibom_source: Report source locator for AIBOM results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type aibom_s3_bucket: str
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
@@ -400,9 +436,11 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
         docker_scout_s3_prefix=None,
+        trivy_source=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
@@ -429,6 +467,7 @@ class Config:
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
+        syft_source=None,
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
@@ -437,6 +476,7 @@ class Config:
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
+        aibom_source=None,
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
@@ -450,6 +490,7 @@ class Config:
         neo4j_max_transaction_retry_time=None,
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
+        _warn_on_legacy_report_source=True,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -559,9 +600,26 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
+        self.docker_scout_source = _resolve_report_source_config(
+            module="docker_scout",
+            source=docker_scout_source,
+            local_path=docker_scout_results_dir,
+            s3_bucket=docker_scout_s3_bucket,
+            s3_prefix=docker_scout_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
         self.docker_scout_s3_prefix = docker_scout_s3_prefix
+        self.trivy_source = _resolve_report_source_config(
+            module="trivy",
+            source=trivy_source,
+            local_path=trivy_results_dir,
+            s3_bucket=trivy_s3_bucket,
+            s3_prefix=trivy_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
@@ -588,6 +646,14 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
+        self.syft_source = _resolve_report_source_config(
+            module="syft",
+            source=syft_source,
+            local_path=syft_results_dir,
+            s3_bucket=syft_s3_bucket,
+            s3_prefix=syft_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
@@ -596,6 +662,14 @@ class Config:
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
+        self.aibom_source = _resolve_report_source_config(
+            module="aibom",
+            source=aibom_source,
+            local_path=aibom_results_dir,
+            s3_bucket=aibom_s3_bucket,
+            s3_prefix=aibom_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix

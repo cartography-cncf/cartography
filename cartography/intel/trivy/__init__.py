@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 
@@ -11,9 +10,17 @@ from cartography.client.gcp.artifact_registry import get_gcp_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import ObjectStoreError
+from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import ReportReader
+from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.common.report_reader_builder import (
+    build_report_reader_for_source,
+)
+from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
-from cartography.intel.trivy.scanner import get_json_files_in_dir
-from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -209,60 +216,59 @@ def _prepare_trivy_data(
 
 
 @timeit
-def sync_trivy_from_s3(
+def sync_trivy_from_report_reader(
     neo4j_session: Session,
-    trivy_s3_bucket: str,
-    trivy_s3_prefix: str,
+    reader: ReportReader,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
 ) -> None:
     """
-    Sync Trivy scan results from S3 for container images (ECR, GCP, and GitLab).
+    Sync Trivy scan results from a cloud object store for container images (ECR, GCP, and GitLab).
 
     Args:
         neo4j_session: Neo4j session for database operations
-        trivy_s3_bucket: S3 bucket containing scan results
-        trivy_s3_prefix: S3 prefix path containing scan results
+        reader: Reader for listing and fetching reports
         update_tag: Update tag for tracking
         common_job_parameters: Common job parameters for cleanup
-        boto3_session: boto3 session for S3 operations
     """
-    logger.info(
-        f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
-    )
+    logger.info("Using Trivy scan results from %s", reader.source_uri)
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
-    json_files: set[str] = get_json_files_in_s3(
-        trivy_s3_bucket, trivy_s3_prefix, boto3_session
+    json_files = filter_report_refs(
+        reader.list_reports(),
+        suffix=".json",
     )
 
     if len(json_files) == 0:
         logger.error(
-            f"Trivy sync was configured, but there are no json scan results in bucket "
-            f"'{trivy_s3_bucket}' with prefix '{trivy_s3_prefix}'. "
+            f"Trivy sync was configured, but there are no json scan results in {reader.source_uri}. "
             "Skipping Trivy sync to avoid potential data loss. "
-            "Please check the S3 bucket and prefix configuration. We expect the json files in s3 to be named "
-            f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
+            "Please check the configured source. We expect the json files to be named "
+            "`<image_uri>.json` and to be in the configured report source. If the source is "
             "a folder, it MUST end with a trailing slash '/'. "
         )
-        raise ValueError("No json scan results found in S3.")
+        raise ValueError("No json scan results found in report source.")
 
-    logger.info(f"Processing {len(json_files)} Trivy result files from S3")
-    s3_client = boto3_session.client("s3")
-    for s3_object_key in json_files:
+    logger.info("Processing %d Trivy result files from report source", len(json_files))
+    failed_report_count = 0
+    processed_reports = 0
+    for ref in json_files:
         logger.debug(
-            f"Reading scan results from S3: s3://{trivy_s3_bucket}/{s3_object_key}"
+            "Reading scan results from report source: %s",
+            ref.uri,
         )
-        response = s3_client.get_object(Bucket=trivy_s3_bucket, Key=s3_object_key)
-        scan_data_json = response["Body"].read().decode("utf-8")
-        trivy_data = json.loads(scan_data_json)
+        try:
+            trivy_data = read_json_report(reader, ref)
+        except ObjectStoreError as exc:
+            logger.error("Failed to read Trivy data from %s: %s", ref.uri, exc)
+            failed_report_count += 1
+            continue
 
         prepared = _prepare_trivy_data(
             trivy_data,
             image_uris=image_uris,
             digest_aliases=digest_aliases,
-            source=f"s3://{trivy_s3_bucket}/{s3_object_key}",
+            source=ref.uri,
         )
         if prepared is None:
             continue
@@ -274,8 +280,45 @@ def sync_trivy_from_s3(
             display_uri,
             update_tag,
         )
+        processed_reports += 1
+
+    if failed_report_count:
+        logger.warning(
+            "Skipping Trivy cleanup because %d report(s) failed to read or parse.",
+            failed_report_count,
+        )
+        return
+
+    if processed_reports == 0:
+        logger.warning(
+            "Skipping Trivy cleanup because no reports were ingested.",
+        )
+        return
 
     cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_trivy_from_s3(
+    neo4j_session: Session,
+    trivy_s3_bucket: str,
+    trivy_s3_prefix: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    # DEPRECATED: sync_trivy_from_s3() will be removed in v1.0.0.
+    with S3BucketReader(
+        boto3_session,
+        trivy_s3_bucket,
+        trivy_s3_prefix,
+    ) as reader:
+        sync_trivy_from_report_reader(
+            neo4j_session,
+            reader=reader,
+            update_tag=update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
 
 @timeit
@@ -286,87 +329,43 @@ def sync_trivy_from_dir(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """Sync Trivy scan results from local files for container images (ECR, GCP, and GitLab)."""
-    logger.info(f"Using Trivy scan results from {results_dir}")
-
-    image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
-    json_files: set[str] = get_json_files_in_dir(results_dir)
-
-    if not json_files:
-        logger.error(
-            f"Trivy sync was configured, but no json files were found in {results_dir}."
-        )
-        raise ValueError("No Trivy json results found on disk")
-
-    logger.info(f"Processing {len(json_files)} local Trivy result files")
-
-    for file_path in json_files:
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                trivy_data = json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to read Trivy data from {file_path}: {e}")
-            continue
-
-        prepared = _prepare_trivy_data(
-            trivy_data,
-            image_uris=image_uris,
-            digest_aliases=digest_aliases,
-            source=file_path,
-        )
-        if prepared is None:
-            continue
-
-        prepared_data, display_uri = prepared
-        sync_single_image(
-            neo4j_session,
-            prepared_data,
-            display_uri,
-            update_tag,
-        )
-
-    cleanup(neo4j_session, common_job_parameters)
+    # DEPRECATED: sync_trivy_from_dir() will be removed in v1.0.0.
+    sync_trivy_from_report_reader(
+        neo4j_session,
+        LocalReportReader(results_dir),
+        update_tag,
+        common_job_parameters,
+    )
 
 
 @timeit
 def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
-    """Start Trivy scan ingestion from S3 or local files.
+    """Start Trivy scan ingestion from cloud object stores or local files.
 
     Args:
         neo4j_session: Neo4j session for database operations
         config: Configuration object containing S3 or directory paths
     """
-    if not config.trivy_s3_bucket and not config.trivy_results_dir:
+    if not config.trivy_source:
         logger.info("Trivy configuration not provided. Skipping Trivy ingestion.")
         return
 
-    if config.trivy_results_dir:
-        common_job_parameters = {
-            "UPDATE_TAG": config.update_tag,
-        }
-        sync_trivy_from_dir(
-            neo4j_session,
-            config.trivy_results_dir,
-            config.update_tag,
-            common_job_parameters,
-        )
-        return
-
-    if config.trivy_s3_prefix is None:
-        config.trivy_s3_prefix = ""
-
+    source = parse_report_source(config.trivy_source)
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-
-    boto3_session = boto3.Session()
-
-    sync_trivy_from_s3(
-        neo4j_session,
-        config.trivy_s3_bucket,
-        config.trivy_s3_prefix,
-        config.update_tag,
-        common_job_parameters,
-        boto3_session,
-    )
+    with build_report_reader_for_source(
+        source,
+        azure_sp_auth=config.azure_sp_auth,
+        azure_tenant_id=config.azure_tenant_id,
+        azure_client_id=config.azure_client_id,
+        azure_client_secret=config.azure_client_secret,
+    ) as reader:
+        sync_trivy_from_report_reader(
+            neo4j_session,
+            reader=reader,
+            update_tag=config.update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
     # Support other Trivy resource types here e.g. if Google Cloud has images.

@@ -17,7 +17,7 @@ To use Trivy with Cartography,
     cartography --selected-modules aws --aws-requested-syncs ecr
     ```
 
-1. Scan the images with Trivy, putting the JSON results in an S3 bucket.
+1. Scan the images with Trivy, putting the JSON results in a local directory or supported object store.
 
     **Cartography expects Trivy to have been called with the following arguments**:
 
@@ -33,7 +33,7 @@ To use Trivy with Cartography,
 
     - JSON files can be named using any convention. Cartography determines which ECR image each scan belongs to by inspecting the scan content (see below), not the filename.
 
-    - You can use an s3 object prefix to organize the results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key could be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json` or `trivy-scans/scan-12345.json`.
+    - You can use an object prefix to organize cloud results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key could be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json` or `trivy-scans/scan-12345.json`.
 
     **Digest-qualified URIs**:
 
@@ -46,20 +46,22 @@ To use Trivy with Cartography,
 1. Configure Cartography to use the Trivy module.
 
     ```bash
-    cartography --selected-modules trivy --trivy-s3-bucket my-bucket --trivy-s3-prefix trivy-scans/
+    cartography --selected-modules trivy --trivy-source s3://my-bucket/trivy-scans/
     ```
 
     Cartography will then search s3://my-bucket/trivy-scans/ for all `.json` files and load them into the graph. Note that this requires the role running Cartography to have the `s3:ListObjects` and `s3:GetObject` permissions for the bucket and prefix.
 
-    The `--trivy-s3-prefix` parameter is optional and defaults to an empty string.
+    `--trivy-source` also accepts local paths, `gs://bucket/prefix`, and `azblob://account/container/prefix`.
 
 1. Alternatively, place the JSON results on disk and point Cartography at the directory.
 
     ```bash
-    cartography --selected-modules trivy --trivy-results-dir /path/to/trivy-results
+    cartography --selected-modules trivy --trivy-source /path/to/trivy-results
     ```
 
     Cartography will ingest every `.json` file under the provided directory. Each scan is matched to an ECR image by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields, so file names may contain any characters.
+
+    Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--trivy-source`.
 
 ## Notes on running Trivy
 

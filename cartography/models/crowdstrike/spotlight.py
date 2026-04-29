@@ -97,8 +97,9 @@ class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CrowdstrikeCVESchema(CartographyNodeSchema):
-    label: str = "CVE"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CrowdstrikeFinding"])
+    label: str = "CrowdstrikeFinding"
+    scoped_cleanup: bool = False
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
     properties: CrowdstrikeCVENodeProperties = CrowdstrikeCVENodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

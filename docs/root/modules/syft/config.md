@@ -4,9 +4,9 @@
 
 | Argument | Description |
 |----------|-------------|
-| `--syft-results-dir` | Path to directory containing Syft JSON results |
-| `--syft-s3-bucket` | S3 bucket containing Syft scan results |
-| `--syft-s3-prefix` | S3 prefix path containing Syft scan results |
+| `--syft-source` | Syft report source. Accepts a local path, `s3://bucket/prefix`, `gs://bucket/prefix`, or `azblob://account/container/prefix`. |
+
+Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--syft-source`.
 
 ## Examples
 
@@ -14,15 +14,14 @@
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
-            --syft-results-dir /path/to/syft/results
+            --syft-source /path/to/syft/results
 ```
 
 ### S3 Storage
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
-            --syft-s3-bucket my-security-bucket \
-            --syft-s3-prefix scans/syft/
+            --syft-source s3://my-security-bucket/scans/syft/
 ```
 
 ## File Format

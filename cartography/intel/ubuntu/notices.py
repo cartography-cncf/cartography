@@ -251,7 +251,7 @@ def _fetch_notices(
 
         offset += _PAGE_SIZE
 
-    logger.info("Fetched %d Ubuntu notices", total_fetched)
+    logger.debug("Fetched %d Ubuntu notices", total_fetched)
 
 
 @timeit
