@@ -12,6 +12,7 @@ import cartography.intel.gitlab.container_repositories
 import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.gitlab.dependencies
 import cartography.intel.gitlab.dependency_files
+import cartography.intel.gitlab.environments
 import cartography.intel.gitlab.groups
 import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
@@ -224,14 +225,28 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync CI/CD variables at group and project scopes.
     # Returns a {project_id: [variables]} map for downstream modules.
-    cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
+    variables_by_project = (
+        cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
+            neo4j_session,
+            gitlab_url,
+            token,
+            config.update_tag,
+            common_job_parameters,
+            all_groups,
+            all_projects,
+        )
+    )
+
+    # Sync environments and link them to CI/CD variables that apply to them
+    # (exact match on environment_scope or wildcard "*").
+    cartography.intel.gitlab.environments.sync_gitlab_environments(
         neo4j_session,
         gitlab_url,
         token,
         config.update_tag,
         common_job_parameters,
-        all_groups,
         all_projects,
+        variables_by_project,
     )
 
     # ========================================
@@ -260,6 +275,12 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
         # Cleanup project-level runners
         cartography.intel.gitlab.runners.cleanup_project_runners(
+            neo4j_session, common_job_parameters, project_id, gitlab_url
+        )
+
+        # Cleanup environments (must run before project-level variables since
+        # the env -> variable matchlink references both).
+        cartography.intel.gitlab.environments.cleanup_environments(
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 

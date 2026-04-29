@@ -59,9 +59,7 @@ def get_group_variables(
     Fetch group-level CI/CD variables. A 403 returns []; other errors propagate.
     """
     try:
-        return get_paginated(
-            gitlab_url, token, f"/api/v4/groups/{group_id}/variables"
-        )
+        return get_paginated(gitlab_url, token, f"/api/v4/groups/{group_id}/variables")
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 403:
             logger.warning(

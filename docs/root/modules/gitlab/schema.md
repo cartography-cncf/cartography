@@ -24,6 +24,11 @@ P -- RESOURCE --> R_P(GitLabRunner: project)
 G -- HAS_CI_VARIABLE --> CV_G(GitLabCIVariable: group)
 P -- HAS_CI_VARIABLE --> CV_P(GitLabCIVariable: project)
 
+%% Environments
+P -- HAS_ENVIRONMENT --> E(GitLabEnvironment)
+P -- RESOURCE --> E
+E -- HAS_CI_VARIABLE --> CV_P
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
@@ -839,4 +844,55 @@ Count variables per scope:
 ```cypher
 MATCH (v:GitLabCIVariable)
 RETURN v.scope_type, count(*) AS count
+```
+
+### GitLabEnvironment
+
+Representation of a GitLab deployment environment (e.g. `production`,
+`staging`, ephemeral review apps). Each project has its own set of
+environments. The composite `id` includes the project_id because GitLab's
+environment IDs are unique per-project, not globally.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{gitlab_env_id}` |
+| gitlab_id | The numeric GitLab environment ID (per-project) |
+| **name** | Environment name (e.g. `production`, `review/feature-x`) |
+| slug | URL-safe slug |
+| external_url | URL where this environment is reachable |
+| state | `available` or `stopped` |
+| tier | `production`, `staging`, `testing`, `development`, or `other` |
+| created_at | GitLab timestamp |
+| updated_at | GitLab timestamp |
+| auto_stop_at | Timestamp at which the environment auto-stops (or null) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabEnvironment` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)
+    (:GitLabProject)-[:RESOURCE]->(:GitLabEnvironment)
+    ```
+
+- A `GitLabEnvironment` is linked to the project-level `GitLabCIVariable`s
+  whose `environment_scope` matches the environment's name exactly OR is
+  the wildcard `*`. (Glob patterns like `production/*` are recognised by
+  GitLab at runtime but are not matched here.)
+
+    ```cypher
+    (:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find environments that use unprotected variables:
+
+```cypher
+MATCH (e:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(v:GitLabCIVariable)
+WHERE v.protected = false
+RETURN e.name, v.key, v.environment_scope
 ```
