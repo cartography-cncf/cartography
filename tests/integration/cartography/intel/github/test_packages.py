@@ -50,7 +50,7 @@ def _seed_org_and_repo(neo4j_session):
     )
 
 
-def _packages_pagination_side_effect(token, base_url, endpoint, result_key):
+def _packages_pagination_side_effect(token, base_url, endpoint, result_key, **_kw):
     if "/packages" in endpoint and "versions" not in endpoint:
         return GET_CONTAINER_PACKAGES
     if "/versions" in endpoint:
@@ -71,36 +71,34 @@ def _blob_side_effect(token, repository_name, blob_digest, **kwargs):
     return CONFIG_BLOBS_BY_DIGEST.get(blob_digest)
 
 
-def _attestation_response(digest):
+def _attestations_for_digest(digest):
     if digest != DIGEST_API_LATEST:
-        return {"attestations": []}
+        return []
     payload = base64.b64encode(
         json.dumps(SLSA_STATEMENT_API_LATEST).encode("utf-8"),
     ).decode("ascii")
-    return {
-        "attestations": [
-            {
-                "id": 9001,
-                "predicate_type": SLSA_STATEMENT_API_LATEST["predicateType"],
-                "bundle": {"dsseEnvelope": {"payload": payload}},
-            },
-        ],
-    }
+    return [
+        {
+            "id": 9001,
+            "predicate_type": SLSA_STATEMENT_API_LATEST["predicateType"],
+            "bundle": {"dsseEnvelope": {"payload": payload}},
+        },
+    ]
 
 
-def _attestation_side_effect(endpoint, token, base_url, params=None):
-    # endpoint: /orgs/{org}/attestations/{digest}?per_page=100. The digest is
-    # URL-encoded (`:` -> `%3A`) so we decode it before lookup.
+def _attestations_paginated_side_effect(token, base_url, endpoint, result_key):
+    # endpoint: /orgs/{org}/attestations/{digest}?per_page=100 — digest is
+    # URL-encoded (`:` -> `%3A`) so unquote before lookup.
     from urllib.parse import unquote
 
     digest = unquote(endpoint.split("/attestations/")[1].split("?")[0])
-    return _attestation_response(digest)
+    return _attestations_for_digest(digest)
 
 
 @patch.object(
     cartography.intel.github.container_image_attestations,
-    "call_github_rest_api",
-    side_effect=_attestation_side_effect,
+    "fetch_all_rest_api_pages",
+    side_effect=_attestations_paginated_side_effect,
 )
 @patch.object(
     cartography.intel.github.container_images,
@@ -135,7 +133,7 @@ def test_sync_ghcr_full_pipeline(
         TEST_JOB_PARAMS,
     )
     assert fetch_result.cleanup_safe is True
-    raw_manifests, _, tag_rows = (
+    raw_manifests, _, tag_rows, observed_skipped = (
         cartography.intel.github.container_images.sync_container_images(
             neo4j_session,
             FAKE_TOKEN,
@@ -161,6 +159,7 @@ def test_sync_ghcr_full_pipeline(
         raw_manifests,
         TEST_UPDATE_TAG,
         TEST_JOB_PARAMS,
+        additional_observed_digests=observed_skipped,
     )
 
     # Packages
@@ -287,8 +286,8 @@ def test_sync_ghcr_full_pipeline(
 )
 @patch.object(
     cartography.intel.github.container_image_attestations,
-    "call_github_rest_api",
-    side_effect=_attestation_side_effect,
+    "fetch_all_rest_api_pages",
+    side_effect=_attestations_paginated_side_effect,
 )
 @patch.object(
     cartography.intel.github.container_images,
@@ -330,7 +329,7 @@ def test_supply_chain_package_owner_fallback(
         TEST_UPDATE_TAG,
         TEST_JOB_PARAMS,
     )
-    raw_manifests, _, tag_rows = (
+    raw_manifests, _, tag_rows, observed_skipped = (
         cartography.intel.github.container_images.sync_container_images(
             neo4j_session,
             FAKE_TOKEN,
@@ -356,6 +355,7 @@ def test_supply_chain_package_owner_fallback(
         raw_manifests,
         TEST_UPDATE_TAG,
         TEST_JOB_PARAMS,
+        additional_observed_digests=observed_skipped,
     )
 
     # Run the supply-chain matcher with one repo (so SLSA provenance can match
@@ -391,3 +391,120 @@ def test_supply_chain_package_owner_fallback(
     assert not any(digest == DIGEST_API_INDEX for digest, _, _ in rows)
     # `worker` package has no repo link → its image stays unmatched
     assert not any(digest == DIGEST_WORKER for digest, _, _ in rows)
+
+
+@patch.object(
+    cartography.intel.github.container_image_attestations,
+    "fetch_all_rest_api_pages",
+    side_effect=_attestations_paginated_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_blob",
+    side_effect=_blob_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_manifest",
+    side_effect=_manifest_side_effect,
+)
+@patch(
+    "cartography.intel.github.packages.fetch_all_rest_api_pages",
+    side_effect=_packages_pagination_side_effect,
+)
+def test_sync_ghcr_idempotent_across_runs(
+    mock_pages,
+    mock_manifest,
+    mock_blob,
+    mock_attestations,
+    neo4j_session,
+):
+    """
+    Running the GHCR sync twice must not delete live images: the second run
+    should re-tag every image, layer, and attestation with the new
+    update_tag even when manifest fetches are short-circuited by the
+    cross-run dedup. Regression test for the data-loss bug Kunaal flagged
+    on the original PR (skipped digests vs. cleanup_lastupdated).
+    """
+    _seed_org_and_repo(neo4j_session)
+    second_update_tag = TEST_UPDATE_TAG + 1
+
+    def run_full_sync(update_tag):
+        params = {"UPDATE_TAG": update_tag}
+        fetch_result = cartography.intel.github.packages.sync_packages(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            update_tag,
+            params,
+        )
+        raw_manifests, _, tag_rows, observed_skipped = (
+            cartography.intel.github.container_images.sync_container_images(
+                neo4j_session,
+                FAKE_TOKEN,
+                TEST_GITHUB_URL,
+                TEST_ORG,
+                fetch_result.packages,
+                update_tag,
+                params,
+            )
+        )
+        cartography.intel.github.container_image_tags.sync_container_image_tags(
+            neo4j_session,
+            TEST_ORG,
+            tag_rows,
+            update_tag,
+            params,
+        )
+        cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            raw_manifests,
+            update_tag,
+            params,
+            additional_observed_digests=observed_skipped,
+        )
+
+    run_full_sync(TEST_UPDATE_TAG)
+    expected_image_digests = {
+        (DIGEST_API_LATEST,),
+        (DIGEST_API_INDEX,),
+        (DIGEST_API_AMD64,),
+        (DIGEST_API_ARM64,),
+        (DIGEST_WORKER,),
+    }
+    assert (
+        check_nodes(neo4j_session, "GitHubContainerImage", ["digest"])
+        == expected_image_digests
+    )
+
+    run_full_sync(second_update_tag)
+
+    # Every image must still be present after the second run.
+    assert (
+        check_nodes(neo4j_session, "GitHubContainerImage", ["digest"])
+        == expected_image_digests
+    )
+    # Layers must survive too.
+    assert check_nodes(neo4j_session, "GitHubContainerImageLayer", ["diff_id"]) == {
+        (LAYER_DIFF_A,),
+        (LAYER_DIFF_B,),
+        (LAYER_DIFF_C,),
+    }
+    # And the attestation node carrying provenance for DIGEST_API_LATEST.
+    assert check_nodes(
+        neo4j_session,
+        "GitHubContainerImageAttestation",
+        ["attests_digest"],
+    ) == {(DIGEST_API_LATEST,)}
+
+    # Every surviving image's lastupdated must reflect the second run, not
+    # the first — that is the bump the cross-run dedup must perform.
+    rows = neo4j_session.run(
+        "MATCH (img:GitHubContainerImage) RETURN img.digest AS d, img.lastupdated AS u",
+    ).data()
+    stale = [r for r in rows if r["u"] != second_update_tag]
+    assert not stale, f"stale lastupdated on: {stale}"

@@ -52,6 +52,12 @@ def get_container_packages(
     """
     Fetch every container package owned by ``organization`` via the GitHub
     REST API. Returns the raw payloads alongside a ``cleanup_safe`` flag.
+
+    The ``/orgs/{org}/packages`` endpoint returns 404 on older GHES versions
+    and 403 when the token is missing the ``read:packages`` scope (the most
+    common misconfiguration in the wild — fine-grained PATs always 403 here).
+    Both cases set ``cleanup_safe=False`` so previously-synced packages are
+    not purged by a missing-scope or endpoint-outage condition.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = (
@@ -59,16 +65,30 @@ def get_container_packages(
     )
     try:
         packages = fetch_all_rest_api_pages(
-            token, base_url, endpoint, result_key="packages"
+            token,
+            base_url,
+            endpoint,
+            result_key="packages",
+            raise_on_status=(403, 404),
         )
         return ContainerPackagesFetchResult(packages=packages, cleanup_safe=True)
     except requests.exceptions.HTTPError as err:
-        # Older GitHub Enterprise versions don't expose this endpoint.
-        if err.response is not None and err.response.status_code == 404:
+        status = err.response.status_code if err.response is not None else None
+        if status == 404:
             logger.warning(
                 "GitHub Packages endpoint not available for org %s (404). "
                 "GHCR sync will be skipped and cleanup deferred so previously "
                 "synced packages are not purged by an endpoint outage.",
+                organization,
+            )
+            return ContainerPackagesFetchResult(packages=[], cleanup_safe=False)
+        if status == 403:
+            logger.warning(
+                "GitHub Packages endpoint refused for org %s (403). The token "
+                "is most likely missing the read:packages scope (fine-grained "
+                "PATs cannot access Packages and always 403 here). GHCR sync "
+                "will be skipped and cleanup deferred to preserve previously "
+                "synced packages.",
                 organization,
             )
             return ContainerPackagesFetchResult(packages=[], cleanup_safe=False)

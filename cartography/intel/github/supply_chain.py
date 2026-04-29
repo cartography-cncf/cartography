@@ -54,9 +54,13 @@ def _get_unmatched_ghcr_image_owner_repos(
     """
     # Filter on the generic ``Image`` label so manifest lists (multi-arch
     # indexes) are excluded — only platform-specific images claim a build repo.
+    # Match against PACKAGED_FROM relationships from THIS run only (lastupdated
+    # = update_tag); stale rels from previous runs must not block the fallback,
+    # they will be reaped by the cleanup that runs after this step.
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(img:GitHubContainerImage)
-    WHERE img:Image AND NOT exists((img)-[:PACKAGED_FROM]->())
+    WHERE img:Image
+      AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
     MATCH (pkg:GitHubPackage)-[:HAS_IMAGE]->(img)
     MATCH (repo:GitHubRepository)-[:HAS_PACKAGE]->(pkg)
     WITH img, collect(DISTINCT repo.id) AS repo_ids

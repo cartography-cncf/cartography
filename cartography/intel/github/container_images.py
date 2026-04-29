@@ -141,21 +141,30 @@ def get_container_images(
     organization: str,
     packages: list[dict[str, Any]],
     skip_digests: set[str] | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    set[str],
+]:
     """
     Fetch every image manifest reachable from the org's container packages.
 
-    :returns: ``(all_manifests, manifest_lists, tag_rows)`` —
-        ``all_manifests`` is the list of single-image manifests AND manifest
+    :returns: ``(all_manifests, manifest_lists, tag_rows, observed_and_skipped)``
+        — ``all_manifests`` is the list of single-image manifests AND manifest
         lists (so each becomes a node); ``manifest_lists`` is the subset that
         are multi-arch indexes (used by the attestations sync); ``tag_rows``
-        is the list of ``GitHubContainerImageTag`` rows ready for ingestion.
+        is the list of ``GitHubContainerImageTag`` rows ready for ingestion;
+        ``observed_and_skipped`` is the set of digests that were present in
+        the versions API but skipped by the cross-run dedup so the caller can
+        refresh their ``lastupdated`` and avoid having cleanup reap them.
     """
     skip_digests = skip_digests or set()
     all_manifests: list[dict[str, Any]] = []
     manifest_lists: list[dict[str, Any]] = []
     tag_rows: list[dict[str, Any]] = []
     config_cache: dict[str, dict[str, Any] | None] = {}
+    observed_and_skipped: set[str] = set()
 
     for pkg in packages:
         package_name = pkg["name"]
@@ -185,8 +194,11 @@ def get_container_images(
                 )
 
             # Cross-run dedup: skip manifest/config fetches for digests we've
-            # already enriched. Tag rows are still produced above.
+            # already enriched. Tag rows are still produced above. The caller
+            # bumps `lastupdated` on these digests so cleanup leaves them
+            # alone — without that bump the optimization causes data loss.
             if digest in skip_digests:
+                observed_and_skipped.add(digest)
                 continue
 
             manifest = _process_manifest(
@@ -213,7 +225,10 @@ def get_container_images(
                     ):
                         continue
                     child_digest = child.get("digest")
-                    if not child_digest or child_digest in skip_digests:
+                    if not child_digest:
+                        continue
+                    if child_digest in skip_digests:
+                        observed_and_skipped.add(child_digest)
                         continue
                     _process_manifest(
                         token,
@@ -233,7 +248,7 @@ def get_container_images(
         len(tag_rows),
         len(packages),
     )
-    return all_manifests, manifest_lists, tag_rows
+    return all_manifests, manifest_lists, tag_rows, observed_and_skipped
 
 
 def transform_container_images(
@@ -406,6 +421,45 @@ def load_container_image_layers(
     )
 
 
+def _refresh_skipped_image_lastupdated(
+    neo4j_session: neo4j.Session,
+    digests: set[str],
+    org_url: str,
+    update_tag: int,
+) -> None:
+    """
+    Bump ``lastupdated`` on container images (and their layer/relationship
+    metadata) that were observed in the GHCR versions API this run but had
+    their manifest+config fetch short-circuited by the cross-run dedup.
+
+    Without this, the cleanup job — which deletes nodes whose sub-resource
+    relationship's ``lastupdated`` doesn't match the current ``update_tag``
+    — would reap the live images.
+    """
+    if not digests:
+        return
+    query = """
+    MATCH (org:GitHubOrganization {id: $org_url})-[r_org:RESOURCE]->(img:GitHubContainerImage)
+    WHERE img.digest IN $digests
+    SET img.lastupdated = $update_tag,
+        r_org.lastupdated = $update_tag
+    WITH img, org
+    OPTIONAL MATCH (img)-[r_layer:HAS_LAYER|HEAD|TAIL]->(layer:GitHubContainerImageLayer)
+    SET r_layer.lastupdated = $update_tag,
+        layer.lastupdated = $update_tag
+    WITH org, layer
+    WHERE layer IS NOT NULL
+    OPTIONAL MATCH (org)-[r_layer_org:RESOURCE]->(layer)
+    SET r_layer_org.lastupdated = $update_tag
+    """
+    neo4j_session.run(
+        query,
+        digests=list(digests),
+        org_url=org_url,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def cleanup_container_images(
     neo4j_session: neo4j.Session,
@@ -437,8 +491,13 @@ def sync_container_images(
     packages: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """Returns ``(raw_manifests, manifest_lists, tag_rows)``."""
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    set[str],
+]:
+    """Returns ``(raw_manifests, manifest_lists, tag_rows, observed_and_skipped)``."""
     org_url = f"https://github.com/{organization}"
     skip_digests = _existing_digests_with_layers(neo4j_session, org_url)
     if skip_digests:
@@ -447,7 +506,12 @@ def sync_container_images(
             len(skip_digests),
         )
 
-    raw_manifests, manifest_lists, tag_rows = get_container_images(
+    (
+        raw_manifests,
+        manifest_lists,
+        tag_rows,
+        observed_and_skipped,
+    ) = get_container_images(
         token,
         api_url,
         organization,
@@ -462,8 +526,18 @@ def sync_container_images(
     if images:
         load_container_images(neo4j_session, images, org_url, update_tag)
 
+    # Refresh lastupdated for digests we observed in versions but whose
+    # manifest/config fetch we skipped via cross-run dedup. Must happen
+    # before cleanup, otherwise the still-live images get reaped.
+    _refresh_skipped_image_lastupdated(
+        neo4j_session,
+        observed_and_skipped,
+        org_url,
+        update_tag,
+    )
+
     cleanup_params = dict(common_job_parameters)
     cleanup_params["org_url"] = org_url
     cleanup_container_image_layers(neo4j_session, cleanup_params)
     cleanup_container_images(neo4j_session, cleanup_params)
-    return raw_manifests, manifest_lists, tag_rows
+    return raw_manifests, manifest_lists, tag_rows, observed_and_skipped

@@ -424,6 +424,7 @@ def fetch_all_rest_api_pages(
     endpoint: str,
     result_key: str,
     retries: int = 5,
+    raise_on_status: tuple[int, ...] = (),
 ) -> list[dict[str, Any]]:
     """
     Fetch all pages from a GitHub REST API endpoint using Link header pagination.
@@ -434,6 +435,13 @@ def fetch_all_rest_api_pages(
     :param result_key: The key in the response JSON that contains the list of results
                        (e.g., 'workflows', 'secrets', 'variables').
     :param retries: Number of retries to perform on transient errors.
+    :param raise_on_status: HTTP statuses that the caller wants to handle itself
+                            instead of being silently converted to an empty list.
+                            By default 404 and 403 return ``[]`` (legacy behavior
+                            relied on by most callers); pass e.g. ``(403,)`` if
+                            the caller needs to distinguish "no data" from
+                            "missing scope" — for example to skip a cleanup
+                            that would otherwise reap previously-synced data.
     :return: A list of all items from all pages.
     """
     results: list[dict[str, Any]] = []
@@ -457,12 +465,15 @@ def fetch_all_rest_api_pages(
             retry += 1
             exc = err
         except requests.exceptions.HTTPError as err:
+            status = err.response.status_code if err.response is not None else None
+            if status is not None and status in raise_on_status:
+                raise
             # Handle 404 gracefully - resource may not exist (e.g., no environments)
-            if err.response is not None and err.response.status_code == 404:
+            if status == 404:
                 logger.debug(f"GitHub REST API: 404 for {url}, returning empty list")
                 return []
             # Handle 403 gracefully
-            if err.response is not None and err.response.status_code == 403:
+            if status == 403:
                 logger.warning(
                     f"GitHub REST API: 403 Forbidden for {url}. "
                     "This is likely due to insufficient permissions. "

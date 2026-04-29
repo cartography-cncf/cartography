@@ -26,6 +26,14 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github.users.cleanup")
 @patch("cartography.intel.github.supply_chain.sync")
 @patch(
+    "cartography.intel.github.container_image_attestations.sync_container_image_attestations"
+)
+@patch("cartography.intel.github.container_image_tags.sync_container_image_tags")
+@patch(
+    "cartography.intel.github.container_images.sync_container_images",
+    return_value=([], [], [], set()),
+)
+@patch(
     "cartography.intel.github.packages.sync_packages",
     return_value=cartography.intel.github.packages.ContainerPackagesFetchResult(
         packages=[],
@@ -50,6 +58,9 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_sync_github_commits: Mock,
     mock_get_repos: Mock,
     mock_packages_sync: Mock,
+    mock_container_images_sync: Mock,
+    mock_container_tags_sync: Mock,
+    mock_attestations_sync: Mock,
     mock_supply_chain_sync: Mock,
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,

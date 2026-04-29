@@ -20,12 +20,11 @@ from typing import cast
 from urllib.parse import quote
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import call_github_rest_api
+from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.container_image_attestations import (
     GitHubContainerImageAttestationSchema,
@@ -138,6 +137,7 @@ def _extract_provenance(statement: dict[str, Any]) -> dict[str, str | None]:
 
 
 def _attestations_endpoint(organization: str, digest: str) -> str:
+    # 100 is the documented per_page max for this endpoint.
     return (
         f"/orgs/{quote(organization)}/attestations/{quote(digest, safe='')}"
         f"?per_page=100"
@@ -151,24 +151,23 @@ def get_attestations_for_digest(
     organization: str,
     digest: str,
 ) -> list[dict[str, Any]]:
-    """Fetch attestations for one image digest.
+    """Fetch attestations for one image digest, paginated.
 
     Per the GitHub Attestations REST API, a 404 on
     ``/orgs/{org}/attestations/{digest}`` is the documented response when the
-    digest has no attestations (it is *not* an error). Only that case is
-    converted into an empty list; every other HTTP error propagates so the
-    sync aborts before cleanup runs and existing attestation nodes are not
-    silently purged.
+    digest has no attestations (it is *not* an error). The shared paginated
+    helper already converts 404 to ``[]``; every other HTTP error propagates
+    so the sync aborts before cleanup runs and existing attestation nodes
+    are not silently purged.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = _attestations_endpoint(organization, digest)
-    try:
-        response = call_github_rest_api(endpoint, token, base_url)
-    except requests.exceptions.HTTPError as err:
-        if err.response is not None and err.response.status_code == 404:
-            return []
-        raise
-    return response.get("attestations") or []
+    return fetch_all_rest_api_pages(
+        token,
+        base_url,
+        endpoint,
+        result_key="attestations",
+    )
 
 
 def transform_attestations(
@@ -180,13 +179,27 @@ def transform_attestations(
     a ``GitHubContainerImageAttestation`` node; the most informative one per
     digest also populates the provenance enrichment row used by
     ``GitHubContainerImageProvenanceSchema``.
+
+    The GitHub Attestations API increasingly returns ``bundle: null`` with a
+    short-lived signed ``bundle_url`` pointing at the actual sigstore bundle
+    (snappy-compressed ``.json.sn``). Following that URL is a follow-up; for
+    now we skip attestations without an inline bundle so we do not pollute
+    the graph with rows that have no extractable provenance.
     """
     attestation_rows: list[dict[str, Any]] = []
     provenance_by_digest: dict[str, dict[str, Any]] = {}
+    skipped_lazy = 0
 
     for digest, attestations in attestations_by_digest.items():
         for idx, attestation in enumerate(attestations):
-            bundle = attestation.get("bundle") or {}
+            bundle = attestation.get("bundle")
+            if not bundle:
+                # bundle_url is lazy-served (snappy-compressed sigstore bundle).
+                # Until we add bundle_url support, skip rather than create an
+                # empty row.
+                if attestation.get("bundle_url"):
+                    skipped_lazy += 1
+                continue
             envelope = bundle.get("dsseEnvelope") or {}
             statement = _decode_dsse_payload(envelope) or {}
             predicate_type = statement.get("predicateType") or attestation.get(
@@ -220,6 +233,14 @@ def transform_attestations(
                     "parent_image_uri": None,
                     "parent_image_digest": None,
                 }
+
+    if skipped_lazy:
+        logger.warning(
+            "Skipped %d GitHub attestation(s) served via bundle_url; inline "
+            "bundle ingestion only — bundle_url follow-up needed for full "
+            "provenance coverage.",
+            skipped_lazy,
+        )
 
     return attestation_rows, list(provenance_by_digest.values())
 
@@ -258,6 +279,33 @@ def load_image_provenance(
     )
 
 
+def _refresh_skipped_attestation_lastupdated(
+    neo4j_session: neo4j.Session,
+    digests: set[str],
+    org_url: str,
+    update_tag: int,
+) -> None:
+    """
+    Bump ``lastupdated`` on attestations whose subject digest is still live in
+    GHCR but whose enrichment was short-circuited by the cross-run dedup.
+    Mirrors ``container_images._refresh_skipped_image_lastupdated``.
+    """
+    if not digests:
+        return
+    query = """
+    MATCH (org:GitHubOrganization {id: $org_url})-[r:RESOURCE]->(att:GitHubContainerImageAttestation)
+    WHERE att.attests_digest IN $digests
+    SET att.lastupdated = $update_tag,
+        r.lastupdated = $update_tag
+    """
+    neo4j_session.run(
+        query,
+        digests=list(digests),
+        org_url=org_url,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def cleanup_attestations(
     neo4j_session: neo4j.Session,
@@ -278,14 +326,31 @@ def sync_container_image_attestations(
     raw_manifests: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    additional_observed_digests: set[str] | None = None,
 ) -> None:
+    """
+    Sync attestations for every digest seen this run.
+
+    ``additional_observed_digests`` carries digests that the container-images
+    sync observed in the GHCR versions API but skipped via cross-run dedup —
+    they are still live in GHCR even though their manifest was not re-fetched,
+    so we must refresh ``lastupdated`` on their attestation nodes too.
+    """
     org_url = f"https://github.com/{organization}"
-    digests = _digests_from_manifests(raw_manifests)
+    digests = list(_digests_from_manifests(raw_manifests))
+    if additional_observed_digests:
+        seen = set(digests)
+        for d in additional_observed_digests:
+            if d not in seen:
+                digests.append(d)
+                seen.add(d)
     skip = _digests_already_enriched(neo4j_session, org_url)
 
     attestations_by_digest: dict[str, list[dict[str, Any]]] = {}
+    observed_and_skipped: set[str] = set()
     for digest in digests:
         if digest in skip:
+            observed_and_skipped.add(digest)
             continue
         attestations = get_attestations_for_digest(
             token,
@@ -309,6 +374,16 @@ def sync_container_image_attestations(
         load_attestations(neo4j_session, attestation_rows, org_url, update_tag)
     if provenance_rows:
         load_image_provenance(neo4j_session, provenance_rows, org_url, update_tag)
+
+    # Refresh lastupdated for digests we observed but whose attestations
+    # we skipped via cross-run dedup; otherwise cleanup reaps the still-live
+    # attestation nodes.
+    _refresh_skipped_attestation_lastupdated(
+        neo4j_session,
+        observed_and_skipped,
+        org_url,
+        update_tag,
+    )
 
     cleanup_params = dict(common_job_parameters)
     cleanup_params["org_url"] = org_url
