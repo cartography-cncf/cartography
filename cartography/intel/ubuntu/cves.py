@@ -253,7 +253,7 @@ def _fetch_cves(
 
         offset += _PAGE_SIZE
 
-    logger.info("Fetched %d Ubuntu CVEs", total_fetched)
+    logger.debug("Fetched %d Ubuntu CVEs", total_fetched)
 
 
 @timeit

@@ -68,7 +68,7 @@ def list_vertex_ai_resources_for_location(
         )
         raise
 
-    logger.info(
+    logger.debug(
         "Found %s Vertex AI %s in %s for project %s",
         len(resources),
         resource_type,
@@ -255,7 +255,7 @@ def paginate_vertex_api(
         if not page_token:
             break
 
-    logger.info(
+    logger.debug(
         "Found %s Vertex AI %s in %s for project %s",
         len(resources),
         resource_type,
