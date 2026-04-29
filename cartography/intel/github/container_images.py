@@ -432,18 +432,21 @@ def _refresh_skipped_image_lastupdated(
     metadata) that were observed in the GHCR versions API this run but had
     their manifest+config fetch short-circuited by the cross-run dedup.
 
-    Without this, the cleanup job — which deletes nodes whose sub-resource
-    relationship's ``lastupdated`` doesn't match the current ``update_tag``
-    — would reap the live images.
+    Without this, the cleanup job — which deletes nodes / rels whose
+    ``lastupdated`` doesn't match the current ``update_tag`` — would reap
+    the live image, the per-layer rels (HAS_LAYER / HEAD / TAIL) and the
+    layer-chain ``NEXT`` rels that order the linked list.
     """
     if not digests:
         return
-    query = """
+
+    # First pass: refresh image node, RESOURCE rels and image->layer rels.
+    image_layer_query = """
     MATCH (org:GitHubOrganization {id: $org_url})-[r_org:RESOURCE]->(img:GitHubContainerImage)
     WHERE img.digest IN $digests
     SET img.lastupdated = $update_tag,
         r_org.lastupdated = $update_tag
-    WITH img, org
+    WITH org, img
     OPTIONAL MATCH (img)-[r_layer:HAS_LAYER|HEAD|TAIL]->(layer:GitHubContainerImageLayer)
     SET r_layer.lastupdated = $update_tag,
         layer.lastupdated = $update_tag
@@ -453,9 +456,25 @@ def _refresh_skipped_image_lastupdated(
     SET r_layer_org.lastupdated = $update_tag
     """
     neo4j_session.run(
-        query,
+        image_layer_query,
         digests=list(digests),
         org_url=org_url,
+        update_tag=update_tag,
+    )
+
+    # Second pass: refresh the NEXT rels that chain the layers of any
+    # refreshed image. Done in a second statement so we can constrain the
+    # NEXT match to layers belonging to the skipped images only.
+    next_rel_query = """
+    MATCH (img:GitHubContainerImage)-[:HAS_LAYER]->(l1:GitHubContainerImageLayer)
+    WHERE img.digest IN $digests
+    MATCH (l1)-[r_next:NEXT]->(l2:GitHubContainerImageLayer)
+    WHERE (img)-[:HAS_LAYER]->(l2)
+    SET r_next.lastupdated = $update_tag
+    """
+    neo4j_session.run(
+        next_rel_query,
+        digests=list(digests),
         update_tag=update_tag,
     )
 

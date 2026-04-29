@@ -508,3 +508,15 @@ def test_sync_ghcr_idempotent_across_runs(
     ).data()
     stale = [r for r in rows if r["u"] != second_update_tag]
     assert not stale, f"stale lastupdated on: {stale}"
+
+    # NEXT rels (layer linked-list ordering) must also be refreshed,
+    # otherwise cleanup deletes them and the chain is broken.
+    next_rows = neo4j_session.run(
+        """
+        MATCH (:GitHubContainerImageLayer)-[r:NEXT]->(:GitHubContainerImageLayer)
+        RETURN r.lastupdated AS u
+        """,
+    ).data()
+    assert next_rows, "expected at least one NEXT rel between layers"
+    stale_next = [r for r in next_rows if r["u"] != second_update_tag]
+    assert not stale_next, f"stale lastupdated on NEXT rels: {stale_next}"
