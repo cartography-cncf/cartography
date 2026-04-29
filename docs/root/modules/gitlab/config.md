@@ -51,8 +51,9 @@ The CI config sync first calls `GET /api/v4/projects/:id/ci/lint?dry_run=true` t
 
 The organization ID is the numeric ID of the top-level GitLab group you want to sync. To find it:
 
-1. Navigate to your group's page on GitLab (e.g., `https://gitlab.com/your-organization`)
-2. The group ID is displayed below the group name, or you can find it via the API:
+1. Navigate to your group's page on GitLab (e.g., `https://gitlab.com/your-organization`).
+2. Click the **⋮** (three dots) menu in the top right of the group header and select **Copy group ID**.
+3. Alternatively, fetch it via the API:
    ```bash
    curl -H "PRIVATE-TOKEN: your-token" "https://gitlab.com/api/v4/groups/your-organization"
    ```
