@@ -85,6 +85,22 @@ def test_transform_cves_extracts_references():
     ]
 
 
+def test_transform_cves_drops_raw_nvd_fields():
+    data = _fresh_data()
+    raw_cve = data["vulnerabilities"][0]["cve"]
+    raw_cve["configurations"] = [{"nodes": [{"cpeMatch": ["unused"]}]}]
+
+    result = transform_cves(data, {"CVE-2023-41782"})
+    cve = result["CVE-2023-41782"]
+
+    assert cve is not raw_cve
+    assert "configurations" not in cve
+    assert "metrics" not in cve
+    assert "descriptions" not in cve
+    assert "references" not in cve
+    assert "sourceIdentifier" not in cve
+
+
 def test_transform_cves_empty_graph():
     """When no CVE IDs are in the graph, result should be empty."""
     result = transform_cves(_fresh_data(), set())
