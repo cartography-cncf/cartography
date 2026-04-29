@@ -37,6 +37,7 @@ def _list_runners_tolerant(
     token: str,
     endpoint: str,
     scope_description: str,
+    extra_params: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]] | None:
     """
     Fetch a paginated list of runners. Returns:
@@ -48,7 +49,7 @@ def _list_runners_tolerant(
     Other errors propagate.
     """
     try:
-        return get_paginated(gitlab_url, token, endpoint)
+        return get_paginated(gitlab_url, token, endpoint, extra_params=extra_params)
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 403:
             logger.warning(
@@ -85,13 +86,23 @@ def get_group_runners(
     group_id: int,
 ) -> list[dict[str, Any]] | None:
     """
-    Fetch group-level runners for a specific group. Returns ``None`` on 403.
+    Fetch group-level runners for a specific group, filtered to
+    ``runner_type=group_type``.
+
+    Without the ``type`` filter, GitLab returns runners *visible to* the
+    group — including inherited instance runners — which would be attached
+    to the group as if they were group-scoped. The instance runners are
+    already collected by the instance-scope sync, and the
+    project/instance scopes are similarly filtered.
+
+    Returns ``None`` on 403.
     """
     return _list_runners_tolerant(
         gitlab_url,
         token,
         f"/api/v4/groups/{group_id}/runners",
         f"runners for group {group_id}",
+        extra_params={"type": "group_type"},
     )
 
 
@@ -102,13 +113,16 @@ def get_project_runners(
     project_id: int,
 ) -> list[dict[str, Any]] | None:
     """
-    Fetch project-level runners for a specific project. Returns ``None`` on 403.
+    Fetch project-level runners for a specific project, filtered to
+    ``runner_type=project_type`` (see :func:`get_group_runners` for the
+    rationale). Returns ``None`` on 403.
     """
     return _list_runners_tolerant(
         gitlab_url,
         token,
         f"/api/v4/projects/{project_id}/runners",
         f"runners for project {project_id}",
+        extra_params={"type": "project_type"},
     )
 
 
@@ -181,8 +195,14 @@ def _enrich_with_details(
     listed_runners: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    For each runner in the list, fetch its detail record. Skips runners whose
-    detail call fails with 403/404.
+    For each runner in the list, fetch its detail record. If the detail
+    call fails (403/404), fall back to the listed record rather than
+    dropping the runner: the list endpoint already confirmed the runner
+    exists, so dropping it would let the next cleanup phase delete a
+    real runner from the graph. The detail-only fields (architecture,
+    platform, contacted_at, ip_address, maximum_timeout, ...) are absent
+    from the listed record and will be filled in next sync if the detail
+    endpoint becomes reachable again.
     """
     enriched: list[dict[str, Any]] = []
     for runner in listed_runners:
@@ -190,9 +210,7 @@ def _enrich_with_details(
         if runner_id is None:
             continue
         details = get_runner_details(gitlab_url, token, runner_id)
-        if details is None:
-            continue
-        enriched.append(details)
+        enriched.append(details if details is not None else runner)
     return enriched
 
 

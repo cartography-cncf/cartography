@@ -155,8 +155,10 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync environments and link them to CI/CD variables that apply to them
-    # (exact match on environment_scope or wildcard "*"). Returns the set of
-    # projects skipped due to 403 — those must be excluded from cleanup.
+    # (exact match on environment_scope or wildcard "*"). Projects whose
+    # variables could not be loaded this run are forwarded as `skip_projects`
+    # so we don't refresh env nodes with empty `linked_variable_ids` and let
+    # cleanup wipe HAS_CI_VARIABLE edges that should still be there.
     environments_skipped = (
         cartography.intel.gitlab.environments.sync_gitlab_environments(
             neo4j_session,
@@ -166,12 +168,13 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             common_job_parameters,
             all_projects,
             variables_by_project,
+            skip_projects=variables_skipped["projects"],
         )
     )
 
     # Sync .gitlab-ci.yml configs (parsed pipeline summary + includes) and link
-    # to project-level variables they reference. Returns the set of projects
-    # whose config was permission-denied so cleanup can skip them.
+    # to project-level variables they reference. Same `skip_projects`
+    # forwarding rationale as environments.
     ci_config_skipped = cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
         neo4j_session,
         gitlab_url,
@@ -180,6 +183,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
         all_projects,
         variables_by_project,
+        skip_projects=variables_skipped["projects"],
     )
 
     # ========================================

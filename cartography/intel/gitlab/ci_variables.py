@@ -248,8 +248,13 @@ def sync_gitlab_ci_variables(
         project_id: int = project["id"]
         raw = get_project_variables(gitlab_url, token, project_id)
         if raw is None:
+            # 403: leave project_variables[project_id] absent so downstream
+            # syncs can distinguish "no read" from "no variables" and skip
+            # the project entirely. An empty list here would let env /
+            # ci_config rebuild nodes with no linked_variable_ids and let
+            # cleanup wipe HAS_CI_VARIABLE / REFERENCES_VARIABLE edges
+            # even though the variables themselves were preserved.
             skipped["projects"].add(project_id)
-            project_variables[project_id] = []
             continue
         if not raw:
             project_variables[project_id] = []

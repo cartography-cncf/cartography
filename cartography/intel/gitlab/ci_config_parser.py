@@ -276,6 +276,47 @@ def _extract_default_image(config: dict[str, Any]) -> str | None:
     return None
 
 
+def parse_lint_includes(
+    lint_includes: list[dict[str, Any]] | None,
+) -> list[ParsedCIInclude]:
+    """
+    Convert GitLab's ``/ci/lint`` ``includes`` array (each entry has shape
+    ``{type, location, blob, raw, extra, context_project, context_sha}``)
+    into our ``ParsedCIInclude`` records.
+
+    The merged_yaml returned alongside has the included content inlined
+    as jobs, so its ``include:`` block is gone — without this helper the
+    YAML parser alone would emit zero GitLabCIInclude nodes on the lint
+    path. ``ref`` for ``project`` includes is taken from ``extra.ref``
+    when present, falling back to ``context_sha`` (the resolved commit
+    that GitLab fetched).
+    """
+    if not lint_includes:
+        return []
+    results: list[ParsedCIInclude] = []
+    for entry in lint_includes:
+        if not isinstance(entry, dict):
+            continue
+        include_type = entry.get("type") or ""
+        location = entry.get("location") or entry.get("raw") or ""
+        if not include_type or not location:
+            continue
+        extra = entry.get("extra") if isinstance(entry.get("extra"), dict) else {}
+        ref = (extra or {}).get("ref") or entry.get("context_sha")
+        results.append(
+            ParsedCIInclude(
+                include_type=include_type,
+                location=str(location),
+                ref=str(ref) if ref else None,
+                is_pinned=_is_pinned(
+                    include_type, str(ref) if ref else None, str(location)
+                ),
+                is_local=(include_type == "local"),
+            )
+        )
+    return results
+
+
 def parse_ci_config(content: str, is_valid: bool | None = None) -> ParsedCIConfig:
     """
     Parse a GitLab CI YAML document. Returns an empty `ParsedCIConfig` on

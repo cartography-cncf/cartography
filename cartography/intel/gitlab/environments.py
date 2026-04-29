@@ -172,19 +172,30 @@ def sync_gitlab_environments(
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
     variables_by_project: dict[int, list[dict[str, Any]]],
+    skip_projects: set[int] | None = None,
 ) -> set[int]:
     """
     Sync environments for each project, then link each environment to the
     project-level CI/CD variables that apply to it.
 
-    Returns the set of project IDs that were skipped due to 403, so the
-    caller can avoid running cleanup for them.
+    ``skip_projects`` lists project IDs whose CI variables could not be
+    loaded this run. Those projects are skipped entirely — refreshing
+    environments with no ``linked_variable_ids`` would let cleanup wipe
+    the ``HAS_CI_VARIABLE`` edges from existing envs even though the
+    variables themselves were preserved upstream.
+
+    Returns the union of ``skip_projects`` and the projects skipped due
+    to a 403 on the environments endpoint, so the caller can avoid
+    running cleanup for any of them.
     """
     logger.info("Syncing GitLab environments for %d projects", len(projects))
-    skipped_projects: set[int] = set()
+    skip_projects = skip_projects or set()
+    skipped_projects: set[int] = set(skip_projects)
 
     for project in projects:
         project_id: int = project["id"]
+        if project_id in skip_projects:
+            continue
         raw = get_environments(gitlab_url, token, project_id)
         if raw is None:
             skipped_projects.add(project_id)
