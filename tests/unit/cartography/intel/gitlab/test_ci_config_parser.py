@@ -45,6 +45,62 @@ def test_parse_includes_remote_unpinned_url():
     assert remote.is_pinned is False
 
 
+def test_parse_includes_bare_url_string_classified_as_remote():
+    """A bare URL string in `include:` should be remote, not local."""
+    yaml = """
+include:
+  - 'https://example.com/templates/foo.yml'
+build:
+  script:
+    - echo
+"""
+    parsed = parse_ci_config(yaml)
+    assert len(parsed.includes) == 1
+    inc = parsed.includes[0]
+    assert inc.include_type == "remote"
+    assert inc.is_local is False
+    assert inc.is_pinned is False
+
+
+def test_parse_includes_project_records_file_field():
+    """include:project must capture the `file:` path so the location is accurate."""
+    yaml = """
+include:
+  - project: my-org/shared-ci
+    ref: a5ac7e51b41094c92402da3b24376905380afc29
+    file: /templates/build.yml
+build:
+  script:
+    - echo
+"""
+    parsed = parse_ci_config(yaml)
+    project_includes = [i for i in parsed.includes if i.include_type == "project"]
+    assert len(project_includes) == 1
+    assert project_includes[0].location == "my-org/shared-ci:/templates/build.yml"
+
+
+def test_parse_includes_project_with_file_list_expands_to_one_record_per_file():
+    yaml = """
+include:
+  - project: my-org/shared-ci
+    ref: a5ac7e51b41094c92402da3b24376905380afc29
+    file:
+      - /templates/a.yml
+      - /templates/b.yml
+build:
+  script:
+    - echo
+"""
+    parsed = parse_ci_config(yaml)
+    project_includes = [i for i in parsed.includes if i.include_type == "project"]
+    assert len(project_includes) == 2
+    locations = {i.location for i in project_includes}
+    assert locations == {
+        "my-org/shared-ci:/templates/a.yml",
+        "my-org/shared-ci:/templates/b.yml",
+    }
+
+
 def test_parse_includes_local_list_expands():
     parsed = parse_ci_config(PIPELINE_LOCAL_LIST)
     locals_ = [i for i in parsed.includes if i.include_type == "local"]

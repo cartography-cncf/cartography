@@ -213,8 +213,10 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync CI/CD runners at instance, group, and project scopes.
-    # Tolerates 403s on individual scopes (e.g. missing admin scope for /runners/all).
-    cartography.intel.gitlab.runners.sync_gitlab_runners(
+    # Each scope returns a "skipped" set when a 403 was encountered — those
+    # scopes must be excluded from the cleanup phase to avoid deleting
+    # previously-ingested runners that we simply could not list this time.
+    runners_skipped = cartography.intel.gitlab.runners.sync_gitlab_runners(
         neo4j_session,
         gitlab_url,
         token,
@@ -225,8 +227,9 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync CI/CD variables at group and project scopes.
-    # Returns a {project_id: [variables]} map for downstream modules.
-    variables_by_project = (
+    # Returns a {project_id: [variables]} map and a per-scope "skipped" set
+    # (same data-loss-prevention rationale as runners above).
+    variables_by_project, variables_skipped = (
         cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
             neo4j_session,
             gitlab_url,
@@ -239,15 +242,18 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync environments and link them to CI/CD variables that apply to them
-    # (exact match on environment_scope or wildcard "*").
-    cartography.intel.gitlab.environments.sync_gitlab_environments(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
-        variables_by_project,
+    # (exact match on environment_scope or wildcard "*"). Returns the set of
+    # projects skipped due to 403 — those must be excluded from cleanup.
+    environments_skipped = (
+        cartography.intel.gitlab.environments.sync_gitlab_environments(
+            neo4j_session,
+            gitlab_url,
+            token,
+            config.update_tag,
+            common_job_parameters,
+            all_projects,
+            variables_by_project,
+        )
     )
 
     # Sync .gitlab-ci.yml configs (parsed pipeline summary + includes) and link
@@ -286,10 +292,12 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
-        # Cleanup project-level runners
-        cartography.intel.gitlab.runners.cleanup_project_runners(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        # Cleanup project-level runners — skip if the scope returned 403,
+        # otherwise we'd delete every previously-ingested runner.
+        if project_id not in runners_skipped["projects"]:
+            cartography.intel.gitlab.runners.cleanup_project_runners(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
         # Cleanup CI includes first, then the parent CIConfig.
         cartography.intel.gitlab.ci_config.cleanup_ci_includes(
@@ -299,30 +307,37 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
-        # Cleanup environments (must run before project-level variables since
-        # the env -> variable matchlink references both).
-        cartography.intel.gitlab.environments.cleanup_environments(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        # Cleanup environments — skip if the scope returned 403.
+        if project_id not in environments_skipped:
+            cartography.intel.gitlab.environments.cleanup_environments(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
-        # Cleanup project-level CI/CD variables
-        cartography.intel.gitlab.ci_variables.cleanup_project_variables(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        # Cleanup project-level CI/CD variables — skip if the scope returned 403.
+        if project_id not in variables_skipped["projects"]:
+            cartography.intel.gitlab.ci_variables.cleanup_project_variables(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
-    # Cleanup group-level runners and CI/CD variables (one cleanup per group)
+    # Cleanup group-level runners and CI/CD variables (one cleanup per group),
+    # skipping any scope that returned 403 during the sync.
     for group in all_groups:
-        cartography.intel.gitlab.runners.cleanup_group_runners(
-            neo4j_session, common_job_parameters, group["id"], gitlab_url
-        )
-        cartography.intel.gitlab.ci_variables.cleanup_group_variables(
-            neo4j_session, common_job_parameters, group["id"], gitlab_url
-        )
+        group_id_int = group["id"]
+        if group_id_int not in runners_skipped["groups"]:
+            cartography.intel.gitlab.runners.cleanup_group_runners(
+                neo4j_session, common_job_parameters, group_id_int, gitlab_url
+            )
+        if group_id_int not in variables_skipped["groups"]:
+            cartography.intel.gitlab.ci_variables.cleanup_group_variables(
+                neo4j_session, common_job_parameters, group_id_int, gitlab_url
+            )
 
-    # Cleanup instance-level runners (scoped to the organization)
-    cartography.intel.gitlab.runners.cleanup_instance_runners(
-        neo4j_session, common_job_parameters, organization_id, gitlab_url
-    )
+    # Cleanup instance-level runners (scoped to the organization).
+    # Skip if the /runners/all endpoint returned 403 (admin scope missing).
+    if not runners_skipped["instance"]:
+        cartography.intel.gitlab.runners.cleanup_instance_runners(
+            neo4j_session, common_job_parameters, organization_id, gitlab_url
+        )
 
     # Cleanup projects with cascade delete
     cartography.intel.gitlab.projects.cleanup_projects(

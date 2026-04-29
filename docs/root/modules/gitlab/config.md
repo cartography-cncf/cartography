@@ -45,7 +45,7 @@ Listing **instance-level** (shared) runners via `GET /api/v4/runners/all` requir
 
 #### CI config (`.gitlab-ci.yml`) ingestion
 
-The CI config sync first calls `GET /api/v4/projects/:id/ci/lint?dry_run=true` to obtain the merged YAML (with all `include:` references expanded). Tokens generated from a user without Maintainer access on the project may not be allowed to use this endpoint — in that case the sync falls back to the raw `.gitlab-ci.yml` from the repository, which only requires `read_repository`. If both calls fail (404 / 403), the project is skipped silently.
+The CI config sync first calls `GET /api/v4/projects/:id/ci/lint?dry_run=true` to obtain the merged YAML (with all `include:` references expanded). Tokens generated from a user without Maintainer access on the project may not be allowed to use this endpoint — in that case the sync falls back to the raw `.gitlab-ci.yml` from the repository, which only requires `read_repository`. If both calls fail (404 / 403), the project is skipped (a warning is logged before the skip).
 
 ### Finding Your Organization ID
 

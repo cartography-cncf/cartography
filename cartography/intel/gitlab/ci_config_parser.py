@@ -113,49 +113,96 @@ def _is_pinned(include_type: str, ref: str | None, location: str) -> bool:
     return False
 
 
-def _parse_single_include(item: Any) -> ParsedCIInclude | None:
+def _classify_bare_string(item: str) -> ParsedCIInclude:
     """
-    Parse a single `include:` entry. Accepts:
-    - a bare string (treated as local)
-    - a dict with one of: local / project / remote / template / component
-
-    Anything else is ignored.
+    A bare string include can be either a local path (legacy syntax) or a
+    full URL. Detect URLs by scheme and classify them as ``remote``; a
+    remote include without a SHA in its path is unpinned.
     """
-    if isinstance(item, str):
+    if item.startswith(("http://", "https://")):
         return ParsedCIInclude(
-            include_type="local",
+            include_type="remote",
             location=item,
             ref=None,
-            is_pinned=True,
-            is_local=True,
+            is_pinned=_is_pinned("remote", None, item),
+            is_local=False,
             raw_include=item,
         )
+    return ParsedCIInclude(
+        include_type="local",
+        location=item,
+        ref=None,
+        is_pinned=True,
+        is_local=True,
+        raw_include=item,
+    )
+
+
+def _parse_single_include(item: Any) -> list[ParsedCIInclude]:
+    """
+    Parse a single ``include:`` entry. Accepts:
+
+    - a bare string (URL → remote, otherwise local)
+    - a dict with one of: ``local`` / ``project`` / ``remote`` / ``template``
+      / ``component``
+
+    Returns a list because a single ``project:`` entry with a ``file:`` list
+    of paths expands into one record per file.
+    """
+    if isinstance(item, str):
+        return [_classify_bare_string(item)]
 
     if not isinstance(item, dict):
-        return None
+        return []
 
     raw = str(item)
     for include_type in ("local", "project", "remote", "template", "component"):
-        if include_type in item:
-            location = item.get(include_type) or ""
-            if isinstance(location, list):
-                # `include: { local: [a, b] }` is also valid GitLab syntax;
-                # we flatten by emitting one ParsedCIInclude per entry below.
-                return None
-            ref = item.get("ref") if include_type == "project" else None
-            return ParsedCIInclude(
+        if include_type not in item:
+            continue
+        primary = item.get(include_type) or ""
+        if isinstance(primary, list):
+            # `include: { local: [a, b] }` is handled separately by
+            # `_extract_includes`. For other types it is unsupported.
+            return []
+
+        # `include:project` carries an additional `file:` field which is the
+        # actual path within the referenced project. The `project` value is
+        # the project path (e.g. `my-org/shared-ci`), not the file path —
+        # we want both in `location` so consumers can identify the include.
+        if include_type == "project":
+            ref = item.get("ref")
+            files = item.get("file")
+            file_list = files if isinstance(files, list) else [files] if files else [""]
+            results: list[ParsedCIInclude] = []
+            for file_path in file_list:
+                location = f"{primary}:{file_path}" if file_path else str(primary)
+                results.append(
+                    ParsedCIInclude(
+                        include_type=include_type,
+                        location=location,
+                        ref=ref,
+                        is_pinned=_is_pinned(include_type, ref, location),
+                        is_local=False,
+                        raw_include=raw,
+                    )
+                )
+            return results
+
+        return [
+            ParsedCIInclude(
                 include_type=include_type,
-                location=str(location),
-                ref=ref,
-                is_pinned=_is_pinned(include_type, ref, str(location)),
+                location=str(primary),
+                ref=None,
+                is_pinned=_is_pinned(include_type, None, str(primary)),
                 is_local=(include_type == "local"),
                 raw_include=raw,
             )
-    return None
+        ]
+    return []
 
 
 def _extract_includes(includes_value: Any) -> list[ParsedCIInclude]:
-    """Normalise the `include:` value into a flat list of ParsedCIInclude."""
+    """Normalise the ``include:`` value into a flat list of ParsedCIInclude."""
     if includes_value is None:
         return []
 
@@ -180,9 +227,7 @@ def _extract_includes(includes_value: Any) -> list[ParsedCIInclude]:
                     )
                 )
             continue
-        parsed = _parse_single_include(item)
-        if parsed is not None:
-            result.append(parsed)
+        result.extend(_parse_single_include(item))
     return result
 
 

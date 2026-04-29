@@ -6,9 +6,13 @@ project has its own set of environments. The composite `id` includes the
 project_id because GitLab's environment IDs are unique per-project, not
 globally.
 
-This module also defines a scoped MatchLink that connects environments to
-their CI/CD variables. The MatchLink is scoped to the parent GitLabProject so
-the cardinality of the lookup is bounded to the project, not the whole graph.
+The environment carries an ``HAS_CI_VARIABLE`` relationship to every
+project-level CI variable that applies to it (exact-name match on
+``environment_scope`` or wildcard ``*``). The link is modelled as a standard
+relationship with a ``one_to_many=True`` matcher, not a MatchLink — the
+endpoints share the same sub-resource (the project), so the framework's
+default cleanup tied to the environment node is sufficient and there is no
+need for a separate MatchLink load + cleanup.
 """
 
 from dataclasses import dataclass
@@ -19,11 +23,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -94,6 +95,42 @@ class GitLabEnvironmentToProjectRel(CartographyRelSchema):
     )
 
 
+# =============================================================================
+# Environment -> CI Variable (one_to_many, applied at env load time)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class GitLabEnvironmentToCIVariableRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabEnvironmentToCIVariableRel(CartographyRelSchema):
+    """
+    `(:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)`
+
+    Each environment record carries a ``linked_variable_ids`` list of
+    variable IDs whose ``environment_scope`` matches this environment
+    (exact name OR wildcard ``*``). The matcher is ``one_to_many=True`` so
+    a single environment record creates one rel per matching variable.
+
+    Loaded as part of GitLabEnvironmentSchema's other_relationships, which
+    means the rel's lifecycle follows the environment node — when a stale
+    environment is cleaned up, its variable rels are removed automatically.
+    """
+
+    target_node_label: str = "GitLabCIVariable"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("linked_variable_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_CI_VARIABLE"
+    properties: GitLabEnvironmentToCIVariableRelProperties = (
+        GitLabEnvironmentToCIVariableRelProperties()
+    )
+
+
 @dataclass(frozen=True)
 class GitLabEnvironmentSchema(CartographyNodeSchema):
     label: str = "GitLabEnvironment"
@@ -102,67 +139,8 @@ class GitLabEnvironmentSchema(CartographyNodeSchema):
         GitLabEnvironmentToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [GitLabProjectHasEnvironmentRel()],
-    )
-
-
-# =============================================================================
-# Environment -> CI Variable MatchLink (project-scoped)
-# =============================================================================
-
-
-@dataclass(frozen=True)
-class GitLabEnvironmentToCIVariableRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GitLabEnvironmentToCIVariableMatchLink(CartographyRelSchema):
-    """
-    `(:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)`
-
-    A variable is linked to an environment when its `environment_scope` is
-    either an exact match for the environment's name, or the wildcard `*`.
-    The link is scoped via `MatchLinkSubResource` to the parent GitLabProject
-    so the lookup is bounded.
-    """
-
-    source_node_label: str = "GitLabEnvironment"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("env_id")},
-    )
-    target_node_label: str = "GitLabCIVariable"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("variable_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_CI_VARIABLE"
-    properties: GitLabEnvironmentToCIVariableRelProperties = (
-        GitLabEnvironmentToCIVariableRelProperties()
-    )
-    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="GitLabProject",
-        target_node_matcher=make_target_node_matcher(
-            {
-                "id": PropertyRef("_sub_resource_id", set_in_kwargs=True),
-                "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
-            },
-        ),
-        direction=LinkDirection.INWARD,
-        rel_label="RESOURCE",
-    )
-    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="GitLabProject",
-        target_node_matcher=make_target_node_matcher(
-            {
-                "id": PropertyRef("_sub_resource_id", set_in_kwargs=True),
-                "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
-            },
-        ),
-        direction=LinkDirection.INWARD,
-        rel_label="HAS_CI_VARIABLE",
+        [
+            GitLabProjectHasEnvironmentRel(),
+            GitLabEnvironmentToCIVariableRel(),
+        ],
     )

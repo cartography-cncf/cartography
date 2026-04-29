@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import requests
 
-from cartography.intel.gitlab.environments import compute_env_variable_links
 from cartography.intel.gitlab.environments import get_environments
 from cartography.intel.gitlab.environments import transform_environments
 from tests.data.gitlab.environments import GET_ENVIRONMENTS_RESPONSE
@@ -47,30 +46,35 @@ def _vars(specs):
 
 
 def _envs(specs):
-    """Build minimal env dicts: list of (id, name)."""
+    """Build raw GitLab API env entries: list of (id, name)."""
     return [{"id": eid, "name": name} for eid, name in specs]
 
 
-def test_compute_env_variable_links_exact_match():
-    envs = _envs([("e1", "production")])
+def _linked_ids(transformed):
+    """Map env name -> list of linked variable ids, for tidy assertions."""
+    return {env["name"]: env["linked_variable_ids"] for env in transformed}
+
+
+def test_transform_environments_exact_scope_match():
+    raw_envs = _envs([(1, "production")])
     variables = _vars([("v1", "DB_URL", "production"), ("v2", "DB_URL", "staging")])
-    links = compute_env_variable_links(envs, variables)
-    assert links == [{"env_id": "e1", "variable_id": "v1"}]
+    transformed = transform_environments(
+        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
+    )
+    assert _linked_ids(transformed) == {"production": ["v1"]}
 
 
-def test_compute_env_variable_links_wildcard_match():
-    envs = _envs([("e1", "production"), ("e2", "staging")])
+def test_transform_environments_wildcard_scope_links_all_envs():
+    raw_envs = _envs([(1, "production"), (2, "staging")])
     variables = _vars([("v1", "FEATURE_FLAG", "*")])
-    links = compute_env_variable_links(envs, variables)
-    # Wildcard variable applies to ALL envs
-    assert {(link["env_id"], link["variable_id"]) for link in links} == {
-        ("e1", "v1"),
-        ("e2", "v1"),
-    }
+    transformed = transform_environments(
+        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
+    )
+    assert _linked_ids(transformed) == {"production": ["v1"], "staging": ["v1"]}
 
 
-def test_compute_env_variable_links_mixes_exact_and_wildcard():
-    envs = _envs([("e1", "production"), ("e2", "staging")])
+def test_transform_environments_mixed_exact_and_wildcard():
+    raw_envs = _envs([(1, "production"), (2, "staging")])
     variables = _vars(
         [
             ("v1", "DB_URL", "production"),
@@ -78,34 +82,45 @@ def test_compute_env_variable_links_mixes_exact_and_wildcard():
             ("v3", "FEATURE_FLAG", "*"),
         ]
     )
-    links = compute_env_variable_links(envs, variables)
-    pairs = {(link["env_id"], link["variable_id"]) for link in links}
-    assert pairs == {("e1", "v1"), ("e2", "v2"), ("e1", "v3"), ("e2", "v3")}
+    transformed = transform_environments(
+        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
+    )
+    assert _linked_ids(transformed) == {
+        "production": ["v1", "v3"],
+        "staging": ["v2", "v3"],
+    }
 
 
-def test_compute_env_variable_links_no_match():
-    envs = _envs([("e1", "production")])
+def test_transform_environments_no_matching_variable():
+    raw_envs = _envs([(1, "production")])
     variables = _vars([("v1", "X", "staging")])
-    assert compute_env_variable_links(envs, variables) == []
+    transformed = transform_environments(
+        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
+    )
+    assert _linked_ids(transformed) == {"production": []}
 
 
-def test_compute_env_variable_links_glob_pattern_does_not_match():
+def test_transform_environments_glob_pattern_does_not_match():
     """v1 has scope 'production/*' — GitLab expands it at runtime, but we don't."""
-    envs = _envs([("e1", "production/web")])
+    raw_envs = _envs([(1, "production/web")])
     variables = _vars([("v1", "X", "production/*")])
-    assert compute_env_variable_links(envs, variables) == []
-
-
-def test_compute_env_variable_links_skips_envs_without_name():
-    envs = [{"id": "e1"}, {"id": "e2", "name": "production"}]
-    variables = _vars([("v1", "X", "*")])
-    links = compute_env_variable_links(envs, variables)
-    assert links == [{"env_id": "e2", "variable_id": "v1"}]
+    transformed = transform_environments(
+        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
+    )
+    assert _linked_ids(transformed) == {"production/web": []}
 
 
 @patch("cartography.intel.gitlab.environments.get_paginated")
-def test_get_environments_silences_403(mock_get_paginated):
+def test_get_environments_returns_none_on_403(mock_get_paginated):
+    """Sentinel ``None`` so the caller can skip both load and cleanup."""
     mock_get_paginated.side_effect = _http_error(403)
+    assert get_environments(TEST_GITLAB_URL, "tok", TEST_PROJECT_ID) is None
+
+
+@patch("cartography.intel.gitlab.environments.get_paginated")
+def test_get_environments_returns_empty_on_404(mock_get_paginated):
+    """A 404 means "project has no environments feature" — non-fatal, [] not None."""
+    mock_get_paginated.side_effect = _http_error(404)
     assert get_environments(TEST_GITLAB_URL, "tok", TEST_PROJECT_ID) == []
 
 

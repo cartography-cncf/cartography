@@ -91,15 +91,61 @@ build:
     - echo build
 """
 
-# Sample merged_yaml from /api/v4/projects/:id/ci/lint
+# Sample merged_yaml from /api/v4/projects/:id/ci/lint.
+# This is what GitLab returns when /ci/lint dry-runs the pipeline: includes
+# expanded into the body, so the include section disappears and the included
+# jobs (here `included_build`, `included_lint`) are merged in.
+PIPELINE_LINT_MERGED = """
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DEBUG: "false"
+
+default:
+  image: python:3.13
+
+# `include:` is gone — its contents are inlined below.
+included_build:
+  stage: build
+  script:
+    - echo "from shared-ci"
+
+included_lint:
+  stage: test
+  script:
+    - echo "lint"
+
+build:
+  stage: build
+  script:
+    - echo "Building $CI_PROJECT_NAME with $DATABASE_URL"
+    - echo "Token is $DEPLOY_TOKEN"
+
+manual_deploy:
+  stage: deploy
+  when: manual
+  script:
+    - ./deploy.sh
+
+mr_only:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - ./test.sh
+"""
+
 LINT_RESPONSE = {
     "valid": True,
-    "merged_yaml": PIPELINE_WITH_MIXED_INCLUDES,
+    "merged_yaml": PIPELINE_LINT_MERGED,
     "errors": [],
 }
 
 LINT_RESPONSE_INVALID = {
     "valid": False,
-    "merged_yaml": PIPELINE_WITH_MIXED_INCLUDES,
+    "merged_yaml": PIPELINE_LINT_MERGED,
     "errors": ["some error"],
 }

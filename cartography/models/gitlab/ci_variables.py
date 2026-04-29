@@ -24,6 +24,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -73,20 +74,51 @@ class GitLabGroupCIVariableToGroupRel(CartographyRelSchema):
         },
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_CI_VARIABLE"
+    rel_label: str = "RESOURCE"
     properties: GitLabGroupCIVariableToGroupRelProperties = (
         GitLabGroupCIVariableToGroupRelProperties()
     )
 
 
 @dataclass(frozen=True)
+class GitLabGroupHasCIVariableRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabGroupHasCIVariableRel(CartographyRelSchema):
+    """`(:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+
+    target_node_label: str = "GitLabGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("group_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_CI_VARIABLE"
+    properties: GitLabGroupHasCIVariableRelProperties = (
+        GitLabGroupHasCIVariableRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabGroupCIVariableSchema(CartographyNodeSchema):
-    """Schema for group-level CI/CD variables."""
+    """Schema for group-level CI/CD variables.
+
+    Two relationships to the parent group:
+    - ``RESOURCE`` — used by the framework for cleanup scoping (convention).
+    - ``HAS_CI_VARIABLE`` — semantic edge for graph queries.
+    """
 
     label: str = "GitLabCIVariable"
     properties: GitLabCIVariableNodeProperties = GitLabCIVariableNodeProperties()
     sub_resource_relationship: GitLabGroupCIVariableToGroupRel = (
         GitLabGroupCIVariableToGroupRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitLabGroupHasCIVariableRel()],
     )
 
 
@@ -112,18 +144,48 @@ class GitLabProjectCIVariableToProjectRel(CartographyRelSchema):
         },
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_CI_VARIABLE"
+    rel_label: str = "RESOURCE"
     properties: GitLabProjectCIVariableToProjectRelProperties = (
         GitLabProjectCIVariableToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
+class GitLabProjectHasCIVariableRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabProjectHasCIVariableRel(CartographyRelSchema):
+    """`(:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("project_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_CI_VARIABLE"
+    properties: GitLabProjectHasCIVariableRelProperties = (
+        GitLabProjectHasCIVariableRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabProjectCIVariableSchema(CartographyNodeSchema):
-    """Schema for project-level CI/CD variables."""
+    """Schema for project-level CI/CD variables.
+
+    See :class:`GitLabGroupCIVariableSchema` for the rationale on why both
+    ``RESOURCE`` and ``HAS_CI_VARIABLE`` edges exist.
+    """
 
     label: str = "GitLabCIVariable"
     properties: GitLabCIVariableNodeProperties = GitLabCIVariableNodeProperties()
     sub_resource_relationship: GitLabProjectCIVariableToProjectRel = (
         GitLabProjectCIVariableToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitLabProjectHasCIVariableRel()],
     )

@@ -37,10 +37,15 @@ def _list_runners_tolerant(
     token: str,
     endpoint: str,
     scope_description: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch a paginated list of runners, tolerating a 403 by logging a warning and
-    returning an empty list. Other errors propagate.
+    Fetch a paginated list of runners. Returns:
+    - the list on success
+    - ``None`` on 403 (permission-denied), so the caller can skip BOTH the
+      load AND the cleanup for that scope. Returning [] would make the
+      cleanup phase delete everything previously ingested for that scope,
+      which is data loss disguised as a successful empty sync.
+    Other errors propagate.
     """
     try:
         return get_paginated(gitlab_url, token, endpoint)
@@ -50,7 +55,7 @@ def _list_runners_tolerant(
                 "Token lacks permission to read %s. Skipping.",
                 scope_description,
             )
-            return []
+            return None
         raise
 
 
@@ -58,9 +63,12 @@ def _list_runners_tolerant(
 def get_instance_runners(
     gitlab_url: str,
     token: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Fetch all instance-level runners. Requires admin scope on the token.
+
+    Returns ``None`` if the scope is denied (403), so the caller can skip the
+    cleanup pass for instance-level runners and avoid data loss.
     """
     return _list_runners_tolerant(
         gitlab_url,
@@ -75,9 +83,9 @@ def get_group_runners(
     gitlab_url: str,
     token: str,
     group_id: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch group-level runners for a specific group.
+    Fetch group-level runners for a specific group. Returns ``None`` on 403.
     """
     return _list_runners_tolerant(
         gitlab_url,
@@ -92,9 +100,9 @@ def get_project_runners(
     gitlab_url: str,
     token: str,
     project_id: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch project-level runners for a specific project.
+    Fetch project-level runners for a specific project. Returns ``None`` on 403.
     """
     return _list_runners_tolerant(
         gitlab_url,
@@ -104,6 +112,7 @@ def get_project_runners(
     )
 
 
+@timeit
 def get_runner_details(
     gitlab_url: str,
     token: str,
@@ -301,25 +310,41 @@ def sync_gitlab_runners(
     common_job_parameters: dict[str, Any],
     groups: list[dict[str, Any]],
     projects: list[dict[str, Any]],
-) -> None:
+) -> dict[str, Any]:
     """
     Sync GitLab runners at all three scopes (instance, group, project).
+
+    Returns a "skipped scopes" map so the cleanup phase can avoid running
+    cleanup for any scope where we received a 403. Running cleanup on a
+    scope we couldn't read would delete every previously-ingested runner
+    for that scope (cleanup matches by stale `lastupdated`).
     """
     org_id: int = common_job_parameters["org_id"]
+    skipped: dict[str, Any] = {
+        "instance": False,
+        "groups": set(),
+        "projects": set(),
+    }
 
     logger.info("Syncing GitLab instance-level runners")
     instance_listed = get_instance_runners(gitlab_url, token)
-    instance_enriched = _enrich_with_details(gitlab_url, token, instance_listed)
-    instance_transformed = transform_runners(instance_enriched, gitlab_url)
-    load_instance_runners(
-        neo4j_session, instance_transformed, org_id, gitlab_url, update_tag
-    )
-    logger.info("Loaded %d instance-level runners", len(instance_transformed))
+    if instance_listed is None:
+        skipped["instance"] = True
+    else:
+        instance_enriched = _enrich_with_details(gitlab_url, token, instance_listed)
+        instance_transformed = transform_runners(instance_enriched, gitlab_url)
+        load_instance_runners(
+            neo4j_session, instance_transformed, org_id, gitlab_url, update_tag
+        )
+        logger.info("Loaded %d instance-level runners", len(instance_transformed))
 
     logger.info("Syncing GitLab group-level runners for %d groups", len(groups))
     for group in groups:
         group_id: int = group["id"]
         group_listed = get_group_runners(gitlab_url, token, group_id)
+        if group_listed is None:
+            skipped["groups"].add(group_id)
+            continue
         if not group_listed:
             continue
         group_enriched = _enrich_with_details(gitlab_url, token, group_listed)
@@ -332,6 +357,9 @@ def sync_gitlab_runners(
     for project in projects:
         project_id: int = project["id"]
         project_listed = get_project_runners(gitlab_url, token, project_id)
+        if project_listed is None:
+            skipped["projects"].add(project_id)
+            continue
         if not project_listed:
             continue
         project_enriched = _enrich_with_details(gitlab_url, token, project_listed)
@@ -341,3 +369,4 @@ def sync_gitlab_runners(
         )
 
     logger.info("GitLab runners sync completed")
+    return skipped

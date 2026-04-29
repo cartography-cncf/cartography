@@ -1,9 +1,12 @@
 """
 GitLab CI/CD config schema.
 
-Represents a project's `.gitlab-ci.yml`. The config also carries a scoped
-MatchLink that connects it to the project-level CI/CD variables it
-references at runtime via `$VAR` / `${VAR}` patterns.
+Represents a project's `.gitlab-ci.yml`. The config also carries a
+``REFERENCES_VARIABLE`` relationship to every project-level CI variable
+whose ``key`` is referenced by the parsed pipeline. Modelled as a standard
+relationship with a ``one_to_many=True`` matcher (not a MatchLink) — the
+endpoints share the same sub-resource (the project), so the framework's
+default cleanup tied to the config node is sufficient.
 """
 
 from dataclasses import dataclass
@@ -14,11 +17,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -96,71 +96,47 @@ class GitLabCIConfigToProjectRel(CartographyRelSchema):
     )
 
 
-@dataclass(frozen=True)
-class GitLabCIConfigSchema(CartographyNodeSchema):
-    label: str = "GitLabCIConfig"
-    properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
-    sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [GitLabProjectHasCIConfigRel()],
-    )
-
-
 # =============================================================================
-# CIConfig -> CI Variable MatchLink (project-scoped)
+# CIConfig -> CI Variable (one_to_many, applied at config load time)
 # =============================================================================
 
 
 @dataclass(frozen=True)
 class GitLabCIConfigToCIVariableRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GitLabCIConfigToCIVariableMatchLink(CartographyRelSchema):
+class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
     """
     `(:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)`
 
-    Linked when the config's `referenced_variable_keys` contains the
-    variable's `key`. Scoped to the parent GitLabProject.
+    Each config record carries a ``referenced_variable_ids`` list — the IDs
+    of project variables whose ``key`` appears in the parsed pipeline. The
+    matcher is ``one_to_many=True`` so a single config record creates one
+    rel per referenced variable. Loaded as part of GitLabCIConfigSchema's
+    other_relationships, so the rel's lifecycle follows the config node.
     """
 
-    source_node_label: str = "GitLabCIConfig"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("config_id")},
-    )
     target_node_label: str = "GitLabCIVariable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("variable_id")},
+        {"id": PropertyRef("referenced_variable_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "REFERENCES_VARIABLE"
     properties: GitLabCIConfigToCIVariableRelProperties = (
         GitLabCIConfigToCIVariableRelProperties()
     )
-    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="GitLabProject",
-        target_node_matcher=make_target_node_matcher(
-            {
-                "id": PropertyRef("_sub_resource_id", set_in_kwargs=True),
-                "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
-            },
-        ),
-        direction=LinkDirection.INWARD,
-        rel_label="RESOURCE",
-    )
-    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="GitLabProject",
-        target_node_matcher=make_target_node_matcher(
-            {
-                "id": PropertyRef("_sub_resource_id", set_in_kwargs=True),
-                "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
-            },
-        ),
-        direction=LinkDirection.INWARD,
-        rel_label="HAS_CI_VARIABLE",
+
+
+@dataclass(frozen=True)
+class GitLabCIConfigSchema(CartographyNodeSchema):
+    label: str = "GitLabCIConfig"
+    properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
+    sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitLabProjectHasCIConfigRel(),
+            GitLabCIConfigToCIVariableRel(),
+        ],
     )

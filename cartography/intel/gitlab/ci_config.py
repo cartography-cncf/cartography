@@ -23,13 +23,11 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.ci_config_parser import parse_ci_config
 from cartography.intel.gitlab.ci_config_parser import ParsedCIConfig
 from cartography.intel.gitlab.util import make_request_with_retry
 from cartography.models.gitlab.ci_config import GitLabCIConfigSchema
-from cartography.models.gitlab.ci_config import GitLabCIConfigToCIVariableMatchLink
 from cartography.models.gitlab.ci_include import GitLabCIIncludeSchema
 from cartography.util import timeit
 
@@ -43,11 +41,16 @@ def _try_lint_merged_yaml(
     token: str,
     project_id: int,
     ref: str | None,
-) -> tuple[str | None, bool | None]:
+) -> tuple[str | None, bool | None, bool]:
     """
     Call /ci/lint with dry_run=true to obtain the merged YAML. Returns
-    (merged_yaml, is_valid) on success; (None, None) if the call fails with
-    403 / 404. Other errors propagate.
+    ``(merged_yaml, is_valid, denied)``:
+
+    - ``(yaml, True/False, False)`` on a successful response
+    - ``(None, None, False)`` on 404 (project has no pipeline) — non-fatal
+    - ``(None, None, True)`` on 403 (token can't lint) — caller should fall
+      back to the raw file rather than treat the project as missing
+    Other errors propagate.
     """
     endpoint = f"/api/v4/projects/{project_id}/ci/lint"
     params: dict[str, Any] = {"dry_run": "true"}
@@ -64,20 +67,26 @@ def _try_lint_merged_yaml(
         )
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code in (403, 404):
+        if e.response is not None and e.response.status_code == 403:
             logger.warning(
-                "ci/lint not available for project %s (status %s).",
+                "ci/lint denied for project %s (token lacks Maintainer access). "
+                "Falling back to raw .gitlab-ci.yml.",
                 project_id,
-                e.response.status_code,
             )
-            return None, None
+            return None, None, True
+        if e.response is not None and e.response.status_code == 404:
+            logger.warning(
+                "ci/lint returned 404 for project %s (no pipeline / not enabled).",
+                project_id,
+            )
+            return None, None, False
         raise
 
     body = response.json()
     merged = body.get("merged_yaml")
-    if not merged:
-        return None, None
-    return merged, bool(body.get("valid", False))
+    if merged is None:
+        return None, None, False
+    return merged, bool(body.get("valid", False)), False
 
 
 def _try_raw_ci_yaml(
@@ -89,7 +98,9 @@ def _try_raw_ci_yaml(
 ) -> str | None:
     """
     Fetch the raw `.gitlab-ci.yml` from the repository as a fallback when
-    /ci/lint is unavailable. Returns None on 403 / 404.
+    /ci/lint is unavailable. Returns None on 403 / 404 (the file is absent
+    or the token can't read repository files for this project — both
+    non-fatal for the sync).
     """
     encoded = quote(file_path, safe="")
     endpoint = f"/api/v4/projects/{project_id}/repository/files/{encoded}/raw"
@@ -125,18 +136,28 @@ def fetch_ci_config_yaml(
 ) -> tuple[str | None, bool | None, bool]:
     """
     Try /ci/lint first, then fall back to the raw file. Returns
-    (yaml_content, is_valid, is_merged). is_merged is True when the YAML
-    came from /ci/lint (with includes expanded), False when it's raw.
+    ``(yaml_content, is_valid, is_merged)``. ``is_merged`` is True when the
+    YAML came from /ci/lint (with includes expanded), False when it's raw.
+
+    A `None` yaml_content means "no .gitlab-ci.yml found / readable" — that
+    is a legitimate per-project state (some projects have no pipeline) and
+    callers can treat it as nothing-to-load without skipping cleanup.
     """
     project_id = project["id"]
     ref = project.get("default_branch")
 
-    merged, is_valid = _try_lint_merged_yaml(gitlab_url, token, project_id, ref)
-    if merged:
+    merged, is_valid, lint_denied = _try_lint_merged_yaml(
+        gitlab_url, token, project_id, ref
+    )
+    if merged is not None:
         return merged, is_valid, True
 
+    # Whether we got a 404 from lint or a 403, fall back to the raw file.
+    # The raw endpoint uses `read_repository`, which is broader than the
+    # Maintainer-level scope /ci/lint requires.
+    _ = lint_denied  # silenced; both branches fall through to raw
     raw = _try_raw_ci_yaml(gitlab_url, token, project_id, ref)
-    if raw:
+    if raw is not None:
         return raw, None, False
 
     return None, None, False
@@ -148,16 +169,30 @@ def transform_ci_config(
     gitlab_url: str,
     is_merged: bool,
     file_path: str,
-    project_protected_variable_keys: set[str],
+    project_variables: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
-    Build the CIConfig node record. `referenced_protected_variables` is the
-    intersection of the parsed variable keys and the project's protected
-    variables — surfaced as a separate field for security queries.
+    Build the CIConfig node record.
+
+    Two derived fields encode the variable references:
+
+    - ``referenced_protected_variables`` — sorted list of variable keys
+      that are referenced AND marked ``protected=True`` on the project.
+      Surfaced as its own property for security queries.
+    - ``referenced_variable_ids`` — IDs of project variables whose ``key``
+      appears in the parsed pipeline; consumed by the
+      ``REFERENCES_VARIABLE`` other_relationship at load time
+      (``one_to_many=True``).
     """
-    referenced_protected = sorted(
-        set(parsed.referenced_variable_keys) & project_protected_variable_keys
-    )
+    project_variables = project_variables or []
+    referenced_keys = set(parsed.referenced_variable_keys)
+    protected_keys = {
+        v["key"] for v in project_variables if v.get("protected") and v.get("key")
+    }
+    referenced_protected = sorted(referenced_keys & protected_keys)
+    referenced_variable_ids = [
+        v["id"] for v in project_variables if v.get("key") in referenced_keys
+    ]
     return {
         "id": f"{project_id}:{file_path}",
         "project_id": project_id,
@@ -169,6 +204,7 @@ def transform_ci_config(
         "trigger_rules": parsed.trigger_rules,
         "referenced_variable_keys": parsed.referenced_variable_keys,
         "referenced_protected_variables": referenced_protected,
+        "referenced_variable_ids": referenced_variable_ids,
         "default_image": parsed.default_image,
         "has_includes": parsed.has_includes,
         "include_count": len(parsed.includes),
@@ -205,33 +241,6 @@ def transform_ci_includes(
     return records
 
 
-def compute_config_variable_links(
-    parsed: ParsedCIConfig,
-    project_variables: list[dict[str, Any]],
-    project_id: int,
-    file_path: str,
-) -> list[dict[str, Any]]:
-    """
-    For each variable referenced by the config that exists in the project's
-    CI/CD variables, emit a `{config_id, variable_id}` MatchLink record.
-
-    A variable matches if the parsed key equals the variable `key`. The
-    variable's `environment_scope` is intentionally ignored here — we link
-    the config to *every* variant of that key, since a static analysis
-    cannot tell which environment the pipeline will run in.
-    """
-    config_id = f"{project_id}:{file_path}"
-    referenced_keys = set(parsed.referenced_variable_keys)
-    if not referenced_keys:
-        return []
-
-    return [
-        {"config_id": config_id, "variable_id": variable["id"]}
-        for variable in project_variables
-        if variable.get("key") in referenced_keys
-    ]
-
-
 @timeit
 def load_ci_config(
     neo4j_session: neo4j.Session,
@@ -266,27 +275,6 @@ def load_ci_includes(
         records,
         lastupdated=update_tag,
         project_id=project_id,
-        gitlab_url=gitlab_url,
-    )
-
-
-@timeit
-def load_config_variable_links(
-    neo4j_session: neo4j.Session,
-    links: list[dict[str, Any]],
-    project_id: int,
-    gitlab_url: str,
-    update_tag: int,
-) -> None:
-    if not links:
-        return
-    load_matchlinks(
-        neo4j_session,
-        GitLabCIConfigToCIVariableMatchLink(),
-        links,
-        lastupdated=update_tag,
-        _sub_resource_label="GitLabProject",
-        _sub_resource_id=project_id,
         gitlab_url=gitlab_url,
     )
 
@@ -334,8 +322,10 @@ def sync_gitlab_ci_config(
     variables_by_project: dict[int, list[dict[str, Any]]],
 ) -> None:
     """
-    For each project: fetch its CI YAML, parse it, load CIConfig + includes,
-    and emit MatchLinks to referenced project-level variables.
+    For each project: fetch its CI YAML, parse it, and load CIConfig +
+    includes. The config carries a ``referenced_variable_ids`` list that the
+    schema turns into ``REFERENCES_VARIABLE`` edges to project-level CI
+    variables at load time (one_to_many other_relationship).
     """
     logger.info("Syncing GitLab CI configs for %d projects", len(projects))
 
@@ -348,11 +338,7 @@ def sync_gitlab_ci_config(
             continue
 
         parsed = parse_ci_config(yaml_content, is_valid=is_valid)
-
         project_variables = variables_by_project.get(project_id, [])
-        protected_keys = {
-            v["key"] for v in project_variables if v.get("protected") and v.get("key")
-        }
 
         config_record = transform_ci_config(
             parsed,
@@ -360,21 +346,15 @@ def sync_gitlab_ci_config(
             gitlab_url,
             is_merged=is_merged,
             file_path=DEFAULT_FILE_PATH,
-            project_protected_variable_keys=protected_keys,
+            project_variables=project_variables,
         )
         include_records = transform_ci_includes(
             parsed, project_id, gitlab_url, DEFAULT_FILE_PATH
-        )
-        variable_links = compute_config_variable_links(
-            parsed, project_variables, project_id, DEFAULT_FILE_PATH
         )
 
         load_ci_config(neo4j_session, config_record, project_id, gitlab_url, update_tag)
         load_ci_includes(
             neo4j_session, include_records, project_id, gitlab_url, update_tag
-        )
-        load_config_variable_links(
-            neo4j_session, variable_links, project_id, gitlab_url, update_tag
         )
 
     logger.info("GitLab CI configs sync completed")

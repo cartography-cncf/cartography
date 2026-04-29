@@ -54,9 +54,12 @@ def get_group_variables(
     gitlab_url: str,
     token: str,
     group_id: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch group-level CI/CD variables. A 403 returns []; other errors propagate.
+    Fetch group-level CI/CD variables. Returns ``None`` on 403 so the caller
+    can skip BOTH the load and the cleanup for that scope; an empty list
+    would otherwise look like a successful empty sync and trigger cleanup
+    that deletes every previously-ingested variable for that scope.
     """
     try:
         return get_paginated(gitlab_url, token, f"/api/v4/groups/{group_id}/variables")
@@ -66,7 +69,7 @@ def get_group_variables(
                 "Token lacks permission to read CI variables for group %s. Skipping.",
                 group_id,
             )
-            return []
+            return None
         raise
 
 
@@ -75,9 +78,10 @@ def get_project_variables(
     gitlab_url: str,
     token: str,
     project_id: int,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch project-level CI/CD variables. A 403 returns []; other errors propagate.
+    Fetch project-level CI/CD variables. Returns ``None`` on 403 (see
+    ``get_group_variables`` for the rationale).
     """
     try:
         return get_paginated(
@@ -89,7 +93,7 @@ def get_project_variables(
                 "Token lacks permission to read CI variables for project %s. Skipping.",
                 project_id,
             )
-            return []
+            return None
         raise
 
 
@@ -208,23 +212,30 @@ def sync_gitlab_ci_variables(
     common_job_parameters: dict[str, Any],
     groups: list[dict[str, Any]],
     projects: list[dict[str, Any]],
-) -> dict[int, list[dict[str, Any]]]:
+) -> tuple[dict[int, list[dict[str, Any]]], dict[str, set[int]]]:
     """
     Sync CI/CD variables at group and project scope.
 
-    Returns a `{project_id: [variable, ...]}` map of project-level variables,
-    so downstream modules (environments, ci_config) can match without
-    re-querying.
+    Returns:
+    - a ``{project_id: [variable, ...]}`` map of project-level variables for
+      downstream modules (environments, ci_config) to match without
+      re-querying.
+    - a ``{"groups": {<id>, ...}, "projects": {<id>, ...}}`` set of scopes
+      that were skipped due to 403 — the caller must skip cleanup for those.
     """
     logger.info(
         "Syncing GitLab CI/CD variables for %d groups and %d projects",
         len(groups),
         len(projects),
     )
+    skipped: dict[str, set[int]] = {"groups": set(), "projects": set()}
 
     for group in groups:
         group_id: int = group["id"]
         raw = get_group_variables(gitlab_url, token, group_id)
+        if raw is None:
+            skipped["groups"].add(group_id)
+            continue
         if not raw:
             continue
         transformed = transform_variables(raw, "group", group_id, gitlab_url)
@@ -236,6 +247,10 @@ def sync_gitlab_ci_variables(
     for project in projects:
         project_id: int = project["id"]
         raw = get_project_variables(gitlab_url, token, project_id)
+        if raw is None:
+            skipped["projects"].add(project_id)
+            project_variables[project_id] = []
+            continue
         if not raw:
             project_variables[project_id] = []
             continue
@@ -246,4 +261,4 @@ def sync_gitlab_ci_variables(
         project_variables[project_id] = transformed
 
     logger.info("GitLab CI/CD variables sync completed")
-    return project_variables
+    return project_variables, skipped

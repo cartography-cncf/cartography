@@ -97,15 +97,16 @@ def test_transform_variables_id_includes_scope_id():
 
 
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")
-def test_get_group_variables_silences_403(mock_get_paginated):
+def test_get_group_variables_returns_none_on_403(mock_get_paginated):
+    """Sentinel ``None`` so the caller can skip BOTH load AND cleanup."""
     mock_get_paginated.side_effect = _http_error(403)
-    assert get_group_variables(TEST_GITLAB_URL, "tok", TEST_GROUP_ID) == []
+    assert get_group_variables(TEST_GITLAB_URL, "tok", TEST_GROUP_ID) is None
 
 
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")
-def test_get_project_variables_silences_403(mock_get_paginated):
+def test_get_project_variables_returns_none_on_403(mock_get_paginated):
     mock_get_paginated.side_effect = _http_error(403)
-    assert get_project_variables(TEST_GITLAB_URL, "tok", TEST_PROJECT_ID) == []
+    assert get_project_variables(TEST_GITLAB_URL, "tok", TEST_PROJECT_ID) is None
 
 
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")

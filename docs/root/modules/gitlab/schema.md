@@ -753,19 +753,19 @@ All three are stored under the same Neo4j label (`GitLabRunner`); the `runner_ty
 - A `GitLabRunner` of type `instance_type` is a `RESOURCE` of a `GitLabOrganization`.
 
     ```cypher
-    (:GitLabRunner)-[:RESOURCE]->(:GitLabOrganization)
+    (:GitLabOrganization)-[:RESOURCE]->(:GitLabRunner)
     ```
 
 - A `GitLabRunner` of type `group_type` is a `RESOURCE` of a `GitLabGroup`.
 
     ```cypher
-    (:GitLabRunner)-[:RESOURCE]->(:GitLabGroup)
+    (:GitLabGroup)-[:RESOURCE]->(:GitLabRunner)
     ```
 
 - A `GitLabRunner` of type `project_type` is a `RESOURCE` of a `GitLabProject`.
 
     ```cypher
-    (:GitLabRunner)-[:RESOURCE]->(:GitLabProject)
+    (:GitLabProject)-[:RESOURCE]->(:GitLabRunner)
     ```
 
 #### Example queries

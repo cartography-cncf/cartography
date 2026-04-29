@@ -73,13 +73,13 @@ def test_transform_runners_marks_protected_runner():
 
 
 @patch("cartography.intel.gitlab.runners.get_paginated")
-def test_list_runners_tolerant_silences_403(mock_get_paginated):
-    """A 403 returns [] and logs, rather than propagating."""
+def test_list_runners_tolerant_returns_none_on_403(mock_get_paginated):
+    """A 403 returns ``None`` (sentinel — caller skips load+cleanup)."""
     mock_get_paginated.side_effect = _http_error(403)
     result = _list_runners_tolerant(
         TEST_GITLAB_URL, "tok", "/api/v4/runners/all", "instance runners"
     )
-    assert result == []
+    assert result is None
 
 
 @patch("cartography.intel.gitlab.runners.get_paginated")
