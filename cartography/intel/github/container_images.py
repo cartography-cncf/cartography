@@ -463,11 +463,13 @@ def _refresh_skipped_image_lastupdated(
     )
 
     # Second pass: refresh the NEXT rels that chain the layers of any
-    # refreshed image. Done in a second statement so we can constrain the
-    # NEXT match to layers belonging to the skipped images only.
+    # refreshed image. Scoped to the current org because image digests are
+    # content hashes — without that constraint a digest collision across
+    # orgs would update unrelated images' NEXT chains.
     next_rel_query = """
-    MATCH (img:GitHubContainerImage)-[:HAS_LAYER]->(l1:GitHubContainerImageLayer)
+    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(img:GitHubContainerImage)
     WHERE img.digest IN $digests
+    MATCH (img)-[:HAS_LAYER]->(l1:GitHubContainerImageLayer)
     MATCH (l1)-[r_next:NEXT]->(l2:GitHubContainerImageLayer)
     WHERE (img)-[:HAS_LAYER]->(l2)
     SET r_next.lastupdated = $update_tag
@@ -475,6 +477,7 @@ def _refresh_skipped_image_lastupdated(
     neo4j_session.run(
         next_rel_query,
         digests=list(digests),
+        org_url=org_url,
         update_tag=update_tag,
     )
 
