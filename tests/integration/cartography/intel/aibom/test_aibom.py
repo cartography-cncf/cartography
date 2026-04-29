@@ -673,9 +673,7 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert (
-        "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
-    )
+    assert "Failed to read AIBOM data from /tmp/aibom-bad-encoding.json" in caplog.text
 
 
 @patch("builtins.open", side_effect=FileNotFoundError("gone"))
@@ -699,7 +697,7 @@ def test_sync_aibom_skips_local_read_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert "Skipping unreadable AIBOM report /tmp/aibom-deleted.json" in caplog.text
+    assert "Failed to read AIBOM data from /tmp/aibom-deleted.json" in caplog.text
 
 
 def test_sync_aibom_skips_s3_unicode_decode_errors(
@@ -729,7 +727,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
     assert (
-        "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
+        "Failed to read AIBOM data from s3://example-bucket/reports/aibom-bad-encoding.json"
         in caplog.text
     )
 
