@@ -20,6 +20,10 @@ O -- RESOURCE --> R_I(GitLabRunner: instance)
 G -- RESOURCE --> R_G(GitLabRunner: group)
 P -- RESOURCE --> R_P(GitLabRunner: project)
 
+%% CI/CD Variables
+G -- HAS_CI_VARIABLE --> CV_G(GitLabCIVariable: group)
+P -- HAS_CI_VARIABLE --> CV_P(GitLabCIVariable: project)
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
@@ -768,4 +772,71 @@ Count runners per scope:
 MATCH (r:GitLabRunner)
 RETURN r.runner_type, count(*) AS count
 ORDER BY count DESC
+```
+
+### GitLabCIVariable
+
+Representation of a GitLab CI/CD variable. Variables exist at two scopes:
+
+- **group**: shared across all projects in the group (and descendants)
+- **project**: scoped to a single project
+
+GitLab does not differentiate "secrets" from "variables" at the API level — the
+`masked`, `masked_and_hidden`, and `protected` flags carry the security
+metadata. **The variable's value is intentionally not stored.** Only the
+metadata is ingested.
+
+Both scopes share the same Neo4j label (`GitLabCIVariable`); the parent of the
+`HAS_CI_VARIABLE` relationship and the `scope_type` property distinguish them.
+
+The composite `id` is `{scope_type}:{scope_id}:{key}:{environment_scope}` so
+that a variable with the same key but a different `environment_scope` (a
+common pattern for `DATABASE_URL` etc.) does not collide.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{scope_type}:{scope_id}:{key}:{environment_scope}` |
+| **key** | Variable key as exposed to CI/CD jobs |
+| variable_type | `env_var` or `file` |
+| **protected** | If true, the variable is exposed only on protected refs (security-sensitive) |
+| masked | If true, GitLab attempts to mask the value in job logs |
+| masked_and_hidden | If true, the value cannot be retrieved through the API after creation |
+| raw | If true, GitLab does not perform variable expansion on the value |
+| **environment_scope** | Glob (default `*`) selecting which environments receive this variable |
+| description | Human-readable description |
+| scope_type | `group` or `project` |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A group-level `GitLabCIVariable` is owned by a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+- A project-level `GitLabCIVariable` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find unmasked, unprotected variables — these may leak through job logs and
+non-protected branches:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+WHERE v.protected = false AND v.masked = false
+RETURN v.scope_type, v.key, v.environment_scope
+```
+
+Count variables per scope:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+RETURN v.scope_type, count(*) AS count
 ```

@@ -5,6 +5,7 @@ import neo4j
 import requests
 
 import cartography.intel.gitlab.branches
+import cartography.intel.gitlab.ci_variables
 import cartography.intel.gitlab.container_image_attestations
 import cartography.intel.gitlab.container_images
 import cartography.intel.gitlab.container_repositories
@@ -221,6 +222,18 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_projects,
     )
 
+    # Sync CI/CD variables at group and project scopes.
+    # Returns a {project_id: [variables]} map for downstream modules.
+    cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_groups,
+        all_projects,
+    )
+
     # ========================================
     # Cleanup Phase - Run in reverse order (leaf to root)
     # ========================================
@@ -250,9 +263,17 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
-    # Cleanup group-level runners (one cleanup per group)
+        # Cleanup project-level CI/CD variables
+        cartography.intel.gitlab.ci_variables.cleanup_project_variables(
+            neo4j_session, common_job_parameters, project_id, gitlab_url
+        )
+
+    # Cleanup group-level runners and CI/CD variables (one cleanup per group)
     for group in all_groups:
         cartography.intel.gitlab.runners.cleanup_group_runners(
+            neo4j_session, common_job_parameters, group["id"], gitlab_url
+        )
+        cartography.intel.gitlab.ci_variables.cleanup_group_variables(
             neo4j_session, common_job_parameters, group["id"], gitlab_url
         )
 
