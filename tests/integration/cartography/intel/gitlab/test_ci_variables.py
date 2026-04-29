@@ -65,7 +65,7 @@ def test_sync_ci_variables_loads_at_both_scopes(mock_get_paginated, neo4j_sessio
         lambda _url, _tok, endpoint, **kw: _patched_paginated(endpoint, **kw)
     )
 
-    project_vars = sync_gitlab_ci_variables(
+    project_vars, skipped = sync_gitlab_ci_variables(
         neo4j_session,
         TEST_GITLAB_URL,
         "fake-token",
@@ -74,6 +74,7 @@ def test_sync_ci_variables_loads_at_both_scopes(mock_get_paginated, neo4j_sessio
         groups=[{"id": TEST_GROUP_ID}],
         projects=[{"id": TEST_PROJECT_ID}],
     )
+    assert skipped == {"groups": set(), "projects": set()}
 
     # All variables loaded — keyed by composite ID, so two DATABASE_URL rows survive.
     expected_keys = {
