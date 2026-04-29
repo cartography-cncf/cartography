@@ -11,7 +11,7 @@ Follow these steps to configure Cartography to sync GitLab organization, group, 
 ### Creating a GitLab Personal Access Token
 
 1. Navigate to your GitLab instance (e.g., `https://gitlab.com` or `https://gitlab.example.com`)
-2. Go to **User Settings** → **Access Tokens** (or directly to `https://your-gitlab-instance/-/profile/personal_access_tokens`)
+2. Go to **User Settings** → **Access Tokens** (or directly to `https://your-gitlab-instance/-/user_settings/personal_access_tokens`)
 3. Click **Add new token**
 4. Configure your token:
    - **Token name**: `cartography-sync`
