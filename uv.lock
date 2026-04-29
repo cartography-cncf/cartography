@@ -696,6 +696,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-storage-blob"
+version = "12.28.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "cryptography" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/71/24/072ba8e27b0e2d8fec401e9969b429d4f5fc4c8d4f0f05f4661e11f7234a/azure_storage_blob-12.28.0.tar.gz", hash = "sha256:e7d98ea108258d29aa0efbfd591b2e2075fa1722a2fae8699f0b3c9de11eff41", size = 604225, upload-time = "2026-01-06T23:48:57.282Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/3a/6ef2047a072e54e1142718d433d50e9514c999a58f51abfff7902f3a72f8/azure_storage_blob-12.28.0-py3-none-any.whl", hash = "sha256:00fb1db28bf6a7b7ecaa48e3b1d5c83bfadacc5a678b77826081304bd87d6461", size = 431499, upload-time = "2026-01-06T23:48:58.995Z" },
+]
+
+[[package]]
 name = "azure-synapse-artifacts"
 version = "0.22.0"
 source = { registry = "https://pypi.org/simple" }
@@ -872,6 +887,7 @@ dependencies = [
     { name = "azure-mgmt-storage" },
     { name = "azure-mgmt-synapse" },
     { name = "azure-mgmt-web" },
+    { name = "azure-storage-blob" },
     { name = "azure-synapse-artifacts" },
     { name = "backoff" },
     { name = "boto3" },
@@ -888,6 +904,7 @@ dependencies = [
     { name = "google-cloud-asset" },
     { name = "google-cloud-resource-manager" },
     { name = "google-cloud-run" },
+    { name = "google-cloud-storage" },
     { name = "httpx" },
     { name = "kubernetes" },
     { name = "marshmallow" },
@@ -968,6 +985,7 @@ requires-dist = [
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
     { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-storage-blob", specifier = ">=12.0.0" },
     { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "boto3", specifier = ">=1.15.1" },
@@ -984,6 +1002,7 @@ requires-dist = [
     { name = "google-cloud-asset", specifier = ">=1.0.0" },
     { name = "google-cloud-resource-manager", specifier = ">=1.14.2" },
     { name = "google-cloud-run", specifier = ">=0.13.0" },
+    { name = "google-cloud-storage", specifier = ">=2.0.0" },
     { name = "httpx", specifier = ">=0.24.0" },
     { name = "kubernetes", specifier = ">=22.6.0" },
     { name = "marshmallow", specifier = ">=4.0.0" },

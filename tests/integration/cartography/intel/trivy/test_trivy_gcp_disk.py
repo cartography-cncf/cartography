@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.repository import (
@@ -50,11 +51,11 @@ async def _mock_get_all_manifests_async(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GCP_SAMPLE),
+    read_data=json.dumps(TRIVY_GCP_SAMPLE).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.trivy.get_json_files_in_dir",
-    return_value={"/tmp/scan.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan.json", name="scan.json")],
 )
 @patch(
     "cartography.intel.gcp.artifact_registry.manifest.get_all_manifests_async",

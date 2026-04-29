@@ -8,6 +8,10 @@ import neo4j
 
 import cartography.intel.github.actions
 import cartography.intel.github.commits
+import cartography.intel.github.container_image_attestations
+import cartography.intel.github.container_image_tags
+import cartography.intel.github.container_images
+import cartography.intel.github.packages
 import cartography.intel.github.repos
 import cartography.intel.github.supply_chain
 import cartography.intel.github.teams
@@ -125,6 +129,55 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         # Filter out None entries
         valid_repos = [r for r in repos_json if r is not None]
+
+        # Sync GHCR (container packages, image manifests, tags, attestations).
+        # Runs before supply_chain.sync so the latter can correlate digests.
+        # Gate on cleanup_safe — not on the packages list — so an org that
+        # legitimately has zero packages still gets its stale GHCR images,
+        # tags, and attestations reaped. An endpoint outage or missing-scope
+        # condition flips cleanup_safe to False, which disables both the
+        # fetches and the downstream cleanups.
+        ghcr_result = cartography.intel.github.packages.sync_packages(
+            neo4j_session,
+            token,
+            api_url,
+            org_name,
+            common_job_parameters["UPDATE_TAG"],
+            common_job_parameters,
+        )
+        if ghcr_result.cleanup_safe:
+            (
+                ghcr_manifests,
+                _ghcr_manifest_lists,
+                ghcr_tag_rows,
+                ghcr_observed_and_skipped,
+            ) = cartography.intel.github.container_images.sync_container_images(
+                neo4j_session,
+                token,
+                api_url,
+                org_name,
+                ghcr_result.packages,
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+            )
+            cartography.intel.github.container_image_tags.sync_container_image_tags(
+                neo4j_session,
+                org_name,
+                ghcr_tag_rows,
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+            )
+            cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+                neo4j_session,
+                token,
+                api_url,
+                org_name,
+                ghcr_manifests,
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+                additional_observed_digests=ghcr_observed_and_skipped,
+            )
+
         if valid_repos:
             cartography.intel.github.supply_chain.sync(
                 neo4j_session,
