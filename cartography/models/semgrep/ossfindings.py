@@ -32,7 +32,7 @@ class OSSSemgrepSASTFindingNodeProperties(CartographyNodeProperties):
     end_col: PropertyRef = PropertyRef("end.col")
     cwe_names: PropertyRef = PropertyRef("extra.metadata.cwe")
     owasp_names: PropertyRef = PropertyRef("extra.metadata.owasp")
-    category: PropertyRef = PropertyRef("extra.metadata.category")
+    categories: PropertyRef = PropertyRef("extra.metadata.category")
     title: PropertyRef = PropertyRef("check_id")
 
 

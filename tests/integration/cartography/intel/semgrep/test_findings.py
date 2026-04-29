@@ -459,6 +459,7 @@ def test_sync_findings(
 )
 def test_sync_oss_sast_findings(mock_get_reports, neo4j_session):
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_github_repos(neo4j_session)
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,

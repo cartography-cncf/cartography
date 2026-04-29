@@ -211,17 +211,17 @@ def sync_oss_semgrep_sast_findings(
     End-to-end sync for OSS Semgrep SAST findings: get, transform, load, cleanup.
     """
     reports = get_semgrep_oss_reports(reader)
-    if not reports:
-        return
 
     all_findings: list[dict[str, Any]] = []
     for ref, document in reports:
         logger.info("Transforming OSS Semgrep SAST findings from %s", ref.uri)
         all_findings.extend(transform_oss_semgrep_sast_report(document))
 
-    logger.info("Transformed %d total OSS Semgrep SAST findings.", len(all_findings))
-
-    load_oss_semgrep_sast_findings(neo4j_session, all_findings, update_tag)
+    if all_findings:
+        logger.info(
+            "Transformed %d total OSS Semgrep SAST findings.", len(all_findings)
+        )
+        load_oss_semgrep_sast_findings(neo4j_session, all_findings, update_tag)
 
     common_job_parameters["DEPLOYMENT_ID"] = OSS_DEPLOYMENT_ID
     cleanup_oss_semgrep_sast_findings(neo4j_session, common_job_parameters)
