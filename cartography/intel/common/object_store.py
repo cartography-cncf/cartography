@@ -1,10 +1,13 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Protocol
+
+from typing_extensions import Self
 
 from cartography.intel.common.report_source import build_azblob_source
 from cartography.intel.common.report_source import build_gcs_source
@@ -13,6 +16,13 @@ from cartography.intel.common.report_source import build_s3_source
 
 @dataclass(frozen=True)
 class ReportRef:
+    """One enumerated report.
+
+    uri: human-readable provenance string (used in logs and errors).
+    name: backend-specific key passed to read_bytes (S3 object key, blob name,
+    or absolute filesystem path).
+    """
+
     uri: str
     name: str
 
@@ -20,8 +30,14 @@ class ReportRef:
 class ReportReader(Protocol):
     """Source-bound reader for report ingestion.
 
-    source_uri is the configured source locator used for logging and provenance.
-    ReportRef.uri identifies each listed report.
+    Lifecycle: readers should be used as context managers so backend clients
+    (e.g. Azure BlobServiceClient) release their connection pools on exit.
+
+    Ordering: list_reports() returns refs in lexicographic name order. Callers
+    that depend on a specific order must sort explicitly.
+
+    Memory: read_bytes() loads the full object into memory. Reports are
+    expected to fit comfortably in RAM (typical scan outputs are <10 MB).
     """
 
     source_uri: str
@@ -32,14 +48,55 @@ class ReportReader(Protocol):
     def read_bytes(self, ref: ReportRef) -> bytes:
         pass
 
+    def close(self) -> None:
+        pass
 
-class ObjectStoreParseError(ValueError):
-    def __init__(self, source: str, message: str) -> None:
-        super().__init__(f"{message}: {source}")
+    def __enter__(self) -> Self:
+        pass
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
+class ObjectStoreError(Exception):
+    """Raised on read or parse failures from a ReportReader.
+
+    Covers both transport failures (S3/GCS/Azure exceptions, local OSError)
+    and decode/parse failures (UnicodeDecodeError, JSONDecodeError).
+    """
+
+    def __init__(self, message: str, *, source: str | None = None) -> None:
+        super().__init__(f"{message}: {source}" if source else message)
         self.source = source
 
 
-class LocalReportReader:
+class _BaseReader:
+    """Default context-manager and close() behavior for readers.
+
+    Subclasses override close() when they hold resources that need releasing.
+    """
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
+
+
+class LocalReportReader(_BaseReader):
     def __init__(self, source_path: str) -> None:
         self.source_uri = source_path
         self._root = Path(source_path)
@@ -48,16 +105,15 @@ class LocalReportReader:
         if self._root.is_file():
             return [ReportRef(uri=str(self._root), name=self._root.name)]
 
-        refs: list[ReportRef] = []
-        for path in self._root.rglob("*"):
-            if not path.is_file() or path.name.startswith("."):
-                continue
-            refs.append(
-                ReportRef(
-                    uri=str(path),
-                    name=str(path.relative_to(self._root)),
-                ),
+        refs: list[ReportRef] = [
+            ReportRef(
+                uri=str(path),
+                name=str(path.relative_to(self._root)),
             )
+            for path in self._root.rglob("*")
+            if path.is_file()
+        ]
+        refs.sort(key=lambda r: r.name)
         return refs
 
     def read_bytes(self, ref: ReportRef) -> bytes:
@@ -65,10 +121,12 @@ class LocalReportReader:
             with open(ref.uri, "rb") as file_pointer:
                 return file_pointer.read()
         except OSError as exc:
-            raise ObjectStoreParseError(ref.uri, "Failed to read local report") from exc
+            raise ObjectStoreError(
+                "Failed to read local report", source=ref.uri
+            ) from exc
 
 
-class ListedReportReader:
+class ListedReportReader(_BaseReader):
     def __init__(
         self,
         source_uri: str,
@@ -86,7 +144,7 @@ class ListedReportReader:
         return self._read_bytes(ref)
 
 
-class S3BucketReader:
+class S3BucketReader(_BaseReader):
     def __init__(
         self,
         boto3_session: Any,
@@ -100,6 +158,9 @@ class S3BucketReader:
         self._bucket = bucket
         self._prefix = prefix
         self._client = create_boto3_client(boto3_session, "s3")
+
+    def close(self) -> None:
+        self._client.close()
 
     def list_reports(self) -> list[ReportRef]:
         paginator = self._client.get_paginator("list_objects_v2")
@@ -121,14 +182,21 @@ class S3BucketReader:
         from botocore.exceptions import BotoCoreError
         from botocore.exceptions import ClientError
 
+        expected_prefix = f"s3://{self._bucket}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to S3 bucket {self._bucket!r}",
+                source=ref.uri,
+            )
+
         try:
             response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
             return response["Body"].read()
         except (BotoCoreError, ClientError) as exc:
-            raise ObjectStoreParseError(ref.uri, "Failed to read S3 report") from exc
+            raise ObjectStoreError("Failed to read S3 report", source=ref.uri) from exc
 
 
-class GCSBucketReader:
+class GCSBucketReader(_BaseReader):
     def __init__(
         self,
         bucket: str,
@@ -144,6 +212,9 @@ class GCSBucketReader:
 
         credentials = gcp_clients.get_gcp_credentials()
         self._client = storage.Client(credentials=credentials)
+
+    def close(self) -> None:
+        self._client.close()
 
     def list_reports(self) -> list[ReportRef]:
         refs: list[ReportRef] = []
@@ -161,15 +232,22 @@ class GCSBucketReader:
     def read_bytes(self, ref: ReportRef) -> bytes:
         from google.api_core import exceptions as google_exceptions
 
+        expected_prefix = f"gs://{self._bucket}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to GCS bucket {self._bucket!r}",
+                source=ref.uri,
+            )
+
         try:
             bucket = self._client.bucket(self._bucket)
             blob = bucket.blob(ref.name)
             return blob.download_as_bytes()
         except google_exceptions.GoogleAPIError as exc:
-            raise ObjectStoreParseError(ref.uri, "Failed to read GCS report") from exc
+            raise ObjectStoreError("Failed to read GCS report", source=ref.uri) from exc
 
 
-class AzureBlobContainerReader:
+class AzureBlobContainerReader(_BaseReader):
     def __init__(
         self,
         account_name: str,
@@ -193,6 +271,9 @@ class AzureBlobContainerReader:
             credential=credential,
         )
 
+    def close(self) -> None:
+        self._client.close()
+
     def list_reports(self) -> list[ReportRef]:
         refs: list[ReportRef] = []
         container_client = self._client.get_container_client(self._container_name)
@@ -210,6 +291,13 @@ class AzureBlobContainerReader:
     def read_bytes(self, ref: ReportRef) -> bytes:
         from azure.core import exceptions as azure_exceptions
 
+        expected_prefix = f"azblob://{self._account_name}/{self._container_name}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to Azure container {self._account_name}/{self._container_name}",
+                source=ref.uri,
+            )
+
         try:
             blob_client = self._client.get_blob_client(
                 container=self._container_name,
@@ -217,9 +305,8 @@ class AzureBlobContainerReader:
             )
             return blob_client.download_blob().readall()
         except azure_exceptions.AzureError as exc:
-            raise ObjectStoreParseError(
-                ref.uri,
-                "Failed to read Azure Blob report",
+            raise ObjectStoreError(
+                "Failed to read Azure Blob report", source=ref.uri
             ) from exc
 
 
@@ -248,8 +335,8 @@ def read_text_report(
     try:
         return reader.read_bytes(ref).decode(encoding)
     except UnicodeDecodeError as exc:
-        raise ObjectStoreParseError(
-            ref.uri, f"Failed to decode {encoding} text"
+        raise ObjectStoreError(
+            f"Failed to decode {encoding} text", source=ref.uri
         ) from exc
 
 
@@ -260,4 +347,4 @@ def read_json_report(
     try:
         return json.loads(read_text_report(reader, ref))
     except json.JSONDecodeError as exc:
-        raise ObjectStoreParseError(ref.uri, "Failed to parse JSON document") from exc
+        raise ObjectStoreError("Failed to parse JSON document", source=ref.uri) from exc

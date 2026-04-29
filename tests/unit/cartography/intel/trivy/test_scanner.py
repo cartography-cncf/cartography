@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
@@ -310,9 +310,7 @@ def test_sync_single_image_from_s3_read_error(mock_boto3_session):
     )
 
     # Act & Assert
-    with pytest.raises(
-        ObjectStoreParseError, match=f"s3://{s3_bucket}/{s3_object_key}"
-    ):
+    with pytest.raises(ObjectStoreError, match=f"s3://{s3_bucket}/{s3_object_key}"):
         sync_single_image_from_s3(
             mock_neo4j_session,
             image_uri,
@@ -537,4 +535,89 @@ def test_sync_trivy_from_report_reader_skips_cleanup_after_parse_failure(
         common_job_parameters={},
     )
 
+    mock_cleanup.assert_not_called()
+
+
+@patch("cartography.intel.trivy.sync_single_image")
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_sync_trivy_skips_cleanup_when_some_reports_succeed_and_some_fail(
+    mock_get_targets_and_aliases,
+    mock_cleanup,
+    mock_sync_single_image,
+):
+    """If 1 report ingests cleanly but another fails to read, cleanup is skipped to preserve data."""
+    image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/app:latest"
+    mock_get_targets_and_aliases.return_value = ({image_uri}, {})
+
+    good_ref = ReportRef(
+        uri="s3://example-bucket/reports/trivy/good.json", name="good.json"
+    )
+    bad_ref = ReportRef(
+        uri="s3://example-bucket/reports/trivy/bad.json", name="bad.json"
+    )
+    good_payload = json.dumps(
+        {
+            "ArtifactName": image_uri,
+            "Metadata": {"RepoTags": [image_uri]},
+            "Results": [],
+        }
+    ).encode()
+
+    reader = MagicMock()
+    reader.source_uri = "s3://example-bucket/reports/trivy/"
+    reader.list_reports.return_value = [good_ref, bad_ref]
+    reader.read_bytes.side_effect = lambda ref: (
+        good_payload if ref.name == "good.json" else b"{not-json"
+    )
+
+    sync_trivy_from_report_reader(
+        neo4j_session=MagicMock(),
+        reader=reader,
+        update_tag=123,
+        common_job_parameters={},
+    )
+
+    mock_sync_single_image.assert_called_once()
+    mock_cleanup.assert_not_called()
+
+
+@patch("cartography.intel.trivy.sync_single_image")
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
+    mock_get_targets_and_aliases,
+    mock_cleanup,
+    mock_sync_single_image,
+):
+    """If reads succeed but no reports match an image in the graph, cleanup is skipped."""
+    mock_get_targets_and_aliases.return_value = (
+        {"some-other-image:tag"},
+        {},
+    )
+
+    reader = MagicMock()
+    reader.source_uri = "s3://example-bucket/reports/trivy/"
+    reader.list_reports.return_value = [
+        ReportRef(
+            uri="s3://example-bucket/reports/trivy/orphan.json",
+            name="orphan.json",
+        )
+    ]
+    reader.read_bytes.return_value = json.dumps(
+        {
+            "ArtifactName": "unknown-image:tag",
+            "Metadata": {"RepoTags": ["unknown-image:tag"]},
+            "Results": [],
+        }
+    ).encode()
+
+    sync_trivy_from_report_reader(
+        neo4j_session=MagicMock(),
+        reader=reader,
+        update_tag=123,
+        common_job_parameters={},
+    )
+
+    mock_sync_single_image.assert_not_called()
     mock_cleanup.assert_not_called()

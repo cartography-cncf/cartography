@@ -8,7 +8,7 @@ from cartography.intel.common.object_store import AzureBlobContainerReader
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import GCSBucketReader
 from cartography.intel.common.object_store import LocalReportReader
-from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportRef
@@ -21,16 +21,18 @@ def test_local_report_reader_lists_files_and_reads_bytes(tmp_path) -> None:
     nested.mkdir(parents=True)
     report = nested / "findings.json"
     report.write_bytes(b"hello")
-    (reports / ".hidden.json").write_bytes(b"hidden")
+    hidden = reports / ".hidden.json"
+    hidden.write_bytes(b"hidden")
 
     reader = LocalReportReader(str(reports))
-    refs = reader.list_reports()
+    refs = sorted(reader.list_reports(), key=lambda ref: ref.name)
 
     assert refs == [
+        ReportRef(uri=str(hidden), name=".hidden.json"),
         ReportRef(uri=str(report), name="nested/findings.json"),
     ]
     assert reader.source_uri == str(reports)
-    assert reader.read_bytes(refs[0]) == b"hello"
+    assert reader.read_bytes(refs[1]) == b"hello"
 
 
 def test_local_report_reader_accepts_single_file(tmp_path) -> None:
@@ -51,7 +53,7 @@ def test_local_report_reader_wraps_read_errors(tmp_path) -> None:
     reports.mkdir()
     ref = ReportRef(uri=str(reports / "deleted.json"), name="deleted.json")
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         LocalReportReader(str(reports)).read_bytes(ref)
 
 
@@ -128,7 +130,7 @@ def test_s3_bucket_reader_wraps_read_errors() -> None:
     )
     ref = ReportRef("s3://example-bucket/reports/findings.txt", "reports/findings.txt")
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         S3BucketReader(session, "example-bucket", "reports/").read_bytes(ref)
 
 
@@ -181,7 +183,7 @@ def test_gcs_bucket_reader_wraps_read_errors(
     mock_storage_client_cls.return_value = fake_client
     ref = ReportRef("gs://example-bucket/reports/findings.txt", "reports/findings.txt")
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         GCSBucketReader("example-bucket", "reports/").read_bytes(ref)
 
 
@@ -235,7 +237,7 @@ def test_azure_blob_reader_wraps_read_errors(
         "reports/findings.txt",
     )
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         AzureBlobContainerReader("acct", "container", "reports/", object()).read_bytes(
             ref,
         )
@@ -246,7 +248,7 @@ def test_read_text_report_reports_source_on_decode_error() -> None:
     ref = ReportRef("s3://example-bucket/reports/bad.txt", "reports/bad.txt")
     reader.read_bytes.return_value = b"\x80"
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         read_text_report(reader, ref)
 
 
@@ -255,5 +257,5 @@ def test_read_json_report_reports_source_on_parse_error() -> None:
     ref = ReportRef("s3://example-bucket/reports/bad.json", "reports/bad.json")
     reader.read_bytes.return_value = b"{not-json"
 
-    with pytest.raises(ObjectStoreParseError, match=ref.uri):
+    with pytest.raises(ObjectStoreError, match=ref.uri):
         read_json_report(reader, ref)

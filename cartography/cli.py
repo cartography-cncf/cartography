@@ -8,10 +8,6 @@ import typer
 from typing_extensions import Annotated
 
 from cartography.config import Config
-from cartography.intel.common.report_source import LegacyReportSourceNames
-from cartography.intel.common.report_source import (
-    resolve_report_source_with_legacy_fields,
-)
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -192,6 +188,11 @@ def _resolve_report_source_option(
     s3_bucket: str | None,
     s3_prefix: str | None,
 ) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
     try:
         return resolve_report_source_with_legacy_fields(
             source=source,
@@ -1389,7 +1390,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--docker-scout-source",
-                    help="Docker Scout report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    help="Docker Scout report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1431,7 +1432,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--trivy-source",
-                    help="Trivy report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    help="Trivy report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=PANEL_TRIVY not in visible_panels,
                 ),
@@ -1473,7 +1474,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--syft-source",
-                    help="Syft report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    help="Syft report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
@@ -1515,7 +1516,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--aibom-source",
-                    help="AIBOM report source. Accepts a local path, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    help="AIBOM report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
                 ),
@@ -2552,22 +2553,10 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
-                docker_scout_source=docker_scout_source,
-                docker_scout_results_dir=docker_scout_results_dir,
-                docker_scout_s3_bucket=docker_scout_s3_bucket,
-                docker_scout_s3_prefix=docker_scout_s3_prefix,
-                trivy_source=trivy_source,
-                trivy_results_dir=trivy_results_dir,
-                trivy_s3_bucket=trivy_s3_bucket,
-                trivy_s3_prefix=trivy_s3_prefix,
-                syft_source=syft_source,
-                syft_results_dir=syft_results_dir,
-                syft_s3_bucket=syft_s3_bucket,
-                syft_s3_prefix=syft_s3_prefix,
-                aibom_source=aibom_source,
-                aibom_results_dir=aibom_results_dir,
-                aibom_s3_bucket=aibom_s3_bucket,
-                aibom_s3_prefix=aibom_s3_prefix,
+                docker_scout_source=resolved_docker_scout_source,
+                trivy_source=resolved_trivy_source,
+                syft_source=resolved_syft_source,
+                aibom_source=resolved_aibom_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,

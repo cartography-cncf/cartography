@@ -23,6 +23,7 @@ from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import S3BucketReader
@@ -84,18 +85,39 @@ def sync_syft_from_report_reader(
         return
 
     logger.info("Processing %d Syft result files from report source", len(json_files))
-
+    failed_report_count = 0
+    processed_reports = 0
     for ref in json_files:
         logger.debug(
             "Reading scan results from report source: %s",
             ref.uri,
         )
-        syft_data = read_json_report(reader, ref)
+        try:
+            syft_data = read_json_report(reader, ref)
+        except ObjectStoreError as exc:
+            logger.error("Failed to read Syft data from %s: %s", ref.uri, exc)
+            failed_report_count += 1
+            continue
+
         sync_single_syft(
             neo4j_session,
             syft_data,
             update_tag,
         )
+        processed_reports += 1
+
+    if failed_report_count:
+        logger.warning(
+            "Skipping Syft cleanup because %d report(s) failed to read or parse.",
+            failed_report_count,
+        )
+        return
+
+    if processed_reports == 0:
+        logger.warning(
+            "Skipping Syft cleanup because no reports were ingested.",
+        )
+        return
 
     cleanup_syft(neo4j_session, update_tag)
 
@@ -175,17 +197,16 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    reader = build_report_reader_for_source(
+    with build_report_reader_for_source(
         source,
         azure_sp_auth=config.azure_sp_auth,
         azure_tenant_id=config.azure_tenant_id,
         azure_client_id=config.azure_client_id,
         azure_client_secret=config.azure_client_secret,
-    )
-
-    sync_syft_from_report_reader(
-        neo4j_session,
-        reader,
-        config.update_tag,
-        common_job_parameters,
-    )
+    ) as reader:
+        sync_syft_from_report_reader(
+            neo4j_session,
+            reader,
+            config.update_tag,
+            common_job_parameters,
+        )

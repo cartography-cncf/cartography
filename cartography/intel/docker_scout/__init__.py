@@ -6,7 +6,7 @@ from neo4j import Session
 
 from cartography.config import Config
 from cartography.intel.common.object_store import LocalReportReader
-from cartography.intel.common.object_store import ObjectStoreParseError
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import S3BucketReader
@@ -53,15 +53,14 @@ def sync_docker_scout_from_report_reader(
         len(report_refs),
     )
 
+    failed_report_count = 0
     synced_count = 0
     for ref in report_refs:
         try:
             raw_recommendation = read_text_report(reader, ref)
-        except ObjectStoreParseError:
-            logger.warning(
-                "Skipping unreadable Docker Scout report %s",
-                ref.uri,
-            )
+        except ObjectStoreError as exc:
+            logger.error("Failed to read Docker Scout report from %s: %s", ref.uri, exc)
+            failed_report_count += 1
             continue
         if not _looks_like_docker_scout_report(raw_recommendation):
             logger.debug(
@@ -72,12 +71,20 @@ def sync_docker_scout_from_report_reader(
         if sync_from_file(neo4j_session, raw_recommendation, ref.uri, update_tag):
             synced_count += 1
 
-    if synced_count > 0:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
+    if failed_report_count:
         logger.warning(
-            "No Docker Scout files were successfully processed, skipping cleanup to preserve existing data",
+            "Skipping Docker Scout cleanup because %d report(s) failed to read or parse.",
+            failed_report_count,
         )
+        return
+
+    if synced_count == 0:
+        logger.warning(
+            "Skipping Docker Scout cleanup because no reports were ingested.",
+        )
+        return
+
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -130,16 +137,16 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
     source = parse_report_source(config.docker_scout_source)
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    reader = build_report_reader_for_source(
+    with build_report_reader_for_source(
         source,
         azure_sp_auth=config.azure_sp_auth,
         azure_tenant_id=config.azure_tenant_id,
         azure_client_id=config.azure_client_id,
         azure_client_secret=config.azure_client_secret,
-    )
-    sync_docker_scout_from_report_reader(
-        neo4j_session,
-        reader,
-        config.update_tag,
-        common_job_parameters,
-    )
+    ) as reader:
+        sync_docker_scout_from_report_reader(
+            neo4j_session,
+            reader,
+            config.update_tag,
+            common_job_parameters,
+        )

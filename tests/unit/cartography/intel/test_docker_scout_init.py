@@ -21,7 +21,7 @@ def test_sync_docker_scout_from_dir_skips_unicode_decode_errors(
         {"UPDATE_TAG": 1},
     )
 
-    assert f"Skipping unreadable Docker Scout report {report_path}" in caplog.text
+    assert f"Failed to read Docker Scout report from {report_path}" in caplog.text
 
 
 def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
@@ -48,7 +48,7 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     )
 
     assert (
-        "Skipping unreadable Docker Scout report s3://example-bucket/reports/bad-report.txt"
+        "Failed to read Docker Scout report from s3://example-bucket/reports/bad-report.txt"
         in caplog.text
     )
 
@@ -76,6 +76,6 @@ def test_sync_docker_scout_from_s3_skips_read_failures(caplog) -> None:
     )
 
     assert (
-        "Skipping unreadable Docker Scout report s3://example-bucket/reports/forbidden-report.txt"
+        "Failed to read Docker Scout report from s3://example-bucket/reports/forbidden-report.txt"
         in caplog.text
     )

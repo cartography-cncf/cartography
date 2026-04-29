@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# RFC 3986 scheme grammar: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 _SOURCE_SCHEME_RE = re.compile(
     r"^(?P<scheme>[a-z][a-z0-9+.-]*)://(?P<rest>.*)$",
     re.IGNORECASE,
@@ -13,7 +14,8 @@ _SOURCE_SCHEME_RE = re.compile(
 
 @dataclass(frozen=True)
 class LocalReportSource:
-    raw: str
+    """A filesystem path to a single report or a directory of reports."""
+
     path: str
 
     @property
@@ -23,7 +25,8 @@ class LocalReportSource:
 
 @dataclass(frozen=True)
 class S3ReportSource:
-    raw: str
+    """An S3 bucket+prefix. `prefix` never has a leading slash."""
+
     bucket: str
     prefix: str
 
@@ -34,7 +37,8 @@ class S3ReportSource:
 
 @dataclass(frozen=True)
 class GCSReportSource:
-    raw: str
+    """A GCS bucket+prefix. `prefix` never has a leading slash."""
+
     bucket: str
     prefix: str
 
@@ -45,7 +49,8 @@ class GCSReportSource:
 
 @dataclass(frozen=True)
 class AzureBlobReportSource:
-    raw: str
+    """An Azure Blob Storage container+prefix. `prefix` never has a leading slash."""
+
     account_name: str
     container_name: str
     prefix: str
@@ -107,7 +112,7 @@ def parse_report_source(raw_source: str) -> ReportSource:
 
     scheme_match = _SOURCE_SCHEME_RE.match(source)
     if not scheme_match:
-        return LocalReportSource(raw=raw_source, path=os.path.expanduser(source))
+        return LocalReportSource(path=os.path.expanduser(source))
 
     scheme = scheme_match.group("scheme").lower()
     remainder = scheme_match.group("rest")
@@ -116,13 +121,19 @@ def parse_report_source(raw_source: str) -> ReportSource:
         bucket, _sep, prefix = remainder.partition("/")
         if not bucket:
             raise ValueError("S3 report source must include a bucket name.")
-        return S3ReportSource(raw=raw_source, bucket=bucket, prefix=prefix)
+        return S3ReportSource(
+            bucket=bucket,
+            prefix=_normalize_cloud_prefix("S3", prefix),
+        )
 
     if scheme == "gs":
         bucket, _sep, prefix = remainder.partition("/")
         if not bucket:
             raise ValueError("GCS report source must include a bucket name.")
-        return GCSReportSource(raw=raw_source, bucket=bucket, prefix=prefix)
+        return GCSReportSource(
+            bucket=bucket,
+            prefix=_normalize_cloud_prefix("GCS", prefix),
+        )
 
     if scheme == "azblob":
         account_name, _sep, container_and_prefix = remainder.partition("/")
@@ -132,10 +143,9 @@ def parse_report_source(raw_source: str) -> ReportSource:
                 "Azure Blob report source must look like azblob://<account>/<container>/<prefix>.",
             )
         return AzureBlobReportSource(
-            raw=raw_source,
             account_name=account_name,
             container_name=container_name,
-            prefix=prefix,
+            prefix=_normalize_cloud_prefix("Azure Blob", prefix),
         )
 
     raise ValueError(

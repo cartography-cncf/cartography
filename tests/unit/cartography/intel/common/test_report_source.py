@@ -1,5 +1,4 @@
 import logging
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -22,23 +21,19 @@ from cartography.intel.common.report_source import S3ReportSource
 def test_parse_local_report_source_from_plain_path() -> None:
     source = parse_report_source("./reports/trivy")
 
-    assert source == LocalReportSource(raw="./reports/trivy", path="./reports/trivy")
+    assert source == LocalReportSource(path="./reports/trivy")
 
 
 def test_parse_local_report_source_from_windows_path() -> None:
     source = parse_report_source(r"C:\reports\syft")
 
-    assert source == LocalReportSource(
-        raw=r"C:\reports\syft",
-        path=r"C:\reports\syft",
-    )
+    assert source == LocalReportSource(path=r"C:\reports\syft")
 
 
 def test_parse_s3_report_source() -> None:
     source = parse_report_source("s3://example-bucket/reports/trivy/")
 
     assert source == S3ReportSource(
-        raw="s3://example-bucket/reports/trivy/",
         bucket="example-bucket",
         prefix="reports/trivy/",
     )
@@ -52,11 +47,26 @@ def test_build_s3_source_logs_leading_slash_normalization(caplog) -> None:
     assert "had leading slashes removed" in caplog.text
 
 
+def test_parse_s3_report_source_without_prefix() -> None:
+    source = parse_report_source("s3://example-bucket")
+
+    assert source == S3ReportSource(bucket="example-bucket", prefix="")
+    assert source.uri == "s3://example-bucket"
+
+
+def test_parse_s3_report_source_normalizes_leading_slash() -> None:
+    source = parse_report_source("s3://example-bucket//reports/")
+
+    assert source == S3ReportSource(
+        bucket="example-bucket",
+        prefix="reports/",
+    )
+
+
 def test_parse_report_source_accepts_uppercase_scheme() -> None:
     source = parse_report_source("S3://example-bucket/reports/trivy/")
 
     assert source == S3ReportSource(
-        raw="S3://example-bucket/reports/trivy/",
         bucket="example-bucket",
         prefix="reports/trivy/",
     )
@@ -66,7 +76,6 @@ def test_parse_gcs_report_source() -> None:
     source = parse_report_source("gs://example-bucket/reports/syft")
 
     assert source == GCSReportSource(
-        raw="gs://example-bucket/reports/syft",
         bucket="example-bucket",
         prefix="reports/syft",
     )
@@ -76,7 +85,6 @@ def test_parse_azblob_report_source() -> None:
     source = parse_report_source("azblob://acct/container/reports/aibom")
 
     assert source == AzureBlobReportSource(
-        raw="azblob://acct/container/reports/aibom",
         account_name="acct",
         container_name="container",
         prefix="reports/aibom",
@@ -145,7 +153,7 @@ def test_build_report_reader_for_local(mock_reader_cls) -> None:
     fake_reader = mock_reader_cls.return_value
 
     reader = build_report_reader_for_source(
-        LocalReportSource(raw="./reports", path="./reports"),
+        LocalReportSource(path="./reports"),
     )
 
     assert reader is fake_reader
@@ -162,7 +170,7 @@ def test_build_report_reader_for_s3(
     fake_reader = mock_reader_cls.return_value
 
     reader = build_report_reader_for_source(
-        S3ReportSource(raw="s3://bucket/prefix", bucket="bucket", prefix="prefix"),
+        S3ReportSource(bucket="bucket", prefix="prefix"),
     )
 
     assert reader is fake_reader
@@ -179,7 +187,7 @@ def test_build_report_reader_for_gcs(mock_reader_cls) -> None:
     fake_reader = mock_reader_cls.return_value
 
     reader = build_report_reader_for_source(
-        GCSReportSource(raw="gs://bucket/prefix", bucket="bucket", prefix="prefix"),
+        GCSReportSource(bucket="bucket", prefix="prefix"),
     )
 
     assert reader is fake_reader
@@ -202,7 +210,6 @@ def test_build_report_reader_for_azure_cli_auth(
 
     reader = build_report_reader_for_source(
         AzureBlobReportSource(
-            raw="azblob://acct/container/prefix",
             account_name="acct",
             container_name="container",
             prefix="prefix",
@@ -232,7 +239,6 @@ def test_build_report_reader_for_azure_cli_auth_warns_on_ignored_sp_fields(
     with caplog.at_level(logging.WARNING):
         reader = build_report_reader_for_source(
             AzureBlobReportSource(
-                raw="azblob://acct/container/prefix",
                 account_name="acct",
                 container_name="container",
                 prefix="prefix",
@@ -255,19 +261,16 @@ def test_build_report_reader_for_azure_cli_auth_warns_on_ignored_sp_fields(
 
 
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
-@patch("cartography.intel.azure.util.credentials.Authenticator")
+@patch("azure.identity.ClientSecretCredential")
 def test_build_report_reader_for_azure_sp_auth(
-    mock_authenticator_cls,
+    mock_credential_cls,
     mock_reader_cls,
 ) -> None:
     fake_reader = mock_reader_cls.return_value
-    fake_credentials = MagicMock(credential=object())
-    fake_authenticator = mock_authenticator_cls.return_value
-    fake_authenticator.authenticate_sp.return_value = fake_credentials
+    fake_credential = mock_credential_cls.return_value
 
     reader = build_report_reader_for_source(
         AzureBlobReportSource(
-            raw="azblob://acct/container/prefix",
             account_name="acct",
             container_name="container",
             prefix="prefix",
@@ -279,7 +282,7 @@ def test_build_report_reader_for_azure_sp_auth(
     )
 
     assert reader is fake_reader
-    fake_authenticator.authenticate_sp.assert_called_once_with(
+    mock_credential_cls.assert_called_once_with(
         tenant_id="tenant-id",
         client_id="client-id",
         client_secret="client-secret",
@@ -288,6 +291,21 @@ def test_build_report_reader_for_azure_sp_auth(
         "acct",
         "container",
         "prefix",
-        fake_credentials.credential,
+        fake_credential,
         "azblob://acct/container/prefix",
     )
+
+
+def test_build_report_reader_for_azure_sp_auth_requires_all_fields() -> None:
+    with pytest.raises(ValueError, match="azure_sp_auth requires"):
+        build_report_reader_for_source(
+            AzureBlobReportSource(
+                account_name="acct",
+                container_name="container",
+                prefix="prefix",
+            ),
+            azure_sp_auth=True,
+            azure_tenant_id="tenant-id",
+            azure_client_id=None,
+            azure_client_secret="client-secret",
+        )
