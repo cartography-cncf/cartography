@@ -133,15 +133,21 @@ def fetch_ci_config_yaml(
     gitlab_url: str,
     token: str,
     project: dict[str, Any],
-) -> tuple[str | None, bool | None, bool]:
+) -> tuple[str | None, bool | None, bool, bool]:
     """
     Try /ci/lint first, then fall back to the raw file. Returns
-    ``(yaml_content, is_valid, is_merged)``. ``is_merged`` is True when the
-    YAML came from /ci/lint (with includes expanded), False when it's raw.
+    ``(yaml_content, is_valid, is_merged, denied)``:
 
-    A `None` yaml_content means "no .gitlab-ci.yml found / readable" — that
-    is a legitimate per-project state (some projects have no pipeline) and
-    callers can treat it as nothing-to-load without skipping cleanup.
+    - ``yaml_content`` is the raw or merged YAML, or ``None`` when no
+      readable config was found.
+    - ``is_merged`` is True when the YAML came from /ci/lint (with includes
+      expanded), False when it's raw.
+    - ``denied`` is True when BOTH paths returned 403 — the project was
+      reachable but the token cannot read its CI config. The sync caller
+      must skip cleanup for this project so we don't delete previously
+      ingested data on a transient permission failure. ``denied`` is False
+      when the YAML genuinely doesn't exist (404), letting cleanup remove
+      any stale config previously ingested for that project.
     """
     project_id = project["id"]
     ref = project.get("default_branch")
@@ -150,17 +156,21 @@ def fetch_ci_config_yaml(
         gitlab_url, token, project_id, ref
     )
     if merged is not None:
-        return merged, is_valid, True
+        return merged, is_valid, True, False
 
-    # Whether we got a 404 from lint or a 403, fall back to the raw file.
-    # The raw endpoint uses `read_repository`, which is broader than the
-    # Maintainer-level scope /ci/lint requires.
-    _ = lint_denied  # silenced; both branches fall through to raw
+    # Both 404 and 403 from /ci/lint fall back to the raw file. The raw
+    # endpoint uses `read_repository`, broader than the Maintainer scope
+    # /ci/lint needs — but if the token also lacks `read_repository` for
+    # this project, _try_raw_ci_yaml returns None on 403 too.
     raw = _try_raw_ci_yaml(gitlab_url, token, project_id, ref)
     if raw is not None:
-        return raw, None, False
+        return raw, None, False, False
 
-    return None, None, False
+    # Both paths failed. If lint specifically reported 403 we treat the
+    # whole project as denied (skip cleanup). If lint was 404 (no pipeline)
+    # and raw was also missing, the project legitimately has no config and
+    # cleanup may proceed.
+    return None, None, False, lint_denied
 
 
 def transform_ci_config(
@@ -320,21 +330,29 @@ def sync_gitlab_ci_config(
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
     variables_by_project: dict[int, list[dict[str, Any]]],
-) -> None:
+) -> set[int]:
     """
     For each project: fetch its CI YAML, parse it, and load CIConfig +
     includes. The config carries a ``referenced_variable_ids`` list that the
     schema turns into ``REFERENCES_VARIABLE`` edges to project-level CI
     variables at load time (one_to_many other_relationship).
+
+    Returns the set of project IDs whose CI config could not be read because
+    of permission denial (403) — the caller must skip ci_config / ci_include
+    cleanup for those, otherwise it would delete previously-ingested data
+    on a transient auth failure.
     """
     logger.info("Syncing GitLab CI configs for %d projects", len(projects))
+    skipped_projects: set[int] = set()
 
     for project in projects:
         project_id: int = project["id"]
-        yaml_content, is_valid, is_merged = fetch_ci_config_yaml(
+        yaml_content, is_valid, is_merged, denied = fetch_ci_config_yaml(
             gitlab_url, token, project
         )
         if yaml_content is None:
+            if denied:
+                skipped_projects.add(project_id)
             continue
 
         parsed = parse_ci_config(yaml_content, is_valid=is_valid)
@@ -358,3 +376,4 @@ def sync_gitlab_ci_config(
         )
 
     logger.info("GitLab CI configs sync completed")
+    return skipped_projects

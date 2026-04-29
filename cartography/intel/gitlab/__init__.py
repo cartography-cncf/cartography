@@ -257,8 +257,9 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync .gitlab-ci.yml configs (parsed pipeline summary + includes) and link
-    # to project-level variables they reference.
-    cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
+    # to project-level variables they reference. Returns the set of projects
+    # whose config was permission-denied so cleanup can skip them.
+    ci_config_skipped = cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
         neo4j_session,
         gitlab_url,
         token,
@@ -299,13 +300,16 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-        # Cleanup CI includes first, then the parent CIConfig.
-        cartography.intel.gitlab.ci_config.cleanup_ci_includes(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
-        cartography.intel.gitlab.ci_config.cleanup_ci_configs(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        # Cleanup CI includes first, then the parent CIConfig — but skip if
+        # the project's config was permission-denied this sync, otherwise
+        # we'd delete a previously-ingested config on transient auth fail.
+        if project_id not in ci_config_skipped:
+            cartography.intel.gitlab.ci_config.cleanup_ci_includes(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
+            cartography.intel.gitlab.ci_config.cleanup_ci_configs(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
         # Cleanup environments — skip if the scope returned 403.
         if project_id not in environments_skipped:

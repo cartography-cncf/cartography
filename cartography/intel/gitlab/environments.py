@@ -99,7 +99,15 @@ def transform_environments(
         gitlab_env_id = env.get("id")
         if gitlab_env_id is None:
             continue
-        env_name = env.get("name") or ""
+        env_name = env.get("name")
+        # Variable matching only happens when the environment has a name —
+        # an env with no name cannot match an `environment_scope`. We still
+        # ingest the node itself so it appears in the graph.
+        linked_variable_ids = (
+            _matching_variable_ids(env_name, project_variables)
+            if env_name is not None
+            else []
+        )
         transformed.append(
             {
                 "id": f"{project_id}:{gitlab_env_id}",
@@ -114,9 +122,7 @@ def transform_environments(
                 "auto_stop_at": env.get("auto_stop_at"),
                 "project_id": project_id,
                 "gitlab_url": gitlab_url,
-                "linked_variable_ids": _matching_variable_ids(
-                    env_name, project_variables
-                ),
+                "linked_variable_ids": linked_variable_ids,
             }
         )
     return transformed

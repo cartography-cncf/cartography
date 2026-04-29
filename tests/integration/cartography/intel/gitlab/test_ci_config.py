@@ -1,7 +1,6 @@
 """Integration tests for GitLab CI config + includes."""
 
 from unittest.mock import Mock
-from unittest.mock import patch
 
 import requests
 
@@ -232,13 +231,19 @@ def test_sync_ci_config_falls_back_to_raw_when_lint_denied(neo4j_session, monkey
     assert config_rels == {(TEST_PROJECT_ID, f"{TEST_PROJECT_ID}:.gitlab-ci.yml")}
 
 
-@patch("cartography.intel.gitlab.ci_config.fetch_ci_config_yaml")
-def test_sync_ci_config_skips_project_when_no_yaml(mock_fetch, neo4j_session):
+def test_sync_ci_config_skips_project_when_no_yaml(neo4j_session, monkeypatch):
     """A project with no readable CI config is skipped without error."""
     _reset_db_and_create_project(neo4j_session)
-    mock_fetch.return_value = (None, None, False)
+    # Both /ci/lint and the raw repository file return 404 — the project
+    # legitimately has no .gitlab-ci.yml. Mock at the HTTP boundary
+    # (`requests.request`) rather than at the internal helper.
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.util.requests.request",
+        lambda method, url, **_: _make_response(404),
+    )
+    monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
-    sync_gitlab_ci_config(
+    skipped = sync_gitlab_ci_config(
         neo4j_session,
         TEST_GITLAB_URL,
         "fake-token",
@@ -248,3 +253,28 @@ def test_sync_ci_config_skips_project_when_no_yaml(mock_fetch, neo4j_session):
         variables_by_project={TEST_PROJECT_ID: []},
     )
     assert check_nodes(neo4j_session, "GitLabCIConfig", ["id"]) == set()
+    # 404 is non-denied: cleanup may run on this project.
+    assert skipped == set()
+
+
+def test_sync_ci_config_skips_cleanup_when_lint_and_raw_both_denied(
+    neo4j_session, monkeypatch
+):
+    """A 403 on both endpoints flags the project as denied (skip cleanup)."""
+    _reset_db_and_create_project(neo4j_session)
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.util.requests.request",
+        lambda method, url, **_: _make_response(403),
+    )
+    monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
+
+    skipped = sync_gitlab_ci_config(
+        neo4j_session,
+        TEST_GITLAB_URL,
+        "fake-token",
+        TEST_UPDATE_TAG,
+        _common_job_parameters(),
+        projects=[{"id": TEST_PROJECT_ID, "default_branch": "main"}],
+        variables_by_project={TEST_PROJECT_ID: []},
+    )
+    assert TEST_PROJECT_ID in skipped
