@@ -1,16 +1,22 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
+import cartography.intel.semgrep.ossfindings
 import tests.data.semgrep.deployment
 import tests.data.semgrep.sast
 import tests.data.semgrep.sca
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
+from cartography.intel.semgrep.ossfindings import _build_oss_sast_finding_id
+from cartography.intel.semgrep.ossfindings import OSS_DEPLOYMENT_ID
+from cartography.intel.semgrep.ossfindings import sync_oss_semgrep_sast_findings
 from tests.integration.cartography.intel.semgrep.common import check_nodes_as_list
 from tests.integration.cartography.intel.semgrep.common import create_cve_nodes
 from tests.integration.cartography.intel.semgrep.common import create_dependency_nodes
 from tests.integration.cartography.intel.semgrep.common import create_github_repos
+from tests.integration.cartography.intel.semgrep.common import TEST_REPO_ID
 from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -438,4 +444,132 @@ def test_sync_findings(
             "HIGH",
             "INFO",
         ),
+    }
+
+
+@patch.object(
+    cartography.intel.semgrep.ossfindings,
+    "get_semgrep_oss_reports",
+    return_value=[
+        (
+            MagicMock(uri="s3://bucket/semgrep-oss-report.json"),
+            tests.data.semgrep.sast.OSS_SAST_REPORT,
+        ),
+    ],
+)
+def test_sync_oss_sast_findings(mock_get_reports, neo4j_session):
+    # Arrange
+    create_github_repos(neo4j_session)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+    }
+    reader = MagicMock()
+
+    # Act
+    sync_oss_semgrep_sast_findings(
+        neo4j_session,
+        reader,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Build expected finding IDs from test data
+    results = tests.data.semgrep.sast.OSS_SAST_REPORT["results"]
+    expected_ids = [_build_oss_sast_finding_id(r) for r in results]
+
+    # Assert synthetic deployment node
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepDeployment",
+        ["id", "name", "slug"],
+    ) == {(OSS_DEPLOYMENT_ID, "OSS Semgrep", "oss")}
+
+    # Assert finding nodes
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id", "rule_id", "severity", "confidence", "title"],
+    ) == {
+        (
+            expected_ids[0],
+            "python.lang.security.audit.sql-injection.fake-1",
+            "ERROR",
+            "HIGH",
+            "python.lang.security.audit.sql-injection.fake-1",
+        ),
+        (
+            expected_ids[1],
+            "python.lang.security.audit.xss.fake-2",
+            "WARNING",
+            "MEDIUM",
+            "python.lang.security.audit.xss.fake-2",
+        ),
+        (
+            expected_ids[2],
+            "python.lang.security.audit.jwt.fake-3",
+            "ERROR",
+            "MEDIUM",
+            "python.lang.security.audit.jwt.fake-3",
+        ),
+    }
+
+    # Assert location fields
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id", "file_path", "start_line", "start_col", "end_line", "end_col"],
+    ) == {
+        (
+            expected_ids[0],
+            "/workspace/chatbox-sandbox/app/auth.py",
+            42,
+            9,
+            42,
+            61,
+        ),
+        (
+            expected_ids[1],
+            "/workspace/chatbox-sandbox/app/views.py",
+            88,
+            13,
+            88,
+            47,
+        ),
+        (
+            expected_ids[2],
+            "/workspace/chatbox-sandbox/app/tokens.py",
+            15,
+            20,
+            15,
+            41,
+        ),
+    }
+
+    # Assert sub-resource relationship to synthetic deployment
+    assert check_rels(
+        neo4j_session,
+        "SemgrepDeployment",
+        "id",
+        "SemgrepSASTFinding",
+        "id",
+        "RESOURCE",
+    ) == {
+        (OSS_DEPLOYMENT_ID, expected_ids[0]),
+        (OSS_DEPLOYMENT_ID, expected_ids[1]),
+        (OSS_DEPLOYMENT_ID, expected_ids[2]),
+    }
+
+    # Assert FOUND_IN relationship to GitHub repo
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "SemgrepSASTFinding",
+        "id",
+        "FOUND_IN",
+        rel_direction_right=False,
+    ) == {
+        (TEST_REPO_ID, expected_ids[0]),
+        (TEST_REPO_ID, expected_ids[1]),
+        (TEST_REPO_ID, expected_ids[2]),
     }

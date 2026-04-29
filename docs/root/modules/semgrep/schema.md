@@ -50,9 +50,9 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
     (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
     ```
 
-### SemgrepSASTFinding::SecurityIssue
+### SemgrepSASTFinding::SecurityIssue (Cloud)
 
-Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
+Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding from the Semgrep Cloud Platform. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
 
 > **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
@@ -96,6 +96,54 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
     ```
     (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
+    ```
+
+### SemgrepSASTFinding::SecurityIssue (OSS)
+
+Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding from the OSS Semgrep CLI. This is a code-level security issue parsed from Semgrep OSS JSON report files (e.g. from `semgrep --json`). Configured via `--semgrep-oss-source`. These findings share the same `SemgrepSASTFinding` node label as Cloud findings but are linked to a synthetic `SemgrepDeployment` node with `id="oss"` for scoped cleanup.
+
+> **Note**: The OSS Semgrep JSON report does not include repository information. To populate the `repository`, `repository_url`, and `branch` fields and support the `FOUND_IN` relationship to a `GitHubRepository`, a `repository` object must be injected into the top-level of the JSON report before ingestion. Example:
+> ```json
+> {
+>   "repository": {
+>     "name": "org/repo",
+>     "url": "https://github.com/org/repo",
+>     "branch": "main"
+>   },
+>   "results": [ ... ]
+> }
+> ```
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Synthetic id built from a SHA-256 hash of check_id, path, and start/end location, prefixed with `semgrep-oss-sast-` |
+| **rule_id** | The rule that triggered the finding (`check_id` from the OSS report) |
+| **repository** | The repository path where the finding was discovered |
+| **repository_url** | Full URL of the repository where the finding was discovered |
+| **branch** | The branch where the finding was discovered |
+| title | Short title for the finding, set to the check_id |
+| description | Description of the vulnerability from the rule message |
+| severity | Severity of the finding (e.g. ERROR, WARNING, INFO) |
+| confidence | Confidence of the finding (e.g. HIGH, MEDIUM, LOW) |
+| category | Finding category from rule metadata (e.g. security) |
+| cwe_names | List of CWE identifiers associated with the rule |
+| owasp_names | List of OWASP category names associated with the rule |
+| file_path | Path of the file where the finding was discovered |
+| start_line | Line where the finding starts |
+| start_col | Column where the finding starts |
+| end_line | Line where the finding ends |
+| end_col | Column where the finding ends |
+
+#### Relationships
+
+- A SemgrepSASTFinding connected to a GitHubRepository (optional)
+
+    ```
+    (SemgrepSASTFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 ### SemgrepSecretsFinding::SecurityIssue

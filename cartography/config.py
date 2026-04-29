@@ -416,6 +416,7 @@ class Config:
         gitlab_commits_since_days=90,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
+        semgrep_oss_source=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
@@ -580,6 +581,7 @@ class Config:
         self.gitlab_commits_since_days = gitlab_commits_since_days
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
+        self.semgrep_oss_source = semgrep_oss_source
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id

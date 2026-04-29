@@ -1179,6 +1179,15 @@ class CLI:
                     hidden=PANEL_SEMGREP not in visible_panels,
                 ),
             ] = None,
+            semgrep_oss_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--semgrep-oss-source",
+                    help="Semgrep OSS report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_SEMGREP,
+                    hidden=PANEL_SEMGREP not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # SnipeIT Options
             # =================================================================
@@ -2530,6 +2539,7 @@ class CLI:
                 gitlab_commits_since_days=gitlab_commits_since_days,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
+                semgrep_oss_source=semgrep_oss_source,
                 snipeit_base_uri=snipeit_base_uri,
                 snipeit_token=snipeit_token,
                 snipeit_tenant_id=snipeit_tenant_id,
