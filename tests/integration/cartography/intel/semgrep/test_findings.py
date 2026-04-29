@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -463,6 +464,7 @@ def test_sync_oss_sast_findings(neo4j_session):
         / "semgrep"
         / "oss_sast_report.json"
     )
+    report = json.loads(fixture_path.read_text())
     source = parse_report_source(str(fixture_path))
 
     # Act
@@ -475,7 +477,7 @@ def test_sync_oss_sast_findings(neo4j_session):
         )
 
     # Build expected finding IDs from test data
-    results = tests.data.semgrep.sast.OSS_SAST_REPORT["results"]
+    results = report["results"]
     expected_ids = [_build_oss_sast_finding_id(r) for r in results]
 
     # Assert synthetic deployment node
