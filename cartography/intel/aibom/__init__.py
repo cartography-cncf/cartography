@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 
 import boto3
@@ -10,12 +9,10 @@ from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.aibom.loader import load_aibom_document
 from cartography.intel.aibom.parser import parse_aibom_document
 from cartography.intel.common.object_store import filter_report_refs
-from cartography.intel.common.object_store import ListedReportReader
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import ReportReader
-from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
@@ -26,17 +23,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-
-
-def _get_json_files_in_dir(results_dir: str) -> set[str]:
-    # DEPRECATED: removed alongside sync_aibom_from_dir() in v1.0.0.
-    results: set[str] = set()
-    for root, _dirs, files in os.walk(results_dir):
-        for filename in files:
-            if filename.endswith(".json"):
-                results.add(os.path.join(root, filename))
-    logger.info("Found %d AIBOM json files in %s", len(results), results_dir)
-    return results
 
 
 @timeit
@@ -114,17 +100,9 @@ def sync_aibom_from_dir(
     common_job_parameters: dict[str, Any],
 ) -> None:
     # DEPRECATED: sync_aibom_from_dir() will be removed in v1.0.0.
-    reader = LocalReportReader(results_dir)
-    refs = [
-        ReportRef(
-            uri=file_path,
-            name=os.path.relpath(file_path, results_dir),
-        )
-        for file_path in _get_json_files_in_dir(results_dir)
-    ]
     sync_aibom_from_report_reader(
         neo4j_session,
-        ListedReportReader(results_dir, refs, reader.read_bytes),
+        LocalReportReader(results_dir),
         update_tag,
         common_job_parameters,
     )

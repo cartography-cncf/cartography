@@ -5,6 +5,7 @@ from unittest.mock import patch
 import cartography.intel.gitlab.container_images
 import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.trivy
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_dir
 from tests.data.gitlab.container_registry import GET_CONTAINER_IMAGES_RESPONSE
 from tests.data.gitlab.container_registry import GET_CONTAINER_MANIFEST_LISTS_RESPONSE
@@ -62,10 +63,9 @@ def _create_test_org(neo4j_session):
     new_callable=mock_open,
     read_data=json.dumps(TRIVY_GITLAB_SAMPLE).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan.json", name="scan.json")],
 )
 @patch.object(
     cartography.intel.gitlab.container_repository_tags,
@@ -220,10 +220,9 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
     new_callable=mock_open,
     read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_AMD64).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-amd64.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan-amd64.json", name="scan-amd64.json")],
 )
 def test_sync_trivy_gitlab_multiarch_child_amd64(
     mock_list_dir_scan_results,
@@ -289,10 +288,9 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
     new_callable=mock_open,
     read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_ARM64).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-arm64.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan-arm64.json", name="scan-arm64.json")],
 )
 def test_sync_trivy_gitlab_multiarch_child_arm64(
     mock_list_dir_scan_results,
@@ -354,10 +352,11 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
     new_callable=mock_open,
     read_data=json.dumps(TRIVY_GITLAB_MULTI_REPO_DIGESTS).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-multi-digests.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/scan-multi-digests.json", name="scan-multi-digests.json")
+    ],
 )
 def test_sync_trivy_gitlab_multi_repo_digests(
     mock_list_dir_scan_results,

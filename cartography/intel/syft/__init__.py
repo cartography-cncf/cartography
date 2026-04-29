@@ -187,7 +187,7 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
 
     Args:
         neo4j_session: Neo4j session
-        config: Configuration object with syft_results_dir or syft_s3_bucket/prefix
+        config: Configuration object with syft_source
     """
     if not config.syft_source:
         logger.info("Syft configuration not provided. Skipping Syft ingestion.")

@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 
 import boto3
@@ -12,19 +11,16 @@ from cartography.client.gitlab.container_images import get_gitlab_container_imag
 from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
 from cartography.intel.common.object_store import filter_report_refs
-from cartography.intel.common.object_store import ListedReportReader
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import ReportReader
-from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
-from cartography.intel.trivy.scanner import get_json_files_in_dir
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -334,17 +330,9 @@ def sync_trivy_from_dir(
 ) -> None:
     """Sync Trivy scan results from local files for container images (ECR, GCP, and GitLab)."""
     # DEPRECATED: sync_trivy_from_dir() will be removed in v1.0.0.
-    reader = LocalReportReader(results_dir)
-    refs = [
-        ReportRef(
-            uri=file_path,
-            name=os.path.relpath(file_path, results_dir),
-        )
-        for file_path in get_json_files_in_dir(results_dir)
-    ]
     sync_trivy_from_report_reader(
         neo4j_session,
-        ListedReportReader(results_dir, refs, reader.read_bytes),
+        LocalReportReader(results_dir),
         update_tag,
         common_job_parameters,
     )
