@@ -14,6 +14,7 @@ import cartography.intel.gitlab.dependency_files
 import cartography.intel.gitlab.groups
 import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
+import cartography.intel.gitlab.runners
 import cartography.intel.gitlab.supply_chain
 import cartography.intel.gitlab.users
 from cartography.config import Config
@@ -208,12 +209,24 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         dependency_files_by_project,
     )
 
+    # Sync CI/CD runners at instance, group, and project scopes.
+    # Tolerates 403s on individual scopes (e.g. missing admin scope for /runners/all).
+    cartography.intel.gitlab.runners.sync_gitlab_runners(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_groups,
+        all_projects,
+    )
+
     # ========================================
     # Cleanup Phase - Run in reverse order (leaf to root)
     # ========================================
     logger.info("Starting GitLab cleanup phase")
 
-    # Cleanup leaf nodes (dependencies, dependency_files, branches) for each project
+    # Cleanup leaf nodes (dependencies, dependency_files, branches, project runners) for each project
     for project in all_projects:
         project_id: int = project["id"]
 
@@ -231,6 +244,22 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         cartography.intel.gitlab.branches.cleanup_branches(
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
+
+        # Cleanup project-level runners
+        cartography.intel.gitlab.runners.cleanup_project_runners(
+            neo4j_session, common_job_parameters, project_id, gitlab_url
+        )
+
+    # Cleanup group-level runners (one cleanup per group)
+    for group in all_groups:
+        cartography.intel.gitlab.runners.cleanup_group_runners(
+            neo4j_session, common_job_parameters, group["id"], gitlab_url
+        )
+
+    # Cleanup instance-level runners (scoped to the organization)
+    cartography.intel.gitlab.runners.cleanup_instance_runners(
+        neo4j_session, common_job_parameters, organization_id, gitlab_url
+    )
 
     # Cleanup projects with cascade delete
     cartography.intel.gitlab.projects.cleanup_projects(

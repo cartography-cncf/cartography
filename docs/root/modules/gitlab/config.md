@@ -28,7 +28,7 @@ The token requires the following scopes:
 |-------|---------|
 | `read_user` | Access user profile information for group/project membership |
 | `read_repository` | Access repository metadata, branches, and file contents |
-| `read_api` | Access groups, projects, dependencies, and language statistics |
+| `read_api` | Access groups, projects, dependencies, language statistics, and group/project-level CI/CD runners |
 
 These scopes provide read-only access to:
 - Organizations (top-level groups) and nested groups
@@ -37,6 +37,11 @@ These scopes provide read-only access to:
 - Dependency files (package.json, requirements.txt, etc.)
 - Dependencies extracted from dependency files
 - Project language statistics
+- Group-level and project-level CI/CD runners
+
+#### Optional: instance-level runners
+
+Listing **instance-level** (shared) runners via `GET /api/v4/runners/all` requires the token to belong to a GitLab administrator. If the token does not have admin privileges, the sync logs a warning and skips instance-level runners; group-level and project-level runners continue to be ingested normally.
 
 ### Finding Your Organization ID
 

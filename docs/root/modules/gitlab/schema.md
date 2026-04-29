@@ -15,6 +15,11 @@ P -- RESOURCE --> DF(GitLabDependencyFile)
 P -- REQUIRES --> D(GitLabDependency)
 DF -- HAS_DEP --> D
 
+%% CI/CD Runners
+O -- RESOURCE --> R_I(GitLabRunner: instance)
+G -- RESOURCE --> R_G(GitLabRunner: group)
+P -- RESOURCE --> R_P(GitLabRunner: project)
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
@@ -692,4 +697,75 @@ MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabCon
 MATCH (vuln)-[:AFFECTS]->(pkg:Package)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+```
+
+### GitLabRunner
+
+Representation of a GitLab CI/CD runner. Runners exist at three scopes:
+
+- **instance_type**: shared across the whole GitLab instance (`RESOURCE` of `GitLabOrganization`)
+- **group_type**: scoped to a group and its descendants (`RESOURCE` of `GitLabGroup`)
+- **project_type**: scoped to a single project (`RESOURCE` of `GitLabProject`)
+
+All three are stored under the same Neo4j label (`GitLabRunner`); the `runner_type` property and the parent of the `RESOURCE` relationship distinguish them.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The numeric GitLab runner ID |
+| description | Human-readable description set on the runner |
+| **runner_type** | One of `instance_type`, `group_type`, `project_type` |
+| is_shared | True if this is a shared/instance runner |
+| active | Whether the runner is enabled |
+| paused | Whether new jobs are paused on this runner |
+| online | Whether the runner has contacted GitLab recently |
+| **status** | Current status (`online`, `offline`, `stale`, `never_contacted`, ...) |
+| ip_address | Last known IP address of the runner |
+| architecture | Architecture (`amd64`, `arm64`, ...) |
+| platform | Platform (`linux`, `darwin`, `windows`, ...) |
+| contacted_at | Last time the runner contacted GitLab |
+| tag_list | Array of tags used to route jobs to this runner |
+| **run_untagged** | If true, the runner accepts jobs without matching tags. Security-sensitive |
+| **locked** | If true, the runner cannot be assigned to additional projects |
+| **access_level** | `not_protected` allows jobs from any branch; `ref_protected` restricts to protected refs |
+| maximum_timeout | Per-runner job timeout cap (seconds) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabRunner` of type `instance_type` is a `RESOURCE` of a `GitLabOrganization`.
+
+    ```cypher
+    (:GitLabRunner)-[:RESOURCE]->(:GitLabOrganization)
+    ```
+
+- A `GitLabRunner` of type `group_type` is a `RESOURCE` of a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabRunner)-[:RESOURCE]->(:GitLabGroup)
+    ```
+
+- A `GitLabRunner` of type `project_type` is a `RESOURCE` of a `GitLabProject`.
+
+    ```cypher
+    (:GitLabRunner)-[:RESOURCE]->(:GitLabProject)
+    ```
+
+#### Example queries
+
+Find unprotected, untagged runners — these will execute jobs from any branch and any project that can reach them:
+
+```cypher
+MATCH (r:GitLabRunner)
+WHERE r.run_untagged = true AND r.access_level = 'not_protected'
+RETURN r.id, r.description, r.runner_type
+```
+
+Count runners per scope:
+
+```cypher
+MATCH (r:GitLabRunner)
+RETURN r.runner_type, count(*) AS count
+ORDER BY count DESC
 ```
