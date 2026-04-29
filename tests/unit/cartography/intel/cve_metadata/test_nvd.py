@@ -125,7 +125,7 @@ def test_merge_nvd_into_cves():
     assert "baseScore" not in cves[1]
 
 
-def test_get_nvd_cves_from_feeds_skips_pre_2002_years(monkeypatch):
+def test_get_nvd_cves_from_feeds_deduplicates_2002_feed_year(monkeypatch):
     http_session = MagicMock()
     cve_ids_in_graph = {"CVE-1999-0001", "CVE-2002-0001"}
 
