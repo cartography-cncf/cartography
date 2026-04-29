@@ -50,7 +50,8 @@ def test_build_matchlink_query(_mock_get_cartography_version):
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
                 r._sub_resource_label = $_sub_resource_label,
-                r._sub_resource_id = $_sub_resource_id;
+                r._sub_resource_id = $_sub_resource_id
+        RETURN count(r) AS rels_created;
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.
