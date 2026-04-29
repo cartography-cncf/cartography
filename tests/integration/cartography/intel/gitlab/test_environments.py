@@ -78,8 +78,7 @@ def test_sync_environments_creates_env_to_variable_links(
         (f"{TEST_PROJECT_ID}:3", "review/feature-x"),
     }
     assert (
-        check_nodes(neo4j_session, "GitLabEnvironment", ["id", "name"])
-        == expected_envs
+        check_nodes(neo4j_session, "GitLabEnvironment", ["id", "name"]) == expected_envs
     )
 
     # production env -> DATABASE_URL[production], FEATURE_FLAG[*], CONFIG_FILE[*]
@@ -96,11 +95,13 @@ def test_sync_environments_creates_env_to_variable_links(
 
     var_ids = {v["key"]: v["id"] for v in project_variables}
     db_prod_id = next(
-        v["id"] for v in project_variables
+        v["id"]
+        for v in project_variables
         if v["key"] == "DATABASE_URL" and v["environment_scope"] == "production"
     )
     db_staging_id = next(
-        v["id"] for v in project_variables
+        v["id"]
+        for v in project_variables
         if v["key"] == "DATABASE_URL" and v["environment_scope"] == "staging"
     )
     flag_id = var_ids["FEATURE_FLAG"]

@@ -21,10 +21,10 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import get_paginated
+from cartography.models.gitlab.environments import GitLabEnvironmentSchema
 from cartography.models.gitlab.environments import (
     GitLabEnvironmentToCIVariableMatchLink,
 )
-from cartography.models.gitlab.environments import GitLabEnvironmentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

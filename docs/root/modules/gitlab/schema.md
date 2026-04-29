@@ -29,6 +29,13 @@ P -- HAS_ENVIRONMENT --> E(GitLabEnvironment)
 P -- RESOURCE --> E
 E -- HAS_CI_VARIABLE --> CV_P
 
+%% CI/CD Config (.gitlab-ci.yml)
+P -- HAS_CI_CONFIG --> CC(GitLabCIConfig)
+P -- RESOURCE --> CC
+CC -- USES_INCLUDE --> CI_INC(GitLabCIInclude)
+P -- RESOURCE --> CI_INC
+CC -- REFERENCES_VARIABLE --> CV_P
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
@@ -895,4 +902,110 @@ Find environments that use unprotected variables:
 MATCH (e:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(v:GitLabCIVariable)
 WHERE v.protected = false
 RETURN e.name, v.key, v.environment_scope
+```
+
+### GitLabCIConfig
+
+Representation of a project's parsed `.gitlab-ci.yml`. When the GitLab
+`/ci/lint` endpoint is available, the config is built from the **merged**
+YAML (all `include:` references expanded by GitLab); otherwise the raw
+`.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
+the two cases.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{file_path}` |
+| **project_id** | The numeric GitLab project ID |
+| file_path | Path of the config file in the repo (defaults to `.gitlab-ci.yml`) |
+| is_valid | `true` / `false` if /ci/lint validated; `null` if parsed from raw |
+| is_merged | `true` if the YAML came from /ci/lint with includes expanded |
+| job_count | Number of CI jobs detected |
+| stages | Pipeline stages array |
+| trigger_rules | Detected trigger categories (`merge_requests`, `schedules`, `pushes`, `tag`, `manual`, `web`, `api`) |
+| referenced_variable_keys | All `$VAR` / `${VAR}` references found in the YAML, minus GitLab predefineds |
+| referenced_protected_variables | Subset of `referenced_variable_keys` that match a project variable with `protected = true` |
+| default_image | Top-level `image` (or `default.image`) |
+| has_includes | True if the pipeline has any `include:` entries |
+| include_count | Number of resolved include entries |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIConfig` belongs to a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_CI_CONFIG]->(:GitLabCIConfig)
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIConfig)
+    ```
+
+- A `GitLabCIConfig` references each `include:` entry as a `GitLabCIInclude`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIConfig` references a `GitLabCIVariable` when one of its parsed
+  variable keys matches the variable's `key` (across any environment scope).
+
+    ```cypher
+    (:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+### GitLabCIInclude
+
+Representation of a single `include:` entry in a project's `.gitlab-ci.yml`.
+
+The `is_pinned` flag is the primary security signal: a `project:` include
+without a 40-character SHA `ref` will pull whatever is on the referenced
+branch / tag at pipeline runtime, so anyone with push access to the included
+repo can inject code into the consumer's pipeline.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{include_type}:{location}:{ref or 'none'}` |
+| **include_type** | `local`, `project`, `remote`, `template`, or `component` |
+| **location** | Path / project path / URL / template name / component identifier |
+| ref | SHA, tag, or branch (for `project:` includes); `null` otherwise |
+| **is_pinned** | True iff the include resolves to an immutable target |
+| is_local | True for `local:` includes (within the same repo) |
+| raw_include | The raw include entry as it appeared in the YAML |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIInclude` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIInclude` is used by exactly one `GitLabCIConfig`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+#### Example queries
+
+Find pipelines that pull external CI templates without pinning to a SHA — these
+are vulnerable to upstream tampering:
+
+```cypher
+MATCH (c:GitLabCIConfig)-[:USES_INCLUDE]->(i:GitLabCIInclude)
+WHERE i.include_type = 'project' AND i.is_pinned = false
+RETURN c.project_id, i.location, i.ref
+```
+
+Find pipelines that reference a `protected` variable AND can be triggered
+manually — a possible secret-leak vector:
+
+```cypher
+MATCH (c:GitLabCIConfig)
+WHERE 'manual' IN c.trigger_rules
+  AND size(c.referenced_protected_variables) > 0
+RETURN c.project_id, c.referenced_protected_variables, c.trigger_rules
 ```

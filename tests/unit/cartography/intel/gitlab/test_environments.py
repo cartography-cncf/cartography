@@ -25,7 +25,11 @@ def test_transform_environments_uses_composite_id():
         GET_ENVIRONMENTS_RESPONSE, TEST_PROJECT_ID, TEST_GITLAB_URL
     )
     ids = {e["id"] for e in transformed}
-    assert ids == {f"{TEST_PROJECT_ID}:1", f"{TEST_PROJECT_ID}:2", f"{TEST_PROJECT_ID}:3"}
+    assert ids == {
+        f"{TEST_PROJECT_ID}:1",
+        f"{TEST_PROJECT_ID}:2",
+        f"{TEST_PROJECT_ID}:3",
+    }
 
 
 def test_transform_environments_drops_entries_without_id():

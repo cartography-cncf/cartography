@@ -43,6 +43,10 @@ These scopes provide read-only access to:
 
 Listing **instance-level** (shared) runners via `GET /api/v4/runners/all` requires the token to belong to a GitLab administrator. If the token does not have admin privileges, the sync logs a warning and skips instance-level runners; group-level and project-level runners continue to be ingested normally.
 
+#### CI config (`.gitlab-ci.yml`) ingestion
+
+The CI config sync first calls `GET /api/v4/projects/:id/ci/lint?dry_run=true` to obtain the merged YAML (with all `include:` references expanded). Tokens generated from a user without Maintainer access on the project may not be allowed to use this endpoint — in that case the sync falls back to the raw `.gitlab-ci.yml` from the repository, which only requires `read_repository`. If both calls fail (404 / 403), the project is skipped silently.
+
 ### Finding Your Organization ID
 
 The organization ID is the numeric ID of the top-level GitLab group you want to sync. To find it:
