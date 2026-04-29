@@ -131,7 +131,9 @@ def test_is_pinned_logic():
     # Remote with SHA in path: pinned
     assert (
         _is_pinned(
-            "remote", None, "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/file.yml"
+            "remote",
+            None,
+            "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/file.yml",
         )
         is True
     )

@@ -20,6 +20,10 @@ TEST_UPDATE_TAG = 123456789
 
 
 def _create_org_group_project(neo4j_session):
+    # Wipe shared state from prior tests in this module — neo4j_session is
+    # module-scoped, so without this the 403-tolerance test inherits runners
+    # loaded by an earlier test.
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
     neo4j_session.run(
         """
         MERGE (o:GitLabOrganization{id: $org_id})

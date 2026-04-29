@@ -17,16 +17,16 @@ The parser is pure (`ci_config_parser.py`) — all I/O lives here.
 
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import neo4j
 import requests
-from urllib.parse import quote
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.intel.gitlab.ci_config_parser import ParsedCIConfig
 from cartography.intel.gitlab.ci_config_parser import parse_ci_config
+from cartography.intel.gitlab.ci_config_parser import ParsedCIConfig
 from cartography.intel.gitlab.util import make_request_with_retry
 from cartography.models.gitlab.ci_config import GitLabCIConfigSchema
 from cartography.models.gitlab.ci_config import GitLabCIConfigToCIVariableMatchLink
@@ -303,9 +303,7 @@ def cleanup_ci_configs(
         "project_id": project_id,
         "gitlab_url": gitlab_url,
     }
-    GraphJob.from_node_schema(GitLabCIConfigSchema(), cleanup_params).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(GitLabCIConfigSchema(), cleanup_params).run(neo4j_session)
 
 
 @timeit
@@ -371,9 +369,7 @@ def sync_gitlab_ci_config(
             parsed, project_variables, project_id, DEFAULT_FILE_PATH
         )
 
-        load_ci_config(
-            neo4j_session, config_record, project_id, gitlab_url, update_tag
-        )
+        load_ci_config(neo4j_session, config_record, project_id, gitlab_url, update_tag)
         load_ci_includes(
             neo4j_session, include_records, project_id, gitlab_url, update_tag
         )

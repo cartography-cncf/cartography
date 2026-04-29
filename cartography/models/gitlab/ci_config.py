@@ -100,9 +100,7 @@ class GitLabCIConfigToProjectRel(CartographyRelSchema):
 class GitLabCIConfigSchema(CartographyNodeSchema):
     label: str = "GitLabCIConfig"
     properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
-    sub_resource_relationship: GitLabCIConfigToProjectRel = (
-        GitLabCIConfigToProjectRel()
-    )
+    sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [GitLabProjectHasCIConfigRel()],
     )
@@ -119,9 +117,7 @@ class GitLabCIConfigToCIVariableRelProperties(CartographyRelProperties):
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label", set_in_kwargs=True
     )
-    _sub_resource_id: PropertyRef = PropertyRef(
-        "_sub_resource_id", set_in_kwargs=True
-    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

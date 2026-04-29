@@ -55,12 +55,10 @@ RESERVED_TOP_LEVEL_KEYS = {
 TRIGGER_PATTERNS = {
     "merge_requests": re.compile(
         r'CI_PIPELINE_SOURCE\s*==\s*["\']merge_request_event["\']'
-        r'|CI_MERGE_REQUEST_'
-        r'|merge_requests?'
+        r"|CI_MERGE_REQUEST_"
+        r"|merge_requests?"
     ),
-    "schedules": re.compile(
-        r'CI_PIPELINE_SOURCE\s*==\s*["\']schedule["\']|schedules?'
-    ),
+    "schedules": re.compile(r'CI_PIPELINE_SOURCE\s*==\s*["\']schedule["\']|schedules?'),
     "tag": re.compile(r"CI_COMMIT_TAG|^\s*-?\s*tags\s*:?", re.MULTILINE),
     "manual": re.compile(r"^\s*when\s*:\s*manual", re.MULTILINE),
     "web": re.compile(r'CI_PIPELINE_SOURCE\s*==\s*["\']web["\']'),

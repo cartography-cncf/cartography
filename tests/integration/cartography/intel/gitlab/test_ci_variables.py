@@ -17,7 +17,14 @@ TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = 10
 
 
-def _create_group_and_project(neo4j_session):
+def _reset_db_and_create_group_and_project(neo4j_session):
+    """Wipe the shared session DB then create a fresh group + project.
+
+    The neo4j_session fixture is module-scoped, so without a wipe each test
+    inherits state from the previous one — the 403-tolerance test would
+    otherwise see variables loaded by an earlier test.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
     neo4j_session.run(
         """
         MERGE (g:GitLabGroup{id: $group_id, gitlab_url: $gitlab_url})
@@ -53,7 +60,7 @@ def _patched_paginated(endpoint, **_kwargs):
 
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")
 def test_sync_ci_variables_loads_at_both_scopes(mock_get_paginated, neo4j_session):
-    _create_group_and_project(neo4j_session)
+    _reset_db_and_create_group_and_project(neo4j_session)
     mock_get_paginated.side_effect = (
         lambda _url, _tok, endpoint, **kw: _patched_paginated(endpoint, **kw)
     )
@@ -97,13 +104,14 @@ def test_sync_ci_variables_loads_at_both_scopes(mock_get_paginated, neo4j_sessio
     )
     assert {key for _, key in group_rels} == {"DEPLOY_TOKEN", "GROUP_OPEN_VAR"}
 
-    # Project HAS_CI_VARIABLE relationships (4 — two DATABASE_URL, FEATURE_FLAG, CONFIG_FILE)
+    # Project HAS_CI_VARIABLE — match by composite id so the two DATABASE_URL
+    # variants (production / staging) don't collapse in the result set.
     project_rels = check_rels(
         neo4j_session,
         "GitLabProject",
         "id",
         "GitLabCIVariable",
-        "key",
+        "id",
         "HAS_CI_VARIABLE",
     )
     assert len(project_rels) == 4
@@ -116,7 +124,7 @@ def test_sync_ci_variables_loads_at_both_scopes(mock_get_paginated, neo4j_sessio
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")
 def test_sync_ci_variables_does_not_store_value(mock_get_paginated, neo4j_session):
     """A direct Cypher check confirming that no value column was persisted."""
-    _create_group_and_project(neo4j_session)
+    _reset_db_and_create_group_and_project(neo4j_session)
     mock_get_paginated.side_effect = (
         lambda _url, _tok, endpoint, **kw: _patched_paginated(endpoint, **kw)
     )
@@ -140,7 +148,7 @@ def test_sync_ci_variables_does_not_store_value(mock_get_paginated, neo4j_sessio
 @patch("cartography.intel.gitlab.ci_variables.get_paginated")
 def test_sync_ci_variables_tolerates_403_per_scope(mock_get_paginated, neo4j_session):
     """A 403 on the group scope should not break the project sync."""
-    _create_group_and_project(neo4j_session)
+    _reset_db_and_create_group_and_project(neo4j_session)
 
     def side_effect(_url, _tok, endpoint, **_kw):
         if endpoint == f"/api/v4/groups/{TEST_GROUP_ID}/variables":
@@ -177,7 +185,7 @@ def test_sync_ci_variables_tolerates_403_per_scope(mock_get_paginated, neo4j_ses
         "GitLabProject",
         "id",
         "GitLabCIVariable",
-        "key",
+        "id",
         "HAS_CI_VARIABLE",
     )
     assert len(project_rels) == 4
