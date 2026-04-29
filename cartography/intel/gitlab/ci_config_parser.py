@@ -290,6 +290,11 @@ def parse_lint_includes(
     path. ``ref`` for ``project`` includes is taken from ``extra.ref``
     when present, falling back to ``context_sha`` (the resolved commit
     that GitLab fetched).
+
+    GitLab's lint response uses ``type: "file"`` for project includes
+    (with ``extra.project`` set). We normalise those back to the YAML
+    parser's shape (``include_type="project"``, ``location="<project>:<file>"``)
+    so downstream nodes are consistent across the two fetch paths.
     """
     if not lint_includes:
         return []
@@ -302,7 +307,15 @@ def parse_lint_includes(
         if not include_type or not location:
             continue
         extra = entry.get("extra") if isinstance(entry.get("extra"), dict) else {}
-        ref = (extra or {}).get("ref") or entry.get("context_sha")
+        extra = extra or {}
+        ref = extra.get("ref") or entry.get("context_sha")
+
+        # Normalise file-with-project to the same shape as the YAML parser.
+        project = extra.get("project")
+        if include_type == "file" and project:
+            include_type = "project"
+            location = f"{project}:{location}"
+
         results.append(
             ParsedCIInclude(
                 include_type=include_type,

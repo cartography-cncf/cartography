@@ -2,6 +2,7 @@
 
 from cartography.intel.gitlab.ci_config_parser import _is_pinned
 from cartography.intel.gitlab.ci_config_parser import parse_ci_config
+from cartography.intel.gitlab.ci_config_parser import parse_lint_includes
 from tests.data.gitlab.ci_configs import PIPELINE_BAD_YAML
 from tests.data.gitlab.ci_configs import PIPELINE_EMPTY
 from tests.data.gitlab.ci_configs import PIPELINE_LOCAL_LIST
@@ -174,6 +175,54 @@ def test_parse_propagates_is_valid():
     assert parsed.is_valid is False
     parsed = parse_ci_config(PIPELINE_WITH_MIXED_INCLUDES)
     assert parsed.is_valid is None
+
+
+def test_parse_lint_includes_normalises_file_with_project_to_project_shape():
+    """
+    GitLab's /ci/lint returns project includes as ``type: "file"`` with
+    ``extra.project`` set. We normalise back to the YAML parser's shape
+    (``include_type="project"``, ``location="<project>:<file>"``) so the
+    lint and raw paths produce equivalent GitLabCIInclude nodes.
+    """
+    lint_includes = [
+        {
+            "type": "file",
+            "location": "/templates/build.yml",
+            "extra": {
+                "project": "my-org/shared-ci",
+                "ref": "a" * 40,
+            },
+        },
+        {
+            "type": "file",
+            "location": "/templates/deploy.yml",
+            "extra": {
+                "project": "my-org/shared-ci",
+                "ref": "main",
+            },
+        },
+    ]
+    parsed = parse_lint_includes(lint_includes)
+
+    assert [(p.include_type, p.location, p.is_pinned) for p in parsed] == [
+        ("project", "my-org/shared-ci:/templates/build.yml", True),
+        ("project", "my-org/shared-ci:/templates/deploy.yml", False),
+    ]
+
+
+def test_parse_lint_includes_keeps_non_project_types_unchanged():
+    """Non-``file`` types (local/remote/template/component) pass through as-is."""
+    lint_includes = [
+        {"type": "local", "location": "/templates/local.yml"},
+        {"type": "remote", "location": "https://example.com/foo.yml"},
+        {"type": "template", "location": "Auto-DevOps.gitlab-ci.yml"},
+    ]
+    parsed = parse_lint_includes(lint_includes)
+    assert [(p.include_type, p.location, p.is_local) for p in parsed] == [
+        ("local", "/templates/local.yml", True),
+        ("remote", "https://example.com/foo.yml", False),
+        ("template", "Auto-DevOps.gitlab-ci.yml", False),
+    ]
 
 
 def test_is_pinned_logic():
