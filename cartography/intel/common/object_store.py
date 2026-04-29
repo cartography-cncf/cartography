@@ -191,9 +191,16 @@ class S3BucketReader(_BaseReader):
 
         try:
             response = self._client.get_object(Bucket=self._bucket, Key=ref.name)
-            return response["Body"].read()
         except (BotoCoreError, ClientError) as exc:
             raise ObjectStoreError("Failed to read S3 report", source=ref.uri) from exc
+
+        body = response["Body"]
+        try:
+            return body.read()
+        except (BotoCoreError, ClientError) as exc:
+            raise ObjectStoreError("Failed to read S3 report", source=ref.uri) from exc
+        finally:
+            body.close()
 
 
 class GCSBucketReader(_BaseReader):

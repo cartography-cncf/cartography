@@ -2553,10 +2553,27 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
-                docker_scout_source=resolved_docker_scout_source,
-                trivy_source=resolved_trivy_source,
-                syft_source=resolved_syft_source,
-                aibom_source=resolved_aibom_source,
+                # Forward the user-provided values (not resolved). Config calls
+                # resolve_report_source_with_legacy_fields() internally; the CLI's
+                # _resolve_report_source_option above runs the same logic for early
+                # validation/deprecation warning, then we suppress the duplicate
+                # config-time warning via _warn_on_legacy_report_source=False below.
+                docker_scout_source=docker_scout_source,
+                docker_scout_results_dir=docker_scout_results_dir,
+                docker_scout_s3_bucket=docker_scout_s3_bucket,
+                docker_scout_s3_prefix=docker_scout_s3_prefix,
+                trivy_source=trivy_source,
+                trivy_results_dir=trivy_results_dir,
+                trivy_s3_bucket=trivy_s3_bucket,
+                trivy_s3_prefix=trivy_s3_prefix,
+                syft_source=syft_source,
+                syft_results_dir=syft_results_dir,
+                syft_s3_bucket=syft_s3_bucket,
+                syft_s3_prefix=syft_s3_prefix,
+                aibom_source=aibom_source,
+                aibom_results_dir=aibom_results_dir,
+                aibom_s3_bucket=aibom_s3_bucket,
+                aibom_s3_prefix=aibom_s3_prefix,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
