@@ -972,7 +972,6 @@ repo can inject code into the consumer's pipeline.
 | ref | SHA, tag, or branch (for `project:` includes); `null` otherwise |
 | **is_pinned** | True iff the include resolves to an immutable target |
 | is_local | True for `local:` includes (within the same repo) |
-| raw_include | The raw include entry as it appeared in the YAML |
 | **gitlab_url** | GitLab instance URL |
 
 #### Relationships

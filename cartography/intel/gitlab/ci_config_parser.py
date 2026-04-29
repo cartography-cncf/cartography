@@ -79,7 +79,6 @@ class ParsedCIInclude:
     ref: str | None
     is_pinned: bool
     is_local: bool
-    raw_include: str
 
 
 @dataclass
@@ -126,7 +125,6 @@ def _classify_bare_string(item: str) -> ParsedCIInclude:
             ref=None,
             is_pinned=_is_pinned("remote", None, item),
             is_local=False,
-            raw_include=item,
         )
     return ParsedCIInclude(
         include_type="local",
@@ -134,7 +132,6 @@ def _classify_bare_string(item: str) -> ParsedCIInclude:
         ref=None,
         is_pinned=True,
         is_local=True,
-        raw_include=item,
     )
 
 
@@ -155,7 +152,6 @@ def _parse_single_include(item: Any) -> list[ParsedCIInclude]:
     if not isinstance(item, dict):
         return []
 
-    raw = str(item)
     for include_type in ("local", "project", "remote", "template", "component"):
         if include_type not in item:
             continue
@@ -183,7 +179,6 @@ def _parse_single_include(item: Any) -> list[ParsedCIInclude]:
                         ref=ref,
                         is_pinned=_is_pinned(include_type, ref, location),
                         is_local=False,
-                        raw_include=raw,
                     )
                 )
             return results
@@ -195,7 +190,6 @@ def _parse_single_include(item: Any) -> list[ParsedCIInclude]:
                 ref=None,
                 is_pinned=_is_pinned(include_type, None, str(primary)),
                 is_local=(include_type == "local"),
-                raw_include=raw,
             )
         ]
     return []
@@ -223,7 +217,6 @@ def _extract_includes(includes_value: Any) -> list[ParsedCIInclude]:
                         ref=None,
                         is_pinned=True,
                         is_local=True,
-                        raw_include=str(item),
                     )
                 )
             continue

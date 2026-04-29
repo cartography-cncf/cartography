@@ -251,7 +251,6 @@ def transform_ci_includes(
                 "ref": include.ref,
                 "is_pinned": include.is_pinned,
                 "is_local": include.is_local,
-                "raw_include": include.raw_include,
                 "config_id": config_id,
                 "gitlab_url": gitlab_url,
             }

@@ -36,7 +36,6 @@ class GitLabCIIncludeNodeProperties(CartographyNodeProperties):
     ref: PropertyRef = PropertyRef("ref")
     is_pinned: PropertyRef = PropertyRef("is_pinned")
     is_local: PropertyRef = PropertyRef("is_local")
-    raw_include: PropertyRef = PropertyRef("raw_include")
     gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
