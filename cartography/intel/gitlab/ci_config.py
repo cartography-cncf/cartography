@@ -95,12 +95,15 @@ def _try_raw_ci_yaml(
     project_id: int,
     ref: str | None,
     file_path: str = DEFAULT_FILE_PATH,
-) -> str | None:
+) -> tuple[str | None, bool]:
     """
     Fetch the raw `.gitlab-ci.yml` from the repository as a fallback when
-    /ci/lint is unavailable. Returns None on 403 / 404 (the file is absent
-    or the token can't read repository files for this project — both
-    non-fatal for the sync).
+    /ci/lint is unavailable. Returns ``(text, denied)``:
+
+    - ``(text, False)`` on success
+    - ``(None, False)`` on 404 — the file does not exist, authoritative
+    - ``(None, True)`` on 403 — the token cannot read repository files
+    Other errors propagate.
     """
     encoded = quote(file_path, safe="")
     endpoint = f"/api/v4/projects/{project_id}/repository/files/{encoded}/raw"
@@ -117,15 +120,20 @@ def _try_raw_ci_yaml(
         )
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code in (403, 404):
+        if e.response is not None and e.response.status_code == 403:
             logger.warning(
-                "Raw .gitlab-ci.yml not available for project %s (status %s).",
+                "Raw .gitlab-ci.yml denied for project %s.",
                 project_id,
-                e.response.status_code,
             )
-            return None
+            return None, True
+        if e.response is not None and e.response.status_code == 404:
+            logger.warning(
+                "Raw .gitlab-ci.yml not found for project %s.",
+                project_id,
+            )
+            return None, False
         raise
-    return response.text
+    return response.text, False
 
 
 @timeit
@@ -160,17 +168,17 @@ def fetch_ci_config_yaml(
 
     # Both 404 and 403 from /ci/lint fall back to the raw file. The raw
     # endpoint uses `read_repository`, broader than the Maintainer scope
-    # /ci/lint needs — but if the token also lacks `read_repository` for
-    # this project, _try_raw_ci_yaml returns None on 403 too.
-    raw = _try_raw_ci_yaml(gitlab_url, token, project_id, ref)
+    # /ci/lint needs.
+    raw, raw_denied = _try_raw_ci_yaml(gitlab_url, token, project_id, ref)
     if raw is not None:
         return raw, None, False, False
 
-    # Both paths failed. If lint specifically reported 403 we treat the
-    # whole project as denied (skip cleanup). If lint was 404 (no pipeline)
-    # and raw was also missing, the project legitimately has no config and
-    # cleanup may proceed.
-    return None, None, False, lint_denied
+    # Both paths failed. We only flag the project as ``denied`` if neither
+    # path could authoritatively confirm the absence of a config — i.e.
+    # both returned 403. A 404 from either endpoint (especially raw 404)
+    # is authoritative absence and cleanup may run normally.
+    denied = lint_denied and raw_denied
+    return None, None, False, denied
 
 
 def transform_ci_config(
