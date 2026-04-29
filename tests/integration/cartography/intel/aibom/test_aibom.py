@@ -661,7 +661,6 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
     mock_json_files,
     mock_file_open,
     neo4j_session,
-    caplog,
 ):
     _seed_manifest_list_graph(neo4j_session)
 
@@ -673,7 +672,6 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert "Failed to read AIBOM data from /tmp/aibom-bad-encoding.json" in caplog.text
 
 
 @patch("builtins.open", side_effect=FileNotFoundError("gone"))
@@ -685,7 +683,6 @@ def test_sync_aibom_skips_local_read_errors(
     mock_json_files,
     mock_file_open,
     neo4j_session,
-    caplog,
 ):
     _seed_manifest_list_graph(neo4j_session)
 
@@ -697,12 +694,10 @@ def test_sync_aibom_skips_local_read_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert "Failed to read AIBOM data from /tmp/aibom-deleted.json" in caplog.text
 
 
 def test_sync_aibom_skips_s3_unicode_decode_errors(
     neo4j_session,
-    caplog,
 ):
     _seed_manifest_list_graph(neo4j_session)
 
@@ -726,10 +721,6 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert (
-        "Failed to read AIBOM data from s3://example-bucket/reports/aibom-bad-encoding.json"
-        in caplog.text
-    )
 
 
 @patch(

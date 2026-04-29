@@ -113,16 +113,17 @@ def sync_docker_scout_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     # DEPRECATED: sync_docker_scout_from_s3() will be removed in v1.0.0.
-    sync_docker_scout_from_report_reader(
-        neo4j_session,
-        reader=S3BucketReader(
-            boto3_session,
-            s3_bucket,
-            s3_prefix,
-        ),
-        update_tag=update_tag,
-        common_job_parameters=common_job_parameters,
-    )
+    with S3BucketReader(
+        boto3_session,
+        s3_bucket,
+        s3_prefix,
+    ) as reader:
+        sync_docker_scout_from_report_reader(
+            neo4j_session,
+            reader=reader,
+            update_tag=update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
 
 @timeit

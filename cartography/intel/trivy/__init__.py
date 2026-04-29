@@ -312,16 +312,17 @@ def sync_trivy_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     # DEPRECATED: sync_trivy_from_s3() will be removed in v1.0.0.
-    sync_trivy_from_report_reader(
-        neo4j_session,
-        reader=S3BucketReader(
-            boto3_session,
-            trivy_s3_bucket,
-            trivy_s3_prefix,
-        ),
-        update_tag=update_tag,
-        common_job_parameters=common_job_parameters,
-    )
+    with S3BucketReader(
+        boto3_session,
+        trivy_s3_bucket,
+        trivy_s3_prefix,
+    ) as reader:
+        sync_trivy_from_report_reader(
+            neo4j_session,
+            reader=reader,
+            update_tag=update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
 
 @timeit

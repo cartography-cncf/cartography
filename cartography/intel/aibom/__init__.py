@@ -140,16 +140,17 @@ def sync_aibom_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     # DEPRECATED: sync_aibom_from_s3() will be removed in v1.0.0.
-    sync_aibom_from_report_reader(
-        neo4j_session,
-        S3BucketReader(
-            boto3_session,
-            aibom_s3_bucket,
-            aibom_s3_prefix,
-        ),
-        update_tag=update_tag,
-        common_job_parameters=common_job_parameters,
-    )
+    with S3BucketReader(
+        boto3_session,
+        aibom_s3_bucket,
+        aibom_s3_prefix,
+    ) as reader:
+        sync_aibom_from_report_reader(
+            neo4j_session,
+            reader,
+            update_tag=update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
 
 @timeit

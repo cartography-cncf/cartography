@@ -348,17 +348,18 @@ def get_json_files_in_s3(
     """
     # DEPRECATED: get_json_files_in_s3() will be removed in v1.0.0.
     try:
-        results = {
-            ref.name
-            for ref in filter_report_refs(
-                S3BucketReader(
-                    boto3_session,
-                    s3_bucket,
-                    s3_prefix,
-                ).list_reports(),
-                suffix=".json",
-            )
-        }
+        with S3BucketReader(
+            boto3_session,
+            s3_bucket,
+            s3_prefix,
+        ) as reader:
+            results = {
+                ref.name
+                for ref in filter_report_refs(
+                    reader.list_reports(),
+                    suffix=".json",
+                )
+            }
 
     except Exception as e:
         logger.error(
@@ -508,11 +509,11 @@ def sync_single_image_from_s3(
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
     # Empty prefix is intentional: this compatibility wrapper reads exactly one
     # caller-provided key through the shared reader API.
-    reader = S3BucketReader(boto3_session, s3_bucket, "")
-    scan_data_json = read_text_report(
-        reader,
-        ReportRef(uri=f"s3://{s3_bucket}/{s3_object_key}", name=s3_object_key),
-    )
+    with S3BucketReader(boto3_session, s3_bucket, "") as reader:
+        scan_data_json = read_text_report(
+            reader,
+            ReportRef(uri=f"s3://{s3_bucket}/{s3_object_key}", name=s3_object_key),
+        )
 
     trivy_data = json.loads(scan_data_json)
     sync_single_image(neo4j_session, trivy_data, image_uri, update_tag)

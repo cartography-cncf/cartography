@@ -148,16 +148,17 @@ def sync_syft_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     # DEPRECATED: sync_syft_from_s3() will be removed in v1.0.0.
-    sync_syft_from_report_reader(
-        neo4j_session,
-        reader=S3BucketReader(
-            boto3_session,
-            syft_s3_bucket,
-            syft_s3_prefix,
-        ),
-        update_tag=update_tag,
-        common_job_parameters=common_job_parameters,
-    )
+    with S3BucketReader(
+        boto3_session,
+        syft_s3_bucket,
+        syft_s3_prefix,
+    ) as reader:
+        sync_syft_from_report_reader(
+            neo4j_session,
+            reader=reader,
+            update_tag=update_tag,
+            common_job_parameters=common_job_parameters,
+        )
 
 
 @timeit

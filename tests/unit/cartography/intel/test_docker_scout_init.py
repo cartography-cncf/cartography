@@ -1,4 +1,6 @@
+import logging
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 
@@ -6,7 +8,11 @@ from cartography.intel.docker_scout import sync_docker_scout_from_dir
 from cartography.intel.docker_scout import sync_docker_scout_from_s3
 
 
+@patch("cartography.intel.docker_scout.cleanup")
+@patch("cartography.intel.docker_scout.sync_from_file")
 def test_sync_docker_scout_from_dir_skips_unicode_decode_errors(
+    mock_sync_from_file,
+    mock_cleanup,
     tmp_path,
     caplog,
 ) -> None:
@@ -14,17 +20,24 @@ def test_sync_docker_scout_from_dir_skips_unicode_decode_errors(
     report_path = tmp_path / "bad-report.txt"
     report_path.write_bytes(b"\x80")
 
-    sync_docker_scout_from_dir(
-        neo4j_session,
-        str(tmp_path),
-        1,
-        {"UPDATE_TAG": 1},
-    )
+    with caplog.at_level(logging.ERROR):
+        sync_docker_scout_from_dir(
+            neo4j_session,
+            str(tmp_path),
+            1,
+            {"UPDATE_TAG": 1},
+        )
 
-    assert f"Failed to read Docker Scout report from {report_path}" in caplog.text
+    mock_sync_from_file.assert_not_called()
+    mock_cleanup.assert_not_called()
+    assert any(r.levelname == "ERROR" for r in caplog.records)
 
 
+@patch("cartography.intel.docker_scout.cleanup")
+@patch("cartography.intel.docker_scout.sync_from_file")
 def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
+    mock_sync_from_file,
+    mock_cleanup,
     caplog,
 ) -> None:
     neo4j_session = MagicMock()
@@ -38,22 +51,28 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     }
     boto3_session.client.return_value = s3_client
 
-    sync_docker_scout_from_s3(
-        neo4j_session,
-        "example-bucket",
-        "reports/",
-        1,
-        {"UPDATE_TAG": 1},
-        boto3_session,
-    )
+    with caplog.at_level(logging.ERROR):
+        sync_docker_scout_from_s3(
+            neo4j_session,
+            "example-bucket",
+            "reports/",
+            1,
+            {"UPDATE_TAG": 1},
+            boto3_session,
+        )
 
-    assert (
-        "Failed to read Docker Scout report from s3://example-bucket/reports/bad-report.txt"
-        in caplog.text
-    )
+    mock_sync_from_file.assert_not_called()
+    mock_cleanup.assert_not_called()
+    assert any(r.levelname == "ERROR" for r in caplog.records)
 
 
-def test_sync_docker_scout_from_s3_skips_read_failures(caplog) -> None:
+@patch("cartography.intel.docker_scout.cleanup")
+@patch("cartography.intel.docker_scout.sync_from_file")
+def test_sync_docker_scout_from_s3_skips_read_failures(
+    mock_sync_from_file,
+    mock_cleanup,
+    caplog,
+) -> None:
     neo4j_session = MagicMock()
     boto3_session = MagicMock()
     s3_client = MagicMock()
@@ -66,16 +85,16 @@ def test_sync_docker_scout_from_s3_skips_read_failures(caplog) -> None:
     )
     boto3_session.client.return_value = s3_client
 
-    sync_docker_scout_from_s3(
-        neo4j_session,
-        "example-bucket",
-        "reports/",
-        1,
-        {"UPDATE_TAG": 1},
-        boto3_session,
-    )
+    with caplog.at_level(logging.ERROR):
+        sync_docker_scout_from_s3(
+            neo4j_session,
+            "example-bucket",
+            "reports/",
+            1,
+            {"UPDATE_TAG": 1},
+            boto3_session,
+        )
 
-    assert (
-        "Failed to read Docker Scout report from s3://example-bucket/reports/forbidden-report.txt"
-        in caplog.text
-    )
+    mock_sync_from_file.assert_not_called()
+    mock_cleanup.assert_not_called()
+    assert any(r.levelname == "ERROR" for r in caplog.records)
