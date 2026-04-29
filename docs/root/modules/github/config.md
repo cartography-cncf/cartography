@@ -40,6 +40,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
+   | **Packages** | Read | Optional | GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography logs a `403 Forbidden` warning on `/orgs/{org}/packages` and skips GHCR ingestion. |
    | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
    | **Variables** | Read | Optional | Organization variables for Actions workflows. |
 
@@ -65,6 +66,7 @@ Classic PATs use broader OAuth scopes. Use this option if fine-grained PATs are 
    | `read:org` | Organization membership and team data |
    | `read:user` | User profile information |
    | `user:email` | User email addresses |
+   | `read:packages` | Optional. GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography skips GHCR ingestion. |
 
 4. Click **Generate token** and copy it immediately.
 
@@ -175,6 +177,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
+| `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | Grant `Organization -> Packages: Read` (fine-grained) or the `read:packages` scope (classic). Without it, GHCR (container packages, images, layers, tags, attestations) is skipped. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |
