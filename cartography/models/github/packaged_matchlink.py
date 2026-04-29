@@ -90,6 +90,38 @@ class GitHubRepoDockerfilePackagedFromMatchLink(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubRepoPackageOwnerPackagedFromMatchLink(CartographyRelSchema):
+    """
+    MatchLink for the package-owner fallback:
+    ``(Image)-[:PACKAGED_FROM]->(GitHubRepository)`` when the image lives in a
+    ``GitHubPackage`` that has a single ``HAS_PACKAGE`` rel back to a repo and
+    no higher-confidence match (provenance / dockerfile) was produced.
+
+    Matches ``Image.digest`` to the repo URL. Lower confidence than the
+    Dockerfile match — used as a deterministic fallback because GitHub's
+    Packages API returns at most one repository per package.
+    """
+
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("repo_url"),
+        },
+    )
+    source_node_label: str = "Image"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "digest": PropertyRef("image_digest"),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PACKAGED_FROM"
+    properties: GitHubRepoPackagedFromMatchLinkProperties = (
+        GitHubRepoPackagedFromMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ImagePackagedByWorkflowMatchLinkProperties(CartographyRelProperties):
     """
     Properties for the PACKAGED_BY relationship between Image and GitHubWorkflow.

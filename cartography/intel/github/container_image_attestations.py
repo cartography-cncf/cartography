@@ -54,8 +54,7 @@ def _digests_already_enriched(
     org_url: str,
 ) -> set[str]:
     query = """
-    MATCH (org:GitHubOrganization {id: $org_url})
-    MATCH (img:GitHubContainerImage)-[:RESOURCE]->(org)
+    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(img:GitHubContainerImage)
     WHERE img.source_uri IS NOT NULL
     RETURN img.digest
     """

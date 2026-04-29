@@ -58,7 +58,7 @@ def _existing_digests_with_layers(
     """
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})
-    MATCH (img:GitHubContainerImage)-[:RESOURCE]->(org)
+    MATCH (org)-[:RESOURCE]->(img:GitHubContainerImage)
     WHERE img.layer_diff_ids IS NOT NULL AND size(img.layer_diff_ids) > 0
     RETURN img.digest
     """

@@ -5,8 +5,10 @@ import json
 from unittest.mock import patch
 
 import cartography.intel.github.container_image_attestations
+import cartography.intel.github.container_image_tags
 import cartography.intel.github.container_images
 import cartography.intel.github.packages
+import cartography.intel.github.supply_chain
 from tests.data.github.packages import CONFIG_BLOBS_BY_DIGEST
 from tests.data.github.packages import DIGEST_API_AMD64
 from tests.data.github.packages import DIGEST_API_ARM64
@@ -276,3 +278,116 @@ def test_sync_ghcr_full_pipeline(
     assert enriched["uri"] == "https://github.com/simpsoncorp/sample_repo"
     assert enriched["rev"] == "abc123def456abc123def456abc123def4567890"
     assert enriched["file"] == ".github/workflows/build.yml"
+
+
+@patch.object(
+    cartography.intel.github.supply_chain,
+    "get_dockerfiles_for_repos",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.github.container_image_attestations,
+    "call_github_rest_api",
+    side_effect=_attestation_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_blob",
+    side_effect=_blob_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_manifest",
+    side_effect=_manifest_side_effect,
+)
+@patch(
+    "cartography.intel.github.packages.fetch_all_rest_api_pages",
+    side_effect=_packages_pagination_side_effect,
+)
+def test_supply_chain_package_owner_fallback(
+    mock_pages,
+    mock_manifest,
+    mock_blob,
+    mock_attestations,
+    mock_dockerfiles,
+    neo4j_session,
+):
+    """
+    The package-owner fallback links GHCR images that have no provenance match
+    (and no Dockerfile match) to the GitHubRepository carrying their package's
+    ``HAS_PACKAGE`` rel. ``DIGEST_API_INDEX`` and its child digests have no
+    SLSA attestation in the fixtures, but the ``api`` package is owned by
+    ``sample_repo`` so the fallback should kick in. ``DIGEST_WORKER`` lives in
+    a package without a repository link, so it should remain unmatched.
+    """
+    _seed_org_and_repo(neo4j_session)
+
+    fetch_result = cartography.intel.github.packages.sync_packages(
+        neo4j_session,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+    raw_manifests, _, tag_rows = (
+        cartography.intel.github.container_images.sync_container_images(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            fetch_result.packages,
+            TEST_UPDATE_TAG,
+            TEST_JOB_PARAMS,
+        )
+    )
+    cartography.intel.github.container_image_tags.sync_container_image_tags(
+        neo4j_session,
+        TEST_ORG,
+        tag_rows,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+    cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+        neo4j_session,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORG,
+        raw_manifests,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+    )
+
+    # Run the supply-chain matcher with one repo (so SLSA provenance can match
+    # DIGEST_API_LATEST via its source_uri) and no dockerfiles.
+    cartography.intel.github.supply_chain.sync(
+        neo4j_session,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+        TEST_JOB_PARAMS,
+        [{"url": REPO_URL}],
+        workflows=None,
+    )
+
+    packaged_from = neo4j_session.run(
+        """
+        MATCH (img:GitHubContainerImage)-[r:PACKAGED_FROM]->(repo:GitHubRepository)
+        RETURN img.digest AS digest,
+               repo.id AS repo_url,
+               r.match_method AS method
+        """,
+    ).data()
+    rows = {(r["digest"], r["repo_url"], r["method"]) for r in packaged_from}
+
+    # Provenance match for the attested image
+    assert (DIGEST_API_LATEST, REPO_URL, "provenance") in rows
+    # Package-owner fallback for the un-attested platform images of the
+    # `api` package. The manifest-list digest itself is intentionally NOT
+    # linked — only its child images claim a build repo.
+    assert (DIGEST_API_AMD64, REPO_URL, "package_owner_repo") in rows
+    assert (DIGEST_API_ARM64, REPO_URL, "package_owner_repo") in rows
+    assert not any(digest == DIGEST_API_INDEX for digest, _, _ in rows)
+    # `worker` package has no repo link → its image stays unmatched
+    assert not any(digest == DIGEST_WORKER for digest, _, _ in rows)

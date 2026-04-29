@@ -18,6 +18,9 @@ from cartography.models.github.packaged_matchlink import (
     GitHubRepoDockerfilePackagedFromMatchLink,
 )
 from cartography.models.github.packaged_matchlink import (
+    GitHubRepoPackageOwnerPackagedFromMatchLink,
+)
+from cartography.models.github.packaged_matchlink import (
     GitHubRepoProvenancePackagedFromMatchLink,
 )
 from cartography.models.github.packaged_matchlink import (
@@ -30,6 +33,43 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_IMAGE_LIMIT: int | None = None
 _DEFAULT_MIN_MATCH_CONFIDENCE: float = 0.5
+
+# Confidence applied to the package-owner fallback (GHCR HAS_PACKAGE -> repo).
+# The link is deterministic (one repo per package per the GitHub API) but the
+# repo isn't guaranteed to be the build source — it's the repo that owns the
+# package, which usually but not always matches the build source.
+_PACKAGE_OWNER_FALLBACK_CONFIDENCE: float = 0.6
+
+
+def _get_unmatched_ghcr_image_owner_repos(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> list[dict[str, Any]]:
+    """
+    Return ``[{image_digest, repo_url}, ...]`` for every GHCR image scoped to
+    ``organization`` that has no ``PACKAGED_FROM`` relationship after the
+    higher-confidence steps ran, but whose owning ``GitHubPackage`` has a
+    single ``HAS_PACKAGE`` link back to a ``GitHubRepository``.
+    """
+    # Filter on the generic ``Image`` label so manifest lists (multi-arch
+    # indexes) are excluded — only platform-specific images claim a build repo.
+    query = """
+    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(img:GitHubContainerImage)
+    WHERE img:Image AND NOT exists((img)-[:PACKAGED_FROM]->())
+    MATCH (pkg:GitHubPackage)-[:HAS_IMAGE]->(img)
+    MATCH (repo:GitHubRepository)-[:HAS_PACKAGE]->(pkg)
+    WITH img, collect(DISTINCT repo.id) AS repo_ids
+    WHERE size(repo_ids) = 1
+    RETURN img.digest AS image_digest, repo_ids[0] AS repo_url
+    """
+    org_url = f"https://github.com/{organization}"
+    result = neo4j_session.run(query, org_url=org_url, update_tag=update_tag)
+    return [
+        {"image_digest": record["image_digest"], "repo_url": record["repo_url"]}
+        for record in result
+        if record["image_digest"] and record["repo_url"]
+    ]
 
 
 @timeit
@@ -371,10 +411,14 @@ def sync(
     """
     Sync supply chain relationships for a GitHub organization.
 
-    Uses a three-stage matching approach:
+    Uses a four-stage matching approach:
     1. PACKAGED_BY: Workflow provenance (Image -> GitHubWorkflow)
     2. PACKAGED_FROM (provenance): SLSA provenance-based matching (100% confidence)
     3. PACKAGED_FROM (dockerfile): Dockerfile command matching for unmatched images
+    4. PACKAGED_FROM (package_owner_repo): For any GHCR image still without a
+       PACKAGED_FROM, link it to the repo that owns its GitHubPackage when the
+       HAS_PACKAGE relation is unique. Lower confidence than the previous
+       stages but deterministic (one repo per package per the GitHub API).
 
     Only images without an existing PACKAGED_FROM relationship go through the
     expensive Dockerfile analysis step.
@@ -489,7 +533,37 @@ def sync(
                         _sub_resource_id=organization,
                     )
 
-    # 5. Cleanup stale relationships
+    # 5. PACKAGED_FROM (package-owner fallback): GHCR images still without a
+    # PACKAGED_FROM after steps 1-4 inherit the repo that owns their package.
+    package_owner_data = _get_unmatched_ghcr_image_owner_repos(
+        neo4j_session,
+        organization,
+        update_tag,
+    )
+    if package_owner_data:
+        for entry in package_owner_data:
+            entry.update(
+                match_method="package_owner_repo",
+                dockerfile_path=None,
+                confidence=_PACKAGE_OWNER_FALLBACK_CONFIDENCE,
+                matched_commands=0,
+                total_commands=0,
+                command_similarity=0.0,
+            )
+        logger.info(
+            "Loading %d package-owner PACKAGED_FROM relationships",
+            len(package_owner_data),
+        )
+        load_matchlinks(
+            neo4j_session,
+            GitHubRepoPackageOwnerPackagedFromMatchLink(),
+            package_owner_data,
+            lastupdated=update_tag,
+            _sub_resource_label="GitHubOrganization",
+            _sub_resource_id=organization,
+        )
+
+    # 6. Cleanup stale relationships
     GraphJob.from_matchlink(
         ImagePackagedByWorkflowMatchLink(),
         "GitHubOrganization",
@@ -511,7 +585,14 @@ def sync(
         update_tag,
     ).run(neo4j_session)
 
-    # 6. Enrich PACKAGED_FROM with source_file from Image provenance
+    GraphJob.from_matchlink(
+        GitHubRepoPackageOwnerPackagedFromMatchLink(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    ).run(neo4j_session)
+
+    # 7. Enrich PACKAGED_FROM with source_file from Image provenance
     run_analysis_job(
         "supply_chain_source_file.json",
         neo4j_session,
