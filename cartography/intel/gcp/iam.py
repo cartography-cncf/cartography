@@ -497,11 +497,18 @@ def sync(
 
     This syncs:
     - Service accounts (project-specific)
+    - User-managed service account keys (per service account)
     - Custom project-level roles (projects/{project}/roles/*)
 
     Note: Predefined roles and custom org roles are synced separately via sync_org_iam().
 
     Cleanup is NOT run here - it should be called separately after syncing all projects.
+
+    Side effect: sets ``_iam_keys_sync_complete`` on ``common_job_parameters`` to
+    ``False`` if any service account's keys could not be listed. The caller is
+    expected to read this flag before running ``cleanup_service_account_keys``;
+    skipping cleanup on failure prevents stale keys from being silently deleted
+    when the failure was a transient quota/permission issue on a single SA.
 
     :param neo4j_session: The Neo4j session.
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
@@ -521,8 +528,11 @@ def sync(
         neo4j_session, service_accounts, project_id, gcp_update_tag
     )
 
-    # Sync user-managed keys for each service account
+    # Sync user-managed keys for each service account.
+    # Track per-SA failures: if any fetch fails we cannot safely run the keys
+    # cleanup job — keys we did not refresh would be deleted as stale.
     all_keys: list[dict[str, Any]] = []
+    keys_sync_complete = True
     for sa in service_accounts_raw:
         sa_email = sa.get("email")
         sa_name = sa.get("name")
@@ -532,12 +542,16 @@ def sync(
             keys_raw = get_gcp_service_account_keys(iam_client, sa_name)
             all_keys.extend(transform_gcp_service_account_keys(keys_raw, sa_email))
         except Exception as e:
+            keys_sync_complete = False
             logger.warning(
-                "Failed to list keys for service account %s in project %s: %s",
+                "Failed to list keys for service account %s in project %s: %s. "
+                "Skipping service account key cleanup for this project to avoid "
+                "deleting keys that were not re-ingested.",
                 sa_email,
                 project_id,
                 e,
             )
+    common_job_parameters["_iam_keys_sync_complete"] = keys_sync_complete
     if all_keys:
         load_gcp_service_account_keys(
             neo4j_session, all_keys, project_id, gcp_update_tag

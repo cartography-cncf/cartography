@@ -177,6 +177,17 @@ def _service_account_keys_side_effect(_iam_client, sa_name):
     return []
 
 
+def _service_account_keys_partial_failure(_iam_client, sa_name):
+    """Simulate a transient failure on one SA while the other returns its keys."""
+    if sa_name.endswith("service-account-1@project-abc.iam.gserviceaccount.com"):
+        return [
+            key
+            for key in tests.data.gcp.iam.LIST_SERVICE_ACCOUNT_KEYS_RESPONSE["keys"]
+            if key.get("keyType") == "USER_MANAGED"
+        ]
+    raise RuntimeError("simulated transient failure listing keys")
+
+
 @patch.object(
     cartography.intel.gcp.iam,
     "get_gcp_service_account_keys",
@@ -250,6 +261,44 @@ def test_sync_gcp_iam_service_account_keys(
             user_managed_key_id,
         ),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_service_account_keys",
+    side_effect=_service_account_keys_partial_failure,
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_service_accounts",
+    return_value=tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_project_custom_roles",
+    return_value=[],
+)
+def test_sync_gcp_iam_service_account_keys_partial_failure(
+    _mock_get_project_roles, _mock_get_sa, _mock_get_keys, neo4j_session
+):
+    """A transient failure on a single SA must not flag the keys sync complete."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
+
+    job_params = dict(COMMON_JOB_PARAMS)
+    cartography.intel.gcp.iam.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        job_params,
+    )
+
+    # iam.sync still ingests the keys it could fetch...
+    assert check_nodes(neo4j_session, "GCPServiceAccountKey", ["id"]) != set()
+    # ...but signals "incomplete" so the orchestrator skips key cleanup.
+    assert job_params["_iam_keys_sync_complete"] is False
 
 
 @patch.object(

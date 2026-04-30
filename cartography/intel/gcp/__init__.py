@@ -197,6 +197,10 @@ def _sync_project_resources(
         # Only run IAM cleanup if sync succeeded to avoid deleting valid data
         # when both IAM API is disabled and CAI fallback fails.
         iam_sync_succeeded = False
+        # Reset per-project: key sync only runs in the IAM API path. The flag
+        # is set by iam.sync; default False guards against leaking the flag
+        # across projects when this project takes the CAI fallback.
+        common_job_parameters["_iam_keys_sync_complete"] = False
 
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
@@ -724,7 +728,18 @@ def _sync_project_resources(
         # when sync was skipped due to permission issues.
         if iam_sync_succeeded:
             logger.debug(f"Running cleanup for IAM resources in project {project_id}")
-            iam.cleanup_service_account_keys(neo4j_session, common_job_parameters)
+            # Only clean up keys when iam.sync ran and every SA's keys were
+            # enumerated cleanly. The CAI fallback does not sync keys, so it
+            # leaves the flag at False — which correctly preserves any keys
+            # ingested by previous IAM-API-path runs.
+            if common_job_parameters.get("_iam_keys_sync_complete", False):
+                iam.cleanup_service_account_keys(neo4j_session, common_job_parameters)
+            else:
+                logger.warning(
+                    "Skipping GCP service account key cleanup for project %s: "
+                    "key enumeration was incomplete or did not run.",
+                    project_id,
+                )
             iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
             iam.cleanup_project_roles(neo4j_session, common_job_parameters)
         else:
