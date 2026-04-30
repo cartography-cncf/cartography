@@ -112,7 +112,6 @@ MOCK_PERMISSION_RELATIONSHIPS_YAML = [
         "target_label": "GCPBigQueryDataset",
         "permissions": [
             "bigquery.tables.getData",
-            "bigquery.datasets.get",
         ],
         "relationship_name": "CAN_READ",
     },

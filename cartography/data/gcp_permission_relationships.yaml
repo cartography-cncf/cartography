@@ -27,10 +27,12 @@
   relationship_name: CAN_READ
 
 # Map principals that can read data from a BigQuery dataset.
+# bigquery.datasets.get is intentionally NOT included here: it grants
+# metadata-only access (dataset existence, location, labels) and would
+# over-attribute CAN_READ to roles like roles/bigquery.metadataViewer.
 - target_label: GCPBigQueryDataset
   permissions:
   - bigquery.tables.getData
-  - bigquery.datasets.get
   relationship_name: CAN_READ
 
 # Map principals that can write data to a BigQuery dataset.
@@ -50,7 +52,6 @@
 - target_label: GCPBigQueryTable
   permissions:
   - bigquery.tables.getData
-  - bigquery.datasets.get
   relationship_name: CAN_READ
 
 # Map principals that can write data to a BigQuery table.
