@@ -191,6 +191,16 @@ def test_sync_gcp_policy_bindings(
             "project",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+            "project",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+            "project",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
             "resource",
@@ -221,6 +231,14 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            TEST_PROJECT_ID,
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
     }
@@ -242,11 +260,19 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "alice@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            "alice@example.com",
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
         (
             "bob@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+        ),
+        (
+            "bob@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
         ),
         # IAM service account
         (
@@ -283,6 +309,14 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.admin",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
         ),
@@ -309,6 +343,14 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
             TEST_PROJECT_ID,
         ),
     }

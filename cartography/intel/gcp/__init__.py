@@ -724,6 +724,7 @@ def _sync_project_resources(
         # when sync was skipped due to permission issues.
         if iam_sync_succeeded:
             logger.debug(f"Running cleanup for IAM resources in project {project_id}")
+            iam.cleanup_service_account_keys(neo4j_session, common_job_parameters)
             iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
             iam.cleanup_project_roles(neo4j_session, common_job_parameters)
         else:
