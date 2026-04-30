@@ -141,13 +141,7 @@ def start_aibom_ingestion(neo4j_session: Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    with build_report_reader_for_source(
-        source,
-        azure_sp_auth=config.azure_sp_auth,
-        azure_tenant_id=config.azure_tenant_id,
-        azure_client_id=config.azure_client_id,
-        azure_client_secret=config.azure_client_secret,
-    ) as reader:
+    with build_report_reader_for_source(source) as reader:
         sync_aibom_from_report_reader(
             neo4j_session,
             reader,

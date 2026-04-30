@@ -221,6 +221,40 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
     )
 
 
+@patch("cartography.intel.common.object_store.DefaultAzureCredential")
+@patch("azure.storage.blob.BlobServiceClient")
+def test_azure_blob_reader_creates_default_credential_when_none_supplied(
+    mock_blob_service_client_cls,
+    mock_default_credential_cls,
+) -> None:
+    fake_default_credential = mock_default_credential_cls.return_value
+
+    AzureBlobContainerReader("acct", "container", "reports/", credential=None)
+
+    mock_default_credential_cls.assert_called_once_with()
+    mock_blob_service_client_cls.assert_called_once_with(
+        account_url="https://acct.blob.core.windows.net",
+        credential=fake_default_credential,
+    )
+
+
+@patch("cartography.intel.common.object_store.DefaultAzureCredential")
+@patch("azure.storage.blob.BlobServiceClient")
+def test_azure_blob_reader_uses_supplied_credential(
+    mock_blob_service_client_cls,
+    mock_default_credential_cls,
+) -> None:
+    fake_credential = object()
+
+    AzureBlobContainerReader("acct", "container", "reports/", fake_credential)
+
+    mock_default_credential_cls.assert_not_called()
+    mock_blob_service_client_cls.assert_called_once_with(
+        account_url="https://acct.blob.core.windows.net",
+        credential=fake_credential,
+    )
+
+
 @patch("azure.storage.blob.BlobServiceClient")
 def test_azure_blob_reader_wraps_read_errors(
     mock_blob_service_client_cls,
