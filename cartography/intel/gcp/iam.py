@@ -199,10 +199,13 @@ def transform_gcp_service_account_keys(
         if not key_name:
             # The IAM API contract guarantees `name` on every key; a record
             # missing it is a real anomaly worth surfacing rather than
-            # silently dropping.
+            # silently dropping. Log only known-safe descriptive fields so
+            # future API additions cannot leak identifiers into the log.
             logger.warning(
-                "Skipping GCP service account key without a 'name' field: %r",
-                key,
+                "Skipping GCP service account key without a 'name' field "
+                "(keyType=%s, keyAlgorithm=%s)",
+                key.get("keyType"),
+                key.get("keyAlgorithm"),
             )
             continue
         result.append(
