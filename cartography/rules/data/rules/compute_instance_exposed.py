@@ -7,28 +7,48 @@ from cartography.rules.spec.model import Rule
 # GCP Facts
 _gcp_instance_internet_exposed = Fact(
     id="gcp_instance_internet_exposed",
-    name="Internet-Exposed GCE Instances",
+    name="Internet-Exposed GCE Instances on Common Management Ports",
     description=(
-        "GCE instances with at least one network interface that has an external "
-        "IP attached via a ONE_TO_ONE_NAT access config, exposing them to the "
-        "public internet."
+        "GCE instances with a public IP (ONE_TO_ONE_NAT access config) whose "
+        "VPC has an enabled INGRESS firewall allowing 0.0.0.0/0 to a management "
+        "port (22, 3389, 3306, 5432, 6379, 9200, 27017). Mirrors the AWS "
+        "EC2-on-management-ports semantics; matches are widened by VPC scope "
+        "and do not currently account for firewall target_tags or target SAs, "
+        "so a VPC-wide allow may produce findings on tagged instances that "
+        "the firewall does not actually apply to."
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
-    MATCH (instance)-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)-[:RESOURCE]-(ac:GCPNicAccessConfig)
-    WHERE ac.type = 'ONE_TO_ONE_NAT' AND ac.public_ip IS NOT NULL
+    MATCH (nic:GCPNetworkInterface)-[:NETWORK_INTERFACE]-(instance)
+    MATCH (ac:GCPNicAccessConfig)-[:RESOURCE]-(nic)
+    MATCH (nic)-[:PART_OF_SUBNET]->(subnet:GCPSubnet)<-[:HAS]-(vpc:GCPVpc)
+    MATCH (vpc)-[:RESOURCE]->(fw:GCPFirewall)<-[:ALLOWED_BY]-(rule:GCPIpRule)
+    MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:GCPIpRange{range:'0.0.0.0/0'})
+    WHERE ac.type = 'ONE_TO_ONE_NAT'
+      AND ac.public_ip IS NOT NULL
+      AND coalesce(fw.disabled, false) = false
+      AND fw.direction = 'INGRESS'
+      AND rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
     RETURN
         project.id AS account_id,
         project.id AS account,
         instance.id AS instance_id,
         instance.name AS instance,
-        ac.public_ip AS host,
-        nic.name AS security_group
+        rule.fromport AS port,
+        fw.name AS security_group
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
-    MATCH p2=(instance)-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)-[:RESOURCE]-(ac:GCPNicAccessConfig)
-    WHERE ac.type = 'ONE_TO_ONE_NAT' AND ac.public_ip IS NOT NULL
+    MATCH p2=(nic:GCPNetworkInterface)-[:NETWORK_INTERFACE]-(instance)
+    MATCH p3=(ac:GCPNicAccessConfig)-[:RESOURCE]-(nic)
+    MATCH p4=(nic)-[:PART_OF_SUBNET]->(subnet:GCPSubnet)<-[:HAS]-(vpc:GCPVpc)
+    MATCH p5=(vpc)-[:RESOURCE]->(fw:GCPFirewall)<-[:ALLOWED_BY]-(rule:GCPIpRule)
+    MATCH p6=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:GCPIpRange{range:'0.0.0.0/0'})
+    WHERE ac.type = 'ONE_TO_ONE_NAT'
+      AND ac.public_ip IS NOT NULL
+      AND coalesce(fw.disabled, false) = false
+      AND fw.direction = 'INGRESS'
+      AND rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
     RETURN *
     """,
     cypher_count_query="""
