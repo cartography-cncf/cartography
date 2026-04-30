@@ -368,3 +368,17 @@ def test_sync_gcp_permission_relationships(
             "projects/project-abc/locations/us/repositories/test-repo",
         ),
     }
+
+    # bob@example.com is bound to roles/iam.serviceAccountTokenCreator at
+    # project level, which propagates CAN_IMPERSONATE onto every project SA.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPServiceAccount",
+        "email",
+        "CAN_IMPERSONATE",
+        rel_direction_right=True,
+    ) == {
+        ("bob@example.com", "sa@project-abc.iam.gserviceaccount.com"),
+    }

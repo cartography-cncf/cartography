@@ -137,4 +137,16 @@ MOCK_PERMISSION_RELATIONSHIPS_YAML = [
         ],
         "relationship_name": "CAN_READ",
     },
+    {
+        "target_label": "GCPServiceAccount",
+        "permissions": [
+            "iam.serviceAccounts.actAs",
+            "iam.serviceAccounts.getAccessToken",
+            "iam.serviceAccounts.implicitDelegation",
+            "iam.serviceAccounts.signBlob",
+            "iam.serviceAccounts.signJwt",
+            "iam.serviceAccounts.getOpenIdToken",
+        ],
+        "relationship_name": "CAN_IMPERSONATE",
+    },
 ]

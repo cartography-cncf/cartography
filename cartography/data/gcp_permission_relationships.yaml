@@ -88,3 +88,17 @@
   permissions:
   - artifactregistry.repositories.uploadArtifacts
   relationship_name: CAN_WRITE
+
+# Map principals that can impersonate a GCP service account.
+# This is the GCP equivalent of AWS sts:AssumeRole and is the primary
+# privilege escalation vector in GCP. Bound roles include
+# roles/iam.serviceAccountTokenCreator and roles/iam.serviceAccountUser.
+- target_label: GCPServiceAccount
+  permissions:
+  - iam.serviceAccounts.actAs
+  - iam.serviceAccounts.getAccessToken
+  - iam.serviceAccounts.implicitDelegation
+  - iam.serviceAccounts.signBlob
+  - iam.serviceAccounts.signJwt
+  - iam.serviceAccounts.getOpenIdToken
+  relationship_name: CAN_IMPERSONATE

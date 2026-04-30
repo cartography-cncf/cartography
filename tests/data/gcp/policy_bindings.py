@@ -69,6 +69,22 @@ MOCK_IAM_ROLES = [
         "deleted": False,
         "version": 1,
     },
+    {
+        "name": "roles/iam.serviceAccountTokenCreator",
+        "title": "Service Account Token Creator",
+        "description": "Impersonate service accounts (create OAuth2 access tokens, sign blobs or JWTs, etc).",
+        "includedPermissions": [
+            "iam.serviceAccounts.getAccessToken",
+            "iam.serviceAccounts.getOpenIdToken",
+            "iam.serviceAccounts.implicitDelegation",
+            "iam.serviceAccounts.signBlob",
+            "iam.serviceAccounts.signJwt",
+        ],
+        "stage": "GA",
+        "etag": "etag_sa_token_creator",
+        "deleted": False,
+        "version": 1,
+    },
 ]
 
 MOCK_IAM_SERVICE_ACCOUNTS = [
@@ -210,6 +226,12 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                 "role": "roles/test.gcp_extended",
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
+                                ],
+                            },
+                            {
+                                "role": "roles/iam.serviceAccountTokenCreator",
+                                "members": [
+                                    "user:bob@example.com",  # GSuite user
                                 ],
                             },
                         ],
