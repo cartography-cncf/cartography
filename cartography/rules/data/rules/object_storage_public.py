@@ -138,7 +138,8 @@ object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     description=(
-        "Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers"
+        "Publicly accessible object storage services such as AWS S3 buckets, "
+        "Azure Storage Blob Containers, and GCS buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
