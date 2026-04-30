@@ -238,6 +238,40 @@ def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_b
     assert principals["bob@example.com"]["binding-1"]["scope"] is compiled_scope
 
 
+@pytest.mark.parametrize(
+    "target_label,resource_id,expected",
+    [
+        # Default: id is already the path used in IAM scope strings.
+        (
+            "GCPCryptoKey",
+            "projects/p/locations/us/keyRings/kr/cryptoKeys/k",
+            "projects/p/locations/us/keyRings/kr/cryptoKeys/k",
+        ),
+        # GCS buckets: bare name needs a "buckets/" prefix.
+        ("GCPBucket", "my-bucket", "buckets/my-bucket"),
+        # BigQuery dataset: legacy "project:dataset" -> path form.
+        (
+            "GCPBigQueryDataset",
+            "my-project:analytics",
+            "projects/my-project/datasets/analytics",
+        ),
+        # BigQuery table: legacy "project:dataset.table" -> path form.
+        (
+            "GCPBigQueryTable",
+            "my-project:analytics.events",
+            "projects/my-project/datasets/analytics/tables/events",
+        ),
+        # BigQuery dataset with no ":" (defensive: leave as-is).
+        ("GCPBigQueryDataset", "already-fine", "already-fine"),
+    ],
+)
+def test_canonical_resource_path(target_label, resource_id, expected):
+    assert (
+        permission_relationships._canonical_resource_path(target_label, resource_id)
+        == expected
+    )
+
+
 def test_iter_permission_relationship_batches_preserves_matches():
     principals = {
         "alice@example.com": _build_policy_bindings(

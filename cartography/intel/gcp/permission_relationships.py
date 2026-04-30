@@ -74,8 +74,29 @@ _GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX: dict[str, str] = {
 def _canonical_resource_path(target_label: str, resource_id: str) -> str:
     """Return the resource path used in scope strings for this target label.
 
-    See ``_GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX`` for the rationale.
+    Most GCP resource ids ingested by cartography are already in the
+    ``projects/{p}/...`` form that matches what GCP IAM puts in the scope
+    string. Two label families need translation:
+
+    - ``GCPBucket``: the id is the bare bucket name; IAM scope path is
+      ``buckets/{name}``.
+    - BigQuery (``GCPBigQueryDataset``, ``GCPBigQueryTable``): cartography
+      uses the legacy ``{project}:{dataset}[.table]`` id format, while IAM
+      scope path is ``projects/{p}/datasets/{d}[/tables/{t}]``.
     """
+    if target_label == "GCPBigQueryDataset":
+        # "project:dataset" -> "projects/project/datasets/dataset"
+        if ":" in resource_id:
+            project_id, dataset_id = resource_id.split(":", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}"
+        return resource_id
+    if target_label == "GCPBigQueryTable":
+        # "project:dataset.table" -> "projects/project/datasets/dataset/tables/table"
+        if ":" in resource_id and "." in resource_id:
+            project_id, rest = resource_id.split(":", 1)
+            dataset_id, table_id = rest.split(".", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}/tables/{table_id}"
+        return resource_id
     prefix = _GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX.get(target_label)
     if prefix is None:
         return resource_id
