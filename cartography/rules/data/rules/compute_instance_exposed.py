@@ -4,6 +4,43 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 
+# GCP Facts
+_gcp_instance_internet_exposed = Fact(
+    id="gcp_instance_internet_exposed",
+    name="Internet-Exposed GCE Instances",
+    description=(
+        "GCE instances with at least one network interface that has an external "
+        "IP attached via a ONE_TO_ONE_NAT access config, exposing them to the "
+        "public internet."
+    ),
+    cypher_query="""
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)-[:RESOURCE]-(ac:GCPNicAccessConfig)
+    WHERE ac.type = 'ONE_TO_ONE_NAT' AND ac.public_ip IS NOT NULL
+    RETURN
+        project.id AS account_id,
+        project.id AS account,
+        instance.id AS instance_id,
+        instance.name AS instance,
+        ac.public_ip AS host,
+        nic.name AS security_group
+    """,
+    cypher_visual_query="""
+    MATCH p=(project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH p2=(instance)-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)-[:RESOURCE]-(ac:GCPNicAccessConfig)
+    WHERE ac.type = 'ONE_TO_ONE_NAT' AND ac.public_ip IS NOT NULL
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (instance:GCPInstance)
+    RETURN COUNT(instance) AS count
+    """,
+    asset_id_field="instance_id",
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # AWS Facts
 _aws_ec2_instance_internet_exposed = Fact(
     id="aws_ec2_instance_internet_exposed",
@@ -50,7 +87,10 @@ compute_instance_exposed = Rule(
         "Compute instances exposed to the internet on ports 22, 3389, 3306, 5432, 6379, 9200, 27017"
     ),
     output_model=ComputeInstanceExposed,
-    facts=(_aws_ec2_instance_internet_exposed,),
+    facts=(
+        _aws_ec2_instance_internet_exposed,
+        _gcp_instance_internet_exposed,
+    ),
     tags=(
         "infrastructure",
         "compute",

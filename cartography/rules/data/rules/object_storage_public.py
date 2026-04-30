@@ -46,6 +46,42 @@ _aws_s3_public = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
+# GCP Facts
+_gcp_bucket_public = Fact(
+    id="gcp_bucket_public",
+    name="Internet-Accessible GCS Bucket Attack Surface",
+    description=(
+        "GCS buckets that grant access to allUsers or allAuthenticatedUsers via "
+        "an IAM binding without enforced publicAccessPrevention."
+    ),
+    cypher_query="""
+    MATCH (b:GCPBucket)
+    WHERE coalesce(b.iam_config_public_access_prevention, '') <> 'enforced'
+      AND EXISTS {
+          MATCH (b)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
+          WHERE binding.is_public = true
+      }
+    RETURN
+        b.id AS id,
+        b.id AS name,
+        b.location AS region,
+        true AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:GCPBucket)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
+    WHERE coalesce(b.iam_config_public_access_prevention, '') <> 'enforced'
+      AND binding.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:GCPBucket)
+    RETURN COUNT(b) AS count
+    """,
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Azure Facts
 _azure_storage_public_blob_access = Fact(
     id="azure_storage_public_blob_access",
@@ -102,6 +138,7 @@ object_storage_public = Rule(
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
+        _gcp_bucket_public,
     ),
     tags=(
         "infrastructure",

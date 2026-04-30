@@ -250,6 +250,7 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                 "role": "roles/storage.objectViewer",
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
+                                    "allUsers",  # Public exposure
                                 ],
                             },
                         ],
