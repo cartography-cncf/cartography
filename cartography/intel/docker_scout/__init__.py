@@ -16,6 +16,7 @@ from cartography.intel.common.report_reader_builder import (
 from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
+from cartography.intel.common.report_source import AzureBlobReportSource
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
@@ -139,7 +140,11 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
         return
 
     source = parse_report_source(config.docker_scout_source)
-    azure_blob_credential = build_azure_blob_credential_from_config(config)
+    azure_blob_credential = (
+        build_azure_blob_credential_from_config(config)
+        if isinstance(source, AzureBlobReportSource)
+        else None
+    )
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
     with build_report_reader_for_source(

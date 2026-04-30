@@ -263,6 +263,21 @@ def test_build_azure_blob_credential_from_config_requires_all_sp_fields() -> Non
         build_azure_blob_credential_from_config(config)
 
 
+@patch("cartography.intel.common.object_store.LocalReportReader")
+def test_build_report_reader_for_local_ignores_optional_azure_credential(
+    mock_reader_cls,
+) -> None:
+    fake_reader = mock_reader_cls.return_value
+
+    reader = build_report_reader_for_source(
+        LocalReportSource(path="./reports"),
+        azure_blob_credential=object(),
+    )
+
+    assert reader is fake_reader
+    mock_reader_cls.assert_called_once_with("./reports")
+
+
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
 def test_build_report_reader_for_azure_uses_reader_defaults(
     mock_reader_cls,
