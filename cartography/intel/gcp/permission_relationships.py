@@ -134,11 +134,11 @@ def calculate_permission_relationships_for_resource(
     permissions: list[str],
 ) -> list[dict[str, Any]]:
     allowed_mappings: list[dict[str, Any]] = []
-    for principal_email, policy_bindings in principals.items():
+    for principal_id, policy_bindings in principals.items():
         if principal_allowed_on_resource(policy_bindings, resource_scope, permissions):
             allowed_mappings.append(
                 {
-                    "principal_email": principal_email,
+                    "principal_id": principal_id,
                     "resource_id": resource_id,
                 }
             )
@@ -217,10 +217,10 @@ def build_principals_from_policy_bindings(
 
         # Share the compiled assignment across members of the same binding. Treat
         # it as read-only during relationship evaluation.
-        for principal_email in binding["members"]:
-            principals.setdefault(principal_email, {})[binding_id] = (
-                compiled_assignments[binding_id]
-            )
+        for principal_id in binding["members"]:
+            principals.setdefault(principal_id, {})[binding_id] = compiled_assignments[
+                binding_id
+            ]
             total_member_assignments += 1
 
     logger.info(

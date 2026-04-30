@@ -131,6 +131,127 @@ def test_parse_full_resource_name(full_name, expected):
     assert _parse_full_resource_name(full_name) == expected
 
 
+@pytest.mark.parametrize(
+    "member, expected",
+    [
+        (
+            "principal://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/test-pool/subject/repo:example/app",
+            {
+                "principal_type": "principal",
+                "workload_identity_pool_project_number": "123456789012",
+                "location": "global",
+                "workload_identity_pool_id": "test-pool",
+                "selector_type": "subject",
+                "selector_name": None,
+                "selector_value": "repo:example/app",
+            },
+        ),
+        (
+            "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/test-pool/group/security",
+            {
+                "principal_type": "principalSet",
+                "workload_identity_pool_project_number": "123456789012",
+                "location": "global",
+                "workload_identity_pool_id": "test-pool",
+                "selector_type": "group",
+                "selector_name": None,
+                "selector_value": "security",
+            },
+        ),
+        (
+            "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/test-pool/attribute.aws_role/arn:aws:sts::000000000000:assumed-role/test-readonly",
+            {
+                "principal_type": "principalSet",
+                "workload_identity_pool_project_number": "123456789012",
+                "location": "global",
+                "workload_identity_pool_id": "test-pool",
+                "selector_type": "attribute",
+                "selector_name": "aws_role",
+                "selector_value": "arn:aws:sts::000000000000:assumed-role/test-readonly",
+            },
+        ),
+        (
+            "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/test-pool/*",
+            {
+                "principal_type": "principalSet",
+                "workload_identity_pool_project_number": "123456789012",
+                "location": "global",
+                "workload_identity_pool_id": "test-pool",
+                "selector_type": "pool",
+                "selector_name": None,
+                "selector_value": "*",
+            },
+        ),
+    ],
+)
+def test_parse_workload_identity_member(member, expected):
+    result = policy_bindings._parse_workload_identity_member(member)
+
+    assert result is not None
+    assert result["id"] == member
+    assert result["principal_id"] == member
+    assert {key: result[key] for key in expected} == expected
+
+
+@pytest.mark.parametrize(
+    "member",
+    [
+        "allUsers",
+        "allAuthenticatedUsers",
+        "domain:example.com",
+        "principalSet://iam.googleapis.com/locations/global/workforcePools/pool/group/security",
+        "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/test-pool/unsupported/value",
+    ],
+)
+def test_transform_policy_member_ignores_unsupported_members(member):
+    assert policy_bindings._transform_policy_member(member) == (None, None)
+
+
+def test_transform_bindings_preserves_wif_only_binding():
+    wif_member = (
+        "principalSet://iam.googleapis.com/projects/123456789012/locations/global/"
+        "workloadIdentityPools/test-pool/attribute.aws_role/"
+        "arn:aws:sts::000000000000:assumed-role/test-readonly"
+    )
+    bindings, external_principals = policy_bindings.transform_bindings(
+        {
+            "project_id": TEST_PROJECT_ID,
+            "policy_results": [
+                {
+                    "policies": [
+                        {
+                            "attached_resource": f"//cloudresourcemanager.googleapis.com/projects/{TEST_PROJECT_ID}",
+                            "policy": {
+                                "bindings": [
+                                    {
+                                        "role": "roles/viewer",
+                                        "members": [wif_member],
+                                    }
+                                ]
+                            },
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+
+    assert bindings[0]["members"] == [wif_member]
+    assert external_principals == [
+        {
+            "id": wif_member,
+            "principal_id": wif_member,
+            "principal_type": "principalSet",
+            "workload_identity_pool_project_number": "123456789012",
+            "location": "global",
+            "workload_identity_pool_id": "test-pool",
+            "selector_type": "attribute",
+            "selector_name": "aws_role",
+            "selector_value": "arn:aws:sts::000000000000:assumed-role/test-readonly",
+        }
+    ]
+
+
 def test_wait_for_cai_policy_bindings_slot_reserves_per_operation_slots():
     original_state = policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.copy()
     policy_bindings._CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION.clear()

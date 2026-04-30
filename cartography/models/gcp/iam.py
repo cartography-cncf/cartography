@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class GCPServiceAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
+    principal_id: PropertyRef = PropertyRef("email", extra_index=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
     display_name: PropertyRef = PropertyRef("displayName")
     oauth2_client_id: PropertyRef = PropertyRef("oauth2ClientId")

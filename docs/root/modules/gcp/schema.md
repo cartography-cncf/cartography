@@ -758,6 +758,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 | Field          | Description                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------- |
 | id             | The unique identifier for the service account.                                                  |
+| principal_id   | The stable GCP principal identifier used for permission matching.                                |
 | email          | The email address associated with the service account.                                          |
 | displayName    | The display name of the service account.                                                        |
 | oauth2ClientId | The OAuth2 client ID associated with the service account.                                       |
@@ -873,7 +874,7 @@ Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference
 
 ### GCPPolicyBinding
 
-Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
+Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups, and Workload Identity Federation external principals) to roles on specific resources.
 
 | Field                | Description                                                                      |
 | -------------------- | -------------------------------------------------------------------------------- |
@@ -881,7 +882,7 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | role                 | The name of the GCP role being granted.                                          |
 | resource             | The full resource name where the policy binding is attached.                     |
 | resource_type        | The type of resource.                                                            |
-| members              | A list of principal email addresses that are granted the role.                   |
+| members              | A list of principal identifiers that are granted the role. Email-backed principals use email addresses; Workload Identity Federation principals use the full IAM principal identifier. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
 | condition_expression | The expression of the condition.                                                 |
@@ -918,6 +919,41 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
     ```
     (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
+### GCPExternalPrincipal
+
+Representation of a Workload Identity Federation principal discovered from a GCP IAM policy binding member such as `principal://iam.googleapis.com/...` or `principalSet://iam.googleapis.com/...`.
+
+> **Ontology Mapping**: This node has the extra label `GCPPrincipal` so it can participate in GCP IAM principal relationships alongside `GCPUser`, `GCPGroup`, and `GCPServiceAccount`.
+
+| Field                                  | Description                                                       |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| **id**                                 | The full IAM principal identifier.                                |
+| **principal_id**                       | The stable GCP principal identifier used for permission matching. |
+| principal_type                         | `principal` or `principalSet`.                                    |
+| workload_identity_pool_project_number  | The project number that owns the workload identity pool.          |
+| location                               | The workload identity pool location.                              |
+| workload_identity_pool_id              | The workload identity pool ID.                                    |
+| selector_type                          | The selector type, such as `subject`, `group`, `attribute`, or `pool`. |
+| selector_name                          | The attribute name for `attribute.*` selectors.                   |
+| selector_value                         | The selected subject, group, attribute value, or `*`.             |
+| firstseen                              | Timestamp of when a sync job first discovered this node.          |
+| lastupdated                            | Timestamp of the last time the node was updated.                  |
+
+#### Relationships
+
+- GCPExternalPrincipals are resources of the GCPProject whose policy binding exposed them.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPExternalPrincipal)
+    ```
+
+- GCPExternalPrincipals are GCPPrincipals and can have allow policies and permission relationships.
+
+    ```
+    (GCPExternalPrincipal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    (GCPExternalPrincipal:GCPPrincipal)-[:CAN_READ]->(GCPBucket)
     ```
 
 ### GCPBigtableInstance

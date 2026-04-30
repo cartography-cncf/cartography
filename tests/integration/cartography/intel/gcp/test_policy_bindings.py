@@ -8,6 +8,7 @@ import cartography.intel.gcp.policy_bindings
 import cartography.intel.gsuite.groups
 import cartography.intel.gsuite.users
 import tests.data.gcp.policy_bindings
+from tests.data.gcp.policy_bindings import MOCK_WIF_AWS_ROLE_PRINCIPAL_SET
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -229,7 +230,7 @@ def test_sync_gcp_policy_bindings(
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
-        "email",
+        "principal_id",
         "GCPPolicyBinding",
         "id",
         "HAS_ALLOW_POLICY",
@@ -257,6 +258,35 @@ def test_sync_gcp_policy_bindings(
         (
             "viewers@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
+        ),
+        # WIF external principal
+        (
+            MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+            "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPExternalPrincipal",
+        [
+            "principal_id",
+            "principal_type",
+            "workload_identity_pool_project_number",
+            "workload_identity_pool_id",
+            "selector_type",
+            "selector_name",
+            "selector_value",
+        ],
+    ) == {
+        (
+            MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+            "principalSet",
+            "123456789012",
+            "test-pool",
+            "attribute",
+            "aws_role",
+            "arn:aws:sts::000000000000:assumed-role/test-readonly",
         ),
     }
 

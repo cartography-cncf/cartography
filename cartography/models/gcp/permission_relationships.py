@@ -41,11 +41,12 @@ class GCPPermissionMatchLink(CartographyRelSchema):
     - GCPUser (from GSuite)
     - GCPServiceAccount
     - GCPGroup (from GSuite)
+    - GCPExternalPrincipal (from Workload Identity Federation IAM members)
     """
 
     source_node_label: str = "GCPPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"email": PropertyRef("principal_email")},
+        {"principal_id": PropertyRef("principal_id")},
     )
 
     target_node_label: str = (

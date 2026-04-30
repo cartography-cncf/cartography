@@ -268,10 +268,10 @@ def test_iter_permission_relationship_batches_preserves_matches():
 
     assert all(len(batch) <= 2 for batch in batches)
     assert {tuple(sorted(mapping.items())) for mapping in flattened} == {
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-1")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-2")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-3")),
-        (("principal_email", "bob@example.com"), ("resource_id", "bucket-2")),
+        (("principal_id", "alice@example.com"), ("resource_id", "bucket-1")),
+        (("principal_id", "alice@example.com"), ("resource_id", "bucket-2")),
+        (("principal_id", "alice@example.com"), ("resource_id", "bucket-3")),
+        (("principal_id", "bob@example.com"), ("resource_id", "bucket-2")),
     }
 
 
