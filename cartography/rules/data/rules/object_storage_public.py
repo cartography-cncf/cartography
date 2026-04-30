@@ -51,8 +51,12 @@ _gcp_bucket_public = Fact(
     id="gcp_bucket_public",
     name="Internet-Accessible GCS Bucket Attack Surface",
     description=(
-        "GCS buckets that grant access to allUsers or allAuthenticatedUsers via "
-        "an IAM binding without enforced publicAccessPrevention."
+        "GCS buckets that grant unconditional access to allUsers or "
+        "allAuthenticatedUsers via an IAM binding without enforced "
+        "publicAccessPrevention. Bindings with an IAM Condition (time-bound, "
+        "request-attribute-bound, etc.) are excluded; the binding's "
+        "is_public / has_condition properties remain available for finer-"
+        "grained queries."
     ),
     cypher_query="""
     MATCH (b:GCPBucket)
@@ -60,6 +64,7 @@ _gcp_bucket_public = Fact(
       AND EXISTS {
           MATCH (b)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
           WHERE binding.is_public = true
+            AND coalesce(binding.has_condition, false) = false
       }
     RETURN
         b.id AS id,
@@ -71,6 +76,7 @@ _gcp_bucket_public = Fact(
     MATCH p=(b:GCPBucket)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
     WHERE coalesce(b.iam_config_public_access_prevention, '') <> 'enforced'
       AND binding.is_public = true
+      AND coalesce(binding.has_condition, false) = false
     RETURN *
     """,
     cypher_count_query="""
