@@ -1,8 +1,9 @@
-from unittest.mock import MagicMock
 from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.config import Config
+from cartography.graph.job import GraphJob
 from cartography.intel import cve_metadata
 
 
@@ -25,7 +26,7 @@ def test_build_yearly_cve_batches_groups_by_feed_year():
 
 
 @patch.object(cve_metadata, "merge_module_sync_metadata")
-@patch.object(cve_metadata.GraphJob, "from_node_schema")
+@patch.object(GraphJob, "from_node_schema")
 @patch.object(cve_metadata, "load_cve_metadata_feed")
 @patch.object(cve_metadata, "load_cve_metadata")
 @patch.object(cve_metadata.epss, "merge_epss_into_cves")
@@ -88,6 +89,9 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         call(http_session, ["CVE-2023-0001", "CVE-2023-0002"]),
         call(http_session, ["CVE-2024-0001"]),
     ]
+    assert mock_load_cve_metadata_feed.call_args_list == [
+        call(neo4j_session, 123, {"nvd", "epss"}),
+    ]
     assert mock_load_cve_metadata.call_args_list == [
         call(
             neo4j_session,
@@ -130,6 +134,5 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
             ),
         ],
     )
-    mock_load_cve_metadata_feed.assert_called_once_with(neo4j_session, 123, {"nvd", "epss"})
     mock_graphjob_from_node_schema.assert_called_once()
     mock_merge_module_sync_metadata.assert_called_once()

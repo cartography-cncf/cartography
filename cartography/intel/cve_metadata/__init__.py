@@ -121,6 +121,9 @@ def start_cve_metadata_ingestion(
             skipped_cves,
         )
 
+    # Load the feed node first so each batch can attach RESOURCE links to it.
+    load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
+
     if yearly_batches:
         session = Session()
         retry_policy = Retry(
@@ -135,7 +138,9 @@ def start_cve_metadata_ingestion(
         with session as http_session:
             # Step 2: Enrich and load one CVE year at a time to keep memory bounded.
             for batch_cve_ids in yearly_batches:
-                cves: list[dict[str, Any]] = [{"id": cve_id} for cve_id in batch_cve_ids]
+                cves: list[dict[str, Any]] = [
+                    {"id": cve_id} for cve_id in batch_cve_ids
+                ]
 
                 if "nvd" in sources:
                     nvd_data = nvd.get_and_transform_nvd_cves(
@@ -158,10 +163,7 @@ def start_cve_metadata_ingestion(
 
                 load_cve_metadata(neo4j_session, cves, config.update_tag)
 
-    # Step 4: Load into graph (always runs so cleanup removes stale CVEMetadata nodes)
-    load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
-
-    # Step 5: Cleanup stale CVEMetadata nodes from previous syncs
+    # Step 4: Cleanup stale CVEMetadata nodes from previous syncs
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "FEED_ID": CVE_METADATA_FEED_ID,
