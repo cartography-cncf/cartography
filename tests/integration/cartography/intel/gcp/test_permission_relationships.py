@@ -63,7 +63,9 @@ def _create_test_organization(neo4j_session):
 def _create_extended_test_resources(neo4j_session):
     """
     Create BigQuery, KMS and Artifact Registry target nodes attached to the test
-    project so that the permission_relationships engine can resolve them.
+    project so that the permission_relationships engine can resolve them. Adds
+    a sibling table sharing the leaf name "events" in a second dataset so the
+    test exercises the uniqueness of resource scope matching.
     """
     neo4j_session.run(
         """
@@ -78,6 +80,16 @@ def _create_extended_test_resources(neo4j_session):
         SET tbl.lastupdated = $update_tag
         MERGE (project)-[r2:RESOURCE]->(tbl)
         SET r2.lastupdated = $update_tag
+        MERGE (events1:GCPBigQueryTable{id: $events1_id})
+        ON CREATE SET events1.firstseen = timestamp()
+        SET events1.lastupdated = $update_tag
+        MERGE (project)-[r2a:RESOURCE]->(events1)
+        SET r2a.lastupdated = $update_tag
+        MERGE (events2:GCPBigQueryTable{id: $events2_id})
+        ON CREATE SET events2.firstseen = timestamp()
+        SET events2.lastupdated = $update_tag
+        MERGE (project)-[r2b:RESOURCE]->(events2)
+        SET r2b.lastupdated = $update_tag
         MERGE (key:GCPCryptoKey{id: $key_id})
         ON CREATE SET key.firstseen = timestamp()
         SET key.lastupdated = $update_tag
@@ -92,6 +104,8 @@ def _create_extended_test_resources(neo4j_session):
         project_id=TEST_PROJECT_ID,
         dataset_id="projects/project-abc/datasets/test_dataset",
         table_id="projects/project-abc/datasets/test_dataset/tables/test_table",
+        events1_id="projects/project-abc/datasets/dataset_a/tables/events",
+        events2_id="projects/project-abc/datasets/dataset_b/tables/events",
         key_id="projects/project-abc/locations/us/keyRings/test-keyring/cryptoKeys/test-key",
         repo_id="projects/project-abc/locations/us/repositories/test-repo",
         update_tag=TEST_UPDATE_TAG,
@@ -324,6 +338,10 @@ def test_sync_gcp_permission_relationships(
         ("alice@example.com", "projects/project-abc/datasets/test_dataset"),
     }
 
+    # alice@example.com gets project-level access to every table.
+    # bob@example.com is bound at resource scope to a SPECIFIC events table
+    # in dataset_a; the engine must NOT extend that to the homonymous events
+    # table in dataset_b — we expose that regression here.
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
@@ -336,6 +354,18 @@ def test_sync_gcp_permission_relationships(
         (
             "alice@example.com",
             "projects/project-abc/datasets/test_dataset/tables/test_table",
+        ),
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/dataset_a/tables/events",
+        ),
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/dataset_b/tables/events",
+        ),
+        (
+            "bob@example.com",
+            "projects/project-abc/datasets/dataset_a/tables/events",
         ),
     }
 

@@ -205,6 +205,11 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.objectViewer",
             "resource",
         ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
+            "resource",
+        ),
     }
 
     # Check GCPProject to GCPPolicyBinding relationships
@@ -241,6 +246,10 @@ def test_sync_gcp_policy_bindings(
             TEST_PROJECT_ID,
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
+        (
+            TEST_PROJECT_ID,
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+        ),
     }
 
     # Check GCPPrincipal to GCPPolicyBinding relationships
@@ -273,6 +282,10 @@ def test_sync_gcp_policy_bindings(
         (
             "bob@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            "bob@example.com",
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
         # IAM service account
         (
@@ -319,6 +332,10 @@ def test_sync_gcp_policy_bindings(
         (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
+        ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
         ),
     }
 

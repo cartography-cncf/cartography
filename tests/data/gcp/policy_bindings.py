@@ -85,6 +85,19 @@ MOCK_IAM_ROLES = [
         "deleted": False,
         "version": 1,
     },
+    {
+        "name": "roles/bigquery.dataViewer",
+        "title": "BigQuery Data Viewer",
+        "description": "Read access to BigQuery datasets and tables.",
+        "includedPermissions": [
+            "bigquery.tables.getData",
+            "bigquery.datasets.get",
+        ],
+        "stage": "GA",
+        "etag": "etag_bigquery_data_viewer",
+        "deleted": False,
+        "version": 1,
+    },
 ]
 
 MOCK_IAM_SERVICE_ACCOUNTS = [
@@ -251,6 +264,34 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
                                     "allUsers",  # Public exposure
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+        # Resource-scoped binding on a specific BigQuery table. Used by
+        # test_sync_gcp_permission_relationships to verify that scope keys
+        # disambiguate sibling tables sharing the same leaf name across
+        # different datasets.
+        {
+            "full_resource_name": (
+                "//bigquery.googleapis.com/projects/project-abc/"
+                "datasets/dataset_a/tables/events"
+            ),
+            "policies": [
+                {
+                    "attached_resource": (
+                        "//bigquery.googleapis.com/projects/project-abc/"
+                        "datasets/dataset_a/tables/events"
+                    ),
+                    "policy": {
+                        "bindings": [
+                            {
+                                "role": "roles/bigquery.dataViewer",
+                                "members": [
+                                    "user:bob@example.com",  # GSuite user
                                 ],
                             },
                         ],
