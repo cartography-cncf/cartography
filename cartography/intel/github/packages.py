@@ -53,11 +53,12 @@ def get_container_packages(
     Fetch every container package owned by ``organization`` via the GitHub
     REST API. Returns the raw payloads alongside a ``cleanup_safe`` flag.
 
-    The ``/orgs/{org}/packages`` endpoint returns 404 on older GHES versions
-    and 403 when the token is missing the ``read:packages`` scope (the most
-    common misconfiguration in the wild — fine-grained PATs always 403 here).
-    Both cases set ``cleanup_safe=False`` so previously-synced packages are
-    not purged by a missing-scope or endpoint-outage condition.
+    The ``/orgs/{org}/packages`` endpoint returns 404 on older GHES versions,
+    403 when the token is missing the ``read:packages`` scope (the most
+    common misconfiguration in the wild: fine-grained PATs always 403 here),
+    and 400 when the account is not actually an organization or has packages
+    disabled. All three cases set ``cleanup_safe=False`` so previously-synced
+    packages are not purged by a missing-scope or endpoint-outage condition.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = (
@@ -69,7 +70,7 @@ def get_container_packages(
             base_url,
             endpoint,
             result_key="packages",
-            raise_on_status=(403, 404),
+            raise_on_status=(400, 403, 404),
         )
         return ContainerPackagesFetchResult(packages=packages, cleanup_safe=True)
     except requests.exceptions.HTTPError as err:
@@ -89,6 +90,16 @@ def get_container_packages(
                 "PATs cannot access Packages and always 403 here). GHCR sync "
                 "will be skipped and cleanup deferred to preserve previously "
                 "synced packages.",
+                organization,
+            )
+            return ContainerPackagesFetchResult(packages=[], cleanup_safe=False)
+        if status == 400:
+            logger.warning(
+                "GitHub Packages endpoint rejected request for org %s (400). "
+                "The account is most likely not an organization (user accounts "
+                "are not supported by /orgs/{org}/packages) or has packages "
+                "disabled. GHCR sync will be skipped and cleanup deferred to "
+                "preserve previously synced packages.",
                 organization,
             )
             return ContainerPackagesFetchResult(packages=[], cleanup_safe=False)
