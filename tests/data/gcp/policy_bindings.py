@@ -54,6 +54,21 @@ MOCK_IAM_ROLES = [
         "deleted": False,
         "version": 1,
     },
+    {
+        "name": "roles/test.gcp_extended",
+        "title": "Test Extended GCP Permissions",
+        "description": "Bundle of permissions used to exercise BigQuery, KMS and Artifact Registry permission relationships.",
+        "includedPermissions": [
+            "bigquery.tables.getData",
+            "bigquery.datasets.get",
+            "cloudkms.cryptoKeyVersions.useToDecrypt",
+            "artifactregistry.repositories.downloadArtifacts",
+        ],
+        "stage": "GA",
+        "etag": "etag_gcp_extended",
+        "deleted": False,
+        "version": 1,
+    },
 ]
 
 MOCK_IAM_SERVICE_ACCOUNTS = [
@@ -190,6 +205,12 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                     "title": "Expires on 2024-12-31",
                                     "expression": "request.time < timestamp('2024-12-31T00:00:00Z')",
                                 },
+                            },
+                            {
+                                "role": "roles/test.gcp_extended",
+                                "members": [
+                                    "user:alice@example.com",  # GSuite user
+                                ],
                             },
                         ],
                     },

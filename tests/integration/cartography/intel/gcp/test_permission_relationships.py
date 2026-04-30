@@ -60,6 +60,44 @@ def _create_test_organization(neo4j_session):
     )
 
 
+def _create_extended_test_resources(neo4j_session):
+    """
+    Create BigQuery, KMS and Artifact Registry target nodes attached to the test
+    project so that the permission_relationships engine can resolve them.
+    """
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (ds:GCPBigQueryDataset{id: $dataset_id})
+        ON CREATE SET ds.firstseen = timestamp()
+        SET ds.lastupdated = $update_tag
+        MERGE (project)-[r1:RESOURCE]->(ds)
+        SET r1.lastupdated = $update_tag
+        MERGE (tbl:GCPBigQueryTable{id: $table_id})
+        ON CREATE SET tbl.firstseen = timestamp()
+        SET tbl.lastupdated = $update_tag
+        MERGE (project)-[r2:RESOURCE]->(tbl)
+        SET r2.lastupdated = $update_tag
+        MERGE (key:GCPCryptoKey{id: $key_id})
+        ON CREATE SET key.firstseen = timestamp()
+        SET key.lastupdated = $update_tag
+        MERGE (project)-[r3:RESOURCE]->(key)
+        SET r3.lastupdated = $update_tag
+        MERGE (repo:GCPArtifactRegistryRepository{id: $repo_id})
+        ON CREATE SET repo.firstseen = timestamp()
+        SET repo.lastupdated = $update_tag
+        MERGE (project)-[r4:RESOURCE]->(repo)
+        SET r4.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        dataset_id="projects/project-abc/datasets/test_dataset",
+        table_id="projects/project-abc/datasets/test_dataset/tables/test_table",
+        key_id="projects/project-abc/locations/us/keyRings/test-keyring/cryptoKeys/test-key",
+        repo_id="projects/project-abc/locations/us/repositories/test-repo",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.permission_relationships,
     "parse_permission_relationships_file",
@@ -208,6 +246,8 @@ def test_sync_gcp_permission_relationships(
         COMMON_JOB_PARAMS,
     )
 
+    _create_extended_test_resources(neo4j_session)
+
     # ACT
     cartography.intel.gcp.permission_relationships.sync(
         neo4j_session,
@@ -266,5 +306,65 @@ def test_sync_gcp_permission_relationships(
         (
             "sa@project-abc.iam.gserviceaccount.com",
             "projects/project-abc/zones/us-east1-b/instances/instance-1",
+        ),
+    }
+
+    # alice@example.com is bound to roles/test.gcp_extended at project level,
+    # which propagates BigQuery / KMS / Artifact Registry permissions onto every
+    # project resource of the matching label.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryDataset",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("alice@example.com", "projects/project-abc/datasets/test_dataset"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/test_dataset/tables/test_table",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPCryptoKey",
+        "id",
+        "CAN_DECRYPT",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/locations/us/keyRings/test-keyring/cryptoKeys/test-key",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPArtifactRegistryRepository",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/locations/us/repositories/test-repo",
         ),
     }

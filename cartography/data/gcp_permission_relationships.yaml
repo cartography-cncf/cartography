@@ -25,3 +25,66 @@
   permissions:
   - secretmanager.versions.access
   relationship_name: CAN_READ
+
+# Map principals that can read data from a BigQuery dataset.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.getData
+  - bigquery.datasets.get
+  relationship_name: CAN_READ
+
+# Map principals that can write data to a BigQuery dataset.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.updateData
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete a BigQuery dataset or its tables.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.delete
+  - bigquery.datasets.delete
+  relationship_name: CAN_DELETE
+
+# Map principals that can read data from a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.getData
+  - bigquery.datasets.get
+  relationship_name: CAN_READ
+
+# Map principals that can write data to a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.updateData
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.delete
+  relationship_name: CAN_DELETE
+
+# Map principals that can decrypt data with a Cloud KMS crypto key.
+- target_label: GCPCryptoKey
+  permissions:
+  - cloudkms.cryptoKeyVersions.useToDecrypt
+  relationship_name: CAN_DECRYPT
+
+# Map principals that can encrypt data with a Cloud KMS crypto key.
+- target_label: GCPCryptoKey
+  permissions:
+  - cloudkms.cryptoKeyVersions.useToEncrypt
+  relationship_name: CAN_ENCRYPT
+
+# Map principals that can download artifacts from an Artifact Registry repository.
+- target_label: GCPArtifactRegistryRepository
+  permissions:
+  - artifactregistry.repositories.downloadArtifacts
+  relationship_name: CAN_READ
+
+# Map principals that can upload artifacts to an Artifact Registry repository.
+- target_label: GCPArtifactRegistryRepository
+  permissions:
+  - artifactregistry.repositories.uploadArtifacts
+  relationship_name: CAN_WRITE
