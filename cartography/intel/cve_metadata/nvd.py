@@ -23,38 +23,17 @@ API_SLEEP_TIME = 1.0
 NVD_YEARLY_FEED_START_YEAR = 2002
 
 
-def _extract_years_from_cve_ids(cve_ids: set[str]) -> set[str]:
-    """Extract unique years from CVE IDs (e.g., CVE-2023-12345 → 2023)."""
+def _get_years_with_yearly_nvd_feeds(cve_ids: set[str]) -> set[str]:
+    """Return CVE years mapped to their yearly NVD feed file.
+
+    NVD yearly feeds start at 2002; older CVEs are folded into the 2002 feed.
+    """
     years: set[str] = set()
     for cve_id in cve_ids:
         parts = cve_id.split("-")
-        if len(parts) >= 2:
-            years.add(parts[1])
+        if len(parts) >= 2 and parts[1].isdigit():
+            years.add(str(max(int(parts[1]), NVD_YEARLY_FEED_START_YEAR)))
     return years
-
-
-def _get_years_with_yearly_nvd_feeds(cve_ids: set[str]) -> set[str]:
-    """Return CVE years that have yearly NVD feed files.
-
-    NVD yearly feeds are published starting at 2002. Older CVE years are
-    included in the 2002 feed.
-    """
-    candidate_years = _extract_years_from_cve_ids(cve_ids)
-    valid_years = {
-        str(max(int(year), NVD_YEARLY_FEED_START_YEAR))
-        for year in candidate_years
-        if year.isdigit()
-    }
-
-    skipped_years = sorted(year for year in candidate_years if not year.isdigit())
-    if skipped_years:
-        logger.info(
-            "Skipping unsupported yearly NVD feed years %s."
-            " NVD yearly feeds start at %s and include older CVEs in 2002.",
-            skipped_years,
-            NVD_YEARLY_FEED_START_YEAR,
-        )
-    return valid_years
 
 
 @timeit
@@ -264,7 +243,6 @@ def _get_nvd_cves_from_feeds(
     """Download NVD yearly feed files for the years matching CVE IDs in the graph."""
     years = _get_years_with_yearly_nvd_feeds(cve_ids_in_graph)
     if not years:
-        logger.info("No supported NVD yearly feed years found in graph CVE IDs.")
         return {}
     logger.info(
         "Downloading NVD feeds for years %s to enrich %d CVEs",
