@@ -138,7 +138,7 @@ def get_sites(
         )
 
     if sites_data:
-        logger.info("Retrieved SentinelOne site data: %d sites", len(sites_data))
+        logger.debug("Retrieved SentinelOne site data: %d sites", len(sites_data))
     else:
         logger.warning("No SentinelOne sites retrieved")
 

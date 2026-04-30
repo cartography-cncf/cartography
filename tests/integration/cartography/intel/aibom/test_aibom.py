@@ -10,11 +10,18 @@ import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
+from cartography.intel.common.object_store import ReportRef
+from cartography.intel.kubernetes.pods import load_containers
+from cartography.util import run_analysis_job
 from tests.data.aibom.aibom_sample import AIBOM_DIGEST_BASED_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
+from tests.data.aibom.aibom_sample import CONTAINER_ON_MANIFEST_LIST
+from tests.data.aibom.aibom_sample import CONTAINER_ON_SINGLE_PLATFORM
+from tests.data.aibom.aibom_sample import TEST_CLUSTER_ID
+from tests.data.aibom.aibom_sample import TEST_CLUSTER_NAME
 from tests.data.aibom.aibom_sample import TEST_DIGEST_BASED_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
@@ -150,11 +157,11 @@ def _seed_single_platform_graph(neo4j_session) -> None:
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
 )
 def test_sync_aibom_from_dir(
     mock_json_files,
@@ -440,8 +447,13 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
     read_data="",
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-relationship-fallback.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(
+            uri="/tmp/aibom-relationship-fallback.json",
+            name="aibom-relationship-fallback.json",
+        )
+    ],
 )
 def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_unmatched(
     mock_json_files,
@@ -456,7 +468,7 @@ def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_un
     ][0]
     relationship["source"]["instance_id"] = "missing-agent-instance"
     relationship["target"]["instance_id"] = "missing-model-instance"
-    mock_file_open.return_value.read.return_value = json.dumps(report)
+    mock_file_open.return_value.read.return_value = json.dumps(report).encode("utf-8")
 
     sync_aibom_from_dir(
         neo4j_session,
@@ -485,8 +497,13 @@ def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_un
     read_data="",
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-flat-source-target.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(
+            uri="/tmp/aibom-flat-source-target.json",
+            name="aibom-flat-source-target.json",
+        )
+    ],
 )
 def test_sync_aibom_parses_flat_source_target_relationships(
     mock_json_files,
@@ -511,7 +528,7 @@ def test_sync_aibom_parses_flat_source_target_relationships(
             "target_category": "tool",
         },
     )
-    mock_file_open.return_value.read.return_value = json.dumps(report)
+    mock_file_open.return_value.read.return_value = json.dumps(report).encode("utf-8")
 
     sync_aibom_from_dir(
         neo4j_session,
@@ -537,11 +554,13 @@ def test_sync_aibom_parses_flat_source_target_relationships(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_INCOMPLETE_REPORT),
+    read_data=json.dumps(AIBOM_INCOMPLETE_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-incomplete.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/aibom-incomplete.json", name="aibom-incomplete.json")
+    ],
 )
 def test_sync_aibom_keeps_scan_provenance_for_incomplete_sources(
     mock_json_files,
@@ -570,11 +589,13 @@ def test_sync_aibom_keeps_scan_provenance_for_incomplete_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_UNMATCHED_REPORT),
+    read_data=json.dumps(AIBOM_UNMATCHED_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-unmatched.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/aibom-unmatched.json", name="aibom-unmatched.json")
+    ],
 )
 def test_sync_aibom_keeps_scan_provenance_for_unmatched_sources(
     mock_json_files,
@@ -610,11 +631,15 @@ def test_sync_aibom_keeps_scan_provenance_for_unmatched_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT),
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-single-platform.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(
+            uri="/tmp/aibom-single-platform.json", name="aibom-single-platform.json"
+        )
+    ],
 )
 def test_sync_aibom_falls_back_to_single_platform_image(
     mock_json_files,
@@ -648,14 +673,15 @@ def test_sync_aibom_falls_back_to_single_platform_image(
     side_effect=UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-bad-encoding.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/aibom-bad-encoding.json", name="aibom-bad-encoding.json")
+    ],
 )
 def test_sync_aibom_skips_local_unicode_decode_errors(
     mock_json_files,
     mock_file_open,
     neo4j_session,
-    caplog,
 ):
     _seed_manifest_list_graph(neo4j_session)
 
@@ -667,52 +693,65 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
     )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert (
-        "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
+
+
+@patch("builtins.open", side_effect=FileNotFoundError("gone"))
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom-deleted.json", name="aibom-deleted.json")],
+)
+def test_sync_aibom_skips_local_read_errors(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
+
+    assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
 
 
 def test_sync_aibom_skips_s3_unicode_decode_errors(
     neo4j_session,
-    caplog,
 ):
     _seed_manifest_list_graph(neo4j_session)
 
     boto3_session = MagicMock()
     s3_client = MagicMock()
+    s3_client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/aibom-bad-encoding.json"}]},
+    ]
     s3_client.get_object.return_value = {
         "Body": MagicMock(read=MagicMock(return_value=b"\x80")),
     }
     boto3_session.client.return_value = s3_client
 
-    with patch(
-        "cartography.intel.aibom._get_json_files_in_s3",
-        return_value={"reports/aibom-bad-encoding.json"},
-    ):
-        sync_aibom_from_s3(
-            neo4j_session,
-            "example-bucket",
-            "reports/",
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-            boto3_session,
-        )
+    sync_aibom_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        boto3_session,
+    )
 
     assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
-    assert (
-        "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
-        in caplog.text
-    )
 
 
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-cleanup.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom-cleanup.json", name="aibom-cleanup.json")],
 )
 def test_cleanup_aibom_removes_stale_nodes(
     mock_json_files,
@@ -768,11 +807,13 @@ def test_cleanup_aibom_removes_stale_nodes(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_DIGEST_BASED_REPORT),
+    read_data=json.dumps(AIBOM_DIGEST_BASED_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-ontology.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/aibom-ontology.json", name="aibom-ontology.json")
+    ],
 )
 def test_sync_aibom_ontology_image_rels(
     mock_json_files,
@@ -833,11 +874,11 @@ def test_sync_aibom_ontology_image_rels(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT),
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-tag-sp.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom-tag-sp.json", name="aibom-tag-sp.json")],
 )
 def test_sync_aibom_tag_single_platform_image_rels(
     mock_json_files,
@@ -883,11 +924,11 @@ def test_sync_aibom_tag_single_platform_image_rels(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-tag-ml.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom-tag-ml.json", name="aibom-tag-ml.json")],
 )
 def test_sync_aibom_tag_manifest_list_fans_out_to_child_images(
     mock_json_files,
@@ -930,3 +971,102 @@ def test_sync_aibom_tag_manifest_list_fans_out_to_child_images(
         ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST),
         ("pydantic_ai.Agent", tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST),
     }
+
+
+def _seed_aibom_with_containers(neo4j_session, ecr_seed_fn, containers):
+    """Seed ECR images, load AIBOM, load containers, then run the analysis jobs."""
+    ecr_seed_fn(neo4j_session)
+
+    # Prerequisite cluster node for container sub_resource_relationship
+    neo4j_session.run(
+        "MERGE (c:KubernetesCluster {id: $id}) SET c.lastupdated = $tag",
+        id=TEST_CLUSTER_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    load_containers(
+        neo4j_session,
+        containers,
+        TEST_UPDATE_TAG,
+        cluster_id=TEST_CLUSTER_ID,
+        cluster_name=TEST_CLUSTER_NAME,
+    )
+
+    # RESOLVED_IMAGE must exist before RUNS_ON can join through it.
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    run_analysis_job(
+        "aibom_runs_on_container_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_runs_on_analysis_direct_image(mock_json_files, mock_file_open, neo4j_session):
+    """RUNS_ON is created when AIBOMSource and Container share the same concrete Image."""
+    _seed_aibom_with_containers(
+        neo4j_session,
+        _seed_single_platform_graph,
+        [CONTAINER_ON_SINGLE_PLATFORM],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Container",
+        "id",
+        "RUNS_ON",
+        rel_direction_right=True,
+    ) == {(TEST_SOURCE_KEY, CONTAINER_ON_SINGLE_PLATFORM["uid"])}
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_runs_on_analysis_via_resolved_manifest_list(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    """RUNS_ON is created when a manifest-list-backed Container resolves to a concrete child Image that matches the AIBOMSource's SCANNED_IMAGE."""
+    _seed_aibom_with_containers(
+        neo4j_session,
+        _seed_manifest_list_graph,
+        [CONTAINER_ON_MANIFEST_LIST],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Container",
+        "id",
+        "RUNS_ON",
+        rel_direction_right=True,
+    ) == {(TEST_SOURCE_KEY, CONTAINER_ON_MANIFEST_LIST["uid"])}

@@ -6,12 +6,12 @@ with DEPENDS_ON relationships between them.
 """
 
 import json
-from unittest.mock import mock_open
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import cartography.intel.aws.ecr
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
+from cartography.intel.syft import sync_syft_from_s3
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
@@ -354,18 +354,8 @@ def test_sync_single_syft_skips_deployed_without_image_digest_candidates(
     assert actual_rels == set()
 
 
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(SYFT_SAMPLE),
-)
-@patch(
-    "cartography.intel.syft._get_json_files_in_dir",
-    return_value={"/tmp/syft.json"},
-)
 def test_sync_syft_from_dir(
-    mock_list_dir_scan_results,
-    mock_file_open,
+    tmp_path,
     neo4j_session,
 ):
     """
@@ -376,10 +366,12 @@ def test_sync_syft_from_dir(
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
+    report_path = tmp_path / "syft.json"
+    report_path.write_text(json.dumps(SYFT_SAMPLE), encoding="utf-8")
 
     sync_syft_from_dir(
         neo4j_session,
-        "/tmp",
+        str(tmp_path),
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -397,3 +389,35 @@ def test_sync_syft_from_dir(
     ).single()
 
     assert result["count"] == 3
+
+
+def test_sync_syft_from_s3(
+    neo4j_session,
+):
+    """
+    Test sync_syft_from_s3 reads bucket objects and creates SyftPackage nodes.
+    """
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+
+    boto3_session = MagicMock()
+    s3_client = boto3_session.client.return_value
+    s3_client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": "reports/syft.json"}]},
+    ]
+    s3_client.get_object.return_value = {
+        "Body": MagicMock(
+            read=MagicMock(return_value=json.dumps(SYFT_SAMPLE).encode("utf-8"))
+        ),
+    }
+
+    sync_syft_from_s3(
+        neo4j_session,
+        "example-bucket",
+        "reports/",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        boto3_session,
+    )
+
+    actual_nodes = check_nodes(neo4j_session, "SyftPackage", ["id"])
+    assert len(actual_nodes) == 5

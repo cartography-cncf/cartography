@@ -1,11 +1,10 @@
 import json
 import logging
+import os
 import tempfile
 import time
 import zipfile
 from datetime import datetime
-from functools import reduce
-from io import BytesIO
 from typing import Any
 
 from requests import Session
@@ -17,18 +16,23 @@ logger = logging.getLogger(__name__)
 NVD_API_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 NVD_FEED_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/2.0"
 CONNECT_AND_READ_TIMEOUT = (30, 120)
+DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 # NVD API rate limits: 50 req/30s with key. 0.6s/req would hit the limit exactly;
 # keep a margin at 1s.
 API_SLEEP_TIME = 1.0
+NVD_YEARLY_FEED_START_YEAR = 2002
 
 
-def _extract_years_from_cve_ids(cve_ids: set[str]) -> set[str]:
-    """Extract unique years from CVE IDs (e.g., CVE-2023-12345 → 2023)."""
+def _get_years_with_yearly_nvd_feeds(cve_ids: set[str]) -> set[str]:
+    """Return CVE years mapped to their yearly NVD feed file.
+
+    NVD yearly feeds start at 2002; older CVEs are folded into the 2002 feed.
+    """
     years: set[str] = set()
     for cve_id in cve_ids:
         parts = cve_id.split("-")
-        if len(parts) >= 2:
-            years.add(parts[1])
+        if len(parts) >= 2 and parts[1].isdigit():
+            years.add(str(max(int(parts[1]), NVD_YEARLY_FEED_START_YEAR)))
     return years
 
 
@@ -54,19 +58,94 @@ def _fetch_cve_from_api(
 
 @timeit
 def _download_nvd_feed(http_session: Session, year: str) -> dict[Any, Any]:
-    """Download and extract a yearly NVD JSON feed zip into a temp directory."""
+    """Download and parse a yearly NVD JSON feed zip."""
     url = f"{NVD_FEED_BASE_URL}/nvdcve-2.0-{year}.json.zip"
     logger.debug("Downloading NVD feed for year %s from %s", year, url)
 
-    response = http_session.get(url, timeout=CONNECT_AND_READ_TIMEOUT)
-    response.raise_for_status()
+    with http_session.get(
+        url,
+        stream=True,
+        timeout=CONNECT_AND_READ_TIMEOUT,
+    ) as response:
+        response.raise_for_status()
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        with zipfile.ZipFile(BytesIO(response.content)) as zf:
-            zf.extractall(tmp_dir)
-            json_filename = zf.namelist()[0]
-            with open(f"{tmp_dir}/{json_filename}") as f:
-                return json.load(f)
+        zip_path = ""
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zip_file:
+                zip_path = zip_file.name
+                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                    if chunk:
+                        zip_file.write(chunk)
+
+            with zipfile.ZipFile(zip_path) as zf:
+                json_filename = zf.namelist()[0]
+                with zf.open(json_filename) as f:
+                    return json.load(f)
+        finally:
+            if zip_path:
+                os.unlink(zip_path)
+
+
+def _get_english_descriptions(cve: dict[str, Any]) -> str | None:
+    en_descriptions = [
+        desc["value"] for desc in cve.get("descriptions", []) if desc["lang"] == "en"
+    ]
+    return "\n".join(en_descriptions) if en_descriptions else None
+
+
+def _get_english_weaknesses(cve: dict[str, Any]) -> list[str]:
+    return [
+        description["value"]
+        for weakness in cve.get("weaknesses", [])
+        for description in weakness.get("description", [])
+        if description["lang"] == "en"
+    ]
+
+
+def _parse_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    return datetime.fromisoformat(value)
+
+
+def _transform_cve(cve: dict[str, Any]) -> dict[str, Any]:
+    transformed = {
+        "id": cve["id"],
+        "description_en": _get_english_descriptions(cve),
+        "references_urls": [ref["url"] for ref in cve.get("references", [])],
+        "weaknesses": _get_english_weaknesses(cve),
+        "published": _parse_datetime(cve.get("published")),
+        "lastModified": _parse_datetime(cve.get("lastModified")),
+        "vulnStatus": cve.get("vulnStatus"),
+        "is_kev": cve.get("cisaExploitAdd") is not None,
+        "cisaExploitAdd": cve.get("cisaExploitAdd"),
+        "cisaActionDue": cve.get("cisaActionDue"),
+        "cisaRequiredAction": cve.get("cisaRequiredAction"),
+        "cisaVulnerabilityName": cve.get("cisaVulnerabilityName"),
+    }
+
+    cvss_metric, cvss_version = _get_best_cvss(cve.get("metrics", {}))
+    if cvss_metric:
+        cvss_data = cvss_metric.get("cvssData", {})
+        transformed.update(
+            {
+                "cvss_version": cvss_version,
+                "vectorString": cvss_data.get("vectorString"),
+                "attackVector": cvss_data.get("attackVector"),
+                "attackComplexity": cvss_data.get("attackComplexity"),
+                "privilegesRequired": cvss_data.get("privilegesRequired"),
+                "userInteraction": cvss_data.get("userInteraction"),
+                "scope": cvss_data.get("scope"),
+                "confidentialityImpact": cvss_data.get("confidentialityImpact"),
+                "integrityImpact": cvss_data.get("integrityImpact"),
+                "availabilityImpact": cvss_data.get("availabilityImpact"),
+                "baseScore": cvss_data.get("baseScore"),
+                "baseSeverity": cvss_data.get("baseSeverity"),
+                "exploitabilityScore": cvss_metric.get("exploitabilityScore"),
+                "impactScore": cvss_metric.get("impactScore"),
+            },
+        )
+    return transformed
 
 
 def _get_primary_metric(metrics: list[dict[str, Any]] | None) -> dict[str, Any] | None:
@@ -112,63 +191,10 @@ def transform_cves(
             cve = data["cve"]
             if cve["id"] not in cve_ids_in_graph:
                 continue
-
-            # English description (join multiple entries into one string)
-            en_descriptions = [
-                desc["value"]
-                for desc in cve.get("descriptions", [])
-                if desc["lang"] == "en"
-            ]
-            cve["description_en"] = (
-                "\n".join(en_descriptions) if en_descriptions else None
-            )
-
-            # Reference URLs
-            cve["references_urls"] = [ref["url"] for ref in cve.get("references", [])]
-
-            # Weaknesses / CWEs
-            if cve.get("weaknesses"):
-                weakness_descriptions: list[dict[str, str]] = reduce(
-                    lambda x, y: x + y,
-                    [w["description"] for w in cve["weaknesses"]],
-                    [],
-                )
-                cve["weaknesses"] = [
-                    d["value"] for d in weakness_descriptions if d["lang"] == "en"
-                ]
-
-            # CVSS metrics — prefer v4.0, fallback v3.1, v3.0, v2.0
-            metrics = cve.get("metrics", {})
-            cvss_metric, cvss_version = _get_best_cvss(metrics)
-            if cvss_metric:
-                cvss_data = cvss_metric.get("cvssData", {})
-                cve["cvss_version"] = cvss_version
-                cve["vectorString"] = cvss_data.get("vectorString")
-                cve["attackVector"] = cvss_data.get("attackVector")
-                cve["attackComplexity"] = cvss_data.get("attackComplexity")
-                cve["privilegesRequired"] = cvss_data.get("privilegesRequired")
-                cve["userInteraction"] = cvss_data.get("userInteraction")
-                cve["scope"] = cvss_data.get("scope")
-                cve["confidentialityImpact"] = cvss_data.get("confidentialityImpact")
-                cve["integrityImpact"] = cvss_data.get("integrityImpact")
-                cve["availabilityImpact"] = cvss_data.get("availabilityImpact")
-                cve["baseScore"] = cvss_data.get("baseScore")
-                cve["baseSeverity"] = cvss_data.get("baseSeverity")
-                cve["exploitabilityScore"] = cvss_metric.get("exploitabilityScore")
-                cve["impactScore"] = cvss_metric.get("impactScore")
-
-            # Parse date strings to datetime objects
-            for date_field in ("published", "lastModified"):
-                if cve.get(date_field):
-                    cve[date_field] = datetime.fromisoformat(cve[date_field])
-
-            # CISA KEV fields are already top-level in cve dict if present
-            cve["is_kev"] = cve.get("cisaExploitAdd") is not None
-
+            cves[cve["id"]] = _transform_cve(cve)
         except Exception:
             logger.error("Failed to transform CVE data: %s", data)
             raise
-        cves[cve["id"]] = cve
     return cves
 
 
@@ -215,7 +241,9 @@ def _get_nvd_cves_from_feeds(
     cve_ids_in_graph: set[str],
 ) -> dict[str, dict[Any, Any]]:
     """Download NVD yearly feed files for the years matching CVE IDs in the graph."""
-    years = _extract_years_from_cve_ids(cve_ids_in_graph)
+    years = _get_years_with_yearly_nvd_feeds(cve_ids_in_graph)
+    if not years:
+        return {}
     logger.info(
         "Downloading NVD feeds for years %s to enrich %d CVEs",
         sorted(years),

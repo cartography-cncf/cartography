@@ -15,6 +15,26 @@ P -- RESOURCE --> DF(GitLabDependencyFile)
 P -- REQUIRES --> D(GitLabDependency)
 DF -- HAS_DEP --> D
 
+%% CI/CD Runners
+O -- RESOURCE --> R_I(GitLabRunner: instance)
+G -- RESOURCE --> R_G(GitLabRunner: group)
+P -- RESOURCE --> R_P(GitLabRunner: project)
+
+%% CI/CD Variables
+G -- HAS_CI_VARIABLE --> CV_G(GitLabCIVariable: group)
+P -- HAS_CI_VARIABLE --> CV_P(GitLabCIVariable: project)
+
+%% Environments
+P -- HAS_ENVIRONMENT --> E(GitLabEnvironment)
+P -- RESOURCE --> E
+E -- HAS_CI_VARIABLE --> CV_P
+
+%% CI/CD Config (.gitlab-ci.yml)
+P -- RESOURCE --> CC(GitLabCIConfig)
+CC -- USES_INCLUDE --> CI_INC(GitLabCIInclude)
+P -- RESOURCE --> CI_INC
+CC -- REFERENCES_VARIABLE --> CV_P
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
@@ -692,4 +712,299 @@ MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabCon
 MATCH (vuln)-[:AFFECTS]->(pkg:Package)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+```
+
+### GitLabRunner
+
+Representation of a GitLab CI/CD runner. Runners exist at three scopes:
+
+- **instance_type**: shared across the whole GitLab instance (`RESOURCE` of `GitLabOrganization`)
+- **group_type**: scoped to a group and its descendants (`RESOURCE` of `GitLabGroup`)
+- **project_type**: scoped to a single project (`RESOURCE` of `GitLabProject`)
+
+All three are stored under the same Neo4j label (`GitLabRunner`); the `runner_type` property and the parent of the `RESOURCE` relationship distinguish them.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The numeric GitLab runner ID |
+| description | Human-readable description set on the runner |
+| **runner_type** | One of `instance_type`, `group_type`, `project_type` |
+| is_shared | True if this is a shared/instance runner |
+| active | Whether the runner is enabled |
+| paused | Whether new jobs are paused on this runner |
+| online | Whether the runner has contacted GitLab recently |
+| **status** | Current status (`online`, `offline`, `stale`, `never_contacted`, ...) |
+| ip_address | Last known IP address of the runner |
+| architecture | Architecture (`amd64`, `arm64`, ...) |
+| platform | Platform (`linux`, `darwin`, `windows`, ...) |
+| contacted_at | Last time the runner contacted GitLab |
+| tag_list | Array of tags used to route jobs to this runner |
+| **run_untagged** | If true, the runner accepts jobs without matching tags. Security-sensitive |
+| **locked** | If true, the runner cannot be assigned to additional projects |
+| **access_level** | `not_protected` allows jobs from any branch; `ref_protected` restricts to protected refs |
+| maximum_timeout | Per-runner job timeout cap (seconds) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabRunner` of type `instance_type` is a `RESOURCE` of a `GitLabOrganization`.
+
+    ```cypher
+    (:GitLabOrganization)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+- A `GitLabRunner` of type `group_type` is a `RESOURCE` of a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabGroup)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+- A `GitLabRunner` of type `project_type` is a `RESOURCE` of a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+#### Example queries
+
+Find unprotected, untagged runners — these will execute jobs from any branch and any project that can reach them:
+
+```cypher
+MATCH (r:GitLabRunner)
+WHERE r.run_untagged = true AND r.access_level = 'not_protected'
+RETURN r.id, r.description, r.runner_type
+```
+
+Count runners per scope:
+
+```cypher
+MATCH (r:GitLabRunner)
+RETURN r.runner_type, count(*) AS count
+ORDER BY count DESC
+```
+
+### GitLabCIVariable
+
+Representation of a GitLab CI/CD variable. Variables exist at two scopes:
+
+- **group**: shared across all projects in the group (and descendants)
+- **project**: scoped to a single project
+
+GitLab does not differentiate "secrets" from "variables" at the API level — the
+`masked`, `masked_and_hidden`, and `protected` flags carry the security
+metadata. **The variable's value is intentionally not stored.** Only the
+metadata is ingested.
+
+Both scopes share the same Neo4j label (`GitLabCIVariable`); the parent of the
+`HAS_CI_VARIABLE` relationship and the `scope_type` property distinguish them.
+
+The composite `id` is `{scope_type}:{scope_id}:{key}:{environment_scope}` so
+that a variable with the same key but a different `environment_scope` (a
+common pattern for `DATABASE_URL` etc.) does not collide.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{scope_type}:{scope_id}:{key}:{environment_scope}` |
+| **key** | Variable key as exposed to CI/CD jobs |
+| variable_type | `env_var` or `file` |
+| **protected** | If true, the variable is exposed only on protected refs (security-sensitive) |
+| masked | If true, GitLab attempts to mask the value in job logs |
+| masked_and_hidden | If true, the value cannot be retrieved through the API after creation |
+| raw | If true, GitLab does not perform variable expansion on the value |
+| **environment_scope** | Glob (default `*`) selecting which environments receive this variable |
+| description | Human-readable description |
+| scope_type | `group` or `project` |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A group-level `GitLabCIVariable` is owned by a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+- A project-level `GitLabCIVariable` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find unmasked, unprotected variables — these may leak through job logs and
+non-protected branches:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+WHERE v.protected = false AND v.masked = false
+RETURN v.scope_type, v.key, v.environment_scope
+```
+
+Count variables per scope:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+RETURN v.scope_type, count(*) AS count
+```
+
+### GitLabEnvironment
+
+Representation of a GitLab deployment environment (e.g. `production`,
+`staging`, ephemeral review apps). Each project has its own set of
+environments. The composite `id` includes the project_id because GitLab's
+environment IDs are unique per-project, not globally.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{gitlab_env_id}` |
+| gitlab_id | The numeric GitLab environment ID (per-project) |
+| **name** | Environment name (e.g. `production`, `review/feature-x`) |
+| slug | URL-safe slug |
+| external_url | URL where this environment is reachable |
+| state | `available` or `stopped` |
+| tier | `production`, `staging`, `testing`, `development`, or `other` |
+| created_at | GitLab timestamp |
+| updated_at | GitLab timestamp |
+| auto_stop_at | Timestamp at which the environment auto-stops (or null) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabEnvironment` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)
+    (:GitLabProject)-[:RESOURCE]->(:GitLabEnvironment)
+    ```
+
+- A `GitLabEnvironment` is linked to the project-level `GitLabCIVariable`s
+  whose `environment_scope` matches the environment's name exactly OR is
+  the wildcard `*`. (Glob patterns like `production/*` are recognised by
+  GitLab at runtime but are not matched here.)
+
+    ```cypher
+    (:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find environments that use unprotected variables:
+
+```cypher
+MATCH (e:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(v:GitLabCIVariable)
+WHERE v.protected = false
+RETURN e.name, v.key, v.environment_scope
+```
+
+### GitLabCIConfig
+
+Representation of a project's parsed `.gitlab-ci.yml`. When the GitLab
+`/ci/lint` endpoint is available, the config is built from the **merged**
+YAML (all `include:` references expanded by GitLab); otherwise the raw
+`.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
+the two cases.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{file_path}` |
+| **project_id** | The numeric GitLab project ID |
+| file_path | Path of the config file in the repo (defaults to `.gitlab-ci.yml`) |
+| is_valid | `true` / `false` if /ci/lint validated; `null` if parsed from raw |
+| is_merged | `true` if the YAML came from /ci/lint with includes expanded |
+| job_count | Number of CI jobs detected |
+| stages | Pipeline stages array |
+| trigger_rules | Detected trigger categories (`merge_requests`, `schedules`, `pushes`, `tag`, `manual`, `web`, `api`) |
+| referenced_variable_keys | All `$VAR` / `${VAR}` references found in the YAML, minus GitLab predefineds |
+| referenced_protected_variables | Subset of `referenced_variable_keys` that match a project variable with `protected = true` |
+| default_image | Top-level `image` (or `default.image`) |
+| has_includes | True if the pipeline has any `include:` entries |
+| include_count | Number of resolved include entries |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIConfig` belongs to a `GitLabProject` (1-to-1, encoded by the
+  cleanup-scoping `RESOURCE` edge — no separate `HAS_CI_CONFIG` edge to
+  avoid redundancy).
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIConfig)
+    ```
+
+- A `GitLabCIConfig` references each `include:` entry as a `GitLabCIInclude`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIConfig` references a `GitLabCIVariable` when one of its parsed
+  variable keys matches the variable's `key` (across any environment scope).
+
+    ```cypher
+    (:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+### GitLabCIInclude
+
+Representation of a single `include:` entry in a project's `.gitlab-ci.yml`.
+
+The `is_pinned` flag is the primary security signal: a `project:` include
+without a 40-character SHA `ref` will pull whatever is on the referenced
+branch / tag at pipeline runtime, so anyone with push access to the included
+repo can inject code into the consumer's pipeline.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{include_type}:{location}:{ref or 'none'}` |
+| **include_type** | `local`, `project`, `remote`, `template`, or `component` |
+| **location** | Path / project path / URL / template name / component identifier |
+| ref | SHA, tag, or branch (for `project:` includes); `null` otherwise |
+| **is_pinned** | True iff the include resolves to an immutable target |
+| is_local | True for `local:` includes (within the same repo) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIInclude` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIInclude` is used by exactly one `GitLabCIConfig`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+#### Example queries
+
+Find pipelines that pull external CI templates without pinning to a SHA — these
+are vulnerable to upstream tampering:
+
+```cypher
+MATCH (c:GitLabCIConfig)-[:USES_INCLUDE]->(i:GitLabCIInclude)
+WHERE i.include_type = 'project' AND i.is_pinned = false
+RETURN c.project_id, i.location, i.ref
+```
+
+Find pipelines that reference a `protected` variable AND can be triggered
+manually — a possible secret-leak vector:
+
+```cypher
+MATCH (c:GitLabCIConfig)
+WHERE 'manual' IN c.trigger_rules
+  AND size(c.referenced_protected_variables) > 0
+RETURN c.project_id, c.referenced_protected_variables, c.trigger_rules
 ```
