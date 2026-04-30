@@ -1,6 +1,12 @@
 import datetime
 from datetime import timezone as tz
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
+from botocore.exceptions import ClientError
+
+import cartography.intel.aws.secretsmanager
+from cartography.intel.aws.secretsmanager import get_secret_versions
 from cartography.intel.aws.secretsmanager import transform_secrets
 from tests.data.aws.secretsmanager import SECRETS_RAW_DATA
 
@@ -87,4 +93,32 @@ def test_transform_secrets_happy_path():
     # Should handle None values gracefully for missing optional date fields
     assert minimal_secret.get("LastRotatedDate") is None or isinstance(
         minimal_secret.get("LastRotatedDate"), int
+    )
+
+
+@patch.object(cartography.intel.aws.secretsmanager, "create_boto3_client")
+def test_get_secret_versions_skips_deleted_secret(mock_create_boto3_client):
+    secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:deleted-AbCdEf"
+    client = MagicMock()
+    client.list_secret_version_ids.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "ResourceNotFoundException",
+                "Message": "Secrets Manager can't find the specified secret.",
+            }
+        },
+        "ListSecretVersionIds",
+    )
+    mock_create_boto3_client.return_value = client
+
+    result = get_secret_versions(
+        MagicMock(),
+        "us-east-1",
+        secret_arn,
+    )
+
+    assert result == []
+    client.list_secret_version_ids.assert_called_once_with(
+        SecretId=secret_arn,
+        IncludeDeprecated=True,
     )
