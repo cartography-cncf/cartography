@@ -10,12 +10,14 @@ _gcp_instance_internet_exposed = Fact(
     name="Internet-Exposed GCE Instances on Common Management Ports",
     description=(
         "GCE instances with a public IP (ONE_TO_ONE_NAT access config) whose "
-        "VPC has an enabled INGRESS firewall allowing 0.0.0.0/0 to a management "
-        "port (22, 3389, 3306, 5432, 6379, 9200, 27017). Mirrors the AWS "
-        "EC2-on-management-ports semantics; matches are widened by VPC scope "
-        "and do not currently account for firewall target_tags or target SAs, "
-        "so a VPC-wide allow may produce findings on tagged instances that "
-        "the firewall does not actually apply to."
+        "VPC has an enabled INGRESS firewall allowing 0.0.0.0/0 on TCP (or "
+        "all protocols) to a management port (22, 3389, 3306, 5432, 6379, "
+        "9200, 27017). Port ranges (fromport/toport) covering a management "
+        "port are detected. Mirrors the AWS EC2-on-management-ports "
+        "semantics; matches are widened by VPC scope and do not currently "
+        "account for firewall target_tags or target SAs, so a VPC-wide "
+        "allow may produce findings on tagged instances that the firewall "
+        "does not actually apply to."
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
@@ -24,17 +26,27 @@ _gcp_instance_internet_exposed = Fact(
     MATCH (nic)-[:PART_OF_SUBNET]->(subnet:GCPSubnet)<-[:HAS]-(vpc:GCPVpc)
     MATCH (vpc)-[:RESOURCE]->(fw:GCPFirewall)<-[:ALLOWED_BY]-(rule:GCPIpRule)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:GCPIpRange{range:'0.0.0.0/0'})
+    WITH project, instance, nic, ac, fw, rule
+    UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
+    WITH project, instance, nic, ac, fw, rule, managed_port
     WHERE ac.type = 'ONE_TO_ONE_NAT'
       AND ac.public_ip IS NOT NULL
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
-      AND rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+      AND (
+        rule.protocol = 'all'
+        OR (
+          rule.protocol = 'tcp'
+          AND coalesce(rule.fromport, 0) <= managed_port
+          AND coalesce(rule.toport, rule.fromport, 0) >= managed_port
+        )
+      )
     RETURN
         project.id AS account_id,
         project.id AS account,
         instance.id AS instance_id,
         instance.name AS instance,
-        rule.fromport AS port,
+        managed_port AS port,
         fw.name AS security_group
     """,
     cypher_visual_query="""
@@ -48,7 +60,17 @@ _gcp_instance_internet_exposed = Fact(
       AND ac.public_ip IS NOT NULL
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
-      AND rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+      AND (
+        rule.protocol = 'all'
+        OR (
+          rule.protocol = 'tcp'
+          AND any(
+            managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+            WHERE coalesce(rule.fromport, 0) <= managed_port
+              AND coalesce(rule.toport, rule.fromport, 0) >= managed_port
+          )
+        )
+      )
     RETURN *
     """,
     cypher_count_query="""
