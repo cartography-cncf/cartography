@@ -385,6 +385,7 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 | name | Name of the Kubernetes ServiceAccount |
 | namespace | The Kubernetes namespace where this ServiceAccount is deployed |
 | aws_role_arn | ARN from the IRSA annotation `eks.amazonaws.com/role-arn`, when present. Used to link the ServiceAccount to an `AWSRole`. |
+| gcp\_service\_account | Email from the GKE Workload Identity annotation `iam.gke.io/gcp-service-account`, when present. Used to link the ServiceAccount to a `GCPServiceAccount`. |
 | uid | UID of the Kubernetes ServiceAccount |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
 | resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
@@ -411,6 +412,11 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 - `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.
     ```
     (:KubernetesServiceAccount)-[:ASSUMES_ROLE]->(:AWSRole)
+    ```
+
+- `KubernetesServiceAccount` impersonates a `GCPServiceAccount` via GKE Workload Identity when annotated with `iam.gke.io/gcp-service-account`.
+    ```
+    (:KubernetesServiceAccount)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount)
     ```
 
 - `KubernetesServiceAccount` is used as a subject in `KubernetesRoleBinding`.
