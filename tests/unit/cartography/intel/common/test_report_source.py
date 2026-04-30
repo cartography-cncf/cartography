@@ -240,7 +240,11 @@ def test_build_azure_blob_credential_from_config_returns_sp_credential(
     )
 
 
-def test_build_azure_blob_credential_from_config_returns_none_when_disabled() -> None:
+@patch("azure.identity.AzureCliCredential")
+def test_build_azure_blob_credential_from_config_returns_cli_credential_when_disabled(
+    mock_credential_cls,
+) -> None:
+    fake_credential = mock_credential_cls.return_value
     config = _TestConfig(
         azure_sp_auth=False,
         azure_tenant_id="tenant-id",
@@ -248,7 +252,10 @@ def test_build_azure_blob_credential_from_config_returns_none_when_disabled() ->
         azure_client_secret="client-secret",
     )
 
-    assert build_azure_blob_credential_from_config(config) is None
+    credential = build_azure_blob_credential_from_config(config)
+
+    assert credential is fake_credential
+    mock_credential_cls.assert_called_once_with()
 
 
 def test_build_azure_blob_credential_from_config_requires_all_sp_fields() -> None:
@@ -268,10 +275,16 @@ def test_build_report_reader_for_local_ignores_optional_azure_credential(
     mock_reader_cls,
 ) -> None:
     fake_reader = mock_reader_cls.return_value
+    config = _TestConfig(
+        azure_sp_auth=True,
+        azure_tenant_id="tenant-id",
+        azure_client_id=None,
+        azure_client_secret="client-secret",
+    )
 
     reader = build_report_reader_for_source(
         LocalReportSource(path="./reports"),
-        azure_blob_credential=object(),
+        config=config,
     )
 
     assert reader is fake_reader
@@ -279,10 +292,19 @@ def test_build_report_reader_for_local_ignores_optional_azure_credential(
 
 
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
+@patch("azure.identity.AzureCliCredential")
 def test_build_report_reader_for_azure_uses_reader_defaults(
+    mock_credential_cls,
     mock_reader_cls,
 ) -> None:
     fake_reader = mock_reader_cls.return_value
+    fake_credential = mock_credential_cls.return_value
+    config = _TestConfig(
+        azure_sp_auth=False,
+        azure_tenant_id="tenant-id",
+        azure_client_id="client-id",
+        azure_client_secret="client-secret",
+    )
 
     reader = build_report_reader_for_source(
         AzureBlobReportSource(
@@ -290,6 +312,7 @@ def test_build_report_reader_for_azure_uses_reader_defaults(
             container_name="container",
             prefix="prefix",
         ),
+        config=config,
     )
 
     assert reader is fake_reader
@@ -297,17 +320,25 @@ def test_build_report_reader_for_azure_uses_reader_defaults(
         "acct",
         "container",
         "prefix",
-        credential=None,
+        credential=fake_credential,
         source_uri="azblob://acct/container/prefix",
     )
 
 
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
-def test_build_report_reader_for_azure_uses_supplied_credential(
+@patch("azure.identity.ClientSecretCredential")
+def test_build_report_reader_for_azure_uses_config_credential(
+    mock_credential_cls,
     mock_reader_cls,
 ) -> None:
     fake_reader = mock_reader_cls.return_value
-    fake_credential = object()
+    fake_credential = mock_credential_cls.return_value
+    config = _TestConfig(
+        azure_sp_auth=True,
+        azure_tenant_id="tenant-id",
+        azure_client_id="client-id",
+        azure_client_secret="client-secret",
+    )
 
     reader = build_report_reader_for_source(
         AzureBlobReportSource(
@@ -315,10 +346,15 @@ def test_build_report_reader_for_azure_uses_supplied_credential(
             container_name="container",
             prefix="prefix",
         ),
-        azure_blob_credential=fake_credential,
+        config=config,
     )
 
     assert reader is fake_reader
+    mock_credential_cls.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
     mock_reader_cls.assert_called_once_with(
         "acct",
         "container",

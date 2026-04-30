@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 
 def build_azure_blob_credential_from_config(config: "Config") -> Any | None:
     if not config.azure_sp_auth:
-        return None
+        from azure.identity import AzureCliCredential
+
+        return AzureCliCredential()
 
     if not (
         config.azure_tenant_id and config.azure_client_id and config.azure_client_secret
@@ -36,6 +38,7 @@ def build_azure_blob_credential_from_config(config: "Config") -> Any | None:
 def build_report_reader_for_source(
     source: ReportSource,
     *,
+    config: "Config | None" = None,
     azure_blob_credential: Any | None = None,
 ) -> ReportReader:
     if isinstance(source, LocalReportSource):
@@ -55,6 +58,8 @@ def build_report_reader_for_source(
         return object_store.GCSBucketReader(source.bucket, source.prefix, source.uri)
 
     if isinstance(source, AzureBlobReportSource):
+        if azure_blob_credential is None and config is not None:
+            azure_blob_credential = build_azure_blob_credential_from_config(config)
         return object_store.AzureBlobContainerReader(
             source.account_name,
             source.container_name,

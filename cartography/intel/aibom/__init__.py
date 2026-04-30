@@ -15,12 +15,8 @@ from cartography.intel.common.object_store import read_json_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.common.report_reader_builder import (
-    build_azure_blob_credential_from_config,
-)
-from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
-from cartography.intel.common.report_source import AzureBlobReportSource
 from cartography.intel.common.report_source import parse_report_source
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -142,17 +138,12 @@ def start_aibom_ingestion(neo4j_session: Session, config: Config) -> None:
         return
 
     source = parse_report_source(config.aibom_source)
-    azure_blob_credential = (
-        build_azure_blob_credential_from_config(config)
-        if isinstance(source, AzureBlobReportSource)
-        else None
-    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
     with build_report_reader_for_source(
         source,
-        azure_blob_credential=azure_blob_credential,
+        config=config,
     ) as reader:
         sync_aibom_from_report_reader(
             neo4j_session,
