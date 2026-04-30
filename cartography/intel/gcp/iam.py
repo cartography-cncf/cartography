@@ -197,6 +197,13 @@ def transform_gcp_service_account_keys(
     for key in raw_keys:
         key_name = key.get("name")
         if not key_name:
+            # The IAM API contract guarantees `name` on every key; a record
+            # missing it is a real anomaly worth surfacing rather than
+            # silently dropping.
+            logger.warning(
+                "Skipping GCP service account key without a 'name' field: %r",
+                key,
+            )
             continue
         result.append(
             {
@@ -543,11 +550,16 @@ def sync(
             all_keys.extend(transform_gcp_service_account_keys(keys_raw, sa_email))
         except Exception as e:
             keys_sync_complete = False
+            # Log the SA's opaque uniqueId rather than the email so log
+            # aggregators do not pick up identifiers that double as account
+            # names. Operators can resolve the uniqueId back to a SA via the
+            # synced graph if they need to triage.
             logger.warning(
-                "Failed to list keys for service account %s in project %s: %s. "
-                "Skipping service account key cleanup for this project to avoid "
-                "deleting keys that were not re-ingested.",
-                sa_email,
+                "Failed to list keys for service account uniqueId=%s in "
+                "project %s: %s. Skipping service account key cleanup for "
+                "this project to avoid deleting keys that were not "
+                "re-ingested.",
+                sa.get("uniqueId", "<unknown>"),
                 project_id,
                 e,
             )
