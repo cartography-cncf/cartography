@@ -1,4 +1,5 @@
-import logging
+from typing import Any
+from typing import TYPE_CHECKING
 
 import cartography.intel.common.object_store as object_store
 from cartography.intel.common.object_store import ReportReader
@@ -8,11 +9,34 @@ from cartography.intel.common.report_source import LocalReportSource
 from cartography.intel.common.report_source import ReportSource
 from cartography.intel.common.report_source import S3ReportSource
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from cartography.config import Config
+
+
+def build_azure_blob_credential_from_config(config: "Config") -> Any | None:
+    if not config.azure_sp_auth:
+        return None
+
+    if not (
+        config.azure_tenant_id and config.azure_client_id and config.azure_client_secret
+    ):
+        raise ValueError(
+            "azure_sp_auth requires azure_tenant_id, azure_client_id, and azure_client_secret.",
+        )
+
+    from azure.identity import ClientSecretCredential
+
+    return ClientSecretCredential(
+        tenant_id=config.azure_tenant_id,
+        client_id=config.azure_client_id,
+        client_secret=config.azure_client_secret,
+    )
 
 
 def build_report_reader_for_source(
     source: ReportSource,
+    *,
+    azure_blob_credential: Any | None = None,
 ) -> ReportReader:
     if isinstance(source, LocalReportSource):
         return object_store.LocalReportReader(source.path)
@@ -35,6 +59,7 @@ def build_report_reader_for_source(
             source.account_name,
             source.container_name,
             source.prefix,
+            credential=azure_blob_credential,
             source_uri=source.uri,
         )
 

@@ -3,6 +3,10 @@ from unittest.mock import patch
 
 import pytest
 
+from cartography.config import Config
+from cartography.intel.common.report_reader_builder import (
+    build_azure_blob_credential_from_config,
+)
 from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
@@ -16,6 +20,21 @@ from cartography.intel.common.report_source import (
     resolve_report_source_with_legacy_fields,
 )
 from cartography.intel.common.report_source import S3ReportSource
+
+
+class _TestConfig(Config):
+    def __init__(
+        self,
+        *,
+        azure_sp_auth: bool,
+        azure_tenant_id: str | None,
+        azure_client_id: str | None,
+        azure_client_secret: str | None,
+    ) -> None:
+        self.azure_sp_auth = azure_sp_auth
+        self.azure_tenant_id = azure_tenant_id
+        self.azure_client_id = azure_client_id
+        self.azure_client_secret = azure_client_secret
 
 
 def test_parse_local_report_source_from_plain_path() -> None:
@@ -199,6 +218,51 @@ def test_build_report_reader_for_source_rejects_unknown_source_type() -> None:
         build_report_reader_for_source(object())  # type: ignore[arg-type]
 
 
+@patch("azure.identity.ClientSecretCredential")
+def test_build_azure_blob_credential_from_config_returns_sp_credential(
+    mock_credential_cls,
+) -> None:
+    fake_credential = mock_credential_cls.return_value
+    config = _TestConfig(
+        azure_sp_auth=True,
+        azure_tenant_id="tenant-id",
+        azure_client_id="client-id",
+        azure_client_secret="client-secret",
+    )
+
+    credential = build_azure_blob_credential_from_config(config)
+
+    assert credential is fake_credential
+    mock_credential_cls.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
+
+
+def test_build_azure_blob_credential_from_config_returns_none_when_disabled() -> None:
+    config = _TestConfig(
+        azure_sp_auth=False,
+        azure_tenant_id="tenant-id",
+        azure_client_id="client-id",
+        azure_client_secret="client-secret",
+    )
+
+    assert build_azure_blob_credential_from_config(config) is None
+
+
+def test_build_azure_blob_credential_from_config_requires_all_sp_fields() -> None:
+    config = _TestConfig(
+        azure_sp_auth=True,
+        azure_tenant_id="tenant-id",
+        azure_client_id=None,
+        azure_client_secret="client-secret",
+    )
+
+    with pytest.raises(ValueError, match="azure_sp_auth requires"):
+        build_azure_blob_credential_from_config(config)
+
+
 @patch("cartography.intel.common.object_store.AzureBlobContainerReader")
 def test_build_report_reader_for_azure_uses_reader_defaults(
     mock_reader_cls,
@@ -218,5 +282,32 @@ def test_build_report_reader_for_azure_uses_reader_defaults(
         "acct",
         "container",
         "prefix",
+        credential=None,
+        source_uri="azblob://acct/container/prefix",
+    )
+
+
+@patch("cartography.intel.common.object_store.AzureBlobContainerReader")
+def test_build_report_reader_for_azure_uses_supplied_credential(
+    mock_reader_cls,
+) -> None:
+    fake_reader = mock_reader_cls.return_value
+    fake_credential = object()
+
+    reader = build_report_reader_for_source(
+        AzureBlobReportSource(
+            account_name="acct",
+            container_name="container",
+            prefix="prefix",
+        ),
+        azure_blob_credential=fake_credential,
+    )
+
+    assert reader is fake_reader
+    mock_reader_cls.assert_called_once_with(
+        "acct",
+        "container",
+        "prefix",
+        credential=fake_credential,
         source_uri="azblob://acct/container/prefix",
     )
