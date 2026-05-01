@@ -86,13 +86,13 @@ class _TokenManager:
             self._generation += 1
 
 
-async def _fetch_json(
+async def _authed_get(
     http_client: httpx.AsyncClient,
     url: str,
     token_manager: _TokenManager,
     accept: str | None = None,
-) -> dict[str, Any]:
-    """Fetch a JSON document. Refreshes credentials once on 401, otherwise raises."""
+) -> httpx.Response:
+    """GET with token-manager auth. Refreshes credentials once on 401, otherwise raises."""
     for attempt in range(2):
         observed_generation = token_manager.generation
         headers: dict[str, str] = {}
@@ -105,8 +105,18 @@ async def _fetch_json(
             await token_manager.refresh(observed_generation)
             continue
         resp.raise_for_status()
-        return resp.json()
+        return resp
     raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+
+
+async def _fetch_json(
+    http_client: httpx.AsyncClient,
+    url: str,
+    token_manager: _TokenManager,
+    accept: str | None = None,
+) -> dict[str, Any]:
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json()
 
 
 async def _fetch_manifest_with_digest(
@@ -115,20 +125,8 @@ async def _fetch_manifest_with_digest(
     token_manager: _TokenManager,
     accept: str,
 ) -> tuple[dict[str, Any], str | None]:
-    """Fetch a manifest and return (manifest_json, subject_digest). Raises on errors."""
-    for attempt in range(2):
-        observed_generation = token_manager.generation
-        headers: dict[str, str] = {"Accept": accept}
-        token_manager.apply_auth(headers)
-        resp = await http_client.get(url, headers=headers, timeout=30.0)
-        if resp.status_code == 401 and attempt == 0:
-            logger.debug("Got 401 from %s, refreshing GCP credentials", url)
-            await token_manager.refresh(observed_generation)
-            continue
-        resp.raise_for_status()
-        digest = resp.headers.get("Docker-Content-Digest")
-        return resp.json(), digest
-    raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json(), resp.headers.get("Docker-Content-Digest")
 
 
 async def _fetch_image_config(
@@ -550,24 +548,25 @@ def sync(
     # re-fetch this run. We still run cleanup when enrichments is empty (e.g.,
     # all images deleted, or no enrichable artifacts left), so orphan layer
     # nodes do not accumulate.
-    if cleanup_safe and fetch_failures == 0:
+    skip_reasons = []
+    if not cleanup_safe:
+        skip_reasons.append("artifact discovery was incomplete")
+    if fetch_failures:
+        skip_reasons.append(f"{fetch_failures} image(s) failed to enrich")
+
+    if skip_reasons:
+        logger.warning(
+            "Skipping image layer cleanup for project %s: %s.",
+            project_id,
+            "; ".join(skip_reasons),
+        )
+    else:
         cleanup_params = common_job_parameters.copy()
         cleanup_params["PROJECT_ID"] = project_id
         GraphJob.from_node_schema(
             GCPArtifactRegistryImageLayerSchema(),
             cleanup_params,
         ).run(neo4j_session)
-    elif not cleanup_safe:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because artifact discovery was incomplete.",
-            project_id,
-        )
-    else:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because %d image(s) failed to enrich.",
-            project_id,
-            fetch_failures,
-        )
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))

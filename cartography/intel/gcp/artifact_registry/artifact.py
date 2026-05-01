@@ -545,14 +545,12 @@ def transform_go_modules(
     return transformed
 
 
-def transform_apt_artifacts(
+def _transform_generic_artifacts(
     artifacts_data: list[dict],
     repository_id: str,
     project_id: str,
+    format_label: str,
 ) -> list[dict]:
-    """
-    Transforms APT artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
     transformed: list[dict] = []
     for artifact in artifacts_data:
         name = artifact.get("name", "")
@@ -561,13 +559,23 @@ def transform_apt_artifacts(
             {
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
-                "format": "APT",
+                "format": format_label,
                 "package_name": artifact.get("packageName"),
                 "repository_id": repository_id,
                 "project_id": project_id,
             }
         )
     return transformed
+
+
+def transform_apt_artifacts(
+    artifacts_data: list[dict],
+    repository_id: str,
+    project_id: str,
+) -> list[dict]:
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "APT"
+    )
 
 
 def transform_yum_artifacts(
@@ -575,24 +583,9 @@ def transform_yum_artifacts(
     repository_id: str,
     project_id: str,
 ) -> list[dict]:
-    """
-    Transforms YUM artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
-    transformed: list[dict] = []
-    for artifact in artifacts_data:
-        name = artifact.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "YUM",
-                "package_name": artifact.get("packageName"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
-    return transformed
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "YUM"
+    )
 
 
 # Mapping of repository format to get and transform functions
@@ -905,21 +898,25 @@ def sync_artifact_registry_artifacts(
         artifacts_raw = result.artifacts
 
         if repo_format == "DOCKER":
+            helm_artifacts: list[dict] = []
+            docker_artifacts: list[dict] = []
             for artifact in artifacts_raw:
-                artifact_type = artifact.get("artifactType", "")
-                media_type = artifact.get("mediaType", "")
+                artifact_type = artifact.get("artifactType", "").lower()
+                media_type = artifact.get("mediaType", "").lower()
                 if (
-                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
-                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type
+                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type
                 ):
-                    helm_charts_transformed.extend(
-                        transform_helm_charts([artifact], repo_name, project_id)
-                    )
+                    helm_artifacts.append(artifact)
                 else:
-                    docker_images_raw.append(artifact)
-                    docker_images_transformed.extend(
-                        transform_docker_images([artifact], repo_name, project_id)
-                    )
+                    docker_artifacts.append(artifact)
+            docker_images_raw.extend(docker_artifacts)
+            helm_charts_transformed.extend(
+                transform_helm_charts(helm_artifacts, repo_name, project_id)
+            )
+            docker_images_transformed.extend(
+                transform_docker_images(docker_artifacts, repo_name, project_id)
+            )
         elif repo_format in LANGUAGE_PACKAGE_FORMATS:
             _, transform_func = FORMAT_HANDLERS[repo_format]
             language_packages_transformed.extend(
@@ -943,23 +940,19 @@ def sync_artifact_registry_artifacts(
         len(other_artifacts_transformed),
     )
 
-    # Load Docker images with the dedicated schema
     if docker_images_transformed:
         load_docker_images(
             neo4j_session, docker_images_transformed, project_id, update_tag
         )
 
-    # Load Helm charts with the dedicated schema
     if helm_charts_transformed:
         load_helm_charts(neo4j_session, helm_charts_transformed, project_id, update_tag)
 
-    # Load language packages with the dedicated schema
     if language_packages_transformed:
         load_language_packages(
             neo4j_session, language_packages_transformed, project_id, update_tag
         )
 
-    # Load generic artifacts (APT, YUM) with the dedicated schema
     if other_artifacts_transformed:
         load_generic_artifacts(
             neo4j_session, other_artifacts_transformed, project_id, update_tag

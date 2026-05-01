@@ -2,7 +2,6 @@ import logging
 import time
 from collections.abc import Callable
 from collections.abc import Iterable
-from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import TypeVar
@@ -24,7 +23,9 @@ from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.helpers import batch
 from cartography.intel.gcp.util import GCP_API_BACKOFF_BASE
+from cartography.intel.gcp.util import gcp_api_backoff_handler
 from cartography.intel.gcp.util import GCP_API_BACKOFF_MAX
+from cartography.intel.gcp.util import gcp_api_giveup_handler
 from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -133,13 +134,11 @@ def load_matchlinks_with_progress(
 
     if "_sub_resource_label" not in kwargs:
         raise ValueError(
-            f"Required kwarg '_sub_resource_label' not provided for {rel_schema.rel_label}. "
-            "This is needed for cleanup queries."
+            f"Required kwarg '_sub_resource_label' not provided for {rel_schema.rel_label}."
         )
     if "_sub_resource_id" not in kwargs:
         raise ValueError(
-            f"Required kwarg '_sub_resource_id' not provided for {rel_schema.rel_label}. "
-            "This is needed for cleanup queries."
+            f"Required kwarg '_sub_resource_id' not provided for {rel_schema.rel_label}."
         )
 
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
@@ -169,47 +168,13 @@ def load_matchlinks_with_progress(
     )
 
 
-def _artifact_registry_backoff_handler(details: dict) -> None:
-    wait = details.get("wait")
-    if isinstance(wait, (int, float)):
-        wait_display = f"{wait:0.1f}"
-    elif wait is None:
-        wait_display = "unknown"
-    else:
-        wait_display = str(wait)
-
-    tries = details.get("tries")
-    tries_display = str(tries) if tries is not None else "unknown"
-
-    exc = details.get("exception")
-    logger.warning(
-        "Artifact Registry API retry: backing off %s seconds after %s tries due to %s.",
-        wait_display,
-        tries_display,
-        type(exc).__name__ if exc else "unknown error",
-    )
-
-
-def _artifact_registry_giveup_handler(details: dict) -> None:
-    exc = details.get("exception")
-    if isinstance(exc, Exception) and not is_retryable_gcp_http_error(exc):
-        return
-
-    tries = details.get("tries", "unknown")
-    logger.warning(
-        "Artifact Registry API retries exhausted after %s tries due to %s.",
-        tries,
-        type(exc).__name__ if exc else "unknown error",
-    )
-
-
 @backoff.on_exception(  # type: ignore[misc]
     backoff.expo,
     GoogleAPICallError,
     max_tries=GCP_API_MAX_RETRIES,
     giveup=lambda e: not is_retryable_gcp_http_error(e),
-    on_backoff=_artifact_registry_backoff_handler,
-    on_giveup=_artifact_registry_giveup_handler,
+    on_backoff=gcp_api_backoff_handler,
+    on_giveup=gcp_api_giveup_handler,
     logger=None,
     base=GCP_API_BACKOFF_BASE,
     max_value=GCP_API_BACKOFF_MAX,
@@ -244,16 +209,8 @@ def fetch_artifact_registry_resources(
     if worker_count <= 1:
         return [fetch_for_item(item) for item in items]
 
-    results_by_index: dict[int, ResultT] = {}
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        futures = {
-            executor.submit(fetch_for_item, item): index
-            for index, item in enumerate(items)
-        }
-        for future in as_completed(futures):
-            results_by_index[futures[future]] = future.result()
-
-    return [results_by_index[index] for index in range(len(items))]
+        return list(executor.map(fetch_for_item, items))
 
 
 @timeit
