@@ -492,7 +492,16 @@ def test_sync_oss_sast_findings(neo4j_session, tmp_path):
     # Build expected finding IDs from test data
     results = report["results"]
     expected_ids = [
-        _build_oss_sast_finding_id(r, "simpsoncorp/sample_repo") for r in results
+        _build_oss_sast_finding_id(
+            str(r.get("check_id", "")),
+            str(r.get("path", "")),
+            str(r.get("start", {}).get("line", "")),
+            str(r.get("start", {}).get("col", "")),
+            str(r.get("end", {}).get("line", "")),
+            str(r.get("end", {}).get("col", "")),
+            "simpsoncorp/sample_repo",
+        )
+        for r in results
     ]
 
     # Assert synthetic deployment node

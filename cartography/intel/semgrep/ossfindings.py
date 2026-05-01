@@ -12,6 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
+from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.object_store import ReportRef
 from cartography.models.semgrep.deployment import SemgrepDeploymentSchema
@@ -106,7 +107,15 @@ def _is_oss_sast_result(result: dict[str, Any]) -> bool:
     return True
 
 
-def _build_oss_sast_finding_id(result: dict[str, Any], repository_name: str) -> str:
+def _build_oss_sast_finding_id(
+    check_id: str,
+    path: str,
+    start_line: str,
+    start_col: str,
+    end_line: str,
+    end_col: str,
+    repository_name: str,
+) -> str:
     """
     Build a stable synthetic ID for OSS findings since Semgrep OSS CLI output
     does not include the Semgrep Cloud finding ID. Include repository name
@@ -114,12 +123,12 @@ def _build_oss_sast_finding_id(result: dict[str, Any], repository_name: str) -> 
     """
     raw_id = "|".join(
         [
-            str(result.get("check_id", "")),
-            str(result.get("path", "")),
-            str(result.get("start", {}).get("line", "")),
-            str(result.get("start", {}).get("col", "")),
-            str(result.get("end", {}).get("line", "")),
-            str(result.get("end", {}).get("col", "")),
+            check_id,
+            path,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
             repository_name,
         ],
     )
@@ -148,15 +157,7 @@ def _get_semgrep_oss_repo_context(reader: ReportReader) -> dict[str, str]:
 
     metadata_ref = metadata_refs[0]
     try:
-        metadata_document = yaml.safe_load(
-            reader.read_bytes(metadata_ref).decode("utf-8")
-        )
-    except ObjectStoreError:
-        raise
-    except UnicodeDecodeError as exc:
-        raise ValueError(
-            f"Semgrep OSS metadata file must be valid UTF-8 YAML: {metadata_ref.uri}"
-        ) from exc
+        metadata_document = yaml.safe_load(read_text_report(reader, metadata_ref))
     except yaml.YAMLError as exc:
         raise ValueError(
             f"Semgrep OSS metadata file must be valid YAML: {metadata_ref.uri}"
@@ -203,8 +204,25 @@ def transform_oss_semgrep_sast_report(
         if not _is_oss_sast_result(result):
             continue
 
+        check_id = str(result.get("check_id", ""))
+        path = str(result.get("path", ""))
+        start = result.get("start", {})
+        end = result.get("end", {})
+        start_line = str(start.get("line", ""))
+        start_col = str(start.get("col", ""))
+        end_line = str(end.get("line", ""))
+        end_col = str(end.get("col", ""))
+
         row = dict(result)
-        row["id"] = _build_oss_sast_finding_id(result, repo_context["repositoryName"])
+        row["id"] = _build_oss_sast_finding_id(
+            check_id,
+            path,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            repo_context["repositoryName"],
+        )
 
         row.update(repo_context)
         category = result.get("extra", {}).get("metadata", {}).get("category")
