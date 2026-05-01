@@ -16,9 +16,7 @@ aws_ecs_mapping = OntologyMapping(
             fields=[
                 # name: ECS tasks have no human-readable name field; the closest
                 # identifier is the task ARN, already exposed as `id` / `arn`.
-                OntologyFieldMapping(
-                    ontology_field="status", node_field="last_status"
-                ),
+                OntologyFieldMapping(ontology_field="status", node_field="last_status"),
                 # namespace: Not applicable for ECS (AWS does not use namespaces).
                 # node: ECS surfaces a container-instance ARN rather than a node
                 # name, which would not match the cross-provider semantics.
