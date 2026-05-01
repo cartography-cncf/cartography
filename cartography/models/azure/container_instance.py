@@ -52,6 +52,7 @@ class AzureGroupContainerToContainerInstanceRelProperties(CartographyRelProperti
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class AzureGroupContainerToContainerInstanceRel(CartographyRelSchema):
     target_node_label: str = "AzureGroupContainer"
@@ -62,6 +63,27 @@ class AzureGroupContainerToContainerInstanceRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: AzureGroupContainerToContainerInstanceRelProperties = (
         AzureGroupContainerToContainerInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureContainerInstanceToGroupContainerWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AzureContainerInstance)-[:WORKLOAD_PARENT]->(:AzureGroupContainer)
+class AzureContainerInstanceToGroupContainerWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "AzureGroupContainer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: AzureContainerInstanceToGroupContainerWorkloadParentRelProperties = (
+        AzureContainerInstanceToGroupContainerWorkloadParentRelProperties()
     )
 
 
@@ -158,6 +180,7 @@ class AzureContainerInstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureGroupContainerToContainerInstanceRel(),
+            AzureContainerInstanceToGroupContainerWorkloadParentRel(),
             AzureContainerInstanceToECRImageRel(),
             AzureContainerInstanceToGitLabContainerImageRel(),
             AzureContainerInstanceToGCPArtifactRegistryContainerImageRel(),
