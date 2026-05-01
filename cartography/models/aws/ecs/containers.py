@@ -59,6 +59,7 @@ class ECSContainerToTaskRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSContainerToTaskRel(CartographyRelSchema):
     target_node_label: str = "ECSTask"
@@ -68,6 +69,25 @@ class ECSContainerToTaskRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CONTAINER"
     properties: ECSContainerToTaskRelProperties = ECSContainerToTaskRelProperties()
+
+
+@dataclass(frozen=True)
+class ECSContainerToECSTaskWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
+class ECSContainerToECSTaskWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "ECSTask"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("taskArn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: ECSContainerToECSTaskWorkloadParentRelProperties = (
+        ECSContainerToECSTaskWorkloadParentRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -170,6 +190,7 @@ class ECSContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSContainerToTaskRel(),
+            ECSContainerToECSTaskWorkloadParentRel(),
             ECSContainerToECRImageRel(),
             ECSContainerToGitLabContainerImageRel(),
             ECSContainerToGCPArtifactRegistryContainerImageRel(),

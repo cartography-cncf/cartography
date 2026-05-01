@@ -4926,6 +4926,8 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., KubernetesService, GCPCloudRunService, AzureGroupContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4957,14 +4959,19 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService
+- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
-- An ECSService has ECSTasks
+- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSService)-[:HAS_TASK]->(:ECSTask)
+    ```
+
+- An ECSService points at its parent cluster via the unified workload chain.
+    ```
+    (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
     ```
 
 ### ECSTaskDefinition
@@ -5064,6 +5071,8 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., KubernetesPod).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -5109,7 +5118,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks
+- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
@@ -5127,6 +5136,12 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks in awsvpc network mode have NetworkInterfaces
     ```
     (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
+    ```
+
+- ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the ECSService; standalone tasks point directly at the ECSCluster.
+    ```
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSService)
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSCluster)
     ```
 
 ### ECSContainer
@@ -5162,9 +5177,14 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 #### Relationships
 
-- ECSTasks have ECSContainers
+- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
+    ```
+
+- ECSContainers point at their parent ECSTask via the unified workload chain.
+    ```
+    (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
     ```
 
 - ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
