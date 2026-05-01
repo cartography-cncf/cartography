@@ -157,6 +157,46 @@ def test_extract_circleci_label_provenance_ignores_empty_or_missing_labels():
     assert ecr_layers._extract_circleci_label_provenance(config_json) == {}
 
 
+def test_extract_circleci_label_provenance_skips_ambiguous_suffix_labels(caplog):
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "io.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/other.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+        }
+
+    assert "multiple label keys matched by suffix" in caplog.text
+
+
+def test_extract_circleci_label_provenance_ignores_dockerfile_without_circleci_signal():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.DOCKERFILE": "deploy/Dockerfile",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {}
+
+
+def test_normalize_git_repository_url_strips_https_git_suffix():
+    assert (
+        ecr_layers._normalize_git_repository_url(
+            "https://github.com/ExampleOrg/service.git"
+        )
+        == "https://github.com/ExampleOrg/service"
+    )
+
+
 def test_label_provenance_does_not_override_attestation_provenance():
     provenance_by_key = {
         "sha256:image": {
@@ -725,6 +765,7 @@ def test_transform_ecr_image_layers_with_attestation_data():
 
     image_attestation_map = {
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
+            ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
             "parent_image_uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123",
             "parent_image_digest": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
         }
@@ -757,6 +798,46 @@ def test_transform_ecr_image_layers_with_attestation_data():
         membership["parent_image_digest"]
         == "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
     )
+    assert membership["from_attestation"] is True
+    assert membership["confidence"] == "explicit"
+
+
+def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest"
+    image_digest = (
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    )
+    layers, memberships = transform_ecr_image_layers(
+        {
+            image_uri: {
+                "linux/amd64": [
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ]
+            }
+        },
+        {image_uri: image_digest},
+        image_attestation_map={
+            image_uri: {
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+                "source_uri": "https://github.com/exampleorg/service",
+                "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        },
+    )
+
+    assert len(layers) == 1
+    assert memberships == [
+        {
+            "imageDigest": image_digest,
+            "layer_diff_ids": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            ],
+            "source_uri": "https://github.com/exampleorg/service",
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            "from_attestation": True,
+            "confidence": "explicit",
+        }
+    ]
 
 
 def test_transform_ecr_image_layers_without_attestation_data():

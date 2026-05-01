@@ -190,7 +190,7 @@ GET_REPOS: List[dict[str, Any]] = [
     },
 ]
 
-GET_REPOS_CIRCLECI_PROVENANCE: List[dict[str, Any]] = [
+GET_REPOS_CIRCLECI_PROVENANCE: list[dict[str, Any]] = [
     {
         "name": "service",
         "nameWithOwner": "exampleorg/service",

@@ -98,6 +98,7 @@ MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
 CIRCLECI_LABEL_SOURCE_URI = "CIRCLE_REPOSITORY_URL"
 CIRCLECI_LABEL_SOURCE_REVISION = "CIRCLE_SHA1"
 CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
+ATTESTATION_PROVENANCE_FIELD = "_from_attestation"
 
 
 def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:
@@ -108,15 +109,28 @@ def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:
 
 def _get_label_value(labels: dict[str, Any], label_name: str) -> str | None:
     expected = label_name.lower()
+    matching_values: list[str] = []
+    matching_keys: list[str] = []
     for key, value in labels.items():
         final_segment = str(key).rsplit(".", 1)[-1].lower()
         if final_segment != expected:
             continue
+        matching_keys.append(str(key))
         if value is None:
-            return None
+            continue
         value_str = str(value).strip()
-        return value_str or None
-    return None
+        if value_str:
+            matching_values.append(value_str)
+
+    if len(matching_keys) > 1:
+        logger.warning(
+            "Skipping ambiguous CircleCI image label %s because multiple label keys matched by suffix: %s",
+            label_name,
+            ", ".join(matching_keys),
+        )
+        return None
+
+    return matching_values[0] if matching_values else None
 
 
 def _normalize_git_repository_url(url: str) -> str:
@@ -149,17 +163,22 @@ def _extract_circleci_label_provenance(config_json: dict[str, Any]) -> dict[str,
     if source_revision:
         provenance["source_revision"] = source_revision
 
-    source_file = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_FILE)
-    if source_file:
-        provenance["source_file"] = source_file
+    if source_uri or source_revision:
+        source_file = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_FILE)
+        if source_file:
+            provenance["source_file"] = source_file
 
     return provenance
 
 
+def _mark_attestation_provenance(provenance: dict[str, Any]) -> dict[str, Any]:
+    return {**provenance, ATTESTATION_PROVENANCE_FIELD: True}
+
+
 def _merge_provenance(
-    provenance_by_key: dict[str, dict[str, str]],
+    provenance_by_key: dict[str, dict[str, Any]],
     key: str,
-    incoming: dict[str, str],
+    incoming: dict[str, Any],
     *,
     fallback: bool,
 ) -> None:
@@ -567,7 +586,7 @@ def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
     history_by_diff_id: Optional[dict[str, str]] = None,
-    image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
+    image_attestation_map: Optional[dict[str, dict[str, Any]]] = None,
     existing_properties_map: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[list[dict], list[dict]]:
     """
@@ -694,9 +713,7 @@ def transform_ecr_image_layers(
                 # Source file (Dockerfile path) from configSource
                 if provenance.get("source_file"):
                     membership["source_file"] = provenance["source_file"]
-                if provenance.get("parent_image_uri") or provenance.get(
-                    "parent_image_digest"
-                ):
+                if provenance.get(ATTESTATION_PROVENANCE_FIELD):
                     membership["from_attestation"] = True
                     membership["confidence"] = "explicit"
 
@@ -889,7 +906,7 @@ async def fetch_image_layers_async(
     dict[str, dict[str, list[str]]],
     dict[str, str],
     dict[str, str],
-    dict[str, dict[str, str]],
+    dict[str, dict[str, Any]],
 ]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
@@ -903,7 +920,7 @@ async def fetch_image_layers_async(
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
     all_history_by_diff_id: dict[str, str] = {}
-    image_attestation_map: dict[str, dict[str, str]] = {}
+    image_attestation_map: dict[str, dict[str, Any]] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
@@ -956,7 +973,7 @@ async def fetch_image_layers_async(
             str,
             dict[str, list[str]],
             dict[str, str],
-            dict[str, dict[str, str]],
+            dict[str, dict[str, Any]],
         ]
     ]:
         """
@@ -992,7 +1009,7 @@ async def fetch_image_layers_async(
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
             history_by_diff_id: dict[str, str] = {}
-            provenance_by_image_uri: dict[str, dict[str, str]] = {}
+            provenance_by_image_uri: dict[str, dict[str, Any]] = {}
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
@@ -1033,7 +1050,11 @@ async def fetch_image_layers_async(
                                 return (
                                     {},
                                     {},
-                                    (attests_child_digest, provenance_info, False),
+                                    (
+                                        attests_child_digest,
+                                        _mark_attestation_provenance(provenance_info),
+                                        False,
+                                    ),
                                 )
                         return {}, {}, None
 
@@ -1080,7 +1101,7 @@ async def fetch_image_layers_async(
                 # Merge results from successful child manifest processing
                 # Track provenance by child digest for proper mapping. SLSA
                 # attestation data overrides label fallback data for the same field.
-                provenance_by_child_digest: dict[str, dict[str, str]] = {}
+                provenance_by_child_digest: dict[str, dict[str, Any]] = {}
 
                 for result in child_results:
                     if isinstance(result, ECRLayerFetchTransientError):
@@ -1147,7 +1168,7 @@ async def fetch_image_layers_async(
                     str,
                     dict[str, list[str]],
                     dict[str, str],
-                    dict[str, dict[str, str]],
+                    dict[str, dict[str, Any]],
                 ]
             ],
         ]:
@@ -1369,7 +1390,7 @@ def sync(
                 dict[str, dict[str, list[str]]],
                 dict[str, str],
                 dict[str, str],
-                dict[str, dict[str, str]],
+                dict[str, dict[str, Any]],
             ]:
                 async with create_aioboto3_client(
                     aioboto3_session, "ecr", region_name=region
