@@ -91,6 +91,8 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 ### KubernetesNamespace
 Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
 
+> **Ontology Mapping**: This node has the extra label `ComputeNamespace` to enable cross-platform queries for workload-isolation scopes across different systems.
+
 | Field | Description |
 |-------|-------------|
 | **id** | UID of the Kubernetes namespace |
@@ -116,9 +118,16 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          ...)
     ```
 
+- `KubernetesNamespace` points at its parent `KubernetesCluster` via the unified workload chain.
+    ```
+    (:KubernetesNamespace)-[:WORKLOAD_PARENT]->(:KubernetesCluster)
+    ```
+
 
 ### KubernetesPod
 Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/workloads/pods/)
+
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask).
 
 | Field | Description |
 |-------|-------------|
@@ -144,9 +153,19 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
     (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- A `KubernetesNamespace` contains a `KubernetesPod`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod)
+    ```
+
+- `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
     ```
 
 - `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
@@ -189,9 +208,14 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 
 #### Relationships
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- `KubernetesContainer` points at its parent `KubernetesPod` via the unified workload chain.
+    ```
+    (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
     ```
 
 - `KubernetesContainer` references container images from registries.

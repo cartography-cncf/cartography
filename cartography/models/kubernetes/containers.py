@@ -64,6 +64,7 @@ class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesPod)
 class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     target_node_label: str = "KubernetesPod"
@@ -78,6 +79,31 @@ class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: KubernetesContainerToKubernetesPodRelProperties = (
         KubernetesContainerToKubernetesPodRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToKubernetesPodWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
+class KubernetesContainerToKubernetesPodWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesPod"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("namespace"),
+            "id": PropertyRef("pod_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesContainerToKubernetesPodWorkloadParentRelProperties = (
+        KubernetesContainerToKubernetesPodWorkloadParentRelProperties()
     )
 
 
@@ -201,6 +227,7 @@ class KubernetesContainerSchema(CartographyNodeSchema):
         [
             KubernetesContainerToKubernetesNamespaceRel(),
             KubernetesContainerToKubernetesPodRel(),
+            KubernetesContainerToKubernetesPodWorkloadParentRel(),
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
             KubernetesContainerToGCPArtifactRegistryContainerImageRel(),
