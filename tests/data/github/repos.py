@@ -190,6 +190,36 @@ GET_REPOS: List[dict[str, Any]] = [
     },
 ]
 
+GET_REPOS_CIRCLECI_PROVENANCE: List[dict[str, Any]] = [
+    {
+        "name": "service",
+        "nameWithOwner": "exampleorg/service",
+        "primaryLanguage": {"name": "Python"},
+        "url": "https://github.com/exampleorg/service",
+        "sshUrl": "git@github.com:exampleorg/service.git",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "description": "Example service",
+        "updatedAt": "2025-01-02T00:00:00Z",
+        "homepageUrl": "",
+        "languages": {"totalCount": 1, "nodes": [{"name": "Python"}]},
+        "defaultBranchRef": {"name": "main", "id": "branch_ref_id=="},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/exampleorg",
+            "login": "exampleorg",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "branchProtectionRules": {"nodes": []},
+        "requirements": None,
+        "setupCfg": None,
+    },
+]
+
 # Dependency graph manifests returned by the per-repo fetch function, keyed by repo URL.
 # Only repos with dependency manifests have entries here.
 DEP_MANIFESTS_BY_URL: dict[str, dict[str, Any]] = {

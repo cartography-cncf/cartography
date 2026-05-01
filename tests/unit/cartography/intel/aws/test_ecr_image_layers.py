@@ -125,6 +125,64 @@ def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
 
 
+def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+                "com.example.DOCKERFILE": "deploy/Dockerfile",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+        "source_file": "deploy/Dockerfile",
+    }
+
+
+def test_extract_circleci_label_provenance_ignores_empty_or_missing_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "",
+                "com.example.CIRCLE_SHA1": "   ",
+                "com.example.UNRELATED": "value",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {}
+
+
+def test_label_provenance_does_not_override_attestation_provenance():
+    provenance_by_key = {
+        "sha256:image": {
+            "source_uri": "https://github.com/ExampleOrg/attested",
+            "source_revision": "attested-revision",
+        }
+    }
+
+    ecr_layers._merge_provenance(
+        provenance_by_key,
+        "sha256:image",
+        {
+            "source_uri": "https://github.com/ExampleOrg/label",
+            "source_revision": "label-revision",
+            "source_file": "Dockerfile",
+        },
+        fallback=True,
+    )
+
+    assert provenance_by_key["sha256:image"] == {
+        "source_uri": "https://github.com/ExampleOrg/attested",
+        "source_revision": "attested-revision",
+        "source_file": "Dockerfile",
+    }
+
+
 @pytest.mark.parametrize(
     "input_uri,expected_repo_uri",
     [

@@ -8,6 +8,7 @@ fetching can be significantly slower than basic ECR repository/image syncing.
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 from typing import Optional
 
@@ -94,6 +95,82 @@ RETRYABLE_HTTPX_EXCEPTIONS = (
     httpx.WriteTimeout,
 )
 MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
+CIRCLECI_LABEL_SOURCE_URI = "CIRCLE_REPOSITORY_URL"
+CIRCLECI_LABEL_SOURCE_REVISION = "CIRCLE_SHA1"
+CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
+
+
+def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:
+    config = config_json.get("config") or config_json.get("Config") or {}
+    labels = config.get("Labels") or config.get("labels") or {}
+    return labels if isinstance(labels, dict) else {}
+
+
+def _get_label_value(labels: dict[str, Any], label_name: str) -> str | None:
+    expected = label_name.lower()
+    for key, value in labels.items():
+        final_segment = str(key).rsplit(".", 1)[-1].lower()
+        if final_segment != expected:
+            continue
+        if value is None:
+            return None
+        value_str = str(value).strip()
+        return value_str or None
+    return None
+
+
+def _normalize_git_repository_url(url: str) -> str:
+    url = url.strip()
+
+    github_ssh_match = re.fullmatch(r"git@github\.com:(?P<path>.+)", url)
+    if github_ssh_match:
+        url = f"https://github.com/{github_ssh_match.group('path')}"
+    else:
+        github_ssh_url_match = re.fullmatch(r"ssh://git@github\.com/(?P<path>.+)", url)
+        if github_ssh_url_match:
+            url = f"https://github.com/{github_ssh_url_match.group('path')}"
+
+    if url.endswith(".git"):
+        url = url[:-4]
+    return url.rstrip("/")
+
+
+def _extract_circleci_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
+    labels = _get_config_labels(config_json)
+    if not labels:
+        return {}
+
+    provenance: dict[str, str] = {}
+    source_uri = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_URI)
+    if source_uri:
+        provenance["source_uri"] = _normalize_git_repository_url(source_uri)
+
+    source_revision = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_REVISION)
+    if source_revision:
+        provenance["source_revision"] = source_revision
+
+    source_file = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_FILE)
+    if source_file:
+        provenance["source_file"] = source_file
+
+    return provenance
+
+
+def _merge_provenance(
+    provenance_by_key: dict[str, dict[str, str]],
+    key: str,
+    incoming: dict[str, str],
+    *,
+    fallback: bool,
+) -> None:
+    if not incoming:
+        return
+
+    existing = provenance_by_key.setdefault(key, {})
+    for field, value in incoming.items():
+        if fallback and existing.get(field):
+            continue
+        existing[field] = value
 
 
 def _is_retryable_aws_client_error(error: ClientError) -> bool:
@@ -413,13 +490,14 @@ async def _diff_ids_for_manifest(
     manifest_doc: dict[str, Any],
     http_client: httpx.AsyncClient,
     platform_hint: Optional[str],
-) -> tuple[dict[str, list[str]], dict[str, str]]:
+) -> tuple[dict[str, list[str]], dict[str, str], dict[str, str]]:
     """
     Extract diff_ids and history from a manifest's config blob.
 
     Returns:
         - dict mapping platform to list of diff_ids
         - dict mapping diff_id to history command (created_by)
+        - dict containing label-derived source provenance, if present
     """
     config = manifest_doc.get("config", {})
     config_media_type = config.get("mediaType", "").lower()
@@ -429,17 +507,17 @@ async def _diff_ids_for_manifest(
         skip_fragment in config_media_type
         for skip_fragment in SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS
     ):
-        return {}, {}
+        return {}, {}, {}
 
     layers = manifest_doc.get("layers", [])
     if layers and all(
         "in-toto" in layer.get("mediaType", "").lower() for layer in layers
     ):
-        return {}, {}
+        return {}, {}, {}
 
     cfg_digest = config.get("digest")
     if not cfg_digest:
-        return {}, {}
+        return {}, {}, {}
 
     cfg_json = await get_blob_json_via_presigned(
         ecr_client,
@@ -448,13 +526,15 @@ async def _diff_ids_for_manifest(
         http_client,
     )
     if not cfg_json:
-        return {}, {}
+        return {}, {}, {}
+
+    label_provenance = _extract_circleci_label_provenance(cfg_json)
 
     # Docker API uses inconsistent casing - check for known variations
     rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
     diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
     if not diff_ids:
-        return {}, {}
+        return {}, {}, label_provenance
 
     # Extract history and map to diff_ids
     # History entries with empty_layer=true don't have corresponding diff_ids
@@ -480,7 +560,7 @@ async def _diff_ids_for_manifest(
             cfg_json.get("variant") or cfg_json.get("Variant"),
         )
 
-    return {platform: diff_ids}, history_by_diff_id
+    return {platform: diff_ids}, history_by_diff_id, label_provenance
 
 
 def transform_ecr_image_layers(
@@ -497,7 +577,7 @@ def transform_ecr_image_layers(
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
     :param history_by_diff_id: Map of diff_id to history command (created_by)
-    :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
+    :param image_attestation_map: Map of image URI to provenance data
     :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
@@ -614,8 +694,11 @@ def transform_ecr_image_layers(
                 # Source file (Dockerfile path) from configSource
                 if provenance.get("source_file"):
                     membership["source_file"] = provenance["source_file"]
-                membership["from_attestation"] = True
-                membership["confidence"] = "explicit"
+                if provenance.get("parent_image_uri") or provenance.get(
+                    "parent_image_digest"
+                ):
+                    membership["from_attestation"] = True
+                    membership["confidence"] = "explicit"
 
             memberships_by_digest[image_digest] = membership
 
@@ -815,7 +898,7 @@ async def fetch_image_layers_async(
         - image_layers_data: Map of image URI to platform to diff_ids
         - image_digest_map: Map of image URI to image digest
         - history_by_diff_id: Map of diff_id to history command (created_by)
-        - image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
+        - image_attestation_map: Map of image URI to provenance data
     """
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
@@ -873,18 +956,18 @@ async def fetch_image_layers_async(
             str,
             dict[str, list[str]],
             dict[str, str],
-            Optional[dict[str, dict[str, str]]],
+            dict[str, dict[str, str]],
         ]
     ]:
         """
-        Fetch layers for a single image and extract attestation if present.
+        Fetch layers for a single image and extract provenance if present.
 
-        Returns tuple of (uri, digest, platform_layers, history_by_diff_id, attestations_by_child_digest) where:
+        Returns tuple of (uri, digest, platform_layers, history_by_diff_id, provenance_by_image_uri) where:
         - uri: The image URI
         - digest: The image digest
         - platform_layers: Map of platform to list of layer diff_ids
         - history_by_diff_id: Map of diff_id to history command (created_by)
-        - attestations_by_child_digest: Maps child image digest to parent image info
+        - provenance_by_image_uri: Maps image URI to provenance info
         """
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
@@ -909,7 +992,7 @@ async def fetch_image_layers_async(
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
             history_by_diff_id: dict[str, str] = {}
-            attestation_data: Optional[dict[str, dict[str, str]]] = None
+            provenance_by_image_uri: dict[str, dict[str, str]] = {}
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
@@ -918,7 +1001,7 @@ async def fetch_image_layers_async(
                 ) -> tuple[
                     dict[str, list[str]],
                     dict[str, str],
-                    Optional[tuple[str, dict[str, str]]],
+                    Optional[tuple[str, dict[str, str], bool]],
                 ]:
                     # Check if this is an attestation manifest
                     if (
@@ -946,8 +1029,12 @@ async def fetch_image_layers_async(
                                 )
                             )
                             if provenance_info:
-                                # Return (attests_child_digest, provenance_info) tuple
-                                return {}, {}, (attests_child_digest, provenance_info)
+                                # Return (attests_child_digest, provenance_info, is_fallback) tuple
+                                return (
+                                    {},
+                                    {},
+                                    (attests_child_digest, provenance_info, False),
+                                )
                         return {}, {}, None
 
                     child_digest = manifest_ref.get("digest")
@@ -964,14 +1051,21 @@ async def fetch_image_layers_async(
                         return {}, {}, None
 
                     platform_hint = extract_platform_from_manifest(manifest_ref)
-                    diff_map, history_map = await _diff_ids_for_manifest(
-                        ecr_client,
-                        repo_name,
-                        child_doc,
-                        http_client,
-                        platform_hint,
+                    diff_map, history_map, label_provenance = (
+                        await _diff_ids_for_manifest(
+                            ecr_client,
+                            repo_name,
+                            child_doc,
+                            http_client,
+                            platform_hint,
+                        )
                     )
-                    return diff_map, history_map, None
+                    provenance = (
+                        (child_digest, label_provenance, True)
+                        if label_provenance
+                        else None
+                    )
+                    return diff_map, history_map, provenance
 
                 # Process all child manifests in parallel
                 child_tasks = [
@@ -984,8 +1078,9 @@ async def fetch_image_layers_async(
                 )
 
                 # Merge results from successful child manifest processing
-                # Track attestation data by child digest for proper mapping
-                attestations_by_child_digest: dict[str, dict[str, str]] = {}
+                # Track provenance by child digest for proper mapping. SLSA
+                # attestation data overrides label fallback data for the same field.
+                provenance_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
                     if isinstance(result, ECRLayerFetchTransientError):
@@ -996,21 +1091,26 @@ async def fetch_image_layers_async(
                         continue
                     if isinstance(result, BaseException):
                         raise result
-                    layer_data, hist_data, attest_data = result
+                    layer_data, hist_data, provenance_data = result
                     if layer_data:
                         platform_layers.update(layer_data)
                     if hist_data:
                         history_by_diff_id.update(hist_data)
-                    if attest_data:
-                        # attest_data is (child_digest, parent_info) tuple
-                        child_digest, parent_info = attest_data
-                        attestations_by_child_digest[child_digest] = parent_info
+                    if provenance_data:
+                        child_digest, provenance_info, is_fallback = provenance_data
+                        _merge_provenance(
+                            provenance_by_child_digest,
+                            child_digest,
+                            provenance_info,
+                            fallback=is_fallback,
+                        )
 
-                # Build attestation_data with child digest mapping
-                if attestations_by_child_digest:
-                    attestation_data = attestations_by_child_digest
+                for child_digest, provenance_info in provenance_by_child_digest.items():
+                    provenance_by_image_uri[f"{repo_uri}@{child_digest}"] = (
+                        provenance_info
+                    )
             else:
-                diff_map, hist_map = await _diff_ids_for_manifest(
+                diff_map, hist_map, label_provenance = await _diff_ids_for_manifest(
                     ecr_client,
                     repo_name,
                     doc,
@@ -1019,16 +1119,18 @@ async def fetch_image_layers_async(
                 )
                 platform_layers.update(diff_map)
                 history_by_diff_id.update(hist_map)
+                if label_provenance:
+                    provenance_by_image_uri[uri] = label_provenance
 
-            # Return if we found layers or attestation data
-            # Manifest lists may have attestation_data without platform_layers
-            if platform_layers or attestation_data:
+            # Return if we found layers or provenance data.
+            # Manifest lists may have provenance data without platform_layers.
+            if platform_layers or provenance_by_image_uri:
                 return (
                     uri,
                     digest,
                     platform_layers,
                     history_by_diff_id,
-                    attestation_data,
+                    provenance_by_image_uri,
                 )
 
             return None
@@ -1045,7 +1147,7 @@ async def fetch_image_layers_async(
                     str,
                     dict[str, list[str]],
                     dict[str, str],
-                    Optional[dict[str, dict[str, str]]],
+                    dict[str, dict[str, str]],
                 ]
             ],
         ]:
@@ -1115,26 +1217,18 @@ async def fetch_image_layers_async(
                 )
 
             if result:
-                uri, digest, layer_data, history_data, attestations_by_child_digest = (
-                    result
-                )
+                uri, digest, layer_data, history_data, provenance_by_image_uri = result
                 if not digest:
                     raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
                 if history_data:
                     all_history_by_diff_id.update(history_data)
-                if attestations_by_child_digest:
-                    # Map attestation data by child digest URIs
-                    repo_uri = extract_repo_uri_from_image_uri(uri)
-                    for (
-                        child_digest,
-                        parent_info,
-                    ) in attestations_by_child_digest.items():
-                        child_uri = f"{repo_uri}@{child_digest}"
-                        image_attestation_map[child_uri] = parent_info
-                        # Also add to digest map so transform can look up the child digest
-                        image_digest_map[child_uri] = child_digest
+                if provenance_by_image_uri:
+                    for image_uri, provenance_info in provenance_by_image_uri.items():
+                        image_attestation_map[image_uri] = provenance_info
+                        if "@sha256:" in image_uri:
+                            image_digest_map[image_uri] = image_uri.rsplit("@", 1)[1]
 
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
@@ -1145,7 +1239,7 @@ async def fetch_image_layers_async(
         )
     if image_attestation_map:
         logger.info(
-            f"Found attestations with base image info for {len(image_attestation_map)} images"
+            f"Found provenance metadata for {len(image_attestation_map)} images"
         )
     return (
         image_layers_data,

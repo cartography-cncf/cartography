@@ -6,7 +6,10 @@ import pytest
 
 import cartography.intel.aws.ecr
 import cartography.intel.aws.ecr_image_layers as ecr_layers
+import cartography.intel.github.repos
+import cartography.intel.github.supply_chain
 import tests.data.aws.ecr as test_data
+import tests.data.github.repos as github_test_data
 from cartography.intel.aws.ecr_image_layers import sync as sync_ecr_layers
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -15,6 +18,42 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
 TEST_REGION = "us-east-1"
+
+
+class _FakeAsyncEcrClientContext:
+    def __init__(self, ecr_client):
+        self.ecr_client = ecr_client
+
+    async def __aenter__(self):
+        return self.ecr_client
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+
+class _FakeHttpResponse:
+    def __init__(self, json_data):
+        self._json_data = json_data
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._json_data
+
+
+class _FakeAsyncHttpClient:
+    def __init__(self, json_data):
+        self._json_data = json_data
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+    async def get(self, url, timeout):
+        return _FakeHttpResponse(self._json_data)
 
 
 @patch.object(
@@ -437,6 +476,118 @@ def test_sync_built_from_relationship(
     ) >= {(child_digest, parent_digest)}
 
 
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repository_images",
+    return_value=test_data.LIST_REPOSITORY_IMAGES[
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    ][:1],
+)
+@patch.object(cartography.intel.github.repos, "_get_dep_manifests_for_repos")
+@patch.object(
+    cartography.intel.github.repos, "_get_repo_collaborators_for_multiple_repos"
+)
+@patch.object(cartography.intel.github.repos, "get")
+@patch("cartography.intel.aws.ecr_image_layers.httpx.AsyncClient")
+@patch("cartography.intel.aws.ecr_image_layers.create_aioboto3_client")
+def test_sync_circleci_label_provenance_links_github_repository(
+    mock_create_aioboto3_client,
+    mock_async_http_client,
+    mock_get_github_repos,
+    mock_get_repo_collaborators,
+    mock_get_dep_manifests,
+    mock_get_ecr_repo_images,
+    mock_get_ecr_repos,
+    neo4j_session,
+):
+    image_digest = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    )
+    repo_url = "https://github.com/exampleorg/service"
+    ecr_client = MagicMock()
+    ecr_client.batch_get_image = AsyncMock(
+        return_value=test_data.BATCH_GET_IMAGE_RESPONSE,
+    )
+    ecr_client.get_download_url_for_layer = AsyncMock(
+        return_value=test_data.GET_DOWNLOAD_URL_RESPONSE,
+    )
+    mock_create_aioboto3_client.return_value = _FakeAsyncEcrClientContext(ecr_client)
+    mock_async_http_client.return_value = _FakeAsyncHttpClient(
+        test_data.SAMPLE_CONFIG_BLOB_WITH_CIRCLECI_LABELS,
+    )
+    mock_get_github_repos.return_value = github_test_data.GET_REPOS_CIRCLECI_PROVENANCE
+    mock_get_repo_collaborators.return_value = {}
+    mock_get_dep_manifests.return_value = {}
+
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    enriched = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})
+        RETURN img.source_uri AS source_uri,
+               img.source_revision AS source_revision,
+               img.source_file AS source_file
+        """,
+        digest=image_digest,
+    ).single()
+    assert enriched["source_uri"] == repo_url
+    assert enriched["source_revision"] == "abcdef0123456789abcdef0123456789abcdef01"
+    assert enriched["source_file"] == "deploy/Dockerfile"
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "exampleorg",
+    )
+    assert check_nodes(neo4j_session, "GitHubRepository", ["id"]) == {(repo_url,)}
+
+    cartography.intel.github.supply_chain.sync(
+        neo4j_session,
+        "token",
+        "https://api.github.com/graphql",
+        "exampleorg",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        [{"url": repo_url}],
+        workflows=None,
+    )
+
+    packaged_from = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})-[r:PACKAGED_FROM]->(repo:GitHubRepository)
+        RETURN repo.id AS repo_url, r.match_method AS match_method, r.dockerfile_path AS dockerfile_path
+        """,
+        digest=image_digest,
+    ).single()
+    assert packaged_from["repo_url"] == repo_url
+    assert packaged_from["match_method"] == "provenance"
+    assert packaged_from["dockerfile_path"] == "deploy/Dockerfile"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parent_uri,parent_digest",
@@ -724,6 +875,114 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     )
     # Verify child digest is in digest_map too
     assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
+
+
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+@patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
+async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
+    mock_batch_get_manifest,
+    mock_get_blob_json,
+):
+    repo_image = {
+        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-service:multi",
+        "imageDigest": test_data.MANIFEST_LIST_DIGEST,
+        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-service",
+    }
+    manifest_list = {
+        **test_data.MULTI_ARCH_INDEX,
+        "manifests": [
+            manifest
+            for manifest in test_data.MULTI_ARCH_INDEX["manifests"]
+            if manifest.get("annotations", {}).get("vnd.docker.reference.type")
+            != "attestation-manifest"
+        ],
+    }
+    amd64_config = {
+        **test_data.MULTI_ARCH_AMD64_CONFIG,
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+                "com.example.DOCKERFILE": "Dockerfile",
+            }
+        },
+    }
+    arm64_config = {
+        **test_data.MULTI_ARCH_ARM64_CONFIG,
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+                "com.example.DOCKERFILE": "Dockerfile",
+            }
+        },
+    }
+
+    manifest_lookup = {
+        repo_image["imageDigest"]: (manifest_list, ecr_layers.ECR_OCI_INDEX_MT),
+        test_data.MANIFEST_LIST_AMD64_DIGEST: (
+            test_data.MULTI_ARCH_AMD64_MANIFEST,
+            ecr_layers.ECR_OCI_MANIFEST_MT,
+        ),
+        test_data.MANIFEST_LIST_ARM64_DIGEST: (
+            test_data.MULTI_ARCH_ARM64_MANIFEST,
+            ecr_layers.ECR_OCI_MANIFEST_MT,
+        ),
+    }
+
+    def fake_batch_get_manifest(ecr_client, repo_name, image_ref, accepted_media_types):
+        return manifest_lookup[image_ref]
+
+    async def fake_get_blob_json(ecr_client, repo_name, digest, http_client):
+        return {
+            test_data.MULTI_ARCH_AMD64_MANIFEST["config"]["digest"]: amd64_config,
+            test_data.MULTI_ARCH_ARM64_MANIFEST["config"]["digest"]: arm64_config,
+        }.get(digest, {})
+
+    mock_batch_get_manifest.side_effect = fake_batch_get_manifest
+    mock_get_blob_json.side_effect = fake_get_blob_json
+
+    image_layers_data, digest_map, _, provenance_map = (
+        await ecr_layers.fetch_image_layers_async(
+            MagicMock(),
+            [repo_image],
+            max_concurrent=1,
+        )
+    )
+
+    assert image_layers_data == {
+        repo_image["uri"]: {
+            "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
+            "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
+        }
+    }
+    assert repo_image["uri"] not in provenance_map
+    expected_amd64_uri = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/"
+        f"example-service@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
+    )
+    expected_arm64_uri = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/"
+        f"example-service@{test_data.MANIFEST_LIST_ARM64_DIGEST}"
+    )
+    assert digest_map[expected_amd64_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
+    assert digest_map[expected_arm64_uri] == test_data.MANIFEST_LIST_ARM64_DIGEST
+    assert provenance_map == {
+        expected_amd64_uri: {
+            "source_uri": "https://github.com/ExampleOrg/service",
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            "source_file": "Dockerfile",
+        },
+        expected_arm64_uri: {
+            "source_uri": "https://github.com/ExampleOrg/service",
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            "source_file": "Dockerfile",
+        },
+    }
 
 
 @pytest.mark.asyncio
