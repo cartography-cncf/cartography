@@ -49,6 +49,7 @@ class CloudRunServiceToContainerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class CloudRunServiceToContainerRel(CartographyRelSchema):
     target_node_label: str = "GCPCloudRunService"
@@ -59,6 +60,27 @@ class CloudRunServiceToContainerRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: CloudRunServiceToContainerRelProperties = (
         CloudRunServiceToContainerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunServiceContainerToServiceWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPCloudRunServiceContainer)-[:WORKLOAD_PARENT]->(:GCPCloudRunService)
+class CloudRunServiceContainerToServiceWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "GCPCloudRunService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("service_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: CloudRunServiceContainerToServiceWorkloadParentRelProperties = (
+        CloudRunServiceContainerToServiceWorkloadParentRelProperties()
     )
 
 
@@ -153,6 +175,7 @@ class GCPCloudRunServiceContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunServiceToContainerRel(),
+            CloudRunServiceContainerToServiceWorkloadParentRel(),
             CloudRunServiceContainerToECRImageRel(),
             CloudRunServiceContainerToGitLabContainerImageRel(),
             CloudRunServiceContainerToArtifactRegistryContainerImageRel(),
