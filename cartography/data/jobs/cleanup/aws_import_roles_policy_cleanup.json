@@ -1,8 +1,0 @@
-{
-  "statements": [{
-    "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSRole)-[r:STS_ASSUMEROLE_ALLOW]->(:AWSRole) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  }],
-  "name": "cleanup AWSRole STS_ASSUMEROLE_ALLOW"
-}
