@@ -16,6 +16,14 @@ CERT{{Certificate}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 CL{{ComputeCluster}}
+CS{{ComputeService}}
+CNS{{ComputeNamespace}}
+CP{{ComputePod}}
+CT -- WORKLOAD_PARENT --> CP
+CP -- WORKLOAD_PARENT --> CS
+CP -- WORKLOAD_PARENT --> CNS
+CS -- WORKLOAD_PARENT --> CL
+CNS -- WORKLOAD_PARENT --> CL
 DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
@@ -342,6 +350,46 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
 | _ont_endpoint | The API endpoint or FQDN for the cluster. |
 | _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
+
+
+### ComputeService
+
+```{note}
+ComputeService is a semantic label.
+```
+
+A compute service represents an orchestrator that schedules, scales, and manages a set of workloads.
+It generalizes concepts like AWS ECS services, GCP Cloud Run services and jobs, and Azure Container Groups.
+
+`ComputeService` sits between `ComputeCluster` and `ComputePod` in the unified workload chain. Walk the chain with the `WORKLOAD_PARENT` relationship:
+
+```
+(:Container)-[:WORKLOAD_PARENT*1..]->(parent)
+```
+
+
+### ComputeNamespace
+
+```{note}
+ComputeNamespace is a semantic label.
+```
+
+A compute namespace represents a workload-isolation scope within a `ComputeCluster`.
+Today it generalizes the Kubernetes Namespace concept; other providers may join when an analogous scope is modeled.
+
+`ComputeNamespace` sits between `ComputeCluster` and `ComputePod` in the unified workload chain. Walk the chain with the `WORKLOAD_PARENT` relationship.
+
+
+### ComputePod
+
+```{note}
+ComputePod is a semantic label.
+```
+
+A compute pod represents the smallest schedulable workload unit on a compute platform: a co-scheduled, co-located group of containers sharing network and storage.
+It generalizes concepts like Kubernetes Pods and AWS ECS Tasks.
+
+`ComputePod` is the parent of one or more `:Container` nodes in the unified workload chain. Walk upward with `WORKLOAD_PARENT` to reach the enclosing service, namespace, or cluster.
 
 
 ### ThirdPartyApp
