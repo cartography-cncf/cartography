@@ -8,8 +8,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -67,6 +69,53 @@ class GCPArtifactRegistryContainerImageToRepositoryRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: GCPArtifactRegistryContainerImageToRepositoryRelProperties = (
         GCPArtifactRegistryContainerImageToRepositoryRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryContainerImageMatchLinkProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Mirrors GCPArtifactRegistryContainerImageToProjectRel for relationship-only writes.
+# Keep the relationship shape in sync.
+class GCPArtifactRegistryProjectToContainerImageRel(CartographyRelSchema):
+    source_node_label: str = "GCPProject"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
+    )
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPArtifactRegistryContainerImageMatchLinkProperties = (
+        GCPArtifactRegistryContainerImageMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+# Mirrors GCPArtifactRegistryContainerImageToRepositoryRel for relationship-only writes.
+# Keep the relationship shape in sync.
+class GCPArtifactRegistryRepositoryToContainerImageRel(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryRepository"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("repository_id")}
+    )
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONTAINS"
+    properties: GCPArtifactRegistryContainerImageMatchLinkProperties = (
+        GCPArtifactRegistryContainerImageMatchLinkProperties()
     )
 
 
