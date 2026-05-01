@@ -241,8 +241,9 @@ def test_build_azure_blob_credential_from_config_returns_sp_credential(
 
 
 @patch("azure.identity.AzureCliCredential")
-def test_build_azure_blob_credential_from_config_returns_cli_credential_when_disabled(
+def test_build_azure_blob_credential_from_config_warns_and_returns_cli_credential_when_disabled_with_sp_fields(
     mock_credential_cls,
+    caplog,
 ) -> None:
     fake_credential = mock_credential_cls.return_value
     config = _TestConfig(
@@ -252,10 +253,12 @@ def test_build_azure_blob_credential_from_config_returns_cli_credential_when_dis
         azure_client_secret="client-secret",
     )
 
-    credential = build_azure_blob_credential_from_config(config)
+    with caplog.at_level(logging.WARNING):
+        credential = build_azure_blob_credential_from_config(config)
 
     assert credential is fake_credential
     mock_credential_cls.assert_called_once_with()
+    assert "azure_sp_auth is disabled" in caplog.text
 
 
 def test_build_azure_blob_credential_from_config_requires_all_sp_fields() -> None:

@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -13,8 +14,20 @@ if TYPE_CHECKING:
     from cartography.config import Config
 
 
+logger = logging.getLogger(__name__)
+
+
 def build_azure_blob_credential_from_config(config: "Config") -> Any | None:
     if not config.azure_sp_auth:
+        if (
+            config.azure_tenant_id
+            or config.azure_client_id
+            or config.azure_client_secret
+        ):
+            logger.warning(
+                "Azure service principal report-source settings were provided "
+                "but azure_sp_auth is disabled; using Azure CLI credentials.",
+            )
         from azure.identity import AzureCliCredential
 
         return AzureCliCredential()
