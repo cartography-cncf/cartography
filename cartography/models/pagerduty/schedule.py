@@ -24,7 +24,7 @@ class PagerDutyScheduleProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PagerDutyScheduleToUserProperties(CartographyRelProperties):
+class PagerDutyScheduleToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -37,7 +37,9 @@ class PagerDutyScheduleToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: PagerDutyScheduleToUserProperties = PagerDutyScheduleToUserProperties()
+    properties: PagerDutyScheduleToUserRelProperties = (
+        PagerDutyScheduleToUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)

@@ -43,7 +43,7 @@ class AWSBedrockCustomModelToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockCustomModelToAWSAccount(CartographyRelSchema):
+class AWSBedrockCustomModelToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockCustomModel to AWSAccount.
     """
@@ -69,7 +69,7 @@ class AWSBedrockCustomModelToFoundationModelRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-class AWSBedrockCustomModelToFoundationModel(CartographyRelSchema):
+class AWSBedrockCustomModelToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockCustomModel to AWSBedrockFoundationModel.
     """
@@ -95,7 +95,7 @@ class AWSBedrockCustomModelToS3BucketRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockCustomModelToS3Bucket(CartographyRelSchema):
+class AWSBedrockCustomModelToS3BucketRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockCustomModel to S3Bucket (training data source).
     """
@@ -121,12 +121,12 @@ class AWSBedrockCustomModelSchema(CartographyNodeSchema):
     properties: AWSBedrockCustomModelNodeProperties = (
         AWSBedrockCustomModelNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockCustomModelToAWSAccount = (
-        AWSBedrockCustomModelToAWSAccount()
+    sub_resource_relationship: AWSBedrockCustomModelToAWSAccountRel = (
+        AWSBedrockCustomModelToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockCustomModelToFoundationModel(),
-            AWSBedrockCustomModelToS3Bucket(),
+            AWSBedrockCustomModelToFoundationModelRel(),
+            AWSBedrockCustomModelToS3BucketRel(),
         ],
     )

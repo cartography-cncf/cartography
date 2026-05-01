@@ -53,14 +53,15 @@ def test_model_objects_naming_convention():
                 )
             # TODO assert element.__name__.endswith("Properties")
         elif issubclass(element, CartographyRelProperties):
-            if not element.__name__.endswith("RelProperties"):
+            if not element.__name__.endswith(
+                "RelProperties"
+            ) and not element.__name__.endswith("MatchLinkProperties"):
                 warnings.warn(
                     f"Relationship properties {element.__name__} does not comply with naming convention. "
-                    "Relationship properties names should end with 'RelProperties'."
-                    f" Please rename the class to {element.__name__}RelProperties.",
+                    "Relationship properties names should end with 'RelProperties' or 'MatchLinkProperties'.",
                     UserWarning,
                 )
-            # TODO assert element.__name__.endswith("RelProperties")
+            # TODO assert element.__name__.endswith(("RelProperties", "MatchLinkProperties"))
 
 
 def test_sub_resource_relationship():

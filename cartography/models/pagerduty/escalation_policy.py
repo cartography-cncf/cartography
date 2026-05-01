@@ -26,7 +26,7 @@ class PagerDutyEscalationPolicyProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PagerDutyEscalationPolicyToServiceProperties(CartographyRelProperties):
+class PagerDutyEscalationPolicyToServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,13 +39,13 @@ class PagerDutyEscalationPolicyToServiceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: PagerDutyEscalationPolicyToServiceProperties = (
-        PagerDutyEscalationPolicyToServiceProperties()
+    properties: PagerDutyEscalationPolicyToServiceRelProperties = (
+        PagerDutyEscalationPolicyToServiceRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class PagerDutyEscalationPolicyToTeamProperties(CartographyRelProperties):
+class PagerDutyEscalationPolicyToTeamRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -58,8 +58,8 @@ class PagerDutyEscalationPolicyToTeamRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: PagerDutyEscalationPolicyToTeamProperties = (
-        PagerDutyEscalationPolicyToTeamProperties()
+    properties: PagerDutyEscalationPolicyToTeamRelProperties = (
+        PagerDutyEscalationPolicyToTeamRelProperties()
     )
 
 

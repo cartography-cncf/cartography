@@ -43,7 +43,7 @@ class AWSBedrockGuardrailToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockGuardrailToAWSAccount(CartographyRelSchema):
+class AWSBedrockGuardrailToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockGuardrail to AWSAccount.
     Direction is INWARD: (:AWSBedrockGuardrail)<-[:RESOURCE]-(:AWSAccount)
@@ -68,11 +68,11 @@ class AWSBedrockGuardrailSchema(CartographyNodeSchema):
     for foundation models, custom models, and agents.
 
     The [:APPLIED_TO] relationship from Guardrail→Agent is created from the Agent side
-    using AWSBedrockGuardrailToAgent (defined in agent.py).
+    using AWSBedrockGuardrailToAgentRel (defined in agent.py).
     """
 
     label: str = "AWSBedrockGuardrail"
     properties: AWSBedrockGuardrailNodeProperties = AWSBedrockGuardrailNodeProperties()
-    sub_resource_relationship: AWSBedrockGuardrailToAWSAccount = (
-        AWSBedrockGuardrailToAWSAccount()
+    sub_resource_relationship: AWSBedrockGuardrailToAWSAccountRel = (
+        AWSBedrockGuardrailToAWSAccountRel()
     )
