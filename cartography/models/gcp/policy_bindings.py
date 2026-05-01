@@ -21,6 +21,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource: PropertyRef = PropertyRef("resource")
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
+    is_public: PropertyRef = PropertyRef("is_public")
     has_condition: PropertyRef = PropertyRef("has_condition")
     condition_title: PropertyRef = PropertyRef("condition_title")
     condition_expression: PropertyRef = PropertyRef("condition_expression")

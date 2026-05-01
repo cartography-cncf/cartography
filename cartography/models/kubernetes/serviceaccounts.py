@@ -18,6 +18,7 @@ class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     namespace: PropertyRef = PropertyRef("namespace")
     aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
+    gcp_service_account: PropertyRef = PropertyRef("gcp_service_account")
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
@@ -82,6 +83,31 @@ class KubernetesServiceAccountToAWSRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesServiceAccountToGCPServiceAccountRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
+    """
+    GKE Workload Identity binding: a Kubernetes ServiceAccount annotated with
+    iam.gke.io/gcp-service-account=<email> impersonates that GCP SA.
+    """
+
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("gcp_service_account")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_IDENTITY_BINDING"
+    properties: KubernetesServiceAccountToGCPServiceAccountRelProperties = (
+        KubernetesServiceAccountToGCPServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesServiceAccountSchema(CartographyNodeSchema):
     label: str = "KubernetesServiceAccount"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
@@ -95,5 +121,6 @@ class KubernetesServiceAccountSchema(CartographyNodeSchema):
         [
             KubernetesServiceAccountToNamespaceRel(),
             KubernetesServiceAccountToAWSRoleRel(),
+            KubernetesServiceAccountToGCPServiceAccountRel(),
         ]
     )
