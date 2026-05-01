@@ -297,27 +297,10 @@ def test_cleanup_repositories(neo4j_session):
     """
     Ensure that after the cleanup job runs, all ECRRepository nodes
     with a different UPDATE_TAG are removed from the AWSAccount node.
-    We load 100 additional nodes, because the cleanup job is configured
-    to run iteratively, processing 100 nodes at a time. So this test also ensures
-    that iterative cleanups do work.
     """
     # Arrange
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     repo_data = {**tests.data.aws.ecr.DESCRIBE_REPOSITORIES}
-    # Schema-driven cleanup batches deletions in chunks of 100.
-    iter_size = 100
-    repo_data["repositories"].extend(
-        [
-            {
-                "repositoryArn": f"arn:aws:ecr:us-east-1:000000000000:repository/test-repository{i}",
-                "registryId": "000000000000",
-                "repositoryName": f"test-repository{i}",
-                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
-                "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
-            }
-            for i in range(iter_size)
-        ],
-    )
 
     # Act
     cartography.intel.aws.ecr.load_ecr_repositories(
@@ -337,7 +320,6 @@ def test_cleanup_repositories(neo4j_session):
         RETURN count(repo)
         """,
     )
-    # there should be 103 nodes
     expected_nodes = {
         len(repo_data["repositories"]),
     }

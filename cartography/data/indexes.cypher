@@ -1,9 +1,13 @@
 CREATE INDEX IF NOT EXISTS FOR (n:DBGroup) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:DBGroup) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:DNSRecord) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:DNSRecord) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:DNSZone) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRScanFinding) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRScanFinding) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.ip);
+CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaOrganization) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaOrganization) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaUser) ON (n.id);
