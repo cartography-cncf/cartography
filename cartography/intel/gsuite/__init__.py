@@ -170,6 +170,13 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             scoped_job_parameters,
         )
 
+    # DEPRECATED: compatibility migration for legacy RESOURCE edge direction. Remove in v1.0.0.
+    run_analysis_job(
+        "gsuite_resource_edge_direction_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
     # Link GSuite users to Human nodes if they exist
     run_analysis_job(
         "gsuite_human_link.json",
