@@ -221,9 +221,21 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
 
-1. **Install cartography to the current Python virtual environment with `pip install cartography`.**
+1. **Install cartography with [uv](https://docs.astral.sh/uv/).**
 
-    We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.
+    Cartography uses uv for development and CI. We recommend it for installation as well: it manages an isolated environment for you and is significantly faster than pip.
+
+    ```bash
+    # Install uv if you don't have it (see https://docs.astral.sh/uv/getting-started/installation/ for alternatives).
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Install cartography as an isolated tool exposed on your PATH.
+    uv tool install cartography
+    ```
+
+    Use `uv tool upgrade cartography` to pull in new releases.
+
+    If you prefer pip, `pip install cartography` still works inside a venv. See the [Python packaging guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments) for venv setup with `pyenv` / `pyenv-virtualenv`.
 
 1. **Configure your data sources.**
 

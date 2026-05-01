@@ -8,11 +8,17 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.gcp.clients import _resolve_credentials
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
@@ -23,6 +29,9 @@ from cartography.models.gcp.artifact_registry.container_image import (
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryProjectToImageLayerRel,
 )
 from cartography.util import timeit
 
@@ -77,13 +86,13 @@ class _TokenManager:
             self._generation += 1
 
 
-async def _fetch_json(
+async def _authed_get(
     http_client: httpx.AsyncClient,
     url: str,
     token_manager: _TokenManager,
     accept: str | None = None,
-) -> dict[str, Any]:
-    """Fetch a JSON document. Refreshes credentials once on 401, otherwise raises."""
+) -> httpx.Response:
+    """GET with token-manager auth. Refreshes credentials once on 401, otherwise raises."""
     for attempt in range(2):
         observed_generation = token_manager.generation
         headers: dict[str, str] = {}
@@ -96,8 +105,18 @@ async def _fetch_json(
             await token_manager.refresh(observed_generation)
             continue
         resp.raise_for_status()
-        return resp.json()
+        return resp
     raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+
+
+async def _fetch_json(
+    http_client: httpx.AsyncClient,
+    url: str,
+    token_manager: _TokenManager,
+    accept: str | None = None,
+) -> dict[str, Any]:
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json()
 
 
 async def _fetch_manifest_with_digest(
@@ -106,20 +125,8 @@ async def _fetch_manifest_with_digest(
     token_manager: _TokenManager,
     accept: str,
 ) -> tuple[dict[str, Any], str | None]:
-    """Fetch a manifest and return (manifest_json, subject_digest). Raises on errors."""
-    for attempt in range(2):
-        observed_generation = token_manager.generation
-        headers: dict[str, str] = {"Accept": accept}
-        token_manager.apply_auth(headers)
-        resp = await http_client.get(url, headers=headers, timeout=30.0)
-        if resp.status_code == 401 and attempt == 0:
-            logger.debug("Got 401 from %s, refreshing GCP credentials", url)
-            await token_manager.refresh(observed_generation)
-            continue
-        resp.raise_for_status()
-        digest = resp.headers.get("Docker-Content-Digest")
-        return resp.json(), digest
-    raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json(), resp.headers.get("Docker-Content-Digest")
 
 
 async def _fetch_image_config(
@@ -422,6 +429,66 @@ def _build_layer_dicts(
 
 
 @timeit
+def load_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not provenance_updates:
+        return
+
+    load_nodes_without_relationships(
+        neo4j_session,
+        GCPArtifactRegistryContainerImageProvenanceSchema(),
+        provenance_updates,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry container image provenance updates for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def load_image_layers(
+    neo4j_session: neo4j.Session,
+    layer_dicts: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not layer_dicts:
+        return
+
+    schema = GCPArtifactRegistryImageLayerSchema()
+    load_nodes_without_relationships(
+        neo4j_session,
+        schema,
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer nodes for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToImageLayerRel(),
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer project RESOURCE relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: GoogleCredentials | None,
@@ -463,24 +530,16 @@ def sync(
             }
             for e in enrichments
         ]
-        load(
+        load_image_provenance(
             neo4j_session,
-            GCPArtifactRegistryContainerImageProvenanceSchema(),
             provenance_updates,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
+            project_id,
+            update_tag,
         )
 
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
-        logger.info("Loading %d image layer nodes", len(layer_dicts))
-        load(
-            neo4j_session,
-            GCPArtifactRegistryImageLayerSchema(),
-            layer_dicts,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
-        )
+        load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs
@@ -489,24 +548,34 @@ def sync(
     # re-fetch this run. We still run cleanup when enrichments is empty (e.g.,
     # all images deleted, or no enrichable artifacts left), so orphan layer
     # nodes do not accumulate.
-    if cleanup_safe and fetch_failures == 0:
+    skip_reasons = []
+    if not cleanup_safe:
+        skip_reasons.append("artifact discovery was incomplete")
+    if fetch_failures:
+        skip_reasons.append(f"{fetch_failures} image(s) failed to enrich")
+
+    if skip_reasons:
+        logger.warning(
+            "Skipping image layer cleanup for project %s: %s.",
+            project_id,
+            "; ".join(skip_reasons),
+        )
+    else:
         cleanup_params = common_job_parameters.copy()
         cleanup_params["PROJECT_ID"] = project_id
         GraphJob.from_node_schema(
             GCPArtifactRegistryImageLayerSchema(),
             cleanup_params,
         ).run(neo4j_session)
-    elif not cleanup_safe:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because artifact discovery was incomplete.",
+        # The split write path attaches this relationship with a MatchLink, so
+        # clean it explicitly after node cleanup has used the project RESOURCE
+        # edge to scope stale node deletion.
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryProjectToImageLayerRel(),
+            "GCPProject",
             project_id,
-        )
-    else:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because %d image(s) failed to enrich.",
-            project_id,
-            fetch_failures,
-        )
+            update_tag,
+        ).run(neo4j_session)
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
