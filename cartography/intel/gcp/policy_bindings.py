@@ -395,7 +395,15 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Filter members to only user:, serviceAccount:, and group: types
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
+                is_public = False
                 for member in members:
+                    # GCP encodes the "anyone on the internet" principals as
+                    # plain identifiers without a "type:" prefix. They never
+                    # resolve to a real GCPPrincipal node, but we still want
+                    # to keep the binding so callers can detect public exposure.
+                    if member in ("allUsers", "allAuthenticatedUsers"):
+                        is_public = True
+                        continue
                     if ":" not in member:
                         continue
                     member_type, identifier = member.split(":", 1)
@@ -403,8 +411,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         # Store only the email part
                         filtered_members.append(identifier)
 
-                # Don't process if members(principals) are not from the supported types. For example -> allUsers:, allAuthenticatedUsers, etc.
-                if not filtered_members:
+                # Skip bindings that have no resolvable principals AND no public
+                # exposure, e.g. unsupported principal types like domain:.
+                if not filtered_members and not is_public:
                     continue
 
                 # Extract condition expression for deduplication key
@@ -421,6 +430,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
                     bindings[key]["members"] = list(existing_members)
+                    bindings[key]["is_public"] = (
+                        bindings[key].get("is_public", False) or is_public
+                    )
                 else:
                     # Generate unique ID that includes condition expression hash
                     condition_hash = ""
@@ -441,6 +453,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource": resource,
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
+                        "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
                             condition.get("title") if condition else None

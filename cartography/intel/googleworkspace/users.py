@@ -114,7 +114,7 @@ def sync_googleworkspace_users(
     See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
     :param googleworkspace_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
-    :return: List of user IDs
+    :return: List of active (non-suspended) user IDs
     """
     logger.debug("Syncing Google Workspace Users")
 
@@ -135,4 +135,6 @@ def sync_googleworkspace_users(
     # 4. CLEANUP - Remove stale data
     cleanup_googleworkspace_users(neo4j_session, common_job_parameters)
 
-    return [user["id"] for user in raw_users]
+    # Suspended users return 401 from the per-user OAuth tokens endpoint, so
+    # exclude them from downstream callers that fetch user-scoped resources.
+    return [user["id"] for user in raw_users if not user.get("suspended", False)]
