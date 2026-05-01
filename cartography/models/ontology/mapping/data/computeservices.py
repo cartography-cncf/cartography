@@ -51,25 +51,8 @@ gcp_cloudrun_job_mapping = OntologyMapping(
     ],
 )
 
-azure_aci_mapping = OntologyMapping(
-    module_name="azure",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="AzureGroupContainer",
-            fields=[
-                OntologyFieldMapping(ontology_field="name", node_field="name"),
-                OntologyFieldMapping(ontology_field="region", node_field="location"),
-                OntologyFieldMapping(
-                    ontology_field="status", node_field="provisioning_state"
-                ),
-            ],
-        ),
-    ],
-)
-
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
     "gcp_cloudrun_job": gcp_cloudrun_job_mapping,
-    "azure_aci": azure_aci_mapping,
 }

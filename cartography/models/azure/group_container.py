@@ -67,7 +67,7 @@ class AzureGroupContainerToSubnetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureGroupContainerSchema(CartographyNodeSchema):
     label: str = "AzureGroupContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
     properties: AzureGroupContainerNodeProperties = AzureGroupContainerNodeProperties()
     sub_resource_relationship: AzureGroupContainerToSubscriptionRel = (
         AzureGroupContainerToSubscriptionRel()

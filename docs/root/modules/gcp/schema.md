@@ -1929,7 +1929,7 @@ graph LR
 
 Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunJob`, `AzureGroupContainer`). Its child `GCPCloudRunServiceContainer` nodes carry `:Container` and `HAS_IMAGE`.
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunJob`). Its child `GCPCloudRunServiceContainer` nodes carry `:Container` and `HAS_IMAGE`.
 
 | Field | Description |
 |---|---|
@@ -2001,7 +2001,7 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunJobContainer](#gcpcloudrunjobcontainer) nodes, analogous to `ECSTask` / `ECSContainer` in AWS.
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunService`, `AzureGroupContainer`).
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunService`).
 
 | Field | Description |
 |---|---|

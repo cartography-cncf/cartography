@@ -4926,7 +4926,7 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., KubernetesService, GCPCloudRunService, AzureGroupContainer).
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., GCPCloudRunService, GCPCloudRunJob).
 
 | Field | Description |
 |-------|-------------|
@@ -5071,7 +5071,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)
 
-> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., KubernetesPod).
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., KubernetesPod, AzureGroupContainer).
 
 | Field | Description |
 |-------|-------------|

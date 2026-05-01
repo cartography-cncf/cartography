@@ -44,7 +44,25 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+azure_aci_mapping = OntologyMapping(
+    module_name="azure",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AzureGroupContainer",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="status", node_field="provisioning_state"
+                ),
+                # namespace: Not applicable for Azure Container Instances.
+                # node: ACI does not surface a node / host identifier.
+            ],
+        ),
+    ],
+)
+
 COMPUTEPODS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "kubernetes": kubernetes_mapping,
+    "azure_aci": azure_aci_mapping,
 }

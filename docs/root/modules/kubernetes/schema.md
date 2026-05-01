@@ -127,7 +127,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
 ### KubernetesPod
 Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/workloads/pods/)
 
-> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask).
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask, AzureGroupContainer).
 
 | Field | Description |
 |-------|-------------|
