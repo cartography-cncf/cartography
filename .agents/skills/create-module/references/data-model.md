@@ -1,5 +1,15 @@
 # Data model reference
 
+## Contents
+
+- Node properties
+- Node schema
+- Sub-resource relationships always point to a tenant
+- Standard relationship template
+- Loading data
+- Cleanup
+- Manual write queries
+
 ## Node properties
 
 ```python

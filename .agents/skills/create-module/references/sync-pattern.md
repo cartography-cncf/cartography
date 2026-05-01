@@ -1,5 +1,13 @@
 # Sync pattern reference
 
+## Contents
+
+- Entry point template
+- Domain `sync()` template
+- GET fetching data
+- TRANSFORM shaping data
+- CLI + Config wiring
+
 ## Entry point template
 
 ```python
@@ -99,7 +107,7 @@ def sync_for_parent(
     load_users(neo4j_session, transformed, parent_id, common_job_parameters["UPDATE_TAG"])
 ```
 
-## GET — fetching data
+## GET fetching data
 
 `get()` should be "dumb": just fetch and let exceptions propagate.
 
@@ -149,7 +157,7 @@ def get(api_key: str, tenant_id: str) -> dict[str, Any]:
 
 4. **Always set timeouts.** `timeout=(connect, read)` tuple.
 
-## TRANSFORM — shaping data
+## TRANSFORM shaping data
 
 Required fields use direct access; optional fields use `.get()` with `None` default.
 

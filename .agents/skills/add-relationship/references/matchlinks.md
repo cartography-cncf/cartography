@@ -1,5 +1,15 @@
 # MatchLinks reference
 
+## Contents
+
+- Performance impact
+- Scenario 1: connect two existing node types
+- Scenario 2: rich relationship properties
+- Required MatchLink properties
+- MatchLink cleanup
+- Optional sub-resource-scoped MatchLinks
+- When NOT to use MatchLinks
+
 ## Performance impact
 
 MatchLinks are expensive. For each batch, the loader does:
@@ -12,7 +22,7 @@ MatchLinks are expensive. For each batch, the loader does:
 
 Steps 3–5 are why MatchLinks are slower than relationships defined inside a node schema. Prefer standard relationships whenever a `target_node_matcher` can find the target during normal `load()`.
 
-## Scenario 1 — connect two existing node types
+## Scenario 1: connect two existing node types
 
 When the mapping comes from a separate API call.
 
@@ -50,7 +60,7 @@ load_matchlinks(
 )
 ```
 
-## Scenario 2 — rich relationship properties
+## Scenario 2: rich relationship properties
 
 For findings that connect to packages with remediation metadata that doesn't belong on either node.
 

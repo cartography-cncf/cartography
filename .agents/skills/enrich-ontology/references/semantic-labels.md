@@ -1,4 +1,12 @@
-# Semantic labels and canonical nodes — deep dive
+# Semantic labels and canonical nodes: deep dive
+
+## Contents
+
+- Execution flow
+- Available semantic labels and fields
+- Canonical node schema template
+- `required` vs `eligible_for_source`
+- Documenting ontology integration in schema docs
 
 ## Execution flow
 

@@ -1,6 +1,6 @@
 ---
 name: add-node-type
-description: Define a new node schema in `cartography/models/<module>/`, including required properties, sub-resource relationships, extra labels, conditional labels, scoped cleanup, and one-to-many transforms. Use when the user asks to add a node type, model a new resource, configure extra Neo4j labels (Identity, Asset, UserAccount, Tenant), or wire scoped vs global cleanup.
+description: Define a new node schema under cartography/models/MODULE_NAME/, including required properties, sub-resource relationships, extra labels, conditional labels, scoped cleanup, and one-to-many transforms. Use when the user asks to add a node type, model a new resource, configure extra Neo4j labels (Identity, Asset, UserAccount, Tenant), or wire scoped vs global cleanup.
 ---
 
 # add-node-type

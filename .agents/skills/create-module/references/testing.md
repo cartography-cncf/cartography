@@ -4,6 +4,14 @@
 
 Verify data is written to the graph as expected. Mock external dependencies (APIs, credentials, network) but never internal Cartography sync / load / cleanup functions.
 
+## Contents
+
+- Test data
+- Integration test
+- What to test
+- When to mock
+- Integration test boundary
+
 ## Test data
 
 Mock API payloads live in `tests/data/your_service/`:

@@ -1,5 +1,11 @@
 # Advanced node properties
 
+## Contents
+
+- Conditional node labels
+- Common schema mistakes (custom fields are ignored)
+- Sub-resource relationships: deeper rationale
+
 ## Conditional node labels
 
 > **Warning:** specialised feature, primarily for ontology mapping where a single source produces records that map to different semantic types. Most modules don't need this.
@@ -47,7 +53,7 @@ Without conditional labels, an `ECRImage` of type `IMAGE_ATTESTATION` would stil
 - Condition values must be strings (`"true"`, not `True`).
 - All conditions must match (AND).
 
-## Common schema mistakes — custom fields are ignored
+## Common schema mistakes (custom fields are ignored)
 
 `CartographyNodeSchema` and `CartographyRelSchema` only recognise their standard fields. Anything you add is silently dropped.
 
@@ -96,7 +102,7 @@ If you need conditional behaviour, handle it in `transform()` (set fields to `No
 - `extra_node_labels: ExtraNodeLabels` (optional)
 - `scoped_cleanup: bool` (optional, defaults to `True` — should almost never be overridden, only for modules without a clear tenant-like entity)
 
-## Sub-resource relationships — deeper rationale
+## Sub-resource relationships: deeper rationale
 
 The `sub_resource_relationship` always refers to a tenant-like node representing the ownership boundary of the resource.
 

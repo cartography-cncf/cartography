@@ -2,6 +2,16 @@
 
 When creating CIS (Center for Internet Security) compliance rules, follow these additional conventions on top of the standard rule format.
 
+## Contents
+
+- Rule names
+- Rule IDs
+- File naming
+- Comment headers
+- Tags vs frameworks
+- CIS references
+- Complete CIS example
+
 ## Rule names
 
 Format: **`CIS <PROVIDER> <CONTROL_NUMBER>: <Description>`**

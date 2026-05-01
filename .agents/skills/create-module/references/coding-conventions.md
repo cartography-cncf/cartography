@@ -1,6 +1,16 @@
 # Coding conventions
 
-## Error handling — fail loudly
+## Contents
+
+- Error handling: fail loudly
+- Type hints (Python 3.9+)
+- Logging
+- Date handling
+- Deprecation conventions
+- Manual write queries
+- Git / PR
+
+## Error handling: fail loudly
 
 Cartography prefers loud failures so that broken assumptions surface to operators rather than getting silently papered over.
 
@@ -34,7 +44,7 @@ def transform_user(user_data: dict[str, Any]) -> dict[str, Any]:
     }
 ```
 
-## Type hints — Python 3.9+
+## Type hints (Python 3.9+)
 
 ```python
 # DO — built-in generics
