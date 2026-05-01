@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -8,8 +9,12 @@ from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
 )
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
+from cartography.intel.gcp.artifact_registry.util import _load_with_progress
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
 )
 
 
@@ -102,7 +107,90 @@ def test_sync_artifact_registry_artifacts_propagates_unexpected_gapic_errors(
 def test_load_docker_images_uses_artifact_registry_batch_size():
     from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
 
-    with patch("cartography.intel.gcp.artifact_registry.artifact.load") as load:
-        load_docker_images(MagicMock(), [{"id": "image"}], "test-project", 123)
+    with (
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.load_nodes_without_relationships"
+        ) as load_nodes_without_relationships,
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.load_matchlinks_with_progress"
+        ) as load_matchlinks_with_progress,
+        patch(
+            "cartography.intel.gcp.artifact_registry.artifact.apply_conditional_labels"
+        ) as apply_conditional_labels,
+    ):
+        load_docker_images(
+            MagicMock(),
+            [{"id": "image", "repository_id": "repo"}],
+            "test-project",
+            123,
+        )
 
-    assert load.call_args.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+    load_nodes_without_relationships.assert_called_once()
+    assert load_nodes_without_relationships.call_args.kwargs["apply_labels"] is False
+    assert (
+        load_nodes_without_relationships.call_args.kwargs["batch_size"]
+        == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+    )
+    assert load_matchlinks_with_progress.call_count == 2
+    for call in load_matchlinks_with_progress.call_args_list:
+        assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+        assert call.kwargs["_sub_resource_label"] == "GCPProject"
+        assert call.kwargs["_sub_resource_id"] == "test-project"
+    apply_conditional_labels.assert_called_once()
+
+
+def test_load_nodes_without_relationships_logs_batch_progress(caplog):
+    caplog.set_level(
+        logging.INFO,
+        logger="cartography.intel.gcp.artifact_registry.util",
+    )
+    neo4j_session = MagicMock()
+    node_schema = MagicMock()
+    node_schema.label = "GCPArtifactRegistryContainerImage"
+
+    with (
+        patch(
+            "cartography.intel.gcp.artifact_registry.util.ensure_indexes"
+        ) as ensure_indexes,
+        patch(
+            "cartography.intel.gcp.artifact_registry.util.build_ingestion_query",
+            return_value="UNWIND ...",
+        ) as build_ingestion_query,
+        patch(
+            "cartography.intel.gcp.artifact_registry.util.load_graph_data"
+        ) as load_graph_data,
+        patch(
+            "cartography.intel.gcp.artifact_registry.util.stat_handler"
+        ) as stat_handler,
+    ):
+        load_nodes_without_relationships(
+            neo4j_session,
+            node_schema,
+            [{"id": "1"}, {"id": "2"}, {"id": "3"}],
+            batch_size=2,
+            progress_description="test GAR nodes",
+            apply_labels=False,
+            lastupdated=123,
+        )
+
+    ensure_indexes.assert_called_once_with(neo4j_session, node_schema)
+    build_ingestion_query.assert_called_once_with(
+        node_schema, selected_relationships=set()
+    )
+    assert load_graph_data.call_count == 2
+    assert "Loaded test GAR nodes batch 1/2" in caplog.text
+    assert "Loaded test GAR nodes batch 2/2" in caplog.text
+    stat_handler.incr.assert_called_once_with(
+        "node.gcpartifactregistrycontainerimage.loaded", 3
+    )
+
+
+def test_load_with_progress_rejects_non_positive_batch_size():
+    with pytest.raises(ValueError, match="batch_size must be greater than 0"):
+        _load_with_progress(
+            MagicMock(),
+            "UNWIND ...",
+            [{"id": "1"}],
+            batch_size=0,
+            progress_description="test GAR nodes",
+        )

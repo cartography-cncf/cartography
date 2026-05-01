@@ -14,6 +14,7 @@ from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry.util import apply_conditional_labels
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -26,12 +27,22 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
 from cartography.models.gcp.artifact_registry.container_image import (
     GCPArtifactRegistryContainerImageSchema,
+)
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryProjectToContainerImageRel,
+)
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryRepositoryToContainerImageRel,
 )
 from cartography.models.gcp.artifact_registry.helm_chart import (
     GCPArtifactRegistryHelmChartSchema,
@@ -534,14 +545,12 @@ def transform_go_modules(
     return transformed
 
 
-def transform_apt_artifacts(
+def _transform_generic_artifacts(
     artifacts_data: list[dict],
     repository_id: str,
     project_id: str,
+    format_label: str,
 ) -> list[dict]:
-    """
-    Transforms APT artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
     transformed: list[dict] = []
     for artifact in artifacts_data:
         name = artifact.get("name", "")
@@ -550,13 +559,23 @@ def transform_apt_artifacts(
             {
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
-                "format": "APT",
+                "format": format_label,
                 "package_name": artifact.get("packageName"),
                 "repository_id": repository_id,
                 "project_id": project_id,
             }
         )
     return transformed
+
+
+def transform_apt_artifacts(
+    artifacts_data: list[dict],
+    repository_id: str,
+    project_id: str,
+) -> list[dict]:
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "APT"
+    )
 
 
 def transform_yum_artifacts(
@@ -564,24 +583,9 @@ def transform_yum_artifacts(
     repository_id: str,
     project_id: str,
 ) -> list[dict]:
-    """
-    Transforms YUM artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
-    transformed: list[dict] = []
-    for artifact in artifacts_data:
-        name = artifact.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "YUM",
-                "package_name": artifact.get("packageName"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
-    return transformed
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "YUM"
+    )
 
 
 # Mapping of repository format to get and transform functions
@@ -638,13 +642,58 @@ def load_docker_images(
     """
     Loads GCPArtifactRegistryContainerImage nodes and their relationships.
     """
-    load(
+    if not data:
+        return
+
+    schema = GCPArtifactRegistryContainerImageSchema()
+    load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryContainerImageSchema(),
+        schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        apply_labels=False,
+        progress_description=(
+            f"Artifact Registry container image nodes for project {project_id}"
+        ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    # Container image conditional labels are scoped through the project RESOURCE
+    # relationship, so apply them once after nodes and that relationship exist.
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToContainerImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry container image project RESOURCE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    apply_conditional_labels(
+        neo4j_session,
+        schema,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryToContainerImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry container image repository CONTAINS relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 
@@ -657,6 +706,21 @@ def cleanup_docker_images(
     """
     GraphJob.from_node_schema(
         GCPArtifactRegistryContainerImageSchema(), common_job_parameters
+    ).run(neo4j_session)
+    # The split write path attaches these relationships with MatchLinks, so
+    # clean them explicitly after node cleanup has used the project RESOURCE
+    # edge to scope stale node deletion.
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryProjectToContainerImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryToContainerImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
 
 
@@ -849,21 +913,25 @@ def sync_artifact_registry_artifacts(
         artifacts_raw = result.artifacts
 
         if repo_format == "DOCKER":
+            helm_artifacts: list[dict] = []
+            docker_artifacts: list[dict] = []
             for artifact in artifacts_raw:
-                artifact_type = artifact.get("artifactType", "")
-                media_type = artifact.get("mediaType", "")
+                artifact_type = artifact.get("artifactType", "").lower()
+                media_type = artifact.get("mediaType", "").lower()
                 if (
-                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
-                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type
+                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type
                 ):
-                    helm_charts_transformed.extend(
-                        transform_helm_charts([artifact], repo_name, project_id)
-                    )
+                    helm_artifacts.append(artifact)
                 else:
-                    docker_images_raw.append(artifact)
-                    docker_images_transformed.extend(
-                        transform_docker_images([artifact], repo_name, project_id)
-                    )
+                    docker_artifacts.append(artifact)
+            docker_images_raw.extend(docker_artifacts)
+            helm_charts_transformed.extend(
+                transform_helm_charts(helm_artifacts, repo_name, project_id)
+            )
+            docker_images_transformed.extend(
+                transform_docker_images(docker_artifacts, repo_name, project_id)
+            )
         elif repo_format in LANGUAGE_PACKAGE_FORMATS:
             _, transform_func = FORMAT_HANDLERS[repo_format]
             language_packages_transformed.extend(
@@ -887,23 +955,19 @@ def sync_artifact_registry_artifacts(
         len(other_artifacts_transformed),
     )
 
-    # Load Docker images with the dedicated schema
     if docker_images_transformed:
         load_docker_images(
             neo4j_session, docker_images_transformed, project_id, update_tag
         )
 
-    # Load Helm charts with the dedicated schema
     if helm_charts_transformed:
         load_helm_charts(neo4j_session, helm_charts_transformed, project_id, update_tag)
 
-    # Load language packages with the dedicated schema
     if language_packages_transformed:
         load_language_packages(
             neo4j_session, language_packages_transformed, project_id, update_tag
         )
 
-    # Load generic artifacts (APT, YUM) with the dedicated schema
     if other_artifacts_transformed:
         load_generic_artifacts(
             neo4j_session, other_artifacts_transformed, project_id, update_tag

@@ -110,23 +110,23 @@ def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:
 def _get_label_value(labels: dict[str, Any], label_name: str) -> str | None:
     expected = label_name.lower()
     matching_values: list[str] = []
-    matching_keys: list[str] = []
+    matching_nonempty_keys: list[str] = []
     for key, value in labels.items():
         final_segment = str(key).rsplit(".", 1)[-1].lower()
         if final_segment != expected:
             continue
-        matching_keys.append(str(key))
         if value is None:
             continue
         value_str = str(value).strip()
         if value_str:
             matching_values.append(value_str)
+            matching_nonempty_keys.append(str(key))
 
-    if len(matching_keys) > 1:
+    if len(matching_nonempty_keys) > 1:
         logger.warning(
             "Skipping ambiguous CircleCI image label %s because multiple label keys matched by suffix: %s",
             label_name,
-            ", ".join(matching_keys),
+            ", ".join(matching_nonempty_keys),
         )
         return None
 
@@ -1247,7 +1247,14 @@ async def fetch_image_layers_async(
                     all_history_by_diff_id.update(history_data)
                 if provenance_by_image_uri:
                     for image_uri, provenance_info in provenance_by_image_uri.items():
-                        image_attestation_map[image_uri] = provenance_info
+                        _merge_provenance(
+                            image_attestation_map,
+                            image_uri,
+                            provenance_info,
+                            fallback=not provenance_info.get(
+                                ATTESTATION_PROVENANCE_FIELD,
+                            ),
+                        )
                         if "@sha256:" in image_uri:
                             image_digest_map[image_uri] = image_uri.rsplit("@", 1)[1]
 

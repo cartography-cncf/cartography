@@ -176,6 +176,21 @@ def test_extract_circleci_label_provenance_skips_ambiguous_suffix_labels(caplog)
     assert "multiple label keys matched by suffix" in caplog.text
 
 
+def test_extract_circleci_label_provenance_ignores_empty_duplicate_suffix_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_SHA1": "",
+                "io.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+    }
+
+
 def test_extract_circleci_label_provenance_ignores_dockerfile_without_circleci_signal():
     config_json = {
         "config": {
@@ -220,6 +235,33 @@ def test_label_provenance_does_not_override_attestation_provenance():
         "source_uri": "https://github.com/ExampleOrg/attested",
         "source_revision": "attested-revision",
         "source_file": "Dockerfile",
+    }
+
+
+def test_attestation_provenance_survives_later_label_merge():
+    provenance_by_key = {
+        "image-uri": {
+            ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+            "parent_image_digest": "sha256:attested-parent",
+            "source_uri": "https://github.com/exampleorg/attested",
+        }
+    }
+
+    ecr_layers._merge_provenance(
+        provenance_by_key,
+        "image-uri",
+        {
+            "source_uri": "https://github.com/exampleorg/label",
+            "source_revision": "label-revision",
+        },
+        fallback=True,
+    )
+
+    assert provenance_by_key["image-uri"] == {
+        ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+        "parent_image_digest": "sha256:attested-parent",
+        "source_uri": "https://github.com/exampleorg/attested",
+        "source_revision": "label-revision",
     }
 
 
