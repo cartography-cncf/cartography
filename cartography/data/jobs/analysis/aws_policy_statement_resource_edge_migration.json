@@ -1,0 +1,10 @@
+{
+  "name": "AWS PolicyStatement RESOURCE edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped AWSPolicyStatement cleanup via STATEMENT (per-policy); the schema now uses RESOURCE from AWSAccount as the sub_resource. Backfill the RESOURCE edge for every existing statement reachable from an AWSAccount via its policies. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (a:AWSAccount)-[:RESOURCE]->(p:AWSPolicy)-[:STATEMENT]->(s:AWSPolicyStatement) MERGE (a)-[r:RESOURCE]->(s) ON CREATE SET r.lastupdated = s.lastupdated",
+      "iterative": false
+    }
+  ]
+}

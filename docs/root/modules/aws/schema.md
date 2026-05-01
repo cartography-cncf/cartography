@@ -720,6 +720,12 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
     (:AWSPolicy, :AWSInlinePolicy, :AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
+- `AWSPolicyStatement`s belong to an `AWSAccount`
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSPolicyStatement)
+    ```
+
 
 ### AWSPrincipal
 Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).
