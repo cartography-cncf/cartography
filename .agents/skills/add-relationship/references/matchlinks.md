@@ -18,8 +18,8 @@ When the mapping comes from a separate API call.
 
 ```python
 role_assignments = [
-    {"UserId": "user-123", "RoleArn": "arn:aws:iam::123456789012:role/AdminRole",   "AccountId": "123456789012"},
-    {"UserId": "user-456", "RoleArn": "arn:aws:iam::123456789012:role/ReadOnlyRole","AccountId": "123456789012"},
+    {"UserId": "user-123", "IdentityStoreId": "d-9067230b30", "RoleArn": "arn:aws:iam::123456789012:role/AdminRole",    "AccountId": "123456789012"},
+    {"UserId": "user-456", "IdentityStoreId": "d-9067230b30", "RoleArn": "arn:aws:iam::123456789012:role/ReadOnlyRole", "AccountId": "123456789012"},
 ]
 
 
@@ -33,6 +33,7 @@ class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
     target_node_label: str = "AWSSSOUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "id": PropertyRef("UserId"),
+        "identity_store_id": PropertyRef("IdentityStoreId"),
     })
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"
