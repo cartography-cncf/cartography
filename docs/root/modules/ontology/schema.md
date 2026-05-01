@@ -367,6 +367,12 @@ It generalizes concepts like AWS ECS services, GCP Cloud Run services and jobs, 
 (:Container)-[:WORKLOAD_PARENT*1..]->(parent)
 ```
 
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the service / orchestrator. |
+| _ont_region | The region or location where the service is deployed. |
+| _ont_status | Current provisioning or operational status of the service (when available from the provider). |
+
 
 ### ComputeNamespace
 
@@ -379,6 +385,11 @@ Today it generalizes the Kubernetes Namespace concept; other providers may join 
 
 `ComputeNamespace` sits between `ComputeCluster` and `ComputePod` in the unified workload chain. Walk the chain with the `WORKLOAD_PARENT` relationship.
 
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the namespace. |
+| _ont_status | Current lifecycle phase of the namespace (e.g., `Active`, `Terminating`). |
+
 
 ### ComputePod
 
@@ -390,6 +401,13 @@ A compute pod represents the smallest schedulable workload unit on a compute pla
 It generalizes concepts like Kubernetes Pods and AWS ECS Tasks.
 
 `ComputePod` is the parent of one or more `:Container` nodes in the unified workload chain. Walk upward with `WORKLOAD_PARENT` to reach the enclosing service, namespace, or cluster.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the pod / task (when the provider exposes one). |
+| _ont_status | Current runtime status of the pod / task (e.g., `Running`, `Pending`). |
+| _ont_namespace | Namespace the pod runs in (Kubernetes only). |
+| _ont_node | Node or host the pod is scheduled on (Kubernetes only). |
 
 
 ### ThirdPartyApp
