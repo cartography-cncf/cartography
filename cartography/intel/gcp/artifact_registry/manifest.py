@@ -141,6 +141,7 @@ async def get_all_manifests_async(
     all_manifests: list[dict] = []
     semaphore = asyncio.Semaphore(max_concurrent)
 
+    # Filter to only multi-arch images.
     multi_arch_artifacts = [
         artifact
         for artifact in docker_artifacts_raw
@@ -167,6 +168,7 @@ async def get_all_manifests_async(
             return []
 
     async with httpx.AsyncClient() as http_client:
+        # Create tasks for all multi-arch images.
         tasks = [
             asyncio.create_task(get_single_manifest(artifact, http_client))
             for artifact in multi_arch_artifacts
@@ -180,6 +182,7 @@ async def get_all_manifests_async(
         if not tasks:
             return []
 
+        # Progress tracking.
         progress_interval = max(1, min(100, total // 10 or 1))
         completed = 0
 
@@ -345,9 +348,12 @@ def sync_artifact_registry_manifests(
     """
     logger.info(f"Syncing Artifact Registry image manifests for project {project_id}.")
 
+    # Get all manifests concurrently using async.
+    # Use get_event_loop() + run_until_complete() to avoid tearing down loop.
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
+        # No event loop in current thread, create one.
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
