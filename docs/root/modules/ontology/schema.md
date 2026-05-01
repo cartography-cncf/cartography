@@ -20,8 +20,10 @@ CS{{ComputeService}}
 CNS{{ComputeNamespace}}
 CP{{ComputePod}}
 CT -- WORKLOAD_PARENT --> CP
+CT -- WORKLOAD_PARENT --> CS
 CP -- WORKLOAD_PARENT --> CS
 CP -- WORKLOAD_PARENT --> CNS
+CP -- WORKLOAD_PARENT --> CL
 CS -- WORKLOAD_PARENT --> CL
 CNS -- WORKLOAD_PARENT --> CL
 DB{{Database}}
@@ -361,17 +363,25 @@ ComputeService is a semantic label.
 A compute service represents an orchestrator that schedules, scales, and manages a set of workloads.
 It generalizes concepts like AWS ECS services, GCP Cloud Run services and jobs, and Azure Container Groups.
 
-`ComputeService` sits between `ComputeCluster` and `ComputePod` in the unified workload chain. Walk the chain with the `WORKLOAD_PARENT` relationship:
-
-```
-(:Container)-[:WORKLOAD_PARENT*1..]->(parent)
-```
+`ComputeService` participates in the unified workload chain as the parent of workload nodes. Its position depends on the provider: in cluster-backed providers (AWS ECS) it sits between `ComputeCluster` and `ComputePod`, while in serverless providers (GCP Cloud Run, Azure Container Instances) it is the top-of-chain terminus reached directly by `:Container` nodes.
 
 | Field | Description |
 |-------|-------------|
 | _ont_name | The display name of the service / orchestrator. |
 | _ont_region | The region or location where the service is deployed. |
 | _ont_status | Current provisioning or operational status of the service (when available from the provider). |
+
+#### Relationships
+
+- `ComputeService` points at its parent `ComputeCluster` when one exists (AWS ECS).
+    ```
+    (:ComputeService)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
+- A workload (`ComputePod` or, in serverless providers, `:Container` directly) points at its parent `ComputeService`.
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
+    ```
 
 
 ### ComputeNamespace
@@ -383,12 +393,21 @@ ComputeNamespace is a semantic label.
 A compute namespace represents a workload-isolation scope within a `ComputeCluster`.
 Today it generalizes the Kubernetes Namespace concept; other providers may join when an analogous scope is modeled.
 
-`ComputeNamespace` sits between `ComputeCluster` and `ComputePod` in the unified workload chain. Walk the chain with the `WORKLOAD_PARENT` relationship.
-
 | Field | Description |
 |-------|-------------|
 | _ont_name | The display name of the namespace. |
 | _ont_status | Current lifecycle phase of the namespace (e.g., `Active`, `Terminating`). |
+
+#### Relationships
+
+- `ComputeNamespace` points at its parent `ComputeCluster`.
+    ```
+    (:ComputeNamespace)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
+- A `ComputePod` in a namespaced provider points at its enclosing `ComputeNamespace`.
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeNamespace)
+    ```
 
 
 ### ComputePod
@@ -400,14 +419,25 @@ ComputePod is a semantic label.
 A compute pod represents the smallest schedulable workload unit on a compute platform: a co-scheduled, co-located group of containers sharing network and storage.
 It generalizes concepts like Kubernetes Pods and AWS ECS Tasks.
 
-`ComputePod` is the parent of one or more `:Container` nodes in the unified workload chain. Walk upward with `WORKLOAD_PARENT` to reach the enclosing service, namespace, or cluster.
-
 | Field | Description |
 |-------|-------------|
 | _ont_name | The display name of the pod / task (when the provider exposes one). |
 | _ont_status | Current runtime status of the pod / task (e.g., `Running`, `Pending`). |
 | _ont_namespace | Namespace the pod runs in (Kubernetes only). |
 | _ont_node | Node or host the pod is scheduled on (Kubernetes only). |
+
+#### Relationships
+
+- A `:Container` points at its parent `ComputePod` in cluster-backed providers (AWS ECS, Kubernetes).
+    ```
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputePod)
+    ```
+- `ComputePod` points at its parent in the unified workload chain. Depending on the provider this is a `ComputeService` (ECS task attached to a service), a `ComputeNamespace` (Kubernetes pod), or directly a `ComputeCluster` (standalone ECS task).
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeNamespace)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
 
 
 ### ThirdPartyApp
