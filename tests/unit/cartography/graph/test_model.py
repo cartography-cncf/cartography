@@ -64,6 +64,17 @@ def test_model_objects_naming_convention():
             # TODO assert element.__name__.endswith(("RelProperties", "MatchLinkProperties"))
 
 
+# Node labels whose sub_resource_relationship intentionally uses a non-RESOURCE
+# rel_label. These are accepted exceptions; new modules should still default to
+# 'RESOURCE' and only be added here after explicit review.
+SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
+    # OIDC providers express a trust relationship with the cluster rather than
+    # a strict ownership; an OIDC provider can in principle be referenced by
+    # multiple clusters.
+    "KubernetesOIDCProvider",
+}
+
+
 def test_sub_resource_relationship():
     """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
     root_node_per_modules: Dict[str, Set[Type[CartographyNodeSchema]]] = {}
@@ -81,7 +92,10 @@ def test_sub_resource_relationship():
             root_node_per_modules[module_name].add(node)
             continue
         # Check that the rel_label is 'RESOURCE'
-        if sub_resource_relationship.rel_label != "RESOURCE":
+        if (
+            sub_resource_relationship.rel_label != "RESOURCE"
+            and node.label not in SUB_RESOURCE_REL_LABEL_EXCEPTIONS
+        ):
             warnings.warn(
                 f"Node {node.label} has a sub_resource_relationship with rel_label {sub_resource_relationship.rel_label}. "
                 "Expected 'RESOURCE'.",
