@@ -362,6 +362,12 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
+- GitHubBranchProtectionRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
 ### ProgrammingLanguage
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.

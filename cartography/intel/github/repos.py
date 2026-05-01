@@ -37,6 +37,7 @@ from cartography.models.github.repos import GitHubRepositorySchema
 from cartography.models.github.repos import make_github_collaborator_schema
 from cartography.models.github.repos import ProgrammingLanguageSchema
 from cartography.util import retries_with_backoff
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -1607,52 +1608,43 @@ def load_branch_protection_rules(
     neo4j_session: neo4j.Session,
     update_tag: int,
     branch_protection_rules: List[Dict],
+    owner_org_id: str,
 ) -> None:
     """
     Ingest GitHub branch protection rules into Neo4j
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param branch_protection_rules: List of branch protection rule objects from GitHub's branchProtectionRules API
+    :param owner_org_id: URL of the owning GitHub organization, used as the sub_resource scope
     :return: Nothing
     """
-    # Group branch protection rules by repo_url for schema-based loading
-    rules_by_repo = defaultdict(list)
-
-    for rule in branch_protection_rules:
-        repo_url = rule["repo_url"]
-        # Remove repo_url from the rule object since we'll pass it as kwargs
-        rule_without_kwargs = {k: v for k, v in rule.items() if k != "repo_url"}
-        rules_by_repo[repo_url].append(rule_without_kwargs)
-
-    # Load branch protection rules for each repository separately
-    for repo_url, repo_rules in rules_by_repo.items():
-        load_data(
-            neo4j_session,
-            GitHubBranchProtectionRuleSchema(),
-            repo_rules,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-        )
+    if not branch_protection_rules:
+        return
+    load_data(
+        neo4j_session,
+        GitHubBranchProtectionRuleSchema(),
+        branch_protection_rules,
+        lastupdated=update_tag,
+        owner_org_id=owner_org_id,
+    )
 
 
 @timeit
 def cleanup_branch_protection_rules(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    owner_org_id: str,
 ) -> None:
     """
     Delete GitHub branch protection rules from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up branch protection rules for
+    :param owner_org_id: URL of the owning GitHub organization
     """
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(
-            GitHubBranchProtectionRuleSchema(), cleanup_params
-        ).run(neo4j_session)
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubBranchProtectionRuleSchema(), cleanup_params).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -1815,11 +1807,21 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["dependencies"],
     )
-    load_branch_protection_rules(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["branch_protection_rules"],
+    owner_org_id = next(
+        (
+            repo["owner_org_id"]
+            for repo in repo_data["repos"]
+            if repo.get("owner_org_id")
+        ),
+        None,
     )
+    if owner_org_id is not None:
+        load_branch_protection_rules(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["branch_protection_rules"],
+            owner_org_id,
+        )
 
 
 def sync(
@@ -1933,10 +1935,11 @@ def sync(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
     )
 
-    # Collect repository URLs that have branch protection rules for cleanup
-    repo_urls_with_branch_protection_rules = list(
-        {rule["repo_url"] for rule in repo_data["branch_protection_rules"]}
+    # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
+    # GitHubOrganization to GitHubBranchProtectionRule. Remove in v1.0.0.
+    run_analysis_job(
+        "github_branch_protection_rule_resource_edge_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )
-    cleanup_branch_protection_rules(
-        neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
-    )
+    cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
