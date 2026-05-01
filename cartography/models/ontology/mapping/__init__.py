@@ -13,6 +13,15 @@ from cartography.models.ontology.mapping.data.coderepositories import (
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.computenamespaces import (
+    COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computepods import (
+    COMPUTEPODS_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computeservices import (
+    COMPUTESERVICES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.containerregistries import (
     CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
 )
@@ -93,6 +102,9 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
     "computeclusters": CLUSTERS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
+    "computenamespaces": COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+    "computepods": COMPUTEPODS_ONTOLOGY_MAPPING,
+    "computeservices": COMPUTESERVICES_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,

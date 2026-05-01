@@ -49,6 +49,7 @@ class CloudRunJobToContainerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class CloudRunJobToContainerRel(CartographyRelSchema):
     target_node_label: str = "GCPCloudRunJob"
@@ -59,6 +60,25 @@ class CloudRunJobToContainerRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: CloudRunJobToContainerRelProperties = (
         CloudRunJobToContainerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunJobContainerToJobWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPCloudRunJobContainer)-[:WORKLOAD_PARENT]->(:GCPCloudRunJob)
+class CloudRunJobContainerToJobWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "GCPCloudRunJob"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("job_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: CloudRunJobContainerToJobWorkloadParentRelProperties = (
+        CloudRunJobContainerToJobWorkloadParentRelProperties()
     )
 
 
@@ -149,6 +169,7 @@ class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunJobToContainerRel(),
+            CloudRunJobContainerToJobWorkloadParentRel(),
             CloudRunJobContainerToECRImageRel(),
             CloudRunJobContainerToGitLabContainerImageRel(),
             CloudRunJobContainerToArtifactRegistryContainerImageRel(),

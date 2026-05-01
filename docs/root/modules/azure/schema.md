@@ -1911,6 +1911,8 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 
 Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureContainerInstance](#azurecontainerinstance)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `ECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
+
 |**id**| The full resource ID of the Container Group. |
 |name| The name of the Container Group. |
 |location| The Azure region where the Container Group is deployed. |
@@ -1934,7 +1936,7 @@ Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/r
     ```cypher
     (AzureGroupContainer)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
-- An Azure Container Group contains one or more AzureContainerInstances.
+- An Azure Container Group contains one or more AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```cypher
     (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
     ```
@@ -1969,9 +1971,13 @@ Representation of an individual container within an [Azure Container Group](http
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
-- An Azure Container Group contains its AzureContainerInstances.
+- An Azure Container Group contains its AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```cypher
     (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
+    ```
+- An AzureContainerInstance points at its parent AzureGroupContainer via the unified workload chain.
+    ```cypher
+    (:AzureContainerInstance)-[:WORKLOAD_PARENT]->(:AzureGroupContainer)
     ```
 - AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher

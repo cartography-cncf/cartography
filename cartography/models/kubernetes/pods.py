@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -34,6 +35,7 @@ class KubernetesPodToKubernetesNamespaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 # (:KubernetesPod)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesPodToKubernetesNamespaceRel(CartographyRelSchema):
@@ -48,6 +50,30 @@ class KubernetesPodToKubernetesNamespaceRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: KubernetesPodToKubernetesNamespaceRelProperties = (
         KubernetesPodToKubernetesNamespaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+class KubernetesPodToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesNamespace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties = (
+        KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties()
     )
 
 
@@ -150,6 +176,7 @@ class KubernetesPodToServiceAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     label: str = "KubernetesPod"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
     properties: KubernetesPodNodeProperties = KubernetesPodNodeProperties()
     sub_resource_relationship: KubernetesPodToKubernetesClusterRel = (
         KubernetesPodToKubernetesClusterRel()
@@ -157,6 +184,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesPodToKubernetesNamespaceRel(),
+            KubernetesPodToKubernetesNamespaceWorkloadParentRel(),
             KubernetesPodToKubernetesNodeRel(),
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToSecretVolumeRel(),
