@@ -57,6 +57,9 @@ def get_oauth_tokens_for_user(admin: Resource, user_id: str) -> list[dict]:
         elif e.resp.status == 404:
             # User has no OAuth tokens, this is normal
             return []
+        elif e.resp.status == 401:
+            # Suspended/deleted users return 401; expected and not actionable.
+            logger.debug(f"Skipping OAuth token fetch for user {user_id}: 401")
         else:
             logger.warning(f"Error fetching OAuth tokens for user: {e}")
         return []

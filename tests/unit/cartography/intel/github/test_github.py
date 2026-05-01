@@ -97,6 +97,70 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_supply_chain_sync.call_count == 0
 
 
+@patch("cartography.intel.github.cleanup_unscoped_github_resources")
+@patch("cartography.intel.github.supply_chain.sync")
+@patch(
+    "cartography.intel.github.container_image_attestations.sync_container_image_attestations"
+)
+@patch("cartography.intel.github.container_image_tags.sync_container_image_tags")
+@patch(
+    "cartography.intel.github.container_images.sync_container_images",
+    return_value=([], [], [], set()),
+)
+@patch(
+    "cartography.intel.github.packages.sync_packages",
+    return_value=cartography.intel.github.packages.ContainerPackagesFetchResult(
+        packages=[],
+        cleanup_safe=True,
+    ),
+)
+@patch("cartography.intel.github.repos.get", return_value=[])
+@patch("cartography.intel.github.commits.sync_github_commits")
+@patch("cartography.intel.github._get_repos_from_graph", return_value=[])
+@patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.teams.sync_github_teams")
+@patch("cartography.intel.github.repos.sync")
+@patch("cartography.intel.github.users.sync")
+@patch("cartography.intel.github.make_credential", return_value="token-1")
+def test_start_github_ingestion_can_skip_unscoped_cleanup(
+    mock_make_credential: Mock,
+    mock_users_sync: Mock,
+    mock_repos_sync: Mock,
+    mock_teams_sync: Mock,
+    mock_actions_sync: Mock,
+    mock_get_repos_from_graph: Mock,
+    mock_sync_github_commits: Mock,
+    mock_get_repos: Mock,
+    mock_packages_sync: Mock,
+    mock_container_images_sync: Mock,
+    mock_container_tags_sync: Mock,
+    mock_attestations_sync: Mock,
+    mock_supply_chain_sync: Mock,
+    mock_cleanup_unscoped_github_resources: Mock,
+) -> None:
+    github_config = {
+        "organization": [
+            {"name": "org-1", "url": "https://api.github.com/graphql"},
+        ],
+    }
+    config = Mock(
+        github_config=b64encode(json.dumps(github_config).encode()).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+
+    from cartography.intel.github import start_github_ingestion
+
+    neo4j_session = Mock()
+    start_github_ingestion(neo4j_session, config, skip_unscoped_cleanup=True)
+
+    mock_make_credential.assert_called_once_with(github_config["organization"][0])
+    mock_users_sync.assert_called_once()
+    mock_repos_sync.assert_called_once()
+    mock_cleanup_unscoped_github_resources.assert_not_called()
+    assert mock_supply_chain_sync.call_count == 0
+
+
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
 @patch("cartography.intel.github.users.cleanup")
@@ -123,6 +187,32 @@ def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
     mock_users_cleanup.assert_not_called()
     mock_cleanup_global_resources.assert_not_called()
     mock_cleanup_orphaned_branches.assert_not_called()
+
+
+@patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
+@patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch("cartography.intel.github.users.cleanup")
+def test_cleanup_unscoped_github_resources(
+    mock_users_cleanup: Mock,
+    mock_cleanup_global_resources: Mock,
+    mock_cleanup_orphaned_branches: Mock,
+) -> None:
+    from cartography.intel.github import cleanup_unscoped_github_resources
+
+    neo4j_session = Mock()
+    common_job_parameters = {"UPDATE_TAG": 123}
+
+    cleanup_unscoped_github_resources(neo4j_session, common_job_parameters)
+
+    mock_users_cleanup.assert_called_once_with(neo4j_session, common_job_parameters)
+    mock_cleanup_global_resources.assert_called_once_with(
+        neo4j_session,
+        common_job_parameters,
+    )
+    mock_cleanup_orphaned_branches.assert_called_once_with(
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @patch("cartography.intel.github.util.time.sleep")
