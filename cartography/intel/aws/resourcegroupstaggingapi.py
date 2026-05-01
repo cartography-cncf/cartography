@@ -21,6 +21,12 @@ stat_handler = get_stats_client(__name__)
 
 DEFAULT_CLEANUP_BATCH_SIZE = 1000
 
+# IAM is a global service, so its tags are not regional. We use a "global"
+# marker on the AWSTag.region property and fetch IAM tags once per sync rather
+# than once per region.
+GLOBAL_REGION = "global"
+IAM_TAG_RESOURCE_TYPES = frozenset({"iam:role", "iam:user"})
+
 
 def get_short_id_from_ec2_arn(arn: str) -> str:
     """
@@ -198,14 +204,6 @@ def get_tags(
 ) -> list[dict[str, Any]]:
     """Retrieve tag data for the provided resource types."""
     resources: list[dict[str, Any]] = []
-
-    if "iam:role" in resource_types:
-        resources.extend(get_role_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:role"]
-
-    if "iam:user" in resource_types:
-        resources.extend(get_user_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:user"]
 
     if not resource_types:
         return resources
@@ -466,6 +464,30 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
 
 
+def _load_resource_type_tags(
+    neo4j_session: neo4j.Session,
+    grouped_tag_data: Dict[str, List[Dict]],
+    resource_types: List[str],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    for resource_type in resource_types:
+        tag_data = grouped_tag_data.get(resource_type, [])
+        transform_tags(tag_data, resource_type)  # type: ignore[arg-type]
+        logger.info(
+            f"Loading {len(tag_data)} tags for resource type {resource_type} (region={region})",
+        )
+        load_tags(
+            neo4j_session=neo4j_session,
+            tag_data=tag_data,  # type: ignore[arg-type]
+            resource_type=resource_type,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            aws_update_tag=update_tag,
+        )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -476,30 +498,50 @@ def sync(
     common_job_parameters: Dict,
     tag_resource_type_mappings: Dict = TAG_RESOURCE_TYPE_MAPPINGS,
 ) -> None:
+    iam_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt in IAM_TAG_RESOURCE_TYPES
+    ]
+    regional_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt not in IAM_TAG_RESOURCE_TYPES
+    ]
+
+    if iam_resource_types:
+        logger.info(
+            f"Syncing AWS IAM tags (global) for account {current_aws_account_id}",
+        )
+        iam_tag_data: List[Dict] = []
+        if "iam:role" in iam_resource_types:
+            iam_tag_data.extend(get_role_tags(boto3_session))
+        if "iam:user" in iam_resource_types:
+            iam_tag_data.extend(get_user_tags(boto3_session))
+        iam_grouped = _group_tag_data_by_resource_type(
+            iam_tag_data, tag_resource_type_mappings
+        )
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=iam_grouped,
+            resource_types=iam_resource_types,
+            region=GLOBAL_REGION,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
+
     for region in regions:
         logger.info(
             f"Syncing AWS tags for account {current_aws_account_id} and region {region}",
         )
-        all_tag_data = get_tags(
-            boto3_session, list(tag_resource_type_mappings.keys()), region
-        )
+        all_tag_data = get_tags(boto3_session, regional_resource_types, region)
         grouped = _group_tag_data_by_resource_type(
             all_tag_data, tag_resource_type_mappings
         )
-        for resource_type in tag_resource_type_mappings.keys():
-            tag_data = grouped.get(resource_type, [])
-            transform_tags(tag_data, resource_type)  # type: ignore
-            logger.info(
-                f"Loading {len(tag_data)} tags for resource type {resource_type}",
-            )
-            load_tags(
-                neo4j_session=neo4j_session,
-                tag_data=tag_data,  # type: ignore
-                resource_type=resource_type,
-                region=region,
-                current_aws_account_id=current_aws_account_id,
-                aws_update_tag=update_tag,
-            )
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=grouped,
+            resource_types=regional_resource_types,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
     cleanup(
         neo4j_session,
         common_job_parameters,
