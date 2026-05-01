@@ -17,8 +17,14 @@ from cartography.intel.gcp.artifact_registry.repository import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryContainerImageSchema,
+)
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.platform_image import (
+    GCPArtifactRegistryPlatformImageSchema,
 )
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
@@ -460,6 +466,40 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert "Image" in result["labels"]
     assert "ImageManifestList" not in result["labels"]
 
+    stale_image = _make_docker_image(repo_1, 9999)
+    load_docker_images(neo4j_session, [stale_image], project_id, TEST_UPDATE_TAG)
+
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryContainerImageSchema(),
+        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        iterationsize=1,
+    ).run(neo4j_session)
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})
+            -[:RESOURCE]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
+            RETURN count(*) AS count
+            """,
+            project_id=project_id,
+            stale_image_id=stale_image["id"],
+        ).single()["count"]
+        == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
+            -[:CONTAINS]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
+            RETURN count(*) AS count
+            """,
+            repo_id=repo_1,
+            stale_image_id=stale_image["id"],
+        ).single()["count"]
+        == 0
+    )
+
 
 def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleaned_up(
     neo4j_session,
@@ -784,3 +824,37 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     assert parent_rel_result_after_rerun["contains_image_lastupdated"] == (
         TEST_UPDATE_TAG + 1
     )
+
+    stale_platform = _make_platform_image(parent_images[0]["id"], project_id, 9999)
+    load_manifests(neo4j_session, [stale_platform], project_id, TEST_UPDATE_TAG)
+
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryPlatformImageSchema(),
+        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        iterationsize=1,
+    ).run(neo4j_session)
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})
+            -[:RESOURCE]->(:GCPArtifactRegistryPlatformImage {id: $stale_image_id})
+            RETURN count(*) AS count
+            """,
+            project_id=project_id,
+            stale_image_id=stale_platform["id"],
+        ).single()["count"]
+        == 0
+    )
+    for rel_label in ("HAS_MANIFEST", "CONTAINS_IMAGE"):
+        assert (
+            neo4j_session.run(
+                f"""
+                MATCH (:GCPArtifactRegistryContainerImage)
+                -[:{rel_label}]->(:GCPArtifactRegistryPlatformImage {{id: $stale_image_id}})
+                RETURN count(*) AS count
+                """,
+                stale_image_id=stale_platform["id"],
+            ).single()["count"]
+            == 0
+        )
