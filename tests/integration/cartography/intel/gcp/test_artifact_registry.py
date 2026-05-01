@@ -426,7 +426,9 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
             r._module_name AS rel_module_name,
-            r._module_version AS rel_module_version
+            r._module_version AS rel_module_version,
+            r._sub_resource_label AS rel_sub_resource_label,
+            r._sub_resource_id AS rel_sub_resource_id
         """,
         project_id=project_id,
         image_id=first_image_id,
@@ -439,6 +441,22 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
     assert result["rel_module_name"] == "cartography:gcp"
     assert result["rel_module_version"]
+    assert result["rel_sub_resource_label"] == "GCPProject"
+    assert result["rel_sub_resource_id"] == project_id
+
+    repo_rel_result = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
+        -[r:CONTAINS]->(:GCPArtifactRegistryContainerImage {id: $image_id})
+        RETURN
+            r._sub_resource_label AS rel_sub_resource_label,
+            r._sub_resource_id AS rel_sub_resource_id
+        """,
+        repo_id=repo_1,
+        image_id=first_image_id,
+    ).single()
+    assert repo_rel_result["rel_sub_resource_label"] == "GCPProject"
+    assert repo_rel_result["rel_sub_resource_id"] == project_id
 
     first_node_firstseen = result["node_firstseen"]
     first_rel_firstseen = result["rel_firstseen"]
@@ -595,7 +613,9 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
             r._module_name AS rel_module_name,
-            r._module_version AS rel_module_version
+            r._module_version AS rel_module_version,
+            r._sub_resource_label AS rel_sub_resource_label,
+            r._sub_resource_id AS rel_sub_resource_id
         """,
         project_id=project_id,
         layer_id=f"sha256:{project_id}-shared",
@@ -605,6 +625,8 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert layer_result["rel_lastupdated"] == TEST_UPDATE_TAG
     assert layer_result["rel_module_name"] == "cartography:gcp"
     assert layer_result["rel_module_version"]
+    assert layer_result["rel_sub_resource_label"] == "GCPProject"
+    assert layer_result["rel_sub_resource_id"] == project_id
 
     image_firstseen = image_result["firstseen"]
     layer_node_firstseen = layer_result["node_firstseen"]
@@ -730,7 +752,9 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
             r._module_name AS rel_module_name,
-            r._module_version AS rel_module_version
+            r._module_version AS rel_module_version,
+            r._sub_resource_label AS rel_sub_resource_label,
+            r._sub_resource_id AS rel_sub_resource_id
         """,
         project_id=project_id,
         image_id=first_platform_id,
@@ -743,6 +767,8 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
     assert result["rel_module_name"] == "cartography:gcp"
     assert result["rel_module_version"]
+    assert result["rel_sub_resource_label"] == "GCPProject"
+    assert result["rel_sub_resource_id"] == project_id
 
     first_node_firstseen = result["node_firstseen"]
     first_rel_firstseen = result["rel_firstseen"]
@@ -759,10 +785,14 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
             has_manifest.lastupdated AS has_manifest_lastupdated,
             has_manifest._module_name AS has_manifest_module_name,
             has_manifest._module_version AS has_manifest_module_version,
+            has_manifest._sub_resource_label AS has_manifest_sub_resource_label,
+            has_manifest._sub_resource_id AS has_manifest_sub_resource_id,
             contains_image.firstseen AS contains_image_firstseen,
             contains_image.lastupdated AS contains_image_lastupdated,
             contains_image._module_name AS contains_image_module_name,
-            contains_image._module_version AS contains_image_module_version
+            contains_image._module_version AS contains_image_module_version,
+            contains_image._sub_resource_label AS contains_image_sub_resource_label,
+            contains_image._sub_resource_id AS contains_image_sub_resource_id
         """,
         parent_id=platform_images[0]["parent_artifact_id"],
         image_id=first_platform_id,
@@ -770,9 +800,13 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     assert parent_rel_result["has_manifest_lastupdated"] == TEST_UPDATE_TAG
     assert parent_rel_result["has_manifest_module_name"] == "cartography:gcp"
     assert parent_rel_result["has_manifest_module_version"]
+    assert parent_rel_result["has_manifest_sub_resource_label"] == "GCPProject"
+    assert parent_rel_result["has_manifest_sub_resource_id"] == project_id
     assert parent_rel_result["contains_image_lastupdated"] == TEST_UPDATE_TAG
     assert parent_rel_result["contains_image_module_name"] == "cartography:gcp"
     assert parent_rel_result["contains_image_module_version"]
+    assert parent_rel_result["contains_image_sub_resource_label"] == "GCPProject"
+    assert parent_rel_result["contains_image_sub_resource_id"] == project_id
 
     load_manifests(neo4j_session, platform_images, project_id, TEST_UPDATE_TAG + 1)
 

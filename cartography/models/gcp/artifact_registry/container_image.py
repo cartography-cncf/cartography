@@ -82,6 +82,8 @@ class GCPArtifactRegistryContainerImageMatchLinkProperties(CartographyRelPropert
 
 
 @dataclass(frozen=True)
+# Mirrors GCPArtifactRegistryContainerImageToProjectRel for relationship-only writes.
+# Keep the relationship shape in sync.
 class GCPArtifactRegistryProjectToContainerImageRel(CartographyRelSchema):
     source_node_label: str = "GCPProject"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -99,6 +101,8 @@ class GCPArtifactRegistryProjectToContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# Mirrors GCPArtifactRegistryContainerImageToRepositoryRel for relationship-only writes.
+# Keep the relationship shape in sync.
 class GCPArtifactRegistryRepositoryToContainerImageRel(CartographyRelSchema):
     source_node_label: str = "GCPArtifactRegistryRepository"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

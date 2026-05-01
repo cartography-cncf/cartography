@@ -49,6 +49,8 @@ class GCPArtifactRegistryImageLayerMatchLinkProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
+# Mirrors GCPArtifactRegistryImageLayerToProjectRel for relationship-only writes.
+# Keep the relationship shape in sync.
 class GCPArtifactRegistryProjectToImageLayerRel(CartographyRelSchema):
     source_node_label: str = "GCPProject"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
