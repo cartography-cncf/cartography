@@ -54,7 +54,7 @@ class YourServiceUserSchema(CartographyNodeSchema):
 
 ## Sub-resource relationships always point to a tenant
 
-The `sub_resource_relationship` must point to a tenant-like node — the ownership / organisational boundary used for cleanup.
+For child resources, the `sub_resource_relationship` must point to a tenant-like node, the ownership / organisational boundary used for cleanup. Root-level / global feed schemas (e.g. the tenant itself, or shared threat-intel data) intentionally leave `sub_resource_relationship` unset and pair that with `scoped_cleanup = False`.
 
 | Provider           | Tenant-like node          |
 | ------------------ | ------------------------- |

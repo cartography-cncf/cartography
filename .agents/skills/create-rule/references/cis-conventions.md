@@ -141,6 +141,10 @@ _cis_aws_1_14_fact = Fact(
     WHERE key.create_date < datetime() - duration('P90D')
     RETURN key
     """,
+    cypher_count_query="""
+    MATCH (key:AccountAccessKey)
+    RETURN COUNT(key) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

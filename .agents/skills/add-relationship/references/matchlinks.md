@@ -25,12 +25,13 @@ role_assignments = [
 
 @dataclass(frozen=True)
 class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
-    target_node_label: str = "AWSRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+    # (AWSRole)-[:ALLOWED_BY]->(AWSSSOUser)
+    source_node_label: str = "AWSRole"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
         "arn": PropertyRef("RoleArn"),
     })
-    source_node_label: str = "AWSSSOUser"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
+    target_node_label: str = "AWSSSOUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "id": PropertyRef("UserId"),
     })
     direction: LinkDirection = LinkDirection.OUTWARD
@@ -85,7 +86,7 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
         "id": PropertyRef("findingarn"),
     })
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_VULNERABLE_PACKAGE"
+    rel_label: str = "HAS"
     properties: InspectorFindingToPackageRelProperties = InspectorFindingToPackageRelProperties()
 ```
 

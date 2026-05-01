@@ -32,6 +32,7 @@ Checklist:
 @dataclass(frozen=True)  # do not forget frozen=True
 class YourNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")  # must have type annotation
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 ```
 
 Common causes:

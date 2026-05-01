@@ -63,6 +63,10 @@ _aws_public_databases = Fact(
     WHERE db.publicly_accessible = true
     RETURN db
     """,
+    cypher_count_query="""
+    MATCH (db:RDSInstance)
+    RETURN COUNT(db) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -70,15 +74,17 @@ _aws_public_databases = Fact(
 
 **Fact fields:**
 
-| Field                | Required | Notes                                             |
-| -------------------- | :------: | ------------------------------------------------- |
-| `id`                 | Yes      | lowercase + hyphens                               |
-| `name`               | Yes      | human-readable                                    |
-| `description`        | Yes      | what this fact detects                            |
-| `cypher_query`       | Yes      | structured rows; `AS` aliases match Finding fields|
-| `cypher_visual_query`| Yes      | returns nodes for visualization                   |
-| `module`             | Yes      | `Module.AWS`, `Module.AZURE`, `Module.GCP`, ...   |
-| `maturity`           | Yes      | `Maturity.EXPERIMENTAL` or `Maturity.STABLE`      |
+| Field                | Required | Notes                                                      |
+| -------------------- | :------: | ---------------------------------------------------------- |
+| `id`                 | Yes      | lowercase + hyphens                                        |
+| `name`               | Yes      | human-readable                                             |
+| `description`        | Yes      | what this fact detects                                     |
+| `cypher_query`       | Yes      | structured rows; `AS` aliases match Finding fields         |
+| `cypher_visual_query`| Yes      | returns nodes for visualization                            |
+| `cypher_count_query` | Yes      | total assets evaluated; `RETURN COUNT(...) AS count`       |
+| `module`             | Yes      | `Module.AWS`, `Module.AZURE`, `Module.GCP`, ...            |
+| `maturity`           | Yes      | `Maturity.EXPERIMENTAL` or `Maturity.STABLE`               |
+| `asset_id_field`     | No       | finding field that uniquely identifies an asset (dedupe)   |
 
 ### Step 3 — Define the Finding output model
 
@@ -251,7 +257,11 @@ _unmanaged_accounts = Fact(
     WHERE NOT (ua)<-[:HAS_ACCOUNT]-(:User)
     RETURN ua
     """,
-    module=Module.ONTOLOGY,
+    cypher_count_query="""
+    MATCH (ua:UserAccount)
+    RETURN COUNT(ua) AS count
+    """,
+    module=Module.CROSS_CLOUD,
     maturity=Maturity.STABLE,
 )
 ```

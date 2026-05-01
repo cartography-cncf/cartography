@@ -83,6 +83,9 @@ If you need conditional behaviour, handle it in `transform()` (set fields to `No
 - `direction: LinkDirection`
 - `rel_label: str`
 - `properties: CartographyRelProperties` subclass
+- `source_node_label: str` (MatchLink only)
+- `source_node_matcher: SourceNodeMatcher` (MatchLink only)
+- `source_node_sub_resource: MatchLinkSubResource` (MatchLink only, optional)
 
 ### Standard `CartographyNodeSchema` fields
 

@@ -19,12 +19,16 @@ _unmanaged_accounts = Fact(
     WHERE NOT (ua)<-[:HAS_ACCOUNT]-(:User)
     RETURN ua
     """,
-    module=Module.ONTOLOGY,
+    cypher_count_query="""
+    MATCH (ua:UserAccount)
+    RETURN COUNT(ua) AS count
+    """,
+    module=Module.CROSS_CLOUD,
     maturity=Maturity.STABLE,
 )
 ```
 
-`Module.ONTOLOGY` signals that the fact spans modules via the ontology layer.
+`Module.CROSS_CLOUD` signals that the fact spans modules (via the ontology layer or otherwise).
 
 ## Available `_ont_*` properties
 
