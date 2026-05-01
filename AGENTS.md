@@ -6,26 +6,24 @@ This guide teaches you how to write intel modules for Cartography using the mode
 
 ## Table of Contents
 
-1. [Procedure Documentation](#procedure-documentation) - Links to detailed guides
+1. [Procedure Skills](#procedure-skills) - Auto-loaded skills under `.agents/skills/`
 2. [AI Assistant Quick Reference](#ai-assistant-quick-reference) - Key concepts and imports
 3. [Git and Pull Request Guidelines](#git-and-pull-request-guidelines) - Commit signing and PR templates
 4. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
 5. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
 
-## Procedure Documentation
+## Procedure Skills
 
-Detailed procedures are available in separate documents:
+Procedures for building and extending Cartography intel modules ship as Claude skills under `.agents/skills/`. Skill-aware agents auto-load each skill from its YAML frontmatter when a relevant task starts; you do not need to open the files manually. The available skills are:
 
-| Procedure | Description |
-|-----------|-------------|
-| [Creating a New Module](docs/root/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
-| [Enriching the Ontology](docs/root/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
-| [Adding a New Node Type](docs/root/agents/add-node-type.md) | Advanced node schema properties and configurations |
-| [Adding a New Relationship](docs/root/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
-| [Adding Analysis Jobs](docs/root/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
-| [Creating Security Rules](docs/root/agents/create-rule.md) | Security rules, facts, and compliance conventions |
-| [Refactoring Legacy Code](docs/root/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
-| [Troubleshooting](docs/root/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
+- `create-module`
+- `add-node-type`
+- `add-relationship`
+- `analysis-jobs`
+- `create-rule`
+- `enrich-ontology`
+- `refactor-legacy`
+- `troubleshooting`
 
 ## AI Assistant Quick Reference
 
@@ -107,7 +105,7 @@ The fastest way to get started is to copy the structure from an existing module:
 - **Complex module**: `cartography/intel/aws/ec2/instances.py` - Multiple relationships and data types
 - **Reference documentation**: `docs/root/dev/writing-intel-modules.md`
 
-For detailed step-by-step instructions, see [Creating a New Module](docs/root/agents/create-module.md).
+For detailed step-by-step instructions, use the `create-module` skill.
 
 ---
 
