@@ -567,6 +567,15 @@ def sync(
             GCPArtifactRegistryImageLayerSchema(),
             cleanup_params,
         ).run(neo4j_session)
+        # The split write path attaches this relationship with a MatchLink, so
+        # clean it explicitly after node cleanup has used the project RESOURCE
+        # edge to scope stale node deletion.
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryProjectToImageLayerRel(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))

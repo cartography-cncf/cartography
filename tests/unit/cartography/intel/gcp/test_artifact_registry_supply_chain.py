@@ -141,6 +141,11 @@ def patched_sync(monkeypatch):
         "from_node_schema",
         MagicMock(return_value=fake_job),
     )
+    monkeypatch.setattr(
+        supply_chain.GraphJob,
+        "from_matchlink",
+        MagicMock(return_value=fake_job),
+    )
     monkeypatch.setattr(supply_chain, "load_image_provenance", MagicMock())
     monkeypatch.setattr(supply_chain, "load_image_layers", MagicMock())
 
@@ -302,7 +307,7 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert len(cleanup_runs) == 1
+    assert len(cleanup_runs) == 2
 
 
 def test_sync_skips_cleanup_when_fetch_failures(patched_sync):
