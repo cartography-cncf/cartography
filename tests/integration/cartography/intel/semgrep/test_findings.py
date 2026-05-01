@@ -451,7 +451,7 @@ def test_sync_findings(
     }
 
 
-def test_sync_oss_sast_findings(neo4j_session):
+def test_sync_oss_sast_findings(neo4j_session, tmp_path):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_github_repos(neo4j_session)
@@ -464,8 +464,21 @@ def test_sync_oss_sast_findings(neo4j_session):
         / "semgrep"
         / "oss_sast_report.json"
     )
+    metadata_fixture_path = (
+        Path(__file__).resolve().parents[4] / "data" / "semgrep" / "repo_metadata.yaml"
+    )
     report = json.loads(fixture_path.read_text())
-    source = parse_report_source(str(fixture_path))
+    source_root = tmp_path / "github" / "simpsoncorp" / "sample_repo" / "main"
+    source_root.mkdir(parents=True, exist_ok=True)
+    (source_root / "oss_sast_report.json").write_text(
+        fixture_path.read_text(),
+        encoding="utf-8",
+    )
+    (source_root / "repo_metadata.yaml").write_text(
+        metadata_fixture_path.read_text(),
+        encoding="utf-8",
+    )
+    source = parse_report_source(str(source_root))
 
     # Act
     with build_report_reader_for_source(source) as reader:
@@ -478,7 +491,9 @@ def test_sync_oss_sast_findings(neo4j_session):
 
     # Build expected finding IDs from test data
     results = report["results"]
-    expected_ids = [_build_oss_sast_finding_id(r) for r in results]
+    expected_ids = [
+        _build_oss_sast_finding_id(r, "simpsoncorp/sample_repo") for r in results
+    ]
 
     # Assert synthetic deployment node
     assert check_nodes(

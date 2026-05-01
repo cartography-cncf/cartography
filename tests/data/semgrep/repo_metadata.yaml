@@ -1,0 +1,5 @@
+provider: "github"
+owner: "simpsoncorp"
+repo: "sample_repo"
+url: "https://github.com/simpsoncorp/sample_repo"
+branch: "main"

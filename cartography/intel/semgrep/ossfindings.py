@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 import neo4j
+import yaml
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -45,12 +46,14 @@ def _looks_like_semgrep_oss_report(document: Any) -> bool:
 @timeit
 def get_semgrep_oss_reports(
     reader: ReportReader,
-) -> list[tuple[ReportRef, dict[str, Any]]]:
+) -> tuple[list[tuple[ReportRef, dict[str, Any]]], bool]:
     """
     Read Semgrep OSS JSON reports from a provider-agnostic report source.
 
     Returns:
-        List of (ref, parsed_document) pairs for valid Semgrep OSS reports.
+        A tuple of:
+        - List of (ref, parsed_document) pairs for valid Semgrep OSS reports.
+        - Whether at least one valid Semgrep OSS report was successfully read.
     """
     refs = filter_report_refs(
         reader.list_reports(),
@@ -62,7 +65,7 @@ def get_semgrep_oss_reports(
             "Semgrep OSS sync was configured, but no JSON reports were found in %s",
             reader.source_uri,
         )
-        return []
+        return [], False
 
     reports: list[tuple[ReportRef, dict[str, Any]]] = []
 
@@ -79,7 +82,7 @@ def get_semgrep_oss_reports(
 
         reports.append((ref, document))
 
-    return reports
+    return reports, bool(reports)
 
 
 def _is_oss_sast_result(result: dict[str, Any]) -> bool:
@@ -103,10 +106,11 @@ def _is_oss_sast_result(result: dict[str, Any]) -> bool:
     return True
 
 
-def _build_oss_sast_finding_id(result: dict[str, Any]) -> str:
+def _build_oss_sast_finding_id(result: dict[str, Any], repository_name: str) -> str:
     """
     Build a stable synthetic ID for OSS findings since Semgrep OSS CLI output
-    does not include the Semgrep Cloud finding ID.
+    does not include the Semgrep Cloud finding ID. Include repository name
+    so identical findings in different repositories do not collide.
     """
     raw_id = "|".join(
         [
@@ -116,14 +120,74 @@ def _build_oss_sast_finding_id(result: dict[str, Any]) -> str:
             str(result.get("start", {}).get("col", "")),
             str(result.get("end", {}).get("line", "")),
             str(result.get("end", {}).get("col", "")),
+            repository_name,
         ],
     )
     digest = hashlib.sha256(raw_id.encode("utf-8")).hexdigest()
     return f"semgrep-oss-sast-{digest}"
 
 
+def _get_semgrep_oss_repo_context(reader: ReportReader) -> dict[str, str]:
+    """
+    Load repository metadata from the single YAML file stored alongside
+    Semgrep OSS reports in the configured report source.
+    """
+    metadata_refs = filter_report_refs(reader.list_reports(), suffix=".yaml")
+    metadata_refs.extend(filter_report_refs(reader.list_reports(), suffix=".yml"))
+
+    if not metadata_refs:
+        raise ValueError(
+            "Semgrep OSS source must contain exactly one YAML metadata file with "
+            "provider, owner, repo, url, and branch fields."
+        )
+    if len(metadata_refs) > 1:
+        raise ValueError(
+            "Semgrep OSS source must contain exactly one YAML metadata file; "
+            f"found {len(metadata_refs)}: {[ref.uri for ref in metadata_refs]}"
+        )
+
+    metadata_ref = metadata_refs[0]
+    try:
+        metadata_document = yaml.safe_load(
+            reader.read_bytes(metadata_ref).decode("utf-8")
+        )
+    except ObjectStoreError:
+        raise
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            f"Semgrep OSS metadata file must be valid UTF-8 YAML: {metadata_ref.uri}"
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise ValueError(
+            f"Semgrep OSS metadata file must be valid YAML: {metadata_ref.uri}"
+        ) from exc
+
+    if not isinstance(metadata_document, dict):
+        raise ValueError(
+            "Semgrep OSS metadata file must contain a YAML mapping with provider, "
+            f"owner, repo, url, and branch fields: {metadata_ref.uri}"
+        )
+
+    required_fields = ("provider", "owner", "repo", "url", "branch")
+    missing_fields = [
+        field for field in required_fields if not metadata_document.get(field)
+    ]
+    if missing_fields:
+        raise ValueError(
+            "Semgrep OSS metadata file is missing required fields "
+            f"{missing_fields}: {metadata_ref.uri}"
+        )
+
+    return {
+        "repositoryName": f"{metadata_document['owner']}/{metadata_document['repo']}",
+        "repositoryUrl": str(metadata_document["url"]),
+        "branch": str(metadata_document["branch"]),
+    }
+
+
 def transform_oss_semgrep_sast_report(
     report: dict[str, Any],
+    repo_context: dict[str, str],
 ) -> list[dict[str, Any]]:
     """
     Transform a Semgrep OSS CLI JSON report into rows loadable by
@@ -133,11 +197,6 @@ def transform_oss_semgrep_sast_report(
     if not isinstance(raw_results, list):
         raise ValueError("Semgrep OSS report must contain a top-level 'results' list.")
 
-    repository = report.get("repository", {})
-    repository_name = repository.get("name") if isinstance(repository, dict) else None
-    repository_url = repository.get("url") if isinstance(repository, dict) else None
-    branch = repository.get("branch") if isinstance(repository, dict) else None
-
     transformed: list[dict[str, Any]] = []
 
     for result in raw_results:
@@ -145,12 +204,11 @@ def transform_oss_semgrep_sast_report(
             continue
 
         row = dict(result)
-        row["id"] = _build_oss_sast_finding_id(result)
+        row["id"] = _build_oss_sast_finding_id(result, repo_context["repositoryName"])
 
-        # Inject repository context from the top-level report metadata.
-        row["repositoryName"] = repository_name
-        row["repositoryUrl"] = repository_url
-        row["branch"] = branch
+        row.update(repo_context)
+        category = result.get("extra", {}).get("metadata", {}).get("category")
+        row["categories"] = [category] if category is not None else []
 
         transformed.append(row)
 
@@ -211,12 +269,14 @@ def sync_oss_semgrep_sast_findings(
     """
     End-to-end sync for OSS Semgrep SAST findings: get, transform, load, cleanup.
     """
-    reports = get_semgrep_oss_reports(reader)
+    repo_context = _get_semgrep_oss_repo_context(reader)
+    reports, processed_reports = get_semgrep_oss_reports(reader)
 
     all_findings: list[dict[str, Any]] = []
+
     for ref, document in reports:
         logger.info("Transforming OSS Semgrep SAST findings from %s", ref.uri)
-        all_findings.extend(transform_oss_semgrep_sast_report(document))
+        all_findings.extend(transform_oss_semgrep_sast_report(document, repo_context))
 
     if all_findings:
         logger.info(
@@ -224,5 +284,11 @@ def sync_oss_semgrep_sast_findings(
         )
         load_oss_semgrep_sast_findings(neo4j_session, all_findings, update_tag)
 
-    common_job_parameters["DEPLOYMENT_ID"] = OSS_DEPLOYMENT_ID
-    cleanup_oss_semgrep_sast_findings(neo4j_session, common_job_parameters)
+    if processed_reports:
+        common_job_parameters["DEPLOYMENT_ID"] = OSS_DEPLOYMENT_ID
+        cleanup_oss_semgrep_sast_findings(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping OSS Semgrep cleanup because no valid reports were processed from %s.",
+            reader.source_uri,
+        )
