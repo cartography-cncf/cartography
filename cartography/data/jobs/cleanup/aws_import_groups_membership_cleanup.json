@@ -1,8 +1,0 @@
-{
-  "statements": [{
-    "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSUser)-[r:MEMBER_AWS_GROUP]->(:AWSGroup) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  }],
-  "name": "cleanup MEMBER_AWS_GROUP"
-}

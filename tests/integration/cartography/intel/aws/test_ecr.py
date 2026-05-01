@@ -1,5 +1,4 @@
 import datetime
-import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -305,11 +304,8 @@ def test_cleanup_repositories(neo4j_session):
     # Arrange
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     repo_data = {**tests.data.aws.ecr.DESCRIBE_REPOSITORIES}
-    # add additional repository noes, for a total of 103, since
-    cleanup_jobs = json.load(
-        open("./cartography/data/jobs/cleanup/aws_import_ecr_cleanup.json"),
-    )
-    iter_size = cleanup_jobs["statements"][-1]["iterationsize"]
+    # Schema-driven cleanup batches deletions in chunks of 100.
+    iter_size = 100
     repo_data["repositories"].extend(
         [
             {
