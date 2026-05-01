@@ -7,13 +7,16 @@ import pytest
 import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
+from cartography.intel.aws.identitycenter import cleanup
 from cartography.intel.aws.identitycenter import get_permission_sets
+from cartography.intel.aws.identitycenter import load_account_assignments
 from cartography.intel.aws.identitycenter import load_group_roles
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
 from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
+from cartography.intel.aws.identitycenter import transform_account_assignments
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -24,6 +27,16 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "1234567890"
+TEST_INSTANCE_ARN = "arn:aws:sso:::instance/ssoins-12345678901234567"
+TEST_IDENTITY_STORE_ID = "d-1234567890"
+TEST_REGION = "us-west-2"
+
+
+def _ensure_aws_account(neo4j_session, account_id=TEST_ACCOUNT_ID):
+    neo4j_session.run(
+        "MERGE (:AWSAccount {id: $account_id})",
+        account_id=account_id,
+    )
 
 
 def test_load_sso_users(neo4j_session):
@@ -305,6 +318,398 @@ def test_link_sso_user_to_permission_set(neo4j_session):
             user["UserId"],
             ps["PermissionSetArn"],
         )
+    }
+
+
+def test_load_user_account_assignment(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_aws_account(neo4j_session)
+    user = transform_sso_users(tests.data.aws.identitycenter.LIST_USERS)[0]
+    permission_set = tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+    role_arn = (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/aws-reserved/"
+        "sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_Test"
+    )
+
+    load_identity_center_instances(
+        neo4j_session,
+        tests.data.aws.identitycenter.LIST_INSTANCES,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_sso_users(
+        neo4j_session,
+        [user],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_permission_sets(
+        neo4j_session,
+        [permission_set],
+        TEST_INSTANCE_ARN,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        [
+            {
+                "arn": role_arn,
+                "name": "AWSReservedSSO_AdministratorAccess_Test",
+                "roleid": "AIDAROLEASSIGNMENT",
+                "path": "/aws-reserved/sso.amazonaws.com/",
+                "createdate": "2023-01-01",
+                "trusted_aws_principals": [],
+            },
+        ],
+        lastupdated="test_tag",
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    assignments = transform_account_assignments(
+        [
+            {
+                "UserId": user["UserId"],
+                "AccountId": TEST_ACCOUNT_ID,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+                "RoleArn": role_arn,
+            },
+        ],
+        "USER",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    load_account_assignments(
+        neo4j_session,
+        assignments,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    assignment_id = assignments[0]["AssignmentId"]
+    assert check_nodes(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        ["id", "principal_type", "principal_id"],
+    ) == {
+        (assignment_id, "USER", user["UserId"]),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSSSOUser",
+        "id",
+        "ASSIGNED_TO",
+        True,
+    ) == {
+        (assignment_id, user["UserId"]),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSPermissionSet",
+        "arn",
+        "GRANTS_PERMISSION_SET",
+        True,
+    ) == {
+        (assignment_id, permission_set["PermissionSetArn"]),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSAccount",
+        "id",
+        "TARGETS_ACCOUNT",
+        True,
+    ) == {
+        (assignment_id, TEST_ACCOUNT_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSIdentityCenter",
+        "id",
+        "ASSIGNMENT_IN",
+        True,
+    ) == {
+        (assignment_id, TEST_INSTANCE_ARN),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSRole",
+        "arn",
+        "MATERIALIZES_AS",
+        True,
+    ) == {
+        (assignment_id, role_arn),
+    }
+
+
+def test_load_group_account_assignment_and_inherited_user_query(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_aws_account(neo4j_session)
+    user = transform_sso_users(
+        tests.data.aws.identitycenter.LIST_USERS,
+        {
+            tests.data.aws.identitycenter.LIST_USERS[0]["UserId"]: [
+                tests.data.aws.identitycenter.LIST_GROUPS[0]["GroupId"]
+            ]
+        },
+    )[0]
+    group = transform_sso_groups(tests.data.aws.identitycenter.LIST_GROUPS)[0]
+    permission_set = tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+
+    load_sso_groups(
+        neo4j_session,
+        [group],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_sso_users(
+        neo4j_session,
+        [user],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_permission_sets(
+        neo4j_session,
+        [permission_set],
+        TEST_INSTANCE_ARN,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    assignments = transform_account_assignments(
+        [
+            {
+                "GroupId": group["GroupId"],
+                "AccountId": TEST_ACCOUNT_ID,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+            },
+        ],
+        "GROUP",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    load_account_assignments(
+        neo4j_session,
+        assignments,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    assignment_id = assignments[0]["AssignmentId"]
+    assert check_nodes(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        ["id", "principal_type", "principal_id"],
+    ) == {
+        (assignment_id, "GROUP", group["GroupId"]),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSSSOGroup",
+        "id",
+        "ASSIGNED_TO",
+        True,
+    ) == {
+        (assignment_id, group["GroupId"]),
+    }
+
+    inherited_assignments = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $user_id})-[:MEMBER_OF_SSO_GROUP]->(group:AWSSSOGroup)
+        MATCH (group)<-[:ASSIGNED_TO]-(assignment:AWSSSOAccountAssignment)
+        RETURN assignment.id AS assignment_id
+        """,
+        user_id=user["UserId"],
+    )
+    assert {record["assignment_id"] for record in inherited_assignments} == {
+        assignment_id,
+    }
+
+
+def test_direct_and_group_assignments_do_not_collapse_provenance(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_aws_account(neo4j_session)
+    user = transform_sso_users(tests.data.aws.identitycenter.LIST_USERS)[0]
+    group = transform_sso_groups(tests.data.aws.identitycenter.LIST_GROUPS)[0]
+    permission_set = tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+
+    load_sso_users(
+        neo4j_session,
+        [user],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_sso_groups(
+        neo4j_session,
+        [group],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_permission_sets(
+        neo4j_session,
+        [permission_set],
+        TEST_INSTANCE_ARN,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    user_assignments = transform_account_assignments(
+        [
+            {
+                "UserId": user["UserId"],
+                "AccountId": TEST_ACCOUNT_ID,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+            },
+        ],
+        "USER",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    group_assignments = transform_account_assignments(
+        [
+            {
+                "GroupId": group["GroupId"],
+                "AccountId": TEST_ACCOUNT_ID,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+            },
+        ],
+        "GROUP",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    load_account_assignments(
+        neo4j_session,
+        user_assignments + group_assignments,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        ["principal_type", "principal_id", "permission_set_arn"],
+    ) == {
+        ("USER", user["UserId"], permission_set["PermissionSetArn"]),
+        ("GROUP", group["GroupId"], permission_set["PermissionSetArn"]),
+    }
+
+
+def test_cleanup_removes_stale_account_assignments_and_matchlinks(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale_account_id = "111111111111"
+    _ensure_aws_account(neo4j_session)
+    _ensure_aws_account(neo4j_session, stale_account_id)
+    user = transform_sso_users(tests.data.aws.identitycenter.LIST_USERS)[0]
+    permission_set = tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+
+    load_sso_users(
+        neo4j_session,
+        [user],
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        2,
+    )
+    load_permission_sets(
+        neo4j_session,
+        [permission_set],
+        TEST_INSTANCE_ARN,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        2,
+    )
+
+    stale_assignments = transform_account_assignments(
+        [
+            {
+                "UserId": user["UserId"],
+                "AccountId": stale_account_id,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+            },
+        ],
+        "USER",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    current_assignments = transform_account_assignments(
+        [
+            {
+                "UserId": user["UserId"],
+                "AccountId": TEST_ACCOUNT_ID,
+                "PermissionSetArn": permission_set["PermissionSetArn"],
+            },
+        ],
+        "USER",
+        TEST_INSTANCE_ARN,
+        TEST_IDENTITY_STORE_ID,
+        TEST_REGION,
+    )
+    load_account_assignments(
+        neo4j_session,
+        stale_assignments,
+        TEST_ACCOUNT_ID,
+        1,
+    )
+    load_account_assignments(
+        neo4j_session,
+        current_assignments,
+        TEST_ACCOUNT_ID,
+        2,
+    )
+
+    cleanup(
+        neo4j_session,
+        {"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 2},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        ["id"],
+    ) == {
+        (current_assignments[0]["AssignmentId"],),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOAccountAssignment",
+        "id",
+        "AWSSSOUser",
+        "id",
+        "ASSIGNED_TO",
+        True,
+    ) == {
+        (current_assignments[0]["AssignmentId"], user["UserId"]),
     }
 
 
