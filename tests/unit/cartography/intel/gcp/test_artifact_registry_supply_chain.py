@@ -141,7 +141,8 @@ def patched_sync(monkeypatch):
         "from_node_schema",
         MagicMock(return_value=fake_job),
     )
-    monkeypatch.setattr(supply_chain, "load", MagicMock())
+    monkeypatch.setattr(supply_chain, "load_image_provenance", MagicMock())
+    monkeypatch.setattr(supply_chain, "load_image_layers", MagicMock())
 
     def _set_enrichments(enrichments, fetch_failures=0):
         async def _fake_fetch(*_args, **_kwargs):
@@ -150,6 +151,141 @@ def patched_sync(monkeypatch):
         monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", _fake_fetch)
 
     return _set_enrichments, cleanup_runs
+
+
+def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
+    set_enrichments, _cleanup_runs = patched_sync
+    enrichments = [
+        {
+            "id": "img-1",
+            "source_uri": "https://github.com/foo/bar",
+            "source_revision": "deadbeef",
+            "source_file": "Dockerfile",
+            "layer_diff_ids": ["sha256:a", "sha256:b"],
+            "layer_history": [
+                {"created_by": "FROM scratch", "empty_layer": False},
+                {"created_by": "RUN build", "empty_layer": False},
+            ],
+        },
+        {
+            "id": "img-2",
+            "layer_diff_ids": ["sha256:a"],
+            "layer_history": [],
+        },
+    ]
+    set_enrichments(enrichments=enrichments, fetch_failures=0)
+    neo4j_session = MagicMock()
+
+    supply_chain.sync(
+        neo4j_session=neo4j_session,
+        credentials=MagicMock(),
+        docker_artifacts_raw=[{"name": "img"}],
+        project_id="proj",
+        update_tag=1,
+        common_job_parameters={},
+        cleanup_safe=True,
+    )
+
+    supply_chain.load_image_provenance.assert_called_once_with(
+        neo4j_session,
+        [
+            {
+                "id": "img-1",
+                "source_uri": "https://github.com/foo/bar",
+                "source_revision": "deadbeef",
+                "source_file": "Dockerfile",
+                "layer_diff_ids": ["sha256:a", "sha256:b"],
+            },
+            {
+                "id": "img-2",
+                "source_uri": None,
+                "source_revision": None,
+                "source_file": None,
+                "layer_diff_ids": ["sha256:a"],
+            },
+        ],
+        "proj",
+        1,
+    )
+    supply_chain.load_image_layers.assert_called_once()
+    layer_call_args = supply_chain.load_image_layers.call_args.args
+    assert layer_call_args[0] == neo4j_session
+    assert {layer["diff_id"] for layer in layer_call_args[1]} == {
+        "sha256:a",
+        "sha256:b",
+    }
+    assert layer_call_args[2:] == ("proj", 1)
+
+
+def test_load_image_provenance_uses_node_only_progress_loader(monkeypatch):
+    load_nodes_without_relationships = MagicMock()
+    monkeypatch.setattr(
+        supply_chain,
+        "load_nodes_without_relationships",
+        load_nodes_without_relationships,
+    )
+    neo4j_session = MagicMock()
+    updates = [
+        {
+            "id": "img-1",
+            "source_uri": "https://github.com/foo/bar",
+            "source_revision": "deadbeef",
+            "source_file": "Dockerfile",
+            "layer_diff_ids": ["sha256:a"],
+        },
+    ]
+
+    supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
+
+    load_nodes_without_relationships.assert_called_once()
+    call = load_nodes_without_relationships.call_args
+    assert call.args[0] == neo4j_session
+    assert call.args[1].__class__.__name__ == (
+        "GCPArtifactRegistryContainerImageProvenanceSchema"
+    )
+    assert call.args[2] == updates
+    assert "provenance updates" in call.kwargs["progress_description"]
+    assert call.kwargs["lastupdated"] == 1
+    assert call.kwargs["PROJECT_ID"] == "proj"
+
+
+def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
+    load_nodes_without_relationships = MagicMock()
+    load_matchlinks_with_progress = MagicMock()
+    monkeypatch.setattr(
+        supply_chain,
+        "load_nodes_without_relationships",
+        load_nodes_without_relationships,
+    )
+    monkeypatch.setattr(
+        supply_chain,
+        "load_matchlinks_with_progress",
+        load_matchlinks_with_progress,
+    )
+    neo4j_session = MagicMock()
+    layers = [{"diff_id": "sha256:a", "history": "FROM scratch"}]
+
+    supply_chain.load_image_layers(neo4j_session, layers, "proj", 1)
+
+    load_nodes_without_relationships.assert_called_once()
+    node_call = load_nodes_without_relationships.call_args
+    assert node_call.args[0] == neo4j_session
+    assert node_call.args[1].__class__.__name__ == "GCPArtifactRegistryImageLayerSchema"
+    assert node_call.args[2] == layers
+    assert "image layer nodes" in node_call.kwargs["progress_description"]
+
+    load_matchlinks_with_progress.assert_called_once()
+    rel_call = load_matchlinks_with_progress.call_args
+    assert rel_call.args[0] == neo4j_session
+    assert rel_call.args[1].__class__.__name__ == (
+        "GCPArtifactRegistryProjectToImageLayerRel"
+    )
+    assert rel_call.args[2] == layers
+    assert "RESOURCE relationships" in rel_call.kwargs["progress_description"]
+    assert rel_call.kwargs["lastupdated"] == 1
+    assert rel_call.kwargs["PROJECT_ID"] == "proj"
+    assert rel_call.kwargs["_sub_resource_label"] == "GCPProject"
+    assert rel_call.kwargs["_sub_resource_id"] == "proj"
 
 
 def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):

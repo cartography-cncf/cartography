@@ -8,11 +8,17 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.gcp.clients import _resolve_credentials
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
@@ -23,6 +29,9 @@ from cartography.models.gcp.artifact_registry.container_image import (
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryProjectToImageLayerRel,
 )
 from cartography.util import timeit
 
@@ -422,6 +431,66 @@ def _build_layer_dicts(
 
 
 @timeit
+def load_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not provenance_updates:
+        return
+
+    load_nodes_without_relationships(
+        neo4j_session,
+        GCPArtifactRegistryContainerImageProvenanceSchema(),
+        provenance_updates,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry container image provenance updates for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def load_image_layers(
+    neo4j_session: neo4j.Session,
+    layer_dicts: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not layer_dicts:
+        return
+
+    schema = GCPArtifactRegistryImageLayerSchema()
+    load_nodes_without_relationships(
+        neo4j_session,
+        schema,
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer nodes for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToImageLayerRel(),
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer project RESOURCE relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: GoogleCredentials | None,
@@ -463,24 +532,16 @@ def sync(
             }
             for e in enrichments
         ]
-        load(
+        load_image_provenance(
             neo4j_session,
-            GCPArtifactRegistryContainerImageProvenanceSchema(),
             provenance_updates,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
+            project_id,
+            update_tag,
         )
 
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
-        logger.info("Loading %d image layer nodes", len(layer_dicts))
-        load(
-            neo4j_session,
-            GCPArtifactRegistryImageLayerSchema(),
-            layer_dicts,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
-        )
+        load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs

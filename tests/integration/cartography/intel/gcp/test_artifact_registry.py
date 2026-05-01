@@ -3,6 +3,7 @@ from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artifacts
@@ -12,6 +13,12 @@ from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artif
 from cartography.intel.gcp.artifact_registry.manifest import load_manifests
 from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
+)
+from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
+from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
+from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerSchema,
 )
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
@@ -452,6 +459,183 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG + 1
     assert "Image" in result["labels"]
     assert "ImageManifestList" not in result["labels"]
+
+
+def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleaned_up(
+    neo4j_session,
+):
+    project_id = "test-gar-supply-chain-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    docker_images = [_make_docker_image(repo_id, index) for index in range(30)]
+    load_docker_images(neo4j_session, docker_images, project_id, TEST_UPDATE_TAG)
+
+    enrichments = []
+    for index, image in enumerate(docker_images):
+        layer_a = f"sha256:{project_id}-shared"
+        layer_b = f"sha256:{project_id}-{index % 7}"
+        enrichments.append(
+            {
+                "id": image["id"],
+                "source_uri": "https://github.com/foo/bar",
+                "source_revision": f"revision-{index}",
+                "source_file": "Dockerfile",
+                "layer_diff_ids": [layer_a, layer_b],
+                "layer_history": [
+                    {"created_by": "FROM scratch", "empty_layer": False},
+                    {"created_by": f"RUN build {index}", "empty_layer": False},
+                ],
+            },
+        )
+
+    provenance_updates = [
+        {
+            "id": enrichment["id"],
+            "source_uri": enrichment.get("source_uri"),
+            "source_revision": enrichment.get("source_revision"),
+            "source_file": enrichment.get("source_file"),
+            "layer_diff_ids": enrichment.get("layer_diff_ids"),
+        }
+        for enrichment in enrichments
+    ]
+    layer_dicts = _build_layer_dicts(enrichments)
+    stale_layer = {
+        "diff_id": f"sha256:{project_id}-stale",
+        "history": "RUN stale",
+    }
+
+    load_image_provenance(
+        neo4j_session,
+        provenance_updates,
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_layers(
+        neo4j_session,
+        layer_dicts + [stale_layer],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    first_image_id = docker_images[0]["id"]
+    image_result = neo4j_session.run(
+        """
+        MATCH (:GCPProject {id: $project_id})
+        -[:RESOURCE]->(image:GCPArtifactRegistryContainerImage {id: $image_id})
+        RETURN
+            image.firstseen AS firstseen,
+            image.source_uri AS source_uri,
+            image.source_revision AS source_revision,
+            image.source_file AS source_file,
+            image.layer_diff_ids AS layer_diff_ids,
+            labels(image) AS labels
+        """,
+        project_id=project_id,
+        image_id=first_image_id,
+    ).single()
+    assert image_result["source_uri"] == "https://github.com/foo/bar"
+    assert image_result["source_revision"] == "revision-0"
+    assert image_result["source_file"] == "Dockerfile"
+    assert image_result["layer_diff_ids"] == [
+        f"sha256:{project_id}-shared",
+        f"sha256:{project_id}-0",
+    ]
+    assert "Image" in image_result["labels"]
+
+    layer_result = neo4j_session.run(
+        """
+        MATCH (:GCPProject {id: $project_id})
+        -[r:RESOURCE]->(layer:GCPArtifactRegistryImageLayer {id: $layer_id})
+        RETURN
+            layer.firstseen AS node_firstseen,
+            layer.history AS history,
+            labels(layer) AS labels,
+            r.firstseen AS rel_firstseen,
+            r.lastupdated AS rel_lastupdated,
+            r._module_name AS rel_module_name,
+            r._module_version AS rel_module_version
+        """,
+        project_id=project_id,
+        layer_id=f"sha256:{project_id}-shared",
+    ).single()
+    assert layer_result["history"] == "FROM scratch"
+    assert "ImageLayer" in layer_result["labels"]
+    assert layer_result["rel_lastupdated"] == TEST_UPDATE_TAG
+    assert layer_result["rel_module_name"] == "cartography:gcp"
+    assert layer_result["rel_module_version"]
+
+    image_firstseen = image_result["firstseen"]
+    layer_node_firstseen = layer_result["node_firstseen"]
+    layer_rel_firstseen = layer_result["rel_firstseen"]
+
+    load_image_provenance(
+        neo4j_session,
+        provenance_updates,
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+    load_image_layers(
+        neo4j_session,
+        layer_dicts,
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    rerun_result = neo4j_session.run(
+        """
+        MATCH (:GCPProject {id: $project_id})
+        -[r:RESOURCE]->(layer:GCPArtifactRegistryImageLayer {id: $layer_id})
+        MATCH (image:GCPArtifactRegistryContainerImage {id: $image_id})
+        RETURN
+            image.firstseen AS image_firstseen,
+            image.lastupdated AS image_lastupdated,
+            layer.firstseen AS layer_firstseen,
+            layer.lastupdated AS layer_lastupdated,
+            r.firstseen AS rel_firstseen,
+            r.lastupdated AS rel_lastupdated
+        """,
+        project_id=project_id,
+        image_id=first_image_id,
+        layer_id=f"sha256:{project_id}-shared",
+    ).single()
+    assert rerun_result["image_firstseen"] == image_firstseen
+    assert rerun_result["image_lastupdated"] == TEST_UPDATE_TAG + 1
+    assert rerun_result["layer_firstseen"] == layer_node_firstseen
+    assert rerun_result["layer_lastupdated"] == TEST_UPDATE_TAG + 1
+    assert rerun_result["rel_firstseen"] == layer_rel_firstseen
+    assert rerun_result["rel_lastupdated"] == TEST_UPDATE_TAG + 1
+
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryImageLayerSchema(),
+        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        iterationsize=1,
+    ).run(neo4j_session)
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})
+            -[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: $stale_layer_id})
+            RETURN count(*) AS count
+            """,
+            project_id=project_id,
+            stale_layer_id=stale_layer["diff_id"],
+        ).single()["count"]
+        == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})
+            -[:RESOURCE]->(layer:GCPArtifactRegistryImageLayer)
+            RETURN count(layer) AS count
+            """,
+            project_id=project_id,
+        ).single()["count"]
+        == len(layer_dicts)
+    )
 
 
 def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session):
