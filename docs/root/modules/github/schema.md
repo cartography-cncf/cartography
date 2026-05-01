@@ -421,6 +421,13 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Manifests are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    ```
+
 ### Dependency
 https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
 Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
@@ -456,6 +463,13 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
     ```
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
+
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Dependencies are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(Dependency)
     ```
 
 ### ImageTag to GitHubRepository (Cross-module relationship)

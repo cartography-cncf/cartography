@@ -28,6 +28,30 @@ class GitHubDependencyNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class GitHubDependencyToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubDependencyToOrganizationRel(CartographyRelSchema):
+    """
+    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(Dependency).
+    Dependencies are scoped to the organization for cleanup purposes so that a
+    single GraphJob run cleans up dependencies from every repo in the org.
+    """
+
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubDependencyToOrganizationRelProperties = (
+        GitHubDependencyToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubDependencyToRepositoryRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     requirements: PropertyRef = PropertyRef("requirements")
@@ -38,7 +62,7 @@ class GitHubDependencyToRepositoryRelProperties(CartographyRelProperties):
 class GitHubDependencyToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
+        {"id": PropertyRef("repo_url")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
@@ -56,7 +80,7 @@ class DependencyGraphManifestToDependencyRelProperties(CartographyRelProperties)
 class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
     target_node_label: str = "DependencyGraphManifest"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("manifest_id", set_in_kwargs=True)}
+        {"id": PropertyRef("manifest_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DEP"
@@ -69,9 +93,12 @@ class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
 class GitHubDependencySchema(CartographyNodeSchema):
     label: str = "Dependency"
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
-    sub_resource_relationship: GitHubDependencyToRepositoryRel = (
-        GitHubDependencyToRepositoryRel()
+    sub_resource_relationship: GitHubDependencyToOrganizationRel = (
+        GitHubDependencyToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [DependencyGraphManifestToDependencyRel()]
+        [
+            GitHubDependencyToRepositoryRel(),
+            DependencyGraphManifestToDependencyRel(),
+        ]
     )

@@ -1506,41 +1506,25 @@ def load_github_dependencies(
     neo4j_session: neo4j.Session,
     update_tag: int,
     dependencies: List[Dict],
+    owner_org_id: str,
 ) -> None:
     """
-    Ingest GitHub dependency data into Neo4j using the new data model
+    Ingest GitHub dependency data into Neo4j using the new data model.
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param dependencies: List of dependency objects from GitHub's dependency graph
+    :param owner_org_id: URL of the owning GitHub organization, used as the sub_resource scope
     :return: Nothing
     """
-    # Group dependencies by both repo_url and manifest_id for schema-based loading
-    dependencies_by_repo_and_manifest = defaultdict(list)
-
-    for dep in dependencies:
-        repo_url = dep["repo_url"]
-        manifest_id = dep["manifest_id"]
-        # Create a key combining both repo_url and manifest_id
-        group_key = (repo_url, manifest_id)
-        # Remove repo_url and manifest_id from the dependency object since we'll pass them as kwargs
-        dep_without_kwargs = {
-            k: v for k, v in dep.items() if k not in ["repo_url", "manifest_id"]
-        }
-        dependencies_by_repo_and_manifest[group_key].append(dep_without_kwargs)
-
-    # Load dependencies for each repository/manifest combination separately
-    for (
-        repo_url,
-        manifest_id,
-    ), group_dependencies in dependencies_by_repo_and_manifest.items():
-        load_data(
-            neo4j_session,
-            GitHubDependencySchema(),
-            group_dependencies,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-            manifest_id=manifest_id,
-        )
+    if not dependencies:
+        return
+    load_data(
+        neo4j_session,
+        GitHubDependencySchema(),
+        dependencies,
+        lastupdated=update_tag,
+        owner_org_id=owner_org_id,
+    )
 
 
 @timeit
@@ -1548,59 +1532,50 @@ def load_github_dependency_manifests(
     neo4j_session: neo4j.Session,
     update_tag: int,
     manifests: List[Dict],
+    owner_org_id: str,
 ) -> None:
     """
-    Ingest GitHub dependency manifests into Neo4j
+    Ingest GitHub dependency manifests into Neo4j.
     """
-    manifests_by_repo = defaultdict(list)
-
-    for manifest in manifests:
-        repo_url = manifest["repo_url"]
-        manifests_by_repo[repo_url].append(manifest)
-
-    # Load manifests for each repository separately
-    for repo_url, repo_manifests in manifests_by_repo.items():
-        load_data(
-            neo4j_session,
-            DependencyGraphManifestSchema(),
-            repo_manifests,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-        )
+    if not manifests:
+        return
+    load_data(
+        neo4j_session,
+        DependencyGraphManifestSchema(),
+        manifests,
+        lastupdated=update_tag,
+        owner_org_id=owner_org_id,
+    )
 
 
 @timeit
 def cleanup_github_dependencies(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    owner_org_id: str,
 ) -> None:
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
-            neo4j_session
-        )
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
+        neo4j_session
+    )
 
 
 @timeit
 def cleanup_github_manifests(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    owner_org_id: str,
 ) -> None:
     """
     Delete GitHub dependency manifests and their relationships from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up manifests for
+    :param owner_org_id: URL of the owning GitHub organization
     """
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
-            neo4j_session
-        )
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -1797,16 +1772,6 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
-    load_github_dependency_manifests(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["manifests"],
-    )
-    load_github_dependencies(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["dependencies"],
-    )
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -1816,6 +1781,18 @@ def load(
         None,
     )
     if owner_org_id is not None:
+        load_github_dependency_manifests(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["manifests"],
+            owner_org_id,
+        )
+        load_github_dependencies(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["dependencies"],
+            owner_org_id,
+        )
         load_branch_protection_rules(
             neo4j_session,
             common_job_parameters["UPDATE_TAG"],
@@ -1920,26 +1897,19 @@ def sync(
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # Collect repository URLs that have dependencies for cleanup
-    repo_urls_with_dependencies = list(
-        {dep["repo_url"] for dep in repo_data["dependencies"]}
-    )
-    cleanup_github_dependencies(
-        neo4j_session, common_job_parameters, repo_urls_with_dependencies
-    )
-
-    # Collect repository URLs that have manifests for cleanup
-    repo_urls_with_manifests = list(
-        {manifest["repo_url"] for manifest in repo_data["manifests"]}
-    )
-    cleanup_github_manifests(
-        neo4j_session, common_job_parameters, repo_urls_with_manifests
-    )
-
     # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
-    # GitHubOrganization to GitHubBranchProtectionRule. Remove in v1.0.0.
+    # GitHubOrganization to GitHubBranchProtectionRule, Dependency and
+    # DependencyGraphManifest. Remove in v1.0.0.
     run_analysis_job(
         "github_branch_protection_rule_resource_edge_migration.json",
         neo4j_session,
         common_job_parameters,
     )
+    run_analysis_job(
+        "github_dependency_resource_edge_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+    cleanup_github_dependencies(neo4j_session, common_job_parameters, owner_org_id)
+    cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)

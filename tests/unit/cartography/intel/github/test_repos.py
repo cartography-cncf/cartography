@@ -376,12 +376,12 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_github_dependencies.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
-        [],
+        "https://github.com/example-org",
     )
     mock_cleanup_github_manifests.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
-        [],
+        "https://github.com/example-org",
     )
     mock_cleanup_branch_protection_rules.assert_called_once_with(
         None,
