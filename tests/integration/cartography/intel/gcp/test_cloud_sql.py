@@ -204,6 +204,27 @@ def test_sync_sql(
         "HAS_BACKUP_CONFIG",
     ) == {(TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}/backupConfig")}
 
+    # Assert: Authorized networks are extracted as their own nodes (one per CIDR).
+    assert check_nodes(
+        neo4j_session, "GCPCloudSQLAuthorizedNetwork", ["value", "name"]
+    ) == {
+        ("203.0.113.0/24", "office"),
+        ("0.0.0.0/0", "open-internet"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudSQLInstance",
+        "id",
+        "GCPCloudSQLAuthorizedNetwork",
+        "value",
+        "AUTHORIZED_NETWORK",
+        rel_direction_right=True,
+    ) == {
+        (TEST_INSTANCE_ID, "203.0.113.0/24"),
+        (TEST_INSTANCE_ID, "0.0.0.0/0"),
+    }
+
     # Assert: Check GCPLabel nodes from userLabels
     assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
         ("env", "staging"),

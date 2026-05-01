@@ -191,8 +191,23 @@ def test_sync_gcp_policy_bindings(
             "project",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+            "project",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+            "project",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
+            "resource",
+        ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
             "resource",
         ),
     }
@@ -221,7 +236,19 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            TEST_PROJECT_ID,
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
     }
 
@@ -242,11 +269,23 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "alice@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            "alice@example.com",
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
         (
             "bob@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+        ),
+        (
+            "bob@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            "bob@example.com",
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
         # IAM service account
         (
@@ -283,8 +322,20 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.admin",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
+        ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
         ),
     }
 
@@ -311,6 +362,14 @@ def test_sync_gcp_policy_bindings(
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
             TEST_PROJECT_ID,
         ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            TEST_PROJECT_ID,
+        ),
     }
 
     # Check GCPPolicyBinding to GCPBucket APPLIES_TO relationships
@@ -328,6 +387,19 @@ def test_sync_gcp_policy_bindings(
             "test-bucket",
         ),
     }
+
+    # The bucket binding mixes a real principal with allUsers. The binding is
+    # persisted with is_public=true; allUsers is intentionally NOT added to
+    # the members list (no GCPPrincipal can ever resolve to it).
+    bucket_binding = neo4j_session.run(
+        """
+        MATCH (b:GCPPolicyBinding {id: $binding_id})
+        RETURN b.is_public AS is_public, b.members AS members
+        """,
+        binding_id="//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+    ).single()
+    assert bucket_binding["is_public"] is True
+    assert sorted(bucket_binding["members"]) == ["alice@example.com"]
 
 
 @patch.object(
