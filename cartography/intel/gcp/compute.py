@@ -16,8 +16,8 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
@@ -70,15 +70,15 @@ def get_zones_in_project(
         res = gcp_api_execute_with_retry(req)
         return res["items"]
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "accessNotConfigured":
+        category = classify_gcp_http_error(e)
+        if category == "api_disabled":
             logger.info(
                 "Google Compute Engine API access is not configured for project %s; skipping. %s",
                 project_id,
                 summarize_gcp_http_error(e),
             )
             return None
-        elif reason == "notFound":
+        elif category == "not_found":
             logger.info(
                 "Project %s returned a 404 not found error. %s",
                 project_id,
@@ -122,8 +122,12 @@ def get_gcp_instance_responses(
             res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+            # Intentional widening vs. the old check (reason in {"backendError",
+            # "rateLimitExceeded", "internalError"}): classify_gcp_http_error covers
+            # 429, generic 500/502/504, and 403-quota responses in addition to the
+            # original three reasons. After gcp_api_execute_with_retry has already
+            # retried all of these, skipping the zone is the right fallback.
+            if classify_gcp_http_error(e) == "transient":
                 logger.warning(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
                     project_id,
@@ -149,8 +153,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
     try:
         req = compute.subnetworks().list(project=projectid, region=region)
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        if classify_gcp_http_error(e) == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
                 region,
@@ -172,8 +175,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
             )
             break
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason == "invalid":
+            if classify_gcp_http_error(e) == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
                     region,
@@ -219,8 +221,7 @@ def get_gcp_regional_forwarding_rules(
     try:
         return gcp_api_execute_with_retry(req)
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        if classify_gcp_http_error(e) == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping forwarding rules sync for this region.",
                 region,

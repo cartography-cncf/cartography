@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import namedtuple
 from typing import Dict
@@ -50,7 +49,9 @@ from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import parse_and_validate_gcp_requested_syncs
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
 from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
 from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
@@ -119,15 +120,19 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
             )
         return services
     except HttpError as http_error:
-        http_error = json.loads(http_error.content.decode("utf-8"))
+        category = classify_gcp_http_error(http_error)
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
         # audit (e.g. adding a script to a Google spreadsheet causes a project to get created) and we don't need to emit
         # a warning for these projects.
         logger.info(
-            f"HttpError when trying to get enabled services on project {project_id}. "
-            f"Code: {http_error['error']['code']}, Message: {http_error['error']['message']}. "
-            f"Skipping.",
+            "HttpError when trying to get enabled services on project %s (%s). %s Skipping.",
+            project_id,
+            category,
+            summarize_gcp_http_error(http_error),
         )
+        # Returning an empty set here is intentional: callers treat the project as
+        # having no visible enabled services, which preserves current-state semantics
+        # without surfacing noisy access errors for Google-managed projects.
         return set()
 
 
@@ -314,14 +319,20 @@ def _sync_project_resources(
                 )
                 iam_sync_succeeded = True
             except HttpError as e:
-                if e.resp.status == 403:
+                category = classify_gcp_http_error(e)
+                status = getattr(e.resp, "status", None)
+                if category in ("forbidden", "api_disabled") or (
+                    category == "transient" and status == 403
+                ):
                     logger.warning(
                         "CAI fallback skipped for project %s: %s. "
                         "Ensure Cloud Asset API is enabled and roles/cloudasset.viewer is granted.",
                         project_id,
-                        e.reason,
+                        summarize_gcp_http_error(e),
                     )
-                    # iam_sync_succeeded stays False - don't run cleanup for this project
+                    # Skipping the fallback is intentional: if we cannot see IAM data
+                    # via CAI, we must leave iam_sync_succeeded=False so cleanup does
+                    # not delete previously ingested IAM resources for this project.
                 else:
                     raise
         if service_names.bigtable in enabled_services:
