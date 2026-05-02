@@ -424,6 +424,34 @@ async def test_process_single_image_extracts_platform_from_oci_config():
     }
 
 
+@pytest.mark.asyncio
+async def test_process_single_image_skips_manifest_list():
+    image_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        "@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    artifact_name = (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        "dockerImages/widgets-api@"
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    client = MagicMock()
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": artifact_name,
+            "uri": image_uri,
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+        },
+    )
+
+    assert result is None
+    assert fetch_failed is False
+    client.get.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Referrers / DSSE attestation discovery
 # ---------------------------------------------------------------------------

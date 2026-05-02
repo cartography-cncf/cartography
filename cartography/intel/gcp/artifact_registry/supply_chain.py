@@ -255,6 +255,11 @@ async def _process_single_image(
     """
     name = artifact.get("name", "")
     uri = artifact.get("uri", "")
+    media_type = artifact.get("mediaType", "")
+
+    if media_type not in SINGLE_IMAGE_MEDIA_TYPES:
+        logger.debug("Skipping OCI config enrichment for non-image artifact %s", name)
+        return None, False
 
     parsed = parse_docker_image_uri(uri)
     if not parsed:
