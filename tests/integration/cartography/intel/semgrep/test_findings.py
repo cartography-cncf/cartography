@@ -625,3 +625,79 @@ def test_sync_oss_sast_findings(neo4j_session, tmp_path):
         (TEST_REPO_ID, expected_ids[1]),
         (TEST_REPO_ID, expected_ids[2]),
     }
+
+
+def test_sync_oss_sast_findings_ids_differ_across_repositories(
+    neo4j_session,
+    tmp_path,
+):
+    # Arrange
+    fixture_path = Path("tests/data/semgrep/oss_sast_report.json")
+    metadata_fixture_path = Path("tests/data/semgrep/repo_metadata.yaml")
+
+    source_root_a = tmp_path / "github" / "simpsoncorp" / "sample_repo" / "main"
+    source_root_a.mkdir(parents=True, exist_ok=True)
+    (source_root_a / "oss_sast_report.json").write_text(
+        fixture_path.read_text(),
+        encoding="utf-8",
+    )
+    (source_root_a / "repo_metadata.yaml").write_text(
+        metadata_fixture_path.read_text(),
+        encoding="utf-8",
+    )
+
+    source_root_b = tmp_path / "github" / "different-org" / "different-repo" / "main"
+    source_root_b.mkdir(parents=True, exist_ok=True)
+    (source_root_b / "oss_sast_report.json").write_text(
+        fixture_path.read_text(),
+        encoding="utf-8",
+    )
+    (source_root_b / "repo_metadata.yaml").write_text(
+        "\n".join(
+            [
+                'provider: "github"',
+                'owner: "different-org"',
+                'repo: "different-repo"',
+                'url: "https://github.com/different-org/different-repo"',
+                'branch: "main"',
+                "",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    # Act
+    with build_report_reader_for_source(
+        parse_report_source(str(source_root_a))
+    ) as reader:
+        sync_oss_semgrep_sast_findings(
+            neo4j_session,
+            reader,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+        )
+    ids_for_repo_a = check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id"],
+    )
+
+    with build_report_reader_for_source(
+        parse_report_source(str(source_root_b))
+    ) as reader:
+        sync_oss_semgrep_sast_findings(
+            neo4j_session,
+            reader,
+            TEST_UPDATE_TAG + 1,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        )
+    ids_for_repo_b = check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id"],
+    )
+
+    # Assert
+    assert ids_for_repo_a
+    assert ids_for_repo_b
+    assert ids_for_repo_a != ids_for_repo_b

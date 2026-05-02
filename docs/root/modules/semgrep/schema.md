@@ -73,7 +73,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique integer id from Semgrep Cloud, or for OSS findings a synthetic id prefixed with `semgrep-oss-sast-` built from a SHA-256 hash of `check_id`, `path`, start/end location, and `repository` |
+| **id** | Unique integer id from Semgrep Cloud, or for OSS findings a synthetic id prefixed with `semgrep-oss-sast-` built from a SHA-256 hash of `check_id`, `path`, start/end location, and `repository_url` |
 | **rule_id** | The rule that triggered the finding |
 | **repository** | The repository path where the finding was discovered |
 | **repository_url** | Full URL of the repository where the finding was discovered |
