@@ -540,6 +540,31 @@ def test_sync_oss_sast_findings(neo4j_session, tmp_path):
         ),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["id", "repository", "repository_url", "branch"],
+    ) == {
+        (
+            expected_ids[0],
+            "simpsoncorp/sample_repo",
+            TEST_REPO_ID,
+            "main",
+        ),
+        (
+            expected_ids[1],
+            "simpsoncorp/sample_repo",
+            TEST_REPO_ID,
+            "main",
+        ),
+        (
+            expected_ids[2],
+            "simpsoncorp/sample_repo",
+            TEST_REPO_ID,
+            "main",
+        ),
+    }
+
     # Assert location fields
     assert check_nodes(
         neo4j_session,
