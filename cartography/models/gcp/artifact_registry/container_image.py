@@ -169,6 +169,9 @@ class GCPArtifactRegistryContainerImageProvenanceNodeProperties(
 ):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    architecture: PropertyRef = PropertyRef("architecture")
+    os: PropertyRef = PropertyRef("os")
+    variant: PropertyRef = PropertyRef("variant")
     source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
     source_revision: PropertyRef = PropertyRef("source_revision")
     source_file: PropertyRef = PropertyRef("source_file")

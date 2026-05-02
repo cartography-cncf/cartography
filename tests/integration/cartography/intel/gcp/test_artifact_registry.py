@@ -537,6 +537,9 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         enrichments.append(
             {
                 "id": image["id"],
+                "architecture": "amd64" if index % 2 == 0 else "arm64",
+                "os": "linux",
+                "variant": "v8" if index % 2 else None,
                 "source_uri": "https://github.com/foo/bar",
                 "source_revision": f"revision-{index}",
                 "source_file": "Dockerfile",
@@ -555,6 +558,9 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
             "source_revision": enrichment.get("source_revision"),
             "source_file": enrichment.get("source_file"),
             "layer_diff_ids": enrichment.get("layer_diff_ids"),
+            "architecture": enrichment.get("architecture"),
+            "os": enrichment.get("os"),
+            "variant": enrichment.get("variant"),
         }
         for enrichment in enrichments
     ]
@@ -588,6 +594,11 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
             image.source_revision AS source_revision,
             image.source_file AS source_file,
             image.layer_diff_ids AS layer_diff_ids,
+            image.architecture AS architecture,
+            image.os AS os,
+            image.variant AS variant,
+            image._ont_architecture AS ont_architecture,
+            image._ont_os AS ont_os,
             labels(image) AS labels
         """,
         project_id=project_id,
@@ -596,6 +607,11 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert image_result["source_uri"] == "https://github.com/foo/bar"
     assert image_result["source_revision"] == "revision-0"
     assert image_result["source_file"] == "Dockerfile"
+    assert image_result["architecture"] == "amd64"
+    assert image_result["os"] == "linux"
+    assert image_result["variant"] is None
+    assert image_result["ont_architecture"] == "amd64"
+    assert image_result["ont_os"] == "linux"
     assert image_result["layer_diff_ids"] == [
         f"sha256:{project_id}-shared",
         f"sha256:{project_id}-0",

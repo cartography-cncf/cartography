@@ -33,6 +33,10 @@ gcp_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture"
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
             ],
         ),
         OntologyNodeMapping(

@@ -76,6 +76,48 @@ MOCK_DOCKER_IMAGES = [
     },
 ]
 
+MOCK_SINGLE_IMAGE_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000abc",
+        "size": 4096,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size": 8192,
+        },
+    ],
+}
+
+MOCK_SINGLE_IMAGE_CONFIG = {
+    "architecture": "arm64",
+    "os": "linux",
+    "variant": "v8",
+    "created": "2024-01-10T00:00:00Z",
+    "config": {
+        "Labels": {
+            "org.opencontainers.image.source": "https://github.com/example/widgets.git",
+            "org.opencontainers.image.revision": "0123456789abcdef",
+        },
+    },
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        ],
+    },
+    "history": [
+        {
+            "created": "2024-01-10T00:00:00Z",
+            "created_by": "COPY app /app",
+        },
+    ],
+}
+
 MOCK_HELM_CHARTS = [
     {
         "name": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789",

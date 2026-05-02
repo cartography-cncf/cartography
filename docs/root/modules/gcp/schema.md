@@ -1692,6 +1692,9 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 | update_time | Timestamp when the image was last updated |
 | repository_id | Full resource name of the parent repository |
 | project_id | The GCP project ID |
+| architecture | CPU architecture for single-image manifests, extracted from the OCI image config (e.g., `amd64`, `arm64`) |
+| os | Operating system for single-image manifests, extracted from the OCI image config (e.g., `linux`, `windows`) |
+| variant | Platform variant for single-image manifests, extracted from the OCI image config (e.g., `v8`) |
 | source_uri | Source repository URL extracted from OCI image config provenance (e.g., `https://github.com/org/repo`) |
 | source_revision | Git commit hash from build provenance |
 | source_file | Dockerfile path from build provenance |

@@ -9,8 +9,11 @@ from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_di
 from cartography.intel.gcp.artifact_registry.supply_chain import (
     _fetch_attestation_provenance,
 )
+from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
+from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_CONFIG
+from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_MANIFEST
 
 # ---------------------------------------------------------------------------
 # OCI label provenance
@@ -200,6 +203,9 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "source_revision": "deadbeef",
                 "source_file": "Dockerfile",
                 "layer_diff_ids": ["sha256:a", "sha256:b"],
+                "architecture": None,
+                "os": None,
+                "variant": None,
             },
             {
                 "id": "img-2",
@@ -207,6 +213,9 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "source_revision": None,
                 "source_file": None,
                 "layer_diff_ids": ["sha256:a"],
+                "architecture": None,
+                "os": None,
+                "variant": None,
             },
         ],
         "proj",
@@ -345,6 +354,74 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     )
 
     assert cleanup_runs == []
+
+
+# ---------------------------------------------------------------------------
+# OCI config extraction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_process_single_image_extracts_platform_from_oci_config():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    image_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{image_digest}"
+    )
+    artifact_name = (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{image_digest}"
+    )
+    manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/manifests/{image_digest}"
+    )
+    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
+    config_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/blobs/{config_digest}"
+    )
+    client = _FakeClient(
+        {
+            manifest_url: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": image_digest},
+            ),
+            config_url: _FakeResponse(200, json_body=MOCK_SINGLE_IMAGE_CONFIG),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": artifact_name,
+            "uri": image_uri,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+    )
+
+    assert fetch_failed is False
+    assert result == {
+        "id": artifact_name,
+        "architecture": "arm64",
+        "os": "linux",
+        "variant": "v8",
+        "source_uri": "https://github.com/example/widgets",
+        "source_revision": "0123456789abcdef",
+        "layer_diff_ids": [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        ],
+        "layer_history": [
+            {
+                "created_by": "COPY app /app",
+                "empty_layer": False,
+            },
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------

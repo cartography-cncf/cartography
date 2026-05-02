@@ -9,6 +9,7 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
@@ -275,6 +276,14 @@ async def _process_single_image(
     if not config:
         return None, False
 
+    raw_architecture = config.get("architecture")
+    architecture = (
+        normalize_architecture(raw_architecture)
+        if raw_architecture is not None
+        else None
+    )
+    os_name = config.get("os")
+    variant = config.get("variant")
     provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
 
@@ -302,13 +311,20 @@ async def _process_single_image(
             provenance.update(slsa_provenance)
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
+    has_platform = any(value is not None for value in (architecture, os_name, variant))
 
-    if not provenance.get("source_uri") and not diff_ids:
+    if not provenance.get("source_uri") and not diff_ids and not has_platform:
         return None, fetch_failed
 
     result: dict[str, Any] = {
         "id": name,
     }
+    if architecture is not None:
+        result["architecture"] = architecture
+    if os_name is not None:
+        result["os"] = os_name
+    if variant is not None:
+        result["variant"] = variant
     if provenance.get("source_uri"):
         result["source_uri"] = provenance["source_uri"]
     if provenance.get("source_revision"):
@@ -527,6 +543,9 @@ def sync(
                 "source_revision": e.get("source_revision"),
                 "source_file": e.get("source_file"),
                 "layer_diff_ids": e.get("layer_diff_ids"),
+                "architecture": e.get("architecture"),
+                "os": e.get("os"),
+                "variant": e.get("variant"),
             }
             for e in enrichments
         ]
