@@ -8,6 +8,7 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # - uri: Full URI to pull the image
 # - architecture: CPU architecture (amd64, arm64, etc.)
 # - os: Operating system (linux, windows)
+# - variant: Architecture variant (v8, etc.)
 
 aws_ecr_mapping = OntologyMapping(
     module_name="aws",
@@ -37,6 +38,7 @@ gcp_mapping = OntologyMapping(
                     ontology_field="architecture", node_field="architecture"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
             ],
         ),
         OntologyNodeMapping(
@@ -47,6 +49,7 @@ gcp_mapping = OntologyMapping(
                     ontology_field="architecture", node_field="architecture"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
             ],
         ),
     ],

@@ -131,7 +131,7 @@ def _make_platform_image(parent_artifact_id: str, project_id: str, index: int) -
         "os": "linux",
         "os_version": None,
         "os_features": None,
-        "variant": None,
+        "variant": "v8" if index % 2 else None,
         "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
         "parent_artifact_id": parent_artifact_id,
         "project_id": project_id,
@@ -599,6 +599,7 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
             image.variant AS variant,
             image._ont_architecture AS ont_architecture,
             image._ont_os AS ont_os,
+            image._ont_variant AS ont_variant,
             labels(image) AS labels
         """,
         project_id=project_id,
@@ -612,11 +613,22 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert image_result["variant"] is None
     assert image_result["ont_architecture"] == "amd64"
     assert image_result["ont_os"] == "linux"
+    assert image_result["ont_variant"] is None
     assert image_result["layer_diff_ids"] == [
         f"sha256:{project_id}-shared",
         f"sha256:{project_id}-0",
     ]
     assert "Image" in image_result["labels"]
+
+    image_with_variant = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryContainerImage {id: $image_id})
+        RETURN image.variant AS variant, image._ont_variant AS ont_variant
+        """,
+        image_id=docker_images[1]["id"],
+    ).single()
+    assert image_with_variant["variant"] == "v8"
+    assert image_with_variant["ont_variant"] == "v8"
 
     layer_result = neo4j_session.run(
         """
@@ -764,6 +776,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
             image._ont_digest AS ont_digest,
             image._ont_architecture AS ont_architecture,
             image._ont_os AS ont_os,
+            image._ont_variant AS ont_variant,
             labels(image) AS labels,
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
@@ -779,6 +792,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     assert result["ont_digest"] == platform_images[0]["digest"]
     assert result["ont_architecture"] == platform_images[0]["architecture"]
     assert result["ont_os"] == platform_images[0]["os"]
+    assert result["ont_variant"] == platform_images[0]["variant"]
     assert "Image" in result["labels"]
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
     assert result["rel_module_name"] == "cartography:gcp"
@@ -788,6 +802,16 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
 
     first_node_firstseen = result["node_firstseen"]
     first_rel_firstseen = result["rel_firstseen"]
+
+    platform_with_variant = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryPlatformImage {id: $image_id})
+        RETURN image.variant AS variant, image._ont_variant AS ont_variant
+        """,
+        image_id=platform_images[1]["id"],
+    ).single()
+    assert platform_with_variant["variant"] == "v8"
+    assert platform_with_variant["ont_variant"] == "v8"
     parent_rel_result = neo4j_session.run(
         """
         MATCH (:GCPArtifactRegistryContainerImage {id: $parent_id})
