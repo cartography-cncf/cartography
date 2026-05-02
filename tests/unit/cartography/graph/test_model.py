@@ -100,6 +100,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",
+    # GitHub nodes that can exist outside any organization. A GitHubUser may
+    # be unaffiliated, and a GitHubRepository can be owned by a personal user
+    # rather than an organization, so neither is anchored to a single tenant.
+    "GitHubRepository",
+    "GitHubUser",
     # Shared GitHub nodes (cross-org / cross-repo).
     "ProgrammingLanguage",
     "PythonLibrary",
