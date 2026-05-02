@@ -41,7 +41,6 @@ from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -897,15 +896,30 @@ def load_policy_statements(
     neo4j_session: neo4j.Session,
     statements: list[dict[str, Any]],
     aws_update_tag: int,
-    current_aws_account_id: str,
 ) -> None:
     load(
         neo4j_session,
         AWSPolicyStatementSchema(),
         statements,
         lastupdated=aws_update_tag,
-        AWS_ID=current_aws_account_id,
+        POLICY_ID=statements[0]["policy_id"],
     )
+
+
+@timeit
+def _load_policy_statements(
+    neo4j_session: neo4j.Session,
+    policy_statements: dict[str, list[dict[str, Any]]],
+    aws_update_tag: int,
+) -> None:
+    for policy_id, statements in policy_statements.items():
+        load(
+            neo4j_session,
+            AWSPolicyStatementSchema(),
+            statements,
+            lastupdated=aws_update_tag,
+            POLICY_ID=policy_id,
+        )
 
 
 @timeit
@@ -923,18 +937,11 @@ def load_policy_data(
         aws_update_tag,
     )
 
-    all_statements = [
-        stmt
-        for statements in transformed_policy_data.statements_by_policy_id.values()
-        for stmt in statements
-    ]
-    if all_statements:
-        load_policy_statements(
-            neo4j_session,
-            all_statements,
-            aws_update_tag,
-            current_aws_account_id,
-        )
+    _load_policy_statements(
+        neo4j_session,
+        transformed_policy_data.statements_by_policy_id,
+        aws_update_tag,
+    )
 
 
 @timeit
@@ -1444,6 +1451,23 @@ def sync_role_inline_policies(
     )
 
 
+def _get_policies_in_current_account(
+    neo4j_session: neo4j.Session, current_aws_account_id: str
+) -> list[str]:
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPolicy)
+    RETURN p.id
+    """
+    return [
+        str(policy_id)
+        for policy_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            AWS_ID=current_aws_account_id,
+        )
+    ]
+
+
 def _get_principals_with_pols_in_current_account(
     neo4j_session: neo4j.Session, current_aws_account_id: str
 ) -> list[str]:
@@ -1464,10 +1488,19 @@ def _get_principals_with_pols_in_current_account(
 
 @timeit
 def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    # Clean up stale policy statements scoped to the current account.
-    GraphJob.from_node_schema(AWSPolicyStatementSchema(), common_job_parameters).run(
-        neo4j_session,
+    # List all policies in the current account
+    policy_ids = _get_policies_in_current_account(
+        neo4j_session, common_job_parameters["AWS_ID"]
     )
+
+    # for each policy id, run the cleanup job for the policy statements, passing the policy id as a kwarg.
+    for policy_id in policy_ids:
+        GraphJob.from_node_schema(
+            AWSPolicyStatementSchema(),
+            {**common_job_parameters, "POLICY_ID": policy_id},
+        ).run(
+            neo4j_session,
+        )
 
     # Next, clean up the policies
     # Note that managed policies don't have a sub resource relationship. This means that we will only clean up
@@ -1773,13 +1806,6 @@ def sync(
         boto3_session,
         current_aws_account_id,
         update_tag,
-    )
-    # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
-    # AWSAccount to AWSPolicyStatement. Remove in v1.0.0.
-    run_analysis_job(
-        "aws_policy_statement_resource_edge_migration.json",
-        neo4j_session,
-        common_job_parameters,
     )
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(

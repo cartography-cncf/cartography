@@ -52,6 +52,13 @@ def test_model_objects_naming_convention():
 # rel_label. These are accepted exceptions; new modules should still default to
 # 'RESOURCE' and only be added here after explicit review.
 SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
+    # AWSPolicyStatement is scoped to its parent AWSPolicy via STATEMENT rather
+    # than RESOURCE. Statement IDs of AWS-managed policies are global (the same
+    # statement is shared by every account that attaches the policy), so making
+    # the account the cleanup scope would risk a delete in account A removing a
+    # statement still referenced by account B; the per-policy STATEMENT scope
+    # avoids that cross-account interference.
+    "AWSPolicyStatement",
     # OIDC providers express a trust relationship with the cluster rather than
     # a strict ownership; an OIDC provider can in principle be referenced by
     # multiple clusters.

@@ -283,7 +283,6 @@ def test_load_inline_policy_data(neo4j_session):
         neo4j_session,
         transformed_stmts,
         TEST_UPDATE_TAG,
-        TEST_ACCOUNT_ID,
     )
 
 

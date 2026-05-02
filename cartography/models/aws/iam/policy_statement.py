@@ -7,7 +7,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -30,26 +29,6 @@ class AWSPolicyStatementNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AWSPolicyStatementToAWSAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AWSPolicyStatementToAWSAccountRel(CartographyRelSchema):
-    target_node_label: str = "AWSAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "id": PropertyRef("AWS_ID", set_in_kwargs=True),
-        }
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AWSPolicyStatementToAWSAccountRelProperties = (
-        AWSPolicyStatementToAWSAccountRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class AWSPolicyStatementToAWSPolicyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -59,7 +38,7 @@ class AWSPolicyStatementToAWSPolicyRel(CartographyRelSchema):
     target_node_label: str = "AWSPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("policy_id"),
+            "id": PropertyRef("POLICY_ID", set_in_kwargs=True),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
@@ -73,9 +52,6 @@ class AWSPolicyStatementToAWSPolicyRel(CartographyRelSchema):
 class AWSPolicyStatementSchema(CartographyNodeSchema):
     label: str = "AWSPolicyStatement"
     properties: AWSPolicyStatementNodeProperties = AWSPolicyStatementNodeProperties()
-    sub_resource_relationship: AWSPolicyStatementToAWSAccountRel = (
-        AWSPolicyStatementToAWSAccountRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [AWSPolicyStatementToAWSPolicyRel()]
+    sub_resource_relationship: AWSPolicyStatementToAWSPolicyRel = (
+        AWSPolicyStatementToAWSPolicyRel()
     )
