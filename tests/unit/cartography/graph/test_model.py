@@ -2,7 +2,6 @@ import logging
 import warnings
 from typing import Dict
 from typing import Set
-from typing import Type
 
 import pytest
 
@@ -77,20 +76,24 @@ SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
 
 def test_sub_resource_relationship():
     """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
-    root_node_per_modules: Dict[str, Set[Type[CartographyNodeSchema]]] = {}
+    # Track per-module: for each label, whether at least one Schema variant
+    # declares a sub_resource_relationship. A label is considered an "anchored"
+    # node when any variant scopes it; aliasing/facet schemas without a
+    # sub_resource then don't show up as roots.
+    label_has_anchor_per_module: Dict[str, Dict[str, bool]] = {}
 
     for module_name, node in load_models(cartography.models):
-        if module_name not in root_node_per_modules:
-            root_node_per_modules[module_name] = set()
+        if module_name not in label_has_anchor_per_module:
+            label_has_anchor_per_module[module_name] = {}
         if not issubclass(node, CartographyNodeSchema):
             continue
         sub_resource_relationship = getattr(node, "sub_resource_relationship", None)
-        if sub_resource_relationship is None:
-            root_node_per_modules[module_name].add(node)
+        if sub_resource_relationship is None or not isinstance(
+            sub_resource_relationship, CartographyRelSchema
+        ):
+            label_has_anchor_per_module[module_name].setdefault(node.label, False)
             continue
-        if not isinstance(sub_resource_relationship, CartographyRelSchema):
-            root_node_per_modules[module_name].add(node)
-            continue
+        label_has_anchor_per_module[module_name][node.label] = True
         # Check that the rel_label is 'RESOURCE'
         if (
             sub_resource_relationship.rel_label != "RESOURCE"
@@ -111,14 +114,17 @@ def test_sub_resource_relationship():
             )
             # TODO assert sub_resource_relationship.direction == "INWARD"
 
-    for module_name, nodes in root_node_per_modules.items():
-        if len(nodes) > 1:
+    for module_name, label_anchors in label_has_anchor_per_module.items():
+        unanchored_labels = sorted(
+            label for label, anchored in label_anchors.items() if not anchored
+        )
+        if len(unanchored_labels) > 1:
             warnings.warn(
-                f"Module {module_name} has multiple root nodes: {', '.join([node.label for node in nodes])}. "
+                f"Module {module_name} has multiple root nodes: {', '.join(unanchored_labels)}. "
                 "Please check the module.",
                 UserWarning,
             )
-        # TODO: assert len(nodes) > 1
+        # TODO: assert len(unanchored_labels) > 1
 
 
 def test_matchlink_sub_resource_requires_kwargs_matcher():
