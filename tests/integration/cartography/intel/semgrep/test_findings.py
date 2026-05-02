@@ -632,6 +632,7 @@ def test_sync_oss_sast_findings_ids_differ_across_repositories(
     tmp_path,
 ):
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     fixture_path = Path("tests/data/semgrep/oss_sast_report.json")
     metadata_fixture_path = Path("tests/data/semgrep/repo_metadata.yaml")
 
