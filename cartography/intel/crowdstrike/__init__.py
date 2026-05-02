@@ -12,7 +12,6 @@ from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
-from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
@@ -112,16 +111,11 @@ def cleanup(
         neo4j_session
     )
 
-    # Drop tenants whose CID was not refreshed by the current sync. Run after
-    # host/vuln cleanup so the scoped jobs above still see live RESOURCE edges
-    # while iterating; DETACH DELETE on the tenant then strips any leftover
-    # edges. CrowdstrikeTenant has no sub_resource so the GraphJob falls back
-    # to the unscoped path that matches stale lastupdated globally.
-    GraphJob.from_node_schema(CrowdstrikeTenantSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-
-    # Cleanup other crowdstrike assets not handled by the data model
+    # Cleanup other crowdstrike assets not handled by the data model.
+    # CrowdstrikeTenant nodes themselves are not auto-deleted: they follow the
+    # same convention as other tenant roots (AWSAccount, GitHubOrganization,
+    # ...), which stay in the graph even when no longer surfaced by the API
+    # so the operator decides when to remove them.
     run_cleanup_job(
         "crowdstrike_import_cleanup.json",
         neo4j_session,

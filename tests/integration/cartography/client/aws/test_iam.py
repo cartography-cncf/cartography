@@ -58,6 +58,7 @@ def _ensure_test_data(neo4j_session):
         neo4j_session,
         transformed_statements,
         TEST_UPDATE_TAG,
+        TEST_ACCOUNT_ID,
     )
 
 

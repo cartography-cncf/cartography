@@ -11,7 +11,7 @@ together when stale.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | The CrowdStrike CID for this tenant |
+| **id** | The CrowdStrike CID for this tenant |
 
 #### Relationships
 
