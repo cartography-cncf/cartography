@@ -2,8 +2,8 @@
   "name": "GitHubBranchProtectionRule RESOURCE edge migration",
   "statements": [
     {
-      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped GitHubBranchProtectionRule cleanup via HAS_RULE (per-repo); the schema now uses RESOURCE from GitHubOrganization as the sub_resource. Backfill the RESOURCE edge for every existing rule reachable from a GitHubOrganization via its repositories. Idempotent (MERGE). Remove in v1.0.0.",
-      "query": "MATCH (o:GitHubOrganization)-[:RESOURCE]->(r:GitHubRepository)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule) MERGE (o)-[rel:RESOURCE]->(rule) ON CREATE SET rel.lastupdated = rule.lastupdated",
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped GitHubBranchProtectionRule cleanup via HAS_RULE (per-repo); the schema now uses RESOURCE from GitHubOrganization as the sub_resource. Backfill the RESOURCE edge for every existing rule reachable from the currently-syncing GitHubOrganization via its repositories. Scoped by $owner_org_id so multi-org refreshes don't redo the full graph each time. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (o:GitHubOrganization {id: $owner_org_id})-[:RESOURCE]->(r:GitHubRepository)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule) MERGE (o)-[rel:RESOURCE]->(rule) ON CREATE SET rel.lastupdated = rule.lastupdated",
       "iterative": false
     }
   ]

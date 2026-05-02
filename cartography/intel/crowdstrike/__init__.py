@@ -12,6 +12,7 @@ from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
+from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
@@ -108,6 +109,15 @@ def cleanup(
 
     # CrowdstrikeFinding (CVE) is global — scoped_cleanup=False on the schema.
     GraphJob.from_node_schema(CrowdstrikeCVESchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+    # Drop tenants whose CID was not refreshed by the current sync. Run after
+    # host/vuln cleanup so the scoped jobs above still see live RESOURCE edges
+    # while iterating; DETACH DELETE on the tenant then strips any leftover
+    # edges. CrowdstrikeTenant has no sub_resource so the GraphJob falls back
+    # to the unscoped path that matches stale lastupdated globally.
+    GraphJob.from_node_schema(CrowdstrikeTenantSchema(), common_job_parameters).run(
         neo4j_session
     )
 

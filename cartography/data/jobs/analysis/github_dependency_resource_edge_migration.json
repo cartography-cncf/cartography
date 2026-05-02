@@ -2,13 +2,13 @@
   "name": "GitHub Dependency and DependencyGraphManifest RESOURCE edge migration",
   "statements": [
     {
-      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped Dependency cleanup via REQUIRES (per-repo); the schema now uses RESOURCE from GitHubOrganization as the sub_resource. Backfill the RESOURCE edge for every existing Dependency reachable from a GitHubOrganization via its repositories. Idempotent (MERGE). Remove in v1.0.0.",
-      "query": "MATCH (o:GitHubOrganization)-[:RESOURCE]->(r:GitHubRepository)-[:REQUIRES]->(d:Dependency) MERGE (o)-[rel:RESOURCE]->(d) ON CREATE SET rel.lastupdated = d.lastupdated",
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped Dependency cleanup via REQUIRES (per-repo); the schema now uses RESOURCE from GitHubOrganization as the sub_resource. Backfill the RESOURCE edge for every existing Dependency reachable from the currently-syncing GitHubOrganization via its repositories. Scoped by $owner_org_id so multi-org refreshes don't redo the full graph each time. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (o:GitHubOrganization {id: $owner_org_id})-[:RESOURCE]->(r:GitHubRepository)-[:REQUIRES]->(d:Dependency) MERGE (o)-[rel:RESOURCE]->(d) ON CREATE SET rel.lastupdated = d.lastupdated",
       "iterative": false
     },
     {
-      "__comment__": "DEPRECATED: same migration for DependencyGraphManifest, formerly scoped via HAS_MANIFEST. Remove in v1.0.0.",
-      "query": "MATCH (o:GitHubOrganization)-[:RESOURCE]->(r:GitHubRepository)-[:HAS_MANIFEST]->(m:DependencyGraphManifest) MERGE (o)-[rel:RESOURCE]->(m) ON CREATE SET rel.lastupdated = m.lastupdated",
+      "__comment__": "DEPRECATED: same migration for DependencyGraphManifest, formerly scoped via HAS_MANIFEST. Scoped by $owner_org_id. Remove in v1.0.0.",
+      "query": "MATCH (o:GitHubOrganization {id: $owner_org_id})-[:RESOURCE]->(r:GitHubRepository)-[:HAS_MANIFEST]->(m:DependencyGraphManifest) MERGE (o)-[rel:RESOURCE]->(m) ON CREATE SET rel.lastupdated = m.lastupdated",
       "iterative": false
     }
   ]

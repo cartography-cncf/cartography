@@ -1896,19 +1896,21 @@ def sync(
     )
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
-    # Collect repository URLs that have dependencies for cleanup
-    # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
+    # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
     # GitHubOrganization to GitHubBranchProtectionRule, Dependency and
-    # DependencyGraphManifest. Remove in v1.0.0.
+    # DependencyGraphManifest. Scoped to the current org so a multi-org sync
+    # doesn't replay the same global Cypher per organization. Remove in
+    # v1.0.0.
+    migration_params = {**common_job_parameters, "owner_org_id": owner_org_id}
     run_analysis_job(
         "github_branch_protection_rule_resource_edge_migration.json",
         neo4j_session,
-        common_job_parameters,
+        migration_params,
     )
     run_analysis_job(
         "github_dependency_resource_edge_migration.json",
         neo4j_session,
-        common_job_parameters,
+        migration_params,
     )
     cleanup_github_dependencies(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
