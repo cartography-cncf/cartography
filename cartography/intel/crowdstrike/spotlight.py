@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from typing import Any
 
 import neo4j
@@ -8,6 +9,7 @@ from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 from cartography.client.core.tx import load
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
+from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -62,12 +64,32 @@ def load_vulnerability_data(
     data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
+    """
+    Load Spotlight vulnerability data into Neo4j, grouped by CID so each batch
+    is scoped to its tenant.
+    """
+    vulns_by_cid: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for vuln in data:
+        cid = vuln.get("cid")
+        if not cid:
+            continue
+        vulns_by_cid[cid].append(vuln)
+    if not vulns_by_cid:
+        return
     load(
         neo4j_session,
-        SpotlightVulnerabilitySchema(),
-        data,
+        CrowdstrikeTenantSchema(),
+        [{"id": cid} for cid in vulns_by_cid],
         lastupdated=update_tag,
     )
+    for cid, vulns in vulns_by_cid.items():
+        load(
+            neo4j_session,
+            SpotlightVulnerabilitySchema(),
+            vulns,
+            lastupdated=update_tag,
+            CID=cid,
+        )
 
 
 def load_cve_data(

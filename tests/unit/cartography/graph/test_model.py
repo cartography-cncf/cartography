@@ -97,6 +97,9 @@ GLOBAL_NODE_LABELS: Set[str] = {
     "AWSManagedPolicy",
     "AWSServicePrincipal",
     "AWSTag",
+    # CVE records ingested by CrowdStrike are public CVEs shared across tenants;
+    # CrowdstrikeCVESchema sets scoped_cleanup=False explicitly.
+    "CrowdstrikeFinding",
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",

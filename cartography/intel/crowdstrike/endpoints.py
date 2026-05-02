@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from typing import Dict
 from typing import List
 
@@ -8,6 +9,7 @@ from falconpy.oauth2 import OAuth2
 
 from cartography.client.core.tx import load
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
+from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -33,14 +35,31 @@ def load_host_data(
     update_tag: int,
 ) -> None:
     """
-    Load Crowdstrike host data into Neo4j.
+    Load Crowdstrike host data into Neo4j, grouping by CID so each batch is
+    scoped to its tenant.
     """
+    hosts_by_cid: dict[str, list[Dict]] = defaultdict(list)
+    for host in data:
+        cid = host.get("cid")
+        if not cid:
+            continue
+        hosts_by_cid[cid].append(host)
+    if not hosts_by_cid:
+        return
     load(
         neo4j_session,
-        CrowdstrikeHostSchema(),
-        data,
+        CrowdstrikeTenantSchema(),
+        [{"id": cid} for cid in hosts_by_cid],
         lastupdated=update_tag,
     )
+    for cid, hosts in hosts_by_cid.items():
+        load(
+            neo4j_session,
+            CrowdstrikeHostSchema(),
+            hosts,
+            lastupdated=update_tag,
+            CID=cid,
+        )
 
 
 def get_host_ids(

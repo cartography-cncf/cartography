@@ -1,5 +1,26 @@
 ## Crowdstrike Schema
 
+### CrowdstrikeTenant
+
+Representation of a CrowdStrike customer tenant. The `id` field is the
+customer's CID (Customer ID); CrowdstrikeHost and SpotlightVulnerability
+nodes belonging to that tenant are linked via `RESOURCE` and cleaned up
+together when stale.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The CrowdStrike CID for this tenant |
+
+#### Relationships
+
+- CrowdstrikeTenant owns CrowdstrikeHost and SpotlightVulnerability for cleanup scoping.
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
+    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
+    ```
+
 ### CrowdstrikeHost
 
 Representation of a Crowdstrike Host
@@ -51,6 +72,11 @@ Representation of a Crowdstrike Host
     (CrowdstrikeHost)-[HAS_VULNERABILITY]->(SpotlightVulnerability)
     ```
 
+- CrowdstrikeHost belongs to a CrowdstrikeTenant
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
+    ```
+
 ### SpotlightVulnerability
 
 Representation of a Crowdstrike Vulnerability
@@ -81,6 +107,11 @@ Representation of a Crowdstrike Vulnerability
 - SpotlightVulnerability has CVE
     ```
     (SpotlightVulnerability)-[HAS_CVE]->(CVE)
+    ```
+
+- SpotlightVulnerability belongs to a CrowdstrikeTenant
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
     ```
 
 ### CrowdstrikeFinding::CVE
