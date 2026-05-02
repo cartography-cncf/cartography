@@ -73,6 +73,30 @@ SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
     "KubernetesOIDCProvider",
 }
 
+# Node labels that are intentionally global / shared and therefore have no
+# sub_resource_relationship. They are not flagged as extra root nodes by
+# test_sub_resource_relationship.
+GLOBAL_NODE_LABELS: Set[str] = {
+    # Ontology canonical nodes — explicitly cross-tenant by design.
+    "Device",
+    "Package",
+    "PublicIP",
+    "User",
+    # AWS-owned / cross-account resources.
+    "AWSCidrBlock",
+    "AWSManagedPolicy",
+    "AWSServicePrincipal",
+    "AWSTag",
+    # Public/global registry data.
+    "DockerScoutPublicImage",
+    "DockerScoutPublicImageTag",
+    # Shared GitHub nodes (cross-org / cross-repo).
+    "ProgrammingLanguage",
+    "PythonLibrary",
+    # Workday canonical human (mirrors the ontology pattern).
+    "WorkdayHuman",
+}
+
 
 def test_sub_resource_relationship():
     """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
@@ -116,7 +140,9 @@ def test_sub_resource_relationship():
 
     for module_name, label_anchors in label_has_anchor_per_module.items():
         unanchored_labels = sorted(
-            label for label, anchored in label_anchors.items() if not anchored
+            label
+            for label, anchored in label_anchors.items()
+            if not anchored and label not in GLOBAL_NODE_LABELS
         )
         if len(unanchored_labels) > 1:
             warnings.warn(
