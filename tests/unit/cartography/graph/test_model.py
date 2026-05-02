@@ -73,6 +73,16 @@ SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
     "KubernetesOIDCProvider",
 }
 
+# Modules whose APIs do not expose a single tenant root that could anchor every
+# node, so the "multiple root nodes" check is skipped for them. Mostly scanner
+# integrations that ingest flat lists of findings without a containing tenant
+# entity.
+MODULES_WITHOUT_TENANT_ROOT: Set[str] = {
+    "cartography.models.aibom",
+    "cartography.models.pagerduty",
+    "cartography.models.trivy",
+}
+
 # Node labels that are intentionally global / shared and therefore have no
 # sub_resource_relationship. They are not flagged as extra root nodes by
 # test_sub_resource_relationship.
@@ -139,6 +149,8 @@ def test_sub_resource_relationship():
             # TODO assert sub_resource_relationship.direction == "INWARD"
 
     for module_name, label_anchors in label_has_anchor_per_module.items():
+        if module_name in MODULES_WITHOUT_TENANT_ROOT:
+            continue
         unanchored_labels = sorted(
             label
             for label, anchored in label_anchors.items()
