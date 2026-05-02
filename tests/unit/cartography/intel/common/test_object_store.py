@@ -221,7 +221,7 @@ def test_azure_blob_reader_lists_objects_and_reads_bytes(
     )
 
 
-@patch("cartography.intel.common.object_store.AzureCliCredential")
+@patch("azure.identity.AzureCliCredential")
 @patch("azure.storage.blob.BlobServiceClient")
 def test_azure_blob_reader_creates_cli_credential_when_none_supplied(
     mock_blob_service_client_cls,
@@ -238,7 +238,7 @@ def test_azure_blob_reader_creates_cli_credential_when_none_supplied(
     )
 
 
-@patch("cartography.intel.common.object_store.AzureCliCredential")
+@patch("azure.identity.AzureCliCredential")
 @patch("azure.storage.blob.BlobServiceClient")
 def test_azure_blob_reader_uses_supplied_credential(
     mock_blob_service_client_cls,
