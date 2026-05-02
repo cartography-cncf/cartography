@@ -114,11 +114,11 @@ def _build_oss_sast_finding_id(
     start_col: str,
     end_line: str,
     end_col: str,
-    repository_name: str,
+    repository_url: str,
 ) -> str:
     """
     Build a stable synthetic ID for OSS findings since Semgrep OSS CLI output
-    does not include the Semgrep Cloud finding ID. Include repository name
+    does not include the Semgrep Cloud finding ID. Include repository URL
     so identical findings in different repositories do not collide.
     """
     raw_id = "|".join(
@@ -129,7 +129,7 @@ def _build_oss_sast_finding_id(
             start_col,
             end_line,
             end_col,
-            repository_name,
+            repository_url,
         ],
     )
     digest = hashlib.sha256(raw_id.encode("utf-8")).hexdigest()
@@ -221,7 +221,7 @@ def transform_oss_semgrep_sast_report(
             start_col,
             end_line,
             end_col,
-            repo_context["repositoryName"],
+            repo_context["repositoryUrl"],
         )
 
         row.update(repo_context)

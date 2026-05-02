@@ -499,7 +499,7 @@ def test_sync_oss_sast_findings(neo4j_session, tmp_path):
             str(r.get("start", {}).get("col", "")),
             str(r.get("end", {}).get("line", "")),
             str(r.get("end", {}).get("col", "")),
-            "simpsoncorp/sample_repo",
+            TEST_REPO_ID,
         )
         for r in results
     ]

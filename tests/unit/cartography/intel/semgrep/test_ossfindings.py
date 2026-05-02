@@ -33,7 +33,7 @@ def test_get_semgrep_oss_repo_context_happy_path():
     }
 
 
-def test_build_oss_sast_finding_id_includes_repository_name():
+def test_build_oss_sast_finding_id_includes_repository_url():
     repo_a_id = _build_oss_sast_finding_id(
         "python.lang.security.audit.sql-injection.fake-1",
         "/workspace/chatbox-sandbox/app/auth.py",
@@ -41,7 +41,7 @@ def test_build_oss_sast_finding_id_includes_repository_name():
         "9",
         "42",
         "61",
-        "subimagesec/subimage",
+        "https://github.com/subimagesec/subimage",
     )
     repo_b_id = _build_oss_sast_finding_id(
         "python.lang.security.audit.sql-injection.fake-1",
@@ -50,7 +50,7 @@ def test_build_oss_sast_finding_id_includes_repository_name():
         "9",
         "42",
         "61",
-        "different-org/different-repo",
+        "https://github.com/different-org/different-repo",
     )
 
     assert repo_a_id.startswith("semgrep-oss-sast-")
