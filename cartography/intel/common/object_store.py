@@ -7,7 +7,6 @@ from typing import Callable
 from typing import Iterable
 from typing import Protocol
 
-from azure.identity import AzureCliCredential
 from azure.storage import blob as azure_blob
 from typing_extensions import Self
 
@@ -275,6 +274,8 @@ class AzureBlobContainerReader(_BaseReader):
         self._prefix = prefix
 
         if credential is None:
+            from azure.identity import AzureCliCredential
+
             credential = AzureCliCredential()
 
         self._client = azure_blob.BlobServiceClient(
