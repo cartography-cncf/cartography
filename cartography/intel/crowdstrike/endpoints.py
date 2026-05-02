@@ -39,11 +39,18 @@ def load_host_data(
     scoped to its tenant.
     """
     hosts_by_cid: dict[str, list[Dict]] = defaultdict(list)
+    missing_cid: list[str] = []
     for host in data:
         cid = host.get("cid")
         if not cid:
+            missing_cid.append(host.get("device_id") or "<unknown>")
             continue
         hosts_by_cid[cid].append(host)
+    if missing_cid:
+        raise ValueError(
+            "CrowdStrike returned host records with no `cid`; refusing to load "
+            f"because the tenant scope cannot be resolved. Affected device_ids: {missing_cid}"
+        )
     if not hosts_by_cid:
         return
     load(

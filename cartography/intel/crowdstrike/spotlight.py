@@ -69,11 +69,19 @@ def load_vulnerability_data(
     is scoped to its tenant.
     """
     vulns_by_cid: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    missing_cid: list[str] = []
     for vuln in data:
         cid = vuln.get("cid")
         if not cid:
+            missing_cid.append(vuln.get("id") or "<unknown>")
             continue
         vulns_by_cid[cid].append(vuln)
+    if missing_cid:
+        raise ValueError(
+            "CrowdStrike returned Spotlight vulnerability records with no `cid`; "
+            "refusing to load because the tenant scope cannot be resolved. "
+            f"Affected ids: {missing_cid}"
+        )
     if not vulns_by_cid:
         return
     load(
