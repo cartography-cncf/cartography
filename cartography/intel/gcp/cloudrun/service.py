@@ -38,9 +38,7 @@ def get_services(
 
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: client.list_services(
-                parent=location,
-            ),
+            fetcher=lambda **kw: client.list_services(parent=location, **kw),
             resource_type="services",
             location=location,
             project_id=project_id,
