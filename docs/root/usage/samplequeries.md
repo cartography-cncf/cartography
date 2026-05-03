@@ -177,30 +177,39 @@ RETURN repo.name, dep.name, edge.specifier, dep.version
 
 ### What AWS accounts and roles can a given AWS Identity Center user access? Via what permission sets?
 ```cypher
-MATCH (user:AWSSSOUser{user_name:"myuser"})<-[:ALLOWED_BY]-(role:AWSRole)<-[:RESOURCE]-(account:AWSAccount)
-MATCH (role)<-[:ASSIGNED_TO_ROLE]-(ps:AWSPermissionSet)
-RETURN account.id, account.name, role.arn, ps.name
-```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28user%3AAWSSSOUser%7Buser_name%3A%22myuser%22%7D%29%3C-%5B%3AALLOWED_BY%5D-%28role%3AAWSRole%29%3C-%5B%3ARESOURCE%5D-%3E%28account%3AAWSAccount%29%0A%20%20%20%20MATCH%20%28role%29%3C-%5B%3AASSIGNED_TO_ROLE%5D-%28ps%3AAWSPermissionSet%29%0A%20%20%20%20RETURN%20account.id%2C%20account.name%2C%20role.arn%2C%20ps.name)
-
-### What are the users and groups that can assume a given AWSRole via Identity Center?
-```cypher
-// Users
-MATCH (r:AWSRole {arn: "arn:aws:iam::123456789012:role/myrole"})-[:ALLOWED_BY]->(u:AWSSSOUser)
-RETURN 'user' AS principal_type,  u.id AS principal_id,  u.user_name AS principal_name
+MATCH (user:AWSSSOUser {user_name: "myuser"})
+MATCH (assignment:AWSSSOAccountAssignment)-[:ASSIGNED_TO]->(user)
+MATCH (assignment)-[:TARGETS_ACCOUNT]->(account:AWSAccount)
+MATCH (assignment)-[:GRANTS_PERMISSION_SET]->(ps:AWSPermissionSet)
+OPTIONAL MATCH (assignment)-[:MATERIALIZES_AS]->(role:AWSRole)
+RETURN "direct" AS assignment_type, account.id, account.name, role.arn, ps.name
 
 UNION
 
-// Groups
-MATCH (r:AWSRole {arn: "arn:aws:iam::123456789012:role/myrole"})-[:ALLOWED_BY]->(g:AWSSSOGroup)
-RETURN 'group' AS principal_type, g.id AS principal_id, g.display_name AS principal_name
+MATCH (user:AWSSSOUser {user_name: "myuser"})-[:MEMBER_OF_SSO_GROUP]->(group:AWSSSOGroup)
+MATCH (assignment:AWSSSOAccountAssignment)-[:ASSIGNED_TO]->(group)
+MATCH (assignment)-[:TARGETS_ACCOUNT]->(account:AWSAccount)
+MATCH (assignment)-[:GRANTS_PERMISSION_SET]->(ps:AWSPermissionSet)
+OPTIONAL MATCH (assignment)-[:MATERIALIZES_AS]->(role:AWSRole)
+RETURN "group" AS assignment_type, account.id, account.name, role.arn, ps.name
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28r%3AAWSRole%20%7Barn%3A%20%22arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fmyrole%22%7D%29-%5B%3AALLOWED_BY%5D-%3E%28u%3AAWSSSOUser%29%0ARETURN%20%27user%27%20AS%20principal_type%2C%20u.id%20AS%20principal_id%2C%20u.user_name%20AS%20principal_name%0A%0AUNION%0A%0A%2F%2F%20Groups%0AMATCH%20%28r%3AAWSRole%20%7Barn%3A%20%22arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fmyrole%22%7D%29-%5B%3AALLOWED_BY%5D-%3E%28g%3AAWSSSOGroup%29%0ARETURN%20%27group%27%20AS%20principal_type%2C%20g.id%20AS%20principal_id%2C%20g.display_name%20AS%20principal_name)
+### What are the users and groups that can assume a given AWSRole via Identity Center?
+```cypher
+MATCH (role:AWSRole {arn: "arn:aws:iam::123456789012:role/myrole"})
+MATCH (assignment:AWSSSOAccountAssignment)-[:MATERIALIZES_AS]->(role)
+MATCH (assignment)-[:ASSIGNED_TO]->(u:AWSSSOUser)
+RETURN "USER" AS principal_type, u.id AS principal_id, u.user_name AS principal_name
 
+UNION
+
+MATCH (role:AWSRole {arn: "arn:aws:iam::123456789012:role/myrole"})
+MATCH (assignment:AWSSSOAccountAssignment)-[:MATERIALIZES_AS]->(role)
+MATCH (assignment)-[:ASSIGNED_TO]->(g:AWSSSOGroup)
+RETURN "GROUP" AS principal_type, g.id AS principal_id, g.display_name AS principal_name
+```
 ### What are the permissionsets provisioned to a given AWS Account?
 ```cypher
-MATCH (account:AWSAccount{id:"123456789012"})-[:RESOURCE]->(role:AWSRole)
-MATCH (role)<-[:ASSIGNED_TO_ROLE]-(ps:AWSPermissionSet)
-RETURN ps.arn as permission_set_arn, ps.name as permission_set_name
+MATCH (account:AWSAccount {id: "123456789012"})<-[:TARGETS_ACCOUNT]-(assignment:AWSSSOAccountAssignment)
+MATCH (assignment)-[:GRANTS_PERMISSION_SET]->(ps:AWSPermissionSet)
+RETURN DISTINCT ps.arn AS permission_set_arn, ps.name AS permission_set_name
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28account%3AAWSAccount%7Bid%3A%22123456789012%22%7D%29-%5B%3ARESOURCE%5D-%3E%28role%3AAWSRole%29%0A%20%20%20%20MATCH%20%28role%29%3C-%5B%3AASSIGNED_TO_ROLE%5D-%28ps%3AAWSPermissionSet%29%0A%20%20%20%20RETURN%20ps.arn%20as%20permission_set_arn%2C%20ps.name%20as%20permission_set_name)

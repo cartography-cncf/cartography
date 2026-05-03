@@ -7,6 +7,7 @@ from cartography.intel.aws.identitycenter import (
 )
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import get_user_permissionsets
+from cartography.intel.aws.identitycenter import transform_account_assignments
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 
 
@@ -153,3 +154,35 @@ def test_is_permission_set_sync_unsupported_error_returns_false_for_access_denie
     )
 
     assert not _is_permission_set_sync_unsupported_error(error)
+
+
+def test_transform_account_assignments_adds_stable_id_and_principal_fields():
+    transformed = transform_account_assignments(
+        [
+            {
+                "UserId": "user-1",
+                "AccountId": "123456789012",
+                "PermissionSetArn": "arn:aws:sso:::permissionSet/ssoins-1/ps-1",
+                "RoleArn": "arn:aws:iam::123456789012:role/test-role",
+            },
+        ],
+        "USER",
+        "arn:aws:sso:::instance/ssoins-1",
+        "d-1234567890",
+        "us-east-1",
+    )
+
+    assert transformed == [
+        {
+            "UserId": "user-1",
+            "AccountId": "123456789012",
+            "PermissionSetArn": "arn:aws:sso:::permissionSet/ssoins-1/ps-1",
+            "RoleArn": "arn:aws:iam::123456789012:role/test-role",
+            "AssignmentId": "arn:aws:sso:::instance/ssoins-1|123456789012|arn:aws:sso:::permissionSet/ssoins-1/ps-1|USER|user-1",
+            "PrincipalId": "user-1",
+            "PrincipalType": "USER",
+            "IdentityStoreId": "d-1234567890",
+            "InstanceArn": "arn:aws:sso:::instance/ssoins-1",
+            "Region": "us-east-1",
+        },
+    ]
