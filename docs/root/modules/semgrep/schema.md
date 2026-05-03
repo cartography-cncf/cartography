@@ -52,7 +52,20 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
 
 ### SemgrepSASTFinding::SecurityIssue
 
-Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
+Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered either from the Semgrep Cloud Platform or from OSS Semgrep CLI JSON reports ingested via `--semgrep-oss-source`. Cloud findings come from the Semgrep Findings API, while OSS findings come from local or object-store report files and are linked to a synthetic `SemgrepDeployment` node with `id="oss"` for scoped cleanup.
+
+> **Note**: The OSS Semgrep JSON report does not include repository information. Cartography requires exactly one YAML metadata file in the same `--semgrep-oss-source` location as the report JSON file(s). The metadata file must be valid UTF-8 YAML, must load to a mapping, and must include the fields `provider`, `owner`, `repo`, `url`, and `branch`. Cartography uses `owner/repo` for the `repository` field, `url` for `repository_url`, and `branch` for `branch`. If the metadata file is missing, duplicated, malformed, or missing required fields, the OSS Semgrep sync fails.
+>
+> Example `repo_metadata.yaml`:
+> ```yaml
+> provider: "github"
+> owner: "simpsoncorp"
+> repo: "sample_repo"
+> url: "https://github.com/simpsoncorp/sample_repo"
+> branch: "main"
+> ```
+
+> **Cloud-only fields**: `line_of_code_url`, `state`, `fix_status`, `triage_status`, `opened_at`, `risk_severity`, and the `HAS_ASSISTANT` relationship are only populated for Semgrep Cloud findings.
 
 > **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
@@ -60,15 +73,16 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique integer id of the finding taken from Semgrep API |
+| **id** | Unique integer id from Semgrep Cloud, or for OSS findings a synthetic id prefixed with `semgrep-oss-sast-` built from a SHA-256 hash of `check_id`, `path`, start/end location, and `repository_url` |
 | **rule_id** | The rule that triggered the finding |
 | **repository** | The repository path where the finding was discovered |
+| **repository_url** | Full URL of the repository where the finding was discovered |
 | **branch** | The branch where the finding was discovered |
-| title | Short title for the finding, set to the rule id |
+| title | Short title for the finding |
 | description | Description of the vulnerability from the rule message |
-| severity | Severity of the finding (e.g. CRITICAL, HIGH, MEDIUM, LOW) |
+| severity | Severity of the finding (e.g. Cloud: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`; OSS: `ERROR`, `WARNING`, `INFO`) |
 | confidence | Confidence of the finding (e.g. HIGH, MEDIUM, LOW) |
-| categories | List of finding categories (e.g. security) |
+| categories | Finding categories (e.g. `["security"]`) |
 | cwe_names | List of CWE identifiers associated with the rule |
 | owasp_names | List of OWASP category names associated with the rule |
 | file_path | Path of the file where the finding was discovered |
@@ -76,13 +90,12 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 | start_col | Column where the finding starts |
 | end_line | Line where the finding ends |
 | end_col | Column where the finding ends |
-| line_of_code_url | URL pointing to the exact line of code in the repository |
-| state | Current state of the finding (e.g. unresolved, fixed, removed, muted) |
-| fix_status | Fix status based on triage (e.g. open, fixed, ignored) |
-| triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened) |
-| opened_at | Date and time when the finding was first seen in UTC |
-| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
-| risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details |
+| line_of_code_url | URL pointing to the exact line of code in the repository. Cloud only |
+| state | Current state of the finding (e.g. unresolved, fixed, removed, muted). Cloud only |
+| fix_status | Fix status based on triage (e.g. open, fixed, ignored). Cloud only |
+| triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened). Cloud only |
+| opened_at | Date and time when the finding was first seen in UTC. Cloud only |
+| risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details. Cloud only |
 
 #### Relationships
 
@@ -92,7 +105,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
     (SemgrepSASTFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
-- A SemgrepSASTFinding has a SemgrepFindingAssistant (optional)
+- A SemgrepSASTFinding has a SemgrepFindingAssistant (optional, Cloud only)
 
     ```
     (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
