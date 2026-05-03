@@ -23,7 +23,7 @@ class PagerDutyIntegrationProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PagerDutyIntegrationToVendorProperties(CartographyRelProperties):
+class PagerDutyIntegrationToVendorRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,13 +36,13 @@ class PagerDutyIntegrationToVendorRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_VENDOR"
-    properties: PagerDutyIntegrationToVendorProperties = (
-        PagerDutyIntegrationToVendorProperties()
+    properties: PagerDutyIntegrationToVendorRelProperties = (
+        PagerDutyIntegrationToVendorRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class PagerDutyIntegrationToServiceProperties(CartographyRelProperties):
+class PagerDutyIntegrationToServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -55,8 +55,8 @@ class PagerDutyIntegrationToServiceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_INTEGRATION"
-    properties: PagerDutyIntegrationToServiceProperties = (
-        PagerDutyIntegrationToServiceProperties()
+    properties: PagerDutyIntegrationToServiceRelProperties = (
+        PagerDutyIntegrationToServiceRelProperties()
     )
 
 

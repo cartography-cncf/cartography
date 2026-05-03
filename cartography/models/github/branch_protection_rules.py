@@ -14,6 +14,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -51,6 +52,34 @@ class GitHubBranchProtectionRuleNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class GitHubBranchProtectionRuleToOrganizationRelProperties(CartographyRelProperties):
+    """
+    Properties for the relationship between a branch protection rule and its organization.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubBranchProtectionRuleToOrganizationRel(CartographyRelSchema):
+    """
+    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule).
+    Branch protection rules are scoped to the organization for cleanup purposes so
+    that a single GraphJob run cleans up rules from every repo in the org.
+    """
+
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubBranchProtectionRuleToOrganizationRelProperties = (
+        GitHubBranchProtectionRuleToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubBranchProtectionRuleToRepositoryRelProperties(CartographyRelProperties):
     """
     Properties for the relationship between a branch protection rule and its repository.
@@ -68,7 +97,7 @@ class GitHubBranchProtectionRuleToRepositoryRel(CartographyRelSchema):
 
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
+        {"id": PropertyRef("repo_url")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_RULE"
@@ -83,6 +112,9 @@ class GitHubBranchProtectionRuleSchema(CartographyNodeSchema):
     properties: GitHubBranchProtectionRuleNodeProperties = (
         GitHubBranchProtectionRuleNodeProperties()
     )
-    sub_resource_relationship: GitHubBranchProtectionRuleToRepositoryRel = (
-        GitHubBranchProtectionRuleToRepositoryRel()
+    sub_resource_relationship: GitHubBranchProtectionRuleToOrganizationRel = (
+        GitHubBranchProtectionRuleToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubBranchProtectionRuleToRepositoryRel()]
     )

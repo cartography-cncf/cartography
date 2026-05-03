@@ -54,7 +54,7 @@ class AWSBedrockKnowledgeBaseToAWSAccountRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToAWSAccount(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockKnowledgeBase to AWSAccount.
     """
@@ -80,7 +80,7 @@ class AWSBedrockKnowledgeBaseToS3BucketRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToS3Bucket(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToS3BucketRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockKnowledgeBase to S3Bucket.
     """
@@ -106,7 +106,7 @@ class AWSBedrockKnowledgeBaseToFoundationModelRelProperties(CartographyRelProper
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToFoundationModel(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockKnowledgeBase to AWSBedrockFoundationModel.
     """
@@ -136,13 +136,13 @@ class AWSBedrockKnowledgeBaseSchema(CartographyNodeSchema):
     properties: AWSBedrockKnowledgeBaseNodeProperties = (
         AWSBedrockKnowledgeBaseNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockKnowledgeBaseToAWSAccount = (
-        AWSBedrockKnowledgeBaseToAWSAccount()
+    sub_resource_relationship: AWSBedrockKnowledgeBaseToAWSAccountRel = (
+        AWSBedrockKnowledgeBaseToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockKnowledgeBaseToS3Bucket(),
-            AWSBedrockKnowledgeBaseToFoundationModel(),
+            AWSBedrockKnowledgeBaseToS3BucketRel(),
+            AWSBedrockKnowledgeBaseToFoundationModelRel(),
             # TODO: Add AWSBedrockKnowledgeBaseToOpenSearchServerless() when OpenSearch nodes are available
         ],
     )

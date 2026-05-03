@@ -84,7 +84,7 @@ class GitHubActionsVariableToRepoRelProperties(CartographyRelProperties):
 class GitHubActionsVariableToRepoRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_url")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_VARIABLE"
@@ -95,14 +95,23 @@ class GitHubActionsVariableToRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRepoActionsVariableSchema(CartographyNodeSchema):
-    """Schema for repository-level variables."""
+    """
+    Schema for repository-level variables.
+
+    Uses GitHubOrganization as the sub-resource for cleanup scoping so a single
+    GraphJob run cleans up variables from every repo in the org. The
+    HAS_VARIABLE edge to the owning repository is kept as an other_relationship.
+    """
 
     label: str = "GitHubActionsVariable"
     properties: GitHubActionsVariableNodeProperties = (
         GitHubActionsVariableNodeProperties()
     )
-    sub_resource_relationship: GitHubActionsVariableToRepoRel = (
-        GitHubActionsVariableToRepoRel()
+    sub_resource_relationship: GitHubActionsVariableToOrgRel = (
+        GitHubActionsVariableToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubActionsVariableToRepoRel()]
     )
 
 

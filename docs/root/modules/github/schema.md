@@ -362,6 +362,12 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
+- GitHubBranchProtectionRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
 ### ProgrammingLanguage
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.
@@ -415,6 +421,13 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Manifests are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    ```
+
 ### Dependency
 https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
 Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
@@ -450,6 +463,13 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
     ```
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
+
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Dependencies are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(Dependency)
     ```
 
 ### ImageTag to GitHubRepository (Cross-module relationship)
@@ -667,9 +687,10 @@ Note that secret **values are never exposed** by the GitHub API - only metadata 
     (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret {level: "environment"})
     ```
 
-- GitHubOrganizations are sub-resources for environment-level GitHubActionsSecrets (for cleanup scoping).
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsSecrets (for cleanup scoping).
 
     ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "repository"})
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "environment"})
     ```
 
@@ -711,8 +732,9 @@ Unlike secrets, variable **values are stored in plaintext**.
     (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "environment"})
     ```
 
-- GitHubOrganizations are sub-resources for environment-level GitHubActionsVariables (for cleanup scoping).
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsVariables (for cleanup scoping).
 
     ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "repository"})
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```

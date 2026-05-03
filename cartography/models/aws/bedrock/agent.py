@@ -47,7 +47,7 @@ class AWSBedrockAgentToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToAWSAccount(CartographyRelSchema):
+class AWSBedrockAgentToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSAccount.)
     """
@@ -73,7 +73,7 @@ class AWSBedrockAgentToFoundationModelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToFoundationModel(CartographyRelSchema):
+class AWSBedrockAgentToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockFoundationModel.
     Only created when the agent uses a foundation model directly (not via provisioned throughput).
@@ -100,7 +100,7 @@ class AWSBedrockAgentToCustomModelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToCustomModel(CartographyRelSchema):
+class AWSBedrockAgentToCustomModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockCustomModel.
     Only created when the agent uses a custom model directly.
@@ -127,7 +127,7 @@ class AWSBedrockAgentToProvisionedThroughputRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToProvisionedThroughput(CartographyRelSchema):
+class AWSBedrockAgentToProvisionedThroughputRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockProvisionedModelThroughput.
     Created when the agent uses a provisioned throughput for model inference.
@@ -154,7 +154,7 @@ class AWSBedrockAgentToKnowledgeBaseRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToKnowledgeBase(CartographyRelSchema):
+class AWSBedrockAgentToKnowledgeBaseRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockKnowledgeBase.
     """
@@ -180,7 +180,7 @@ class AWSBedrockAgentToLambdaRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToLambda(CartographyRelSchema):
+class AWSBedrockAgentToLambdaRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSLambda (existing Lambda function nodes).
     """
@@ -206,7 +206,7 @@ class AWSBedrockAgentToRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToRole(CartographyRelSchema):
+class AWSBedrockAgentToRoleRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSRole (existing IAM role nodes).
     """
@@ -232,7 +232,7 @@ class AWSBedrockGuardrailToAgentRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockGuardrailToAgent(CartographyRelSchema):
+class AWSBedrockGuardrailToAgentRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockGuardrail to AWSBedrockAgent.
     """
@@ -256,17 +256,17 @@ class AWSBedrockAgentSchema(CartographyNodeSchema):
 
     label: str = "AWSBedrockAgent"
     properties: AWSBedrockAgentNodeProperties = AWSBedrockAgentNodeProperties()
-    sub_resource_relationship: AWSBedrockAgentToAWSAccount = (
-        AWSBedrockAgentToAWSAccount()
+    sub_resource_relationship: AWSBedrockAgentToAWSAccountRel = (
+        AWSBedrockAgentToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockAgentToFoundationModel(),
-            AWSBedrockAgentToCustomModel(),
-            AWSBedrockAgentToProvisionedThroughput(),
-            AWSBedrockAgentToKnowledgeBase(),
-            AWSBedrockAgentToLambda(),
-            AWSBedrockAgentToRole(),
-            AWSBedrockGuardrailToAgent(),
+            AWSBedrockAgentToFoundationModelRel(),
+            AWSBedrockAgentToCustomModelRel(),
+            AWSBedrockAgentToProvisionedThroughputRel(),
+            AWSBedrockAgentToKnowledgeBaseRel(),
+            AWSBedrockAgentToLambdaRel(),
+            AWSBedrockAgentToRoleRel(),
+            AWSBedrockGuardrailToAgentRel(),
         ],
     )
