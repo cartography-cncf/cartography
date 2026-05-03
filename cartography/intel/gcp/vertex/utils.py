@@ -9,11 +9,19 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import cast
 
+import backoff
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
+from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials as GoogleCredentials
 
+from cartography.intel.gcp.util import GCP_API_BACKOFF_BASE
+from cartography.intel.gcp.util import gcp_api_backoff_handler
+from cartography.intel.gcp.util import GCP_API_BACKOFF_MAX
+from cartography.intel.gcp.util import gcp_api_giveup_handler
+from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.util import timeit
 
@@ -31,6 +39,20 @@ def get_vertex_credentials(aiplatform_or_credentials: Any) -> GoogleCredentials:
     return cast(GoogleCredentials, aiplatform_or_credentials)
 
 
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    (ServerError, TooManyRequests),
+    max_tries=GCP_API_MAX_RETRIES,
+    on_backoff=gcp_api_backoff_handler,
+    on_giveup=gcp_api_giveup_handler,
+    logger=None,
+    base=GCP_API_BACKOFF_BASE,
+    max_value=GCP_API_BACKOFF_MAX,
+)
+def _list_vertex_ai_resources_with_retry(fetcher: Callable[[], Any]) -> list[dict]:
+    return [proto_message_to_dict(resource) for resource in fetcher()]
+
+
 def list_vertex_ai_resources_for_location(
     *,
     fetcher: Callable[[], Any],
@@ -39,7 +61,7 @@ def list_vertex_ai_resources_for_location(
     project_id: str,
 ) -> list[dict]:
     try:
-        resources = [proto_message_to_dict(resource) for resource in fetcher()]
+        resources = _list_vertex_ai_resources_with_retry(fetcher)
     except NotFound:
         logger.debug(
             "Vertex AI %s not found in %s for project %s. This location may not have any %s.",
