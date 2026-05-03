@@ -56,6 +56,12 @@ CT -- RESOLVED_IMAGE --> IM
 In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `Semantic Labels` (on module nodes).
 :::
 
+### Where ontology relationships come from
+
+1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
+2. Ontology analysis jobs derive cross-module edges after sync (e.g. `ontology_users_linking.json` builds the `User`/`UserAccount` graph; `resolved_image_analysis.json` connects `Container` and `Function` to a single-platform `Image`).
+3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:ECSContainer:Container)-[:WORKLOAD_PARENT]->(:ECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
+
 ### Ontology Properties on Nodes
 
 Cartography's ontology system supports two distinct patterns for organizing and querying data across modules:
@@ -153,6 +159,13 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_inactive | Whether the account is inactive, disabled, suspended, or locked. |
 | _ont_lastactivity | Timestamp of the last activity or login for this account. |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A `User` has one or many `UserAccount`:
+    ```
+    (:User)-[:HAS_ACCOUNT]->(:UserAccount)
+    ```
 
 
 ### UserGroup
@@ -334,6 +347,11 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
     ```
     (:Container)-[:RESOLVED_IMAGE]->(:Image)
     ```
+- `Container` points at its parent in the unified workload chain. Depending on the provider this is a `ComputePod` (cluster-backed providers like AWS ECS and Kubernetes) or directly a `ComputeService` (serverless providers like GCP Cloud Run).
+    ```
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputePod)
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
+    ```
 
 
 ### ComputeCluster
@@ -352,6 +370,15 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
 | _ont_endpoint | The API endpoint or FQDN for the cluster. |
 | _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
+
+#### Relationships
+
+- `ComputeCluster` is the top of the unified workload chain. Children point at it via `WORKLOAD_PARENT`:
+    ```
+    (:ComputeService)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    (:ComputeNamespace)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
 
 
 ### ComputeService
