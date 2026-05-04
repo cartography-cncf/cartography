@@ -13,7 +13,6 @@ from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
@@ -789,7 +788,7 @@ def cleanup_docker_images(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Docker repository image nodes and unreferenced canonical image nodes.
+    Cleans up stale Docker repository image nodes and relationships.
     """
     GraphJob.from_node_schema(
         GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
@@ -818,17 +817,6 @@ def cleanup_docker_images(
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (img:GCPArtifactRegistryImage)
-        WHERE NOT (:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(img)
-        AND NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img)
-        WITH img LIMIT $LIMIT_SIZE
-        DETACH DELETE img
-        """,
-        LIMIT_SIZE=common_job_parameters.get("LIMIT_SIZE", 1000),
-    )
 
 
 @timeit

@@ -456,7 +456,7 @@ def _build_layer_dicts(
     return list(layers_by_diff_id.values())
 
 
-PROVENANCE_PRESERVED_FIELDS = (
+PROVENANCE_UPDATE_FIELDS = (
     "type",
     "media_type",
     "architecture",
@@ -464,10 +464,18 @@ PROVENANCE_PRESERVED_FIELDS = (
     "os_version",
     "os_features",
     "variant",
+    "layer_diff_ids",
+)
+
+PROVENANCE_SOURCE_FIELDS = (
     "source_uri",
     "source_revision",
     "source_file",
-    "layer_diff_ids",
+)
+
+PROVENANCE_FIELDS = (
+    *PROVENANCE_UPDATE_FIELDS,
+    *PROVENANCE_SOURCE_FIELDS,
 )
 
 
@@ -505,7 +513,7 @@ def _merge_existing_image_provenance(
     merged_by_digest = {
         row["digest"]: {
             "digest": row["digest"],
-            **{field: row.get(field) for field in PROVENANCE_PRESERVED_FIELDS},
+            **{field: row.get(field) for field in PROVENANCE_FIELDS},
         }
         for row in existing_rows
     }
@@ -516,9 +524,16 @@ def _merge_existing_image_provenance(
             continue
         merged = merged_by_digest.setdefault(
             digest,
-            {"digest": digest, **dict.fromkeys(PROVENANCE_PRESERVED_FIELDS)},
+            {"digest": digest, **dict.fromkeys(PROVENANCE_FIELDS)},
         )
-        for field in PROVENANCE_PRESERVED_FIELDS:
+        for field in PROVENANCE_UPDATE_FIELDS:
+            value = update.get(field)
+            if value is not None:
+                merged[field] = value
+        # Source fields are digest-level provenance. Keep existing non-null values
+        # so a later ref without equivalent source metadata does not erase or
+        # replace a source discovered through another ref for the same digest.
+        for field in PROVENANCE_SOURCE_FIELDS:
             value = update.get(field)
             if merged.get(field) is None and value is not None:
                 merged[field] = value
