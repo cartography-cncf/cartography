@@ -47,7 +47,23 @@ In `cartography/cli.py`:
 
 In `cartography/config.py`, extend `Config.__init__` with the new fields. Then in your module entry point, validate them and short-circuit with `logger.info("... not configured - skipping module")` when missing.
 
-### Step 3 — Implement the sync pattern
+### Step 3 — Register the module in `cartography/sync.py`
+
+Add one entry to `TOP_LEVEL_MODULES` using the lazy wrapper. **Do not add a top-level `import cartography.intel.your_service` to `sync.py`** — that defeats lazy SDK loading and reintroduces the slow-startup problem.
+
+```python
+TOP_LEVEL_MODULES = OrderedDict({
+    ...
+    "your_service": _LazyStage("cartography.intel.your_service", "start_your_service_ingestion"),
+    ...
+    # `analysis` must remain last
+    "analysis": _LazyStage("cartography.intel.analysis", "run"),
+})
+```
+
+Pick a sensible position relative to neighbors (cloud providers grouped together, etc.). The provider's heavy SDK imports stay where they are — they only fire when this stage is selected and run.
+
+### Step 4 — Implement the sync pattern
 
 For each domain (users, devices, projects, ...):
 
@@ -68,7 +84,7 @@ def sync(
 
 `get()` should be minimal: set timeouts, call `response.raise_for_status()`, and let errors propagate. AWS get-functions wrap with `@aws_handle_regions`. See `references/sync-pattern.md` for the long-form template, error-handling rules, and transform examples.
 
-### Step 4 — Define the data model
+### Step 5 — Define the data model
 
 Create dataclasses in `cartography/models/your_service/`. Required for every node:
 
@@ -96,7 +112,7 @@ class YourServiceUserSchema(CartographyNodeSchema):
 
 For advanced node configurations (extra labels, conditional labels, scoped cleanup, one-to-many) see the `add-node-type` skill. For relationships, MatchLinks, and multi-module patterns see the `add-relationship` skill. See `references/data-model.md` for the full reference.
 
-### Step 5 — Load + cleanup
+### Step 6 — Load + cleanup
 
 ```python
 def load_users(neo4j_session, data, tenant_id, update_tag):
@@ -109,19 +125,19 @@ def cleanup(neo4j_session, common_job_parameters):
 
 If you hand-write a Cypher write query during prototyping, use `run_write_query()` (managed transaction + retries), never `neo4j_session.run()`.
 
-### Step 6 — Integration test
+### Step 7 — Integration test
 
 In `tests/integration/cartography/intel/your_service/test_users.py`, patch only `get()` and call `sync()` end-to-end. Assert outcomes (nodes + relationships) using `tests.integration.util.check_nodes` / `check_rels`. Do not assert on mock call counts or internal parameters. See `references/testing.md` for a full template and the test boundary policy.
 
-### Step 7 — Schema documentation
+### Step 8 — Schema documentation
 
 Add a page at `docs/root/modules/your_service/schema.md`. Use `###` for node names, `####` for the "Relationships" subsection, **bold** indexed/primary fields. If the node has a semantic label, add the standard ontology mapping blockquote (see the `enrich-ontology` skill).
 
-### Step 8 — Optional: analysis jobs
+### Step 9 — Optional: analysis jobs
 
 If the module needs post-ingestion enrichment (internet exposure, permission inheritance, cross-resource linking), call `run_analysis_job()` / `run_scoped_analysis_job()` at the end of the entry point. See the `analysis-jobs` skill.
 
-### Step 9 — Pre-submission checks
+### Step 10 — Pre-submission checks
 
 ```bash
 make lint
@@ -135,6 +151,7 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 
 - [ ] Entry point validates config and skips cleanly when unconfigured
 - [ ] CLI panel + `Config` fields wired, secrets resolved from env vars
+- [ ] Module registered in `cartography/sync.py:TOP_LEVEL_MODULES` via `_LazyStage`, with no top-level `import cartography.intel.<service>` added to `sync.py`
 - [ ] Sync follows GET -> TRANSFORM -> LOAD -> CLEANUP
 - [ ] All schemas use only standard fields (`label`, `properties`, `sub_resource_relationship`, `other_relationships`, `extra_node_labels`, `scoped_cleanup`)
 - [ ] Sub-resource relationship targets a tenant-like node
