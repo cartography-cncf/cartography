@@ -127,29 +127,37 @@ jobs:
           # for more detailed information.
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Get the cartography version from the GitHub release event metadata and verify it's available on PyPI
+      # Get the cartography version from the GitHub release event metadata and
+      # poll PyPI until the wheel is actually fetchable by pip. We don't poll
+      # the JSON metadata API because it can report a version as available
+      # before the wheel has propagated to the Fastly edges that pip/uv hit;
+      # exercising `pip download` against the simple index matches what
+      # `uv tool install` will do in the Docker build below.
       - name: Extract version and verify PyPI availability
         id: version
         env:
           VERSION: ${{ github.event.release.tag_name }}
         run: |
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Waiting for cartography==$VERSION to be available on PyPI..."
+          echo "Waiting for cartography==$VERSION to be installable from PyPI..."
 
-          # Poll PyPI for up to 5 minutes
-          MAX_ATTEMPTS=30
+          MAX_ATTEMPTS=60
           ATTEMPT=0
+          TMPDIR=$(mktemp -d)
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if curl --fail --silent --show-error "https://pypi.org/pypi/cartography/$VERSION/json" > /dev/null; then
-              echo "✅ cartography==$VERSION is now available on PyPI"
+            if python3 -m pip download --no-deps --no-cache-dir \
+                 --index-url https://pypi.org/simple/ \
+                 --dest "$TMPDIR" \
+                 "cartography==$VERSION" > /dev/null 2>&1; then
+              echo "cartography==$VERSION is installable from PyPI"
               exit 0
             fi
             ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Package not yet available, waiting 10 seconds..."
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: not yet installable, retrying in 10s..."
             sleep 10
           done
 
-          echo "❌ Failed to verify cartography==$VERSION on PyPI after $MAX_ATTEMPTS attempts"
+          echo "Timed out waiting for cartography==$VERSION on PyPI after $MAX_ATTEMPTS attempts"
           exit 1
 
       - name: Build and push
