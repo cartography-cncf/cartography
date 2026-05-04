@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.apprunner
-import cartography.intel.aws.iam
 import tests.data.aws.apprunner
 from cartography.intel.aws.apprunner import cleanup
 from cartography.intel.aws.iam import load_role_data

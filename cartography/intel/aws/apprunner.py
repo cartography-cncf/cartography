@@ -7,6 +7,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.service_regions import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.models.aws.apprunner import AppRunnerServiceSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -112,7 +115,20 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    for region in regions:
+    apprunner_regions, unsupported_regions = (
+        filter_regions_to_supported_service_regions(
+            boto3_session,
+            "apprunner",
+            regions,
+        )
+    )
+    for region in unsupported_regions:
+        logger.info(
+            "Skipping AppRunner sync for unsupported region '%s'.",
+            region,
+        )
+
+    for region in apprunner_regions:
         logger.info(
             "Syncing AppRunner for region '%s' in account '%s'.",
             region,
