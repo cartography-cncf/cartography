@@ -135,7 +135,16 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
         load_nodes_without_relationships.call_args_list[1].kwargs["batch_size"]
         == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
     )
-    assert load_matchlinks_with_progress.call_count == 3
+    assert load_matchlinks_with_progress.call_count == 4
+    assert [
+        call.args[1].__class__.__name__
+        for call in load_matchlinks_with_progress.call_args_list
+    ] == [
+        "GCPArtifactRegistryProjectToImageRefRel",
+        "GCPArtifactRegistryRepositoryToImageRefRel",
+        "GCPArtifactRegistryRepositoryToImageRefRepoImageRel",
+        "GCPArtifactRegistryImageRefToImageMatchLink",
+    ]
     for call in load_matchlinks_with_progress.call_args_list:
         assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
         assert call.kwargs["_sub_resource_label"] == "GCPProject"
