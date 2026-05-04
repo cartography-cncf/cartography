@@ -1,0 +1,60 @@
+{
+  "name": "GCP Artifact Registry ImageRef migration cleanup",
+  "__comment__": "Migrate legacy GAR image relationships from scoped container/platform image nodes to canonical digest-keyed GCPArtifactRegistryImage nodes after ImageRef/Image loading.",
+  "statements": [
+    {
+      "__comment__": "Remove ontology image labels from scoped ImageRef compatibility nodes. The digest-keyed GCPArtifactRegistryImage node is the ontology Image.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(ref:GCPArtifactRegistryImageRef) WHERE ref:Image OR ref:ImageManifestList OR ref:ImageAttestation WITH ref LIMIT $LIMIT_SIZE REMOVE ref:Image, ref:ImageManifestList, ref:ImageAttestation RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate HAS_IMAGE edges from legacy GAR ref/platform targets to canonical digest-keyed image targets.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (src)-[old_rel:HAS_IMAGE]->(old) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH src, old_rel, img LIMIT $LIMIT_SIZE MERGE (src)-[new_rel:HAS_IMAGE]->(img) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate RESOLVED_IMAGE edges from legacy GAR ref/platform targets to canonical digest-keyed image targets.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (src)-[old_rel:RESOLVED_IMAGE]->(old) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH src, old_rel, img LIMIT $LIMIT_SIZE MERGE (src)-[new_rel:RESOLVED_IMAGE]->(img) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate SCANNED_IMAGE edges from legacy GAR ref/platform targets to canonical digest-keyed image targets.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (src)-[old_rel:SCANNED_IMAGE]->(old) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH src, old_rel, img LIMIT $LIMIT_SIZE MERGE (src)-[new_rel:SCANNED_IMAGE]->(img) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate DEPLOYED edges from legacy GAR ref/platform targets to canonical digest-keyed image targets.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (src)-[old_rel:DEPLOYED]->(old) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH src, old_rel, img LIMIT $LIMIT_SIZE MERGE (src)-[new_rel:DEPLOYED]->(img) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate AFFECTS edges from legacy GAR ref/platform targets to canonical digest-keyed image targets.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (src)-[old_rel:AFFECTS]->(old) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH src, old_rel, img LIMIT $LIMIT_SIZE MERGE (src)-[new_rel:AFFECTS]->(img) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Migrate PACKAGED_FROM edges from legacy GAR ref/platform image nodes to canonical digest-keyed image nodes.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old) MATCH (old)-[old_rel:PACKAGED_FROM]->(dst) WHERE (old:GCPArtifactRegistryImageRef OR old:GCPArtifactRegistryPlatformImage) AND NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (img:GCPArtifactRegistryImage {digest: old.digest}) WITH old_rel, img, dst LIMIT $LIMIT_SIZE MERGE (img)-[new_rel:PACKAGED_FROM]->(dst) SET new_rel += properties(old_rel) DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete legacy scoped manifest edges once the canonical ImageManifestList CONTAINS_IMAGE Image edge exists.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old_parent:GCPArtifactRegistryContainerImage)-[old_rel:HAS_MANIFEST|CONTAINS_IMAGE]->(old_child:GCPArtifactRegistryPlatformImage) WHERE old_parent.digest IS NOT NULL AND old_child.digest IS NOT NULL MATCH (:GCPArtifactRegistryImage {digest: old_parent.digest})-[:CONTAINS_IMAGE]->(:GCPArtifactRegistryImage {digest: old_child.digest}) WITH old_rel LIMIT $LIMIT_SIZE DELETE old_rel RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete legacy platform image nodes after a canonical digest-keyed replacement exists.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old:GCPArtifactRegistryPlatformImage) WHERE NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (:GCPArtifactRegistryImage {digest: old.digest}) WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

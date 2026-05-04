@@ -1074,7 +1074,7 @@ def get_unmatched_gcp_images_with_history(
     :return: List of ContainerImage objects with layer history populated
     """
     query = """
-        MATCH (img:Image:GCPArtifactRegistryContainerImage)
+        MATCH (img:Image:GCPArtifactRegistryImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
@@ -1082,26 +1082,26 @@ def get_unmatched_gcp_images_with_history(
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
           )
-        OPTIONAL MATCH (img)<-[:CONTAINS]-(gcpRepo:GCPArtifactRegistryRepository)
-        WITH coalesce(gcpRepo.id, img.id) AS group_key, img
-        ORDER BY img.upload_time DESC
-        WITH group_key, collect(img)[0] AS img
-        WITH img
+        OPTIONAL MATCH (img)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)<-[:CONTAINS]-(gcpRepo:GCPArtifactRegistryRepository)
+        WITH coalesce(gcpRepo.id, img.id) AS group_key, img, ref
+        ORDER BY ref.upload_time DESC
+        WITH group_key, collect({img: img, ref: ref})[0] AS selected
+        WITH selected.img AS img, selected.ref AS ref
         UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH img, img.layer_diff_ids[idx] AS diff_id, idx
+        WITH img, ref, img.layer_diff_ids[idx] AS diff_id, idx
         OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH img, idx, {
+        WITH img, ref, idx, {
             diff_id: diff_id,
             history: layer.history,
             is_empty: layer.is_empty
         } AS layer_info
         ORDER BY idx
-        WITH img, collect(layer_info) AS layer_history
+        WITH img, ref, collect(layer_info) AS layer_history
         RETURN
             img.digest AS digest,
-            img.uri AS uri,
-            img.repository_id AS repository_id,
-            img.name AS name,
+            ref.uri AS uri,
+            ref.repository_id AS repository_id,
+            ref.name AS name,
             img.layer_diff_ids AS layer_diff_ids,
             layer_history
     """

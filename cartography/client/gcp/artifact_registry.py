@@ -12,14 +12,13 @@ def get_gcp_container_images(
     neo4j_session: neo4j.Session,
 ) -> Set[Tuple[str, str, str, str, str]]:
     """
-    Queries the graph for all GCP Artifact Registry container images with their URIs and digests.
+    Queries the graph for all GCP Artifact Registry image refs with their canonical image digests.
 
     Returns 5-tuples similar to ECR to support both tag-based and digest-based matching:
     (location, tag, uri, repo_name, digest)
 
-    For multi-arch images, this returns rows for both:
-    - Manifest list digests (from GCPArtifactRegistryContainerImage)
-    - Platform-specific digests (from GCPArtifactRegistryPlatformImage)
+    For multi-arch images, this returns rows for both the manifest-list image
+    and the child platform images reached through CONTAINS_IMAGE.
 
     Tags are unwound so each tag gets its own row, plus rows with null tags for digest-only matching.
 
@@ -27,37 +26,37 @@ def get_gcp_container_images(
     :return: 5-tuples of (location, tag, uri, repo_name, digest) for each GCP container image.
     """
     query = """
-    // Match container images with their repository
-    MATCH (repo:GCPArtifactRegistryRepository)-[:CONTAINS]->(img:GCPArtifactRegistryContainerImage)
-    WHERE img.uri IS NOT NULL
+    // Match image refs with their repository and canonical image content node
+    MATCH (repo:GCPArtifactRegistryRepository)-[:CONTAINS]->(ref:GCPArtifactRegistryImageRef)-[:IMAGE]->(img:GCPArtifactRegistryImage)
+    WHERE ref.uri IS NOT NULL
 
     // Optionally get platform-specific images for multi-arch
-    OPTIONAL MATCH (img)-[:HAS_MANIFEST]->(platform:GCPArtifactRegistryPlatformImage)
+    OPTIONAL MATCH (img)-[:CONTAINS_IMAGE]->(platform:GCPArtifactRegistryImage)
 
-    // Collect all platform images per container image
-    WITH img, repo, collect(platform) AS platforms
+    // Collect all platform images per image ref
+    WITH ref, img, repo, collect(platform) AS platforms
 
     // Create list of all image nodes (container image + platform images)
-    WITH img, repo,
+    WITH ref, img, repo,
          CASE
              WHEN size(platforms) = 0 THEN [img]
              ELSE platforms + [img]
          END AS all_image_nodes
 
     // Extract base URI (without @digest)
-    WITH img, repo, all_image_nodes,
+    WITH ref, repo, all_image_nodes,
          CASE
-             WHEN img.uri CONTAINS '@' THEN split(img.uri, '@')[0]
-             ELSE img.uri
+             WHEN ref.uri CONTAINS '@' THEN split(ref.uri, '@')[0]
+             ELSE ref.uri
          END AS base_uri
 
     // Unwind image nodes to get one row per image (manifest list + each platform)
     UNWIND all_image_nodes AS image_node
 
     // Create tags list: include all tags PLUS one null entry for digest-only matching
-    WITH repo, base_uri, image_node, img,
+    WITH repo, base_uri, image_node, ref,
          CASE
-             WHEN img.tags IS NOT NULL AND size(img.tags) > 0 THEN img.tags + [null]
+             WHEN ref.tags IS NOT NULL AND size(ref.tags) > 0 THEN ref.tags + [null]
              ELSE [null]
          END AS tags_list
 

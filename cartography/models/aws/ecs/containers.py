@@ -144,7 +144,7 @@ class ECSContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
     Matches containers to GAR image artifacts by runtime digest (imageDigest).
     """
 
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("imageDigest")}
     )
@@ -194,6 +194,5 @@ class ECSContainerSchema(CartographyNodeSchema):
             ECSContainerToECRImageRel(),
             ECSContainerToGitLabContainerImageRel(),
             ECSContainerToGCPArtifactRegistryContainerImageRel(),
-            ECSContainerToGCPArtifactRegistryPlatformImageRel(),
         ]
     )

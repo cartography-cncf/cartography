@@ -283,17 +283,20 @@ def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_
         SET c.architecture_normalized = 'amd64',
             c.lastupdated = $update_tag
 
-        MERGE (ml:GCPArtifactRegistryContainerImage:ImageManifestList {id: 'gar-manifest-list'})
+        MERGE (ml:GCPArtifactRegistryImage:ImageManifestList {id: 'sha256:manifestlist'})
         SET ml.digest = 'sha256:manifestlist',
+            ml.type = 'manifest_list',
             ml.lastupdated = $update_tag
 
-        MERGE (child_amd64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-amd64'})
+        MERGE (child_amd64:GCPArtifactRegistryImage:Image {id: 'sha256:childamd64'})
         SET child_amd64.digest = 'sha256:childamd64',
+            child_amd64.type = 'image',
             child_amd64._ont_architecture = 'amd64',
             child_amd64.lastupdated = $update_tag
 
-        MERGE (child_arm64:GCPArtifactRegistryPlatformImage:Image {id: 'gar-child-arm64'})
+        MERGE (child_arm64:GCPArtifactRegistryImage:Image {id: 'sha256:childarm64'})
         SET child_arm64.digest = 'sha256:childarm64',
+            child_arm64.type = 'image',
             child_arm64._ont_architecture = 'arm64',
             child_arm64.lastupdated = $update_tag
 
@@ -322,4 +325,4 @@ def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_
         "Image",
         "id",
         "RESOLVED_IMAGE",
-    ) == {("cloud-run-container-1", "gar-child-amd64")}
+    ) == {("cloud-run-container-1", "sha256:childamd64")}

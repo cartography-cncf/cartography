@@ -127,7 +127,7 @@ class CloudRunJobContainerToArtifactRegistryContainerImageRelProperties(
 
 @dataclass(frozen=True)
 class CloudRunJobContainerToArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
@@ -173,6 +173,5 @@ class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
             CloudRunJobContainerToECRImageRel(),
             CloudRunJobContainerToGitLabContainerImageRel(),
             CloudRunJobContainerToArtifactRegistryContainerImageRel(),
-            CloudRunJobContainerToArtifactRegistryPlatformImageRel(),
         ],
     )

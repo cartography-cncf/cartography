@@ -1596,30 +1596,29 @@ Google Cloud Artifact Registry is a universal package manager for managing conta
 graph LR
     Project[GCPProject]
     Repository[GCPArtifactRegistryRepository]
-    ContainerImage[GCPArtifactRegistryContainerImage]
+    ImageRef[GCPArtifactRegistryImageRef]
+    Image[GCPArtifactRegistryImage]
     HelmChart[GCPArtifactRegistryHelmChart]
     LanguagePackage[GCPArtifactRegistryLanguagePackage]
     GenericArtifact[GCPArtifactRegistryGenericArtifact]
-    PlatformImage[GCPArtifactRegistryPlatformImage]
     ImageLayer[GCPArtifactRegistryImageLayer]
     TrivyFinding[TrivyImageFinding]
     Package[Package]
 
     Project -->|RESOURCE| Repository
-    Project -->|RESOURCE| ContainerImage
+    Project -->|RESOURCE| ImageRef
     Project -->|RESOURCE| HelmChart
     Project -->|RESOURCE| LanguagePackage
     Project -->|RESOURCE| GenericArtifact
-    Project -->|RESOURCE| PlatformImage
     Project -->|RESOURCE| ImageLayer
-    Repository -->|CONTAINS| ContainerImage
+    Repository -->|CONTAINS| ImageRef
     Repository -->|CONTAINS| HelmChart
     Repository -->|CONTAINS| LanguagePackage
     Repository -->|CONTAINS| GenericArtifact
-    ContainerImage -->|HAS_MANIFEST| PlatformImage
-    ContainerImage -->|CONTAINS_IMAGE| PlatformImage
-    TrivyFinding -->|AFFECTS| ContainerImage
-    Package -->|DEPLOYED| ContainerImage
+    ImageRef -->|IMAGE| Image
+    Image -->|CONTAINS_IMAGE| Image
+    TrivyFinding -->|AFFECTS| Image
+    Package -->|DEPLOYED| Image
 ```
 
 #### GCPArtifactRegistryRepository
@@ -1654,9 +1653,9 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
     ```
 
-- GCPArtifactRegistryRepositories contain artifacts (ContainerImage, HelmChart, LanguagePackage, GenericArtifact).
+- GCPArtifactRegistryRepositories contain artifacts (ImageRef, HelmChart, LanguagePackage, GenericArtifact).
     ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryImageRef)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
@@ -1672,28 +1671,63 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPPrincipal)-[:CAN_WRITE]->(GCPArtifactRegistryRepository)
     ```
 
-#### GCPArtifactRegistryContainerImage
+#### GCPArtifactRegistryImageRef
 
-Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
+Representation of a repository-scoped [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) record in a GCP Artifact Registry repository. This node stores GAR API metadata such as URI, tags, repository/project location, timestamps, and the digest it references.
 
-> **Ontology Mapping**: This node has conditional extra labels based on the image media type: `Image` for single-image manifests (Docker V2 manifest or OCI image manifest), or `ImageManifestList` for multi-architecture manifest lists (Docker V2 manifest list or OCI image index). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GitLabContainerImage).
+> **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference. The deprecated compatibility label `GCPArtifactRegistryContainerImage` is also present during the transition to `GCPArtifactRegistryImageRef`.
 
 | Field | Description |
 |-------|-------------|
-| **id** | Full resource name of the Docker image |
+| **id** | Full resource name of the Docker image record |
 | name | The short name of the image |
 | **uri** | The URI of the image |
-| digest | The image digest (e.g., `sha256:...`) |
+| digest | The digest referenced by this scoped image record (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |
 | media_type | The media type of the image manifest |
 | upload_time | Timestamp when the image was uploaded |
 | build_time | Timestamp when the image was built |
 | update_time | Timestamp when the image was last updated |
+| artifact_type | The artifact type, for OCI artifacts that expose it |
 | repository_id | Full resource name of the parent repository |
 | project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryImageRefs are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageRef)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryImageRefs.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryImageRef)
+    ```
+
+- GCPArtifactRegistryImageRefs point at the digest-scoped canonical image content node.
+    ```
+    (GCPArtifactRegistryImageRef)-[:IMAGE]->(GCPArtifactRegistryImage)
+    ```
+
+#### GCPArtifactRegistryImage
+
+Representation of digest-scoped GCP Artifact Registry image content. Multiple `GCPArtifactRegistryImageRef` nodes can point at the same `GCPArtifactRegistryImage` when the same digest appears through multiple repository/project-scoped records.
+
+> **Ontology Mapping**: This node has conditional extra labels based on `type`: `Image` for single-platform image manifests, `ImageManifestList` for multi-architecture manifest lists / OCI indexes, and `ImageAttestation` for future attestation records.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Image digest (e.g., `sha256:...`) |
+| **digest** | Image digest (e.g., `sha256:...`) |
+| type | Image type (`image`, `manifest_list`, or future `attestation`) |
+| media_type | The media type of the manifest |
 | architecture | CPU architecture for single-image manifests, extracted from the OCI image config (e.g., `amd64`, `arm64`) |
 | os | Operating system for single-image manifests, extracted from the OCI image config (e.g., `linux`, `windows`) |
+| os_version | OS version if specified |
+| os_features | OS features if specified |
 | variant | Platform variant for single-image manifests, extracted from the OCI image config (e.g., `v8`) |
 | source_uri | Source repository URL extracted from OCI image config provenance (e.g., `https://github.com/org/repo`) |
 | source_revision | Git commit hash from build provenance |
@@ -1704,30 +1738,19 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 
 #### Relationships
 
-- GCPArtifactRegistryContainerImages are resources of GCPProjects.
+- Manifest-list/index GCPArtifactRegistryImages contain platform-specific child images.
     ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryContainerImage)
-    ```
-
-- GCPArtifactRegistryRepositories contain GCPArtifactRegistryContainerImages.
-    ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    (GCPArtifactRegistryImage:ImageManifestList)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryImage:Image)
     ```
 
-- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages (for multi-architecture images).
+- TrivyImageFindings affect GCPArtifactRegistryImages.
     ```
-    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
-    (GCPArtifactRegistryContainerImage)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- TrivyImageFindings affect GCPArtifactRegistryContainerImages.
-    ```
-    (TrivyImageFinding)-[:AFFECTS]->(GCPArtifactRegistryContainerImage)
+    (TrivyImageFinding)-[:AFFECTS]->(GCPArtifactRegistryImage)
     ```
 
-- Packages are deployed in GCPArtifactRegistryContainerImages.
+- Packages are deployed in GCPArtifactRegistryImages.
     ```
-    (Package)-[:DEPLOYED]->(GCPArtifactRegistryContainerImage)
+    (Package)-[:DEPLOYED]->(GCPArtifactRegistryImage)
     ```
 
 #### GCPArtifactRegistryImageLayer
@@ -1841,63 +1864,31 @@ Representation of a generic artifact in a GCP Artifact Registry repository. This
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
     ```
 
-#### GCPArtifactRegistryPlatformImage
-
-Representation of a platform-specific manifest within a multi-architecture Docker image. This node captures the individual platform configurations (architecture, OS) for images that support multiple platforms.
-
-| Field | Description |
-|-------|-------------|
-| **id** | Unique identifier combining parent artifact and manifest digest |
-| digest | The digest of this specific platform manifest |
-| architecture | CPU architecture (e.g., `amd64`, `arm64`) |
-| os | Operating system (e.g., `linux`, `windows`) |
-| os_version | OS version if specified |
-| os_features | OS features if specified |
-| variant | Platform variant (e.g., `v8` for arm64) |
-| media_type | The media type of the manifest |
-| parent_artifact_id | Full resource name of the parent Docker image |
-| project_id | The GCP project ID |
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-
-#### Relationships
-
-- GCPArtifactRegistryPlatformImages are resources of GCPProjects.
-    ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryPlatformImage)
-    ```
-
-- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
-    ```
-    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
-    (GCPArtifactRegistryContainerImage)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryPlatformImage)
-    ```
-
 #### Trivy Integration Queries
 
 Find all vulnerabilities affecting GCP Artifact Registry container images:
 
 ```cypher
-MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
-RETURN vuln.name, vuln.severity, img.uri, img.digest
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
+RETURN vuln.name, vuln.severity, ref.uri, img.digest
 ORDER BY vuln.severity DESC
 ```
 
 Find packages deployed in GCP container images with their vulnerabilities:
 
 ```cypher
-MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryContainerImage)
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
 OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
-RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+RETURN ref.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
 ```
 
 Find critical vulnerabilities in GCP images with available fixes:
 
 ```cypher
-MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
 MATCH (vuln)-[:AFFECTS]->(pkg:Package)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
-RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+RETURN vuln.name, ref.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```
 
 ### Cloud Run Resources
@@ -2073,8 +2064,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     ```
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
-    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     ```
   - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
@@ -2119,8 +2109,7 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     ```
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
-    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     ```
   - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```

@@ -33,12 +33,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (img:GCPArtifactRegistryContainerImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
-        digest=TEST_GROUP_CONTAINER_DIGEST,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        "MERGE (img:GCPArtifactRegistryPlatformImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        "MERGE (img:GCPArtifactRegistryImage:Image {id: $digest, digest: $digest}) SET img.type = 'image', img.lastupdated = $tag",
         digest=TEST_GROUP_CONTAINER_DIGEST,
         tag=TEST_UPDATE_TAG,
     )
@@ -69,16 +64,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         neo4j_session,
         "AzureContainerInstance",
         "id",
-        "GCPArtifactRegistryContainerImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
-
-    assert check_rels(
-        neo4j_session,
-        "AzureContainerInstance",
-        "id",
-        "GCPArtifactRegistryPlatformImage",
+        "GCPArtifactRegistryImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}

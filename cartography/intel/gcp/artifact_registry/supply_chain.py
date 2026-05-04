@@ -25,8 +25,8 @@ from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageProvenanceSchema,
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageProvenanceSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
@@ -321,8 +321,14 @@ async def _process_single_image(
     if not provenance.get("source_uri") and not diff_ids and not has_platform:
         return None, fetch_failed
 
+    digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+    if not digest:
+        return None, fetch_failed
+
     result: dict[str, Any] = {
-        "id": name,
+        "digest": digest,
+        "type": "image",
+        "media_type": artifact.get("mediaType"),
     }
     if architecture is not None:
         result["architecture"] = architecture
@@ -461,7 +467,7 @@ def load_image_provenance(
 
     load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryContainerImageProvenanceSchema(),
+        GCPArtifactRegistryImageProvenanceSchema(),
         provenance_updates,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
@@ -543,13 +549,17 @@ def sync(
     if enrichments:
         provenance_updates = [
             {
-                "id": e["id"],
+                "digest": e["digest"],
+                "type": e.get("type", "image"),
+                "media_type": e.get("media_type"),
                 "source_uri": e.get("source_uri"),
                 "source_revision": e.get("source_revision"),
                 "source_file": e.get("source_file"),
                 "layer_diff_ids": e.get("layer_diff_ids"),
                 "architecture": e.get("architecture"),
                 "os": e.get("os"),
+                "os_version": e.get("os_version"),
+                "os_features": e.get("os_features"),
                 "variant": e.get("variant"),
             }
             for e in enrichments

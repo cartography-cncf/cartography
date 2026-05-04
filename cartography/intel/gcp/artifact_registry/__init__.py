@@ -15,6 +15,7 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
     sync as sync_supply_chain,
 )
 from cartography.intel.gcp.clients import build_artifact_registry_client
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,14 @@ def sync(
             "Skipping Artifact Registry manifest cleanup for project %s because artifact discovery was incomplete.",
             project_id,
         )
+
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_image_migration_cleanup.json",
+        neo4j_session,
+        cleanup_job_params,
+    )
 
     # Enrich images with build provenance and layer data from OCI configs
     if artifact_result.docker_images_raw:
