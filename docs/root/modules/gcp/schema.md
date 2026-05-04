@@ -1688,6 +1688,7 @@ Representation of a repository-scoped [Docker Image](https://cloud.google.com/ar
 | **id** | Full resource name of the Docker image record |
 | name | The short name of the image |
 | **uri** | The URI of the image |
+| _ont_uri | The full URI to the image ref, populated from `uri` for generic `ImageTag` queries |
 | digest | The digest referenced by this scoped image record (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |

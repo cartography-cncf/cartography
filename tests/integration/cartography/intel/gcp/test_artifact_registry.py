@@ -222,6 +222,17 @@ def test_sync_artifact_registry(
     assert check_nodes(neo4j_session, "GCPArtifactRegistryImageRef", ["id"]) == {
         (TEST_DOCKER_IMAGE_ID,),
     }
+    assert check_nodes(
+        neo4j_session,
+        "GCPArtifactRegistryImageRef",
+        ["id", "uri", "_ont_uri"],
+    ) == {
+        (
+            TEST_DOCKER_IMAGE_ID,
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
+        ),
+    }
     assert check_nodes(neo4j_session, "GCPArtifactRegistryContainerImage", ["id"]) == {
         (TEST_DOCKER_IMAGE_ID,),
     }
@@ -472,6 +483,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
             image_ref._module_name AS node_module_name,
             image_ref.digest AS digest,
             image_ref.uri AS uri,
+            image_ref._ont_uri AS ont_uri,
             labels(image_ref) AS labels,
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
@@ -486,6 +498,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert result["node_module_name"] == "cartography:gcp"
     assert result["digest"] == first_image_digest
     assert result["uri"] == docker_images[0]["uri"]
+    assert result["ont_uri"] == docker_images[0]["uri"]
     assert "ImageTag" in result["labels"]
     assert "Image" not in result["labels"]
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
