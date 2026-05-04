@@ -823,7 +823,7 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     )
 
 
-def test_load_image_provenance_preserves_existing_values_on_null_updates(
+def test_load_image_provenance_preserves_source_and_updates_metadata(
     neo4j_session,
 ):
     project_id = "test-gar-provenance-preserve-project"
@@ -862,15 +862,15 @@ def test_load_image_provenance_preserves_existing_values_on_null_updates(
                 "digest": docker_image["digest"],
                 "type": "image",
                 "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
-                "architecture": None,
-                "os": None,
+                "architecture": "arm64",
+                "os": "linux",
                 "os_version": None,
                 "os_features": None,
-                "variant": None,
-                "source_uri": None,
-                "source_revision": None,
-                "source_file": None,
-                "layer_diff_ids": None,
+                "variant": "v9",
+                "source_uri": "https://github.com/other/repo",
+                "source_revision": "revision-2",
+                "source_file": "other/Dockerfile",
+                "layer_diff_ids": ["sha256:layer-2"],
             },
         ],
         project_id,
@@ -899,13 +899,13 @@ def test_load_image_provenance_preserves_existing_values_on_null_updates(
     assert result["source_uri"] == "https://github.com/foo/bar"
     assert result["source_revision"] == "revision-1"
     assert result["source_file"] == "Dockerfile"
-    assert result["layer_diff_ids"] == ["sha256:layer-1"]
-    assert result["architecture"] == "amd64"
+    assert result["layer_diff_ids"] == ["sha256:layer-2"]
+    assert result["architecture"] == "arm64"
     assert result["os"] == "linux"
-    assert result["variant"] == "v8"
-    assert result["ont_architecture"] == "amd64"
+    assert result["variant"] == "v9"
+    assert result["ont_architecture"] == "arm64"
     assert result["ont_os"] == "linux"
-    assert result["ont_variant"] == "v8"
+    assert result["ont_variant"] == "v9"
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
 
 
@@ -1120,6 +1120,62 @@ def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
         """
     ).single()
     assert result["firstseen"] == 111
+
+
+def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
+    neo4j_session,
+):
+    project_id = "test-gar-orphan-image-cleanup-project"
+    _clear_gar_project(neo4j_session, project_id)
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject {id: $project_id})
+        MERGE (parent:GCPArtifactRegistryImage:ImageManifestList {id: 'sha256:orphan-parent'})
+        SET parent.digest = 'sha256:orphan-parent',
+            parent.type = 'manifest_list',
+            parent.lastupdated = $old_tag
+        WITH parent
+        UNWIND range(0, 1004) AS idx
+        MERGE (child:GCPArtifactRegistryImage:Image {id: 'sha256:orphan-child-' + toString(idx)})
+        SET child.digest = 'sha256:orphan-child-' + toString(idx),
+            child.type = 'image',
+            child.lastupdated = $old_tag
+        MERGE (parent)-[contains:CONTAINS_IMAGE]->(child)
+        SET contains.lastupdated = $old_tag,
+            contains._sub_resource_label = 'GCPProject',
+            contains._sub_resource_id = $project_id
+        """,
+        project_id=project_id,
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    cleanup_manifests(
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        },
+    )
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_image_migration_cleanup.json",
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        },
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (img:GCPArtifactRegistryImage)
+            WHERE img.id = 'sha256:orphan-parent'
+               OR img.id STARTS WITH 'sha256:orphan-child-'
+            RETURN count(img) AS count
+            """,
+        ).single()["count"]
+        == 0
+    )
 
 
 def test_cleanup_manifests_preserves_legacy_platform_nodes_for_migration(
