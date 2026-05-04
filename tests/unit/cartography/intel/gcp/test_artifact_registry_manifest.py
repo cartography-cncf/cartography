@@ -5,6 +5,9 @@ from cartography.intel.gcp.artifact_registry.manifest import load_manifests
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageContainsImageMatchLink,
+)
 
 
 def test_load_manifests_uses_fixed_data_model_phases_for_many_parents():
@@ -32,9 +35,20 @@ def test_load_manifests_uses_fixed_data_model_phases_for_many_parents():
         load_nodes_without_relationships.call_args.kwargs["batch_size"]
         == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
     )
-    assert load_matchlinks_with_progress.call_count == 3
-    for call in load_matchlinks_with_progress.call_args_list:
-        assert call.args[2] == manifests
-        assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
-        assert call.kwargs["_sub_resource_label"] == "GCPProject"
-        assert call.kwargs["_sub_resource_id"] == "test-project"
+    load_matchlinks_with_progress.assert_called_once()
+    assert isinstance(
+        load_matchlinks_with_progress.call_args.args[1],
+        GCPArtifactRegistryImageContainsImageMatchLink,
+    )
+    assert load_matchlinks_with_progress.call_args.args[2] == manifests
+    assert (
+        load_matchlinks_with_progress.call_args.kwargs["batch_size"]
+        == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+    )
+    assert load_matchlinks_with_progress.call_args.kwargs["_sub_resource_label"] == (
+        "GCPProject"
+    )
+    assert (
+        load_matchlinks_with_progress.call_args.kwargs["_sub_resource_id"]
+        == "test-project"
+    )
