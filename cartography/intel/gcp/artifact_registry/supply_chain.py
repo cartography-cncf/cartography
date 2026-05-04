@@ -281,6 +281,23 @@ def _repo_url_from_golang_purl(locator: str) -> str | None:
     return _normalize_github_url(f"https://github.com/{owner}/{repo}")
 
 
+def _repo_url_from_github_path(path: str) -> str | None:
+    parts = path.split("/")
+    try:
+        github_idx = parts.index("github.com")
+    except ValueError:
+        return None
+
+    if len(parts) <= github_idx + 2:
+        return None
+
+    owner = parts[github_idx + 1]
+    repo = parts[github_idx + 2]
+    if not owner or not repo:
+        return None
+    return _normalize_github_url(f"https://github.com/{owner}/{repo}")
+
+
 def _repo_url_from_spdx_package(package: dict[str, Any]) -> str | None:
     download_location = package.get("downloadLocation")
     if isinstance(download_location, str) and download_location.startswith(
@@ -306,6 +323,7 @@ def _repo_url_from_spdx_package(package: dict[str, Any]) -> str | None:
 def _extract_source_from_spdx_sbom(
     sbom: dict[str, Any],
     image_digest: str,
+    expected_source_uri: str | None = None,
 ) -> dict[str, str]:
     """Extract source repo from a digest-specific SPDX SBOM.
 
@@ -330,8 +348,20 @@ def _extract_source_from_spdx_sbom(
     if not described_ids:
         return {}
 
+    packages = [
+        package for package in sbom.get("packages") or [] if isinstance(package, dict)
+    ]
+
+    if expected_source_uri:
+        expected_source_uri = _normalize_github_url(expected_source_uri)
+        for package in packages:
+            repo_url = _repo_url_from_spdx_package(package)
+            if repo_url == expected_source_uri:
+                return {"source_uri": expected_source_uri}
+        return {}
+
     repo_urls: set[str] = set()
-    for package in sbom.get("packages") or []:
+    for package in packages:
         if not isinstance(package, dict):
             continue
         if package.get("SPDXID") not in described_ids:
@@ -344,6 +374,68 @@ def _extract_source_from_spdx_sbom(
         return {}
 
     return {"source_uri": next(iter(repo_urls))}
+
+
+def _sbom_artifacts_by_subject_digest(
+    docker_artifacts_raw: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    sbom_artifacts: dict[str, dict[str, Any]] = {}
+    for artifact in docker_artifacts_raw:
+        for tag in artifact.get("tags") or []:
+            if not isinstance(tag, str):
+                continue
+            if not tag.startswith("sha256-") or not tag.endswith(".sbom"):
+                continue
+            digest_value = tag.removeprefix("sha256-").removesuffix(".sbom")
+            if not digest_value:
+                continue
+            sbom_artifacts.setdefault(f"sha256:{digest_value}", artifact)
+    return sbom_artifacts
+
+
+async def _fetch_spdx_layer_provenance(
+    http_client: httpx.AsyncClient,
+    token_manager: _TokenManager,
+    registry: str,
+    image_path: str,
+    reference: str,
+    subject_digest: str,
+    expected_source_uri: str | None = None,
+) -> dict[str, str]:
+    manifest_url = build_manifest_url(registry, image_path, reference)
+    manifest = await _fetch_json(
+        http_client,
+        manifest_url,
+        token_manager,
+        ALL_MANIFEST_ACCEPT,
+    )
+
+    for layer in manifest.get("layers") or []:
+        layer_mt = layer.get("mediaType", "").lower()
+        if not any(fragment in layer_mt for fragment in SPDX_MEDIA_TYPE_FRAGMENTS):
+            continue
+
+        layer_digest = layer.get("digest")
+        if not layer_digest:
+            continue
+
+        blob_url = build_blob_url(registry, image_path, layer_digest)
+        try:
+            blob = await _fetch_json(http_client, blob_url, token_manager)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                continue
+            raise
+
+        provenance = _extract_source_from_spdx_sbom(
+            blob,
+            subject_digest,
+            expected_source_uri=expected_source_uri,
+        )
+        if provenance:
+            return provenance
+
+    return {}
 
 
 async def _fetch_legacy_sbom_provenance(
@@ -363,47 +455,27 @@ async def _fetch_legacy_sbom_provenance(
     if sbom_tag is None:
         return {}
 
-    manifest_url = build_manifest_url(registry, image_path, sbom_tag)
     try:
-        manifest = await _fetch_json(
+        return await _fetch_spdx_layer_provenance(
             http_client,
-            manifest_url,
             token_manager,
-            ALL_MANIFEST_ACCEPT,
+            registry,
+            image_path,
+            sbom_tag,
+            image_digest,
+            expected_source_uri=_repo_url_from_github_path(image_path),
         )
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             return {}
         raise
 
-    for layer in manifest.get("layers") or []:
-        layer_mt = layer.get("mediaType", "").lower()
-        if not any(fragment in layer_mt for fragment in SPDX_MEDIA_TYPE_FRAGMENTS):
-            continue
-
-        layer_digest = layer.get("digest")
-        if not layer_digest:
-            continue
-
-        blob_url = build_blob_url(registry, image_path, layer_digest)
-        try:
-            blob = await _fetch_json(http_client, blob_url, token_manager)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                continue
-            raise
-
-        provenance = _extract_source_from_spdx_sbom(blob, image_digest)
-        if provenance:
-            return provenance
-
-    return {}
-
 
 async def _process_single_image(
     http_client: httpx.AsyncClient,
     token_manager: _TokenManager,
     artifact: dict[str, Any],
+    sbom_artifacts_by_digest: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -498,6 +570,35 @@ async def _process_single_image(
                 fetch_failed = True
             provenance.update(sbom_provenance)
 
+    if not provenance.get("source_uri") and sbom_artifacts_by_digest:
+        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+        subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
+        if subject_digest_str is not None and (
+            sbom_artifact := sbom_artifacts_by_digest.get(subject_digest_str)
+        ):
+            sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
+            if sbom_parsed:
+                sbom_registry, sbom_image_path, sbom_reference = sbom_parsed
+                try:
+                    sbom_provenance = await _fetch_spdx_layer_provenance(
+                        http_client,
+                        token_manager,
+                        sbom_registry,
+                        sbom_image_path,
+                        sbom_reference,
+                        subject_digest_str,
+                        expected_source_uri=_repo_url_from_github_path(sbom_image_path),
+                    )
+                except (httpx.HTTPError, json.JSONDecodeError) as e:
+                    logger.warning(
+                        "Failed to fetch tagged SBOM provenance for %s: %s",
+                        uri or name,
+                        e,
+                    )
+                    sbom_provenance = {}
+                    fetch_failed = True
+                provenance.update(sbom_provenance)
+
     diff_ids, layer_history = extract_layers_from_oci_config(config)
     has_platform = any(value is not None for value in (architecture, os_name, variant))
 
@@ -548,6 +649,7 @@ async def _fetch_all_image_provenance(
     if not resolved.valid:
         resolved.refresh(Request())
     token_manager = _TokenManager(resolved)
+    sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
     single_images = [
         a
@@ -565,7 +667,12 @@ async def _fetch_all_image_provenance(
         artifact: dict[str, Any], client: httpx.AsyncClient
     ) -> tuple[dict[str, Any] | None, bool]:
         async with semaphore:
-            return await _process_single_image(client, token_manager, artifact)
+            return await _process_single_image(
+                client,
+                token_manager,
+                artifact,
+                sbom_artifacts_by_digest,
+            )
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
         tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
