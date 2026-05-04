@@ -19,6 +19,7 @@ class GCPArtifactRegistryImageRefNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     uri: PropertyRef = PropertyRef("uri", extra_index=True)
+    _ont_uri: PropertyRef = PropertyRef("uri")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     tags: PropertyRef = PropertyRef("tags")
     image_size_bytes: PropertyRef = PropertyRef("image_size_bytes")
