@@ -772,7 +772,7 @@ def test_load_image_provenance_preserves_existing_values_on_null_updates(
     _clear_gar_project(neo4j_session, project_id)
     _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
 
-    docker_image = _make_docker_image(repo_id, 1)
+    docker_image = _make_docker_image(repo_id, 9001)
     load_docker_images(neo4j_session, [docker_image], project_id, TEST_UPDATE_TAG)
 
     load_image_provenance(

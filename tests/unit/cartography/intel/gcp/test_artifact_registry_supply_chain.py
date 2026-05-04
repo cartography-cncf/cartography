@@ -243,43 +243,72 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
 
 
 def test_load_image_provenance_preserves_existing_values(monkeypatch):
-    ensure_indexes = MagicMock()
-    load_with_progress = MagicMock()
-    apply_conditional_labels = MagicMock()
-    monkeypatch.setattr(supply_chain, "ensure_indexes", ensure_indexes)
-    monkeypatch.setattr(supply_chain, "_load_with_progress", load_with_progress)
+    load_nodes_without_relationships = MagicMock()
     monkeypatch.setattr(
         supply_chain,
-        "apply_conditional_labels",
-        apply_conditional_labels,
+        "load_nodes_without_relationships",
+        load_nodes_without_relationships,
     )
     neo4j_session = MagicMock()
-    updates = [
+    neo4j_session.execute_read.return_value = [
         {
             "digest": "sha256:img-1",
             "type": "image",
             "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": "amd64",
+            "os": "linux",
+            "os_version": None,
+            "os_features": None,
+            "variant": "v8",
             "source_uri": "https://github.com/foo/bar",
             "source_revision": "deadbeef",
             "source_file": "Dockerfile",
             "layer_diff_ids": ["sha256:a"],
         },
     ]
+    updates = [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": None,
+            "os": None,
+            "os_version": None,
+            "os_features": None,
+            "variant": None,
+            "source_uri": None,
+            "source_revision": None,
+            "source_file": None,
+            "layer_diff_ids": None,
+        },
+    ]
 
     supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
 
-    ensure_indexes.assert_called_once()
-    load_with_progress.assert_called_once()
-    call = load_with_progress.call_args
+    neo4j_session.execute_read.assert_called_once()
+    load_nodes_without_relationships.assert_called_once()
+    call = load_nodes_without_relationships.call_args
     assert call.args[0] == neo4j_session
-    assert "coalesce(item.source_uri, i.source_uri)" in call.args[1]
-    assert "coalesce(item.layer_diff_ids, i.layer_diff_ids)" in call.args[1]
-    assert call.args[2] == updates
+    assert call.args[1].__class__.__name__ == "GCPArtifactRegistryImageProvenanceSchema"
+    assert call.args[2] == [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": "amd64",
+            "os": "linux",
+            "os_version": None,
+            "os_features": None,
+            "variant": "v8",
+            "source_uri": "https://github.com/foo/bar",
+            "source_revision": "deadbeef",
+            "source_file": "Dockerfile",
+            "layer_diff_ids": ["sha256:a"],
+        },
+    ]
     assert "provenance updates" in call.kwargs["progress_description"]
     assert call.kwargs["lastupdated"] == 1
     assert call.kwargs["PROJECT_ID"] == "proj"
-    assert call.kwargs["module_version"]
-    apply_conditional_labels.assert_called_once()
 
 
 def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
