@@ -127,9 +127,7 @@ aibom_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="model_name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="provider", node_field="framework"
-                ),
+                OntologyFieldMapping(ontology_field="provider", node_field="framework"),
             ],
         ),
     ],

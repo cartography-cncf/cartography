@@ -1107,7 +1107,7 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
 
 ### GCPVertexAIModel
 
-Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
+Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models). GCPVertexAIModel carries the `:AIModel` ontology semantic label.
 
 | Field | Description |
 |-------|-------------|

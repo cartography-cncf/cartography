@@ -5823,7 +5823,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 ### AWSBedrockFoundationModel
 
-Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
+Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others. AWSBedrockFoundationModel carries the `:AIModel` ontology semantic label.
 
 | Field | Description |
 |-------|-------------|
@@ -5876,7 +5876,7 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
 
 ### AWSBedrockCustomModel
 
-Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data. AWSBedrockCustomModel carries the `:AIModel` ontology semantic label.
 
 | Field | Description |
 |-------|-------------|
@@ -6244,7 +6244,7 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 
 ### AWSSageMakerModel
 
-Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference. AWSSageMakerModel carries the `:AIModel` ontology semantic label.
 
 | Field | Description |
 |-------|-------------|
