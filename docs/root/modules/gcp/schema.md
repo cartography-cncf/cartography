@@ -1612,6 +1612,7 @@ graph LR
     Project -->|RESOURCE| GenericArtifact
     Project -->|RESOURCE| ImageLayer
     Repository -->|CONTAINS| ImageRef
+    Repository -->|REPO_IMAGE| ImageRef
     Repository -->|CONTAINS| HelmChart
     Repository -->|CONTAINS| LanguagePackage
     Repository -->|CONTAINS| GenericArtifact
@@ -1661,6 +1662,11 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
     ```
 
+- GCPArtifactRegistryRepositories point to image refs through the generic container-registry ontology shape.
+    ```
+    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryImageRef:ImageTag)
+    ```
+
 - GCPPrincipals with appropriate permissions can pull artifacts from a repository. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `artifactregistry.repositories.downloadArtifacts`.
     ```
     (GCPPrincipal)-[:CAN_READ]->(GCPArtifactRegistryRepository)
@@ -1707,9 +1713,19 @@ Representation of a repository-scoped [Docker Image](https://cloud.google.com/ar
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryImageRef)
     ```
 
+- GCPArtifactRegistryRepositories also point to GCPArtifactRegistryImageRefs through the generic container-registry ontology relationship.
+    ```
+    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryImageRef:ImageTag)
+    ```
+
 - GCPArtifactRegistryImageRefs point at the digest-scoped canonical image content node.
     ```
     (GCPArtifactRegistryImageRef)-[:IMAGE]->(GCPArtifactRegistryImage)
+    ```
+
+- Pullable Artifact Registry URIs are stored on the ref node. Resolve them from canonical images by traversing back through `IMAGE`.
+    ```
+    (GCPArtifactRegistryImage)<-[:IMAGE]-(GCPArtifactRegistryImageRef)
     ```
 
 #### GCPArtifactRegistryImage

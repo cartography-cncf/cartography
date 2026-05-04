@@ -69,6 +69,19 @@ class GCPArtifactRegistryImageRefToRepositoryRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPArtifactRegistryImageRefToRepositoryRepoImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("repository_id")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "REPO_IMAGE"
+    properties: GCPArtifactRegistryImageRefToRepositoryRelProperties = (
+        GCPArtifactRegistryImageRefToRepositoryRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryImageRefToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -130,6 +143,23 @@ class GCPArtifactRegistryRepositoryToImageRefRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPArtifactRegistryRepositoryToImageRefRepoImageRel(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryRepository"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("repository_id")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImageRef"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REPO_IMAGE"
+    properties: GCPArtifactRegistryImageRefMatchLinkProperties = (
+        GCPArtifactRegistryImageRefMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryImageRefToImageMatchLink(CartographyRelSchema):
     source_node_label: str = "GCPArtifactRegistryImageRef"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -158,6 +188,7 @@ class GCPArtifactRegistryImageRefSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPArtifactRegistryImageRefToRepositoryRel(),
+            GCPArtifactRegistryImageRefToRepositoryRepoImageRel(),
             GCPArtifactRegistryImageRefToImageRel(),
         ]
     )

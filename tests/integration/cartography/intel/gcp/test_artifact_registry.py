@@ -95,7 +95,7 @@ def _create_gar_project_and_repositories(
     for repository_id in repository_ids:
         neo4j_session.run(
             """
-            MERGE (repo:GCPArtifactRegistryRepository {id: $repository_id})
+            MERGE (repo:GCPArtifactRegistryRepository:ContainerRegistry {id: $repository_id})
             SET repo.lastupdated = $tag
             """,
             repository_id=repository_id,
@@ -298,6 +298,16 @@ def test_sync_artifact_registry(
         "CONTAINS",
     ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
 
+    # Assert: Check ontology-standard ContainerRegistry -> ImageTag relationships
+    assert check_rels(
+        neo4j_session,
+        "ContainerRegistry",
+        "id",
+        "ImageTag",
+        "id",
+        "REPO_IMAGE",
+    ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
+
     # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryHelmChart relationships
     assert check_rels(
         neo4j_session,
@@ -420,8 +430,30 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert (
         neo4j_session.run(
             """
+            MATCH (:ContainerRegistry {id: $repo_id})
+            -[r:REPO_IMAGE]->(:ImageTag)
+            RETURN count(r) AS count
+            """,
+            repo_id=repo_1,
+        ).single()["count"]
+        == 1005
+    )
+    assert (
+        neo4j_session.run(
+            """
             MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
             -[r:CONTAINS]->(:GCPArtifactRegistryContainerImage)
+            RETURN count(r) AS count
+            """,
+            repo_id=repo_2,
+        ).single()["count"]
+        == 205
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:ContainerRegistry {id: $repo_id})
+            -[r:REPO_IMAGE]->(:ImageTag)
             RETURN count(r) AS count
             """,
             repo_id=repo_2,
@@ -475,6 +507,20 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     ).single()
     assert repo_rel_result["rel_sub_resource_label"] == "GCPProject"
     assert repo_rel_result["rel_sub_resource_id"] == project_id
+
+    repo_image_rel_result = neo4j_session.run(
+        """
+        MATCH (:ContainerRegistry {id: $repo_id})
+        -[r:REPO_IMAGE]->(:ImageTag {id: $image_id})
+        RETURN
+            r._sub_resource_label AS rel_sub_resource_label,
+            r._sub_resource_id AS rel_sub_resource_id
+        """,
+        repo_id=repo_1,
+        image_id=first_image_id,
+    ).single()
+    assert repo_image_rel_result["rel_sub_resource_label"] == "GCPProject"
+    assert repo_image_rel_result["rel_sub_resource_id"] == project_id
 
     canonical_result = neo4j_session.run(
         """
@@ -541,7 +587,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
-            -[:CONTAINS]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
+            -[:CONTAINS|REPO_IMAGE]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
             RETURN count(*) AS count
             """,
             repo_id=repo_1,
