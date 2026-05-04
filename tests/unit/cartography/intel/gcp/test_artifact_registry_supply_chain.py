@@ -7,7 +7,13 @@ import pytest
 from cartography.intel.gcp.artifact_registry import supply_chain
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import (
+    _extract_source_from_spdx_sbom,
+)
+from cartography.intel.gcp.artifact_registry.supply_chain import (
     _fetch_attestation_provenance,
+)
+from cartography.intel.gcp.artifact_registry.supply_chain import (
+    _fetch_legacy_sbom_provenance,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
@@ -38,6 +44,138 @@ def test_extract_provenance_from_oci_config_reads_labels():
 
 def test_extract_provenance_from_oci_config_no_labels_returns_empty():
     assert extract_provenance_from_oci_config({"config": {}}) == {}
+
+
+# ---------------------------------------------------------------------------
+# SPDX SBOM provenance
+# ---------------------------------------------------------------------------
+
+
+def _spdx_sbom(
+    image_digest=(
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ),
+    document_describes=None,
+    packages=None,
+):
+    return {
+        "spdxVersion": "SPDX-2.3",
+        "name": f"sbom-{image_digest}",
+        "documentNamespace": f"https://example.test/sbom/{image_digest}",
+        "documentDescribes": document_describes or ["SPDXRef-RootPackage"],
+        "packages": packages
+        or [
+            {
+                "name": "github.com/example/widgets",
+                "SPDXID": "SPDXRef-RootPackage",
+                "downloadLocation": "https://github.com/example/widgets.git",
+            }
+        ],
+    }
+
+
+def test_extract_source_from_spdx_sbom_reads_described_package_download_location():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+
+    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(image_digest), image_digest)
+
+    assert provenance == {"source_uri": "https://github.com/example/widgets"}
+
+
+def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    sbom = _spdx_sbom(
+        image_digest,
+        packages=[
+            {
+                "name": "github.com/example/widgets",
+                "SPDXID": "SPDXRef-RootPackage",
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:golang/github.com/example/widgets@v0.0.0"
+                            "?type=module"
+                        ),
+                    }
+                ],
+            }
+        ],
+    )
+
+    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+
+    assert provenance == {"source_uri": "https://github.com/example/widgets"}
+
+
+def test_extract_source_from_spdx_sbom_ignores_dependency_only_packages():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    sbom = _spdx_sbom(
+        image_digest,
+        packages=[
+            {
+                "name": "root",
+                "SPDXID": "SPDXRef-RootPackage",
+                "downloadLocation": "NOASSERTION",
+            },
+            {
+                "name": "dependency",
+                "SPDXID": "SPDXRef-Dependency",
+                "downloadLocation": "https://github.com/example/dependency",
+            },
+        ],
+    )
+
+    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+
+    assert provenance == {}
+
+
+def test_extract_source_from_spdx_sbom_requires_one_described_repo():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    sbom = _spdx_sbom(
+        image_digest,
+        document_describes=["SPDXRef-RootPackage", "SPDXRef-OtherRoot"],
+        packages=[
+            {
+                "name": "root",
+                "SPDXID": "SPDXRef-RootPackage",
+                "downloadLocation": "https://github.com/example/widgets",
+            },
+            {
+                "name": "other",
+                "SPDXID": "SPDXRef-OtherRoot",
+                "downloadLocation": "https://github.com/example/other",
+            },
+        ],
+    )
+
+    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+
+    assert provenance == {}
+
+
+def test_extract_source_from_spdx_sbom_requires_matching_image_digest():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    other_digest = (
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    )
+
+    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(other_digest), image_digest)
+
+    assert provenance == {}
 
 
 # ---------------------------------------------------------------------------
@@ -477,6 +615,85 @@ async def test_process_single_image_extracts_platform_from_oci_config():
 
 
 @pytest.mark.asyncio
+async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    image_digest_hex = image_digest.split(":", 1)[1]
+    image_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{image_digest}"
+    )
+    artifact_name = (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{image_digest}"
+    )
+    manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/manifests/{image_digest}"
+    )
+    referrers_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/referrers/{image_digest}"
+    )
+    sbom_manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/manifests/sha256-{image_digest_hex}.sbom"
+    )
+    sbom_blob_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        "widgets-api/blobs/sha256:sbom"
+    )
+    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
+    config_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/blobs/{config_digest}"
+    )
+    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
+    config_without_labels["config"]["Labels"] = {}
+    client = _FakeClient(
+        {
+            manifest_url: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": image_digest},
+            ),
+            config_url: _FakeResponse(200, json_body=config_without_labels),
+            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
+            sbom_manifest_url: _FakeResponse(
+                200,
+                json_body={
+                    "layers": [
+                        {
+                            "mediaType": "text/spdx+json",
+                            "digest": "sha256:sbom",
+                        }
+                    ],
+                },
+            ),
+            sbom_blob_url: _FakeResponse(200, json_body=_spdx_sbom(image_digest)),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": artifact_name,
+            "uri": image_uri,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+    )
+
+    assert fetch_failed is False
+    assert result["digest"] == image_digest
+    assert result["source_uri"] == "https://github.com/example/widgets"
+    assert result["layer_diff_ids"] == [
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_process_single_image_skips_manifest_list():
     image_uri = (
         "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
@@ -554,6 +771,19 @@ def _fake_credentials(token="abc", quota_project_id=None):
 
 def _fake_token_manager():
     return _TokenManager(_fake_credentials())
+
+
+@pytest.mark.asyncio
+async def test_fetch_legacy_sbom_provenance_returns_empty_on_404():
+    provenance = await _fetch_legacy_sbom_provenance(
+        _FakeClient({}),
+        _fake_token_manager(),
+        registry="us-docker.pkg.dev",
+        image_path="proj/repo/img",
+        image_digest="sha256:deadbeef",
+    )
+
+    assert provenance == {}
 
 
 @pytest.mark.asyncio
