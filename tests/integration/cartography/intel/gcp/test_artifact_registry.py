@@ -1028,15 +1028,26 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
         MERGE (old:GCPArtifactRegistryImageRef:GCPArtifactRegistryContainerImage:Image {id: 'old-ref'})
         SET old.digest = 'sha256:canonical',
             old.lastupdated = $old_tag
+        MERGE (old_container:GCPArtifactRegistryContainerImage:Image {id: 'old-container'})
+        SET old_container.digest = 'sha256:container-canonical',
+            old_container.lastupdated = $old_tag
         MERGE (img:GCPArtifactRegistryImage:Image {id: 'sha256:canonical'})
         SET img.digest = 'sha256:canonical',
             img.lastupdated = $update_tag
+        MERGE (container_img_ref:GCPArtifactRegistryImageRef:GCPArtifactRegistryContainerImage:ImageTag {id: 'old-container'})
+        SET container_img_ref.digest = 'sha256:container-canonical',
+            container_img_ref.lastupdated = $update_tag
+        MERGE (container_img:GCPArtifactRegistryImage:Image {id: 'sha256:container-canonical'})
+        SET container_img.digest = 'sha256:container-canonical',
+            container_img.lastupdated = $update_tag
+        MERGE (container_img_ref)-[:IMAGE]->(container_img)
         MERGE (repo:CodeRepository {id: 'repo-1'})
         MERGE (scanner:AIBOMSource {id: 'scanner-1'})
         MERGE (pkg:TrivyPackage {id: 'pkg-1'})
         MERGE (finding:TrivyImageFinding {id: 'finding-1'})
         MERGE (container:Container {id: 'container-1'})
         MERGE (p)-[:RESOURCE]->(old)
+        MERGE (p)-[:RESOURCE]->(old_container)
         MERGE (container)-[has_image:HAS_IMAGE]->(old)
         SET has_image.firstseen = 111,
             has_image.lastupdated = $old_tag,
@@ -1056,6 +1067,16 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
             packaged.match_method = 'dockerfile',
             packaged.confidence = 0.75,
             packaged.source_file = 'Dockerfile'
+        MERGE (container2:Container {id: 'container-2'})
+        MERGE (repo2:CodeRepository {id: 'repo-2'})
+        MERGE (container2)-[has_image2:HAS_IMAGE]->(old_container)
+        SET has_image2.firstseen = 666,
+            has_image2.lastupdated = $old_tag,
+            has_image2.match_method = 'runtime'
+        MERGE (old_container)-[packaged2:PACKAGED_FROM]->(repo2)
+        SET packaged2.firstseen = 777,
+            packaged2.lastupdated = $old_tag,
+            packaged2.match_method = 'dockerfile'
         MERGE (old_parent:GCPArtifactRegistryContainerImage {id: 'old-parent'})
         SET old_parent.digest = 'sha256:parent',
             old_parent.lastupdated = $old_tag
@@ -1114,6 +1135,27 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     assert result["packaged_match_method"] == "dockerfile"
     assert result["packaged_confidence"] == 0.75
     assert result["packaged_source_file"] == "Dockerfile"
+
+    legacy_container_result = neo4j_session.run(
+        """
+        MATCH (:Container {id: 'container-2'})-[has_image:HAS_IMAGE]->
+              (img:GCPArtifactRegistryImage {id: 'sha256:container-canonical'})
+        MATCH (img)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'repo-2'})
+        OPTIONAL MATCH (old_container:GCPArtifactRegistryContainerImage {id: 'old-container'})
+        WHERE NOT old_container:GCPArtifactRegistryImageRef
+        RETURN
+            has_image.firstseen AS has_image_firstseen,
+            has_image.match_method AS has_image_match_method,
+            packaged.firstseen AS packaged_firstseen,
+            packaged.match_method AS packaged_match_method,
+            count(old_container) AS old_container_count
+        """,
+    ).single()
+    assert legacy_container_result["has_image_firstseen"] == 666
+    assert legacy_container_result["has_image_match_method"] == "runtime"
+    assert legacy_container_result["packaged_firstseen"] == 777
+    assert legacy_container_result["packaged_match_method"] == "dockerfile"
+    assert legacy_container_result["old_container_count"] == 0
 
     cleanup_counts = neo4j_session.run(
         """
