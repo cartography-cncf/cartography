@@ -140,10 +140,10 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
         call.args[1].__class__.__name__
         for call in load_matchlinks_with_progress.call_args_list
     ] == [
-        "GCPArtifactRegistryProjectToImageRefRel",
-        "GCPArtifactRegistryRepositoryToImageRefRel",
-        "GCPArtifactRegistryRepositoryToImageRefRepoImageRel",
-        "GCPArtifactRegistryImageRefToImageMatchLink",
+        "GCPArtifactRegistryProjectToRepositoryImageRel",
+        "GCPArtifactRegistryRepositoryToRepositoryImageRel",
+        "GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel",
+        "GCPArtifactRegistryRepositoryImageToImageMatchLink",
     ]
     for call in load_matchlinks_with_progress.call_args_list:
         assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE

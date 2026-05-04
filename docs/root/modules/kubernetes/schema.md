@@ -220,7 +220,7 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 - `KubernetesContainer` references container images from registries.
   `HAS_IMAGE` matches the runtime digest (`status_image_sha`) reported in container status.
-  For GCP Artifact Registry, the relationship points at the canonical digest-scoped `GCPArtifactRegistryImage`, not the scoped `GCPArtifactRegistryImageRef`.
+  For GCP Artifact Registry, the relationship points at the canonical digest-scoped `GCPArtifactRegistryImage`, not the scoped `GCPArtifactRegistryRepositoryImage`.
   Runtime fields like `status_image_id` and `status_image_sha` remain on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
