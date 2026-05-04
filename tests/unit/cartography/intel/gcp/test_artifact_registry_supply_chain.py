@@ -165,7 +165,9 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
     set_enrichments, _cleanup_runs = patched_sync
     enrichments = [
         {
-            "id": "img-1",
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
             "source_uri": "https://github.com/foo/bar",
             "source_revision": "deadbeef",
             "source_file": "Dockerfile",
@@ -176,7 +178,8 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
             ],
         },
         {
-            "id": "img-2",
+            "digest": "sha256:img-2",
+            "type": "image",
             "layer_diff_ids": ["sha256:a"],
             "layer_history": [],
         },
@@ -198,23 +201,31 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
         neo4j_session,
         [
             {
-                "id": "img-1",
+                "digest": "sha256:img-1",
+                "type": "image",
+                "media_type": "application/vnd.oci.image.manifest.v1+json",
                 "source_uri": "https://github.com/foo/bar",
                 "source_revision": "deadbeef",
                 "source_file": "Dockerfile",
                 "layer_diff_ids": ["sha256:a", "sha256:b"],
                 "architecture": None,
                 "os": None,
+                "os_version": None,
+                "os_features": None,
                 "variant": None,
             },
             {
-                "id": "img-2",
+                "digest": "sha256:img-2",
+                "type": "image",
+                "media_type": None,
                 "source_uri": None,
                 "source_revision": None,
                 "source_file": None,
                 "layer_diff_ids": ["sha256:a"],
                 "architecture": None,
                 "os": None,
+                "os_version": None,
+                "os_features": None,
                 "variant": None,
             },
         ],
@@ -231,7 +242,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
     assert layer_call_args[2:] == ("proj", 1)
 
 
-def test_load_image_provenance_uses_node_only_progress_loader(monkeypatch):
+def test_load_image_provenance_preserves_existing_values(monkeypatch):
     load_nodes_without_relationships = MagicMock()
     monkeypatch.setattr(
         supply_chain,
@@ -239,25 +250,62 @@ def test_load_image_provenance_uses_node_only_progress_loader(monkeypatch):
         load_nodes_without_relationships,
     )
     neo4j_session = MagicMock()
-    updates = [
+    neo4j_session.execute_read.return_value = [
         {
-            "id": "img-1",
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": "amd64",
+            "os": "linux",
+            "os_version": None,
+            "os_features": None,
+            "variant": "v8",
             "source_uri": "https://github.com/foo/bar",
             "source_revision": "deadbeef",
             "source_file": "Dockerfile",
             "layer_diff_ids": ["sha256:a"],
         },
     ]
+    updates = [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": None,
+            "os": None,
+            "os_version": None,
+            "os_features": None,
+            "variant": None,
+            "source_uri": None,
+            "source_revision": None,
+            "source_file": None,
+            "layer_diff_ids": None,
+        },
+    ]
 
     supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
 
+    neo4j_session.execute_read.assert_called_once()
     load_nodes_without_relationships.assert_called_once()
     call = load_nodes_without_relationships.call_args
     assert call.args[0] == neo4j_session
-    assert call.args[1].__class__.__name__ == (
-        "GCPArtifactRegistryContainerImageProvenanceSchema"
-    )
-    assert call.args[2] == updates
+    assert call.args[1].__class__.__name__ == "GCPArtifactRegistryImageProvenanceSchema"
+    assert call.args[2] == [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "architecture": "amd64",
+            "os": "linux",
+            "os_version": None,
+            "os_features": None,
+            "variant": "v8",
+            "source_uri": "https://github.com/foo/bar",
+            "source_revision": "deadbeef",
+            "source_file": "Dockerfile",
+            "layer_diff_ids": ["sha256:a"],
+        },
+    ]
     assert "provenance updates" in call.kwargs["progress_description"]
     assert call.kwargs["lastupdated"] == 1
     assert call.kwargs["PROJECT_ID"] == "proj"
@@ -339,7 +387,9 @@ def test_sync_skips_cleanup_when_fetch_failures(patched_sync):
 def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     set_enrichments, cleanup_runs = patched_sync
     set_enrichments(
-        enrichments=[{"id": "img", "source_uri": "https://github.com/foo/bar"}],
+        enrichments=[
+            {"digest": "sha256:img", "source_uri": "https://github.com/foo/bar"}
+        ],
         fetch_failures=0,
     )
 
@@ -406,7 +456,9 @@ async def test_process_single_image_extracts_platform_from_oci_config():
 
     assert fetch_failed is False
     assert result == {
-        "id": artifact_name,
+        "digest": image_digest,
+        "type": "image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
         "architecture": "arm64",
         "os": "linux",
         "variant": "v8",

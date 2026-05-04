@@ -500,11 +500,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
     (:AWSLambda)-[:HAS]->(:ECRImage)
     ```
 
-- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryContainerImage`.
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryImage`.
     ```
     (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - AWSLambda functions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -2599,8 +2599,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -5191,8 +5190,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### EfsFileSystem

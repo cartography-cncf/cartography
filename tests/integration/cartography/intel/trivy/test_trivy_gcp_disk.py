@@ -87,12 +87,12 @@ def test_sync_trivy_gcp(
     neo4j_session,
 ):
     """
-    Ensure that Trivy scan results create relationships to GCPArtifactRegistryPlatformImage nodes
+    Ensure that Trivy scan results create relationships to canonical GCPArtifactRegistryImage nodes
     for multi-arch images. The test uses:
-    - ContainerImage with manifest list digest: sha256:abc123
-    - PlatformImage with platform-specific digest: sha256:def456 (linux/amd64)
+    - GCPArtifactRegistryImage with manifest list digest: sha256:abc123
+    - GCPArtifactRegistryImage with platform-specific digest: sha256:def456 (linux/amd64)
     - Trivy reports the platform-specific digest: sha256:def456
-    - Relationships should be created to the PlatformImage, not ContainerImage
+    - Relationships should be created to the platform-specific canonical image, not the manifest list
     """
     # Arrange - create GCP project
     _create_test_project(neo4j_session)

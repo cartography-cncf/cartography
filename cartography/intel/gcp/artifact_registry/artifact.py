@@ -13,8 +13,8 @@ from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.artifact_registry.util import apply_conditional_labels
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -35,17 +35,26 @@ from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageSchema,
-)
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryProjectToContainerImageRel,
-)
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryRepositoryToContainerImageRel,
-)
 from cartography.models.gcp.artifact_registry.helm_chart import (
     GCPArtifactRegistryHelmChartSchema,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageSchema,
+)
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryImageRefSchema,
+)
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryImageRefToImageMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryProjectToImageRefRel,
+)
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryRepositoryToImageRefRel,
+)
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryRepositoryToImageRefRepoImageRel,
 )
 from cartography.models.gcp.artifact_registry.language_package import (
     GCPArtifactRegistryLanguagePackageSchema,
@@ -53,6 +62,11 @@ from cartography.models.gcp.artifact_registry.language_package import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+MANIFEST_LIST_MEDIA_TYPES = {
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.index.v1+json",
+}
 
 
 @dataclass(frozen=True)
@@ -342,7 +356,7 @@ def transform_docker_images(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Docker images to the GCPArtifactRegistryContainerImage node format.
+    Transforms Docker images to the GCPArtifactRegistryImageRef node format.
     """
     transformed: list[dict] = []
     for image in images_data:
@@ -361,11 +375,51 @@ def transform_docker_images(
                 "upload_time": image.get("uploadTime"),
                 "build_time": image.get("buildTime"),
                 "update_time": image.get("updateTime"),
+                "artifact_type": image.get("artifactType"),
                 "repository_id": repository_id,
                 "project_id": project_id,
             }
         )
     return transformed
+
+
+def _image_type_from_media_type(media_type: str | None) -> str:
+    normalized = (media_type or "").lower()
+    if normalized in MANIFEST_LIST_MEDIA_TYPES:
+        return "manifest_list"
+    return "image"
+
+
+def transform_docker_images_to_canonical_images(
+    image_refs: list[dict],
+) -> list[dict]:
+    """
+    Transforms Artifact Registry image refs into digest-keyed GCPArtifactRegistryImage nodes.
+    """
+    images_by_digest: dict[str, dict] = {}
+    for image_ref in image_refs:
+        digest = image_ref.get("digest")
+        if not digest:
+            continue
+        if digest in images_by_digest:
+            continue
+        media_type = image_ref.get("media_type")
+        images_by_digest[digest] = {
+            "digest": digest,
+            "type": _image_type_from_media_type(media_type),
+            "media_type": media_type,
+            "architecture": None,
+            "os": None,
+            "os_version": None,
+            "os_features": None,
+            "variant": None,
+            "source_uri": None,
+            "source_revision": None,
+            "source_file": None,
+            "layer_diff_ids": None,
+            "child_image_digests": [],
+        }
+    return list(images_by_digest.values())
 
 
 def transform_helm_charts(
@@ -640,33 +694,44 @@ def load_docker_images(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryContainerImage nodes and their relationships.
+    Loads GCPArtifactRegistryImageRef and GCPArtifactRegistryImage nodes and their relationships.
     """
     if not data:
         return
 
-    schema = GCPArtifactRegistryContainerImageSchema()
+    image_data = transform_docker_images_to_canonical_images(data)
+    image_schema = GCPArtifactRegistryImageSchema()
     load_nodes_without_relationships(
         neo4j_session,
-        schema,
+        image_schema,
+        image_data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry canonical image nodes for project {project_id}"
+        ),
+        lastupdated=update_tag,
+    )
+
+    ref_schema = GCPArtifactRegistryImageRefSchema()
+    load_nodes_without_relationships(
+        neo4j_session,
+        ref_schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         apply_labels=False,
         progress_description=(
-            f"Artifact Registry container image nodes for project {project_id}"
+            f"Artifact Registry image ref nodes for project {project_id}"
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
-    # Container image conditional labels are scoped through the project RESOURCE
-    # relationship, so apply them once after nodes and that relationship exist.
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryProjectToContainerImageRel(),
+        GCPArtifactRegistryProjectToImageRefRel(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry container image project RESOURCE relationships "
+            "Artifact Registry image ref project RESOURCE relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -674,20 +739,42 @@ def load_docker_images(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
-    apply_conditional_labels(
-        neo4j_session,
-        schema,
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-    )
 
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryRepositoryToContainerImageRel(),
+        GCPArtifactRegistryRepositoryToImageRefRel(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry container image repository CONTAINS relationships "
+            "Artifact Registry image ref repository CONTAINS relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry image ref repository REPO_IMAGE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageRefToImageMatchLink(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry image ref IMAGE relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -702,26 +789,46 @@ def cleanup_docker_images(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Docker image nodes.
+    Cleans up stale Docker image ref nodes and unreferenced canonical image nodes.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryContainerImageSchema(), common_job_parameters
+        GCPArtifactRegistryImageRefSchema(), common_job_parameters
     ).run(neo4j_session)
-    # The split write path attaches these relationships with MatchLinks, so
-    # clean them explicitly after node cleanup has used the project RESOURCE
-    # edge to scope stale node deletion.
     GraphJob.from_matchlink(
-        GCPArtifactRegistryProjectToContainerImageRel(),
+        GCPArtifactRegistryProjectToImageRefRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryToContainerImageRel(),
+        GCPArtifactRegistryRepositoryToImageRefRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryImageRefToImageMatchLink(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (img:GCPArtifactRegistryImage)
+        WHERE NOT (:GCPArtifactRegistryImageRef)-[:IMAGE]->(img)
+        AND NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img)
+        WITH img LIMIT $LIMIT_SIZE
+        DETACH DELETE img
+        """,
+        LIMIT_SIZE=common_job_parameters.get("LIMIT_SIZE", 1000),
+    )
 
 
 @timeit

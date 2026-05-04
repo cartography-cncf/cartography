@@ -8,6 +8,7 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
@@ -25,8 +26,8 @@ from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageProvenanceSchema,
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageProvenanceSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
@@ -321,8 +322,14 @@ async def _process_single_image(
     if not provenance.get("source_uri") and not diff_ids and not has_platform:
         return None, fetch_failed
 
+    digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+    if not digest:
+        return None, fetch_failed
+
     result: dict[str, Any] = {
-        "id": name,
+        "digest": digest,
+        "type": "image",
+        "media_type": artifact.get("mediaType"),
     }
     if architecture is not None:
         result["architecture"] = architecture
@@ -449,6 +456,76 @@ def _build_layer_dicts(
     return list(layers_by_diff_id.values())
 
 
+PROVENANCE_PRESERVED_FIELDS = (
+    "type",
+    "media_type",
+    "architecture",
+    "os",
+    "os_version",
+    "os_features",
+    "variant",
+    "source_uri",
+    "source_revision",
+    "source_file",
+    "layer_diff_ids",
+)
+
+
+def _merge_existing_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    digests = sorted(
+        {update["digest"] for update in provenance_updates if update.get("digest")}
+    )
+    if not digests:
+        return []
+
+    existing_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $digests AS digest
+        MATCH (img:GCPArtifactRegistryImage {digest: digest})
+        RETURN
+            img.digest AS digest,
+            img.type AS type,
+            img.media_type AS media_type,
+            img.architecture AS architecture,
+            img.os AS os,
+            img.os_version AS os_version,
+            img.os_features AS os_features,
+            img.variant AS variant,
+            img.source_uri AS source_uri,
+            img.source_revision AS source_revision,
+            img.source_file AS source_file,
+            img.layer_diff_ids AS layer_diff_ids
+        """,
+        digests=digests,
+    )
+    merged_by_digest = {
+        row["digest"]: {
+            "digest": row["digest"],
+            **{field: row.get(field) for field in PROVENANCE_PRESERVED_FIELDS},
+        }
+        for row in existing_rows
+    }
+
+    for update in provenance_updates:
+        digest = update.get("digest")
+        if not digest:
+            continue
+        merged = merged_by_digest.setdefault(
+            digest,
+            {"digest": digest, **dict.fromkeys(PROVENANCE_PRESERVED_FIELDS)},
+        )
+        for field in PROVENANCE_PRESERVED_FIELDS:
+            value = update.get(field)
+            if merged.get(field) is None and value is not None:
+                merged[field] = value
+
+    return list(merged_by_digest.values())
+
+
 @timeit
 def load_image_provenance(
     neo4j_session: neo4j.Session,
@@ -459,10 +536,14 @@ def load_image_provenance(
     if not provenance_updates:
         return
 
+    merged_updates = _merge_existing_image_provenance(
+        neo4j_session,
+        provenance_updates,
+    )
     load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryContainerImageProvenanceSchema(),
-        provenance_updates,
+        GCPArtifactRegistryImageProvenanceSchema(),
+        merged_updates,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
             f"Artifact Registry container image provenance updates for project {project_id}"
@@ -543,13 +624,17 @@ def sync(
     if enrichments:
         provenance_updates = [
             {
-                "id": e["id"],
+                "digest": e["digest"],
+                "type": e.get("type", "image"),
+                "media_type": e.get("media_type"),
                 "source_uri": e.get("source_uri"),
                 "source_revision": e.get("source_revision"),
                 "source_file": e.get("source_file"),
                 "layer_diff_ids": e.get("layer_diff_ids"),
                 "architecture": e.get("architecture"),
                 "os": e.get("os"),
+                "os_version": e.get("os_version"),
+                "os_features": e.get("os_features"),
                 "variant": e.get("variant"),
             }
             for e in enrichments

@@ -15,17 +15,11 @@ from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_pr
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
 )
-from cartography.models.gcp.artifact_registry.platform_image import (
-    GCPArtifactRegistryContainerImageContainsPlatformImageRel,
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageContainsImageMatchLink,
 )
-from cartography.models.gcp.artifact_registry.platform_image import (
-    GCPArtifactRegistryContainerImageToPlatformImageRel,
-)
-from cartography.models.gcp.artifact_registry.platform_image import (
-    GCPArtifactRegistryPlatformImageSchema,
-)
-from cartography.models.gcp.artifact_registry.platform_image import (
-    GCPArtifactRegistryProjectToPlatformImageRel,
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryPlatformImageCompatSchema,
 )
 from cartography.util import timeit
 
@@ -225,20 +219,26 @@ def transform_manifests(
         digest = entry.get("digest", "")
         platform = entry.get("platform", {})
 
+        parent_digest = (
+            parent_artifact_id.split("@")[-1] if "@" in parent_artifact_id else None
+        )
         transformed.append(
             {
-                "id": (
-                    f"{parent_artifact_id}@{digest}" if digest else parent_artifact_id
-                ),
                 "digest": digest,
+                "type": "image",
                 "architecture": platform.get("architecture"),
                 "os": platform.get("os"),
                 "os_version": platform.get("os.version"),
                 "os_features": platform.get("os.features"),
                 "variant": platform.get("variant"),
                 "media_type": entry.get("mediaType"),
-                "parent_artifact_id": parent_artifact_id,
-                "project_id": project_id,
+                "parent_digest": parent_digest,
+                "child_digest": digest,
+                "child_image_digests": [digest] if digest else [],
+                "source_uri": None,
+                "source_revision": None,
+                "source_file": None,
+                "layer_diff_ids": None,
             }
         )
 
@@ -253,60 +253,31 @@ def load_manifests(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryPlatformImage nodes and their relationships.
+    Loads canonical GCPArtifactRegistryImage child nodes and CONTAINS_IMAGE relationships.
     """
     if not data:
         return
 
-    schema = GCPArtifactRegistryPlatformImageSchema()
+    schema = GCPArtifactRegistryPlatformImageCompatSchema()
     load_nodes_without_relationships(
         neo4j_session,
         schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            f"Artifact Registry platform image nodes for project {project_id}"
+            f"Artifact Registry canonical platform image nodes for project {project_id}"
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
-    # Platform images only have the static Image label from the node phase.
-    # Relationship phases are modeled as MatchLinks between existing nodes.
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryProjectToPlatformImageRel(),
+        GCPArtifactRegistryImageContainsImageMatchLink(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry platform image project RESOURCE relationships "
+            "Artifact Registry manifest-list CONTAINS_IMAGE relationships "
             f"for project {project_id}"
-        ),
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
-
-    load_matchlinks_with_progress(
-        neo4j_session,
-        GCPArtifactRegistryContainerImageToPlatformImageRel(),
-        data,
-        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry platform image HAS_MANIFEST relationships for project {project_id}"
-        ),
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
-    load_matchlinks_with_progress(
-        neo4j_session,
-        GCPArtifactRegistryContainerImageContainsPlatformImageRel(),
-        data,
-        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry platform image CONTAINS_IMAGE relationships for project {project_id}"
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
@@ -320,28 +291,10 @@ def cleanup_manifests(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Artifact Registry image manifests.
+    Cleans up stale Artifact Registry image manifest relationships.
     """
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryPlatformImageSchema(), common_job_parameters
-    ).run(neo4j_session)
-    # The split write path attaches these relationships with MatchLinks, so
-    # clean them explicitly after node cleanup has used the project RESOURCE
-    # edge to scope stale node deletion.
     GraphJob.from_matchlink(
-        GCPArtifactRegistryProjectToPlatformImageRel(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryContainerImageToPlatformImageRel(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryContainerImageContainsPlatformImageRel(),
+        GCPArtifactRegistryImageContainsImageMatchLink(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],

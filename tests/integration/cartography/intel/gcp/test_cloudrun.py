@@ -123,110 +123,21 @@ def _create_image_registry_nodes(neo4j_session):
             tag=TEST_UPDATE_TAG,
         )
 
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.name = $name,
-            img.uri = $uri,
-            img.repository_id = 'projects/test-project/locations/us-central1/repositories/runtime-repo',
-            img.project_id = $project_id,
-            img.media_type = 'application/vnd.oci.image.index.v1+json',
-            img.lastupdated = $tag
-        """,
-        id=TEST_REVISION_PRIMARY_ARTIFACT_IMAGE_ID,
-        digest=TEST_REVISION_PRIMARY_DIGEST,
-        name="test-image",
-        uri=TEST_REVISION_PRIMARY_IMAGE,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
-            img.parent_artifact_id = $parent_artifact_id,
-            img.architecture = 'amd64',
-            img.os = 'linux',
-            img.project_id = $project_id,
-            img.lastupdated = $tag
-        """,
-        id=TEST_REVISION_PRIMARY_PLATFORM_IMAGE_ID,
-        digest=TEST_REVISION_PRIMARY_PLATFORM_DIGEST,
-        parent_artifact_id=TEST_REVISION_PRIMARY_ARTIFACT_IMAGE_ID,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
-            img.parent_artifact_id = $parent_artifact_id,
-            img.architecture = 'amd64',
-            img.os = 'linux',
-            img.project_id = $project_id,
-            img.lastupdated = $tag
-        """,
-        id=TEST_REVISION_SIDECAR_PLATFORM_IMAGE_ID,
-        digest=TEST_REVISION_SIDECAR_PLATFORM_DIGEST,
-        parent_artifact_id=TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.name = $name,
-            img.uri = $uri,
-            img.repository_id = 'projects/test-project/locations/us-central1/repositories/runtime-repo',
-            img.project_id = $project_id,
-            img.media_type = 'application/vnd.oci.image.index.v1+json',
-            img.lastupdated = $tag
-        """,
-        id=TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
-        digest=TEST_REVISION_SIDECAR_DIGEST,
-        name="log-sidecar",
-        uri=TEST_REVISION_SIDECAR_IMAGE,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.name = $name,
-            img.uri = $uri,
-            img.repository_id = 'projects/test-project/locations/us-west1/repositories/runtime-repo',
-            img.project_id = $project_id,
-            img.media_type = 'application/vnd.oci.image.manifest.v1+json',
-            img.lastupdated = $tag
-        """,
-        id=TEST_JOB_PRIMARY_ARTIFACT_IMAGE_ID,
-        digest=TEST_JOB_PRIMARY_DIGEST,
-        name="batch-processor",
-        uri=TEST_JOB_PRIMARY_IMAGE,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.name = $name,
-            img.uri = $uri,
-            img.repository_id = 'projects/test-project/locations/us-west1/repositories/runtime-repo',
-            img.project_id = $project_id,
-            img.media_type = 'application/vnd.oci.image.manifest.v1+json',
-            img.lastupdated = $tag
-        """,
-        id=TEST_JOB_SIDECAR_ARTIFACT_IMAGE_ID,
-        digest=TEST_JOB_SIDECAR_DIGEST,
-        name="otel-sidecar",
-        uri=TEST_JOB_SIDECAR_IMAGE,
-        project_id=TEST_PROJECT_ID,
-        tag=TEST_UPDATE_TAG,
-    )
+    for digest in (
+        TEST_REVISION_PRIMARY_DIGEST,
+        TEST_REVISION_SIDECAR_DIGEST,
+        TEST_JOB_PRIMARY_DIGEST,
+        TEST_JOB_SIDECAR_DIGEST,
+    ):
+        neo4j_session.run(
+            """
+            MERGE (img:GCPArtifactRegistryImage:Image {id: $digest, digest: $digest})
+            SET img.type = 'image',
+                img.lastupdated = $tag
+            """,
+            digest=digest,
+            tag=TEST_UPDATE_TAG,
+        )
 
 
 @patch("cartography.intel.gcp.cloudrun.execution.get_executions")
@@ -561,7 +472,7 @@ def test_cloud_run_image_prerequisites(
         neo4j_session,
         "Container",
         "id",
-        "GCPArtifactRegistryContainerImage",
+        "GCPArtifactRegistryImage",
         "digest",
         "HAS_IMAGE",
     ) == {
@@ -569,21 +480,6 @@ def test_cloud_run_image_prerequisites(
         (service_sidecar_container_id, TEST_REVISION_SIDECAR_DIGEST),
         (job_primary_container_id, TEST_JOB_PRIMARY_DIGEST),
         (job_sidecar_container_id, TEST_JOB_SIDECAR_DIGEST),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "GCPArtifactRegistryPlatformImage",
-        ["id", "parent_artifact_id"],
-    ) >= {
-        (
-            TEST_REVISION_PRIMARY_PLATFORM_IMAGE_ID,
-            TEST_REVISION_PRIMARY_ARTIFACT_IMAGE_ID,
-        ),
-        (
-            TEST_REVISION_SIDECAR_PLATFORM_IMAGE_ID,
-            TEST_REVISION_SIDECAR_ARTIFACT_IMAGE_ID,
-        ),
     }
 
     # Cloud Run Service/Job container specs are declarative; the ontology mapping encodes

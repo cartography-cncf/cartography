@@ -51,7 +51,7 @@ def _resolve_digests_for_source(
         ).single()
         return [digest] if exists else []
 
-    # Slow path: tag-based URI — currently only supported for ECR.
+    # Slow path: tag-based URI.
     # Returns single-platform images directly, and for manifest lists
     # traverses to the child single-platform images.
     rows = neo4j_session.run(
@@ -61,6 +61,30 @@ def _resolve_digests_for_source(
         RETURN img.digest AS digest
         UNION
         MATCH (:ECRRepositoryImage {id: $image_uri})-[:IMAGE]->(:ECRImage)-[:CONTAINS_IMAGE]->(child:ECRImage)
+        WHERE child.type = 'image'
+        RETURN child.digest AS digest
+        UNION
+        MATCH (ref:GCPArtifactRegistryImageRef)-[:IMAGE]->(img:GCPArtifactRegistryImage)
+        WITH ref, img,
+             CASE
+                 WHEN ref.uri CONTAINS '@' THEN split(ref.uri, '@')[0]
+                 ELSE ref.uri
+             END AS base_uri
+        WHERE ref.uri = $image_uri
+           OR any(tag IN coalesce(ref.tags, []) WHERE base_uri + ':' + tag = $image_uri)
+        WITH img
+        WHERE img.type = 'image'
+        RETURN img.digest AS digest
+        UNION
+        MATCH (ref:GCPArtifactRegistryImageRef)-[:IMAGE]->(:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(child:GCPArtifactRegistryImage)
+        WITH ref, child,
+             CASE
+                 WHEN ref.uri CONTAINS '@' THEN split(ref.uri, '@')[0]
+                 ELSE ref.uri
+             END AS base_uri
+        WHERE ref.uri = $image_uri
+           OR any(tag IN coalesce(ref.tags, []) WHERE base_uri + ':' + tag = $image_uri)
+        WITH child
         WHERE child.type = 'image'
         RETURN child.digest AS digest
         """,

@@ -114,9 +114,6 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
         patch(
             "cartography.intel.gcp.artifact_registry.artifact.load_matchlinks_with_progress"
         ) as load_matchlinks_with_progress,
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.apply_conditional_labels"
-        ) as apply_conditional_labels,
     ):
         load_docker_images(
             MagicMock(),
@@ -125,18 +122,33 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
             123,
         )
 
-    load_nodes_without_relationships.assert_called_once()
-    assert load_nodes_without_relationships.call_args.kwargs["apply_labels"] is False
+    assert load_nodes_without_relationships.call_count == 2
     assert (
-        load_nodes_without_relationships.call_args.kwargs["batch_size"]
+        load_nodes_without_relationships.call_args_list[1].kwargs["apply_labels"]
+        is False
+    )
+    assert (
+        load_nodes_without_relationships.call_args_list[0].kwargs["batch_size"]
         == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
     )
-    assert load_matchlinks_with_progress.call_count == 2
+    assert (
+        load_nodes_without_relationships.call_args_list[1].kwargs["batch_size"]
+        == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+    )
+    assert load_matchlinks_with_progress.call_count == 4
+    assert [
+        call.args[1].__class__.__name__
+        for call in load_matchlinks_with_progress.call_args_list
+    ] == [
+        "GCPArtifactRegistryProjectToImageRefRel",
+        "GCPArtifactRegistryRepositoryToImageRefRel",
+        "GCPArtifactRegistryRepositoryToImageRefRepoImageRel",
+        "GCPArtifactRegistryImageRefToImageMatchLink",
+    ]
     for call in load_matchlinks_with_progress.call_args_list:
         assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
         assert call.kwargs["_sub_resource_label"] == "GCPProject"
         assert call.kwargs["_sub_resource_id"] == "test-project"
-    apply_conditional_labels.assert_called_once()
 
 
 def test_load_nodes_without_relationships_logs_batch_progress(caplog):
