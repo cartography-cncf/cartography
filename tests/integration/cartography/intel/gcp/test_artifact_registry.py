@@ -1330,7 +1330,7 @@ def test_cleanup_manifests_preserves_legacy_platform_nodes_for_migration(
     assert result["firstseen"] == 222
 
 
-def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_shape(
+def test_image_migration_cleanup_deletes_orphaned_legacy_image_nodes(
     neo4j_session,
 ):
     project_id = "test-gar-image-migration-project"
@@ -1338,61 +1338,68 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     neo4j_session.run(
         """
         MERGE (p:GCPProject {id: $project_id})
-        MERGE (old:GCPArtifactRegistryContainerImage:Image {id: 'old-ref'})
-        SET old.digest = 'sha256:canonical',
-            old.lastupdated = $old_tag
-        MERGE (repo_img_replacement:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-ref:latest'})
-        SET repo_img_replacement.digest = 'sha256:canonical',
-            repo_img_replacement.resource_name = 'old-ref',
+        MERGE (repo:GCPArtifactRegistryRepository {id: 'repo-1'})
+
+        MERGE (old_with_external_rel:GCPArtifactRegistryContainerImage:Image {id: 'old-with-external-rel'})
+        SET old_with_external_rel.digest = 'sha256:external-canonical',
+            old_with_external_rel.lastupdated = $old_tag
+        MERGE (repo_img_replacement:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-with-external-rel:latest'})
+        SET repo_img_replacement.digest = 'sha256:external-canonical',
+            repo_img_replacement.resource_name = 'old-with-external-rel',
             repo_img_replacement.lastupdated = $update_tag
+        MERGE (external_img:GCPArtifactRegistryImage:Image {id: 'sha256:external-canonical'})
+        SET external_img.digest = 'sha256:external-canonical',
+            external_img.lastupdated = $update_tag
+        MERGE (repo_img_replacement)-[:IMAGE]->(external_img)
+        MERGE (p)-[:RESOURCE]->(old_with_external_rel)
+        MERGE (repo)-[:CONTAINS]->(old_with_external_rel)
+
+        MERGE (old_orphan:GCPArtifactRegistryContainerImage:Image {id: 'old-orphan'})
+        SET old_orphan.digest = 'sha256:orphan-canonical',
+            old_orphan.lastupdated = $old_tag
+        MERGE (repo_img_orphan_replacement:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-orphan:latest'})
+        SET repo_img_orphan_replacement.digest = 'sha256:orphan-canonical',
+            repo_img_orphan_replacement.resource_name = 'old-orphan',
+            repo_img_orphan_replacement.lastupdated = $update_tag
+        MERGE (orphan_img:GCPArtifactRegistryImage:Image {id: 'sha256:orphan-canonical'})
+        SET orphan_img.digest = 'sha256:orphan-canonical',
+            orphan_img.lastupdated = $update_tag
+        MERGE (repo_img_orphan_replacement)-[:IMAGE]->(orphan_img)
+        MERGE (p)-[:RESOURCE]->(old_orphan)
+        MERGE (repo)-[:CONTAINS]->(old_orphan)
+
         MERGE (repo_img_with_stale_label:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:Image:ImageTag {id: 'repo-img-with-stale-label'})
         SET repo_img_with_stale_label.digest = 'sha256:stale-label',
             repo_img_with_stale_label.lastupdated = $old_tag
         MERGE (repo_img_with_runtime_edge:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'repo-img-with-runtime-edge'})
         SET repo_img_with_runtime_edge.digest = 'sha256:repo-img-runtime',
             repo_img_with_runtime_edge.lastupdated = $update_tag
-        MERGE (old_container:GCPArtifactRegistryContainerImage:Image {id: 'old-container'})
-        SET old_container.digest = 'sha256:container-canonical',
-            old_container.lastupdated = $old_tag
-        MERGE (img:GCPArtifactRegistryImage:Image {id: 'sha256:canonical'})
-        SET img.digest = 'sha256:canonical',
-            img.lastupdated = $update_tag
-        MERGE (repo_img_replacement)-[:IMAGE]->(img)
         MERGE (repo_img_runtime_img:GCPArtifactRegistryImage:Image {id: 'sha256:repo-img-runtime'})
         SET repo_img_runtime_img.digest = 'sha256:repo-img-runtime',
             repo_img_runtime_img.lastupdated = $update_tag
         MERGE (repo_img_with_runtime_edge)-[:IMAGE]->(repo_img_runtime_img)
-        MERGE (container_img_ref:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-container:latest'})
-        SET container_img_ref.digest = 'sha256:container-canonical',
-            container_img_ref.resource_name = 'old-container',
-            container_img_ref.lastupdated = $update_tag
-        MERGE (container_img:GCPArtifactRegistryImage:Image {id: 'sha256:container-canonical'})
-        SET container_img.digest = 'sha256:container-canonical',
-            container_img.lastupdated = $update_tag
-        MERGE (container_img_ref)-[:IMAGE]->(container_img)
-        MERGE (repo:CodeRepository {id: 'repo-1'})
+
+        MERGE (code_repo:CodeRepository {id: 'code-repo-1'})
         MERGE (scanner:AIBOMSource {id: 'scanner-1'})
         MERGE (pkg:TrivyPackage {id: 'pkg-1'})
         MERGE (finding:TrivyImageFinding {id: 'finding-1'})
         MERGE (container:Container {id: 'container-1'})
-        MERGE (p)-[:RESOURCE]->(old)
         MERGE (p)-[:RESOURCE]->(repo_img_with_stale_label)
         MERGE (p)-[:RESOURCE]->(repo_img_with_runtime_edge)
-        MERGE (p)-[:RESOURCE]->(old_container)
-        MERGE (container)-[has_image:HAS_IMAGE]->(old)
+        MERGE (container)-[has_image:HAS_IMAGE]->(old_with_external_rel)
         SET has_image.firstseen = 111,
             has_image.lastupdated = $old_tag,
             has_image.match_method = 'runtime'
-        MERGE (scanner)-[scanned:SCANNED_IMAGE]->(old)
+        MERGE (scanner)-[scanned:SCANNED_IMAGE]->(old_with_external_rel)
         SET scanned.firstseen = 222,
             scanned.lastupdated = $old_tag
-        MERGE (pkg)-[deployed:DEPLOYED]->(old)
+        MERGE (pkg)-[deployed:DEPLOYED]->(old_with_external_rel)
         SET deployed.firstseen = 333,
             deployed.lastupdated = $old_tag
-        MERGE (finding)-[affects:AFFECTS]->(old)
+        MERGE (finding)-[affects:AFFECTS]->(old_with_external_rel)
         SET affects.firstseen = 444,
             affects.lastupdated = $old_tag
-        MERGE (old)-[packaged:PACKAGED_FROM]->(repo)
+        MERGE (old_with_external_rel)-[packaged:PACKAGED_FROM]->(code_repo)
         SET packaged.firstseen = 555,
             packaged.lastupdated = $old_tag,
             packaged.match_method = 'dockerfile',
@@ -1403,19 +1410,14 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
         SET has_image3.firstseen = 888,
             has_image3.lastupdated = $update_tag,
             has_image3.match_method = 'runtime'
-        MERGE (container2:Container {id: 'container-2'})
-        MERGE (repo2:CodeRepository {id: 'repo-2'})
-        MERGE (container2)-[has_image2:HAS_IMAGE]->(old_container)
-        SET has_image2.firstseen = 666,
-            has_image2.lastupdated = $old_tag,
-            has_image2.match_method = 'runtime'
-        MERGE (old_container)-[packaged2:PACKAGED_FROM]->(repo2)
-        SET packaged2.firstseen = 777,
-            packaged2.lastupdated = $old_tag,
-            packaged2.match_method = 'dockerfile'
+
         MERGE (old_parent:GCPArtifactRegistryContainerImage {id: 'old-parent'})
         SET old_parent.digest = 'sha256:parent',
             old_parent.lastupdated = $old_tag
+        MERGE (repo_img_parent_replacement:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-parent:latest'})
+        SET repo_img_parent_replacement.digest = 'sha256:parent',
+            repo_img_parent_replacement.resource_name = 'old-parent',
+            repo_img_parent_replacement.lastupdated = $update_tag
         MERGE (old_child:GCPArtifactRegistryPlatformImage {id: 'old-child'})
         SET old_child.digest = 'sha256:child',
             old_child.lastupdated = $old_tag
@@ -1427,6 +1429,8 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
             child.lastupdated = $update_tag
         MERGE (p)-[:RESOURCE]->(old_parent)
         MERGE (p)-[:RESOURCE]->(old_child)
+        MERGE (repo)-[:CONTAINS]->(old_parent)
+        MERGE (repo_img_parent_replacement)-[:IMAGE]->(parent)
         MERGE (parent)-[:CONTAINS_IMAGE]->(child)
         MERGE (old_parent)-[:HAS_MANIFEST]->(old_child)
         MERGE (old_parent)-[:CONTAINS_IMAGE]->(old_child)
@@ -1444,12 +1448,24 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
 
     result = neo4j_session.run(
         """
-        MATCH (:Container {id: 'container-1'})-[has_image:HAS_IMAGE]->
-              (img:GCPArtifactRegistryImage {id: 'sha256:canonical'})
-        MATCH (:AIBOMSource {id: 'scanner-1'})-[scanned:SCANNED_IMAGE]->(img)
-        MATCH (:TrivyPackage {id: 'pkg-1'})-[deployed:DEPLOYED]->(img)
-        MATCH (:TrivyImageFinding {id: 'finding-1'})-[affects:AFFECTS]->(img)
-        MATCH (img)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'repo-1'})
+        MATCH (old_with_external_rel:GCPArtifactRegistryContainerImage {id: 'old-with-external-rel'})
+        MATCH (:Container {id: 'container-1'})-[has_image:HAS_IMAGE]->(old_with_external_rel)
+        MATCH (:AIBOMSource {id: 'scanner-1'})-[scanned:SCANNED_IMAGE]->(old_with_external_rel)
+        MATCH (:TrivyPackage {id: 'pkg-1'})-[deployed:DEPLOYED]->(old_with_external_rel)
+        MATCH (:TrivyImageFinding {id: 'finding-1'})-[affects:AFFECTS]->(old_with_external_rel)
+        MATCH (old_with_external_rel)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'code-repo-1'})
+        OPTIONAL MATCH (:Container {id: 'container-1'})-[migrated_has_image:HAS_IMAGE]->
+                       (:GCPArtifactRegistryImage {id: 'sha256:external-canonical'})
+        OPTIONAL MATCH (:AIBOMSource {id: 'scanner-1'})-[migrated_scanned:SCANNED_IMAGE]->
+                       (:GCPArtifactRegistryImage {id: 'sha256:external-canonical'})
+        OPTIONAL MATCH (:TrivyPackage {id: 'pkg-1'})-[migrated_deployed:DEPLOYED]->
+                       (:GCPArtifactRegistryImage {id: 'sha256:external-canonical'})
+        OPTIONAL MATCH (:TrivyImageFinding {id: 'finding-1'})-[migrated_affects:AFFECTS]->
+                       (:GCPArtifactRegistryImage {id: 'sha256:external-canonical'})
+        OPTIONAL MATCH (:GCPArtifactRegistryImage {id: 'sha256:external-canonical'})
+                       -[migrated_packaged:PACKAGED_FROM]->(:CodeRepository {id: 'code-repo-1'})
+        OPTIONAL MATCH (:GCPProject {id: $project_id})-[resource:RESOURCE]->(old_with_external_rel)
+        OPTIONAL MATCH (:GCPArtifactRegistryRepository)-[repo_contains:CONTAINS]->(old_with_external_rel)
         RETURN
             has_image.firstseen AS has_image_firstseen,
             has_image.match_method AS has_image_match_method,
@@ -1459,8 +1475,16 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
             packaged.firstseen AS packaged_firstseen,
             packaged.match_method AS packaged_match_method,
             packaged.confidence AS packaged_confidence,
-            packaged.source_file AS packaged_source_file
+            packaged.source_file AS packaged_source_file,
+            count(migrated_has_image) AS migrated_has_image_count,
+            count(migrated_scanned) AS migrated_scanned_count,
+            count(migrated_deployed) AS migrated_deployed_count,
+            count(migrated_affects) AS migrated_affects_count,
+            count(migrated_packaged) AS migrated_packaged_count,
+            count(resource) AS resource_count,
+            count(repo_contains) AS repo_contains_count
         """,
+        project_id=project_id,
     ).single()
     assert result["has_image_firstseen"] == 111
     assert result["has_image_match_method"] == "runtime"
@@ -1471,27 +1495,13 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     assert result["packaged_match_method"] == "dockerfile"
     assert result["packaged_confidence"] == 0.75
     assert result["packaged_source_file"] == "Dockerfile"
-
-    legacy_container_result = neo4j_session.run(
-        """
-        MATCH (:Container {id: 'container-2'})-[has_image:HAS_IMAGE]->
-              (img:GCPArtifactRegistryImage {id: 'sha256:container-canonical'})
-        MATCH (img)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'repo-2'})
-        OPTIONAL MATCH (old_container:GCPArtifactRegistryContainerImage {id: 'old-container'})
-        WHERE NOT old_container:GCPArtifactRegistryRepositoryImage
-        RETURN
-            has_image.firstseen AS has_image_firstseen,
-            has_image.match_method AS has_image_match_method,
-            packaged.firstseen AS packaged_firstseen,
-            packaged.match_method AS packaged_match_method,
-            count(old_container) AS old_container_count
-        """,
-    ).single()
-    assert legacy_container_result["has_image_firstseen"] == 666
-    assert legacy_container_result["has_image_match_method"] == "runtime"
-    assert legacy_container_result["packaged_firstseen"] == 777
-    assert legacy_container_result["packaged_match_method"] == "dockerfile"
-    assert legacy_container_result["old_container_count"] == 0
+    assert result["migrated_has_image_count"] == 0
+    assert result["migrated_scanned_count"] == 0
+    assert result["migrated_deployed_count"] == 0
+    assert result["migrated_affects_count"] == 0
+    assert result["migrated_packaged_count"] == 0
+    assert result["resource_count"] == 0
+    assert result["repo_contains_count"] == 0
 
     cleanup_counts = neo4j_session.run(
         """
@@ -1502,12 +1512,18 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
                        (:GCPArtifactRegistryImage {id: 'sha256:repo-img-runtime'})
         OPTIONAL MATCH (:GCPArtifactRegistryContainerImage)-[legacy_manifest:HAS_MANIFEST|CONTAINS_IMAGE]->
                        (:GCPArtifactRegistryPlatformImage)
+        OPTIONAL MATCH (old_orphan:GCPArtifactRegistryContainerImage {id: 'old-orphan'})
+        WHERE NOT old_orphan:GCPArtifactRegistryRepositoryImage
+        OPTIONAL MATCH (old_parent:GCPArtifactRegistryContainerImage {id: 'old-parent'})
+        WHERE NOT old_parent:GCPArtifactRegistryRepositoryImage
         OPTIONAL MATCH (old_child:GCPArtifactRegistryPlatformImage {id: 'old-child'})
         RETURN
             repo_img_with_stale_label:Image AS repo_img_still_image,
             count(new_ref_has_image) AS new_ref_has_image_count,
             count(migrated_new_ref_has_image) AS migrated_new_ref_has_image_count,
             count(legacy_manifest) AS legacy_manifest_count,
+            count(old_orphan) AS old_orphan_count,
+            count(old_parent) AS old_parent_count,
             count(old_child) AS old_child_count
         """,
     ).single()
@@ -1515,6 +1531,8 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     assert cleanup_counts["new_ref_has_image_count"] == 1
     assert cleanup_counts["migrated_new_ref_has_image_count"] == 0
     assert cleanup_counts["legacy_manifest_count"] == 0
+    assert cleanup_counts["old_orphan_count"] == 0
+    assert cleanup_counts["old_parent_count"] == 0
     assert cleanup_counts["old_child_count"] == 0
 
 
