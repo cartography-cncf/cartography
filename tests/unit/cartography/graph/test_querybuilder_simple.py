@@ -1,5 +1,10 @@
+from cartography.graph.querybuilder import _build_node_properties_statement
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.models.core.common import PropertyRef
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryContainerImageProvenanceSchema,
+)
 from cartography.version import get_cartography_version
 from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import (
     FakeEmpSchema,
@@ -35,6 +40,29 @@ def test_simplenode_with_subresource_sanity_checks():
     # Assert that the unimplemented, non-abstract properties have None values.
     assert schema.extra_node_labels is None
     assert schema.other_relationships is None
+
+
+def test_build_node_properties_statement_preserves_existing_values():
+    query = _build_node_properties_statement(
+        {
+            "id": PropertyRef("id"),
+            "lastupdated": PropertyRef("lastupdated", set_in_kwargs=True),
+            "source_uri": PropertyRef("source_uri", preserve_existing=True),
+        },
+    )
+
+    assert "i.lastupdated = $lastupdated" in query
+    assert "i.source_uri = coalesce(item.source_uri, i.source_uri)" in query
+
+
+def test_build_ingestion_query_preserves_existing_ontology_values():
+    query = build_ingestion_query(GCPArtifactRegistryContainerImageProvenanceSchema())
+
+    assert "i.architecture = coalesce(item.architecture, i.architecture)" in query
+    assert (
+        "i._ont_architecture = coalesce(item.architecture, i._ont_architecture)"
+        in query
+    )
 
 
 def test_build_ingestion_query_with_sub_resource():

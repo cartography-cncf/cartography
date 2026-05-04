@@ -87,6 +87,31 @@ When defining nodes and properties, please follow the naming convention below:
 - **Relationship property classes** should end with `RelProperties`
 ```
 
+#### Preserving existing node properties
+
+Most node properties should use the default overwrite behavior. If an API returns
+`None`, the generated loader query writes `None`, which removes the existing Neo4j
+property. This is useful when the current API response is authoritative and the
+graph should forget old values.
+
+For enrichment-only passes where `None` means "not observed this time" rather
+than "clear this value", mark that property with `preserve_existing=True`:
+
+```python
+source_uri: PropertyRef = PropertyRef(
+    "source_uri",
+    extra_index=True,
+    preserve_existing=True,
+)
+```
+
+The generated node load query will keep the existing graph value when the
+incoming value is null, while still accepting incoming non-null updates. Use this
+only for node properties whose absence is expected during partial enrichment; do
+not use it for fields where a null value should intentionally clear stale data.
+This only preserves on `None`; empty strings, empty lists, `False`, and `0` are
+non-null incoming values and will overwrite the existing property.
+
 #### Defining a node
 
 As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema code](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):

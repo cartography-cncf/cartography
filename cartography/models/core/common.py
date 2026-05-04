@@ -43,6 +43,7 @@ class PropertyRef:
         ignore_case=False,
         fuzzy_and_ignore_case=False,
         one_to_many=False,
+        preserve_existing=False,
     ):
         """
         Initialize a PropertyRef instance.
@@ -66,6 +67,9 @@ class PropertyRef:
                 associations. If True, this property ref points to a list stored on the data dict
                 where each item is an ID. Only has effect as part of a TargetNodeMatcher and is
                 not supported for sub resource relationships. Defaults to False.
+            preserve_existing (bool, optional): If True, node ingestion keeps the existing
+                graph property when the incoming value is null. Only has effect for node
+                property SET clauses. Defaults to False.
 
         Examples:
             Case-insensitive matching for GitHub usernames:
@@ -109,6 +113,7 @@ class PropertyRef:
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
         self.one_to_many = one_to_many
+        self.preserve_existing = preserve_existing
 
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(

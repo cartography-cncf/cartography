@@ -169,13 +169,17 @@ class GCPArtifactRegistryContainerImageProvenanceNodeProperties(
 ):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    architecture: PropertyRef = PropertyRef("architecture")
-    os: PropertyRef = PropertyRef("os")
-    variant: PropertyRef = PropertyRef("variant")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
+    architecture: PropertyRef = PropertyRef("architecture", preserve_existing=True)
+    os: PropertyRef = PropertyRef("os", preserve_existing=True)
+    variant: PropertyRef = PropertyRef("variant", preserve_existing=True)
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri", extra_index=True, preserve_existing=True
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision", preserve_existing=True
+    )
+    source_file: PropertyRef = PropertyRef("source_file", preserve_existing=True)
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids", preserve_existing=True)
 
 
 @dataclass(frozen=True)

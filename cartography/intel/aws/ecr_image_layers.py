@@ -597,7 +597,8 @@ def transform_ecr_image_layers(
     :param image_digest_map: Map of image URI to image digest
     :param history_by_diff_id: Map of diff_id to history command (created_by)
     :param image_attestation_map: Map of image URI to provenance data
-    :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
+    :param existing_properties_map: Map of image digest to existing ECRImage metadata used for
+        manifest-list detection and architecture backfill.
     :return: List of layer objects ready for ingestion
     """
     if history_by_diff_id is None:
@@ -615,9 +616,9 @@ def transform_ecr_image_layers(
 
         # Check if this is a manifest list
         is_manifest_list = False
-        if image_digest in existing_properties_map:
-            image_type = existing_properties_map[image_digest].get("type")
-            is_manifest_list = image_type == "manifest_list"
+        existing_properties = existing_properties_map.get(image_digest, {})
+        image_type = existing_properties.get("type")
+        is_manifest_list = image_type == "manifest_list"
 
         # Skip creating layer relationships for manifest lists
         if is_manifest_list:
@@ -661,28 +662,29 @@ def transform_ecr_image_layers(
                 "layer_diff_ids": ordered_layers_for_image,
             }
 
-            # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
-            if image_digest in existing_properties_map:
-                membership.update(existing_properties_map[image_digest])
-                if not membership.get("architecture"):
-                    platform_values = list(platforms.keys())
-                    if len(platform_values) == 1:
-                        first_platform = platform_values[0]
-                        arch_hint = (
-                            first_platform.split("/")[1]
-                            if "/" in first_platform
-                            else first_platform
-                        )
-                        normalized_arch = normalize_architecture(arch_hint)
-                        if normalized_arch != "unknown":
-                            membership["architecture"] = normalized_arch
-                    elif len(platform_values) > 1:
-                        # Ambiguous platform hints for this digest; avoid arbitrary picks.
-                        logger.debug(
-                            "Skipping architecture backfill for %s due to multiple platform keys: %s",
-                            image_digest,
-                            platform_values,
-                        )
+            existing_image_properties = existing_properties_map.get(image_digest)
+            if (
+                existing_image_properties is not None
+                and not existing_image_properties.get("architecture")
+            ):
+                platform_values = list(platforms.keys())
+                if len(platform_values) == 1:
+                    first_platform = platform_values[0]
+                    arch_hint = (
+                        first_platform.split("/")[1]
+                        if "/" in first_platform
+                        else first_platform
+                    )
+                    normalized_arch = normalize_architecture(arch_hint)
+                    if normalized_arch != "unknown":
+                        membership["architecture"] = normalized_arch
+                elif len(platform_values) > 1:
+                    # Ambiguous platform hints for this digest; avoid arbitrary picks.
+                    logger.debug(
+                        "Skipping architecture backfill for %s due to multiple platform keys: %s",
+                        image_digest,
+                        platform_values,
+                    )
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:
@@ -1310,7 +1312,7 @@ def sync(
             current_aws_account_id,
         )
 
-        # Query for ECR images with all their existing properties to preserve during layer sync
+        # Query existing ECR image metadata needed to skip manifest lists and backfill architecture hints.
         query = """
         MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
         MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
@@ -1320,14 +1322,7 @@ def sync(
             repo_img.id AS uri,
             repo.uri AS repo_uri,
             img.type AS type,
-            img.architecture AS architecture,
-            img.os AS os,
-            img.variant AS variant,
-            img.attestation_type AS attestation_type,
-            img.attests_digest AS attests_digest,
-            img.media_type AS media_type,
-            img.artifact_media_type AS artifact_media_type,
-            img.child_image_digests AS child_image_digests
+            img.architecture AS architecture
         """
         from cartography.client.core.tx import read_list_of_dicts_tx
 
@@ -1335,7 +1330,7 @@ def sync(
             read_list_of_dicts_tx, query, AWS_ID=current_aws_account_id, Region=region
         )
 
-        # Build repo_images_list and existing_properties map
+        # Build repo_images_list and existing image metadata map.
         repo_images_list = []
         existing_properties = {}
         seen_digests = set()
@@ -1347,17 +1342,9 @@ def sync(
             if digest not in seen_digests:
                 seen_digests.add(digest)
 
-                # Store existing properties for ALL images to preserve during updates
                 existing_properties[digest] = {
                     "type": image_type,
                     "architecture": img_data.get("architecture"),
-                    "os": img_data.get("os"),
-                    "variant": img_data.get("variant"),
-                    "attestation_type": img_data.get("attestation_type"),
-                    "attests_digest": img_data.get("attests_digest"),
-                    "media_type": img_data.get("media_type"),
-                    "artifact_media_type": img_data.get("artifact_media_type"),
-                    "child_image_digests": img_data.get("child_image_digests"),
                 }
 
                 repo_uri = img_data["repo_uri"]
