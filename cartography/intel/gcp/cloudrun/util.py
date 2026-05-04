@@ -8,9 +8,14 @@ from collections.abc import Iterable
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
+from google.api_core.exceptions import DeadlineExceeded
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
+from google.api_core.exceptions import ResourceExhausted
+from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.retry import if_exception_type
+from google.api_core.retry import Retry
 from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
@@ -25,6 +30,11 @@ logger = logging.getLogger(__name__)
 
 CLOUD_RUN_LABEL_BATCH_SIZE = 1000
 DEFAULT_CLOUD_RUN_LOCATION_WORKERS = 8
+CLOUD_RUN_LIST_RETRY_INITIAL = 1.0
+CLOUD_RUN_LIST_RETRY_MAX = 10.0
+CLOUD_RUN_LIST_RETRY_MULTIPLIER = 1.3
+CLOUD_RUN_LIST_RETRY_TIMEOUT = 60.0
+CLOUD_RUN_LIST_TIMEOUT = 30.0
 
 
 def _normalize_cloud_run_location_name(location_name: str) -> str:
@@ -35,6 +45,37 @@ def _normalize_cloud_run_location_name(location_name: str) -> str:
 
 def _cloud_run_location_short_name(location_name: str) -> str:
     return location_name.rsplit("/", 1)[-1]
+
+
+def build_cloud_run_resource_retry(
+    *,
+    resource_type: str,
+    location: str,
+    project_id: str,
+) -> Retry:
+    location_short = _cloud_run_location_short_name(location)
+
+    def _on_error(exc: Exception) -> None:
+        logger.warning(
+            "Retrying Cloud Run %s list in %s for project %s after transient error: %s",
+            resource_type,
+            location_short,
+            project_id,
+            exc,
+        )
+
+    return Retry(
+        predicate=if_exception_type(
+            DeadlineExceeded,
+            ResourceExhausted,
+            ServiceUnavailable,
+        ),
+        initial=CLOUD_RUN_LIST_RETRY_INITIAL,
+        maximum=CLOUD_RUN_LIST_RETRY_MAX,
+        multiplier=CLOUD_RUN_LIST_RETRY_MULTIPLIER,
+        timeout=CLOUD_RUN_LIST_RETRY_TIMEOUT,
+        on_error=_on_error,
+    )
 
 
 def _service_discovered_cloud_run_locations(
@@ -178,14 +219,22 @@ def discover_cloud_run_locations(
 
 def list_cloud_run_resources_for_location(
     *,
-    fetcher: Callable[[], Iterable[object]],
+    fetcher: Callable[..., Iterable[object]],
     resource_type: str,
     location: str,
     project_id: str,
 ) -> list[dict]:
     location_name = _cloud_run_location_short_name(location)
+    retry = build_cloud_run_resource_retry(
+        resource_type=resource_type,
+        location=location,
+        project_id=project_id,
+    )
     try:
-        resources = [proto_message_to_dict(resource) for resource in fetcher()]
+        resources = [
+            proto_message_to_dict(resource)
+            for resource in fetcher(retry=retry, timeout=CLOUD_RUN_LIST_TIMEOUT)
+        ]
     except NotFound:
         logger.debug(
             "Cloud Run %s not found in %s for project %s.",

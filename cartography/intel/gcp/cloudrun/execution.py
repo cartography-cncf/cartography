@@ -29,8 +29,9 @@ def get_executions(
 
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: client.list_executions(
+            fetcher=lambda **kw: client.list_executions(
                 parent=f"{location}/jobs/-",
+                **kw,
             ),
             resource_type="executions",
             location=location,
