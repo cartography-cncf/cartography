@@ -58,7 +58,7 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert Nodes for all six types
+    # Assert Nodes for all four types (parent + 3 sub-resources, parallel to AzureLoadBalancer)
     ag = MOCK_APPLICATION_GATEWAYS[0]
     assert check_nodes(neo4j_session, "AzureApplicationGateway", ["id"]) == {
         (ag["id"],)
@@ -71,15 +71,7 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
     assert check_nodes(neo4j_session, "AzureApplicationGatewayBackendPool", ["id"]) == {
         (ag["backend_address_pools"][0]["id"],)
     }
-    assert check_nodes(
-        neo4j_session, "AzureApplicationGatewayHTTPListener", ["id"]
-    ) == {(ag["http_listeners"][0]["id"],)}
-    assert check_nodes(
-        neo4j_session, "AzureApplicationGatewayBackendHTTPSettings", ["id"]
-    ) == {(ag["backend_http_settings_collection"][0]["id"],)}
-    assert check_nodes(
-        neo4j_session, "AzureApplicationGatewayRequestRoutingRule", ["id"]
-    ) == {
+    assert check_nodes(neo4j_session, "AzureApplicationGatewayRule", ["id"]) == {
         (ag["request_routing_rules"][0]["id"],),
         (ag["request_routing_rules"][1]["id"],),
     }
@@ -91,8 +83,6 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
     ag_id = ag["id"]
     frontend_ip_id = ag["frontend_ip_configurations"][0]["id"]
     backend_pool_id = ag["backend_address_pools"][0]["id"]
-    listener_id = ag["http_listeners"][0]["id"]
-    settings_id = ag["backend_http_settings_collection"][0]["id"]
     rule_id = ag["request_routing_rules"][0]["id"]
     path_rule_id = ag["request_routing_rules"][1]["id"]
     subnet_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-vnet/subnets/my-appgw-subnet"
@@ -104,8 +94,6 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         (TEST_SUBSCRIPTION_ID, ag_id),
         (ag_id, frontend_ip_id),
         (ag_id, backend_pool_id),
-        (ag_id, listener_id),
-        (ag_id, settings_id),
         (ag_id, rule_id),
         (ag_id, path_rule_id),
     }
@@ -142,27 +130,7 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
             neo4j_session,
             "AzureApplicationGateway",
             "id",
-            "AzureApplicationGatewayHTTPListener",
-            "id",
-            "CONTAINS",
-        )
-    )
-    actual_parent_rels.update(
-        check_rels(
-            neo4j_session,
-            "AzureApplicationGateway",
-            "id",
-            "AzureApplicationGatewayBackendHTTPSettings",
-            "id",
-            "CONTAINS",
-        )
-    )
-    actual_parent_rels.update(
-        check_rels(
-            neo4j_session,
-            "AzureApplicationGateway",
-            "id",
-            "AzureApplicationGatewayRequestRoutingRule",
+            "AzureApplicationGatewayRule",
             "id",
             "CONTAINS",
         )
@@ -202,45 +170,43 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         rel_direction_right=True,
     ) == {(backend_pool_id, nic_id)}
 
-    # HTTPListener -> FrontendIP (USES_FRONTEND_IP)
+    # Rule wiring (Basic + PathBasedRouting both produce edges, parallel to AzureLoadBalancerRule)
     assert check_rels(
         neo4j_session,
-        "AzureApplicationGatewayHTTPListener",
+        "AzureApplicationGatewayRule",
         "id",
         "AzureApplicationGatewayFrontendIPConfiguration",
         "id",
         "USES_FRONTEND_IP",
         rel_direction_right=True,
-    ) == {(listener_id, frontend_ip_id)}
-
-    # RequestRoutingRule wiring (Basic + PathBasedRouting both produce edges)
+    ) == {(rule_id, frontend_ip_id), (path_rule_id, frontend_ip_id)}
     assert check_rels(
         neo4j_session,
-        "AzureApplicationGatewayRequestRoutingRule",
-        "id",
-        "AzureApplicationGatewayHTTPListener",
-        "id",
-        "USES_LISTENER",
-        rel_direction_right=True,
-    ) == {(rule_id, listener_id), (path_rule_id, listener_id)}
-    assert check_rels(
-        neo4j_session,
-        "AzureApplicationGatewayRequestRoutingRule",
+        "AzureApplicationGatewayRule",
         "id",
         "AzureApplicationGatewayBackendPool",
         "id",
         "ROUTES_TO",
         rel_direction_right=True,
     ) == {(rule_id, backend_pool_id), (path_rule_id, backend_pool_id)}
-    assert check_rels(
-        neo4j_session,
-        "AzureApplicationGatewayRequestRoutingRule",
-        "id",
-        "AzureApplicationGatewayBackendHTTPSettings",
-        "id",
-        "USES_SETTINGS",
-        rel_direction_right=True,
-    ) == {(rule_id, settings_id), (path_rule_id, settings_id)}
+
+    # Verify listener + backend settings were folded onto the Rule node
+    rule_props = neo4j_session.run(
+        """
+        MATCH (r:AzureApplicationGatewayRule {id: $id})
+        RETURN r.listener_protocol AS lp, r.listener_port AS lport,
+               r.backend_protocol AS bp, r.backend_port AS bport,
+               r.listener_id IS NOT NULL AS has_lid,
+               r.backend_http_settings_id IS NOT NULL AS has_sid
+        """,
+        id=rule_id,
+    ).single()
+    assert rule_props["lp"] == "Https"
+    assert rule_props["lport"] == 443
+    assert rule_props["bp"] == "Https"
+    assert rule_props["bport"] == 443
+    assert rule_props["has_lid"]
+    assert rule_props["has_sid"]
 
 
 def test_load_application_gateway_tags(neo4j_session):

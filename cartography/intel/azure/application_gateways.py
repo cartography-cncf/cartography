@@ -10,20 +10,14 @@ from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.application_gateway.application_gateway import (
     AzureApplicationGatewaySchema,
 )
-from cartography.models.azure.application_gateway.application_gateway_backend_http_settings import (
-    AzureApplicationGatewayBackendHTTPSettingsSchema,
-)
 from cartography.models.azure.application_gateway.application_gateway_backend_pool import (
     AzureApplicationGatewayBackendPoolSchema,
 )
 from cartography.models.azure.application_gateway.application_gateway_frontend_ip import (
     AzureApplicationGatewayFrontendIPSchema,
 )
-from cartography.models.azure.application_gateway.application_gateway_http_listener import (
-    AzureApplicationGatewayHTTPListenerSchema,
-)
-from cartography.models.azure.application_gateway.application_gateway_request_routing_rule import (
-    AzureApplicationGatewayRequestRoutingRuleSchema,
+from cartography.models.azure.application_gateway.application_gateway_rule import (
+    AzureApplicationGatewayRuleSchema,
 )
 from cartography.models.azure.tags.application_gateway_tag import (
     AzureApplicationGatewayTagsSchema,
@@ -163,10 +157,19 @@ def _build_frontend_port_lookup(application_gateway: dict) -> dict[str, int | No
     return lookup
 
 
-def transform_http_listeners(application_gateway: dict) -> list[dict]:
+def _build_listener_lookup(
+    application_gateway: dict,
+) -> dict[str, dict[str, Any]]:
+    """
+    Build a lookup of listener id -> flattened listener attributes plus the
+    frontend IP id it references. Used to fold listener data onto the Rule node.
+    """
     port_lookup = _build_frontend_port_lookup(application_gateway)
-    transformed: list[dict[str, Any]] = []
+    lookup: dict[str, dict[str, Any]] = {}
     for listener in application_gateway.get("http_listeners", []) or []:
+        listener_id = listener.get("id")
+        if not listener_id:
+            continue
         frontend_ip_ref = (
             listener.get("frontend_ip_configuration")
             or listener.get("properties", {}).get("frontend_ip_configuration")
@@ -183,46 +186,47 @@ def transform_http_listeners(application_gateway: dict) -> list[dict]:
             or {}
         )
         frontend_port_id = frontend_port_ref.get("id")
-        transformed.append(
-            {
-                "id": listener.get("id"),
-                "name": listener.get("name"),
-                "protocol": _get(listener, "protocol"),
-                "frontend_port": (
-                    port_lookup.get(frontend_port_id) if frontend_port_id else None
-                ),
-                "host_name": _get(listener, "host_name"),
-                "host_names": _get(listener, "host_names"),
-                "require_server_name_indication": _get(
-                    listener, "require_server_name_indication"
-                ),
-                "ssl_certificate_id": ssl_cert_ref.get("id"),
-                "FRONTEND_IP_ID": frontend_ip_ref.get("id"),
-            }
-        )
-    return transformed
+        lookup[listener_id] = {
+            "listener_protocol": _get(listener, "protocol"),
+            "listener_port": (
+                port_lookup.get(frontend_port_id) if frontend_port_id else None
+            ),
+            "listener_host_name": _get(listener, "host_name"),
+            "listener_host_names": _get(listener, "host_names"),
+            "listener_require_server_name_indication": _get(
+                listener, "require_server_name_indication"
+            ),
+            "listener_ssl_certificate_id": ssl_cert_ref.get("id"),
+            "FRONTEND_IP_ID": frontend_ip_ref.get("id"),
+        }
+    return lookup
 
 
-def transform_backend_http_settings(application_gateway: dict) -> list[dict]:
-    transformed: list[dict[str, Any]] = []
+def _build_backend_http_settings_lookup(
+    application_gateway: dict,
+) -> dict[str, dict[str, Any]]:
+    """
+    Build a lookup of backend http settings id -> flattened settings attributes.
+    Used to fold settings data onto the Rule node.
+    """
+    lookup: dict[str, dict[str, Any]] = {}
     for settings in (
         application_gateway.get("backend_http_settings_collection", []) or []
     ):
-        transformed.append(
-            {
-                "id": settings.get("id"),
-                "name": settings.get("name"),
-                "protocol": _get(settings, "protocol"),
-                "port": _get(settings, "port"),
-                "cookie_based_affinity": _get(settings, "cookie_based_affinity"),
-                "request_timeout": _get(settings, "request_timeout"),
-                "host_name": _get(settings, "host_name"),
-                "pick_host_name_from_backend_address": _get(
-                    settings, "pick_host_name_from_backend_address"
-                ),
-            }
-        )
-    return transformed
+        settings_id = settings.get("id")
+        if not settings_id:
+            continue
+        lookup[settings_id] = {
+            "backend_protocol": _get(settings, "protocol"),
+            "backend_port": _get(settings, "port"),
+            "backend_cookie_based_affinity": _get(settings, "cookie_based_affinity"),
+            "backend_request_timeout": _get(settings, "request_timeout"),
+            "backend_host_name": _get(settings, "host_name"),
+            "backend_pick_host_name_from_backend_address": _get(
+                settings, "pick_host_name_from_backend_address"
+            ),
+        }
+    return lookup
 
 
 def _build_url_path_map_lookup(
@@ -233,7 +237,7 @@ def _build_url_path_map_lookup(
 
     PathBasedRouting rules carry their effective backend through a `url_path_map`
     rather than directly on the rule, so we resolve the path map's defaults to keep
-    the rule node's `ROUTES_TO` / `USES_SETTINGS` edges populated.
+    the rule's `ROUTES_TO` edge populated and its backend_* properties filled in.
     """
     lookup: dict[str, dict[str, str | None]] = {}
     for path_map in application_gateway.get("url_path_maps", []) or []:
@@ -257,8 +261,34 @@ def _build_url_path_map_lookup(
     return lookup
 
 
-def transform_request_routing_rules(application_gateway: dict) -> list[dict]:
+def transform_rules(application_gateway: dict) -> list[dict]:
+    """
+    Flatten request_routing_rules with their referenced HTTP listener and
+    backend HTTP settings into a single record per rule, parallel to how
+    AzureLoadBalancerRule carries protocol / frontend_port / backend_port.
+    """
+    listener_lookup = _build_listener_lookup(application_gateway)
+    settings_lookup = _build_backend_http_settings_lookup(application_gateway)
     path_map_lookup = _build_url_path_map_lookup(application_gateway)
+
+    empty_listener: dict[str, Any] = {
+        "listener_protocol": None,
+        "listener_port": None,
+        "listener_host_name": None,
+        "listener_host_names": None,
+        "listener_require_server_name_indication": None,
+        "listener_ssl_certificate_id": None,
+        "FRONTEND_IP_ID": None,
+    }
+    empty_settings: dict[str, Any] = {
+        "backend_protocol": None,
+        "backend_port": None,
+        "backend_cookie_based_affinity": None,
+        "backend_request_timeout": None,
+        "backend_host_name": None,
+        "backend_pick_host_name_from_backend_address": None,
+    }
+
     transformed: list[dict[str, Any]] = []
     for rule in application_gateway.get("request_routing_rules", []) or []:
         listener_ref = (
@@ -282,17 +312,30 @@ def transform_request_routing_rules(application_gateway: dict) -> list[dict]:
             or {}
         )
 
+        listener_id = listener_ref.get("id")
         backend_pool_id = backend_pool_ref.get("id")
         backend_http_settings_id = backend_settings_ref.get("id")
-        # PathBasedRouting: fall back to the url_path_map's defaults when the rule
-        # has no direct backend pool / settings.
         url_path_map_id = url_path_map_ref.get("id")
+
+        # PathBasedRouting: fall back to the url_path_map's defaults when the
+        # rule has no direct backend pool / settings.
         if url_path_map_id and url_path_map_id in path_map_lookup:
             defaults = path_map_lookup[url_path_map_id]
             if not backend_pool_id:
                 backend_pool_id = defaults.get("backend_pool_id")
             if not backend_http_settings_id:
                 backend_http_settings_id = defaults.get("backend_http_settings_id")
+
+        listener_attrs = (
+            listener_lookup.get(listener_id, empty_listener)
+            if listener_id
+            else empty_listener
+        )
+        settings_attrs = (
+            settings_lookup.get(backend_http_settings_id, empty_settings)
+            if backend_http_settings_id
+            else empty_settings
+        )
 
         transformed.append(
             {
@@ -301,9 +344,11 @@ def transform_request_routing_rules(application_gateway: dict) -> list[dict]:
                 "rule_type": _get(rule, "rule_type"),
                 "priority": _get(rule, "priority"),
                 "url_path_map_id": url_path_map_id,
-                "HTTP_LISTENER_ID": listener_ref.get("id"),
+                "listener_id": listener_id,
+                "backend_http_settings_id": backend_http_settings_id,
                 "BACKEND_POOL_ID": backend_pool_id,
-                "BACKEND_HTTP_SETTINGS_ID": backend_http_settings_id,
+                **listener_attrs,
+                **settings_attrs,
             }
         )
     return transformed
@@ -362,7 +407,7 @@ def load_backend_pools(
 
 
 @timeit
-def load_http_listeners(
+def load_rules(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     application_gateway_id: str,
@@ -371,43 +416,7 @@ def load_http_listeners(
 ) -> None:
     load(
         neo4j_session,
-        AzureApplicationGatewayHTTPListenerSchema(),
-        data,
-        lastupdated=update_tag,
-        APPLICATION_GATEWAY_ID=application_gateway_id,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-    )
-
-
-@timeit
-def load_backend_http_settings(
-    neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
-    application_gateway_id: str,
-    subscription_id: str,
-    update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AzureApplicationGatewayBackendHTTPSettingsSchema(),
-        data,
-        lastupdated=update_tag,
-        APPLICATION_GATEWAY_ID=application_gateway_id,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-    )
-
-
-@timeit
-def load_request_routing_rules(
-    neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
-    application_gateway_id: str,
-    subscription_id: str,
-    update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AzureApplicationGatewayRequestRoutingRuleSchema(),
+        AzureApplicationGatewayRuleSchema(),
         data,
         lastupdated=update_tag,
         APPLICATION_GATEWAY_ID=application_gateway_id,
@@ -482,24 +491,8 @@ def sync(
             neo4j_session, backend_pools, ag_id, subscription_id, update_tag
         )
 
-        http_listeners = transform_http_listeners(ag)
-        load_http_listeners(
-            neo4j_session, http_listeners, ag_id, subscription_id, update_tag
-        )
-
-        backend_http_settings = transform_backend_http_settings(ag)
-        load_backend_http_settings(
-            neo4j_session,
-            backend_http_settings,
-            ag_id,
-            subscription_id,
-            update_tag,
-        )
-
-        rules = transform_request_routing_rules(ag)
-        load_request_routing_rules(
-            neo4j_session, rules, ag_id, subscription_id, update_tag
-        )
+        rules = transform_rules(ag)
+        load_rules(neo4j_session, rules, ag_id, subscription_id, update_tag)
 
     # Run cleanup for child components and the parent at subscription scope (their
     # sub_resource_relationship is the AzureSubscription). Running this *outside*
@@ -512,13 +505,7 @@ def sync(
         AzureApplicationGatewayBackendPoolSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_node_schema(
-        AzureApplicationGatewayHTTPListenerSchema(), common_job_parameters
-    ).run(neo4j_session)
-    GraphJob.from_node_schema(
-        AzureApplicationGatewayBackendHTTPSettingsSchema(), common_job_parameters
-    ).run(neo4j_session)
-    GraphJob.from_node_schema(
-        AzureApplicationGatewayRequestRoutingRuleSchema(), common_job_parameters
+        AzureApplicationGatewayRuleSchema(), common_job_parameters
     ).run(neo4j_session)
 
     GraphJob.from_node_schema(

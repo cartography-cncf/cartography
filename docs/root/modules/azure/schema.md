@@ -2118,7 +2118,7 @@ Representation of an Inbound NAT Rule for an Azure Load Balancer.
 
 ### AzureApplicationGateway
 
-Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-us/azure/application-gateway/overview).
+Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-us/azure/application-gateway/overview). The data model mirrors `AzureLoadBalancer`: the parent gateway plus three sub-resource node types (frontend IP, backend pool, rule). HTTP listener and backend HTTP settings configuration is folded onto each `AzureApplicationGatewayRule`, parallel to how `AzureLoadBalancerRule` carries `protocol` / `frontend_port` / `backend_port` directly.
 
 > **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, AzureLoadBalancer, GCPForwardingRule).
 
@@ -2145,18 +2145,14 @@ Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-
     (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGateway)
     (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayFrontendIPConfiguration)
     (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayBackendPool)
-    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayHTTPListener)
-    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayBackendHTTPSettings)
-    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayRequestRoutingRule)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayRule)
     ```
 
 - An Azure Application Gateway contains its component parts.
     ```cypher
     (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayFrontendIPConfiguration)
     (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayBackendPool)
-    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayHTTPListener)
-    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayBackendHTTPSettings)
-    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayRequestRoutingRule)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayRule)
     ```
 
 - An Azure Application Gateway is deployed in a subnet.
@@ -2215,50 +2211,9 @@ Representation of a Backend Address Pool for an Azure Application Gateway.
     (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
     ```
 
-### AzureApplicationGatewayHTTPListener
+### AzureApplicationGatewayRule
 
-Representation of an HTTP Listener for an Azure Application Gateway.
-
-| Field         | Description                                                               |
-| ------------- | ------------------------------------------------------------------------- |
-| firstseen     | Timestamp of when a sync job discovered this node                         |
-| lastupdated   | Timestamp of the last time the node was updated                           |
-| **id** | The full resource ID of the Listener.                                     |
-| name          | The name of the Listener.                                                 |
-| protocol      | The listener protocol (e.g., `Http`, `Https`).                            |
-| frontend\_port | The frontend port (resolved from the referenced `frontendPorts` entry).   |
-| host\_name    | The host name the listener matches, if any.                               |
-| host\_names   | List of host names the listener matches (for multi-site listeners).       |
-| require\_server\_name\_indication | Whether SNI is required.                              |
-| ssl\_certificate\_id | Resource ID of the associated SSL certificate, if any.             |
-
-#### Relationships
-
-- A Listener uses a Frontend IP Configuration.
-    ```cypher
-    (AzureApplicationGatewayHTTPListener)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
-    ```
-
-### AzureApplicationGatewayBackendHTTPSettings
-
-Representation of a Backend HTTP Settings entry for an Azure Application Gateway.
-
-| Field         | Description                                                               |
-| ------------- | ------------------------------------------------------------------------- |
-| firstseen     | Timestamp of when a sync job discovered this node                         |
-| lastupdated   | Timestamp of the last time the node was updated                           |
-| **id** | The full resource ID of the Backend HTTP Settings.                        |
-| name          | The name of the Backend HTTP Settings.                                    |
-| protocol      | The backend protocol (e.g., `Http`, `Https`).                             |
-| port          | The backend port.                                                         |
-| cookie\_based\_affinity | Whether cookie-based affinity is enabled.                       |
-| request\_timeout | The request timeout in seconds.                                        |
-| host\_name    | The host name to send to the backend, if pinned.                          |
-| pick\_host\_name\_from\_backend\_address | Whether to pick the host name from the backend address. |
-
-### AzureApplicationGatewayRequestRoutingRule
-
-Representation of a Request Routing Rule for an Azure Application Gateway.
+Representation of a Request Routing Rule for an Azure Application Gateway. Properties of the rule's HTTP listener and backend HTTP settings are folded onto this node, so a single Rule node is the complete description of one routing entry (parallel to `AzureLoadBalancerRule`).
 
 | Field      | Description                                                                  |
 | ---------- | ---------------------------------------------------------------------------- |
@@ -2269,14 +2224,27 @@ Representation of a Request Routing Rule for an Azure Application Gateway.
 | rule\_type | The rule type (e.g., `Basic`, `PathBasedRouting`).                           |
 | priority   | The rule priority.                                                           |
 | url\_path\_map\_id | Resource ID of the referenced URL path map for `PathBasedRouting` rules; null for `Basic` rules. |
+| listener\_id | Resource ID of the underlying HTTP listener (kept for traceability).       |
+| listener\_protocol | The listener protocol (e.g., `Http`, `Https`).                       |
+| listener\_port | The listener port (resolved from the referenced `frontendPorts` entry).  |
+| listener\_host\_name | The host name the listener matches, if any.                        |
+| listener\_host\_names | List of host names the listener matches (multi-site listeners).   |
+| listener\_require\_server\_name\_indication | Whether SNI is required.                  |
+| listener\_ssl\_certificate\_id | Resource ID of the associated SSL certificate, if any. |
+| backend\_http\_settings\_id | Resource ID of the underlying backend HTTP settings (kept for traceability). |
+| backend\_protocol | The backend protocol (e.g., `Http`, `Https`).                         |
+| backend\_port | The backend port.                                                         |
+| backend\_cookie\_based\_affinity | Whether cookie-based affinity is enabled.              |
+| backend\_request\_timeout | The backend request timeout in seconds.                       |
+| backend\_host\_name | The host name to send to the backend, if pinned.                    |
+| backend\_pick\_host\_name\_from\_backend\_address | Whether to pick the host name from the backend address. |
 
 #### Relationships
 
-- A Routing Rule binds a Listener to a Backend Pool and Backend HTTP Settings. For `PathBasedRouting` rules, the `ROUTES_TO` and `USES_SETTINGS` edges are resolved through the rule's URL path map defaults; per-path overrides are not modeled as separate nodes.
+- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. For `PathBasedRouting` rules, the `ROUTES_TO` edge and the `backend_*` properties are resolved through the rule's URL path map defaults; per-path overrides are not modeled as separate nodes.
     ```cypher
-    (AzureApplicationGatewayRequestRoutingRule)-[:USES_LISTENER]->(:AzureApplicationGatewayHTTPListener)
-    (AzureApplicationGatewayRequestRoutingRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
-    (AzureApplicationGatewayRequestRoutingRule)-[:USES_SETTINGS]->(:AzureApplicationGatewayBackendHTTPSettings)
+    (AzureApplicationGatewayRule)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
     ```
 
 ### AzureTag
