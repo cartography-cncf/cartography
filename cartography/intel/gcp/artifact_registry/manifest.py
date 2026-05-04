@@ -7,7 +7,6 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
@@ -292,7 +291,7 @@ def cleanup_manifests(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Artifact Registry image manifest relationships and old platform nodes.
+    Cleans up stale Artifact Registry image manifest relationships.
     """
     GraphJob.from_matchlink(
         GCPArtifactRegistryImageContainsImageMatchLink(),
@@ -300,26 +299,6 @@ def cleanup_manifests(
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (old:GCPArtifactRegistryPlatformImage)
-        WHERE NOT old:GCPArtifactRegistryImage
-        WITH old LIMIT $LIMIT_SIZE
-        DETACH DELETE old
-        """,
-        LIMIT_SIZE=common_job_parameters.get("LIMIT_SIZE", 1000),
-    )
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (img:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage)
-        WHERE NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img)
-        WITH img LIMIT $LIMIT_SIZE
-        DETACH DELETE img
-        """,
-        LIMIT_SIZE=common_job_parameters.get("LIMIT_SIZE", 1000),
-    )
 
 
 @timeit

@@ -1981,9 +1981,9 @@ Representation of an individual container within an [Azure Container Group](http
     ```
 - AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher
-    (AzureContainerInstance)-[:HAS_IMAGE]->(ECRImage)
-    (AzureContainerInstance)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (AzureContainerInstance)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### AzureLoadBalancer

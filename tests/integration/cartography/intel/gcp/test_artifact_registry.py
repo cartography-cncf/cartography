@@ -5,11 +5,13 @@ from unittest.mock import patch
 
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry import sync
+from cartography.intel.gcp.artifact_registry.artifact import cleanup_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_maven_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artifacts
+from cartography.intel.gcp.artifact_registry.manifest import cleanup_manifests
 from cartography.intel.gcp.artifact_registry.manifest import load_manifests
 from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
@@ -921,6 +923,100 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     )
 
 
+def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
+    project_id = "test-gar-preserve-manifest-children"
+    _clear_gar_project(neo4j_session, project_id)
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject {id: $project_id})
+        MERGE (ref:GCPArtifactRegistryImageRef:ImageTag {id: 'ref-parent'})
+        SET ref.digest = 'sha256:parent',
+            ref.lastupdated = $update_tag
+        MERGE (parent:GCPArtifactRegistryImage:ImageManifestList {id: 'sha256:parent'})
+        SET parent.digest = 'sha256:parent',
+            parent.lastupdated = $update_tag
+        MERGE (child:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage:Image {id: 'sha256:child'})
+        SET child.digest = 'sha256:child',
+            child.lastupdated = $update_tag
+        MERGE (parent)-[contains:CONTAINS_IMAGE]->(child)
+        SET contains.lastupdated = $update_tag,
+            contains._sub_resource_label = 'GCPProject',
+            contains._sub_resource_id = $project_id
+        MERGE (p)-[resource:RESOURCE]->(ref)
+        SET resource.lastupdated = $update_tag
+        MERGE (ref)-[image:IMAGE]->(parent)
+        SET image.lastupdated = $update_tag,
+            image._sub_resource_label = 'GCPProject',
+            image._sub_resource_id = $project_id
+        MERGE (container:Container {id: 'container-uses-child'})
+        MERGE (container)-[has_image:HAS_IMAGE]->(child)
+        SET has_image.firstseen = 111,
+            has_image.lastupdated = $update_tag
+        """,
+        project_id=project_id,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cleanup_docker_images(
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "LIMIT_SIZE": 1,
+        },
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (:Container {id: 'container-uses-child'})-[has_image:HAS_IMAGE]->
+              (child:GCPArtifactRegistryImage {id: 'sha256:child'})
+        MATCH (:GCPArtifactRegistryImage {id: 'sha256:parent'})-[:CONTAINS_IMAGE]->(child)
+        RETURN has_image.firstseen AS firstseen
+        """
+    ).single()
+    assert result["firstseen"] == 111
+
+
+def test_cleanup_manifests_preserves_legacy_platform_nodes_for_migration(
+    neo4j_session,
+):
+    project_id = "test-gar-preserve-legacy-platform"
+    _clear_gar_project(neo4j_session, project_id)
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject {id: $project_id})
+        MERGE (old_child:GCPArtifactRegistryPlatformImage {id: 'legacy-child-for-migration'})
+        SET old_child.digest = 'sha256:child',
+            old_child.lastupdated = $old_tag
+        MERGE (container:Container {id: 'container-legacy-child'})
+        MERGE (container)-[has_image:HAS_IMAGE]->(old_child)
+        SET has_image.firstseen = 222,
+            has_image.lastupdated = $old_tag
+        MERGE (p)-[:RESOURCE]->(old_child)
+        """,
+        project_id=project_id,
+        old_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    cleanup_manifests(
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "LIMIT_SIZE": 1,
+        },
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (:Container {id: 'container-legacy-child'})-[has_image:HAS_IMAGE]->
+              (:GCPArtifactRegistryPlatformImage {id: 'legacy-child-for-migration'})
+        RETURN has_image.firstseen AS firstseen
+        """
+    ).single()
+    assert result["firstseen"] == 222
+
+
 def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_shape(
     neo4j_session,
 ):
@@ -1034,3 +1130,66 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     assert cleanup_counts["old_still_image"] is False
     assert cleanup_counts["legacy_manifest_count"] == 0
     assert cleanup_counts["old_child_count"] == 0
+
+
+def test_image_migration_cleanup_keeps_legacy_platform_nodes_scoped_to_other_projects(
+    neo4j_session,
+):
+    project_id = "test-gar-shared-legacy-platform-project"
+    other_project_id = "test-gar-shared-legacy-platform-other-project"
+    _clear_gar_project(neo4j_session, project_id)
+    _clear_gar_project(neo4j_session, other_project_id)
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject {id: $project_id})
+        MERGE (other:GCPProject {id: $other_project_id})
+        MERGE (old_child:GCPArtifactRegistryPlatformImage {id: 'old-shared-child'})
+        SET old_child.digest = 'sha256:shared-child',
+            old_child.lastupdated = $old_tag
+        MERGE (child:GCPArtifactRegistryImage:Image {id: 'sha256:shared-child'})
+        SET child.digest = 'sha256:shared-child',
+            child.lastupdated = $update_tag
+        MERGE (p)-[:RESOURCE]->(old_child)
+        MERGE (other)-[:RESOURCE]->(old_child)
+        """,
+        project_id=project_id,
+        other_project_id=other_project_id,
+        old_tag=TEST_UPDATE_TAG - 1,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_image_migration_cleanup.json",
+        neo4j_session,
+        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (old_child:GCPArtifactRegistryPlatformImage {id: 'old-shared-child'})
+        OPTIONAL MATCH (:GCPProject {id: $project_id})-[current_resource:RESOURCE]->(old_child)
+        OPTIONAL MATCH (:GCPProject {id: $other_project_id})-[other_resource:RESOURCE]->(old_child)
+        RETURN count(current_resource) AS current_resource_count,
+               count(other_resource) AS other_resource_count
+        """,
+        project_id=project_id,
+        other_project_id=other_project_id,
+    ).single()
+    assert result["current_resource_count"] == 0
+    assert result["other_resource_count"] == 1
+
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_image_migration_cleanup.json",
+        neo4j_session,
+        {"PROJECT_ID": other_project_id, "UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPArtifactRegistryPlatformImage {id: 'old-shared-child'})
+            RETURN count(*) AS count
+            """
+        ).single()["count"]
+        == 0
+    )

@@ -800,6 +800,7 @@ def cleanup_docker_images(
         """
         MATCH (img:GCPArtifactRegistryImage)
         WHERE NOT (:GCPArtifactRegistryImageRef)-[:IMAGE]->(img)
+        AND NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img)
         WITH img LIMIT $LIMIT_SIZE
         DETACH DELETE img
         """,

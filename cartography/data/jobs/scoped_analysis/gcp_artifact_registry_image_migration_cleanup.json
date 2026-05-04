@@ -51,8 +51,14 @@
       "iterationsize": 1000
     },
     {
-      "__comment__": "Delete legacy platform image nodes after a canonical digest-keyed replacement exists.",
-      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(old:GCPArtifactRegistryPlatformImage) WHERE NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (:GCPArtifactRegistryImage {digest: old.digest}) WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
+      "__comment__": "Delete the current project's legacy platform image resource edges after a canonical digest-keyed replacement exists.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[resource:RESOURCE]->(old:GCPArtifactRegistryPlatformImage) WHERE NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL MATCH (:GCPArtifactRegistryImage {digest: old.digest}) WITH resource LIMIT $LIMIT_SIZE DELETE resource RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete legacy platform image nodes after a canonical digest-keyed replacement exists and no project still scopes them.",
+      "query": "MATCH (old:GCPArtifactRegistryPlatformImage) WHERE NOT old:GCPArtifactRegistryImage AND old.digest IS NOT NULL AND NOT (:GCPProject)-[:RESOURCE]->(old) MATCH (:GCPArtifactRegistryImage {digest: old.digest}) WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     }
