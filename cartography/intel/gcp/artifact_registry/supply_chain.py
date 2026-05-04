@@ -8,11 +8,14 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
+from cartography.client.core.tx import ensure_indexes
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
+from cartography.intel.gcp.artifact_registry.util import _load_with_progress
+from cartography.intel.gcp.artifact_registry.util import apply_conditional_labels
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -35,6 +38,7 @@ from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryProjectToImageLayerRel,
 )
 from cartography.util import timeit
+from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
 
@@ -465,9 +469,36 @@ def load_image_provenance(
     if not provenance_updates:
         return
 
-    load_nodes_without_relationships(
+    schema = GCPArtifactRegistryImageProvenanceSchema()
+    ensure_indexes(neo4j_session, schema)
+    _load_with_progress(
         neo4j_session,
-        GCPArtifactRegistryImageProvenanceSchema(),
+        """
+        UNWIND $DictList AS item
+        MERGE (i:GCPArtifactRegistryImage {id: item.digest})
+        ON CREATE SET i.firstseen = timestamp()
+        SET
+            i._module_name = "cartography:gcp",
+            i._module_version = $module_version,
+            i.lastupdated = $lastupdated,
+            i.digest = item.digest,
+            i.type = item.type,
+            i.media_type = item.media_type,
+            i.architecture = coalesce(item.architecture, i.architecture),
+            i.os = coalesce(item.os, i.os),
+            i.os_version = coalesce(item.os_version, i.os_version),
+            i.os_features = coalesce(item.os_features, i.os_features),
+            i.variant = coalesce(item.variant, i.variant),
+            i.source_uri = coalesce(item.source_uri, i.source_uri),
+            i.source_revision = coalesce(item.source_revision, i.source_revision),
+            i.source_file = coalesce(item.source_file, i.source_file),
+            i.layer_diff_ids = coalesce(item.layer_diff_ids, i.layer_diff_ids),
+            i._ont_source = 'gcp',
+            i._ont_digest = item.digest,
+            i._ont_architecture = coalesce(item.architecture, i._ont_architecture),
+            i._ont_os = coalesce(item.os, i._ont_os),
+            i._ont_variant = coalesce(item.variant, i._ont_variant)
+        """,
         provenance_updates,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
@@ -475,7 +506,9 @@ def load_image_provenance(
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+        module_version=get_cartography_version(),
     )
+    apply_conditional_labels(neo4j_session, schema, PROJECT_ID=project_id)
 
 
 @timeit

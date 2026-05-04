@@ -242,18 +242,23 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
     assert layer_call_args[2:] == ("proj", 1)
 
 
-def test_load_image_provenance_uses_node_only_progress_loader(monkeypatch):
-    load_nodes_without_relationships = MagicMock()
+def test_load_image_provenance_preserves_existing_values(monkeypatch):
+    ensure_indexes = MagicMock()
+    load_with_progress = MagicMock()
+    apply_conditional_labels = MagicMock()
+    monkeypatch.setattr(supply_chain, "ensure_indexes", ensure_indexes)
+    monkeypatch.setattr(supply_chain, "_load_with_progress", load_with_progress)
     monkeypatch.setattr(
         supply_chain,
-        "load_nodes_without_relationships",
-        load_nodes_without_relationships,
+        "apply_conditional_labels",
+        apply_conditional_labels,
     )
     neo4j_session = MagicMock()
     updates = [
         {
             "digest": "sha256:img-1",
             "type": "image",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
             "source_uri": "https://github.com/foo/bar",
             "source_revision": "deadbeef",
             "source_file": "Dockerfile",
@@ -263,14 +268,18 @@ def test_load_image_provenance_uses_node_only_progress_loader(monkeypatch):
 
     supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
 
-    load_nodes_without_relationships.assert_called_once()
-    call = load_nodes_without_relationships.call_args
+    ensure_indexes.assert_called_once()
+    load_with_progress.assert_called_once()
+    call = load_with_progress.call_args
     assert call.args[0] == neo4j_session
-    assert call.args[1].__class__.__name__ == "GCPArtifactRegistryImageProvenanceSchema"
+    assert "coalesce(item.source_uri, i.source_uri)" in call.args[1]
+    assert "coalesce(item.layer_diff_ids, i.layer_diff_ids)" in call.args[1]
     assert call.args[2] == updates
     assert "provenance updates" in call.kwargs["progress_description"]
     assert call.kwargs["lastupdated"] == 1
     assert call.kwargs["PROJECT_ID"] == "proj"
+    assert call.kwargs["module_version"]
+    apply_conditional_labels.assert_called_once()
 
 
 def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
