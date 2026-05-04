@@ -6,54 +6,58 @@ from cartography.models.gcp.artifact_registry.image import (
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageProvenanceSchema,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefMatchLinkProperties,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryProjectToRepositoryImageRel,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefNodeProperties,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageMatchLinkProperties,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefSchema,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageNodeProperties,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefToProjectRel,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageSchema,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefToProjectRelProperties,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToProjectRel,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefToRepositoryRel,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToProjectRelProperties,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefToRepositoryRelProperties,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToRepositoryRel,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryProjectToImageRefRel,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToRepositoryRelProperties,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryRepositoryToImageRefRel,
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryToRepositoryImageRel,
 )
 
 GCPArtifactRegistryContainerImageMatchLinkProperties = (
-    GCPArtifactRegistryImageRefMatchLinkProperties
+    GCPArtifactRegistryRepositoryImageMatchLinkProperties
 )
 GCPArtifactRegistryContainerImageNodeProperties = (
-    GCPArtifactRegistryImageRefNodeProperties
+    GCPArtifactRegistryRepositoryImageNodeProperties
 )
-GCPArtifactRegistryContainerImageSchema = GCPArtifactRegistryImageRefSchema
-GCPArtifactRegistryContainerImageToProjectRel = GCPArtifactRegistryImageRefToProjectRel
+GCPArtifactRegistryContainerImageSchema = GCPArtifactRegistryRepositoryImageSchema
+GCPArtifactRegistryContainerImageToProjectRel = (
+    GCPArtifactRegistryRepositoryImageToProjectRel
+)
 GCPArtifactRegistryContainerImageToProjectRelProperties = (
-    GCPArtifactRegistryImageRefToProjectRelProperties
+    GCPArtifactRegistryRepositoryImageToProjectRelProperties
 )
 GCPArtifactRegistryContainerImageToRepositoryRel = (
-    GCPArtifactRegistryImageRefToRepositoryRel
+    GCPArtifactRegistryRepositoryImageToRepositoryRel
 )
 GCPArtifactRegistryContainerImageToRepositoryRelProperties = (
-    GCPArtifactRegistryImageRefToRepositoryRelProperties
+    GCPArtifactRegistryRepositoryImageToRepositoryRelProperties
 )
-GCPArtifactRegistryProjectToContainerImageRel = GCPArtifactRegistryProjectToImageRefRel
+GCPArtifactRegistryProjectToContainerImageRel = (
+    GCPArtifactRegistryProjectToRepositoryImageRel
+)
 GCPArtifactRegistryRepositoryToContainerImageRel = (
-    GCPArtifactRegistryRepositoryToImageRefRel
+    GCPArtifactRegistryRepositoryToRepositoryImageRel
 )
 GCPArtifactRegistryContainerImageProvenanceNodeProperties = (
     GCPArtifactRegistryImageProvenanceNodeProperties

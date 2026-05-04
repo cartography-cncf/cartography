@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefNodeProperties(CartographyNodeProperties):
+class GCPArtifactRegistryRepositoryImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     uri: PropertyRef = PropertyRef("uri", extra_index=True)
@@ -34,74 +34,78 @@ class GCPArtifactRegistryImageRefNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToProjectRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryRepositoryImageToProjectRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToProjectRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryImageToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPArtifactRegistryImageRefToProjectRelProperties = (
-        GCPArtifactRegistryImageRefToProjectRelProperties()
+    properties: GCPArtifactRegistryRepositoryImageToProjectRelProperties = (
+        GCPArtifactRegistryRepositoryImageToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToRepositoryRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryRepositoryImageToRepositoryRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToRepositoryRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryImageToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: GCPArtifactRegistryImageRefToRepositoryRelProperties = (
-        GCPArtifactRegistryImageRefToRepositoryRelProperties()
+    properties: GCPArtifactRegistryRepositoryImageToRepositoryRelProperties = (
+        GCPArtifactRegistryRepositoryImageToRepositoryRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToRepositoryRepoImageRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryImageToRepositoryRepoImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REPO_IMAGE"
-    properties: GCPArtifactRegistryImageRefToRepositoryRelProperties = (
-        GCPArtifactRegistryImageRefToRepositoryRelProperties()
+    properties: GCPArtifactRegistryRepositoryImageToRepositoryRelProperties = (
+        GCPArtifactRegistryRepositoryImageToRepositoryRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToImageRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryRepositoryImageToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToImageRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryImageToImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("digest")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "IMAGE"
-    properties: GCPArtifactRegistryImageRefToImageRelProperties = (
-        GCPArtifactRegistryImageRefToImageRelProperties()
+    properties: GCPArtifactRegistryRepositoryImageToImageRelProperties = (
+        GCPArtifactRegistryRepositoryImageToImageRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefMatchLinkProperties(CartographyRelProperties):
+class GCPArtifactRegistryRepositoryImageMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label", set_in_kwargs=True
@@ -110,59 +114,59 @@ class GCPArtifactRegistryImageRefMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryProjectToImageRefRel(CartographyRelSchema):
+class GCPArtifactRegistryProjectToRepositoryImageRel(CartographyRelSchema):
     source_node_label: str = "GCPProject"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
-    target_node_label: str = "GCPArtifactRegistryImageRef"
+    target_node_label: str = "GCPArtifactRegistryRepositoryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: GCPArtifactRegistryImageRefMatchLinkProperties = (
-        GCPArtifactRegistryImageRefMatchLinkProperties()
+    properties: GCPArtifactRegistryRepositoryImageMatchLinkProperties = (
+        GCPArtifactRegistryRepositoryImageMatchLinkProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryRepositoryToImageRefRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryToRepositoryImageRel(CartographyRelSchema):
     source_node_label: str = "GCPArtifactRegistryRepository"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
-    target_node_label: str = "GCPArtifactRegistryImageRef"
+    target_node_label: str = "GCPArtifactRegistryRepositoryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONTAINS"
-    properties: GCPArtifactRegistryImageRefMatchLinkProperties = (
-        GCPArtifactRegistryImageRefMatchLinkProperties()
+    properties: GCPArtifactRegistryRepositoryImageMatchLinkProperties = (
+        GCPArtifactRegistryRepositoryImageMatchLinkProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryRepositoryToImageRefRepoImageRel(CartographyRelSchema):
+class GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(CartographyRelSchema):
     source_node_label: str = "GCPArtifactRegistryRepository"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
-    target_node_label: str = "GCPArtifactRegistryImageRef"
+    target_node_label: str = "GCPArtifactRegistryRepositoryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "REPO_IMAGE"
-    properties: GCPArtifactRegistryImageRefMatchLinkProperties = (
-        GCPArtifactRegistryImageRefMatchLinkProperties()
+    properties: GCPArtifactRegistryRepositoryImageMatchLinkProperties = (
+        GCPArtifactRegistryRepositoryImageMatchLinkProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefToImageMatchLink(CartographyRelSchema):
-    source_node_label: str = "GCPArtifactRegistryImageRef"
+class GCPArtifactRegistryRepositoryImageToImageMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryRepositoryImage"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("id")}
     )
@@ -172,25 +176,25 @@ class GCPArtifactRegistryImageRefToImageMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "IMAGE"
-    properties: GCPArtifactRegistryImageRefMatchLinkProperties = (
-        GCPArtifactRegistryImageRefMatchLinkProperties()
+    properties: GCPArtifactRegistryRepositoryImageMatchLinkProperties = (
+        GCPArtifactRegistryRepositoryImageMatchLinkProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageRefSchema(CartographyNodeSchema):
-    label: str = "GCPArtifactRegistryImageRef"
-    properties: GCPArtifactRegistryImageRefNodeProperties = (
-        GCPArtifactRegistryImageRefNodeProperties()
+class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
+    label: str = "GCPArtifactRegistryRepositoryImage"
+    properties: GCPArtifactRegistryRepositoryImageNodeProperties = (
+        GCPArtifactRegistryRepositoryImageNodeProperties()
     )
-    sub_resource_relationship: GCPArtifactRegistryImageRefToProjectRel = (
-        GCPArtifactRegistryImageRefToProjectRel()
+    sub_resource_relationship: GCPArtifactRegistryRepositoryImageToProjectRel = (
+        GCPArtifactRegistryRepositoryImageToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPArtifactRegistryImageRefToRepositoryRel(),
-            GCPArtifactRegistryImageRefToRepositoryRepoImageRel(),
-            GCPArtifactRegistryImageRefToImageRel(),
+            GCPArtifactRegistryRepositoryImageToRepositoryRel(),
+            GCPArtifactRegistryRepositoryImageToRepositoryRepoImageRel(),
+            GCPArtifactRegistryRepositoryImageToImageRel(),
         ]
     )
     # DEPRECATED: GCPArtifactRegistryContainerImage compatibility label will be removed in v1.0.0.

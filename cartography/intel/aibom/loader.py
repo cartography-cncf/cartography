@@ -64,26 +64,26 @@ def _resolve_digests_for_source(
         WHERE child.type = 'image'
         RETURN child.digest AS digest
         UNION
-        MATCH (ref:GCPArtifactRegistryImageRef)-[:IMAGE]->(img:GCPArtifactRegistryImage)
-        WITH ref, img,
+        MATCH (repo_img:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(img:GCPArtifactRegistryImage)
+        WITH repo_img, img,
              CASE
-                 WHEN ref.uri CONTAINS '@' THEN split(ref.uri, '@')[0]
-                 ELSE ref.uri
+                 WHEN repo_img.uri CONTAINS '@' THEN split(repo_img.uri, '@')[0]
+                 ELSE repo_img.uri
              END AS base_uri
-        WHERE ref.uri = $image_uri
-           OR any(tag IN coalesce(ref.tags, []) WHERE base_uri + ':' + tag = $image_uri)
+        WHERE repo_img.uri = $image_uri
+           OR any(tag IN coalesce(repo_img.tags, []) WHERE base_uri + ':' + tag = $image_uri)
         WITH img
         WHERE img.type = 'image'
         RETURN img.digest AS digest
         UNION
-        MATCH (ref:GCPArtifactRegistryImageRef)-[:IMAGE]->(:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(child:GCPArtifactRegistryImage)
-        WITH ref, child,
+        MATCH (repo_img:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(child:GCPArtifactRegistryImage)
+        WITH repo_img, child,
              CASE
-                 WHEN ref.uri CONTAINS '@' THEN split(ref.uri, '@')[0]
-                 ELSE ref.uri
+                 WHEN repo_img.uri CONTAINS '@' THEN split(repo_img.uri, '@')[0]
+                 ELSE repo_img.uri
              END AS base_uri
-        WHERE ref.uri = $image_uri
-           OR any(tag IN coalesce(ref.tags, []) WHERE base_uri + ':' + tag = $image_uri)
+        WHERE repo_img.uri = $image_uri
+           OR any(tag IN coalesce(repo_img.tags, []) WHERE base_uri + ':' + tag = $image_uri)
         WITH child
         WHERE child.type = 'image'
         RETURN child.digest AS digest

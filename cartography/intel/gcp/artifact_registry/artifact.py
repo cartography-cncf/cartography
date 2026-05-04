@@ -41,23 +41,23 @@ from cartography.models.gcp.artifact_registry.helm_chart import (
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageSchema,
 )
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefSchema,
-)
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryImageRefToImageMatchLink,
-)
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryProjectToImageRefRel,
-)
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryRepositoryToImageRefRel,
-)
-from cartography.models.gcp.artifact_registry.image_ref import (
-    GCPArtifactRegistryRepositoryToImageRefRepoImageRel,
-)
 from cartography.models.gcp.artifact_registry.language_package import (
     GCPArtifactRegistryLanguagePackageSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryProjectToRepositoryImageRel,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToImageMatchLink,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryToRepositoryImageRel,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel,
 )
 from cartography.util import timeit
 
@@ -356,7 +356,7 @@ def transform_docker_images(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Docker images to the GCPArtifactRegistryImageRef node format.
+    Transforms Docker images to the GCPArtifactRegistryRepositoryImage node format.
     """
     transformed: list[dict] = []
     for image in images_data:
@@ -391,19 +391,19 @@ def _image_type_from_media_type(media_type: str | None) -> str:
 
 
 def transform_docker_images_to_canonical_images(
-    image_refs: list[dict],
+    repository_images: list[dict],
 ) -> list[dict]:
     """
-    Transforms Artifact Registry image refs into digest-keyed GCPArtifactRegistryImage nodes.
+    Transforms Artifact Registry repository images into digest-keyed GCPArtifactRegistryImage nodes.
     """
     images_by_digest: dict[str, dict] = {}
-    for image_ref in image_refs:
-        digest = image_ref.get("digest")
+    for repository_image in repository_images:
+        digest = repository_image.get("digest")
         if not digest:
             continue
         if digest in images_by_digest:
             continue
-        media_type = image_ref.get("media_type")
+        media_type = repository_image.get("media_type")
         images_by_digest[digest] = {
             "digest": digest,
             "type": _image_type_from_media_type(media_type),
@@ -694,7 +694,7 @@ def load_docker_images(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryImageRef and GCPArtifactRegistryImage nodes and their relationships.
+    Loads GCPArtifactRegistryRepositoryImage and GCPArtifactRegistryImage nodes and their relationships.
     """
     if not data:
         return
@@ -712,26 +712,26 @@ def load_docker_images(
         lastupdated=update_tag,
     )
 
-    ref_schema = GCPArtifactRegistryImageRefSchema()
+    repository_image_schema = GCPArtifactRegistryRepositoryImageSchema()
     load_nodes_without_relationships(
         neo4j_session,
-        ref_schema,
+        repository_image_schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         apply_labels=False,
         progress_description=(
-            f"Artifact Registry image ref nodes for project {project_id}"
+            f"Artifact Registry repository image nodes for project {project_id}"
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryProjectToImageRefRel(),
+        GCPArtifactRegistryProjectToRepositoryImageRel(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry image ref project RESOURCE relationships "
+            "Artifact Registry repository image project RESOURCE relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -742,11 +742,11 @@ def load_docker_images(
 
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryRepositoryToImageRefRel(),
+        GCPArtifactRegistryRepositoryToRepositoryImageRel(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry image ref repository CONTAINS relationships "
+            "Artifact Registry repository image repository CONTAINS relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -756,11 +756,11 @@ def load_docker_images(
     )
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
+        GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry image ref repository REPO_IMAGE relationships "
+            "Artifact Registry repository image repository REPO_IMAGE relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -770,11 +770,11 @@ def load_docker_images(
     )
     load_matchlinks_with_progress(
         neo4j_session,
-        GCPArtifactRegistryImageRefToImageMatchLink(),
+        GCPArtifactRegistryRepositoryImageToImageMatchLink(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            "Artifact Registry image ref IMAGE relationships "
+            "Artifact Registry repository image IMAGE relationships "
             f"for project {project_id}"
         ),
         lastupdated=update_tag,
@@ -789,31 +789,31 @@ def cleanup_docker_images(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Docker image ref nodes and unreferenced canonical image nodes.
+    Cleans up stale Docker repository image nodes and unreferenced canonical image nodes.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryImageRefSchema(), common_job_parameters
+        GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        GCPArtifactRegistryProjectToImageRefRel(),
+        GCPArtifactRegistryProjectToRepositoryImageRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryToImageRefRel(),
+        GCPArtifactRegistryRepositoryToRepositoryImageRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
+        GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        GCPArtifactRegistryImageRefToImageMatchLink(),
+        GCPArtifactRegistryRepositoryImageToImageMatchLink(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
@@ -822,7 +822,7 @@ def cleanup_docker_images(
         neo4j_session,
         """
         MATCH (img:GCPArtifactRegistryImage)
-        WHERE NOT (:GCPArtifactRegistryImageRef)-[:IMAGE]->(img)
+        WHERE NOT (:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(img)
         AND NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img)
         WITH img LIMIT $LIMIT_SIZE
         DETACH DELETE img

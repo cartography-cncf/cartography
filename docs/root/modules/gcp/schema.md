@@ -1596,7 +1596,7 @@ Google Cloud Artifact Registry is a universal package manager for managing conta
 graph LR
     Project[GCPProject]
     Repository[GCPArtifactRegistryRepository]
-    ImageRef[GCPArtifactRegistryImageRef]
+    RepositoryImage[GCPArtifactRegistryRepositoryImage]
     Image[GCPArtifactRegistryImage]
     HelmChart[GCPArtifactRegistryHelmChart]
     LanguagePackage[GCPArtifactRegistryLanguagePackage]
@@ -1606,17 +1606,17 @@ graph LR
     Package[Package]
 
     Project -->|RESOURCE| Repository
-    Project -->|RESOURCE| ImageRef
+    Project -->|RESOURCE| RepositoryImage
     Project -->|RESOURCE| HelmChart
     Project -->|RESOURCE| LanguagePackage
     Project -->|RESOURCE| GenericArtifact
     Project -->|RESOURCE| ImageLayer
-    Repository -->|CONTAINS| ImageRef
-    Repository -->|REPO_IMAGE| ImageRef
+    Repository -->|CONTAINS| RepositoryImage
+    Repository -->|REPO_IMAGE| RepositoryImage
     Repository -->|CONTAINS| HelmChart
     Repository -->|CONTAINS| LanguagePackage
     Repository -->|CONTAINS| GenericArtifact
-    ImageRef -->|IMAGE| Image
+    RepositoryImage -->|IMAGE| Image
     Image -->|CONTAINS_IMAGE| Image
     TrivyFinding -->|AFFECTS| Image
     Package -->|DEPLOYED| Image
@@ -1654,17 +1654,17 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
     ```
 
-- GCPArtifactRegistryRepositories contain artifacts (ImageRef, HelmChart, LanguagePackage, GenericArtifact).
+- GCPArtifactRegistryRepositories contain artifacts (RepositoryImage, HelmChart, LanguagePackage, GenericArtifact).
     ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryImageRef)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryRepositoryImage)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
     ```
 
-- GCPArtifactRegistryRepositories point to image refs through the generic container-registry ontology shape.
+- GCPArtifactRegistryRepositories point to repository images through the generic container-registry ontology shape.
     ```
-    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryImageRef:ImageTag)
+    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryRepositoryImage:ImageTag)
     ```
 
 - GCPPrincipals with appropriate permissions can pull artifacts from a repository. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `artifactregistry.repositories.downloadArtifacts`.
@@ -1677,18 +1677,18 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPPrincipal)-[:CAN_WRITE]->(GCPArtifactRegistryRepository)
     ```
 
-#### GCPArtifactRegistryImageRef
+#### GCPArtifactRegistryRepositoryImage
 
 Representation of a repository-scoped [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) record in a GCP Artifact Registry repository. This node stores GAR API metadata such as URI, tags, repository/project location, timestamps, and the digest it references.
 
-> **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference. The deprecated compatibility label `GCPArtifactRegistryContainerImage` is also present during the transition to `GCPArtifactRegistryImageRef`.
+> **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference. The deprecated compatibility label `GCPArtifactRegistryContainerImage` is also present during the transition to `GCPArtifactRegistryRepositoryImage`.
 
 | Field | Description |
 |-------|-------------|
 | **id** | Full resource name of the Docker image record |
 | name | The short name of the image |
 | **uri** | The URI of the image |
-| _ont_uri | The full URI to the image ref, populated from `uri` for generic `ImageTag` queries |
+| _ont_uri | The full URI to the repository image, populated from `uri` for generic `ImageTag` queries |
 | digest | The digest referenced by this scoped image record (e.g., `sha256:...`) |
 | tags | Tags associated with the image |
 | image_size_bytes | Size of the image in bytes |
@@ -1704,34 +1704,34 @@ Representation of a repository-scoped [Docker Image](https://cloud.google.com/ar
 
 #### Relationships
 
-- GCPArtifactRegistryImageRefs are resources of GCPProjects.
+- GCPArtifactRegistryRepositoryImages are resources of GCPProjects.
     ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageRef)
-    ```
-
-- GCPArtifactRegistryRepositories contain GCPArtifactRegistryImageRefs.
-    ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryImageRef)
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepositoryImage)
     ```
 
-- GCPArtifactRegistryRepositories also point to GCPArtifactRegistryImageRefs through the generic container-registry ontology relationship.
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryRepositoryImages.
     ```
-    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryImageRef:ImageTag)
-    ```
-
-- GCPArtifactRegistryImageRefs point at the digest-scoped canonical image content node.
-    ```
-    (GCPArtifactRegistryImageRef)-[:IMAGE]->(GCPArtifactRegistryImage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryRepositoryImage)
     ```
 
-- Pullable Artifact Registry URIs are stored on the ref node. Resolve them from canonical images by traversing back through `IMAGE`.
+- GCPArtifactRegistryRepositories also point to GCPArtifactRegistryRepositoryImages through the generic container-registry ontology relationship.
     ```
-    (GCPArtifactRegistryImage)<-[:IMAGE]-(GCPArtifactRegistryImageRef)
+    (GCPArtifactRegistryRepository:ContainerRegistry)-[:REPO_IMAGE]->(GCPArtifactRegistryRepositoryImage:ImageTag)
+    ```
+
+- GCPArtifactRegistryRepositoryImages point at the digest-scoped canonical image content node.
+    ```
+    (GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(GCPArtifactRegistryImage)
+    ```
+
+- Pullable Artifact Registry URIs are stored on the repository image node. Resolve them from canonical images by traversing back through `IMAGE`.
+    ```
+    (GCPArtifactRegistryImage)<-[:IMAGE]-(GCPArtifactRegistryRepositoryImage)
     ```
 
 #### GCPArtifactRegistryImage
 
-Representation of digest-scoped GCP Artifact Registry image content. Multiple `GCPArtifactRegistryImageRef` nodes can point at the same `GCPArtifactRegistryImage` when the same digest appears through multiple repository/project-scoped records.
+Representation of digest-scoped GCP Artifact Registry image content. Multiple `GCPArtifactRegistryRepositoryImage` nodes can point at the same `GCPArtifactRegistryImage` when the same digest appears through multiple repository/project-scoped records.
 
 > **Ontology Mapping**: This node has conditional extra labels based on `type`: `Image` for single-platform image manifests, `ImageManifestList` for multi-architecture manifest lists / OCI indexes, and `ImageAttestation` for future attestation records.
 
@@ -1886,26 +1886,26 @@ Representation of a generic artifact in a GCP Artifact Registry repository. This
 Find all vulnerabilities affecting GCP Artifact Registry container images:
 
 ```cypher
-MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
-RETURN vuln.name, vuln.severity, ref.uri, img.digest
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
+RETURN vuln.name, vuln.severity, repo_img.uri, img.digest
 ORDER BY vuln.severity DESC
 ```
 
 Find packages deployed in GCP container images with their vulnerabilities:
 
 ```cypher
-MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
 OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
-RETURN ref.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+RETURN repo_img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
 ```
 
 Find critical vulnerabilities in GCP images with available fixes:
 
 ```cypher
-MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(ref:GCPArtifactRegistryImageRef)
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
 MATCH (vuln)-[:AFFECTS]->(pkg:Package)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
-RETURN vuln.name, ref.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+RETURN vuln.name, repo_img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```
 
 ### Cloud Run Resources
