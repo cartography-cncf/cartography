@@ -29,7 +29,9 @@ class AzureApplicationGatewayRuleProperties(CartographyNodeProperties):
     listener_require_server_name_indication: PropertyRef = PropertyRef(
         "listener_require_server_name_indication",
     )
-    listener_ssl_certificate_id: PropertyRef = PropertyRef("listener_ssl_certificate_id")
+    listener_ssl_certificate_id: PropertyRef = PropertyRef(
+        "listener_ssl_certificate_id"
+    )
     backend_http_settings_id: PropertyRef = PropertyRef("backend_http_settings_id")
     backend_protocol: PropertyRef = PropertyRef("backend_protocol")
     backend_port: PropertyRef = PropertyRef("backend_port")
