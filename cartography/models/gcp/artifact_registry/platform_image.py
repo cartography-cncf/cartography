@@ -1,5 +1,7 @@
 # DEPRECATED: This module is kept as a compatibility shim for the old
 # GCPArtifactRegistryPlatformImage model name and will be removed in v1.0.0.
+# Fresh compat-labeled nodes are keyed by digest through GCPArtifactRegistryImage,
+# not by the old parent-artifact/digest composite platform-image id.
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

@@ -156,30 +156,6 @@ class ECSContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ECSContainerToGCPArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ECSContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    """
-    Matches containers to GAR platform manifests by runtime digest (imageDigest).
-    """
-
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("imageDigest")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: ECSContainerToGCPArtifactRegistryPlatformImageRelProperties = (
-        ECSContainerToGCPArtifactRegistryPlatformImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])

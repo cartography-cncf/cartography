@@ -19,6 +19,7 @@ from cartography.intel.gcp.artifact_registry.repository import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.models.gcp.artifact_registry.container_image import (
     GCPArtifactRegistryContainerImageSchema,
 )
@@ -909,6 +910,72 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
 
 
+def test_get_unmatched_gcp_images_with_history_uses_parent_ref_for_platform_child(
+    neo4j_session,
+):
+    project_id = "test-gar-platform-history-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+    parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
+    child = _make_platform_image(parent["id"], project_id, 1)
+
+    load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+    load_image_layers(
+        neo4j_session,
+        [
+            {
+                "diff_id": "sha256:platform-layer",
+                "history": "COPY app /app",
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "architecture": child["architecture"],
+                "os": child["os"],
+                "os_version": None,
+                "os_features": None,
+                "variant": None,
+                "source_uri": None,
+                "source_revision": None,
+                "source_file": None,
+                "layer_diff_ids": ["sha256:platform-layer"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    images = get_unmatched_gcp_images_with_history(
+        neo4j_session,
+        "GitHubOrganization",
+        "example-org",
+        TEST_UPDATE_TAG,
+    )
+
+    matched = [image for image in images if image.digest == child["digest"]]
+    assert len(matched) == 1
+    assert matched[0].uri == parent["uri"]
+    assert matched[0].registry_id == repo_id
+    assert matched[0].display_name == parent["name"]
+    assert matched[0].layer_history == [
+        {
+            "created_by": "COPY app /app",
+            "diff_id": "sha256:platform-layer",
+            "empty_layer": False,
+        },
+    ]
+
+
 def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session):
     project_id = "test-gar-large-platform-project"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
@@ -1157,7 +1224,7 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         },
     )
     run_scoped_analysis_job(
-        "gcp_artifact_registry_image_migration_cleanup.json",
+        "gcp_artifact_registry_image_cleanup.json",
         neo4j_session,
         {
             "PROJECT_ID": project_id,

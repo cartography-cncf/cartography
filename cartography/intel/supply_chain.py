@@ -1082,7 +1082,12 @@ def get_unmatched_gcp_images_with_history(
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
           )
-        OPTIONAL MATCH (img)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)<-[:CONTAINS]-(gcpRepo:GCPArtifactRegistryRepository)
+        OPTIONAL MATCH (img)<-[:IMAGE]-(direct_repo_img:GCPArtifactRegistryRepositoryImage)<-[:CONTAINS]-(direct_repo:GCPArtifactRegistryRepository)
+        OPTIONAL MATCH (img)<-[:CONTAINS_IMAGE]-(:GCPArtifactRegistryImage)<-[:IMAGE]-(parent_repo_img:GCPArtifactRegistryRepositoryImage)<-[:CONTAINS]-(parent_repo:GCPArtifactRegistryRepository)
+        WITH img,
+             coalesce(direct_repo_img, parent_repo_img) AS repo_img,
+             coalesce(direct_repo, parent_repo) AS gcpRepo
+        WHERE repo_img IS NOT NULL
         WITH coalesce(gcpRepo.id, img.id) AS group_key, img, repo_img
         ORDER BY repo_img.upload_time DESC
         WITH group_key, collect({img: img, repo_img: repo_img})[0] AS selected

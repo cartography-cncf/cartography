@@ -143,26 +143,6 @@ class CloudRunServiceContainerToArtifactRegistryContainerImageRel(CartographyRel
 
 
 @dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties = (
-        CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class GCPCloudRunServiceContainerSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunServiceContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])

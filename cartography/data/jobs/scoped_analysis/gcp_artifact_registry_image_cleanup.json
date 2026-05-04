@@ -1,0 +1,12 @@
+{
+  "name": "GCP Artifact Registry canonical image cleanup",
+  "__comment__": "Delete canonical digest-keyed GAR image nodes only after repository-image, manifest, and migration cleanup have removed stale references.",
+  "statements": [
+    {
+      "__comment__": "Delete canonical digest-keyed GAR images that no repository image references, no manifest list contains, and no other graph relationship still uses.",
+      "query": "MATCH (img:GCPArtifactRegistryImage) WHERE NOT (:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(img) AND NOT (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(img) AND NOT exists((img)--()) AND NOT EXISTS { MATCH (legacy_platform:GCPArtifactRegistryPlatformImage {digest: img.digest}) WHERE NOT legacy_platform:GCPArtifactRegistryImage } AND NOT EXISTS { MATCH (legacy_container:GCPArtifactRegistryContainerImage {digest: img.digest}) WHERE NOT legacy_container:GCPArtifactRegistryImage AND NOT legacy_container:GCPArtifactRegistryRepositoryImage } WITH img LIMIT $LIMIT_SIZE DETACH DELETE img RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}
