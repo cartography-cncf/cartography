@@ -46,6 +46,58 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
+def _sync_data_factory(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    try:
+        factories_raw = data_factory.sync_data_factories(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        linked_services_by_factory = (
+            data_factory_linked_service.sync_data_factory_linked_services(
+                neo4j_session,
+                credentials,
+                factories_raw,
+                subscription_id,
+                update_tag,
+                common_job_parameters,
+            )
+        )
+        datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            linked_services_by_factory,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        data_factory_pipeline.sync_data_factory_pipelines(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            datasets_by_factory,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    except AzureDataFactoryTransientError as error:
+        logger.warning(
+            "Skipping Azure Data Factory sync after transient API failures "
+            "(operation=%s, status_code=%s).",
+            error.operation,
+            error.status_code,
+        )
+
+
 def _sync_one_subscription(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -152,49 +204,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    try:
-        factories_raw = data_factory.sync_data_factories(
-            neo4j_session,
-            credentials,
-            subscription_id,
-            update_tag,
-            common_job_parameters,
-        )
-        linked_services_by_factory = (
-            data_factory_linked_service.sync_data_factory_linked_services(
-                neo4j_session,
-                credentials,
-                factories_raw,
-                subscription_id,
-                update_tag,
-                common_job_parameters,
-            )
-        )
-        datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
-            neo4j_session,
-            credentials,
-            factories_raw,
-            linked_services_by_factory,
-            subscription_id,
-            update_tag,
-            common_job_parameters,
-        )
-        data_factory_pipeline.sync_data_factory_pipelines(
-            neo4j_session,
-            credentials,
-            factories_raw,
-            datasets_by_factory,
-            subscription_id,
-            update_tag,
-            common_job_parameters,
-        )
-    except AzureDataFactoryTransientError as error:
-        logger.warning(
-            "Skipping Azure Data Factory sync after transient API failures "
-            "(operation=%s, status_code=%s).",
-            error.operation,
-            error.status_code,
-        )
+    _sync_data_factory(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     data_lake.sync(
         neo4j_session,
         credentials,

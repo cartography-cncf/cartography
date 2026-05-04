@@ -1,4 +1,3 @@
-from contextlib import ExitStack
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -94,77 +93,29 @@ def test_get_factories_raises_transient_error_after_retry_exhaustion() -> None:
     assert mock_sleep.call_count == 2
 
 
-def test_sync_one_subscription_skips_data_factory_subtree_after_transient_error() -> (
-    None
-):
+def test_sync_data_factory_skips_child_syncs_after_transient_error() -> None:
     neo4j_session = MagicMock()
     credentials = MagicMock()
-    credentials.credential = MagicMock()
 
-    patches = [
-        "cartography.intel.azure.compute.sync",
-        "cartography.intel.azure.cosmosdb.sync",
-        "cartography.intel.azure.app_service.sync",
-        "cartography.intel.azure.functions.sync",
-        "cartography.intel.azure.event_grid.sync",
-        "cartography.intel.azure.logic_apps.sync",
-        "cartography.intel.azure.rbac.sync",
-        "cartography.intel.azure.sql.sync",
-        "cartography.intel.azure.storage.sync",
-        "cartography.intel.azure.resource_groups.sync",
-        "cartography.intel.azure.key_vaults.sync",
-        "cartography.intel.azure.aks.sync",
-        "cartography.intel.azure.event_hub.sync_event_hubs",
-        "cartography.intel.azure.network.sync",
-        "cartography.intel.azure.group_containers.sync_group_containers",
-        "cartography.intel.azure.container_instances.sync",
-        "cartography.intel.azure.firewall.sync",
-        "cartography.intel.azure.load_balancers.sync",
-        "cartography.intel.azure.synapse.sync",
-        "cartography.intel.azure.monitor.sync",
-        "cartography.intel.azure.security_center.sync",
-        "cartography.intel.azure.permission_relationships.sync",
-    ]
-
-    with ExitStack() as stack:
-        for target in patches:
-            stack.enter_context(patch(target))
-
-        stack.enter_context(
-            patch(
-                "cartography.intel.azure.event_hub_namespace.sync_event_hub_namespaces",
-                return_value=[],
+    with (
+        patch(
+            "cartography.intel.azure.data_factory.sync_data_factories",
+            side_effect=AzureDataFactoryTransientError(
+                "list data factories",
+                503,
             ),
-        )
-        stack.enter_context(
-            patch(
-                "cartography.intel.azure.data_factory.sync_data_factories",
-                side_effect=AzureDataFactoryTransientError(
-                    "list data factories",
-                    503,
-                ),
-            ),
-        )
-        mock_linked_services = stack.enter_context(
-            patch(
-                "cartography.intel.azure.data_factory_linked_service.sync_data_factory_linked_services"
-            ),
-        )
-        mock_datasets = stack.enter_context(
-            patch(
-                "cartography.intel.azure.data_factory_dataset.sync_data_factory_datasets"
-            ),
-        )
-        mock_pipelines = stack.enter_context(
-            patch(
-                "cartography.intel.azure.data_factory_pipeline.sync_data_factory_pipelines"
-            ),
-        )
-        mock_data_lake = stack.enter_context(
-            patch("cartography.intel.azure.data_lake.sync"),
-        )
-
-        azure._sync_one_subscription(
+        ),
+        patch(
+            "cartography.intel.azure.data_factory_linked_service.sync_data_factory_linked_services"
+        ) as mock_linked_services,
+        patch(
+            "cartography.intel.azure.data_factory_dataset.sync_data_factory_datasets"
+        ) as mock_datasets,
+        patch(
+            "cartography.intel.azure.data_factory_pipeline.sync_data_factory_pipelines"
+        ) as mock_pipelines,
+    ):
+        azure._sync_data_factory(
             neo4j_session,
             credentials,
             "subscription-1",
@@ -175,7 +126,74 @@ def test_sync_one_subscription_skips_data_factory_subtree_after_transient_error(
         mock_linked_services.assert_not_called()
         mock_datasets.assert_not_called()
         mock_pipelines.assert_not_called()
-        mock_data_lake.assert_called_once()
+
+
+def test_sync_data_factory_runs_child_syncs_with_fetched_data() -> None:
+    neo4j_session = MagicMock()
+    credentials = MagicMock()
+    common_job_parameters = {"UPDATE_TAG": 123}
+    factories = [{"id": "factory-1", "name": "factory-1"}]
+    linked_services = {"factory-1": [{"id": "linked-service-1"}]}
+    datasets = {"factory-1": [{"id": "dataset-1"}]}
+
+    with (
+        patch(
+            "cartography.intel.azure.data_factory.sync_data_factories",
+            return_value=factories,
+        ) as mock_factories,
+        patch(
+            "cartography.intel.azure.data_factory_linked_service.sync_data_factory_linked_services",
+            return_value=linked_services,
+        ) as mock_linked_services,
+        patch(
+            "cartography.intel.azure.data_factory_dataset.sync_data_factory_datasets",
+            return_value=datasets,
+        ) as mock_datasets,
+        patch(
+            "cartography.intel.azure.data_factory_pipeline.sync_data_factory_pipelines"
+        ) as mock_pipelines,
+    ):
+        azure._sync_data_factory(
+            neo4j_session,
+            credentials,
+            "subscription-1",
+            123,
+            common_job_parameters,
+        )
+
+    mock_factories.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
+    mock_linked_services.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        factories,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
+    mock_datasets.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        factories,
+        linked_services,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
+    mock_pipelines.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        factories,
+        datasets,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
 
 
 def test_get_factories_does_not_retry_non_transient_error() -> None:
