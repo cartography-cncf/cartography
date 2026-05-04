@@ -64,14 +64,7 @@ def _resolve_digests_for_source(
         WHERE child.type = 'image'
         RETURN child.digest AS digest
         UNION
-        MATCH (repo_img:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(root:GCPArtifactRegistryImage)
-        WITH repo_img, root,
-             CASE
-                 WHEN repo_img.uri CONTAINS '@' THEN split(repo_img.uri, '@')[0]
-                 ELSE repo_img.uri
-             END AS base_uri
-        WHERE repo_img.uri = $image_uri
-           OR any(tag IN coalesce(repo_img.tags, []) WHERE base_uri + ':' + tag = $image_uri)
+        MATCH (:GCPArtifactRegistryRepositoryImage {id: $image_uri})-[:IMAGE]->(root:GCPArtifactRegistryImage)
         MATCH (root)-[:CONTAINS_IMAGE*0..1]->(img:GCPArtifactRegistryImage)
         WHERE img.type = 'image'
         RETURN img.digest AS digest

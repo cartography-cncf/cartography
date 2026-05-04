@@ -50,6 +50,15 @@ TEST_MAVEN_REPO_ID = (
 TEST_APT_REPO_ID = "projects/test-project/locations/us-east1/repositories/apt-repo"
 TEST_YUM_REPO_ID = "projects/test-project/locations/us-east1/repositories/yum-repo"
 TEST_DOCKER_IMAGE_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123"
+TEST_DOCKER_IMAGE_LATEST_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:latest"
+)
+TEST_DOCKER_IMAGE_VERSION_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0"
+)
+TEST_DOCKER_IMAGE_DIGEST_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123"
+)
 TEST_HELM_CHART_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789"
 TEST_MAVEN_ARTIFACT_ID = "projects/test-project/locations/us-central1/repositories/maven-repo/mavenArtifacts/com.example:my-lib:1.0.0"
 TEST_APT_ARTIFACT_ID = "projects/test-project/locations/us-east1/repositories/apt-repo/packages/curl/versions/7.88.1"
@@ -111,12 +120,22 @@ def _make_docker_image(
 ) -> dict[str, Any]:
     digest = f"sha256:{index:064x}"
     name = f"{repository_id}/dockerImages/app-{index}@{digest}"
+    digest_uri = f"us-central1-docker.pkg.dev/test-project/repo/app-{index}@{digest}"
+    tag = "latest" if index % 2 == 0 else None
+    uri = (
+        f"us-central1-docker.pkg.dev/test-project/repo/app-{index}:{tag}"
+        if tag
+        else digest_uri
+    )
     return {
-        "id": name,
+        "id": uri,
         "name": name.split("/")[-1],
-        "uri": f"us-central1-docker.pkg.dev/test-project/repo/app-{index}@{digest}",
+        "uri": uri,
         "digest": digest,
-        "tags": ["latest"] if index % 2 == 0 else [],
+        "tag": tag,
+        "tags": ["latest"] if tag else [],
+        "resource_name": name,
+        "digest_uri": digest_uri,
         "image_size_bytes": str(index),
         "media_type": media_type,
         "upload_time": "2024-01-10T00:00:00Z",
@@ -221,21 +240,34 @@ def test_sync_artifact_registry(
 
     # Assert: Check repository image and canonical image nodes
     assert check_nodes(neo4j_session, "GCPArtifactRegistryRepositoryImage", ["id"]) == {
-        (TEST_DOCKER_IMAGE_ID,),
+        (TEST_DOCKER_IMAGE_LATEST_URI,),
+        (TEST_DOCKER_IMAGE_VERSION_URI,),
     }
     assert check_nodes(
         neo4j_session,
         "GCPArtifactRegistryRepositoryImage",
-        ["id", "uri", "_ont_uri"],
+        ["id", "uri", "_ont_uri", "tag", "resource_name", "digest_uri"],
     ) == {
         (
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            "latest",
             TEST_DOCKER_IMAGE_ID,
-            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
-            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
+            TEST_DOCKER_IMAGE_DIGEST_URI,
+        ),
+        (
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            "v1.0.0",
+            TEST_DOCKER_IMAGE_ID,
+            TEST_DOCKER_IMAGE_DIGEST_URI,
         ),
     }
     assert check_nodes(neo4j_session, "GCPArtifactRegistryContainerImage", ["id"]) == {
-        (TEST_DOCKER_IMAGE_ID,),
+        (TEST_DOCKER_IMAGE_LATEST_URI,),
+        (TEST_DOCKER_IMAGE_VERSION_URI,),
     }
     assert check_nodes(neo4j_session, "GCPArtifactRegistryImage", ["id"]) == {
         (TEST_DOCKER_IMAGE_DIGEST,),
@@ -288,7 +320,10 @@ def test_sync_artifact_registry(
         "GCPArtifactRegistryContainerImage",
         "id",
         "RESOURCE",
-    ) == {(TEST_PROJECT_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_PROJECT_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_PROJECT_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check GCPProject -> GCPArtifactRegistryHelmChart relationships
     assert check_rels(
@@ -308,7 +343,10 @@ def test_sync_artifact_registry(
         "GCPArtifactRegistryContainerImage",
         "id",
         "CONTAINS",
-    ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check ontology-standard ContainerRegistry -> ImageTag relationships
     assert check_rels(
@@ -318,7 +356,10 @@ def test_sync_artifact_registry(
         "ImageTag",
         "id",
         "REPO_IMAGE",
-    ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryHelmChart relationships
     assert check_rels(
@@ -918,7 +959,7 @@ def test_get_unmatched_gcp_images_with_history_uses_parent_ref_for_platform_chil
     _clear_gar_project(neo4j_session, project_id)
     _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
     parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
-    child = _make_platform_image(parent["id"], project_id, 1)
+    child = _make_platform_image(parent["resource_name"], project_id, 1)
 
     load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
     load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
@@ -989,11 +1030,11 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     load_docker_images(neo4j_session, parent_images, project_id, TEST_UPDATE_TAG)
 
     platform_images = [
-        _make_platform_image(parent_images[0]["id"], project_id, index)
+        _make_platform_image(parent_images[0]["resource_name"], project_id, index)
         for index in range(1005)
     ]
     platform_images.extend(
-        _make_platform_image(parent_images[1]["id"], project_id, index)
+        _make_platform_image(parent_images[1]["resource_name"], project_id, index)
         for index in range(1005, 1210)
     )
 
@@ -1110,7 +1151,11 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
         TEST_UPDATE_TAG + 1
     )
 
-    stale_platform = _make_platform_image(parent_images[0]["id"], project_id, 9999)
+    stale_platform = _make_platform_image(
+        parent_images[0]["resource_name"],
+        project_id,
+        9999,
+    )
     load_manifests(neo4j_session, [stale_platform], project_id, TEST_UPDATE_TAG)
 
     GraphJob.from_matchlink(
@@ -1296,6 +1341,10 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
         MERGE (old:GCPArtifactRegistryContainerImage:Image {id: 'old-ref'})
         SET old.digest = 'sha256:canonical',
             old.lastupdated = $old_tag
+        MERGE (repo_img_replacement:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-ref:latest'})
+        SET repo_img_replacement.digest = 'sha256:canonical',
+            repo_img_replacement.resource_name = 'old-ref',
+            repo_img_replacement.lastupdated = $update_tag
         MERGE (repo_img_with_stale_label:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:Image:ImageTag {id: 'repo-img-with-stale-label'})
         SET repo_img_with_stale_label.digest = 'sha256:stale-label',
             repo_img_with_stale_label.lastupdated = $old_tag
@@ -1308,12 +1357,14 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
         MERGE (img:GCPArtifactRegistryImage:Image {id: 'sha256:canonical'})
         SET img.digest = 'sha256:canonical',
             img.lastupdated = $update_tag
+        MERGE (repo_img_replacement)-[:IMAGE]->(img)
         MERGE (repo_img_runtime_img:GCPArtifactRegistryImage:Image {id: 'sha256:repo-img-runtime'})
         SET repo_img_runtime_img.digest = 'sha256:repo-img-runtime',
             repo_img_runtime_img.lastupdated = $update_tag
         MERGE (repo_img_with_runtime_edge)-[:IMAGE]->(repo_img_runtime_img)
-        MERGE (container_img_ref:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'old-container'})
+        MERGE (container_img_ref:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'registry.example.com/repo/old-container:latest'})
         SET container_img_ref.digest = 'sha256:container-canonical',
+            container_img_ref.resource_name = 'old-container',
             container_img_ref.lastupdated = $update_tag
         MERGE (container_img:GCPArtifactRegistryImage:Image {id: 'sha256:container-canonical'})
         SET container_img.digest = 'sha256:container-canonical',

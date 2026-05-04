@@ -1679,18 +1679,21 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
 
 #### GCPArtifactRegistryRepositoryImage
 
-Representation of a repository-scoped [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) record in a GCP Artifact Registry repository. This node stores GAR API metadata such as URI, tags, repository/project location, timestamps, and the digest it references.
+Representation of a repository-scoped pullable Docker image reference in a GCP Artifact Registry repository. Tagged GAR DockerImage API records are expanded into one `GCPArtifactRegistryRepositoryImage` per tag, matching the `ImageTag` shape used by other registries. This node also stores GAR API metadata such as the DockerImage resource name, digest URI, repository/project location, timestamps, and the digest it references.
 
 > **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference. The deprecated compatibility label `GCPArtifactRegistryContainerImage` is also present during the transition to `GCPArtifactRegistryRepositoryImage`.
 
 | Field | Description |
 |-------|-------------|
-| **id** | Full resource name of the Docker image record |
+| **id** | Pullable image URI for this repository image reference |
 | name | The short name of the image |
-| **uri** | The URI of the image |
+| **uri** | Pullable image URI for this repository image reference |
 | _ont_uri | The full URI to the repository image, populated from `uri` for generic `ImageTag` queries |
 | digest | The digest referenced by this scoped image record (e.g., `sha256:...`) |
-| tags | Tags associated with the image |
+| tag | The tag for this pullable image reference, when tagged |
+| tags | All tags returned on the underlying GAR DockerImage API record |
+| resource_name | Full GAR DockerImage API resource name |
+| digest_uri | Digest-form URI returned by the GAR DockerImage API |
 | image_size_bytes | Size of the image in bytes |
 | media_type | The media type of the image manifest |
 | upload_time | Timestamp when the image was uploaded |
@@ -1731,7 +1734,7 @@ Representation of a repository-scoped [Docker Image](https://cloud.google.com/ar
 
 #### GCPArtifactRegistryImage
 
-Representation of digest-scoped GCP Artifact Registry image content. Multiple `GCPArtifactRegistryRepositoryImage` nodes can point at the same `GCPArtifactRegistryImage` when the same digest appears through multiple repository/project-scoped records.
+Representation of digest-scoped GCP Artifact Registry image content. Multiple `GCPArtifactRegistryRepositoryImage` nodes can point at the same `GCPArtifactRegistryImage` when the same digest appears through multiple tags, repositories, or projects.
 
 > **Ontology Mapping**: This node has conditional extra labels based on `type`: `Image` for single-platform image manifests, `ImageManifestList` for multi-architecture manifest lists / OCI indexes, and `ImageAttestation` for future attestation records.
 

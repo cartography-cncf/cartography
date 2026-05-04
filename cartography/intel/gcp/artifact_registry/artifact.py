@@ -360,25 +360,34 @@ def transform_docker_images(
     transformed: list[dict] = []
     for image in images_data:
         name = image.get("name", "")
-        uri = image.get("uri", "")
+        digest_uri = image.get("uri", "")
+        digest = digest_uri.split("@")[-1] if "@" in digest_uri else None
+        base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
+        tags = image.get("tags") or []
+        refs = tags or [None]
 
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "uri": uri,
-                "digest": uri.split("@")[-1] if "@" in uri else None,
-                "tags": image.get("tags"),
-                "image_size_bytes": image.get("imageSizeBytes"),
-                "media_type": image.get("mediaType"),
-                "upload_time": image.get("uploadTime"),
-                "build_time": image.get("buildTime"),
-                "update_time": image.get("updateTime"),
-                "artifact_type": image.get("artifactType"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
+        for tag in refs:
+            uri = f"{base_uri}:{tag}" if tag else digest_uri
+            transformed.append(
+                {
+                    "id": uri,
+                    "name": name.split("/")[-1] if name else None,
+                    "uri": uri,
+                    "digest": digest,
+                    "tag": tag,
+                    "tags": tags,
+                    "resource_name": name,
+                    "digest_uri": digest_uri,
+                    "image_size_bytes": image.get("imageSizeBytes"),
+                    "media_type": image.get("mediaType"),
+                    "upload_time": image.get("uploadTime"),
+                    "build_time": image.get("buildTime"),
+                    "update_time": image.get("updateTime"),
+                    "artifact_type": image.get("artifactType"),
+                    "repository_id": repository_id,
+                    "project_id": project_id,
+                }
+            )
     return transformed
 
 
