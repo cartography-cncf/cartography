@@ -1187,6 +1187,60 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
     }, "ECRImage properties were overwritten after layer sync!"
 
+    preserved_images = {
+        record["digest"]: record
+        for record in neo4j_session.run(
+            """
+            MATCH (img:ECRImage)
+            WHERE img.digest IN $digests
+            RETURN
+                img.digest AS digest,
+                img.os AS os,
+                img.variant AS variant,
+                img.attestation_type AS attestation_type,
+                img.attests_digest AS attests_digest,
+                img.media_type AS media_type,
+                img.child_image_digests AS child_image_digests
+            """,
+            digests=[
+                test_data.MANIFEST_LIST_DIGEST,
+                test_data.MANIFEST_LIST_AMD64_DIGEST,
+                test_data.MANIFEST_LIST_ARM64_DIGEST,
+                test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
+            ],
+        )
+    }
+    assert preserved_images[test_data.MANIFEST_LIST_DIGEST] == {
+        "digest": test_data.MANIFEST_LIST_DIGEST,
+        "os": None,
+        "variant": None,
+        "attestation_type": None,
+        "attests_digest": None,
+        "media_type": None,
+        "child_image_digests": [
+            test_data.MANIFEST_LIST_AMD64_DIGEST,
+            test_data.MANIFEST_LIST_ARM64_DIGEST,
+        ],
+    }
+    assert preserved_images[test_data.MANIFEST_LIST_ARM64_DIGEST] == {
+        "digest": test_data.MANIFEST_LIST_ARM64_DIGEST,
+        "os": "linux",
+        "variant": "v8",
+        "attestation_type": None,
+        "attests_digest": None,
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "child_image_digests": None,
+    }
+    assert preserved_images[test_data.MANIFEST_LIST_ATTESTATION_DIGEST] == {
+        "digest": test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
+        "os": "unknown",
+        "variant": None,
+        "attestation_type": "attestation-manifest",
+        "attests_digest": test_data.MANIFEST_LIST_AMD64_DIGEST,
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "child_image_digests": None,
+    }
+
     # Verify layer relationships: only platform images (type="image") should have HAS_LAYER relationships
     # Manifest lists and attestations should NOT have any layer relationships
     has_layer_rels = check_rels(

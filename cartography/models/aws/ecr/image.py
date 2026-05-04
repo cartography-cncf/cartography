@@ -40,27 +40,41 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
-    type: PropertyRef = PropertyRef("type", extra_index=True)
-    architecture: PropertyRef = PropertyRef("architecture")
-    os: PropertyRef = PropertyRef("os")
-    variant: PropertyRef = PropertyRef("variant")
-    attestation_type: PropertyRef = PropertyRef("attestation_type")
-    attests_digest: PropertyRef = PropertyRef("attests_digest")
-    media_type: PropertyRef = PropertyRef("media_type")
-    artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
-    child_image_digests: PropertyRef = PropertyRef("child_image_digests")
-    # SLSA Provenance: Source repository info from VCS metadata
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    # SLSA Provenance: Build invocation info from CI
-    invocation_uri: PropertyRef = PropertyRef("invocation_uri", extra_index=True)
-    invocation_workflow: PropertyRef = PropertyRef(
-        "invocation_workflow", extra_index=True
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids", preserve_existing=True)
+    type: PropertyRef = PropertyRef("type", extra_index=True, preserve_existing=True)
+    architecture: PropertyRef = PropertyRef("architecture", preserve_existing=True)
+    os: PropertyRef = PropertyRef("os", preserve_existing=True)
+    variant: PropertyRef = PropertyRef("variant", preserve_existing=True)
+    attestation_type: PropertyRef = PropertyRef(
+        "attestation_type", preserve_existing=True
     )
-    invocation_run_number: PropertyRef = PropertyRef("invocation_run_number")
+    attests_digest: PropertyRef = PropertyRef("attests_digest", preserve_existing=True)
+    media_type: PropertyRef = PropertyRef("media_type", preserve_existing=True)
+    artifact_media_type: PropertyRef = PropertyRef(
+        "artifact_media_type", preserve_existing=True
+    )
+    child_image_digests: PropertyRef = PropertyRef(
+        "child_image_digests", preserve_existing=True
+    )
+    # SLSA Provenance: Source repository info from VCS metadata
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri", extra_index=True, preserve_existing=True
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision", preserve_existing=True
+    )
+    # SLSA Provenance: Build invocation info from CI
+    invocation_uri: PropertyRef = PropertyRef(
+        "invocation_uri", extra_index=True, preserve_existing=True
+    )
+    invocation_workflow: PropertyRef = PropertyRef(
+        "invocation_workflow", extra_index=True, preserve_existing=True
+    )
+    invocation_run_number: PropertyRef = PropertyRef(
+        "invocation_run_number", preserve_existing=True
+    )
     # SLSA Provenance: Dockerfile path from configSource.entryPoint + vcs localdir
-    source_file: PropertyRef = PropertyRef("source_file")
+    source_file: PropertyRef = PropertyRef("source_file", preserve_existing=True)
 
 
 @dataclass(frozen=True)

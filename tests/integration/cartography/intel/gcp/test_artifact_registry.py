@@ -728,6 +728,84 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     )
 
 
+def test_load_image_provenance_preserves_existing_values_on_null_updates(
+    neo4j_session,
+):
+    project_id = "test-gar-provenance-preserve-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    docker_image = _make_docker_image(repo_id, 9001)
+    load_docker_images(neo4j_session, [docker_image], project_id, TEST_UPDATE_TAG)
+
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "id": docker_image["id"],
+                "architecture": "amd64",
+                "os": "linux",
+                "variant": "v8",
+                "source_uri": "https://github.com/example/service",
+                "source_revision": "revision-1",
+                "source_file": "Dockerfile",
+                "layer_diff_ids": ["sha256:layer-1"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "id": docker_image["id"],
+                "architecture": None,
+                "os": None,
+                "variant": None,
+                "source_uri": None,
+                "source_revision": None,
+                "source_file": None,
+                "layer_diff_ids": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryContainerImage {id: $image_id})
+        RETURN
+            image.source_uri AS source_uri,
+            image.source_revision AS source_revision,
+            image.source_file AS source_file,
+            image.layer_diff_ids AS layer_diff_ids,
+            image.architecture AS architecture,
+            image.os AS os,
+            image.variant AS variant,
+            image._ont_architecture AS ont_architecture,
+            image._ont_os AS ont_os,
+            image._ont_variant AS ont_variant,
+            image.lastupdated AS lastupdated
+        """,
+        image_id=docker_image["id"],
+    ).single()
+
+    assert result["source_uri"] == "https://github.com/example/service"
+    assert result["source_revision"] == "revision-1"
+    assert result["source_file"] == "Dockerfile"
+    assert result["layer_diff_ids"] == ["sha256:layer-1"]
+    assert result["architecture"] == "amd64"
+    assert result["os"] == "linux"
+    assert result["variant"] == "v8"
+    assert result["ont_architecture"] == "amd64"
+    assert result["ont_os"] == "linux"
+    assert result["ont_variant"] == "v8"
+    assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
 def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session):
     project_id = "test-gar-large-platform-project"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"

@@ -347,9 +347,8 @@ def _build_ontology_node_properties_statement(
             if mapping_statement:
                 set_clauses.append(mapping_statement)
         else:
-            simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
-                simple_field_template.substitute(
+                _build_property_assignment(
                     node_property=ontology_field_name,
                     property_ref=node_propertyref,
                 )
@@ -358,6 +357,16 @@ def _build_ontology_node_properties_statement(
         return ""
     # Add initial newline
     return ",\n" + ",\n".join(set_clauses)
+
+
+def _build_property_assignment(
+    node_property: str,
+    property_ref: PropertyRef,
+) -> str:
+    if property_ref.preserve_existing:
+        return f"i.{node_property} = coalesce({property_ref}, i.{node_property})"
+
+    return f"i.{node_property} = {property_ref}"
 
 
 def _build_node_properties_statement(
@@ -402,11 +411,9 @@ def _build_node_properties_statement(
         handled by the MERGE clause in the query pattern. The variable 'i' refers
         to the Neo4j node being processed.
     """
-    ingest_fields_template = Template("i.$node_property = $property_ref")
-
     set_clause = ",\n".join(
         [
-            ingest_fields_template.safe_substitute(
+            _build_property_assignment(
                 node_property=node_property,
                 property_ref=property_ref,
             )
