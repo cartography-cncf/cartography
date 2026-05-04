@@ -53,6 +53,9 @@ from cartography.models.gcp.artifact_registry.image_ref import (
 from cartography.models.gcp.artifact_registry.image_ref import (
     GCPArtifactRegistryRepositoryToImageRefRel,
 )
+from cartography.models.gcp.artifact_registry.image_ref import (
+    GCPArtifactRegistryRepositoryToImageRefRepoImageRel,
+)
 from cartography.models.gcp.artifact_registry.language_package import (
     GCPArtifactRegistryLanguagePackageSchema,
 )
@@ -753,6 +756,20 @@ def load_docker_images(
     )
     load_matchlinks_with_progress(
         neo4j_session,
+        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry image ref repository REPO_IMAGE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
         GCPArtifactRegistryImageRefToImageMatchLink(),
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
@@ -785,6 +802,12 @@ def cleanup_docker_images(
     ).run(neo4j_session)
     GraphJob.from_matchlink(
         GCPArtifactRegistryRepositoryToImageRefRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryToImageRefRepoImageRel(),
         "GCPProject",
         common_job_parameters["PROJECT_ID"],
         common_job_parameters["UPDATE_TAG"],
