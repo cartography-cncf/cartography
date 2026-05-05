@@ -1,0 +1,12 @@
+{
+  "name": "GCP Artifact Registry orphan canonical image cleanup",
+  "__comment__": "Delete digest-keyed GAR image nodes only after repository-image, manifest, and migration cleanup have removed stale references. This is invoked from the scoped GAR sync path, but intentionally deletes only globally orphaned canonical images because GCPArtifactRegistryImage is digest-scoped rather than project-scoped.",
+  "statements": [
+    {
+      "__comment__": "Delete canonical digest-keyed GAR images that no graph relationship still uses.",
+      "query": "MATCH (img:GCPArtifactRegistryImage) WHERE NOT exists((img)--()) WITH img LIMIT $LIMIT_SIZE DETACH DELETE img RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

@@ -33,7 +33,7 @@ def get_provisioned_throughputs(
     """
     Retrieve all provisioned model throughputs in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock provisioned model throughputs in region %s", region)
+    logger.debug("Fetching Bedrock provisioned model throughputs in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock",

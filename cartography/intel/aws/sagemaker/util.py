@@ -116,7 +116,7 @@ def sync_sagemaker_resource(
             )
             continue
 
-        logger.info(
+        logger.debug(
             "Syncing SageMaker submodule '%s' for region '%s' in account '%s'.",
             submodule_name,
             region,

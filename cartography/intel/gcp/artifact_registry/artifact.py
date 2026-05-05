@@ -26,18 +26,38 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
+from cartography.intel.gcp.artifact_registry.util import MANIFEST_LIST_MEDIA_TYPES
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageSchema,
-)
 from cartography.models.gcp.artifact_registry.helm_chart import (
     GCPArtifactRegistryHelmChartSchema,
 )
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageSchema,
+)
 from cartography.models.gcp.artifact_registry.language_package import (
     GCPArtifactRegistryLanguagePackageSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryProjectToRepositoryImageRel,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageToImageMatchLink,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryToRepositoryImageRel,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel,
 )
 from cartography.util import timeit
 
@@ -55,6 +75,7 @@ class RepositoryArtifactFetchResult:
 @dataclass(frozen=True)
 class ArtifactRegistryArtifactSyncResult:
     platform_images: list[dict]
+    docker_images_raw: list[dict]
     cleanup_safe: bool
 
 
@@ -330,30 +351,70 @@ def transform_docker_images(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Docker images to the GCPArtifactRegistryContainerImage node format.
+    Transforms Docker images to the GCPArtifactRegistryRepositoryImage node format.
     """
     transformed: list[dict] = []
     for image in images_data:
         name = image.get("name", "")
-        uri = image.get("uri", "")
+        digest_uri = image.get("uri", "")
+        digest = digest_uri.split("@")[-1] if "@" in digest_uri else None
+        base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
+        tags = image.get("tags") or []
+        refs = tags or [None]
 
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "uri": uri,
-                "digest": uri.split("@")[-1] if "@" in uri else None,
-                "tags": image.get("tags"),
-                "image_size_bytes": image.get("imageSizeBytes"),
-                "media_type": image.get("mediaType"),
-                "upload_time": image.get("uploadTime"),
-                "build_time": image.get("buildTime"),
-                "update_time": image.get("updateTime"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
+        for tag in refs:
+            uri = f"{base_uri}:{tag}" if tag else digest_uri
+            transformed.append(
+                {
+                    "id": uri,
+                    "name": name.split("/")[-1] if name else None,
+                    "uri": uri,
+                    "digest": digest,
+                    "tag": tag,
+                    "tags": tags,
+                    "resource_name": name,
+                    "digest_uri": digest_uri,
+                    "image_size_bytes": image.get("imageSizeBytes"),
+                    "media_type": image.get("mediaType"),
+                    "upload_time": image.get("uploadTime"),
+                    "build_time": image.get("buildTime"),
+                    "update_time": image.get("updateTime"),
+                    "artifact_type": image.get("artifactType"),
+                    "repository_id": repository_id,
+                    "project_id": project_id,
+                }
+            )
     return transformed
+
+
+def _image_type_from_media_type(media_type: str | None) -> str:
+    normalized = (media_type or "").lower()
+    if normalized in MANIFEST_LIST_MEDIA_TYPES:
+        return "manifest_list"
+    return "image"
+
+
+def transform_docker_images_to_canonical_images(
+    repository_images: list[dict],
+) -> list[dict]:
+    """
+    Transforms Artifact Registry repository images into digest-keyed GCPArtifactRegistryImage nodes.
+    """
+    images_by_digest: dict[str, dict] = {}
+    for repository_image in repository_images:
+        digest = repository_image.get("digest")
+        if not digest:
+            continue
+        if digest in images_by_digest:
+            continue
+        media_type = repository_image.get("media_type")
+        images_by_digest[digest] = {
+            "digest": digest,
+            "type": _image_type_from_media_type(media_type),
+            "media_type": media_type,
+            "child_image_digests": [],
+        }
+    return list(images_by_digest.values())
 
 
 def transform_helm_charts(
@@ -533,14 +594,12 @@ def transform_go_modules(
     return transformed
 
 
-def transform_apt_artifacts(
+def _transform_generic_artifacts(
     artifacts_data: list[dict],
     repository_id: str,
     project_id: str,
+    format_label: str,
 ) -> list[dict]:
-    """
-    Transforms APT artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
     transformed: list[dict] = []
     for artifact in artifacts_data:
         name = artifact.get("name", "")
@@ -549,13 +608,23 @@ def transform_apt_artifacts(
             {
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
-                "format": "APT",
+                "format": format_label,
                 "package_name": artifact.get("packageName"),
                 "repository_id": repository_id,
                 "project_id": project_id,
             }
         )
     return transformed
+
+
+def transform_apt_artifacts(
+    artifacts_data: list[dict],
+    repository_id: str,
+    project_id: str,
+) -> list[dict]:
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "APT"
+    )
 
 
 def transform_yum_artifacts(
@@ -563,24 +632,9 @@ def transform_yum_artifacts(
     repository_id: str,
     project_id: str,
 ) -> list[dict]:
-    """
-    Transforms YUM artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
-    transformed: list[dict] = []
-    for artifact in artifacts_data:
-        name = artifact.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "YUM",
-                "package_name": artifact.get("packageName"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
-    return transformed
+    return _transform_generic_artifacts(
+        artifacts_data, repository_id, project_id, "YUM"
+    )
 
 
 # Mapping of repository format to get and transform functions
@@ -635,15 +689,93 @@ def load_docker_images(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryContainerImage nodes and their relationships.
+    Loads GCPArtifactRegistryRepositoryImage and GCPArtifactRegistryImage nodes and their relationships.
     """
-    load(
+    if not data:
+        return
+
+    image_data = transform_docker_images_to_canonical_images(data)
+    image_schema = GCPArtifactRegistryImageSchema()
+    load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryContainerImageSchema(),
+        image_schema,
+        image_data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry canonical image nodes for project {project_id}"
+        ),
+        lastupdated=update_tag,
+    )
+
+    repository_image_schema = GCPArtifactRegistryRepositoryImageSchema()
+    load_nodes_without_relationships(
+        neo4j_session,
+        repository_image_schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        apply_labels=False,
+        progress_description=(
+            f"Artifact Registry repository image nodes for project {project_id}"
+        ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToRepositoryImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry repository image project RESOURCE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryToRepositoryImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry repository image repository CONTAINS relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry repository image repository REPO_IMAGE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryImageToImageMatchLink(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry repository image IMAGE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 
@@ -652,10 +784,37 @@ def cleanup_docker_images(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Docker image nodes.
+    Cleans up stale Docker repository image nodes and relationships.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryContainerImageSchema(), common_job_parameters
+        GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
+    ).run(neo4j_session)
+    # The split write path attaches these relationships with MatchLinks, so
+    # clean them explicitly after node cleanup has used the project RESOURCE
+    # edge to scope stale repository-image deletion.
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryProjectToRepositoryImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryToRepositoryImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryRepositoryImageToImageMatchLink(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
 
 
@@ -741,18 +900,25 @@ def transform_image_manifests(
     :param project_id: The GCP project ID.
     :return: List of transformed platform image dicts.
     """
+    from cartography.intel.gcp.artifact_registry.manifest import (
+        extract_digest_from_reference,
+    )
     from cartography.intel.gcp.artifact_registry.manifest import transform_manifests
 
     all_manifests: list[dict] = []
 
     for artifact in docker_images_raw:
         artifact_name = artifact.get("name", "")
+        artifact_uri = artifact.get("uri", "")
+        parent_digest = extract_digest_from_reference(
+            artifact_uri
+        ) or extract_digest_from_reference(artifact_name)
         # imageManifests field is returned by the API for multi-arch images
         image_manifests = artifact.get("imageManifests", [])
 
         if image_manifests:
             # Transform the manifests using the existing transform function
-            manifests = transform_manifests(image_manifests, artifact_name, project_id)
+            manifests = transform_manifests(image_manifests, parent_digest)
             all_manifests.extend(manifests)
 
     return all_manifests
@@ -799,7 +965,7 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: Artifact sync result containing platform images and cleanup-safety state.
+    :return: Artifact sync result containing platform images, raw docker images, and cleanup-safety state.
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 
@@ -848,21 +1014,25 @@ def sync_artifact_registry_artifacts(
         artifacts_raw = result.artifacts
 
         if repo_format == "DOCKER":
+            helm_artifacts: list[dict] = []
+            docker_artifacts: list[dict] = []
             for artifact in artifacts_raw:
-                artifact_type = artifact.get("artifactType", "")
-                media_type = artifact.get("mediaType", "")
+                artifact_type = artifact.get("artifactType", "").lower()
+                media_type = artifact.get("mediaType", "").lower()
                 if (
-                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
-                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type
+                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type
                 ):
-                    helm_charts_transformed.extend(
-                        transform_helm_charts([artifact], repo_name, project_id)
-                    )
+                    helm_artifacts.append(artifact)
                 else:
-                    docker_images_raw.append(artifact)
-                    docker_images_transformed.extend(
-                        transform_docker_images([artifact], repo_name, project_id)
-                    )
+                    docker_artifacts.append(artifact)
+            docker_images_raw.extend(docker_artifacts)
+            helm_charts_transformed.extend(
+                transform_helm_charts(helm_artifacts, repo_name, project_id)
+            )
+            docker_images_transformed.extend(
+                transform_docker_images(docker_artifacts, repo_name, project_id)
+            )
         elif repo_format in LANGUAGE_PACKAGE_FORMATS:
             _, transform_func = FORMAT_HANDLERS[repo_format]
             language_packages_transformed.extend(
@@ -886,23 +1056,19 @@ def sync_artifact_registry_artifacts(
         len(other_artifacts_transformed),
     )
 
-    # Load Docker images with the dedicated schema
     if docker_images_transformed:
         load_docker_images(
             neo4j_session, docker_images_transformed, project_id, update_tag
         )
 
-    # Load Helm charts with the dedicated schema
     if helm_charts_transformed:
         load_helm_charts(neo4j_session, helm_charts_transformed, project_id, update_tag)
 
-    # Load language packages with the dedicated schema
     if language_packages_transformed:
         load_language_packages(
             neo4j_session, language_packages_transformed, project_id, update_tag
         )
 
-    # Load generic artifacts (APT, YUM) with the dedicated schema
     if other_artifacts_transformed:
         load_generic_artifacts(
             neo4j_session, other_artifacts_transformed, project_id, update_tag
@@ -922,4 +1088,8 @@ def sync_artifact_registry_artifacts(
         )
 
     platform_images = transform_image_manifests(docker_images_raw, project_id)
-    return ArtifactRegistryArtifactSyncResult(platform_images, artifact_cleanup_safe)
+    return ArtifactRegistryArtifactSyncResult(
+        platform_images,
+        docker_images_raw,
+        artifact_cleanup_safe,
+    )

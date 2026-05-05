@@ -9,6 +9,7 @@ from cartography.intel.crowdstrike.endpoints import sync_hosts
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
+from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -72,6 +73,9 @@ def cleanup(
 ) -> None:
     logger.info("Running Crowdstrike cleanup")
     GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(CrowdstrikeCVESchema(), common_job_parameters).run(
         neo4j_session
     )
 

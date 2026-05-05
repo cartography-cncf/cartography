@@ -91,7 +91,7 @@ Cartography uses the [Cloud Asset Inventory API](https://cloud.google.com/asset-
 1. **IAM Fallback**: When the IAM API is disabled on a target project, Cartography falls back to CAI to retrieve service accounts and custom roles.
 2. **Policy Bindings**: Sync effective IAM policies (including inherited policies from parent orgs/folders) for all resources.
 
-GCP permission relationship syncs depend on policy bindings being present in the graph. In practice, that means permission relationship syncs require the CAI-backed policy bindings sync to succeed.
+GCP permission relationship syncs depend on the current run's policy binding context. In practice, that means permission relationship syncs require the CAI-backed policy bindings sync to succeed in the same run.
 
 #### Setup
 
@@ -114,4 +114,4 @@ When using a service account, CAI API calls are automatically billed against the
 
 - **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Note: The CAI fallback only syncs service accounts and project-level custom roles. Predefined roles and organization-level custom roles are synced separately at the organization level via the IAM API.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
-- **Permission Relationships**: Depend on policy bindings being present in the graph. If CAI is unavailable or `roles/cloudasset.viewer` is missing, permission relationships will not have the policy binding data they need and may produce no results.
+- **Permission Relationships**: Depend on policy bindings being refreshed in the same sync run. If CAI is unavailable or `roles/cloudasset.viewer` is missing, permission relationships will not have the policy binding data they need and will be skipped for that project.

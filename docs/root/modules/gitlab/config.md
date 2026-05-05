@@ -11,7 +11,7 @@ Follow these steps to configure Cartography to sync GitLab organization, group, 
 ### Creating a GitLab Personal Access Token
 
 1. Navigate to your GitLab instance (e.g., `https://gitlab.com` or `https://gitlab.example.com`)
-2. Go to **User Settings** → **Access Tokens** (or directly to `https://your-gitlab-instance/-/profile/personal_access_tokens`)
+2. Go to **User Settings** → **Access Tokens** (or directly to `https://your-gitlab-instance/-/user_settings/personal_access_tokens`)
 3. Click **Add new token**
 4. Configure your token:
    - **Token name**: `cartography-sync`
@@ -28,7 +28,7 @@ The token requires the following scopes:
 |-------|---------|
 | `read_user` | Access user profile information for group/project membership |
 | `read_repository` | Access repository metadata, branches, and file contents |
-| `read_api` | Access groups, projects, dependencies, and language statistics |
+| `read_api` | Access groups, projects, dependencies, language statistics, and group/project-level CI/CD runners |
 
 These scopes provide read-only access to:
 - Organizations (top-level groups) and nested groups
@@ -37,13 +37,23 @@ These scopes provide read-only access to:
 - Dependency files (package.json, requirements.txt, etc.)
 - Dependencies extracted from dependency files
 - Project language statistics
+- Group-level and project-level CI/CD runners
+
+#### Optional: instance-level runners
+
+Listing **instance-level** (shared) runners via `GET /api/v4/runners/all` requires the token to belong to a GitLab administrator. If the token does not have admin privileges, the sync logs a warning and skips instance-level runners; group-level and project-level runners continue to be ingested normally.
+
+#### CI config (`.gitlab-ci.yml`) ingestion
+
+The CI config sync first calls `GET /api/v4/projects/:id/ci/lint?dry_run=true` to obtain the merged YAML (with all `include:` references expanded). Tokens generated from a user without Maintainer access on the project may not be allowed to use this endpoint — in that case the sync falls back to the raw `.gitlab-ci.yml` from the repository, which only requires `read_repository`. If both calls fail (404 / 403), the project is skipped (a warning is logged before the skip).
 
 ### Finding Your Organization ID
 
 The organization ID is the numeric ID of the top-level GitLab group you want to sync. To find it:
 
-1. Navigate to your group's page on GitLab (e.g., `https://gitlab.com/your-organization`)
-2. The group ID is displayed below the group name, or you can find it via the API:
+1. Navigate to your group's page on GitLab (e.g., `https://gitlab.com/your-organization`).
+2. Click the **⋮** (three dots) menu in the top right of the group header and select **Copy group ID**.
+3. Alternatively, fetch it via the API:
    ```bash
    curl -H "PRIVATE-TOKEN: your-token" "https://gitlab.com/api/v4/groups/your-organization"
    ```

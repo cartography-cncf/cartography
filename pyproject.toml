@@ -49,6 +49,7 @@ dependencies = [
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=2.0.0",
     "google-auth>=2.37.0",
+    "google-cloud-storage>=2.0.0",
     "marshmallow>=4.0.0",
     "oci>=2.71.0",
     # Pinned to <1.0.0 due to breaking changes. See #1243 for upgrade.
@@ -85,6 +86,7 @@ dependencies = [
     "azure-mgmt-sql>=3.0.1",
     "azure-mgmt-authorization>=0.60.0",
     "azure-identity>=1.5.0",
+    "azure-storage-blob>=12.0.0",
     "msgraph-sdk>=1.53.0",
     "kubernetes>=22.6.0",
     "pagerduty>=4.0.1",

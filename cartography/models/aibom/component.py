@@ -27,7 +27,7 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
     model_name: PropertyRef = PropertyRef("model_name")
     framework: PropertyRef = PropertyRef("framework")
     label: PropertyRef = PropertyRef("label")
-    manifest_digest: PropertyRef = PropertyRef("manifest_digest", extra_index=True)
+    manifest_digests: PropertyRef = PropertyRef("manifest_digests", extra_index=True)
 
 
 @dataclass(frozen=True)
@@ -37,9 +37,9 @@ class AIBOMComponentDetectedInRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AIBOMComponentDetectedInRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("manifest_digest")},
+        {"_ont_digest": PropertyRef("manifest_digests", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_IN"

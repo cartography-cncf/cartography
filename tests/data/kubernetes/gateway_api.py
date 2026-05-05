@@ -9,7 +9,7 @@ KUBERNETES_GATEWAYS_DATA = [
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
         "gateway_class_name": "nginx",
-        "creation_timestamp": "2021-10-07T06:21:06+00:00",
+        "creation_timestamp": 1633587666,
         "deletion_timestamp": None,
         "attached_route_qualified_names": [
             f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/frontend-route",
@@ -24,7 +24,7 @@ KUBERNETES_HTTP_ROUTES_DATA = [
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/frontend-route",
         "hostnames": ["app.example.com"],
-        "creation_timestamp": "2021-10-07T06:21:40+00:00",
+        "creation_timestamp": 1633587700,
         "deletion_timestamp": None,
         "backend_service_qualified_names": [
             f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-service",

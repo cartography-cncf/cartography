@@ -9,6 +9,7 @@ from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
@@ -1508,9 +1509,9 @@ def build_create_index_queries_for_matchlink(
         existing nodes in the graph. It requires source_node_matcher to be defined
         and creates composite indexes for relationship performance.
     """
-    if not rel_schema.source_node_matcher:
+    if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
         logger.warning(
-            "No source node matcher found for %s; returning empty list. "
+            "No source node matcher or source node label found for %s; returning empty list. "
             "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
             "and connect existing nodes in the graph.",
             rel_schema.rel_label,
@@ -1522,20 +1523,35 @@ def build_create_index_queries_for_matchlink(
     )
 
     result = []
+
+    def append_index_query(node_label: str, node_attribute: str) -> None:
+        query = index_template.safe_substitute(
+            NodeLabel=node_label,
+            NodeAttribute=node_attribute,
+        )
+        if query not in result:
+            result.append(query)
+
     for source_key in asdict(rel_schema.source_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.source_node_label,
-                NodeAttribute=source_key,
-            ),
-        )
+        append_index_query(rel_schema.source_node_label, source_key)
     for target_key in asdict(rel_schema.target_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.target_node_label,
-                NodeAttribute=target_key,
-            ),
-        )
+        append_index_query(rel_schema.target_node_label, target_key)
+    if rel_schema.source_node_sub_resource:
+        for source_sub_resource_key in asdict(
+            rel_schema.source_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.source_node_sub_resource.target_node_label,
+                source_sub_resource_key,
+            )
+    if rel_schema.target_node_sub_resource:
+        for target_sub_resource_key in asdict(
+            rel_schema.target_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.target_node_sub_resource.target_node_label,
+                target_sub_resource_key,
+            )
 
     # Create a composite relationship index that matches the cleanup predicate shape.
     # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
@@ -1561,6 +1577,63 @@ def build_create_index_queries_for_matchlink(
             )
         )
     return result
+
+
+def _build_matchlink_sub_resource_match(
+    sub_resource_var: str,
+    sub_resource: MatchLinkSubResource,
+) -> str:
+    return Template(
+        "MATCH ($sub_resource_var:$sub_resource_label{$match_clause})"
+    ).safe_substitute(
+        sub_resource_var=sub_resource_var,
+        sub_resource_label=sub_resource.target_node_label,
+        match_clause=_build_match_clause(sub_resource.target_node_matcher),
+    )
+
+
+def _matcher_signature(
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+) -> dict[str, dict]:
+    # PropertyRef has no __eq__, so compare via its __dict__. asdict() can't help
+    # because PropertyRef is not a dataclass and is passed through by reference.
+    return {key: vars(prop_ref) for key, prop_ref in vars(matcher).items()}
+
+
+def _matchlink_sub_resources_equal(
+    a: MatchLinkSubResource,
+    b: MatchLinkSubResource,
+) -> bool:
+    return (
+        a.target_node_label == b.target_node_label
+        and a.direction == b.direction
+        and a.rel_label == b.rel_label
+        and _matcher_signature(a.target_node_matcher)
+        == _matcher_signature(b.target_node_matcher)
+    )
+
+
+def _build_matchlink_endpoint_match(
+    endpoint_var: str,
+    endpoint_label: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+    sub_resource_var: str | None,
+    sub_resource: MatchLinkSubResource | None,
+) -> str:
+    rel_pattern = ""
+    if sub_resource and sub_resource_var:
+        if sub_resource.direction == LinkDirection.INWARD:
+            rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
+        else:
+            rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+    return Template(
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+    ).safe_substitute(
+        endpoint_var=endpoint_var,
+        endpoint_label=endpoint_label,
+        match_clause=_build_match_clause(matcher),
+        rel_pattern=rel_pattern,
+    )
 
 
 def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
@@ -1630,8 +1703,17 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
         )
 
-    matchlink_query_template = Template(
-        """
+    source_sub_resource = rel_schema.source_node_sub_resource
+    target_sub_resource = rel_schema.target_node_sub_resource
+
+    source_sub_resource_var: str | None = None
+    target_sub_resource_var: str | None = None
+    sub_resource_match_statements: list[str] = []
+
+    if source_sub_resource or target_sub_resource:
+        matchlink_query_template = Template(
+            """
+        $sub_resource_match
         UNWIND $DictList as item
             $source_match
             $target_match
@@ -1642,20 +1724,66 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
                 r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """
+        )
+        if (
+            source_sub_resource
+            and target_sub_resource
+            and _matchlink_sub_resources_equal(source_sub_resource, target_sub_resource)
+        ):
+            # Same sub-resource on both sides — match it once and reuse the
+            # variable to avoid a redundant index lookup per query.
+            source_sub_resource_var = "sub_resource"
+            target_sub_resource_var = "sub_resource"
+            sub_resource_match_statements.append(
+                _build_matchlink_sub_resource_match(
+                    source_sub_resource_var, source_sub_resource
+                ),
+            )
+        else:
+            if source_sub_resource:
+                source_sub_resource_var = "source_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        source_sub_resource_var, source_sub_resource
+                    ),
+                )
+            if target_sub_resource:
+                target_sub_resource_var = "target_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        target_sub_resource_var, target_sub_resource
+                    ),
+                )
+    else:
+        matchlink_query_template = Template(
+            """
+        UNWIND $DictList as item
+            $source_match
+            $target_match
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                r._module_name = "$module_name",
+                r._module_version = "$module_version",
+                $set_rel_properties_statement;
+        """
+        )
+    sub_resource_match = "\n        ".join(sub_resource_match_statements)
+
+    source_match = _build_matchlink_endpoint_match(
+        "from",
+        rel_schema.source_node_label,
+        rel_schema.source_node_matcher,
+        source_sub_resource_var,
+        source_sub_resource,
     )
 
-    source_match = Template(
-        "MATCH (from:$source_node_label{$match_clause})"
-    ).safe_substitute(
-        source_node_label=rel_schema.source_node_label,
-        match_clause=_build_match_clause(rel_schema.source_node_matcher),
-    )
-
-    target_match = Template(
-        "MATCH (to:$target_node_label{$match_clause})"
-    ).safe_substitute(
-        target_node_label=rel_schema.target_node_label,
-        match_clause=_build_match_clause(rel_schema.target_node_matcher),
+    target_match = _build_matchlink_endpoint_match(
+        "to",
+        rel_schema.target_node_label,
+        rel_schema.target_node_matcher,
+        target_sub_resource_var,
+        target_sub_resource,
     )
 
     if rel_schema.direction == LinkDirection.INWARD:
@@ -1664,6 +1792,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
     return matchlink_query_template.safe_substitute(
+        sub_resource_match=sub_resource_match,
         source_match=source_match,
         target_match=target_match,
         rel=rel,

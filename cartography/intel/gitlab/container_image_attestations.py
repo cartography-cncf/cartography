@@ -7,9 +7,7 @@ Attestations are discovered via cosign's tag-based scheme:
 - Attestations: sha256-{digest}.att
 """
 
-import json
 import logging
-from base64 import b64decode
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,9 +18,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
+from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
-from cartography.intel.supply_chain import unwrap_attestation_predicate
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
 )
@@ -269,28 +267,7 @@ def _extract_predicate_from_attestation(
         )
         return None
 
-    payload_b64 = blob.get("payload")
-    if payload_b64:
-        try:
-            payload = json.loads(b64decode(str(payload_b64)).decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
-            logger.debug(
-                "Failed to decode attestation payload for %s",
-                attestation.get("_digest"),
-                exc_info=True,
-            )
-            return None
-
-        if isinstance(payload, dict) and "predicate" in payload:
-            predicate = payload.get("predicate")
-            return unwrap_attestation_predicate(predicate)
-        return None
-
-    if "predicate" in blob:
-        predicate = blob.get("predicate")
-        return unwrap_attestation_predicate(predicate)
-
-    return None
+    return decode_attestation_blob_to_predicate(blob)
 
 
 def _extract_image_provenance(

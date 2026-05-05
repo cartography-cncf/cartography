@@ -1,0 +1,16 @@
+{
+  "name": "AIBOMSource RUNS_ON Container analysis",
+  "statements": [
+    {
+      "__comment": "Cleanup: remove stale RUNS_ON edges from AIBOMSource to Container from previous runs.",
+      "query": "MATCH (:AIBOMSource)-[r:RUNS_ON]->(:Container) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Create RUNS_ON by joining AIBOMSource's SCANNED_IMAGE with the Container's RESOLVED_IMAGE on the same concrete Image. RESOLVED_IMAGE is created by resolved_image_analysis.json (which runs first) and already handles architecture matching and manifest list resolution.",
+      "query": "MATCH (a:AIBOMSource)-[:SCANNED_IMAGE]->(i:Image)<-[:RESOLVED_IMAGE]-(c:Container) MERGE (a)-[r:RUNS_ON]->(c) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}

@@ -54,6 +54,50 @@ MOCK_IAM_ROLES = [
         "deleted": False,
         "version": 1,
     },
+    {
+        "name": "roles/test.gcp_extended",
+        "title": "Test Extended GCP Permissions",
+        "description": "Bundle of permissions used to exercise BigQuery, KMS and Artifact Registry permission relationships.",
+        "includedPermissions": [
+            "bigquery.tables.getData",
+            "bigquery.datasets.get",
+            "cloudkms.cryptoKeyVersions.useToDecrypt",
+            "artifactregistry.repositories.downloadArtifacts",
+        ],
+        "stage": "GA",
+        "etag": "etag_gcp_extended",
+        "deleted": False,
+        "version": 1,
+    },
+    {
+        "name": "roles/iam.serviceAccountTokenCreator",
+        "title": "Service Account Token Creator",
+        "description": "Impersonate service accounts (create OAuth2 access tokens, sign blobs or JWTs, etc).",
+        "includedPermissions": [
+            "iam.serviceAccounts.getAccessToken",
+            "iam.serviceAccounts.getOpenIdToken",
+            "iam.serviceAccounts.implicitDelegation",
+            "iam.serviceAccounts.signBlob",
+            "iam.serviceAccounts.signJwt",
+        ],
+        "stage": "GA",
+        "etag": "etag_sa_token_creator",
+        "deleted": False,
+        "version": 1,
+    },
+    {
+        "name": "roles/bigquery.dataViewer",
+        "title": "BigQuery Data Viewer",
+        "description": "Read access to BigQuery datasets and tables.",
+        "includedPermissions": [
+            "bigquery.tables.getData",
+            "bigquery.datasets.get",
+        ],
+        "stage": "GA",
+        "etag": "etag_bigquery_data_viewer",
+        "deleted": False,
+        "version": 1,
+    },
 ]
 
 MOCK_IAM_SERVICE_ACCOUNTS = [
@@ -191,6 +235,18 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                     "expression": "request.time < timestamp('2024-12-31T00:00:00Z')",
                                 },
                             },
+                            {
+                                "role": "roles/test.gcp_extended",
+                                "members": [
+                                    "user:alice@example.com",  # GSuite user
+                                ],
+                            },
+                            {
+                                "role": "roles/iam.serviceAccountTokenCreator",
+                                "members": [
+                                    "user:bob@example.com",  # GSuite user
+                                ],
+                            },
                         ],
                     },
                 },
@@ -207,6 +263,35 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                 "role": "roles/storage.objectViewer",
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
+                                    "allUsers",  # Public exposure
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+        # Resource-scoped binding on a specific BigQuery table. Used by
+        # test_sync_gcp_permission_relationships to verify that scope keys
+        # disambiguate sibling tables sharing the same leaf name across
+        # different datasets.
+        {
+            "full_resource_name": (
+                "//bigquery.googleapis.com/projects/project-abc/"
+                "datasets/dataset_a/tables/events"
+            ),
+            "policies": [
+                {
+                    "attached_resource": (
+                        "//bigquery.googleapis.com/projects/project-abc/"
+                        "datasets/dataset_a/tables/events"
+                    ),
+                    "policy": {
+                        "bindings": [
+                            {
+                                "role": "roles/bigquery.dataViewer",
+                                "members": [
+                                    "user:bob@example.com",  # GSuite user
                                 ],
                             },
                         ],

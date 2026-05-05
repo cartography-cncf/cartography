@@ -231,6 +231,12 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if group and group.startswith("service:"):
             task["serviceName"] = group.split("service:", 1)[1]
 
+        # Standalone tasks (no service) attach WORKLOAD_PARENT directly to the
+        # cluster; service-attached tasks chain through the service instead so
+        # the matcher stays null and only one parent edge fires.
+        if not task.get("serviceName"):
+            task["_workload_parent_cluster_arn"] = task.get("clusterArn")
+
         # Extract network interface ID from task attachments
         for attachment in task.get("attachments", []):
             if attachment.get("type") == "ElasticNetworkInterface":

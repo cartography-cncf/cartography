@@ -381,6 +381,13 @@ def _get_rest_api_base_url(graphql_url: str) -> str:
     return base
 
 
+def rest_api_base_url(api_url: str) -> str:
+    """Public wrapper that accepts a REST or GraphQL URL and returns the REST base URL."""
+    if api_url.endswith("/graphql"):
+        return _get_rest_api_base_url(api_url)
+    return api_url.rstrip("/")
+
+
 def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     """
     Check the remaining REST API rate limit and sleep if remaining is below threshold.
@@ -417,6 +424,7 @@ def fetch_all_rest_api_pages(
     endpoint: str,
     result_key: str,
     retries: int = 5,
+    raise_on_status: tuple[int, ...] = (),
 ) -> list[dict[str, Any]]:
     """
     Fetch all pages from a GitHub REST API endpoint using Link header pagination.
@@ -427,6 +435,13 @@ def fetch_all_rest_api_pages(
     :param result_key: The key in the response JSON that contains the list of results
                        (e.g., 'workflows', 'secrets', 'variables').
     :param retries: Number of retries to perform on transient errors.
+    :param raise_on_status: HTTP statuses that the caller wants to handle itself
+                            instead of being silently converted to an empty list.
+                            By default 404 and 403 return ``[]`` (legacy behavior
+                            relied on by most callers); pass e.g. ``(403,)`` if
+                            the caller needs to distinguish "no data" from
+                            "missing scope" — for example to skip a cleanup
+                            that would otherwise reap previously-synced data.
     :return: A list of all items from all pages.
     """
     results: list[dict[str, Any]] = []
@@ -450,12 +465,15 @@ def fetch_all_rest_api_pages(
             retry += 1
             exc = err
         except requests.exceptions.HTTPError as err:
+            status = err.response.status_code if err.response is not None else None
+            if status is not None and status in raise_on_status:
+                raise
             # Handle 404 gracefully - resource may not exist (e.g., no environments)
-            if err.response is not None and err.response.status_code == 404:
+            if status == 404:
                 logger.debug(f"GitHub REST API: 404 for {url}, returning empty list")
                 return []
             # Handle 403 gracefully
-            if err.response is not None and err.response.status_code == 403:
+            if status == 403:
                 logger.warning(
                     f"GitHub REST API: 403 Forbidden for {url}. "
                     "This is likely due to insufficient permissions. "
@@ -652,3 +670,145 @@ def get_file_content(
             logger.debug("File not found: %s/%s/%s", owner, repo, path)
             return None
         raise
+
+
+# --- GHCR (GitHub Container Registry) ---------------------------------------
+
+DEFAULT_GHCR_URL = "https://ghcr.io"
+GHCR_MANIFEST_ACCEPT_HEADER = ", ".join(
+    [
+        "application/vnd.docker.distribution.manifest.v2+json",
+        "application/vnd.docker.distribution.manifest.list.v2+json",
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.oci.image.index.v1+json",
+    ],
+)
+
+
+def _ghcr_auth_header(token: Any) -> str:
+    """
+    Build the Authorization header value for GHCR's OCI Distribution API.
+
+    GHCR is an unusual OCI registry: instead of the standard token-exchange
+    flow, GitHub documents a shortcut where the PAT is base64-encoded and
+    sent as a Bearer credential.
+
+    See: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry
+
+    Sending the raw PAT (as on the REST API) returns 403 from
+    ``ghcr.io/v2/...`` even with ``read:packages`` granted.
+    """
+    raw = _resolve_token(token).encode("utf-8")
+    return f"Bearer {base64.b64encode(raw).decode('ascii')}"
+
+
+def fetch_ghcr_manifest(
+    token: Any,
+    repository_name: str,
+    reference: str,
+    registry_url: str = DEFAULT_GHCR_URL,
+    retries: int = 3,
+) -> dict[str, Any] | None:
+    """
+    Fetch an OCI manifest (or manifest list) from GHCR.
+
+    :param token: GitHub PAT or AppCredential with read:packages.
+    :param repository_name: Path under the registry, e.g. "myorg/myimage".
+    :param reference: Manifest digest (sha256:...) or tag.
+    :param registry_url: Registry base URL (defaults to ghcr.io).
+    :param retries: Transient-error retry count.
+    :return: Parsed manifest dict or None when the manifest does not exist (404).
+    """
+    url = f"{registry_url.rstrip('/')}/v2/{repository_name}/manifests/{reference}"
+    last_exc: Any = None
+    for attempt in range(max(retries, 1)):
+        headers = {
+            "Authorization": _ghcr_auth_header(token),
+            "Accept": GHCR_MANIFEST_ACCEPT_HEADER,
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=_TIMEOUT)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+        except requests.exceptions.Timeout as err:
+            last_exc = err
+        except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code not in _TRANSIENT_STATUS_CODES
+            ):
+                raise
+            last_exc = err
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as err:
+            last_exc = err
+
+        logger.warning(
+            "GHCR manifest fetch transient error for %s (attempt %d/%d): %s",
+            url,
+            attempt + 1,
+            retries,
+            last_exc,
+        )
+        if attempt < retries - 1:
+            time.sleep(2 ** (attempt + 1))
+
+    raise last_exc
+
+
+def fetch_ghcr_blob(
+    token: Any,
+    repository_name: str,
+    blob_digest: str,
+    registry_url: str = DEFAULT_GHCR_URL,
+    retries: int = 3,
+) -> dict[str, Any] | None:
+    """
+    Fetch a config blob (typically the OCI image config JSON) from GHCR.
+
+    Returns the parsed JSON or None on 404. Raises on non-transient HTTP
+    errors. Used by the GHCR sync to pull `layer_diff_ids`, architecture and
+    OS from the config that the manifest references.
+    """
+    url = f"{registry_url.rstrip('/')}/v2/{repository_name}/blobs/{blob_digest}"
+    last_exc: Any = None
+    for attempt in range(max(retries, 1)):
+        headers = {"Authorization": _ghcr_auth_header(token)}
+        try:
+            response = requests.get(url, headers=headers, timeout=_TIMEOUT)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+        except requests.exceptions.Timeout as err:
+            last_exc = err
+        except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code not in _TRANSIENT_STATUS_CODES
+            ):
+                raise
+            last_exc = err
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as err:
+            last_exc = err
+
+        logger.warning(
+            "GHCR blob fetch transient error for %s (attempt %d/%d): %s",
+            url,
+            attempt + 1,
+            retries,
+            last_exc,
+        )
+        if attempt < retries - 1:
+            time.sleep(2 ** (attempt + 1))
+
+    raise last_exc

@@ -91,6 +91,8 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 ### KubernetesNamespace
 Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
 
+> **Ontology Mapping**: This node has the extra label `ComputeNamespace` to enable cross-platform queries for workload-isolation scopes across different systems.
+
 | Field | Description |
 |-------|-------------|
 | **id** | UID of the Kubernetes namespace |
@@ -116,9 +118,16 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          ...)
     ```
 
+- `KubernetesNamespace` points at its parent `KubernetesCluster` via the unified workload chain.
+    ```
+    (:KubernetesNamespace)-[:WORKLOAD_PARENT]->(:KubernetesCluster)
+    ```
+
 
 ### KubernetesPod
 Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/workloads/pods/)
+
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask, AzureGroupContainer).
 
 | Field | Description |
 |-------|-------------|
@@ -150,9 +159,19 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
     (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- A `KubernetesNamespace` contains a `KubernetesPod`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod)
+    ```
+
+- `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
     ```
 
 - `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
@@ -202,20 +221,24 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 
 #### Relationships
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
+- `KubernetesContainer` points at its parent `KubernetesPod` via the unified workload chain.
+    ```
+    (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
+    ```
+
 - `KubernetesContainer` references container images from registries.
   `HAS_IMAGE` matches the runtime digest (`status_image_sha`) reported in container status.
-  That means the relationship can point at either a top-level image artifact or a platform-specific manifest, depending on which registry node type has the matching digest.
+  For GCP Artifact Registry, the relationship points at the canonical digest-scoped `GCPArtifactRegistryImage`, not the scoped `GCPArtifactRegistryRepositoryImage`.
   Runtime fields like `status_image_id` and `status_image_sha` remain on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
@@ -230,6 +253,7 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 |-------|-------------|
 | **id** | UID of the kubernetes service |
 | **name** | Name of the kubernetes service |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match the service from cross-namespace references such as `HTTPRoute.spec.rules[].backendRefs` |
 | creation\_timestamp | Timestamp of the creation time of the kubernetes service |
 | deletion\_timestamp | Timestamp of the deletion time of the kubernetes service |
 | **namespace** | The Kubernetes namespace where this service is deployed |
@@ -298,6 +322,70 @@ An Ingress is an API object that manages external access to services in a cluste
     (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
     ```
 
+### KubernetesGateway
+Representation of a [Gateway API Gateway.](https://gateway-api.sigs.k8s.io/api-types/gateway/) Sourced from `gateway.networking.k8s.io/v1`. Only ingested when the Gateway API CRDs are installed in the cluster.
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Gateway |
+| **name** | Name of the Gateway |
+| **namespace** | The Kubernetes namespace where this Gateway is deployed |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match the Gateway from `HTTPRoute.spec.parentRefs` |
+| gateway\_class\_name | Name of the `GatewayClass` referenced by `spec.gatewayClassName` |
+| creation\_timestamp | Epoch seconds of `metadata.creationTimestamp` |
+| deletion\_timestamp | Epoch seconds of `metadata.deletionTimestamp` |
+| **cluster\_name** | Name of the Kubernetes cluster where this Gateway is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesGateway` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGateway)
+    ```
+
+- `KubernetesGateway` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesGateway)
+    ```
+
+- `KubernetesGateway` routes traffic to `KubernetesHTTPRoute` resources whose `spec.parentRefs` reference it. Cross-namespace references are honored via the route's `parentRefs[].namespace` field.
+    ```
+    (:KubernetesGateway)-[:ROUTES]->(:KubernetesHTTPRoute)
+    ```
+
+### KubernetesHTTPRoute
+Representation of a [Gateway API HTTPRoute.](https://gateway-api.sigs.k8s.io/api-types/httproute/) Sourced from `gateway.networking.k8s.io/v1`. Only ingested when the Gateway API CRDs are installed in the cluster.
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the HTTPRoute |
+| **name** | Name of the HTTPRoute |
+| **namespace** | The Kubernetes namespace where this HTTPRoute is deployed |
+| **qualified\_name** | `<namespace>/<name>` identifier used to match this HTTPRoute from `Gateway` parents |
+| hostnames | List of hostnames from `spec.hostnames` |
+| creation\_timestamp | Epoch seconds of `metadata.creationTimestamp` |
+| deletion\_timestamp | Epoch seconds of `metadata.deletionTimestamp` |
+| **cluster\_name** | Name of the Kubernetes cluster where this HTTPRoute is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesHTTPRoute` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesHTTPRoute)
+    ```
+
+- `KubernetesHTTPRoute` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesHTTPRoute)
+    ```
+
+- `KubernetesHTTPRoute` targets `KubernetesService` resources via `spec.rules[].backendRefs`. Only refs whose group/kind resolve to the core `Service` type are considered.
+    ```
+    (:KubernetesHTTPRoute)-[:TARGETS]->(:KubernetesService)
+    ```
+
 ### KubernetesSecret
 Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/configuration/secret/)
 
@@ -333,6 +421,7 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 | name | Name of the Kubernetes ServiceAccount |
 | namespace | The Kubernetes namespace where this ServiceAccount is deployed |
 | aws_role_arn | ARN from the IRSA annotation `eks.amazonaws.com/role-arn`, when present. Used to link the ServiceAccount to an `AWSRole`. |
+| gcp\_service\_account | Email from the GKE Workload Identity annotation `iam.gke.io/gcp-service-account`, when present. Used to link the ServiceAccount to a `GCPServiceAccount`. |
 | uid | UID of the Kubernetes ServiceAccount |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
 | resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
@@ -359,6 +448,11 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 - `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.
     ```
     (:KubernetesServiceAccount)-[:ASSUMES_ROLE]->(:AWSRole)
+    ```
+
+- `KubernetesServiceAccount` impersonates a `GCPServiceAccount` via GKE Workload Identity when annotated with `iam.gke.io/gcp-service-account`.
+    ```
+    (:KubernetesServiceAccount)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount)
     ```
 
 - `KubernetesServiceAccount` is used as a subject in `KubernetesRoleBinding`.

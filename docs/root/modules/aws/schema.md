@@ -500,11 +500,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
     (:AWSLambda)-[:HAS]->(:ECRImage)
     ```
 
-- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryContainerImage`.
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryImage`.
     ```
     (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - AWSLambda functions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -2599,8 +2599,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -4926,6 +4925,8 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., GCPCloudRunService, GCPCloudRunJob).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4957,14 +4958,19 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService
+- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
-- An ECSService has ECSTasks
+- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSService)-[:HAS_TASK]->(:ECSTask)
+    ```
+
+- An ECSService points at its parent cluster via the unified workload chain.
+    ```
+    (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
     ```
 
 ### ECSTaskDefinition
@@ -5064,6 +5070,8 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., KubernetesPod, AzureGroupContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -5109,7 +5117,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks
+- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
@@ -5127,6 +5135,12 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks in awsvpc network mode have NetworkInterfaces
     ```
     (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
+    ```
+
+- ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the ECSService; standalone tasks point directly at the ECSCluster.
+    ```
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSService)
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSCluster)
     ```
 
 ### ECSContainer
@@ -5162,17 +5176,21 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 #### Relationships
 
-- ECSTasks have ECSContainers
+- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
+    ```
+
+- ECSContainers point at their parent ECSTask via the unified workload chain.
+    ```
+    (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
     ```
 
 - ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### EfsFileSystem
@@ -5805,6 +5823,8 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockCustomModel, AWSSageMakerModel, GCPVertexAIModel).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -5857,6 +5877,8 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
 ### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSSageMakerModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|
@@ -6225,6 +6247,8 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 ### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSBedrockCustomModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|

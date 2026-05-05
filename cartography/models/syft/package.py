@@ -63,7 +63,7 @@ class SyftPackageToOntologyImageRelProperties(CartographyRelProperties):
 class SyftPackageToOntologyImageRel(CartographyRelSchema):
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"_ont_digest": PropertyRef("ImageDigest")},
+        {"_ont_digest": PropertyRef("ImageDigestCandidates", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DEPLOYED"

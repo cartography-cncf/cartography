@@ -251,7 +251,7 @@ class GraphJob:
             if self.short_name
             else f"Finished job {self.name}"
         )
-        logger.info(log_msg)
+        logger.debug(log_msg)
 
     def as_dict(self) -> Dict:
         """

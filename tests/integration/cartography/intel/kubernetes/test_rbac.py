@@ -20,6 +20,7 @@ from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLES_RAW
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_GCP_EMAILS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
@@ -100,6 +101,16 @@ def test_sync_rbac_end_to_end(
         arn=KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_ROLE_ARNS[0],
         update_tag=TEST_UPDATE_TAG,
     )
+    # GKE Workload Identity binding target: the GCP SA exists in the graph
+    # before the K8s SA tries to attach to it.
+    neo4j_session.run(
+        """
+        MERGE (sa:GCPServiceAccount {email: $email})
+        SET sa.id = $email, sa.lastupdated = $update_tag
+        """,
+        email=KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_GCP_EMAILS[3],
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act: Run the complete sync
     sync_kubernetes_rbac(
@@ -140,6 +151,7 @@ def test_sync_rbac_end_to_end(
         ),
         (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[1], None),
         (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[2], None),
+        (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[3], None),
     }
     actual_service_account_role_arns = check_nodes(
         neo4j_session,
@@ -147,6 +159,40 @@ def test_sync_rbac_end_to_end(
         ["id", "aws_role_arn"],
     )
     assert expected_service_account_role_arns.issubset(actual_service_account_role_arns)
+
+    # GKE Workload Identity: only the annotated SA carries gcp_service_account
+    # and is wired to the matching GCPServiceAccount node.
+    expected_service_account_gcp_emails = {
+        (
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[3],
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_GCP_EMAILS[3],
+        ),
+    }
+    actual_service_account_gcp_emails = {
+        row
+        for row in check_nodes(
+            neo4j_session,
+            "KubernetesServiceAccount",
+            ["id", "gcp_service_account"],
+        )
+        if row[1] is not None
+    }
+    assert expected_service_account_gcp_emails == actual_service_account_gcp_emails
+
+    assert check_rels(
+        neo4j_session,
+        "KubernetesServiceAccount",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "WORKLOAD_IDENTITY_BINDING",
+        rel_direction_right=True,
+    ) == {
+        (
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[3],
+            KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_GCP_EMAILS[3],
+        ),
+    }
 
     # Assert: Verify Role nodes were created with cluster-scoped IDs
     expected_roles = {

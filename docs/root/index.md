@@ -26,7 +26,6 @@ modules/*/index
 dev/developer-guide
 dev/writing-intel-modules
 dev/writing-analysis-jobs
-agents/index
 ```
 
 ```{toctree}

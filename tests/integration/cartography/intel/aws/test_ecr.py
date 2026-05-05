@@ -1,5 +1,4 @@
 import datetime
-import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -298,30 +297,10 @@ def test_cleanup_repositories(neo4j_session):
     """
     Ensure that after the cleanup job runs, all ECRRepository nodes
     with a different UPDATE_TAG are removed from the AWSAccount node.
-    We load 100 additional nodes, because the cleanup job is configured
-    to run iteratively, processing 100 nodes at a time. So this test also ensures
-    that iterative cleanups do work.
     """
     # Arrange
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     repo_data = {**tests.data.aws.ecr.DESCRIBE_REPOSITORIES}
-    # add additional repository noes, for a total of 103, since
-    cleanup_jobs = json.load(
-        open("./cartography/data/jobs/cleanup/aws_import_ecr_cleanup.json"),
-    )
-    iter_size = cleanup_jobs["statements"][-1]["iterationsize"]
-    repo_data["repositories"].extend(
-        [
-            {
-                "repositoryArn": f"arn:aws:ecr:us-east-1:000000000000:repository/test-repository{i}",
-                "registryId": "000000000000",
-                "repositoryName": f"test-repository{i}",
-                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
-                "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
-            }
-            for i in range(iter_size)
-        ],
-    )
 
     # Act
     cartography.intel.aws.ecr.load_ecr_repositories(
@@ -341,7 +320,6 @@ def test_cleanup_repositories(neo4j_session):
         RETURN count(repo)
         """,
     )
-    # there should be 103 nodes
     expected_nodes = {
         len(repo_data["repositories"]),
     }

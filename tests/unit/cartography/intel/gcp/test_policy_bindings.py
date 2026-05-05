@@ -244,9 +244,10 @@ def test_sync_skips_load_and_cleanup_on_rate_limit_retry_exhaustion(
             TEST_UPDATE_TAG,
             COMMON_JOB_PARAMS,
             MagicMock(),
+            {},
         )
 
-    assert result == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+    assert result.status == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
     mock_get_policy_bindings.assert_called_once()
     mock_load_bindings.assert_not_called()
     mock_cleanup.assert_not_called()
@@ -262,7 +263,10 @@ def test_sync_skips_load_and_cleanup_on_rate_limit_retry_exhaustion(
 @patch("cartography.intel.gcp.permission_relationships.sync")
 @patch(
     "cartography.intel.gcp.policy_bindings.sync",
-    return_value=policy_bindings.PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+    return_value=policy_bindings.PolicyBindingsSyncResult(
+        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+        {},
+    ),
 )
 @patch(
     "cartography.intel.gcp._services_enabled_on_project",

@@ -237,6 +237,25 @@ def test_sync_vertex_ai_end_to_end(
         ("projects/test-project/locations/us-central1/datasets/dataset-456",),
     }
 
+    # Verify GCPVertexAIModel carries the AIModel semantic label and _ont_* fields
+    vertex_model_rows = neo4j_session.run(
+        """
+        MATCH (m:AIModel:GCPVertexAIModel)
+        RETURN m._ont_name AS name,
+               m._ont_provider AS provider,
+               m._ont_type AS type,
+               m._ont_source AS source
+        """
+    ).data()
+    assert vertex_model_rows == [
+        {
+            "name": "test-model",
+            "provider": "gcp",
+            "type": "custom",
+            "source": "gcp",
+        }
+    ]
+
     # Verify Project -> Resource relationships
     assert check_rels(
         neo4j_session,

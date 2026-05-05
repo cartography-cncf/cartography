@@ -118,22 +118,20 @@ class AWSLambdaToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AWSLambdaToGCPArtifactRegistryContainerImageRelProperties(
-    CartographyRelProperties
-):
+class AWSLambdaToGCPArtifactRegistryImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AWSLambdaToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+class AWSLambdaToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: AWSLambdaToGCPArtifactRegistryContainerImageRelProperties = (
-        AWSLambdaToGCPArtifactRegistryContainerImageRelProperties()
+    properties: AWSLambdaToGCPArtifactRegistryImageRelProperties = (
+        AWSLambdaToGCPArtifactRegistryImageRelProperties()
     )
 
 
@@ -148,6 +146,6 @@ class AWSLambdaSchema(CartographyNodeSchema):
             AWSLambdaToPrincipalRel(),
             AWSLambdaToECRImageRel(),
             AWSLambdaToGitLabContainerImageRel(),
-            AWSLambdaToGCPArtifactRegistryContainerImageRel(),
+            AWSLambdaToGCPArtifactRegistryImageRel(),
         ],
     )

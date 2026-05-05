@@ -4,6 +4,38 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 
+# GCP Facts
+_gcp_cloud_sql_public_access = Fact(
+    id="gcp_cloud_sql_public_access",
+    name="Internet-Accessible Cloud SQL Database Attack Surface",
+    description=(
+        "GCP Cloud SQL instances that allow inbound connections from any IP "
+        "(authorized network 0.0.0.0/0)."
+    ),
+    cypher_query="""
+    MATCH (sql:GCPCloudSQLInstance)-[:AUTHORIZED_NETWORK]-(net:GCPCloudSQLAuthorizedNetwork)
+    WHERE net.value = '0.0.0.0/0'
+    RETURN
+        sql.id AS id,
+        sql.database_version AS engine,
+        sql.connection_name AS host,
+        sql.region AS region,
+        sql.require_ssl AS encrypted
+    """,
+    cypher_visual_query="""
+    MATCH p=(sql:GCPCloudSQLInstance)-[:AUTHORIZED_NETWORK]-(net:GCPCloudSQLAuthorizedNetwork)
+    WHERE net.value = '0.0.0.0/0'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (sql:GCPCloudSQLInstance)
+    RETURN COUNT(sql) AS count
+    """,
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # AWS Facts
 _aws_rds_public_access = Fact(
     id="aws_rds_public_access",
@@ -51,7 +83,10 @@ database_instance_exposed = Rule(
     name="Internet-Exposed Databases",
     description=("Database instances accessible from the internet"),
     output_model=DatabaseInstanceExposed,
-    facts=(_aws_rds_public_access,),
+    facts=(
+        _aws_rds_public_access,
+        _gcp_cloud_sql_public_access,
+    ),
     tags=(
         "infrastructure",
         "databases",

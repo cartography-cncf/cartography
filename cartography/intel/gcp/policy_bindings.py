@@ -22,6 +22,10 @@ from google.protobuf.json_format import MessageToDict
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.permission_relationships import (
+    build_principals_from_policy_bindings,
+)
+from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
@@ -193,6 +197,12 @@ class PolicyBindingsSyncStatus(str, Enum):
     SKIPPED_PERMISSION_DENIED = "skipped_permission_denied"
     SKIPPED_RATE_LIMIT = "skipped_rate_limit"
     SKIPPED_RETRY_EXHAUSTED = "skipped_retry_exhausted"
+
+
+@dataclass(frozen=True)
+class PolicyBindingsSyncResult:
+    status: PolicyBindingsSyncStatus
+    permission_context: GCPPrincipalPermissionContext
 
 
 CAI_POLICY_BINDINGS_RETRY_INITIAL = 1.0
@@ -385,7 +395,15 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Filter members to only user:, serviceAccount:, and group: types
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
+                is_public = False
                 for member in members:
+                    # GCP encodes the "anyone on the internet" principals as
+                    # plain identifiers without a "type:" prefix. They never
+                    # resolve to a real GCPPrincipal node, but we still want
+                    # to keep the binding so callers can detect public exposure.
+                    if member in ("allUsers", "allAuthenticatedUsers"):
+                        is_public = True
+                        continue
                     if ":" not in member:
                         continue
                     member_type, identifier = member.split(":", 1)
@@ -393,8 +411,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         # Store only the email part
                         filtered_members.append(identifier)
 
-                # Don't process if members(principals) are not from the supported types. For example -> allUsers:, allAuthenticatedUsers, etc.
-                if not filtered_members:
+                # Skip bindings that have no resolvable principals AND no public
+                # exposure, e.g. unsupported principal types like domain:.
+                if not filtered_members and not is_public:
                     continue
 
                 # Extract condition expression for deduplication key
@@ -411,6 +430,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
                     bindings[key]["members"] = list(existing_members)
+                    bindings[key]["is_public"] = (
+                        bindings[key].get("is_public", False) or is_public
+                    )
                 else:
                     # Generate unique ID that includes condition expression hash
                     condition_hash = ""
@@ -431,6 +453,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource": resource,
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
+                        "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
                             condition.get("title") if condition else None
@@ -521,7 +544,8 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
-) -> PolicyBindingsSyncStatus:
+    role_permissions_by_name: dict[str, list[str]],
+) -> PolicyBindingsSyncResult:
     """
     Sync GCP IAM policy bindings for a project.
 
@@ -539,7 +563,10 @@ def sync(
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED,
+            {},
+        )
     except RetryError as e:
         if _is_rate_limit_retry_error(e):
             logger.warning(
@@ -548,14 +575,20 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings retries exhausted for project %s after transient gRPC errors. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
     except (DeadlineExceeded, ResourceExhausted, ServiceUnavailable) as e:
         if isinstance(e, ResourceExhausted):
             logger.warning(
@@ -564,17 +597,31 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings failed for project %s with a transient gRPC error. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
 
     transformed_bindings_data = transform_bindings(bindings_data)
+    permission_context = build_principals_from_policy_bindings(
+        transformed_bindings_data,
+        role_permissions_by_name,
+        project_id,
+    )
 
     load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    return PolicyBindingsSyncStatus.SUCCESS
+    return PolicyBindingsSyncResult(
+        PolicyBindingsSyncStatus.SUCCESS,
+        permission_context,
+    )

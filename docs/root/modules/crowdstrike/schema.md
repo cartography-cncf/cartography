@@ -83,7 +83,7 @@ Representation of a Crowdstrike Vulnerability
     (SpotlightVulnerability)-[HAS_CVE]->(CVE)
     ```
 
-### CVE::CrowdstrikeFinding
+### CrowdstrikeFinding::CVE
 
 Representation of a CVE
 

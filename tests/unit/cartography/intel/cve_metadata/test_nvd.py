@@ -1,6 +1,8 @@
 import copy
 from datetime import datetime
+from unittest.mock import MagicMock
 
+from cartography.intel.cve_metadata import nvd
 from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
@@ -85,6 +87,22 @@ def test_transform_cves_extracts_references():
     ]
 
 
+def test_transform_cves_drops_raw_nvd_fields():
+    data = _fresh_data()
+    raw_cve = data["vulnerabilities"][0]["cve"]
+    raw_cve["configurations"] = [{"nodes": [{"cpeMatch": ["unused"]}]}]
+
+    result = transform_cves(data, {"CVE-2023-41782"})
+    cve = result["CVE-2023-41782"]
+
+    assert cve is not raw_cve
+    assert "configurations" not in cve
+    assert "metrics" not in cve
+    assert "descriptions" not in cve
+    assert "references" not in cve
+    assert "sourceIdentifier" not in cve
+
+
 def test_transform_cves_empty_graph():
     """When no CVE IDs are in the graph, result should be empty."""
     result = transform_cves(_fresh_data(), set())
@@ -105,3 +123,48 @@ def test_merge_nvd_into_cves():
     assert cves[0]["baseScore"] == 6.1
     # CVE not in NVD should remain a stub
     assert "baseScore" not in cves[1]
+
+
+def test_get_nvd_cves_from_feeds_deduplicates_2002_feed_year(monkeypatch):
+    http_session = MagicMock()
+    cve_ids_in_graph = {"CVE-1999-0001", "CVE-2002-0001"}
+
+    captured_years = []
+
+    def _fake_download(_http_session, year):
+        captured_years.append(year)
+        return {"vulnerabilities": []}
+
+    monkeypatch.setattr(nvd, "_download_nvd_feed", _fake_download)
+
+    result = nvd._get_nvd_cves_from_feeds(http_session, cve_ids_in_graph)
+    assert result == {}
+    assert captured_years == ["2002"]
+
+
+def test_get_nvd_cves_from_feeds_maps_pre_2002_years_to_2002_feed(monkeypatch):
+    http_session = MagicMock()
+    cve_ids_in_graph = {"CVE-1999-0001"}
+
+    captured_years = []
+
+    def _fake_download(_http_session, year):
+        captured_years.append(year)
+        return {
+            "vulnerabilities": [
+                {
+                    "cve": {
+                        "id": "CVE-1999-0001",
+                        "descriptions": [
+                            {"lang": "en", "value": "old vulnerability"},
+                        ],
+                    },
+                },
+            ],
+        }
+
+    monkeypatch.setattr(nvd, "_download_nvd_feed", _fake_download)
+
+    result = nvd._get_nvd_cves_from_feeds(http_session, cve_ids_in_graph)
+    assert set(result) == {"CVE-1999-0001"}
+    assert captured_years == ["2002"]
