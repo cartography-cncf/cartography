@@ -18,8 +18,25 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
+from tests.data.gcp.artifact_registry import mock_ko_spdx_sbom
 from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_CONFIG
+from tests.data.gcp.artifact_registry import mock_single_image_config_without_labels
 from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_MANIFEST
+from tests.data.gcp.artifact_registry import mock_spdx_sbom
+from tests.data.gcp.artifact_registry import MOCK_SPDX_SBOM_MANIFEST
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_DIGEST_SBOM_BLOB_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_DIGEST_SBOM_MANIFEST_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_IMAGE_URI
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_MISSING_SBOM_URI
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_BLOB_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_MANIFEST_URL
+from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
 
 # ---------------------------------------------------------------------------
 # OCI label provenance
@@ -51,92 +68,17 @@ def test_extract_provenance_from_oci_config_no_labels_returns_empty():
 # ---------------------------------------------------------------------------
 
 
-def _spdx_sbom(
-    image_digest=(
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    ),
-    document_describes=None,
-    packages=None,
-):
-    return {
-        "spdxVersion": "SPDX-2.3",
-        "name": f"sbom-{image_digest}",
-        "documentNamespace": f"https://example.test/sbom/{image_digest}",
-        "documentDescribes": document_describes or ["SPDXRef-RootPackage"],
-        "packages": packages
-        or [
-            {
-                "name": "github.com/example/widgets",
-                "SPDXID": "SPDXRef-RootPackage",
-                "downloadLocation": "https://github.com/example/widgets.git",
-            }
-        ],
-    }
-
-
-def _ko_spdx_sbom(
-    image_digest=(
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    ),
-):
-    return {
-        "spdxVersion": "SPDX-2.3",
-        "name": f"sbom-{image_digest}",
-        "documentNamespace": f"https://example.test/sbom/{image_digest}",
-        "documentDescribes": [
-            "SPDXRef-Package-sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        ],
-        "packages": [
-            {
-                "name": image_digest,
-                "SPDXID": (
-                    "SPDXRef-Package-sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                ),
-                "downloadLocation": "NOASSERTION",
-                "externalRefs": [
-                    {
-                        "referenceCategory": "PACKAGE-MANAGER",
-                        "referenceType": "purl",
-                        "referenceLocator": (
-                            "pkg:oci/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                        ),
-                    }
-                ],
-            },
-            {
-                "name": "github.com/example/widgets",
-                "SPDXID": "SPDXRef-Package-github.com.example.widgets-v1.0.0",
-                "downloadLocation": "https://github.com/example/widgets",
-                "externalRefs": [
-                    {
-                        "referenceCategory": "PACKAGE-MANAGER",
-                        "referenceType": "purl",
-                        "referenceLocator": (
-                            "pkg:golang/github.com/example/widgets@v1.0.0?type=module"
-                        ),
-                    }
-                ],
-            },
-        ],
-    }
-
-
 def test_extract_source_from_spdx_sbom_reads_described_package_download_location():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    provenance = _extract_source_from_spdx_sbom(
+        mock_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
     )
-
-    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(image_digest))
 
     assert provenance == {"source_uri": "https://github.com/example/widgets"}
 
 
 def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    sbom = _spdx_sbom(
-        image_digest,
+    sbom = mock_spdx_sbom(
+        MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         packages=[
             {
                 "name": "github.com/example/widgets",
@@ -162,12 +104,8 @@ def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
 
 
 def test_extract_source_from_spdx_sbom_reads_expected_source_package():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-
     provenance = _extract_source_from_spdx_sbom(
-        _ko_spdx_sbom(image_digest),
+        mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
         expected_source_uri="https://github.com/example/widgets",
     )
 
@@ -175,12 +113,8 @@ def test_extract_source_from_spdx_sbom_reads_expected_source_package():
 
 
 def test_extract_source_from_spdx_sbom_rejects_missing_expected_source_package():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-
     provenance = _extract_source_from_spdx_sbom(
-        _ko_spdx_sbom(image_digest),
+        mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
         expected_source_uri="https://github.com/example/other",
     )
 
@@ -188,11 +122,8 @@ def test_extract_source_from_spdx_sbom_rejects_missing_expected_source_package()
 
 
 def test_extract_source_from_spdx_sbom_ignores_dependency_only_packages():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    sbom = _spdx_sbom(
-        image_digest,
+    sbom = mock_spdx_sbom(
+        MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         packages=[
             {
                 "name": "root",
@@ -213,11 +144,8 @@ def test_extract_source_from_spdx_sbom_ignores_dependency_only_packages():
 
 
 def test_extract_source_from_spdx_sbom_requires_one_described_repo():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    sbom = _spdx_sbom(
-        image_digest,
+    sbom = mock_spdx_sbom(
+        MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         document_describes=["SPDXRef-RootPackage", "SPDXRef-OtherRoot"],
         packages=[
             {
@@ -239,10 +167,7 @@ def test_extract_source_from_spdx_sbom_requires_one_described_repo():
 
 
 def test_extract_source_from_spdx_sbom_accepts_generic_document_identity():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    sbom = _spdx_sbom(image_digest)
+    sbom = mock_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST)
     sbom["name"] = "sbom.spdx.json"
     sbom["documentNamespace"] = "https://example.test/sbom/generic"
 
@@ -624,34 +549,17 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
 
 @pytest.mark.asyncio
 async def test_process_single_image_extracts_platform_from_oci_config():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        f"@{image_digest}"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        f"dockerImages/widgets-api@{image_digest}"
-    )
-    manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/{image_digest}"
-    )
-    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
-    config_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/blobs/{config_digest}"
-    )
     client = _FakeClient(
         {
-            manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
                 200,
                 json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": image_digest},
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             ),
-            config_url: _FakeResponse(200, json_body=MOCK_SINGLE_IMAGE_CONFIG),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_CONFIG,
+            ),
         },
     )
 
@@ -659,15 +567,15 @@ async def test_process_single_image_extracts_platform_from_oci_config():
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
     )
 
     assert fetch_failed is False
     assert result == {
-        "digest": image_digest,
+        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         "type": "image",
         "media_type": "application/vnd.oci.image.manifest.v1+json",
         "architecture": "arm64",
@@ -689,62 +597,29 @@ async def test_process_single_image_extracts_platform_from_oci_config():
 
 @pytest.mark.asyncio
 async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    image_digest_hex = image_digest.split(":", 1)[1]
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        f"@{image_digest}"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        f"dockerImages/widgets-api@{image_digest}"
-    )
-    manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/{image_digest}"
-    )
-    referrers_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/referrers/{image_digest}"
-    )
-    sbom_manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/sha256-{image_digest_hex}.sbom"
-    )
-    sbom_blob_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        "widgets-api/blobs/sha256:sbom"
-    )
-    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
-    config_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/blobs/{config_digest}"
-    )
-    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
-    config_without_labels["config"]["Labels"] = {}
     client = _FakeClient(
         {
-            manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
                 200,
                 json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": image_digest},
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             ),
-            config_url: _FakeResponse(200, json_body=config_without_labels),
-            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
-            sbom_manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
                 200,
-                json_body={
-                    "layers": [
-                        {
-                            "mediaType": "text/spdx+json",
-                            "digest": "sha256:sbom",
-                        }
-                    ],
-                },
+                json_body=mock_single_image_config_without_labels(),
             ),
-            sbom_blob_url: _FakeResponse(200, json_body=_spdx_sbom(image_digest)),
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(
+                200,
+                json_body={"manifests": []},
+            ),
+            MOCK_SUPPLY_CHAIN_DIGEST_SBOM_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SPDX_SBOM_MANIFEST,
+            ),
+            MOCK_SUPPLY_CHAIN_DIGEST_SBOM_BLOB_URL: _FakeResponse(
+                200,
+                json_body=mock_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+            ),
         },
     )
 
@@ -752,22 +627,24 @@ async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: [
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: [
                 {
-                    "uri": image_uri,
-                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                    "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
                 }
             ]
         },
     )
 
     assert fetch_failed is False
-    assert result["digest"] == image_digest
+    assert result["digest"] == MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
     assert result["source_uri"] == "https://github.com/example/widgets"
     assert result["layer_diff_ids"] == [
         "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -776,66 +653,29 @@ async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
 
 @pytest.mark.asyncio
 async def test_process_single_image_falls_back_to_tagged_spdx_sbom_artifact():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    image_digest_hex = image_digest.split(":", 1)[1]
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        f"@{image_digest}"
-    )
-    sbom_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server@sha256:sbommanifest"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        f"dockerImages/widgets-api@{image_digest}"
-    )
-    manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/{image_digest}"
-    )
-    referrers_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/referrers/{image_digest}"
-    )
-    sbom_manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server/manifests/sha256:sbommanifest"
-    )
-    sbom_blob_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server/blobs/sha256:sbom"
-    )
-    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
-    config_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/blobs/{config_digest}"
-    )
-    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
-    config_without_labels["config"]["Labels"] = {}
     client = _FakeClient(
         {
-            manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
                 200,
                 json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": image_digest},
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             ),
-            config_url: _FakeResponse(200, json_body=config_without_labels),
-            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
-            sbom_manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
                 200,
-                json_body={
-                    "layers": [
-                        {
-                            "mediaType": "text/spdx+json",
-                            "digest": "sha256:sbom",
-                        }
-                    ],
-                },
+                json_body=mock_single_image_config_without_labels(),
             ),
-            sbom_blob_url: _FakeResponse(200, json_body=_ko_spdx_sbom(image_digest)),
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(
+                200,
+                json_body={"manifests": []},
+            ),
+            MOCK_SUPPLY_CHAIN_SBOM_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SPDX_SBOM_MANIFEST,
+            ),
+            MOCK_SUPPLY_CHAIN_SBOM_BLOB_URL: _FakeResponse(
+                200,
+                json_body=mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+            ),
         },
     )
 
@@ -843,93 +683,51 @@ async def test_process_single_image_falls_back_to_tagged_spdx_sbom_artifact():
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: [
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: [
                 {
-                    "uri": sbom_uri,
-                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                    "uri": MOCK_SUPPLY_CHAIN_SBOM_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
                 }
             ]
         },
     )
 
     assert fetch_failed is False
-    assert result["digest"] == image_digest
+    assert result["digest"] == MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
     assert result["source_uri"] == "https://github.com/example/widgets"
 
 
 @pytest.mark.asyncio
 async def test_process_single_image_tries_all_tagged_spdx_sbom_artifacts():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    image_digest_hex = image_digest.split(":", 1)[1]
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        f"@{image_digest}"
-    )
-    missing_sbom_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/"
-        "github.com/example/missing/cmd/server@sha256:missing"
-    )
-    good_sbom_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server@sha256:sbommanifest"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        f"dockerImages/widgets-api@{image_digest}"
-    )
-    manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/{image_digest}"
-    )
-    referrers_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/referrers/{image_digest}"
-    )
-    good_sbom_manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server/manifests/sha256:sbommanifest"
-    )
-    good_sbom_blob_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server/blobs/sha256:sbom"
-    )
-    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
-    config_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/blobs/{config_digest}"
-    )
-    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
-    config_without_labels["config"]["Labels"] = {}
     client = _FakeClient(
         {
-            manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
                 200,
                 json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": image_digest},
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             ),
-            config_url: _FakeResponse(200, json_body=config_without_labels),
-            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
-            good_sbom_manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
                 200,
-                json_body={
-                    "layers": [
-                        {
-                            "mediaType": "text/spdx+json",
-                            "digest": "sha256:sbom",
-                        }
-                    ],
-                },
+                json_body=mock_single_image_config_without_labels(),
             ),
-            good_sbom_blob_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(
                 200,
-                json_body=_ko_spdx_sbom(image_digest),
+                json_body={"manifests": []},
+            ),
+            MOCK_SUPPLY_CHAIN_SBOM_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SPDX_SBOM_MANIFEST,
+            ),
+            MOCK_SUPPLY_CHAIN_SBOM_BLOB_URL: _FakeResponse(
+                200,
+                json_body=mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
             ),
         },
     )
@@ -938,71 +736,50 @@ async def test_process_single_image_tries_all_tagged_spdx_sbom_artifacts():
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: [
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: [
                 {
-                    "uri": missing_sbom_uri,
-                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                    "uri": MOCK_SUPPLY_CHAIN_MISSING_SBOM_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
                 },
                 {
-                    "uri": good_sbom_uri,
-                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                    "uri": MOCK_SUPPLY_CHAIN_SBOM_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
                 },
             ]
         },
     )
 
     assert fetch_failed is False
-    assert result["digest"] == image_digest
+    assert result["digest"] == MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
     assert result["source_uri"] == "https://github.com/example/widgets"
 
 
 @pytest.mark.asyncio
 async def test_process_single_image_treats_missing_tagged_spdx_sbom_as_noop():
-    image_digest = (
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    image_digest_hex = image_digest.split(":", 1)[1]
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        f"@{image_digest}"
-    )
-    sbom_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/"
-        "github.com/example/widgets/cmd/server@sha256:sbommanifest"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        f"dockerImages/widgets-api@{image_digest}"
-    )
-    manifest_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/manifests/{image_digest}"
-    )
-    referrers_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/referrers/{image_digest}"
-    )
-    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
-    config_url = (
-        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
-        f"widgets-api/blobs/{config_digest}"
-    )
-    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
-    config_without_labels["config"]["Labels"] = {}
     client = _FakeClient(
         {
-            manifest_url: _FakeResponse(
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
                 200,
                 json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": image_digest},
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             ),
-            config_url: _FakeResponse(200, json_body=config_without_labels),
-            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body=mock_single_image_config_without_labels(),
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(
+                200,
+                json_body={"manifests": []},
+            ),
         },
     )
 
@@ -1010,44 +787,37 @@ async def test_process_single_image_treats_missing_tagged_spdx_sbom_as_noop():
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: [
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: [
                 {
-                    "uri": sbom_uri,
-                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                    "uri": MOCK_SUPPLY_CHAIN_SBOM_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
                 }
             ]
         },
     )
 
     assert fetch_failed is False
-    assert result["digest"] == image_digest
+    assert result["digest"] == MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
     assert "source_uri" not in result
 
 
 @pytest.mark.asyncio
 async def test_process_single_image_skips_manifest_list():
-    image_uri = (
-        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
-        "@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
-    artifact_name = (
-        "projects/test-project/locations/us-central1/repositories/docker-repo/"
-        "dockerImages/widgets-api@"
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    )
     client = MagicMock()
 
     result, fetch_failed = await _process_single_image(
         client,
         _fake_token_manager(),
         {
-            "name": artifact_name,
-            "uri": image_uri,
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
             "mediaType": "application/vnd.oci.image.index.v1+json",
         },
     )
