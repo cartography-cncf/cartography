@@ -30,19 +30,7 @@ gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
         OntologyNodeMapping(
-            node_label="GCPArtifactRegistryContainerImage",
-            fields=[
-                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
-                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
-                OntologyFieldMapping(
-                    ontology_field="architecture", node_field="architecture"
-                ),
-                OntologyFieldMapping(ontology_field="os", node_field="os"),
-                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="GCPArtifactRegistryPlatformImage",
+            node_label="GCPArtifactRegistryImage",
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(
