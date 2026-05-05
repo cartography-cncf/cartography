@@ -42,7 +42,7 @@ def test_get_factories_retries_transient_error() -> None:
     mock_sleep.assert_called_once()
 
 
-def test_sync_data_factories_raises_transient_error_without_cleanup() -> None:
+def test_sync_data_factories_skips_load_and_cleanup_on_transient_error() -> None:
     neo4j_session = MagicMock()
     credentials = MagicMock()
 

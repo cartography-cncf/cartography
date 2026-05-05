@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -6,8 +5,6 @@ import backoff
 from azure.core.exceptions import HttpResponseError
 
 from cartography.helpers import backoff_handler
-
-logger = logging.getLogger(__name__)
 
 _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 _MAX_TRIES = 3
