@@ -320,8 +320,55 @@ def _repo_url_from_spdx_package(package: dict[str, Any]) -> str | None:
     return None
 
 
+def _sha256_digest_value(digest: str) -> str | None:
+    algorithm, separator, digest_value = digest.partition(":")
+    if algorithm != "sha256" or not separator or not digest_value:
+        return None
+    return digest_value
+
+
+def _digest_value_from_oci_purl(locator: str) -> str | None:
+    if not locator.startswith("pkg:oci/"):
+        return None
+    _, separator, digest_part = locator.partition("@sha256:")
+    if not separator:
+        return None
+    return digest_part.split("?", 1)[0].split("#", 1)[0]
+
+
+def _spdx_package_matches_subject_digest(
+    package: dict[str, Any],
+    subject_digest: str,
+) -> bool | None:
+    subject_digest_value = _sha256_digest_value(subject_digest)
+    if subject_digest_value is None:
+        return None
+
+    package_name = package.get("name")
+    if package_name == subject_digest or package_name == subject_digest_value:
+        return True
+
+    oci_digest_values = set()
+    for external_ref in package.get("externalRefs") or []:
+        if not isinstance(external_ref, dict):
+            continue
+        if external_ref.get("referenceType") != "purl":
+            continue
+        locator = external_ref.get("referenceLocator")
+        if not isinstance(locator, str):
+            continue
+        oci_digest_value = _digest_value_from_oci_purl(locator)
+        if oci_digest_value:
+            oci_digest_values.add(oci_digest_value)
+
+    if not oci_digest_values:
+        return None
+    return subject_digest_value in oci_digest_values
+
+
 def _extract_source_from_spdx_sbom(
     sbom: dict[str, Any],
+    subject_digest: str | None = None,
     expected_source_uri: str | None = None,
 ) -> dict[str, str]:
     """Extract source repo from a digest-specific SPDX SBOM.
@@ -329,7 +376,9 @@ def _extract_source_from_spdx_sbom(
     Without an expected source, only packages named by documentDescribes are
     considered. When the image path already identifies the expected repository,
     accept that repository from any package because ko SBOMs often describe the
-    OCI image package and list the source module as a dependency package.
+    OCI image package and list the source module as a dependency package. When
+    documentDescribes names the OCI image package, validate that it matches the
+    expected image digest before using dependency package source hints.
     """
     described_ids = {
         spdx_id
@@ -342,6 +391,22 @@ def _extract_source_from_spdx_sbom(
     packages = [
         package for package in sbom.get("packages") or [] if isinstance(package, dict)
     ]
+    described_packages = [
+        package for package in packages if package.get("SPDXID") in described_ids
+    ]
+    subject_digest_verified = False
+    if subject_digest:
+        subject_digest_matches = [
+            matches
+            for package in described_packages
+            if (
+                matches := _spdx_package_matches_subject_digest(package, subject_digest)
+            )
+            is not None
+        ]
+        if False in subject_digest_matches:
+            return {}
+        subject_digest_verified = any(subject_digest_matches)
 
     if expected_source_uri:
         expected_source_uri = _normalize_github_url(expected_source_uri)
@@ -352,17 +417,25 @@ def _extract_source_from_spdx_sbom(
         return {}
 
     repo_urls: set[str] = set()
-    for package in packages:
-        if package.get("SPDXID") not in described_ids:
-            continue
+    for package in described_packages:
         repo_url = _repo_url_from_spdx_package(package)
         if repo_url:
             repo_urls.add(repo_url)
 
-    if len(repo_urls) != 1:
-        return {}
+    if len(repo_urls) == 1:
+        return {"source_uri": next(iter(repo_urls))}
 
-    return {"source_uri": next(iter(repo_urls))}
+    if subject_digest_verified:
+        dependency_repo_urls = {
+            repo_url
+            for package in packages
+            if package.get("SPDXID") not in described_ids
+            if (repo_url := _repo_url_from_spdx_package(package))
+        }
+        if len(dependency_repo_urls) == 1:
+            return {"source_uri": next(iter(dependency_repo_urls))}
+
+    return {}
 
 
 def _sbom_artifacts_by_subject_digest(
@@ -423,6 +496,7 @@ async def _fetch_spdx_layer_provenance(
 
         provenance = _extract_source_from_spdx_sbom(
             blob,
+            subject_digest=subject_digest,
             expected_source_uri=expected_source_uri,
         )
         if provenance:

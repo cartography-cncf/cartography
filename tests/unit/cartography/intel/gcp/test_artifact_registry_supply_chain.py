@@ -121,6 +121,24 @@ def test_extract_source_from_spdx_sbom_rejects_missing_expected_source_package()
     assert provenance == {}
 
 
+def test_extract_source_from_spdx_sbom_reads_ko_dependency_when_subject_matches():
+    provenance = _extract_source_from_spdx_sbom(
+        mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+        subject_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+    )
+
+    assert provenance == {"source_uri": "https://github.com/example/widgets"}
+
+
+def test_extract_source_from_spdx_sbom_rejects_ko_dependency_when_subject_mismatches():
+    provenance = _extract_source_from_spdx_sbom(
+        mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+        subject_digest="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    )
+
+    assert provenance == {}
+
+
 def test_extract_source_from_spdx_sbom_ignores_dependency_only_packages():
     sbom = mock_spdx_sbom(
         MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
@@ -618,7 +636,7 @@ async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
             ),
             MOCK_SUPPLY_CHAIN_DIGEST_SBOM_BLOB_URL: _FakeResponse(
                 200,
-                json_body=mock_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+                json_body=mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
             ),
         },
     )
