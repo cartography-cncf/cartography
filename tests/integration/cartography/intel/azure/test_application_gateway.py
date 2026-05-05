@@ -180,6 +180,10 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         "USES_FRONTEND_IP",
         rel_direction_right=True,
     ) == {(rule_id, frontend_ip_id), (path_rule_id, frontend_ip_id)}
+    # Only the Basic rule emits ROUTES_TO; PathBasedRouting routes via a
+    # url_path_map whose path rules can target different backends, so we keep
+    # `url_path_map_id` as a property pointer and skip the edge until path
+    # rules are modelled explicitly.
     assert check_rels(
         neo4j_session,
         "AzureApplicationGatewayRule",
@@ -188,7 +192,7 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         "id",
         "ROUTES_TO",
         rel_direction_right=True,
-    ) == {(rule_id, backend_pool_id), (path_rule_id, backend_pool_id)}
+    ) == {(rule_id, backend_pool_id)}
 
     # Verify listener + backend settings were folded onto the Rule node
     rule_props = neo4j_session.run(
@@ -207,6 +211,23 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
     assert rule_props["bport"] == 443
     assert rule_props["has_lid"]
     assert rule_props["has_sid"]
+
+    # PathBasedRouting rule keeps url_path_map_id as a pointer but does not
+    # synthesize backend_* fields from the path map's defaults.
+    path_rule_props = neo4j_session.run(
+        """
+        MATCH (r:AzureApplicationGatewayRule {id: $id})
+        RETURN r.url_path_map_id AS pmid,
+               r.backend_http_settings_id AS sid,
+               r.backend_protocol AS bp,
+               r.backend_port AS bport
+        """,
+        id=path_rule_id,
+    ).single()
+    assert path_rule_props["pmid"] is not None
+    assert path_rule_props["sid"] is None
+    assert path_rule_props["bp"] is None
+    assert path_rule_props["bport"] is None
 
 
 def test_load_application_gateway_tags(neo4j_session):

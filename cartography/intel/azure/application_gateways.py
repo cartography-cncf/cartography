@@ -229,47 +229,20 @@ def _build_backend_http_settings_lookup(
     return lookup
 
 
-def _build_url_path_map_lookup(
-    application_gateway: dict,
-) -> dict[str, dict[str, str | None]]:
-    """
-    Build a lookup of url_path_map id -> default backend pool / settings ids.
-
-    PathBasedRouting rules carry their effective backend through a `url_path_map`
-    rather than directly on the rule, so we resolve the path map's defaults to keep
-    the rule's `ROUTES_TO` edge populated and its backend_* properties filled in.
-    """
-    lookup: dict[str, dict[str, str | None]] = {}
-    for path_map in application_gateway.get("url_path_maps", []) or []:
-        path_map_id = path_map.get("id")
-        if not path_map_id:
-            continue
-        default_pool = (
-            path_map.get("default_backend_address_pool")
-            or path_map.get("properties", {}).get("default_backend_address_pool")
-            or {}
-        )
-        default_settings = (
-            path_map.get("default_backend_http_settings")
-            or path_map.get("properties", {}).get("default_backend_http_settings")
-            or {}
-        )
-        lookup[path_map_id] = {
-            "backend_pool_id": default_pool.get("id"),
-            "backend_http_settings_id": default_settings.get("id"),
-        }
-    return lookup
-
-
 def transform_rules(application_gateway: dict) -> list[dict]:
     """
     Flatten request_routing_rules with their referenced HTTP listener and
     backend HTTP settings into a single record per rule, parallel to how
     AzureLoadBalancerRule carries protocol / frontend_port / backend_port.
+
+    PathBasedRouting rules route to a `url_path_map` whose individual path rules
+    can target different backend pools / settings. Resolving only the map's
+    defaults would misrepresent the routing topology, so we keep `url_path_map_id`
+    as a property pointer and skip the `ROUTES_TO` / backend_* fields for those
+    rules until path rules are modelled explicitly.
     """
     listener_lookup = _build_listener_lookup(application_gateway)
     settings_lookup = _build_backend_http_settings_lookup(application_gateway)
-    path_map_lookup = _build_url_path_map_lookup(application_gateway)
 
     empty_listener: dict[str, Any] = {
         "listener_protocol": None,
@@ -316,15 +289,6 @@ def transform_rules(application_gateway: dict) -> list[dict]:
         backend_pool_id = backend_pool_ref.get("id")
         backend_http_settings_id = backend_settings_ref.get("id")
         url_path_map_id = url_path_map_ref.get("id")
-
-        # PathBasedRouting: fall back to the url_path_map's defaults when the
-        # rule has no direct backend pool / settings.
-        if url_path_map_id and url_path_map_id in path_map_lookup:
-            defaults = path_map_lookup[url_path_map_id]
-            if not backend_pool_id:
-                backend_pool_id = defaults.get("backend_pool_id")
-            if not backend_http_settings_id:
-                backend_http_settings_id = defaults.get("backend_http_settings_id")
 
         listener_attrs = (
             listener_lookup.get(listener_id, empty_listener)

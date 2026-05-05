@@ -2206,7 +2206,7 @@ Representation of a Backend Address Pool for an Azure Application Gateway.
 
 #### Relationships
 
-- A Backend Pool routes traffic to Network Interfaces.
+- A Backend Pool routes traffic to Network Interfaces. Pools targeting raw IP addresses, FQDNs, or App Service backends are captured as `ip_addresses` / `fqdns` properties only; `ROUTES_TO` is currently NIC-only.
     ```cypher
     (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
     ```
@@ -2241,7 +2241,7 @@ Representation of a Request Routing Rule for an Azure Application Gateway. Prope
 
 #### Relationships
 
-- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. For `PathBasedRouting` rules, the `ROUTES_TO` edge and the `backend_*` properties are resolved through the rule's URL path map defaults; per-path overrides are not modeled as separate nodes.
+- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. `PathBasedRouting` rules expose only `url_path_map_id` as a pointer; their `ROUTES_TO` edge and `backend_*` properties are not populated, since individual path rules can target different backends and are not yet modeled.
     ```cypher
     (AzureApplicationGatewayRule)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
     (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
