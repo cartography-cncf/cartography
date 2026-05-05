@@ -465,12 +465,11 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
-- **GitHubOrganization** via **RESOURCE** relationship
-  - Dependencies are scoped to the owning organization for cleanup
-
-    ```
-    (GitHubOrganization)-[:RESOURCE]->(Dependency)
-    ```
+Dependency nodes are deliberately shared across organizations and repositories
+(the same `name|requirements` id is reused everywhere it appears), so they are
+not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
+are cleaned up globally once per sync cycle, alongside other shared GitHub
+nodes such as `PythonLibrary`.
 
 ### ImageTag to GitHubRepository (Cross-module relationship)
 

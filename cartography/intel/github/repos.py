@@ -1506,14 +1506,12 @@ def load_github_dependencies(
     neo4j_session: neo4j.Session,
     update_tag: int,
     dependencies: List[Dict],
-    owner_org_id: str,
 ) -> None:
     """
     Ingest GitHub dependency data into Neo4j using the new data model.
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param dependencies: List of dependency objects from GitHub's dependency graph
-    :param owner_org_id: URL of the owning GitHub organization, used as the sub_resource scope
     :return: Nothing
     """
     if not dependencies:
@@ -1523,7 +1521,6 @@ def load_github_dependencies(
         GitHubDependencySchema(),
         dependencies,
         lastupdated=update_tag,
-        owner_org_id=owner_org_id,
     )
 
 
@@ -1552,10 +1549,13 @@ def load_github_dependency_manifests(
 def cleanup_github_dependencies(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    owner_org_id: str,
 ) -> None:
-    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
-    GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
+    """
+    Delete stale Dependency nodes and their relationships. Dependency uses
+    unscoped cleanup (see GitHubDependencySchema docstring) so this runs once
+    per sync cycle alongside the other global resources, not per organization.
+    """
+    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -1727,6 +1727,7 @@ def cleanup_global_resources(
     cleanup_github_owners(neo4j_session, common_job_parameters)
     cleanup_github_collaborators(neo4j_session, common_job_parameters)
     cleanup_python_requirements(neo4j_session, common_job_parameters)
+    cleanup_github_dependencies(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1780,17 +1781,16 @@ def load(
         ),
         None,
     )
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
+    )
     if owner_org_id is not None:
         load_github_dependency_manifests(
             neo4j_session,
             common_job_parameters["UPDATE_TAG"],
             repo_data["manifests"],
-            owner_org_id,
-        )
-        load_github_dependencies(
-            neo4j_session,
-            common_job_parameters["UPDATE_TAG"],
-            repo_data["dependencies"],
             owner_org_id,
         )
         load_branch_protection_rules(
@@ -1897,7 +1897,7 @@ def sync(
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
-    # GitHubOrganization to GitHubBranchProtectionRule, Dependency and
+    # GitHubOrganization to GitHubBranchProtectionRule and
     # DependencyGraphManifest. Scoped to the current org so a multi-org sync
     # doesn't replay the same global Cypher per organization. Remove in
     # v1.0.0.
@@ -1908,10 +1908,9 @@ def sync(
         migration_params,
     )
     run_analysis_job(
-        "github_dependency_resource_edge_migration.json",
+        "github_dependency_manifest_resource_edge_migration.json",
         neo4j_session,
         migration_params,
     )
-    cleanup_github_dependencies(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)

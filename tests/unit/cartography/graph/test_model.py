@@ -59,10 +59,6 @@ SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
     # statement still referenced by account B; the per-policy STATEMENT scope
     # avoids that cross-account interference.
     "AWSPolicyStatement",
-    # OIDC providers express a trust relationship with the cluster rather than
-    # a strict ownership; an OIDC provider can in principle be referenced by
-    # multiple clusters.
-    "KubernetesOIDCProvider",
 }
 
 # Modules whose APIs do not expose a single tenant root that could anchor every
@@ -100,7 +96,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # rather than an organization, so neither is anchored to a single tenant.
     "GitHubRepository",
     "GitHubUser",
-    # Shared GitHub nodes (cross-org / cross-repo).
+    # Shared GitHub nodes (cross-org / cross-repo). Dependency uses a global
+    # `name|requirements` id and is referenced by repos across orgs, so it
+    # uses unscoped cleanup like PythonLibrary.
+    "Dependency",
     "ProgrammingLanguage",
     "PythonLibrary",
     # Workday canonical human (mirrors the ontology pattern).

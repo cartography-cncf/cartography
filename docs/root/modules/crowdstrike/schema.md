@@ -5,7 +5,10 @@
 Representation of a CrowdStrike customer tenant. The `id` field is the
 customer's CID (Customer ID); CrowdstrikeHost and SpotlightVulnerability
 nodes belonging to that tenant are linked via `RESOURCE` and cleaned up
-together when stale.
+together when stale. The node also carries the shared `:Tenant` label so
+cross-module queries that match `(:Tenant)` discover this organizational
+boundary, mirroring the convention used by other tenant roots such as
+`KandjiTenant` and `GoogleWorkspaceTenant`.
 
 | Field | Description |
 |-------|-------------|

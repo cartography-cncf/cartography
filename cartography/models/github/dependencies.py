@@ -28,30 +28,6 @@ class GitHubDependencyNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GitHubDependencyToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GitHubDependencyToOrganizationRel(CartographyRelSchema):
-    """
-    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(Dependency).
-    Dependencies are scoped to the organization for cleanup purposes so that a
-    single GraphJob run cleans up dependencies from every repo in the org.
-    """
-
-    target_node_label: str = "GitHubOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: GitHubDependencyToOrganizationRelProperties = (
-        GitHubDependencyToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class GitHubDependencyToRepositoryRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     requirements: PropertyRef = PropertyRef("requirements")
@@ -91,14 +67,25 @@ class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubDependencySchema(CartographyNodeSchema):
+    """
+    Dependency is a globally shared package node: the same canonical
+    `name|requirements` is referenced by many repositories across many orgs, so
+    we cannot scope its node-level cleanup to a single tenant without risking
+    cross-tenant deletes (see PythonLibrary for the same pattern). Cleanup is
+    therefore unscoped and runs once per sync cycle from
+    `cleanup_global_resources`. The links to repositories (REQUIRES) and to
+    manifests (HAS_DEP) are modeled as `other_relationships`.
+    """
+
     label: str = "Dependency"
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
-    sub_resource_relationship: GitHubDependencyToOrganizationRel = (
-        GitHubDependencyToOrganizationRel()
-    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubDependencyToRepositoryRel(),
             DependencyGraphManifestToDependencyRel(),
         ]
     )
+
+    @property
+    def scoped_cleanup(self) -> bool:
+        return False

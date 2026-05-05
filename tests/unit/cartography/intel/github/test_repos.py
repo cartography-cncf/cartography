@@ -373,11 +373,9 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_github_owners.assert_not_called()
     mock_cleanup_github_collaborators.assert_not_called()
     mock_cleanup_python_requirements.assert_not_called()
-    mock_cleanup_github_dependencies.assert_called_once_with(
-        None,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-        "https://github.com/example-org",
-    )
+    # cleanup_github_dependencies runs in cleanup_global_resources (once per
+    # sync cycle), not from per-org sync(); see GitHubDependencySchema.
+    mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
@@ -455,6 +453,8 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_owners.assert_not_called()
     mock_cleanup_github_collaborators.assert_not_called()
     mock_cleanup_python_requirements.assert_not_called()
-    mock_cleanup_github_dependencies.assert_called_once()
+    # cleanup_github_dependencies runs in cleanup_global_resources (once per
+    # sync cycle), not from per-org sync(); see GitHubDependencySchema.
+    mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()
