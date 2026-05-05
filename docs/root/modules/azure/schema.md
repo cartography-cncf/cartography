@@ -635,7 +635,12 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 
 ### AzureSQLServerFirewallRule :: IpPermissionInbound :: IpRule
 
-Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules). Firewall rules whose `start_ip_address` and `end_ip_address` cover `0.0.0.0` to `255.255.255.255` (or the special "Allow Azure Services" `0.0.0.0`/`0.0.0.0` row) make the server reachable from public IPs.
+Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules).
+
+Two distinct cases are worth calling out and should NOT be conflated by downstream rules:
+
+- **Public-internet exposure**: a rule whose range covers public IP space (for example `start_ip_address = 0.0.0.0` / `end_ip_address = 255.255.255.255`, or any rule whose range overlaps the public internet) lets arbitrary clients on the public internet reach the server.
+- **Allow Azure services**: the special `start_ip_address = 0.0.0.0` / `end_ip_address = 0.0.0.0` row (also exposed via the SQL Server's `public_network_access` + the "Allow Azure services and resources to access this server" toggle) allows traffic from Azure-hosted services / resources only, not arbitrary public IPs. It is a different exposure class and should be flagged separately.
 
 > **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
 
