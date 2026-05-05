@@ -57,6 +57,14 @@ TEST_SINGLE_PLATFORM_IMAGE_URI = (
 TEST_UNMATCHED_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/unmatched-repository:v1.0"
 )
+TEST_GAR_PROJECT_ID = "test-aibom-gar-project"
+TEST_GAR_REPOSITORY_ID = (
+    f"projects/{TEST_GAR_PROJECT_ID}/locations/us-central1/repositories/docker-repo"
+)
+TEST_GAR_IMAGE_DIGEST = "sha256:gar123"
+TEST_GAR_IMAGE_URI = (
+    f"us-central1-docker.pkg.dev/{TEST_GAR_PROJECT_ID}/docker-repo/my-app:latest"
+)
 TEST_SOURCE_KEY = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@sha256:fake"
 )
@@ -471,4 +479,9 @@ AIBOM_SINGLE_PLATFORM_REPORT = {
             },
         },
     },
+}
+
+AIBOM_GAR_REPORT = {
+    **AIBOM_SINGLE_PLATFORM_REPORT,
+    "image_uri": TEST_GAR_IMAGE_URI,
 }

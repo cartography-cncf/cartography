@@ -6,6 +6,7 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.data_factory_util import call_data_factory_operation
 from cartography.models.azure.data_factory.data_factory import AzureDataFactorySchema
 from cartography.util import timeit
 
@@ -19,7 +20,10 @@ def get_factories(client: DataFactoryManagementClient) -> list[Any]:
     """
     Gets Data Factories for the subscription.
     """
-    return [f.as_dict() for f in client.factories.list()]
+    return call_data_factory_operation(
+        "list data factories",
+        lambda: [f.as_dict() for f in client.factories.list()],
+    )
 
 
 def transform_factories(factories_raw: list[Any]) -> list[dict[str, Any]]:

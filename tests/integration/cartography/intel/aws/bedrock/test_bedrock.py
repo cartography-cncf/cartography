@@ -98,6 +98,99 @@ class TestBedrockFoundationModelsSync:
         }
 
 
+class TestBedrockAIModelSemanticLabel:
+    """Tests that Bedrock model nodes carry the AIModel semantic label and _ont_* fields."""
+
+    @patch.object(
+        cartography.intel.aws.bedrock.foundation_models,
+        "get_foundation_models",
+        return_value=FOUNDATION_MODELS,
+    )
+    def test_foundation_models_have_aimodel_label(self, mock_get, neo4j_session):
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+
+        cartography.intel.aws.bedrock.foundation_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        assert check_nodes(
+            neo4j_session,
+            "AIModel",
+            ["_ont_name", "_ont_provider", "_ont_status", "_ont_type", "_ont_source"],
+        ) == {
+            ("Claude 3.5 Sonnet", "Anthropic", "ACTIVE", "foundation", "aws"),
+            ("Titan Embeddings G1 - Text", "Amazon", "ACTIVE", "foundation", "aws"),
+            ("Llama 3 70B Instruct", "Meta", "ACTIVE", "foundation", "aws"),
+        }
+
+    @patch.object(
+        cartography.intel.aws.bedrock.custom_models,
+        "get_custom_models",
+        return_value=CUSTOM_MODELS,
+    )
+    @patch.object(
+        cartography.intel.aws.bedrock.foundation_models,
+        "get_foundation_models",
+        return_value=FOUNDATION_MODELS,
+    )
+    def test_custom_models_have_aimodel_label_with_finetuned_type(
+        self, mock_fm, mock_cm, neo4j_session
+    ):
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+
+        cartography.intel.aws.bedrock.foundation_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+        cartography.intel.aws.bedrock.custom_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        custom_rows = neo4j_session.run(
+            """
+            MATCH (m:AIModel:AWSBedrockCustomModel)
+            RETURN m._ont_name AS name,
+                   m._ont_provider AS provider,
+                   m._ont_status AS status,
+                   m._ont_type AS type,
+                   m._ont_source AS source
+            """
+        ).data()
+        assert custom_rows == [
+            {
+                "name": "test-custom-model",
+                "provider": "aws",
+                "status": "Active",
+                "type": "fine-tuned",
+                "source": "aws",
+            }
+        ]
+
+
 class TestBedrockAgentsSync:
     """Tests for agent sync including relationship creation."""
 

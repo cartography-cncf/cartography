@@ -151,7 +151,7 @@ Representation of a workflow/function context emitted by AIBOM.
 ### Linking constraints
 
 - If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against any node carrying the `:Image` ontology label. No graph traversal is needed.
-- For tag-based URIs (`repo:tag`), AIBOM resolves digests via `ECRRepositoryImage` → `ECRImage` as a provider-specific fallback. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests.
+- For tag-based URIs (`repo:tag`), AIBOM resolves digests through provider tag/reference nodes such as `ECRRepositoryImage` and `GCPArtifactRegistryRepositoryImage`. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests.
 - A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> Image` links, and `AIBOMComponent` nodes are not materialized until a canonical digest is resolved.
 
 ### Example queries
