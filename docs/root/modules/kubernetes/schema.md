@@ -92,6 +92,8 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 ### KubernetesNamespace
 Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
 
+> **Ontology Mapping**: This node has the extra label `ComputeNamespace` to enable cross-platform queries for workload-isolation scopes across different systems.
+
 | Field | Description |
 |-------|-------------|
 | **id** | UID of the Kubernetes namespace |
@@ -117,9 +119,16 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          ...)
     ```
 
+- `KubernetesNamespace` points at its parent `KubernetesCluster` via the unified workload chain.
+    ```
+    (:KubernetesNamespace)-[:WORKLOAD_PARENT]->(:KubernetesCluster)
+    ```
+
 
 ### KubernetesPod
 Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/workloads/pods/)
+
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask, AzureGroupContainer).
 
 | Field | Description |
 |-------|-------------|
@@ -145,9 +154,19 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
     (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- A `KubernetesNamespace` contains a `KubernetesPod`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod)
+    ```
+
+- `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
     ```
 
 - `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
@@ -190,20 +209,24 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 
 #### Relationships
-- `KubernetesPod` has `KubernetesContainer`.
+- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
+- `KubernetesContainer` points at its parent `KubernetesPod` via the unified workload chain.
+    ```
+    (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
+    ```
+
 - `KubernetesContainer` references container images from registries.
   `HAS_IMAGE` matches the runtime digest (`status_image_sha`) reported in container status.
-  That means the relationship can point at either a top-level image artifact or a platform-specific manifest, depending on which registry node type has the matching digest.
+  For GCP Artifact Registry, the relationship points at the canonical digest-scoped `GCPArtifactRegistryImage`, not the scoped `GCPArtifactRegistryRepositoryImage`.
   Runtime fields like `status_image_id` and `status_image_sha` remain on the container for later exact-image resolution work.
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.

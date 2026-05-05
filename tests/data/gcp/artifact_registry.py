@@ -76,6 +76,48 @@ MOCK_DOCKER_IMAGES = [
     },
 ]
 
+MOCK_SINGLE_IMAGE_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000abc",
+        "size": 4096,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size": 8192,
+        },
+    ],
+}
+
+MOCK_SINGLE_IMAGE_CONFIG = {
+    "architecture": "arm64",
+    "os": "linux",
+    "variant": "v8",
+    "created": "2024-01-10T00:00:00Z",
+    "config": {
+        "Labels": {
+            "org.opencontainers.image.source": "https://github.com/example/widgets.git",
+            "org.opencontainers.image.revision": "0123456789abcdef",
+        },
+    },
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        ],
+    },
+    "history": [
+        {
+            "created": "2024-01-10T00:00:00Z",
+            "created_by": "COPY app /app",
+        },
+    ],
+}
+
 MOCK_HELM_CHARTS = [
     {
         "name": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789",
@@ -122,27 +164,41 @@ MOCK_YUM_ARTIFACTS = [
 # Transformed manifest data for the my-app image (matches MOCK_DOCKER_IMAGES[0])
 MOCK_PLATFORM_IMAGES = [
     {
-        "id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123@sha256:def456",
+        "id": "sha256:def456",
         "digest": "sha256:def456",
+        "type": "image",
         "architecture": "amd64",
         "os": "linux",
         "os_version": None,
         "os_features": None,
         "variant": None,
         "media_type": "application/vnd.oci.image.manifest.v1+json",
-        "parent_artifact_id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
+        "parent_digest": "sha256:abc123",
+        "child_digest": "sha256:def456",
+        "child_image_digests": ["sha256:def456"],
         "project_id": "test-project",
+        "source_uri": None,
+        "source_revision": None,
+        "source_file": None,
+        "layer_diff_ids": None,
     },
     {
-        "id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123@sha256:ghi789",
+        "id": "sha256:ghi789",
         "digest": "sha256:ghi789",
+        "type": "image",
         "architecture": "arm64",
         "os": "linux",
         "os_version": None,
         "os_features": None,
         "variant": "v8",
         "media_type": "application/vnd.oci.image.manifest.v1+json",
-        "parent_artifact_id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
+        "parent_digest": "sha256:abc123",
+        "child_digest": "sha256:ghi789",
+        "child_image_digests": ["sha256:ghi789"],
         "project_id": "test-project",
+        "source_uri": None,
+        "source_revision": None,
+        "source_file": None,
+        "layer_diff_ids": None,
     },
 ]

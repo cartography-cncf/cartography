@@ -118,6 +118,70 @@ MOCK_SERVICE_WITH_DIGEST = [
     },
 ]
 
+MOCK_SERVICE_WITH_TAG_ONLY_TEMPLATE_AND_DIGESTED_REVISION = [
+    {
+        "name": "projects/test-project/locations/us-central1/services/test-service",
+        "labels": {},
+        "description": "Test Cloud Run service",
+        "uri": "https://test-service-abc123-uc.a.run.app",
+        "ingress": "INGRESS_TRAFFIC_ALL",
+        "latestReadyRevision": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+        "template": {
+            "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+            "containers": [
+                {
+                    "name": "server",
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/server:abc1234",
+                },
+                {
+                    "name": "metrics",
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/metrics:def5678"
+                    f"@{TEST_REVISION_SIDECAR_DIGEST}",
+                },
+            ],
+        },
+    },
+    {
+        "name": "projects/test-project/locations/us-central1/services/digest-service",
+        "labels": {},
+        "description": "Test Cloud Run service with digest-pinned template",
+        "uri": "https://digest-service-abc123-uc.a.run.app",
+        "ingress": "INGRESS_TRAFFIC_ALL",
+        "latestReadyRevision": "projects/test-project/locations/us-central1/services/digest-service/revisions/digest-service-00001-abc",
+        "template": {
+            "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+            "containers": [
+                {
+                    "name": "server",
+                    "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/digest-service/server"
+                    f"@{TEST_REVISION_PRIMARY_DIGEST}",
+                },
+            ],
+        },
+    },
+]
+
+MOCK_LATEST_READY_REVISION_WITH_DIGESTED_IMAGES = {
+    "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc": {
+        "name": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
+        "service": "test-service",
+        "containers": [
+            {
+                "name": "metrics",
+                "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/metrics:def5678"
+                f"@{TEST_REVISION_SIDECAR_DIGEST}",
+            },
+            {
+                "name": "server",
+                "image": "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/server:abc1234"
+                f"@{TEST_REVISION_PRIMARY_DIGEST}",
+            },
+        ],
+        "serviceAccount": "test-sa@test-project.iam.gserviceaccount.com",
+        "logUri": "https://console.cloud.google.com/logs/viewer?project=test-project",
+    },
+}
+
 MOCK_JOB_WITH_DIGEST = [
     {
         "name": "projects/test-project/locations/us-west1/jobs/test-job",

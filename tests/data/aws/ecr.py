@@ -159,6 +159,19 @@ SAMPLE_CONFIG_BLOB = {
     },
 }
 
+SAMPLE_CONFIG_BLOB_WITH_CIRCLECI_LABELS = {
+    **SAMPLE_CONFIG_BLOB,
+    "config": {
+        "Labels": {
+            "com.example.CIRCLE_REPOSITORY_URL": (
+                "git@github.com:exampleorg/service.git"
+            ),
+            "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            "com.example.DOCKERFILE": "deploy/Dockerfile",
+        },
+    },
+}
+
 # Multi-arch manifest list for testing
 SAMPLE_MANIFEST_LIST = {
     "schemaVersion": 2,

@@ -7,6 +7,7 @@ from typing import Callable
 from typing import Iterable
 from typing import Protocol
 
+from azure.storage import blob as azure_blob
 from typing_extensions import Self
 
 from cartography.intel.common.report_source import build_azblob_source
@@ -260,7 +261,7 @@ class AzureBlobContainerReader(_BaseReader):
         account_name: str,
         container_name: str,
         prefix: str,
-        credential: Any,
+        credential: Any = None,
         source_uri: str | None = None,
     ) -> None:
         self.source_uri = source_uri or build_azblob_source(
@@ -271,7 +272,11 @@ class AzureBlobContainerReader(_BaseReader):
         self._account_name = account_name
         self._container_name = container_name
         self._prefix = prefix
-        from azure.storage import blob as azure_blob
+
+        if credential is None:
+            from azure.identity import AzureCliCredential
+
+            credential = AzureCliCredential()
 
         self._client = azure_blob.BlobServiceClient(
             account_url=f"https://{account_name}.blob.core.windows.net",

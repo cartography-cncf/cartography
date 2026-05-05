@@ -140,10 +140,7 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
 
     with build_report_reader_for_source(
         source,
-        azure_sp_auth=config.azure_sp_auth,
-        azure_tenant_id=config.azure_tenant_id,
-        azure_client_id=config.azure_client_id,
-        azure_client_secret=config.azure_client_secret,
+        config=config,
     ) as reader:
         sync_docker_scout_from_report_reader(
             neo4j_session,

@@ -2,10 +2,13 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from google.api_core.exceptions import DeadlineExceeded
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import PermissionDenied
 from googleapiclient.errors import HttpError
 
+from cartography.intel.gcp.cloudrun.util import build_cloud_run_resource_retry
+from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LIST_TIMEOUT
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.cloudrun.util import fetch_cloud_run_resources_for_locations
 from cartography.intel.gcp.cloudrun.util import list_cloud_run_resources_for_location
@@ -161,8 +164,11 @@ def test_discover_cloud_run_locations_falls_back_when_v1_returns_no_locations():
 
 
 def test_list_cloud_run_resources_for_location_skips_permission_denied():
+    def _fetcher(**_):
+        raise PermissionDenied("nope")
+
     result = list_cloud_run_resources_for_location(
-        fetcher=lambda: (_ for _ in ()).throw(PermissionDenied("nope")),
+        fetcher=_fetcher,
         resource_type="jobs",
         location="projects/test-project/locations/us-central1",
         project_id="test-project",
@@ -172,13 +178,107 @@ def test_list_cloud_run_resources_for_location_skips_permission_denied():
 
 
 def test_list_cloud_run_resources_for_location_reraises_google_api_call_error():
+    def _fetcher(**_):
+        raise GoogleAPICallError("boom")
+
     with pytest.raises(GoogleAPICallError):
         list_cloud_run_resources_for_location(
-            fetcher=lambda: (_ for _ in ()).throw(GoogleAPICallError("boom")),
+            fetcher=_fetcher,
             resource_type="jobs",
             location="projects/test-project/locations/us-central1",
             project_id="test-project",
         )
+
+
+def test_list_cloud_run_resources_for_location_passes_retry_and_timeout(mocker):
+    mock_retry = MagicMock()
+    mock_build_retry = mocker.patch(
+        "cartography.intel.gcp.cloudrun.util.build_cloud_run_resource_retry",
+        return_value=mock_retry,
+    )
+    mocker.patch(
+        "cartography.intel.gcp.cloudrun.util.proto_message_to_dict",
+        side_effect=lambda resource: resource,
+    )
+    received_kwargs = {}
+
+    def _fetcher(**kwargs):
+        received_kwargs.update(kwargs)
+        return [{"id": "service-1"}]
+
+    result = list_cloud_run_resources_for_location(
+        fetcher=_fetcher,
+        resource_type="services",
+        location="projects/test-project/locations/us-central1",
+        project_id="test-project",
+    )
+
+    assert result == [{"id": "service-1"}]
+    assert received_kwargs == {
+        "retry": mock_retry,
+        "timeout": CLOUD_RUN_LIST_TIMEOUT,
+    }
+    mock_build_retry.assert_called_once_with(
+        resource_type="services",
+        location="projects/test-project/locations/us-central1",
+        project_id="test-project",
+    )
+
+
+def test_build_cloud_run_resource_retry_retries_deadline_exceeded(mocker):
+    mocker.patch("time.sleep")
+    retry = build_cloud_run_resource_retry(
+        resource_type="services",
+        location="projects/test-project/locations/us-central1",
+        project_id="test-project",
+    )
+
+    calls = 0
+
+    def fetch_resource():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise DeadlineExceeded("slow")
+        return [{"id": "service-1"}]
+
+    result = retry(fetch_resource)()
+
+    assert result == [{"id": "service-1"}]
+    assert calls == 2
+
+
+def test_list_cloud_run_resources_for_location_uses_retry_for_deadline_exceeded(
+    mocker,
+):
+    mocker.patch("time.sleep")
+    mocker.patch(
+        "cartography.intel.gcp.cloudrun.util.proto_message_to_dict",
+        side_effect=lambda resource: resource,
+    )
+    calls = 0
+
+    def _fetcher(*, retry, timeout):
+        assert timeout == CLOUD_RUN_LIST_TIMEOUT
+
+        def _list_resources():
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise DeadlineExceeded("slow")
+            return [{"id": "service-1"}]
+
+        return retry(_list_resources)()
+
+    result = list_cloud_run_resources_for_location(
+        fetcher=_fetcher,
+        resource_type="services",
+        location="projects/test-project/locations/us-central1",
+        project_id="test-project",
+    )
+
+    assert result == [{"id": "service-1"}]
+    assert calls == 2
 
 
 def test_fetch_cloud_run_resources_for_locations_dedupes_and_preserves_input_order():

@@ -91,6 +91,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",
+    # GCP Artifact Registry images are a shared canonical container-image node
+    # whose tenancy is set dynamically through a MatchLink
+    # (`_sub_resource_label`/`_sub_resource_id` kwargs) rather than a fixed
+    # sub_resource_relationship, so the label legitimately has no static root.
+    "GCPArtifactRegistryImage",
     # GitHub nodes that can exist outside any organization. A GitHubUser may
     # be unaffiliated, and a GitHubRepository can be owned by a personal user
     # rather than an organization, so neither is anchored to a single tenant.

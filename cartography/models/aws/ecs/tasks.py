@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -57,6 +58,7 @@ class ECSTaskToECSClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSTaskToECSClusterRel(CartographyRelSchema):
     target_node_label: str = "ECSCluster"
@@ -66,6 +68,53 @@ class ECSTaskToECSClusterRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_TASK"
     properties: ECSTaskToECSClusterRelProperties = ECSTaskToECSClusterRelProperties()
+
+
+@dataclass(frozen=True)
+class ECSTaskToECSServiceWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSService)
+# Only fires when the task is associated with a service (serviceName extracted
+# from the task's `group` field by the loader). Standalone tasks fall through
+# to ECSTaskToECSClusterWorkloadParentRel.
+class ECSTaskToECSServiceWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "ECSService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("serviceName"),
+            "cluster_arn": PropertyRef("clusterArn"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: ECSTaskToECSServiceWorkloadParentRelProperties = (
+        ECSTaskToECSServiceWorkloadParentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSTaskToECSClusterWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSCluster)
+# Fallback parent for standalone tasks (no service). The matcher is gated on
+# `_workload_parent_cluster_arn`, which the ECS loader sets only when the task
+# has no serviceName, so service-attached tasks don't get a duplicate edge.
+class ECSTaskToECSClusterWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "ECSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_workload_parent_cluster_arn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: ECSTaskToECSClusterWorkloadParentRelProperties = (
+        ECSTaskToECSClusterWorkloadParentRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -123,12 +172,15 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSTaskToContainerInstanceRel(),
             ECSTaskToECSClusterRel(),
+            ECSTaskToECSServiceWorkloadParentRel(),
+            ECSTaskToECSClusterWorkloadParentRel(),
             ECSTaskToNetworkInterfaceRel(),
         ]
     )

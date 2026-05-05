@@ -34,7 +34,7 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
-IT(ImageTag) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_FROM --> R
 I(Image) -- PACKAGED_BY --> W
 ```
 
@@ -471,15 +471,15 @@ not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
 are cleaned up globally once per sync cycle, alongside other shared GitHub
 nodes such as `PythonLibrary`.
 
-### ImageTag to GitHubRepository (Cross-module relationship)
+### Image to GitHubRepository (Cross-module relationship)
 
-Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created by analyzing Dockerfile content and matching layer commands against image history.
+Container images (`Image` nodes from any registry: ECR, GitLab, GCP Artifact Registry, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created from provenance metadata or by analyzing Dockerfile content and matching layer commands against image history.
 
 #### Relationships
 
-- ImageTag nodes may be packaged from a GitHubRepository
+- Image nodes may be packaged from a GitHubRepository
     ```
-    (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
+    (:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
 
     Relationship properties:
@@ -490,7 +490,7 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
     - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
     - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
 
-    Note: This relationship uses the generic `ImageTag` semantic label, enabling cross-registry querying (ECR, GitLab, GCR, etc.).
+    Note: This relationship uses the generic `Image` semantic label, enabling cross-registry querying across image registries. Registry-specific pullable references can be reached from `ImageTag` nodes through `(:ImageTag)-[:IMAGE]->(:Image)`.
 
 ### Dependency::PythonLibrary
 
