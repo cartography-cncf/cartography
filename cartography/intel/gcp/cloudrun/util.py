@@ -57,7 +57,7 @@ def build_cloud_run_resource_retry(
 
     def _on_error(exc: Exception) -> None:
         logger.warning(
-            "Retrying Cloud Run %s list in %s for project %s after transient error: %s",
+            "Retrying Cloud Run %s request in %s for project %s after transient error: %s",
             resource_type,
             location_short,
             project_id,
