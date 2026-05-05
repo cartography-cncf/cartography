@@ -70,17 +70,26 @@ def test_ontology_rel_constraints():
     """
     # Pass 1: index every node schema by primary label so we can resolve
     # target_node_label / source_node_label strings to ontology label sets.
+    # Also surface every extra ontology label as a key in its own right: rels
+    # like UserToUserAccountRel point at the abstract label "UserAccount"
+    # (which is never a primary), so without this fallback the constraint
+    # would be silently skipped.
     label_index: dict[str, set[str]] = {}
+    extra_labels_seen: set[str] = set()
     node_classes: list[type[CartographyNodeSchema]] = []
     rel_classes: list[type[CartographyRelSchema]] = []
     for _module_name, element in load_models(cartography.models):
         if issubclass(element, CartographyNodeSchema):
             primary = getattr(element, "label", None)
             if isinstance(primary, str):
-                label_index[primary] = _ontology_labels(element)
+                labels = _ontology_labels(element)
+                label_index[primary] = labels
+                extra_labels_seen.update(labels - {primary})
                 node_classes.append(element)
         elif issubclass(element, CartographyRelSchema):
             rel_classes.append(element)
+    for extra in extra_labels_seen:
+        label_index.setdefault(extra, {extra})
 
     violations: list[str] = []
 
