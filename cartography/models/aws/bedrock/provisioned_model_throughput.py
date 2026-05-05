@@ -47,7 +47,7 @@ class AWSBedrockProvisionedModelThroughputToAWSAccountRelProperties(
 
 
 @dataclass(frozen=True)
-class AWSBedrockProvisionedModelThroughputToAWSAccount(CartographyRelSchema):
+class AWSBedrockProvisionedModelThroughputToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockProvisionedModelThroughput to AWSAccount.
     """
@@ -75,7 +75,7 @@ class AWSBedrockProvisionedModelThroughputToFoundationModelRelProperties(
 
 
 @dataclass(frozen=True)
-class AWSBedrockProvisionedModelThroughputToFoundationModel(CartographyRelSchema):
+class AWSBedrockProvisionedModelThroughputToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockProvisionedModelThroughput to AWSBedrockFoundationModel.
     This relationship is created when the provisioned throughput is for a foundation model.
@@ -104,7 +104,7 @@ class AWSBedrockProvisionedModelThroughputToCustomModelRelProperties(
 
 
 @dataclass(frozen=True)
-class AWSBedrockProvisionedModelThroughputToCustomModel(CartographyRelSchema):
+class AWSBedrockProvisionedModelThroughputToCustomModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockProvisionedModelThroughput to AWSBedrockCustomModel.
     This relationship is created when the provisioned throughput is for a custom model.
@@ -131,12 +131,12 @@ class AWSBedrockProvisionedModelThroughputSchema(CartographyNodeSchema):
     properties: AWSBedrockProvisionedModelThroughputNodeProperties = (
         AWSBedrockProvisionedModelThroughputNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockProvisionedModelThroughputToAWSAccount = (
-        AWSBedrockProvisionedModelThroughputToAWSAccount()
+    sub_resource_relationship: AWSBedrockProvisionedModelThroughputToAWSAccountRel = (
+        AWSBedrockProvisionedModelThroughputToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockProvisionedModelThroughputToFoundationModel(),
-            AWSBedrockProvisionedModelThroughputToCustomModel(),
+            AWSBedrockProvisionedModelThroughputToFoundationModelRel(),
+            AWSBedrockProvisionedModelThroughputToCustomModelRel(),
         ],
     )
