@@ -3,6 +3,8 @@ import re
 from typing import Any
 
 import neo4j
+from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
 
 from cartography.client.core.tx import load
@@ -10,11 +12,15 @@ from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
+from cartography.intel.gcp.clients import build_cloud_run_revision_client
 from cartography.intel.gcp.clients import build_cloud_run_service_client
+from cartography.intel.gcp.cloudrun.util import build_cloud_run_resource_retry
 from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LABEL_BATCH_SIZE
+from cartography.intel.gcp.cloudrun.util import CLOUD_RUN_LIST_TIMEOUT
 from cartography.intel.gcp.cloudrun.util import fetch_cloud_run_resources_for_locations
 from cartography.intel.gcp.cloudrun.util import list_cloud_run_resources_for_location
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
 from cartography.models.gcp.cloudrun.service_container import (
     GCPCloudRunServiceContainerSchema,
@@ -87,12 +93,135 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
     return transformed
 
 
-def transform_containers(services_data: list[dict], project_id: str) -> list[dict]:
+def _get_revision_location(revision_name: str) -> str | None:
+    name_match = re.match(
+        r"(projects/[^/]+/locations/[^/]+)/services/[^/]+/revisions/[^/]+",
+        revision_name,
+    )
+    return name_match.group(1) if name_match else None
+
+
+def _service_has_tag_only_container(service: dict) -> bool:
+    template = service.get("template") or {}
+    containers = template.get("containers", []) or []
+    return any(
+        parse_image_uri(container.get("image"))[1] is None for container in containers
+    )
+
+
+@timeit
+def get_latest_ready_revisions(
+    services_data: list[dict],
+    project_id: str,
+    credentials: GoogleCredentials,
+) -> dict[str, dict]:
+    """
+    Fetch latestReadyRevision records only for services whose inline template
+    containers do not already include image digests.
+    """
+    revision_names = sorted(
+        {
+            service["latestReadyRevision"]
+            for service in services_data
+            if service.get("latestReadyRevision")
+            and _service_has_tag_only_container(service)
+        },
+    )
+    if not revision_names:
+        return {}
+
+    client = build_cloud_run_revision_client(credentials=credentials)
+    revisions: dict[str, dict] = {}
+    for revision_name in revision_names:
+        revision_location = _get_revision_location(revision_name)
+        if revision_location is None:
+            logger.debug(
+                "Could not parse Cloud Run revision location from %s for project %s.",
+                revision_name,
+                project_id,
+            )
+            revision_location = project_id
+        retry = build_cloud_run_resource_retry(
+            resource_type="revision",
+            location=revision_location,
+            project_id=project_id,
+        )
+        try:
+            revision = client.get_revision(
+                name=revision_name,
+                retry=retry,
+                timeout=CLOUD_RUN_LIST_TIMEOUT,
+            )
+        except (NotFound, PermissionDenied) as e:
+            logger.warning(
+                "Could not retrieve Cloud Run latestReadyRevision %s for project %s: %s",
+                revision_name,
+                project_id,
+                e,
+            )
+            continue
+
+        revision_data = proto_message_to_dict(revision)
+        revisions[revision_data["name"]] = revision_data
+
+    return revisions
+
+
+def _revision_container_by_name_or_index(
+    revision: dict | None,
+    explicit_container_name: str | None,
+    index: int,
+) -> dict | None:
+    if not revision:
+        return None
+
+    containers = revision.get("containers", []) or []
+    if explicit_container_name:
+        for container in containers:
+            if container.get("name") == explicit_container_name:
+                return container
+        return None
+
+    if index < len(containers):
+        return containers[index]
+
+    return None
+
+
+def _resolve_image_digest_from_revision(
+    service: dict,
+    explicit_container_name: str | None,
+    index: int,
+    latest_ready_revisions: dict[str, dict],
+) -> str | None:
+    revision_name = service.get("latestReadyRevision")
+    if not isinstance(revision_name, str):
+        return None
+
+    revision_container = _revision_container_by_name_or_index(
+        latest_ready_revisions.get(revision_name),
+        explicit_container_name,
+        index,
+    )
+    if not revision_container:
+        return None
+
+    _, revision_image_digest = parse_image_uri(revision_container.get("image"))
+    return revision_image_digest
+
+
+def transform_containers(
+    services_data: list[dict],
+    project_id: str,
+    latest_ready_revisions: dict[str, dict] | None = None,
+) -> list[dict]:
     """
     Flatten service.template.containers[] into one record per individual container.
-    The Cloud Run v2 API returns the latestReadyRevision's spec inline as service.template,
-    so this captures the current canonical container set per service.
+    The Cloud Run v2 API may return tag-only images in service.template even when
+    latestReadyRevision has digest-pinned images, so use the revision digest when
+    the template image is not already pinned.
     """
+    latest_ready_revisions = latest_ready_revisions or {}
     transformed: list[dict[str, Any]] = []
     for service in services_data:
         service_id = service["name"]
@@ -101,7 +230,17 @@ def transform_containers(services_data: list[dict], project_id: str) -> list[dic
 
         for index, container in enumerate(containers):
             image, image_digest = parse_image_uri(container.get("image"))
-            container_name = container.get("name") or str(index)
+            explicit_container_name = container.get("name")
+            container_name = explicit_container_name or str(index)
+            if image_digest is None:
+                revision_image_digest = _resolve_image_digest_from_revision(
+                    service,
+                    explicit_container_name,
+                    index,
+                    latest_ready_revisions,
+                )
+                if revision_image_digest is not None:
+                    image_digest = revision_image_digest
             transformed.append(
                 {
                     "id": f"{service_id}/containers/{container_name}",
@@ -194,7 +333,16 @@ def sync_services(
     services = transform_services(services_raw, project_id)
     load_services(neo4j_session, services, project_id, update_tag)
 
-    containers = transform_containers(services_raw, project_id)
+    latest_ready_revisions = get_latest_ready_revisions(
+        services_raw,
+        project_id,
+        credentials,
+    )
+    containers = transform_containers(
+        services_raw,
+        project_id,
+        latest_ready_revisions,
+    )
     load_containers(neo4j_session, containers, project_id, update_tag)
 
     sync_labels(
