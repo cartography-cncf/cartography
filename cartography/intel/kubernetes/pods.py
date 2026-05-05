@@ -39,37 +39,35 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "host_ports": [],
         }
 
-        if container.security_context:
+        security_context = getattr(container, "security_context", None)
+        if security_context:
             containers[container.name]["allow_privilege_escalation"] = getattr(
-                container.security_context, "allow_privilege_escalation", None
+                security_context, "allow_privilege_escalation", None
             )
             containers[container.name]["run_as_non_root"] = getattr(
-                container.security_context, "run_as_non_root", None
+                security_context, "run_as_non_root", None
             )
             containers[container.name]["run_as_user"] = getattr(
-                container.security_context, "run_as_user", None
+                security_context, "run_as_user", None
             )
 
-            if getattr(container.security_context, "seccomp_profile", None):
+            if getattr(security_context, "seccomp_profile", None):
                 containers[container.name]["seccomp_profile_type"] = getattr(
-                    container.security_context.seccomp_profile, "type", None
+                    security_context.seccomp_profile, "type", None
                 )
 
-            if getattr(container.security_context, "capabilities", None):
+            if getattr(security_context, "capabilities", None):
                 containers[container.name]["added_capabilities"] = sorted(
-                    container.security_context.capabilities.add or []
+                    security_context.capabilities.add or []
                 )
                 containers[container.name]["dropped_capabilities"] = sorted(
-                    container.security_context.capabilities.drop or []
+                    security_context.capabilities.drop or []
                 )
 
-        if container.ports:
+        ports = getattr(container, "ports", None)
+        if ports:
             containers[container.name]["host_ports"] = sorted(
-                [
-                    port.host_port
-                    for port in container.ports
-                    if port.host_port is not None
-                ]
+                [port.host_port for port in ports if port.host_port is not None]
             )
 
         # Extract resource requests and limits
