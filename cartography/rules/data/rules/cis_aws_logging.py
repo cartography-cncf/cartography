@@ -216,8 +216,8 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
-    RETURN COUNT(DISTINCT bucket) AS count
+    MATCH (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
+    RETURN COUNT(*) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
