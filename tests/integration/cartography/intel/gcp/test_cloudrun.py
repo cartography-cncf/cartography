@@ -574,12 +574,14 @@ def test_cloud_run_service_container_uses_latest_ready_revision_digest(
     ) == {
         (
             service_primary_container_id,
-            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/server:abc1234",
+            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/server:abc1234"
+            f"@{TEST_REVISION_PRIMARY_DIGEST}",
             TEST_REVISION_PRIMARY_DIGEST,
         ),
         (
             service_sidecar_container_id,
-            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/metrics:def5678",
+            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/metrics:def5678"
+            f"@{TEST_REVISION_SIDECAR_DIGEST}",
             TEST_REVISION_SIDECAR_DIGEST,
         ),
     }

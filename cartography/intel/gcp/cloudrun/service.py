@@ -163,16 +163,18 @@ def get_latest_ready_revisions(
 
 def _revision_container_by_name_or_index(
     revision: dict | None,
-    container_name: str,
+    explicit_container_name: str | None,
     index: int,
 ) -> dict | None:
     if not revision:
         return None
 
     containers = revision.get("containers", []) or []
-    for container in containers:
-        if container.get("name") and container["name"] == container_name:
-            return container
+    if explicit_container_name:
+        for container in containers:
+            if container.get("name") == explicit_container_name:
+                return container
+        return None
 
     if index < len(containers):
         return containers[index]
@@ -180,26 +182,28 @@ def _revision_container_by_name_or_index(
     return None
 
 
-def _resolve_image_digest_from_revision(
+def _resolve_image_from_revision(
     service: dict,
-    container_name: str,
+    explicit_container_name: str | None,
     index: int,
     latest_ready_revisions: dict[str, dict],
-) -> str | None:
+) -> tuple[str | None, str | None]:
     revision_name = service.get("latestReadyRevision")
     if not isinstance(revision_name, str):
-        return None
+        return None, None
 
     revision_container = _revision_container_by_name_or_index(
         latest_ready_revisions.get(revision_name),
-        container_name,
+        explicit_container_name,
         index,
     )
     if not revision_container:
-        return None
+        return None, None
 
-    _, revision_image_digest = parse_image_uri(revision_container.get("image"))
-    return revision_image_digest
+    revision_image, revision_image_digest = parse_image_uri(
+        revision_container.get("image")
+    )
+    return revision_image, revision_image_digest
 
 
 def transform_containers(
@@ -222,14 +226,18 @@ def transform_containers(
 
         for index, container in enumerate(containers):
             image, image_digest = parse_image_uri(container.get("image"))
-            container_name = container.get("name") or str(index)
+            explicit_container_name = container.get("name")
+            container_name = explicit_container_name or str(index)
             if image_digest is None:
-                image_digest = _resolve_image_digest_from_revision(
+                revision_image, revision_image_digest = _resolve_image_from_revision(
                     service,
-                    container_name,
+                    explicit_container_name,
                     index,
                     latest_ready_revisions,
                 )
+                if revision_image_digest is not None:
+                    image = revision_image
+                    image_digest = revision_image_digest
             transformed.append(
                 {
                     "id": f"{service_id}/containers/{container_name}",
