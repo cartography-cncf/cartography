@@ -2,7 +2,7 @@
 CIS Google Workspace Identity Security Checks
 
 Implements CIS Google Workspace Foundations Benchmark Section 4: Identity and Access Management
-Based on CIS Google Workspace Foundations Benchmark v1.4.0
+Based on CIS Google Workspace Foundations Benchmark v1.3.0
 
 Each Rule represents a distinct security concept with a consistent main node type.
 Facts within a Rule are provider-specific implementations of the same concept.
@@ -18,7 +18,7 @@ from cartography.rules.spec.model import RuleReference
 
 CIS_REFERENCES = [
     RuleReference(
-        text="CIS Google Workspace Foundations Benchmark v1.4.0",
+        text="CIS Google Workspace Foundations Benchmark v1.3.0",
         url="https://www.cisecurity.org/benchmark/google_workspace",
     ),
     RuleReference(
@@ -94,7 +94,7 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
             scope="googleworkspace",
-            revision="1.4",
+            revision="1.3",
             requirement="4.1.1.3",
         ),
     ),
@@ -179,7 +179,7 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
             scope="googleworkspace",
-            revision="1.4",
+            revision="1.3",
             requirement="4.1.1.1",
         ),
     ),
@@ -245,10 +245,6 @@ _gw_super_admin_count_too_low = Fact(
     """,
     cypher_count_query="""
     MATCH (t:GoogleWorkspaceTenant)
-    OPTIONAL MATCH (t)-[:RESOURCE]->(u:GoogleWorkspaceUser)
-    WHERE coalesce(u.is_admin, false) = true
-    WITH t, count(DISTINCT u) AS super_admin_count
-    WHERE super_admin_count <= 1
     RETURN COUNT(t) AS count
     """,
     module=Module.GOOGLEWORKSPACE,
@@ -272,7 +268,7 @@ cis_gw_1_1_1_super_admin_count_too_low = Rule(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
             scope="googleworkspace",
-            revision="1.4",
+            revision="1.3",
             requirement="1.1.1",
         ),
     ),
@@ -312,10 +308,6 @@ _gw_super_admin_count_too_high = Fact(
     """,
     cypher_count_query="""
     MATCH (t:GoogleWorkspaceTenant)
-    OPTIONAL MATCH (t)-[:RESOURCE]->(u:GoogleWorkspaceUser)
-    WHERE coalesce(u.is_admin, false) = true
-    WITH t, count(DISTINCT u) AS super_admin_count
-    WHERE super_admin_count > 4
     RETURN COUNT(t) AS count
     """,
     module=Module.GOOGLEWORKSPACE,
@@ -339,7 +331,7 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
             scope="googleworkspace",
-            revision="1.4",
+            revision="1.3",
             requirement="1.1.2",
         ),
     ),
@@ -406,7 +398,7 @@ cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
             scope="googleworkspace",
-            revision="1.4",
+            revision="1.3",
             requirement="1.1.3",
         ),
     ),

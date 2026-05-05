@@ -1072,10 +1072,14 @@ class CloudSqlSslModeOutput(Finding):
 _gcp_cloudsql_ssl_not_enforced = Fact(
     id="gcp_cloudsql_ssl_not_enforced",
     name="GCP Cloud SQL instances not enforcing SSL-only connections",
-    description="Detects Cloud SQL instances whose sslMode is not ENCRYPTED_ONLY.",
+    description=(
+        "Detects Cloud SQL instances whose sslMode is not one of ENCRYPTED_ONLY or "
+        "TRUSTED_CLIENT_CERTIFICATE_REQUIRED. Both modes restrict connections to "
+        "SSL/TLS, with the latter additionally requiring valid client certificates."
+    ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPCloudSQLInstance)
-    WHERE coalesce(instance.ssl_mode, '') <> 'ENCRYPTED_ONLY'
+    WHERE NOT coalesce(instance.ssl_mode, '') IN ['ENCRYPTED_ONLY', 'TRUSTED_CLIENT_CERTIFICATE_REQUIRED']
     RETURN
         instance.id AS instance_id,
         instance.name AS instance_name,
@@ -1085,7 +1089,7 @@ _gcp_cloudsql_ssl_not_enforced = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(instance:GCPCloudSQLInstance)
-    WHERE coalesce(instance.ssl_mode, '') <> 'ENCRYPTED_ONLY'
+    WHERE NOT coalesce(instance.ssl_mode, '') IN ['ENCRYPTED_ONLY', 'TRUSTED_CLIENT_CERTIFICATE_REQUIRED']
     RETURN *
     """,
     cypher_count_query="""

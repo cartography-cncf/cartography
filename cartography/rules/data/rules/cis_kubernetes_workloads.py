@@ -145,9 +145,6 @@ _k8s_service_account_tokens_mounted = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
-    WITH pod, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
-    WHERE effective_automount = true
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -212,7 +209,6 @@ _k8s_host_pid_pods = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    WHERE coalesce(pod.host_pid, false) = true
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -268,7 +264,6 @@ _k8s_host_ipc_pods = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    WHERE coalesce(pod.host_ipc, false) = true
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -324,7 +319,6 @@ _k8s_host_network_pods = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    WHERE coalesce(pod.host_network, false) = true
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -367,16 +361,20 @@ class AllowPrivilegeEscalationOutput(Finding):
 
 _k8s_allow_privilege_escalation = Fact(
     id="k8s_allow_privilege_escalation",
-    name="Kubernetes containers allowing privilege escalation",
-    description="Detects containers explicitly configured with allowPrivilegeEscalation=true.",
+    name="Kubernetes containers without allowPrivilegeEscalation explicitly set to false",
+    description=(
+        "Detects containers whose allowPrivilegeEscalation is not explicitly set to false. "
+        "The CIS restricted profile requires this field to be false; containers that omit "
+        "the field also fail the control."
+    ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(c:KubernetesContainer)
-    WHERE coalesce(c.allow_privilege_escalation, false) = true
+    WHERE coalesce(c.allow_privilege_escalation, true) = true
     RETURN c.id AS container_id, c.name AS container_name, c.image AS image, c.namespace AS namespace, cluster.name AS cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(c:KubernetesContainer)
-    WHERE coalesce(c.allow_privilege_escalation, false) = true
+    WHERE coalesce(c.allow_privilege_escalation, true) = true
     RETURN *
     """,
     cypher_count_query="""
@@ -448,7 +446,6 @@ _k8s_host_path_volumes = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    WHERE size(coalesce(pod.host_path_volume_paths, [])) > 0
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -505,7 +502,6 @@ _k8s_host_ports = Fact(
     """,
     cypher_count_query="""
     MATCH (c:KubernetesContainer)
-    WHERE size(coalesce(c.host_ports, [])) > 0
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
@@ -556,18 +552,20 @@ _k8s_missing_runtime_default_seccomp = Fact(
     id="k8s_missing_runtime_default_seccomp",
     name="Kubernetes pods without RuntimeDefault seccomp coverage",
     description=(
-        "Detects pods where neither the pod nor all containers explicitly set the "
-        "RuntimeDefault seccomp profile."
+        "Detects pods where the effective seccomp profile is not RuntimeDefault for at "
+        "least one container. A container's effective profile is its own seccompProfile "
+        "if set, otherwise the pod-level seccompProfile. Container-level overrides such "
+        "as Unconfined fail the control even when the pod sets RuntimeDefault."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH (pod)<-[:CONTAINS]-(c:KubernetesContainer)
+    WITH cluster, pod, collect(c) AS containers
     WITH
         cluster,
         pod,
-        [c IN collect(c) WHERE coalesce(c.seccomp_profile_type, '') <> 'RuntimeDefault' | c.name] AS container_names_without_runtime_default
-    WHERE coalesce(pod.seccomp_profile_type, '') <> 'RuntimeDefault'
-      AND size(container_names_without_runtime_default) > 0
+        [container IN containers WHERE coalesce(container.seccomp_profile_type, pod.seccomp_profile_type, '') <> 'RuntimeDefault' | container.name] AS container_names_without_runtime_default
+    WHERE size(container_names_without_runtime_default) > 0
     RETURN
         pod.id AS pod_id,
         pod.name AS pod_name,
@@ -579,18 +577,13 @@ _k8s_missing_runtime_default_seccomp = Fact(
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH p1=(pod)<-[:CONTAINS]-(c:KubernetesContainer)
-    WITH cluster, pod, c, p, p1, collect(c) AS containers
-    WITH cluster, pod, p, p1, [c IN containers WHERE coalesce(c.seccomp_profile_type, '') <> 'RuntimeDefault' | c] AS non_runtime_default_containers
-    WHERE coalesce(pod.seccomp_profile_type, '') <> 'RuntimeDefault'
-      AND size(non_runtime_default_containers) > 0
+    WITH cluster, pod, p, p1, collect(c) AS containers
+    WITH cluster, pod, p, p1, [container IN containers WHERE coalesce(container.seccomp_profile_type, pod.seccomp_profile_type, '') <> 'RuntimeDefault' | container] AS non_runtime_default_containers
+    WHERE size(non_runtime_default_containers) > 0
     RETURN *
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
-    OPTIONAL MATCH (pod)<-[:CONTAINS]-(c:KubernetesContainer)
-    WITH pod, [c IN collect(c) WHERE coalesce(c.seccomp_profile_type, '') <> 'RuntimeDefault' | c.name] AS container_names_without_runtime_default
-    WHERE coalesce(pod.seccomp_profile_type, '') <> 'RuntimeDefault'
-      AND size(container_names_without_runtime_default) > 0
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
