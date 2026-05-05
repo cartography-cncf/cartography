@@ -44,7 +44,7 @@ class AWSBedrockFoundationModelToAWSAccountRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-class AWSBedrockFoundationModelToAWSAccount(CartographyRelSchema):
+class AWSBedrockFoundationModelToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockFoundationModel to AWSAccount.
     """
@@ -71,6 +71,6 @@ class AWSBedrockFoundationModelSchema(CartographyNodeSchema):
     properties: AWSBedrockFoundationModelNodeProperties = (
         AWSBedrockFoundationModelNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockFoundationModelToAWSAccount = (
-        AWSBedrockFoundationModelToAWSAccount()
+    sub_resource_relationship: AWSBedrockFoundationModelToAWSAccountRel = (
+        AWSBedrockFoundationModelToAWSAccountRel()
     )

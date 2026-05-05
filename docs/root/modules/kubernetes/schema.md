@@ -45,6 +45,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesRoleBinding,
                                        :KubernetesClusterRole,
                                        :KubernetesClusterRoleBinding,
+                                       :KubernetesOIDCProvider,
                                        ...)
     (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
@@ -672,7 +673,13 @@ Representation of an external OIDC identity provider for a Kubernetes cluster. T
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
-- `KubernetesOIDCProvider` is trusted by a `KubernetesCluster`.
+- `KubernetesOIDCProvider` belongs to a `KubernetesCluster` (cleanup scope).
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesOIDCProvider)
+    ```
+
+- `KubernetesOIDCProvider` is trusted by a `KubernetesCluster` (semantic edge,
+  preserved alongside the cleanup-oriented `RESOURCE` edge).
     ```
     (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
