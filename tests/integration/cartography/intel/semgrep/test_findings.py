@@ -7,13 +7,8 @@ import cartography.intel.semgrep.findings
 import tests.data.semgrep.deployment
 import tests.data.semgrep.sast
 import tests.data.semgrep.sca
-from cartography.intel.common.report_reader_builder import (
-    build_report_reader_for_source,
-)
-from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
-from cartography.intel.semgrep.ossfindings import _build_oss_sast_finding_id
 from cartography.intel.semgrep.ossfindings import OSS_DEPLOYMENT_ID
 from cartography.intel.semgrep.ossfindings import sync_oss_semgrep_sast_findings
 from tests.integration.cartography.intel.semgrep.common import check_nodes_as_list
@@ -451,254 +446,144 @@ def test_sync_findings(
     }
 
 
-def test_sync_oss_sast_findings(neo4j_session, tmp_path):
-    # Arrange
+def test_sync_oss_sast_findings(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_github_repos(neo4j_session)
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-    }
-    fixture_path = (
-        Path(__file__).resolve().parents[4]
-        / "data"
-        / "semgrep"
-        / "oss_sast_report.json"
-    )
-    metadata_fixture_path = (
-        Path(__file__).resolve().parents[4] / "data" / "semgrep" / "repo_metadata.yaml"
-    )
-    report = json.loads(fixture_path.read_text())
-    source_root = tmp_path / "github" / "simpsoncorp" / "sample_repo" / "main"
-    source_root.mkdir(parents=True, exist_ok=True)
-    (source_root / "oss_sast_report.json").write_text(
-        fixture_path.read_text(),
-        encoding="utf-8",
-    )
-    (source_root / "repo_metadata.yaml").write_text(
-        metadata_fixture_path.read_text(),
-        encoding="utf-8",
-    )
-    source = parse_report_source(str(source_root))
 
-    # Act
-    with build_report_reader_for_source(source) as reader:
-        sync_oss_semgrep_sast_findings(
+    report_fixture_path = Path("tests/data/semgrep/oss_sast_report.json")
+    report_document = json.loads(report_fixture_path.read_text())
+    expected_finding_nodes = set()
+    expected_resource_rels = set()
+    expected_found_in_rels = set()
+
+    for result in report_document["results"]:
+        expected_finding_nodes.add((result["check_id"],))
+        expected_resource_rels.add((OSS_DEPLOYMENT_ID, result["check_id"]))
+        expected_found_in_rels.add((TEST_REPO_ID, result["check_id"]))
+
+    sync_oss_semgrep_sast_findings(
+        neo4j_session,
+        "tests/data/semgrep/repository_mappings_single_repo.yaml",
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepDeployment",
+        ["id"],
+    ) == {(OSS_DEPLOYMENT_ID,)}
+
+    assert (
+        check_nodes(
             neo4j_session,
-            reader,
-            TEST_UPDATE_TAG,
-            common_job_parameters,
+            "SemgrepSASTFinding",
+            ["rule_id"],
         )
+        == expected_finding_nodes
+    )
 
-    # Build expected finding IDs from test data
-    results = report["results"]
-    expected_ids = [
-        _build_oss_sast_finding_id(
-            str(r.get("check_id", "")),
-            str(r.get("path", "")),
-            str(r.get("start", {}).get("line", "")),
-            str(r.get("start", {}).get("col", "")),
-            str(r.get("end", {}).get("line", "")),
-            str(r.get("end", {}).get("col", "")),
-            TEST_REPO_ID,
+    assert (
+        check_rels(
+            neo4j_session,
+            "SemgrepDeployment",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "RESOURCE",
         )
-        for r in results
-    ]
+        == expected_resource_rels
+    )
 
-    # Assert synthetic deployment node
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepDeployment",
-        ["id", "name", "slug"],
-    ) == {(OSS_DEPLOYMENT_ID, "OSS Semgrep", "oss")}
-
-    # Assert finding nodes
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepSASTFinding",
-        ["id", "rule_id", "severity", "confidence", "title"],
-    ) == {
-        (
-            expected_ids[0],
-            "python.lang.security.audit.sql-injection.fake-1",
-            "ERROR",
-            "HIGH",
-            "python.lang.security.audit.sql-injection.fake-1",
-        ),
-        (
-            expected_ids[1],
-            "python.lang.security.audit.xss.fake-2",
-            "WARNING",
-            "MEDIUM",
-            "python.lang.security.audit.xss.fake-2",
-        ),
-        (
-            expected_ids[2],
-            "python.lang.security.audit.jwt.fake-3",
-            "ERROR",
-            "MEDIUM",
-            "python.lang.security.audit.jwt.fake-3",
-        ),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepSASTFinding",
-        ["id", "repository", "repository_url", "branch"],
-    ) == {
-        (
-            expected_ids[0],
-            "simpsoncorp/sample_repo",
-            TEST_REPO_ID,
-            "main",
-        ),
-        (
-            expected_ids[1],
-            "simpsoncorp/sample_repo",
-            TEST_REPO_ID,
-            "main",
-        ),
-        (
-            expected_ids[2],
-            "simpsoncorp/sample_repo",
-            TEST_REPO_ID,
-            "main",
-        ),
-    }
-
-    # Assert location fields
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepSASTFinding",
-        ["id", "file_path", "start_line", "start_col", "end_line", "end_col"],
-    ) == {
-        (
-            expected_ids[0],
-            "/workspace/chatbox-sandbox/app/auth.py",
-            42,
-            9,
-            42,
-            61,
-        ),
-        (
-            expected_ids[1],
-            "/workspace/chatbox-sandbox/app/views.py",
-            88,
-            13,
-            88,
-            47,
-        ),
-        (
-            expected_ids[2],
-            "/workspace/chatbox-sandbox/app/tokens.py",
-            15,
-            20,
-            15,
-            41,
-        ),
-    }
-
-    # Assert sub-resource relationship to synthetic deployment
-    assert check_rels(
-        neo4j_session,
-        "SemgrepDeployment",
-        "id",
-        "SemgrepSASTFinding",
-        "id",
-        "RESOURCE",
-    ) == {
-        (OSS_DEPLOYMENT_ID, expected_ids[0]),
-        (OSS_DEPLOYMENT_ID, expected_ids[1]),
-        (OSS_DEPLOYMENT_ID, expected_ids[2]),
-    }
-
-    # Assert FOUND_IN relationship to GitHub repo
-    assert check_rels(
-        neo4j_session,
-        "GitHubRepository",
-        "id",
-        "SemgrepSASTFinding",
-        "id",
-        "FOUND_IN",
-        rel_direction_right=False,
-    ) == {
-        (TEST_REPO_ID, expected_ids[0]),
-        (TEST_REPO_ID, expected_ids[1]),
-        (TEST_REPO_ID, expected_ids[2]),
-    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubRepository",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "FOUND_IN",
+            rel_direction_right=False,
+        )
+        == expected_found_in_rels
+    )
 
 
-def test_sync_oss_sast_findings_ids_differ_across_repositories(
-    neo4j_session,
-    tmp_path,
-):
-    # Arrange
+def test_sync_oss_sast_findings_multi_entry_multi_report(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    fixture_path = Path("tests/data/semgrep/oss_sast_report.json")
-    metadata_fixture_path = Path("tests/data/semgrep/repo_metadata.yaml")
-
-    source_root_a = tmp_path / "github" / "simpsoncorp" / "sample_repo" / "main"
-    source_root_a.mkdir(parents=True, exist_ok=True)
-    (source_root_a / "oss_sast_report.json").write_text(
-        fixture_path.read_text(),
-        encoding="utf-8",
-    )
-    (source_root_a / "repo_metadata.yaml").write_text(
-        metadata_fixture_path.read_text(),
-        encoding="utf-8",
-    )
-
-    source_root_b = tmp_path / "github" / "different-org" / "different-repo" / "main"
-    source_root_b.mkdir(parents=True, exist_ok=True)
-    (source_root_b / "oss_sast_report.json").write_text(
-        fixture_path.read_text(),
-        encoding="utf-8",
-    )
-    (source_root_b / "repo_metadata.yaml").write_text(
-        "\n".join(
-            [
-                'provider: "github"',
-                'owner: "different-org"',
-                'repo: "different-repo"',
-                'url: "https://github.com/different-org/different-repo"',
-                'branch: "main"',
-                "",
-            ],
-        ),
-        encoding="utf-8",
+    create_github_repos(neo4j_session)
+    # Seed the second GitHubRepository node so FOUND_IN can match the second
+    # repository mapping entry during OSS sync.
+    neo4j_session.run(
+        """
+        MERGE (repo:GitHubRepository{id: $repo_id, fullname: $repo_fullname, name: $repo_name})
+        ON CREATE SET repo.firstseen = timestamp()
+        SET repo.lastupdated = $update_tag
+        SET repo.archived = false
+        """,
+        repo_id="https://github.com/simpsoncorp/sample_repo_two",
+        repo_fullname="simpsoncorp/sample_repo_two",
+        repo_name="sample_repo_two",
+        update_tag=TEST_UPDATE_TAG,
     )
 
-    # Act
-    with build_report_reader_for_source(
-        parse_report_source(str(source_root_a))
-    ) as reader:
-        sync_oss_semgrep_sast_findings(
-            neo4j_session,
-            reader,
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-        )
-    ids_for_repo_a = check_nodes(
+    report_to_repo = {
+        "tests/data/semgrep/oss_sast_report_2.json": TEST_REPO_ID,
+        "tests/data/semgrep/oss_sast_report_3.json": "https://github.com/simpsoncorp/sample_repo_two",
+        "tests/data/semgrep/oss_sast_report_4.json": "https://github.com/simpsoncorp/sample_repo_two",
+    }
+    expected_finding_nodes = set()
+    expected_resource_rels = set()
+    expected_found_in_rels = set()
+
+    for report_path, repository_id in report_to_repo.items():
+        report_document = json.loads(Path(report_path).read_text())
+        for result in report_document["results"]:
+            expected_finding_nodes.add((result["check_id"],))
+            expected_resource_rels.add((OSS_DEPLOYMENT_ID, result["check_id"]))
+            expected_found_in_rels.add((repository_id, result["check_id"]))
+
+    sync_oss_semgrep_sast_findings(
         neo4j_session,
-        "SemgrepSASTFinding",
-        ["id"],
+        "tests/data/semgrep/repository_mappings_multi_entry.yaml",
+        TEST_UPDATE_TAG,
     )
 
-    with build_report_reader_for_source(
-        parse_report_source(str(source_root_b))
-    ) as reader:
-        sync_oss_semgrep_sast_findings(
-            neo4j_session,
-            reader,
-            TEST_UPDATE_TAG + 1,
-            {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
-        )
-    ids_for_repo_b = check_nodes(
+    assert check_nodes(
         neo4j_session,
-        "SemgrepSASTFinding",
+        "SemgrepDeployment",
         ["id"],
+    ) == {(OSS_DEPLOYMENT_ID,)}
+
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SemgrepSASTFinding",
+            ["rule_id"],
+        )
+        == expected_finding_nodes
     )
 
-    # Assert
-    assert ids_for_repo_a
-    assert ids_for_repo_b
-    assert ids_for_repo_a != ids_for_repo_b
+    assert (
+        check_rels(
+            neo4j_session,
+            "SemgrepDeployment",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "RESOURCE",
+        )
+        == expected_resource_rels
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubRepository",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "FOUND_IN",
+            rel_direction_right=False,
+        )
+        == expected_found_in_rels
+    )

@@ -64,6 +64,7 @@ class OSSSemgrepSASTFindingToGithubRepoRelProperties(CartographyRelProperties):
 # (:SemgrepSASTFinding)-[:FOUND_IN]->(:GitHubRepository)
 class OSSSemgrepSASTFindingToGithubRepoRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
+    # GitHubRepository.id stores the repository URL, so repositoryUrl is the join key.
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repositoryUrl")},
     )

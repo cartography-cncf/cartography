@@ -52,18 +52,31 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
 
 ### SemgrepSASTFinding::SecurityIssue
 
-Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered either from the Semgrep Cloud Platform or from OSS Semgrep CLI JSON reports ingested via `--semgrep-oss-source`. Cloud findings come from the Semgrep Findings API, while OSS findings come from local or object-store report files and are linked to a synthetic `SemgrepDeployment` node with `id="oss"` for scoped cleanup.
+Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered either from the Semgrep Cloud Platform or from OSS Semgrep CLI JSON reports ingested via `--semgrep-oss-source`. Cloud findings come from the Semgrep Findings API. OSS findings come from explicit Semgrep OSS JSON report artifacts described in a repository mapping file passed to `--semgrep-oss-source`.
 
-> **Note**: The OSS Semgrep JSON report does not include repository information. Cartography requires exactly one YAML metadata file in the same `--semgrep-oss-source` location as the report JSON file(s). The metadata file must be valid UTF-8 YAML, must load to a mapping, and must include the fields `provider`, `owner`, `repo`, `url`, and `branch`. Cartography uses `owner/repo` for the `repository` field, `url` for `repository_url`, and `branch` for `branch`. If the metadata file is missing, duplicated, malformed, or missing required fields, the OSS Semgrep sync fails.
+> **Note**: The OSS Semgrep JSON report does not include repository identity. Cartography therefore requires `--semgrep-oss-source` to point to a repository mapping YAML file that declares the repository metadata and the explicit report artifact(s) associated with that repository. The mapping file must be valid UTF-8 YAML, must contain a top-level `repositories` list, and each repository entry must include `provider`, `owner`, `repo`, `url`, `branch`, and a non-empty `reports` list.
 >
-> Example `repo_metadata.yaml`:
+> Example repository mapping file:
 > ```yaml
-> provider: "github"
-> owner: "simpsoncorp"
-> repo: "sample_repo"
-> url: "https://github.com/simpsoncorp/sample_repo"
-> branch: "main"
+> repositories:
+>   - provider: "github"
+>     owner: "simpsoncorp"
+>     repo: "sample_repo"
+>     url: "https://github.com/simpsoncorp/sample_repo"
+>     branch: "main"
+>     reports:
+>       - "s3://security-artifacts/semgrep/sample_repo/main.json"
+>   - provider: "github"
+>     owner: "different-org"
+>     repo: "different-repo"
+>     url: "https://github.com/different-org/different-repo"
+>     branch: "main"
+>     reports:
+>       - "gs://security-artifacts/semgrep/different-repo/job-1.json"
+>       - "gs://security-artifacts/semgrep/different-repo/job-2.json"
 > ```
+>
+> Each `reports` entry must point to exactly one Semgrep OSS JSON artifact for the repository it is nested under. Cartography treats one repository entry as the intended snapshot for that repository in the current run. If all listed reports for a repository are successfully processed, Cartography runs cleanup for stale OSS findings scoped to that repository URL. If any listed report for that repository fails to resolve, fails to parse, or is not Semgrep-shaped, Cartography skips cleanup for that repository to avoid deleting findings from an incomplete snapshot.
 
 > **Cloud-only fields**: `line_of_code_url`, `state`, `fix_status`, `triage_status`, `opened_at`, `risk_severity`, and the `HAS_ASSISTANT` relationship are only populated for Semgrep Cloud findings.
 
@@ -73,7 +86,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique integer id from Semgrep Cloud, or for OSS findings a synthetic id prefixed with `semgrep-oss-sast-` built from a SHA-256 hash of `check_id`, `path`, start/end location, and `repository_url` |
+| **id** | Unique integer id from Semgrep Cloud, or for OSS findings a synthetic id prefixed with `semgrep-oss-sast-`. OSS IDs prefer Semgrep's `extra.fingerprint` when present and otherwise fall back to a SHA-256 hash of `check_id`, `path`, start/end location, and `repository_url`. |
 | **rule_id** | The rule that triggered the finding |
 | **repository** | The repository path where the finding was discovered |
 | **repository_url** | Full URL of the repository where the finding was discovered |

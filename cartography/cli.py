@@ -1183,7 +1183,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--semgrep-oss-source",
-                    help="Semgrep OSS report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    help="Semgrep OSS repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
                     rich_help_panel=PANEL_SEMGREP,
                     hidden=PANEL_SEMGREP not in visible_panels,
                 ),

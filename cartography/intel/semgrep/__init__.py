@@ -3,10 +3,6 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.common.report_reader_builder import (
-    build_report_reader_for_source,
-)
-from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.semgrep.dependencies import sync_dependencies
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
@@ -61,14 +57,9 @@ def start_semgrep_ingestion(
         )
 
     if config.semgrep_oss_source is not None:
-        source = parse_report_source(config.semgrep_oss_source)
-        with build_report_reader_for_source(
-            source,
+        sync_oss_semgrep_sast_findings(
+            neo4j_session,
+            config.semgrep_oss_source,
+            config.update_tag,
             config=config,
-        ) as reader:
-            sync_oss_semgrep_sast_findings(
-                neo4j_session,
-                reader,
-                config.update_tag,
-                common_job_parameters,
-            )
+        )
