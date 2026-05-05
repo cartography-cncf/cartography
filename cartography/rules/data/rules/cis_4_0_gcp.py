@@ -425,7 +425,6 @@ _gcp_instance_confidential_compute_disabled = Fact(
         instance.machine_type STARTS WITH 'n2d-'
         OR instance.machine_type STARTS WITH 'c2d-'
       )
-      AND coalesce(instance.enable_confidential_compute, false) = false
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -497,7 +496,6 @@ _gcp_dnssec_disabled = Fact(
     cypher_count_query="""
     MATCH (zone:GCPDNSZone)
     WHERE coalesce(zone.visibility, 'public') = 'public'
-      AND coalesce(zone.dnssec_state, 'off') <> 'on'
     RETURN COUNT(zone) AS count
     """,
     asset_id_field="zone_id",
@@ -573,7 +571,6 @@ _gcp_dnssec_weak_ksk = Fact(
     MATCH (zone:GCPDNSZone)
     WHERE coalesce(zone.visibility, 'public') = 'public'
       AND coalesce(zone.dnssec_state, 'off') = 'on'
-      AND zone.dnssec_key_signing_algorithm = 'rsasha1'
     RETURN COUNT(zone) AS count
     """,
     asset_id_field="zone_id",
@@ -643,7 +640,6 @@ _gcp_dnssec_weak_zsk = Fact(
     MATCH (zone:GCPDNSZone)
     WHERE coalesce(zone.visibility, 'public') = 'public'
       AND coalesce(zone.dnssec_state, 'off') = 'on'
-      AND zone.dnssec_zone_signing_algorithm = 'rsasha1'
     RETURN COUNT(zone) AS count
     """,
     asset_id_field="zone_id",
@@ -730,13 +726,6 @@ _gcp_subnet_flow_logs_disabled = Fact(
     cypher_count_query="""
     MATCH (subnet:GCPSubnet)
     WHERE coalesce(subnet.purpose, 'PRIVATE') = 'PRIVATE'
-      AND (
-        coalesce(subnet.flow_logs_enabled, false) = false
-        OR subnet.flow_logs_aggregation_interval <> 'INTERVAL_5_SEC'
-        OR coalesce(subnet.flow_logs_sampling, 0.0) <> 1.0
-        OR subnet.flow_logs_metadata <> 'INCLUDE_ALL_METADATA'
-        OR subnet.flow_logs_filter_expr IS NOT NULL
-      )
     RETURN COUNT(subnet) AS count
     """,
     asset_id_field="subnet_id",
@@ -798,7 +787,6 @@ _gcp_cloudsql_public_ip = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPCloudSQLInstance)
-    WHERE instance.ip_addresses CONTAINS '"type": "PRIMARY"'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -860,7 +848,6 @@ _gcp_cloudsql_backups_disabled = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPCloudSQLInstance)
-    WHERE coalesce(instance.backup_enabled, false) = false
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -922,8 +909,6 @@ _gcp_bigquery_dataset_public = Fact(
     """,
     cypher_count_query="""
     MATCH (dataset:GCPBigQueryDataset)
-    WHERE coalesce(dataset.access_entries, '') CONTAINS 'allUsers'
-       OR coalesce(dataset.access_entries, '') CONTAINS 'allAuthenticatedUsers'
     RETURN COUNT(dataset) AS count
     """,
     asset_id_field="dataset_id",
@@ -985,7 +970,6 @@ _gcp_bigquery_table_cmek_missing = Fact(
     """,
     cypher_count_query="""
     MATCH (table:GCPBigQueryTable)
-    WHERE table.kms_key_name IS NULL OR table.kms_key_name = ''
     RETURN COUNT(table) AS count
     """,
     asset_id_field="table_id",
@@ -1045,7 +1029,6 @@ _gcp_bigquery_dataset_cmek_missing = Fact(
     """,
     cypher_count_query="""
     MATCH (dataset:GCPBigQueryDataset)
-    WHERE dataset.default_kms_key_name IS NULL OR dataset.default_kms_key_name = ''
     RETURN COUNT(dataset) AS count
     """,
     asset_id_field="dataset_id",
@@ -1107,7 +1090,6 @@ _gcp_cloudsql_ssl_not_enforced = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPCloudSQLInstance)
-    WHERE coalesce(instance.ssl_mode, '') <> 'ENCRYPTED_ONLY'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -1169,7 +1151,6 @@ _gcp_cloudsql_authorized_networks_open = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPCloudSQLInstance)
-    WHERE coalesce(instance.authorized_networks, '') CONTAINS '0.0.0.0/0'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -1239,7 +1220,6 @@ def _make_cloudsql_flag_fact(
         cypher_count_query=f"""
         MATCH (instance:GCPCloudSQLInstance)
         WHERE instance.database_version STARTS WITH '{db_version_filter}'
-          AND ({violation_predicate})
         RETURN COUNT(instance) AS count
         """,
         asset_id_field="instance_id",
@@ -1770,21 +1750,6 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
 # =============================================================================
 
 # =============================================================================
-# TODO: CIS GCP 3.4: RSASHA1 is not used for the key-signing key in Cloud DNS DNSSEC
-# Missing datamodel or evidence: none; current gap is rule implementation using dnssec_key_signing_algorithm
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 3.5: RSASHA1 is not used for the zone-signing key in Cloud DNS DNSSEC
-# Missing datamodel or evidence: none; current gap is rule implementation using dnssec_zone_signing_algorithm
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 3.8: VPC Flow Logs is enabled for every subnet in a VPC network
-# Missing datamodel or evidence: none; current gap is rule implementation only
-# =============================================================================
-
-# =============================================================================
 # TODO: CIS GCP 3.9: No HTTPS or SSL proxy load balancers permit SSL policies with weak cipher suites
 # Missing datamodel or evidence: target proxy to SSL policy associations plus SSL policy min TLS version, profile, and enabled cipher features
 # =============================================================================
@@ -1792,11 +1757,6 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
 # =============================================================================
 # TODO: CIS GCP 3.10: Identity Aware Proxy restricts traffic to Google IP addresses
 # Missing datamodel or evidence: IAP enablement state and app-specific firewall intent linking health-check and IAP CIDRs to protected workloads
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 4.1: Instances are not configured to use the default service account
-# Missing datamodel or evidence: none; current gap is rule implementation using instance service account email and GKE-node exclusion logic
 # =============================================================================
 
 
@@ -1839,7 +1799,6 @@ _gcp_instance_default_service_account = Fact(
     MATCH (instance:GCPInstance)
     WHERE instance.instancename IS NOT NULL
       AND NOT instance.instancename STARTS WITH 'gke-'
-      AND instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -1866,11 +1825,6 @@ cis_gcp_4_1_default_service_account = Rule(
         ),
     ),
 )
-
-# =============================================================================
-# TODO: CIS GCP 4.2: Instances are not configured to use the default service account with full access to all Cloud APIs
-# Missing datamodel or evidence: none; current gap is rule implementation using instance service account scopes and GKE-node exclusion logic
-# =============================================================================
 
 
 # =============================================================================
@@ -1916,8 +1870,6 @@ _gcp_instance_default_service_account_full_api = Fact(
     MATCH (instance:GCPInstance)
     WHERE instance.instancename IS NOT NULL
       AND NOT instance.instancename STARTS WITH 'gke-'
-      AND instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
-      AND any(scope IN coalesce(instance.service_account_scopes, []) WHERE scope CONTAINS 'cloud-platform')
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -2000,17 +1952,9 @@ _gcp_instance_project_wide_ssh_keys = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance:GCPInstance)
     WHERE instance.instancename IS NOT NULL
       AND NOT instance.instancename STARTS WITH 'gke-'
-      AND NOT (
-        toLower(coalesce(instance.enable_oslogin_metadata, '')) = 'true'
-        OR (
-          instance.enable_oslogin_metadata IS NULL
-          AND toLower(coalesce(project.compute_project_enable_oslogin, '')) = 'true'
-        )
-      )
-      AND toLower(coalesce(instance.block_project_ssh_keys, 'false')) NOT IN ['true', '1']
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -2083,13 +2027,6 @@ _gcp_project_oslogin_disabled = Fact(
     """,
     cypher_count_query="""
     MATCH (project:GCPProject)
-    OPTIONAL MATCH (project)-[:RESOURCE]->(instance:GCPInstance)
-    WHERE instance.instancename IS NOT NULL
-      AND NOT instance.instancename STARTS WITH 'gke-'
-      AND toLower(coalesce(instance.enable_oslogin_metadata, '')) IN ['false', '0']
-    WITH project, count(instance) AS overriding_instance_count
-    WHERE toLower(coalesce(project.compute_project_enable_oslogin, 'false')) <> 'true'
-       OR overriding_instance_count > 0
     RETURN COUNT(project) AS count
     """,
     asset_id_field="project_id",
@@ -2118,23 +2055,8 @@ cis_gcp_4_4_oslogin_enabled = Rule(
 )
 
 # =============================================================================
-# TODO: CIS GCP 4.3: Block project-wide SSH keys is enabled for VM instances
-# Missing datamodel or evidence: none; current gap is rule implementation only
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 4.4: Oslogin is enabled for a project
-# Missing datamodel or evidence: none; current gap is rule implementation only
-# =============================================================================
-
-# =============================================================================
 # TODO: CIS GCP 4.5: Enable connecting to serial ports is not enabled for VM instance
 # Missing datamodel or evidence: project-level organization policy and inherited defaults; current rule detects explicit instance-level serial-port-enable only
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 4.6: IP forwarding is not enabled on instances
-# Missing datamodel or evidence: none; current gap is rule implementation using canIpForward and GKE-node exclusion logic
 # =============================================================================
 
 
@@ -2175,7 +2097,6 @@ _gcp_instance_ip_forwarding = Fact(
     MATCH (instance:GCPInstance)
     WHERE instance.instancename IS NOT NULL
       AND NOT instance.instancename STARTS WITH 'gke-'
-      AND coalesce(instance.can_ip_forward, false) = true
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -2206,11 +2127,6 @@ cis_gcp_4_6_ip_forwarding = Rule(
 # =============================================================================
 # TODO: CIS GCP 4.7: VM disks for critical VMs are encrypted with customer-supplied encryption keys
 # Missing datamodel or evidence: persistent disk inventory attached to instances with diskEncryptionKey or CSEK metadata and a way to identify critical VMs
-# =============================================================================
-
-# =============================================================================
-# TODO: CIS GCP 4.8: Compute instances are launched with Shielded VM enabled
-# Missing datamodel or evidence: none; current gap is rule implementation using shieldedInstanceConfig and GKE-node exclusion logic
 # =============================================================================
 
 
@@ -2261,10 +2177,6 @@ _gcp_instance_shielded_vm_disabled = Fact(
     MATCH (instance:GCPInstance)
     WHERE instance.instancename IS NOT NULL
       AND NOT instance.instancename STARTS WITH 'gke-'
-      AND (
-        coalesce(instance.enable_vtpm, false) = false
-        OR coalesce(instance.enable_integrity_monitoring, false) = false
-      )
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -2326,7 +2238,6 @@ _gcp_instance_serial_port_enabled = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPInstance)
-    WHERE toLower(coalesce(instance.serial_port_enable, '0')) IN ['1', 'true']
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
