@@ -21,6 +21,7 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("Type")
     # Additional fields from Trivy scan results
     purl: PropertyRef = PropertyRef("PURL")
+    package_url: PropertyRef = PropertyRef("package_url", extra_index=True)
     pkg_id: PropertyRef = PropertyRef("PkgID")
     # Normalized ID for cross-tool matching (format: {type}|{namespace/}{normalized_name}|{version})
     # Namespace included when present (e.g., deb packages). Uses PEP 503 normalization for Python.

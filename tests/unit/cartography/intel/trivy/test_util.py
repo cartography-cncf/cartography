@@ -134,6 +134,14 @@ class TestMakeCanonicalPurl:
             make_canonical_purl(purl="pkg:pypi/PyNaCl@1.5.0") == "pkg:pypi/pynacl@1.5.0"
         )
 
+    def test_from_source_purl_strips_qualifiers_for_package_identity(self):
+        assert (
+            make_canonical_purl(
+                purl="pkg:deb/debian/bash@5.2.15-2%2Bb10?arch=amd64&distro=debian-12&upstream=bash%405.2.15-2",
+            )
+            == "pkg:deb/debian/bash@5.2.15-2%2Bb10"
+        )
+
     def test_from_gomod_components_uses_golang_type(self):
         assert (
             make_canonical_purl(

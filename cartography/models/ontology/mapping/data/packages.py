@@ -15,7 +15,7 @@ trivy_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="purl",
-                    node_field="purl",
+                    node_field="package_url",
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
@@ -39,7 +39,7 @@ syft_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="purl",
-                    node_field="purl",
+                    node_field="package_url",
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
@@ -63,7 +63,7 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="purl",
-                    node_field="purl",
+                    node_field="package_url",
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
@@ -87,7 +87,7 @@ semgrep_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="purl",
-                    node_field="purl",
+                    node_field="package_url",
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),

@@ -14,7 +14,7 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "react",
-                        "packageUrl": "pkg:npm/react@18.2.0",
+                        "packageUrl": "pkg:npm/react@18.2.0?repository_url=https%3A%2F%2Fregistry.npmjs.org%2Freact",
                         "requirements": "18.2.0",
                         "packageManager": "NPM",
                     },

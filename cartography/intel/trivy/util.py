@@ -10,7 +10,13 @@ import re
 from packageurl import PackageURL
 
 _PACKAGE_TYPE_ALIASES = {
+    "gobinary": "golang",
+    "go-module": "golang",
     "gomod": "golang",
+    "jar": "maven",
+    "java-archive": "maven",
+    "node-pkg": "npm",
+    "python-pkg": "pypi",
 }
 
 
@@ -78,14 +84,28 @@ def make_canonical_purl(
     pkg_type: str | None = None,
 ) -> str | None:
     """
-    Create a deterministic Package URL for cross-tool package matching.
+    Create a deterministic package identity URL for cross-tool matching.
 
-    Prefer a source PURL when present. If a source only provides package
-    components, build a PURL from type, name, and version.
+    Prefer a source PURL when present, but keep only the package identity
+    components. Source-specific qualifiers like architecture, distro, or
+    upstream package remain useful on raw scanner nodes but make cross-tool
+    package identity matching too strict.
+
+    If a source only provides package components, build a PURL from type, name,
+    and version.
     """
     if purl:
         try:
-            return PackageURL.from_string(purl).to_string()
+            parsed = PackageURL.from_string(purl)
+            normalized_type = normalize_package_type(parsed.type)
+            return PackageURL(
+                type=normalized_type or parsed.type,
+                namespace=parsed.namespace,
+                name=normalize_package_name(
+                    parsed.name, normalized_type or parsed.type
+                ),
+                version=parsed.version,
+            ).to_string()
         except ValueError:
             pass
 

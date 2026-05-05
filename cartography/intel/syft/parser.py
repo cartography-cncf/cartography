@@ -126,14 +126,14 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         if not parent_name or not parent_version:
             continue
 
-        parent_purl = make_canonical_purl(
+        parent_package_url = make_canonical_purl(
             purl=parent.get("purl"),
             name=parent_name,
             version=parent_version,
             pkg_type=parent.get("type"),
         )
         parent_norm_id = make_normalized_package_id(
-            purl=parent_purl,
+            purl=parent_package_url,
             name=parent_name,
             version=parent_version,
             pkg_type=parent.get("type"),
@@ -158,14 +158,14 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             logger.debug("Skipping artifact %s: missing name or version", artifact_id)
             continue
 
-        canonical_purl = make_canonical_purl(
+        package_url = make_canonical_purl(
             purl=artifact.get("purl"),
             name=name,
             version=version,
             pkg_type=artifact.get("type"),
         )
         normalized_id = make_normalized_package_id(
-            purl=canonical_purl,
+            purl=package_url,
             name=name,
             version=version,
             pkg_type=artifact.get("type"),
@@ -176,7 +176,8 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "name": name,
                 "version": version,
                 "type": artifact.get("type"),
-                "purl": canonical_purl,
+                "purl": artifact.get("purl"),
+                "package_url": package_url,
                 "normalized_id": normalized_id,
                 "language": artifact.get("language"),
                 "found_by": artifact.get("foundBy"),

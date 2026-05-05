@@ -385,23 +385,38 @@ def test_sync_github_dependencies(
         actual_repo_dependency_relationships
     )
 
-    # Assert - Verify new ontology fields (normalized_id, version, type, purl)
+    # Assert - Verify new ontology fields (normalized_id, version, type, package_url)
     expected_ontology_fields = {
-        (react_id, "npm|react|18.2.0", "18.2.0", "npm", "pkg:npm/react@18.2.0"),
-        (lodash_id, None, None, None, None),
-        (django_id, "pypi|django|4.2.0", "4.2.0", "pypi", "pkg:pypi/django@4.2.0"),
+        (
+            react_id,
+            "npm|react|18.2.0",
+            "18.2.0",
+            "npm",
+            "pkg:npm/react@18.2.0?repository_url=https%3A%2F%2Fregistry.npmjs.org%2Freact",
+            "pkg:npm/react@18.2.0",
+        ),
+        (lodash_id, None, None, None, None, None),
+        (
+            django_id,
+            "pypi|django|4.2.0",
+            "4.2.0",
+            "pypi",
+            "pkg:pypi/django@4.2.0",
+            "pkg:pypi/django@4.2.0",
+        ),
         (
             spring_core_id,
             "maven|org.springframework/spring-core|5.3.21",
             "5.3.21",
             "maven",
             "pkg:maven/org.springframework/spring-core@5.3.21",
+            "pkg:maven/org.springframework/spring-core@5.3.21",
         ),
     }
     actual_ontology_fields = check_nodes(
         neo4j_session,
         "Dependency",
-        ["id", "normalized_id", "version", "type", "purl"],
+        ["id", "normalized_id", "version", "type", "purl", "package_url"],
     )
     assert expected_ontology_fields.issubset(actual_ontology_fields)
 
@@ -409,7 +424,7 @@ def test_sync_github_dependencies(
     actual_github_dependency_nodes = check_nodes(
         neo4j_session,
         "GitHubDependency",
-        ["id", "normalized_id", "version", "type", "purl"],
+        ["id", "normalized_id", "version", "type", "purl", "package_url"],
     )
     assert expected_ontology_fields.issubset(actual_github_dependency_nodes)
 

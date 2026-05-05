@@ -154,14 +154,14 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
         name = raw_dep["package"]["name"]
         version = raw_dep["package"]["versionSpecifier"]
         id = f"{name}|{version}"
-        canonical_purl = make_canonical_purl(
+        package_url = make_canonical_purl(
             name=name,
             version=version,
             pkg_type=raw_dep["ecosystem"],
         )
         package_type = normalize_package_type(raw_dep["ecosystem"])
         normalized_id = make_normalized_package_id(
-            purl=canonical_purl,
+            purl=package_url,
             name=name,
             version=version,
             pkg_type=raw_dep["ecosystem"],
@@ -180,7 +180,8 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "specifier": specifier,
                 "version": version,
                 "type": package_type,
-                "purl": canonical_purl,
+                "purl": package_url,
+                "package_url": package_url,
                 "normalized_id": normalized_id,
                 "repo_url": repo_url,
                 # Semgrep-specific properties:

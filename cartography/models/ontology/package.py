@@ -32,7 +32,7 @@ class PackageToNodeRelProperties(CartographyRelProperties):
 class PackageToTrivyPackageRel(CartographyRelSchema):
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"purl": PropertyRef("purl")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -44,7 +44,7 @@ class PackageToTrivyPackageRel(CartographyRelSchema):
 class PackageToSyftPackageRel(CartographyRelSchema):
     target_node_label: str = "SyftPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"purl": PropertyRef("purl")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -68,7 +68,7 @@ class PackageToSocketDevDependencyRel(CartographyRelSchema):
 class PackageToGitHubDependencyRel(CartographyRelSchema):
     target_node_label: str = "GitHubDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"purl": PropertyRef("purl")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -80,7 +80,7 @@ class PackageToGitHubDependencyRel(CartographyRelSchema):
 class PackageToSemgrepDependencyRel(CartographyRelSchema):
     target_node_label: str = "SemgrepDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"purl": PropertyRef("purl")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"

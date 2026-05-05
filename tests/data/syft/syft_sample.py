@@ -26,7 +26,7 @@ SYFT_SAMPLE = {
             "licenses": [{"value": "MIT"}],
             "language": "javascript",
             "cpes": ["cpe:2.3:a:express:express:4.18.2:*:*:*:*:node.js:*:*"],
-            "purl": "pkg:npm/express@4.18.2",
+            "purl": "pkg:npm/express@4.18.2?repository_url=https%3A%2F%2Fregistry.npmjs.org%2Fexpress",
             "metadata": {"name": "express", "version": "4.18.2"},
         },
         {

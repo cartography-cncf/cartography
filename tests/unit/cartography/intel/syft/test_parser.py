@@ -45,7 +45,11 @@ class TestTransformArtifacts:
         assert express["name"] == "express"
         assert express["version"] == "4.18.2"
         assert express["type"] == "npm"
-        assert express["purl"] == "pkg:npm/express@4.18.2"
+        assert (
+            express["purl"]
+            == "pkg:npm/express@4.18.2?repository_url=https%3A%2F%2Fregistry.npmjs.org%2Fexpress"
+        )
+        assert express["package_url"] == "pkg:npm/express@4.18.2"
         assert express["language"] == "javascript"
         assert express["found_by"] == "javascript-package-cataloger"
         assert express["normalized_id"] == "npm|express|4.18.2"

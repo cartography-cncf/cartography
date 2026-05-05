@@ -19,7 +19,8 @@ def _setup_trivy_graph(neo4j_session):
         SET p.normalized_id = 'npm|express|4.18.2',
             p.name = 'express', p.version = '4.18.2',
             p.type = 'npm',
-            p.purl = 'pkg:npm/express@4.18.2'
+            p.purl = 'pkg:npm/express@4.18.2',
+            p.package_url = 'pkg:npm/express@4.18.2'
         MERGE (img:ECRImage {id: 'sha256:abc123'})
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-abc123'})
@@ -40,7 +41,8 @@ def _setup_trivy_graph(neo4j_session):
         SET p.normalized_id = 'pypi|requests|2.31.0',
             p.name = 'requests', p.version = '2.31.0',
             p.type = 'pypi',
-            p.purl = 'pkg:pypi/requests@2.31.0'
+            p.purl = 'pkg:pypi/requests@2.31.0',
+            p.package_url = 'pkg:pypi/requests@2.31.0'
         MERGE (img:GitLabContainerImage {id: 'sha256:def456'})
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-def456'})
@@ -58,12 +60,14 @@ def _setup_syft_graph(neo4j_session):
         SET p1.normalized_id = 'npm|express|4.18.2',
             p1.name = 'express', p1.version = '4.18.2',
             p1.type = 'npm',
-            p1.purl = 'pkg:npm/express@4.18.2'
+            p1.purl = 'pkg:npm/express@4.18.2',
+            p1.package_url = 'pkg:npm/express@4.18.2'
         MERGE (p2:SyftPackage {id: 'npm|body-parser|1.20.2'})
         SET p2.normalized_id = 'npm|body-parser|1.20.2',
             p2.name = 'body-parser', p2.version = '1.20.2',
             p2.type = 'npm',
-            p2.purl = 'pkg:npm/body-parser@1.20.2'
+            p2.purl = 'pkg:npm/body-parser@1.20.2',
+            p2.package_url = 'pkg:npm/body-parser@1.20.2'
         MERGE (p1)-[:DEPENDS_ON]->(p2)
         MERGE (ont_img:Image {id: 'ont-img-syft'})
         SET ont_img._ont_digest = 'sha256:syft789'
@@ -81,13 +85,15 @@ def _setup_dependency_graph(neo4j_session):
         SET gh.normalized_id = 'npm|express|4.18.2',
             gh.name = 'express', gh.version = '4.18.2',
             gh.type = 'npm',
-            gh.purl = 'pkg:npm/express@4.18.2'
+            gh.purl = 'pkg:npm/express@4.18.2',
+            gh.package_url = 'pkg:npm/express@4.18.2'
         MERGE (sg:Dependency:SemgrepDependency:NpmLibrary {id: 'express|4.18.2'})
         SET sg.normalized_id = 'npm|express|4.18.2',
             sg.name = 'express', sg.version = '4.18.2',
             sg.type = 'npm',
             sg.ecosystem = 'npm',
-            sg.purl = 'pkg:npm/express@4.18.2'
+            sg.purl = 'pkg:npm/express@4.18.2',
+            sg.package_url = 'pkg:npm/express@4.18.2'
         """,
     )
 
@@ -194,7 +200,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         "Package",
         "id",
         "GitHubDependency",
-        "purl",
+        "package_url",
         "DETECTED_AS",
         rel_direction_right=True,
     )
@@ -204,7 +210,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         "Package",
         "id",
         "SemgrepDependency",
-        "purl",
+        "package_url",
         "DETECTED_AS",
         rel_direction_right=True,
     )

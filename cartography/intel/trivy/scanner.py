@@ -134,7 +134,7 @@ def transform_scan_results(
                 # Transform package data
                 package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
 
-                canonical_purl = make_canonical_purl(
+                package_url = make_canonical_purl(
                     purl=purl,
                     name=result["PkgName"],
                     version=result["InstalledVersion"],
@@ -143,7 +143,7 @@ def transform_scan_results(
                 # Compute normalized ID for cross-tool matching
                 # This enables Syft to match packages despite naming differences
                 normalized_id = make_normalized_package_id(
-                    purl=canonical_purl,
+                    purl=package_url,
                     name=result["PkgName"],
                     version=result["InstalledVersion"],
                     pkg_type=scan_class["Type"],
@@ -159,7 +159,8 @@ def transform_scan_results(
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
-                        "PURL": canonical_purl,
+                        "PURL": purl,
+                        "package_url": package_url,
                         "PkgID": result.get("PkgID"),
                         "normalized_id": normalized_id,
                     }
@@ -225,14 +226,14 @@ def transform_all_packages(
             if "Identifier" in pkg and pkg["Identifier"]:
                 purl = pkg["Identifier"].get("PURL")
 
-            canonical_purl = make_canonical_purl(
+            package_url = make_canonical_purl(
                 purl=purl,
                 name=name,
                 version=version,
                 pkg_type=pkg_type,
             )
             normalized_id = make_normalized_package_id(
-                purl=canonical_purl,
+                purl=package_url,
                 name=name,
                 version=version,
                 pkg_type=pkg_type,
@@ -247,7 +248,8 @@ def transform_all_packages(
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
                     "FindingId": None,
-                    "PURL": canonical_purl,
+                    "PURL": purl,
+                    "package_url": package_url,
                     "PkgID": pkg.get("ID"),
                     "normalized_id": normalized_id,
                 },

@@ -185,7 +185,8 @@ def test_sync_single_syft_creates_syft_package_nodes(neo4j_session):
         """
         MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})
         RETURN p.name AS name, p.version AS version, p.type AS type,
-               p.purl AS purl, p.language AS language, p.found_by AS found_by,
+               p.purl AS purl, p.package_url AS package_url,
+               p.language AS language, p.found_by AS found_by,
                p.normalized_id AS normalized_id, p.lastupdated AS lastupdated
         """,
     ).single()
@@ -193,7 +194,11 @@ def test_sync_single_syft_creates_syft_package_nodes(neo4j_session):
     assert result["name"] == "express"
     assert result["version"] == "4.18.2"
     assert result["type"] == "npm"
-    assert result["purl"] == "pkg:npm/express@4.18.2"
+    assert (
+        result["purl"]
+        == "pkg:npm/express@4.18.2?repository_url=https%3A%2F%2Fregistry.npmjs.org%2Fexpress"
+    )
+    assert result["package_url"] == "pkg:npm/express@4.18.2"
     assert result["language"] == "javascript"
     assert result["found_by"] == "javascript-package-cataloger"
     assert result["normalized_id"] == "npm|express|4.18.2"
