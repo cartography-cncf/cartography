@@ -66,6 +66,13 @@ def build_blob_url(registry: str, image_path: str, digest: str) -> str:
     return f"https://{registry}/v2/{image_path}/blobs/{digest}"
 
 
+def extract_digest_from_reference(reference: str | None) -> str | None:
+    if not reference or "@" not in reference:
+        return None
+    digest = reference.rsplit("@", 1)[1]
+    return digest or None
+
+
 async def get_manifest_list_async(
     http_client: httpx.AsyncClient,
     auth_token: str,
@@ -147,13 +154,15 @@ async def get_all_manifests_async(
         async with semaphore:
             artifact_name = artifact.get("name", "")
             artifact_uri = artifact.get("uri", "")
-            project_id = artifact_name.split("/")[1] if "/" in artifact_name else ""
+            parent_digest = extract_digest_from_reference(
+                artifact_uri
+            ) or extract_digest_from_reference(artifact_name)
 
             manifest_entries = await get_manifest_list_async(
                 http_client, auth_token, artifact_uri
             )
             if manifest_entries:
-                return transform_manifests(manifest_entries, artifact_name, project_id)
+                return transform_manifests(manifest_entries, parent_digest)
             return []
 
     async with httpx.AsyncClient() as http_client:
@@ -197,15 +206,13 @@ async def get_all_manifests_async(
 
 def transform_manifests(
     manifest_entries: list[dict],
-    parent_artifact_id: str,
-    project_id: str,
+    parent_digest: str | None,
 ) -> list[dict]:
     """
     Transforms manifest list entries into manifest node dicts.
 
     :param manifest_entries: List of manifest entries from the manifest list.
-    :param parent_artifact_id: The ID of the parent multi-arch artifact.
-    :param project_id: The GCP project ID.
+    :param parent_digest: The digest of the parent multi-arch image.
     :return: List of transformed manifest dicts.
     """
     transformed: list[dict] = []
@@ -214,9 +221,6 @@ def transform_manifests(
         digest = entry.get("digest", "")
         platform = entry.get("platform", {})
 
-        parent_digest = (
-            parent_artifact_id.split("@")[-1] if "@" in parent_artifact_id else None
-        )
         transformed.append(
             {
                 "digest": digest,

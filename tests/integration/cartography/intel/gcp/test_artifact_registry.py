@@ -146,9 +146,11 @@ def _make_docker_image(
     }
 
 
-def _make_platform_image(parent_artifact_id: str, project_id: str, index: int) -> dict:
+def _make_platform_image(
+    parent_resource_name: str, project_id: str, index: int
+) -> dict:
     digest = f"sha256:{index:064x}"
-    parent_digest = parent_artifact_id.split("@")[-1]
+    parent_digest = parent_resource_name.split("@")[-1]
     return {
         "id": digest,
         "digest": digest,

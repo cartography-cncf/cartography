@@ -900,18 +900,25 @@ def transform_image_manifests(
     :param project_id: The GCP project ID.
     :return: List of transformed platform image dicts.
     """
+    from cartography.intel.gcp.artifact_registry.manifest import (
+        extract_digest_from_reference,
+    )
     from cartography.intel.gcp.artifact_registry.manifest import transform_manifests
 
     all_manifests: list[dict] = []
 
     for artifact in docker_images_raw:
         artifact_name = artifact.get("name", "")
+        artifact_uri = artifact.get("uri", "")
+        parent_digest = extract_digest_from_reference(
+            artifact_uri
+        ) or extract_digest_from_reference(artifact_name)
         # imageManifests field is returned by the API for multi-arch images
         image_manifests = artifact.get("imageManifests", [])
 
         if image_manifests:
             # Transform the manifests using the existing transform function
-            manifests = transform_manifests(image_manifests, artifact_name, project_id)
+            manifests = transform_manifests(image_manifests, parent_digest)
             all_manifests.extend(manifests)
 
     return all_manifests
