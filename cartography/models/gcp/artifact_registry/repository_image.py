@@ -200,7 +200,4 @@ class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
             GCPArtifactRegistryRepositoryImageToImageRel(),
         ]
     )
-    # DEPRECATED: GCPArtifactRegistryContainerImage compatibility label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["ImageTag", "GCPArtifactRegistryContainerImage"]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageTag"])

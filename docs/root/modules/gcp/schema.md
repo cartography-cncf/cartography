@@ -1681,7 +1681,7 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
 
 Representation of a repository-scoped pullable Docker image reference in a GCP Artifact Registry repository. Tagged GAR DockerImage API records are expanded into one `GCPArtifactRegistryRepositoryImage` per tag, matching the `ImageTag` shape used by other registries. This node also stores GAR API metadata such as the DockerImage resource name, digest URI, repository/project location, timestamps, and the digest it references.
 
-> **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference. The deprecated compatibility label `GCPArtifactRegistryContainerImage` is also present during the transition to `GCPArtifactRegistryRepositoryImage`.
+> **Ontology Mapping**: This node has the extra label `ImageTag` to represent a scoped registry reference.
 
 | Field | Description |
 |-------|-------------|

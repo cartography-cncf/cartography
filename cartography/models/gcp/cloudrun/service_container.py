@@ -123,23 +123,23 @@ class CloudRunServiceContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties(
+class CloudRunServiceContainerToArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryContainerImageRel(CartographyRelSchema):
+class CloudRunServiceContainerToArtifactRegistryImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: (
-        CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties
-    ) = CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties()
+    properties: CloudRunServiceContainerToArtifactRegistryImageRelProperties = (
+        CloudRunServiceContainerToArtifactRegistryImageRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -158,6 +158,6 @@ class GCPCloudRunServiceContainerSchema(CartographyNodeSchema):
             CloudRunServiceContainerToServiceWorkloadParentRel(),
             CloudRunServiceContainerToECRImageRel(),
             CloudRunServiceContainerToGitLabContainerImageRel(),
-            CloudRunServiceContainerToArtifactRegistryContainerImageRel(),
+            CloudRunServiceContainerToArtifactRegistryImageRel(),
         ],
     )

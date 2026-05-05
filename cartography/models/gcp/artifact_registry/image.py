@@ -25,7 +25,7 @@ class GCPArtifactRegistryImageNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryPlatformImageNodeProperties(CartographyNodeProperties):
+class GCPArtifactRegistryImageManifestChildNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("digest")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     type: PropertyRef = PropertyRef("type", extra_index=True)
@@ -129,30 +129,16 @@ class GCPArtifactRegistryImageSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryPlatformImageCompatSchema(CartographyNodeSchema):
+class GCPArtifactRegistryImageManifestChildSchema(CartographyNodeSchema):
     label: str = "GCPArtifactRegistryImage"
-    properties: GCPArtifactRegistryPlatformImageNodeProperties = (
-        GCPArtifactRegistryPlatformImageNodeProperties()
+    properties: GCPArtifactRegistryImageManifestChildNodeProperties = (
+        GCPArtifactRegistryImageManifestChildNodeProperties()
     )
     scoped_cleanup: bool = True
     other_relationships: OtherRelationships = OtherRelationships(
         [GCPArtifactRegistryImageContainsImageRel()],
     )
-    # DEPRECATED: GCPArtifactRegistryPlatformImage compatibility label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [
-            "GCPArtifactRegistryPlatformImage",
-            ConditionalNodeLabel(label="Image", conditions={"type": "image"}),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
-                conditions={"type": "attestation"},
-            ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
-                conditions={"type": "manifest_list"},
-            ),
-        ],
-    )
+    extra_node_labels: ExtraNodeLabels = GCP_IMAGE_EXTRA_LABELS
 
 
 @dataclass(frozen=True)

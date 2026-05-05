@@ -132,14 +132,12 @@ class ECSContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ECSContainerToGCPArtifactRegistryContainerImageRelProperties(
-    CartographyRelProperties
-):
+class ECSContainerToGCPArtifactRegistryImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ECSContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+class ECSContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
     """
     Matches containers to GAR image artifacts by runtime digest (imageDigest).
     """
@@ -150,8 +148,8 @@ class ECSContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: ECSContainerToGCPArtifactRegistryContainerImageRelProperties = (
-        ECSContainerToGCPArtifactRegistryContainerImageRelProperties()
+    properties: ECSContainerToGCPArtifactRegistryImageRelProperties = (
+        ECSContainerToGCPArtifactRegistryImageRelProperties()
     )
 
 
@@ -169,6 +167,6 @@ class ECSContainerSchema(CartographyNodeSchema):
             ECSContainerToECSTaskWorkloadParentRel(),
             ECSContainerToECRImageRel(),
             ECSContainerToGitLabContainerImageRel(),
-            ECSContainerToGCPArtifactRegistryContainerImageRel(),
+            ECSContainerToGCPArtifactRegistryImageRel(),
         ]
     )

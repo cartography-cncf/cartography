@@ -15,21 +15,16 @@ from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_pr
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
 )
+from cartography.intel.gcp.artifact_registry.util import MANIFEST_LIST_MEDIA_TYPES
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageContainsImageMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image import (
-    GCPArtifactRegistryPlatformImageCompatSchema,
+    GCPArtifactRegistryImageManifestChildSchema,
 )
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-# Media types that indicate a multi-architecture manifest list
-MANIFEST_LIST_MEDIA_TYPES = {
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.index.v1+json",
-}
 
 
 def parse_docker_image_uri(uri: str) -> tuple[str, str, str] | None:
@@ -235,10 +230,6 @@ def transform_manifests(
                 "parent_digest": parent_digest,
                 "child_digest": digest,
                 "child_image_digests": [digest] if digest else [],
-                "source_uri": None,
-                "source_revision": None,
-                "source_file": None,
-                "layer_diff_ids": None,
             }
         )
 
@@ -258,7 +249,7 @@ def load_manifests(
     if not data:
         return
 
-    schema = GCPArtifactRegistryPlatformImageCompatSchema()
+    schema = GCPArtifactRegistryImageManifestChildSchema()
     load_nodes_without_relationships(
         neo4j_session,
         schema,

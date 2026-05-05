@@ -126,25 +126,23 @@ class AzureContainerInstanceToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties(
+class AzureContainerInstanceToGCPArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryContainerImageRel(
-    CartographyRelSchema
-):
+class AzureContainerInstanceToGCPArtifactRegistryImageRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: (
-        AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties
-    ) = AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties()
+    properties: AzureContainerInstanceToGCPArtifactRegistryImageRelProperties = (
+        AzureContainerInstanceToGCPArtifactRegistryImageRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -163,6 +161,6 @@ class AzureContainerInstanceSchema(CartographyNodeSchema):
             AzureContainerInstanceToGroupContainerWorkloadParentRel(),
             AzureContainerInstanceToECRImageRel(),
             AzureContainerInstanceToGitLabContainerImageRel(),
-            AzureContainerInstanceToGCPArtifactRegistryContainerImageRel(),
+            AzureContainerInstanceToGCPArtifactRegistryImageRel(),
         ],
     )

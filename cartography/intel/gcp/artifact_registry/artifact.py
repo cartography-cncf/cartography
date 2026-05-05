@@ -30,6 +30,7 @@ from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_pr
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
 )
+from cartography.intel.gcp.artifact_registry.util import MANIFEST_LIST_MEDIA_TYPES
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
@@ -61,11 +62,6 @@ from cartography.models.gcp.artifact_registry.repository_image import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-MANIFEST_LIST_MEDIA_TYPES = {
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.index.v1+json",
-}
 
 
 @dataclass(frozen=True)
@@ -416,15 +412,6 @@ def transform_docker_images_to_canonical_images(
             "digest": digest,
             "type": _image_type_from_media_type(media_type),
             "media_type": media_type,
-            "architecture": None,
-            "os": None,
-            "os_version": None,
-            "os_features": None,
-            "variant": None,
-            "source_uri": None,
-            "source_revision": None,
-            "source_file": None,
-            "layer_diff_ids": None,
             "child_image_digests": [],
         }
     return list(images_by_digest.values())
