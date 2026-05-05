@@ -34,10 +34,11 @@ def _resolve_digests_for_source(
     For digest-based URIs (repo@sha256:...), extracts the digest directly
     and verifies it exists on any node carrying the :Image label.
 
-    For tag-based URIs (repo:tag), looks up via ECRRepositoryImage → ECRImage
-    as a provider-specific fallback. Returns single-platform image digests
-    directly, and for manifest lists traverses CONTAINS_IMAGE to return
-    all child single-platform image digests.
+    For tag-based URIs (repo:tag), looks up via provider-specific repository
+    image/reference nodes such as ECRRepositoryImage and
+    GCPArtifactRegistryRepositoryImage. Returns single-platform image digests
+    directly, and for manifest lists traverses CONTAINS_IMAGE to return all
+    child single-platform image digests.
 
     Returns a list of digest strings (empty if no match is found).
     """

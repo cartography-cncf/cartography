@@ -11,9 +11,11 @@ from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.common.object_store import ReportRef
+from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.util import run_analysis_job
 from tests.data.aibom.aibom_sample import AIBOM_DIGEST_BASED_REPORT
+from tests.data.aibom.aibom_sample import AIBOM_GAR_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
@@ -23,6 +25,10 @@ from tests.data.aibom.aibom_sample import CONTAINER_ON_SINGLE_PLATFORM
 from tests.data.aibom.aibom_sample import TEST_CLUSTER_ID
 from tests.data.aibom.aibom_sample import TEST_CLUSTER_NAME
 from tests.data.aibom.aibom_sample import TEST_DIGEST_BASED_IMAGE_URI
+from tests.data.aibom.aibom_sample import TEST_GAR_IMAGE_DIGEST
+from tests.data.aibom.aibom_sample import TEST_GAR_IMAGE_URI
+from tests.data.aibom.aibom_sample import TEST_GAR_PROJECT_ID
+from tests.data.aibom.aibom_sample import TEST_GAR_REPOSITORY_ID
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -152,6 +158,56 @@ def _seed_single_platform_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
+
+
+def _seed_gar_single_platform_graph(neo4j_session) -> None:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (project:GCPProject {id: $project_id})
+        SET project.lastupdated = $update_tag
+        MERGE (repo:GCPArtifactRegistryRepository:ContainerRegistry {id: $repo_id})
+        SET repo.name = 'docker-repo',
+            repo.location = 'us-central1',
+            repo.registry_uri = $registry_uri,
+            repo.lastupdated = $update_tag
+        MERGE (project)-[resource:RESOURCE]->(repo)
+        SET resource.lastupdated = $update_tag
+        """,
+        project_id=TEST_GAR_PROJECT_ID,
+        repo_id=TEST_GAR_REPOSITORY_ID,
+        registry_uri=f"us-central1-docker.pkg.dev/{TEST_GAR_PROJECT_ID}/docker-repo",
+        update_tag=TEST_UPDATE_TAG,
+    )
+    load_docker_images(
+        neo4j_session,
+        [
+            {
+                "id": TEST_GAR_IMAGE_URI,
+                "name": f"my-app@{TEST_GAR_IMAGE_DIGEST}",
+                "uri": TEST_GAR_IMAGE_URI,
+                "digest": TEST_GAR_IMAGE_DIGEST,
+                "tag": "latest",
+                "tags": ["latest"],
+                "resource_name": (
+                    f"{TEST_GAR_REPOSITORY_ID}/dockerImages/my-app@{TEST_GAR_IMAGE_DIGEST}"
+                ),
+                "digest_uri": (
+                    f"us-central1-docker.pkg.dev/{TEST_GAR_PROJECT_ID}/docker-repo/my-app"
+                    f"@{TEST_GAR_IMAGE_DIGEST}"
+                ),
+                "image_size_bytes": "123",
+                "media_type": "application/vnd.oci.image.manifest.v1+json",
+                "upload_time": "2024-01-10T00:00:00Z",
+                "build_time": "2024-01-10T00:00:00Z",
+                "update_time": "2024-01-10T00:00:00Z",
+                "repository_id": TEST_GAR_REPOSITORY_ID,
+                "project_id": TEST_GAR_PROJECT_ID,
+            },
+        ],
+        TEST_GAR_PROJECT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch(
@@ -918,6 +974,60 @@ def test_sync_aibom_tag_single_platform_image_rels(
         rel_direction_right=True,
     ) == {
         ("pydantic_ai.Agent", tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
+    }
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(AIBOM_GAR_REPORT).encode("utf-8"),
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom-gar-tag.json", name="aibom-gar-tag.json")],
+)
+def test_sync_aibom_tag_gar_repository_image_rels(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_gar_single_platform_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPArtifactRegistryRepositoryImage",
+        ["id", "_ont_uri", "_ont_tag"],
+    ) == {
+        (TEST_GAR_IMAGE_URI, TEST_GAR_IMAGE_URI, "latest"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "Image",
+        "_ont_digest",
+        "SCANNED_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SOURCE_KEY, TEST_GAR_IMAGE_DIGEST),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "Image",
+        "_ont_digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", TEST_GAR_IMAGE_DIGEST),
     }
 
 

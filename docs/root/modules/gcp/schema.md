@@ -1691,6 +1691,7 @@ Representation of a repository-scoped pullable Docker image reference in a GCP A
 | _ont_uri | The full URI to the repository image, populated from `uri` for generic `ImageTag` queries |
 | digest | The digest referenced by this scoped image record (e.g., `sha256:...`) |
 | tag | The tag for this pullable image reference, when tagged |
+| _ont_tag | The tag for this pullable image reference, populated from `tag` for generic `ImageTag` queries |
 | tags | All tags returned on the underlying GAR DockerImage API record |
 | resource_name | Full GAR DockerImage API resource name |
 | digest_uri | Digest-form URI returned by the GAR DockerImage API |
@@ -1742,13 +1743,17 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
 |-------|-------------|
 | **id** | Image digest (e.g., `sha256:...`) |
 | **digest** | Image digest (e.g., `sha256:...`) |
+| _ont_digest | Image digest, populated from `digest` for generic `Image` / `ImageManifestList` queries |
 | type | Image type (`image`, `manifest_list`, or future `attestation`) |
 | media_type | The media type of the manifest |
 | architecture | CPU architecture for single-image manifests, extracted from the OCI image config (e.g., `amd64`, `arm64`) |
+| _ont_architecture | CPU architecture, populated from `architecture` for generic `Image` queries |
 | os | Operating system for single-image manifests, extracted from the OCI image config (e.g., `linux`, `windows`) |
+| _ont_os | Operating system, populated from `os` for generic `Image` queries |
 | os_version | OS version if specified |
 | os_features | OS features if specified |
 | variant | Platform variant for single-image manifests, extracted from the OCI image config (e.g., `v8`) |
+| _ont_variant | Platform variant, populated from `variant` for generic `Image` queries |
 | source_uri | Source repository URL extracted from OCI image config provenance (e.g., `https://github.com/org/repo`) |
 | source_revision | Git commit hash from build provenance |
 | source_file | Dockerfile path from build provenance |

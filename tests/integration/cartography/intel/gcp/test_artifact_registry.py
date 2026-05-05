@@ -248,12 +248,13 @@ def test_sync_artifact_registry(
     assert check_nodes(
         neo4j_session,
         "GCPArtifactRegistryRepositoryImage",
-        ["id", "uri", "_ont_uri", "tag", "resource_name", "digest_uri"],
+        ["id", "uri", "_ont_uri", "tag", "_ont_tag", "resource_name", "digest_uri"],
     ) == {
         (
             TEST_DOCKER_IMAGE_LATEST_URI,
             TEST_DOCKER_IMAGE_LATEST_URI,
             TEST_DOCKER_IMAGE_LATEST_URI,
+            "latest",
             "latest",
             TEST_DOCKER_IMAGE_ID,
             TEST_DOCKER_IMAGE_DIGEST_URI,
@@ -262,6 +263,7 @@ def test_sync_artifact_registry(
             TEST_DOCKER_IMAGE_VERSION_URI,
             TEST_DOCKER_IMAGE_VERSION_URI,
             TEST_DOCKER_IMAGE_VERSION_URI,
+            "v1.0.0",
             "v1.0.0",
             TEST_DOCKER_IMAGE_ID,
             TEST_DOCKER_IMAGE_DIGEST_URI,
@@ -536,6 +538,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
             repository_image.digest AS digest,
             repository_image.uri AS uri,
             repository_image._ont_uri AS ont_uri,
+            repository_image._ont_tag AS ont_tag,
             labels(repository_image) AS labels,
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
@@ -551,6 +554,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert result["digest"] == first_image_digest
     assert result["uri"] == docker_images[0]["uri"]
     assert result["ont_uri"] == docker_images[0]["uri"]
+    assert result["ont_tag"] == docker_images[0]["tag"]
     assert "ImageTag" in result["labels"]
     assert "Image" not in result["labels"]
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
@@ -1244,35 +1248,24 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
 
 def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
     project_id = "test-gar-preserve-manifest-children"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
+    child = _make_platform_image(parent["resource_name"], project_id, 1)
+    load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+
     neo4j_session.run(
         """
-        MERGE (p:GCPProject {id: $project_id})
-        MERGE (ref:GCPArtifactRegistryRepositoryImage:ImageTag {id: 'ref-parent'})
-        SET ref.digest = 'sha256:parent',
-            ref.lastupdated = $update_tag
-        MERGE (parent:GCPArtifactRegistryImage:ImageManifestList {id: 'sha256:parent'})
-        SET parent.digest = 'sha256:parent',
-            parent.lastupdated = $update_tag
-        MERGE (child:GCPArtifactRegistryImage:Image {id: 'sha256:child'})
-        SET child.digest = 'sha256:child',
-            child.lastupdated = $update_tag
-        MERGE (parent)-[contains:CONTAINS_IMAGE]->(child)
-        SET contains.lastupdated = $update_tag,
-            contains._sub_resource_label = 'GCPProject',
-            contains._sub_resource_id = $project_id
-        MERGE (p)-[resource:RESOURCE]->(ref)
-        SET resource.lastupdated = $update_tag
-        MERGE (ref)-[image:IMAGE]->(parent)
-        SET image.lastupdated = $update_tag,
-            image._sub_resource_label = 'GCPProject',
-            image._sub_resource_id = $project_id
+        MATCH (child:GCPArtifactRegistryImage {id: $child_id})
         MERGE (container:Container {id: 'container-uses-child'})
         MERGE (container)-[has_image:HAS_IMAGE]->(child)
         SET has_image.firstseen = 111,
             has_image.lastupdated = $update_tag
         """,
-        project_id=project_id,
+        child_id=child["id"],
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -1285,13 +1278,31 @@ def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
         },
     )
 
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "CONTAINS_IMAGE",
+    ) >= {(parent["digest"], child["id"])}
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "HAS_IMAGE",
+    ) >= {("container-uses-child", child["id"])}
     result = neo4j_session.run(
         """
         MATCH (:Container {id: 'container-uses-child'})-[has_image:HAS_IMAGE]->
-              (child:GCPArtifactRegistryImage {id: 'sha256:child'})
-        MATCH (:GCPArtifactRegistryImage {id: 'sha256:parent'})-[:CONTAINS_IMAGE]->(child)
+              (child:GCPArtifactRegistryImage {id: $child_id})
+        MATCH (:GCPArtifactRegistryImage {id: $parent_id})-[:CONTAINS_IMAGE]->(child)
         RETURN has_image.firstseen AS firstseen
-        """
+        """,
+        child_id=child["id"],
+        parent_id=parent["digest"],
     ).single()
     assert result["firstseen"] == 111
 

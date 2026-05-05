@@ -22,6 +22,7 @@ class GCPArtifactRegistryRepositoryImageNodeProperties(CartographyNodeProperties
     _ont_uri: PropertyRef = PropertyRef("uri")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     tag: PropertyRef = PropertyRef("tag")
+    _ont_tag: PropertyRef = PropertyRef("tag")
     tags: PropertyRef = PropertyRef("tags")
     resource_name: PropertyRef = PropertyRef("resource_name", extra_index=True)
     digest_uri: PropertyRef = PropertyRef("digest_uri")
