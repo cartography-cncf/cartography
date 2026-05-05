@@ -3,7 +3,6 @@ import re
 from typing import Any
 
 import neo4j
-from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -134,7 +133,14 @@ def get_latest_ready_revisions(
     client = build_cloud_run_revision_client(credentials=credentials)
     revisions: dict[str, dict] = {}
     for revision_name in revision_names:
-        revision_location = _get_revision_location(revision_name) or project_id
+        revision_location = _get_revision_location(revision_name)
+        if revision_location is None:
+            logger.debug(
+                "Could not parse Cloud Run revision location from %s for project %s.",
+                revision_name,
+                project_id,
+            )
+            revision_location = project_id
         retry = build_cloud_run_resource_retry(
             resource_type="revision",
             location=revision_location,
@@ -146,7 +152,7 @@ def get_latest_ready_revisions(
                 retry=retry,
                 timeout=CLOUD_RUN_LIST_TIMEOUT,
             )
-        except (NotFound, PermissionDenied, GoogleAPICallError) as e:
+        except (NotFound, PermissionDenied) as e:
             logger.warning(
                 "Could not retrieve Cloud Run latestReadyRevision %s for project %s: %s",
                 revision_name,
