@@ -1329,7 +1329,7 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         },
     )
     run_scoped_analysis_job(
-        "gcp_artifact_registry_image_cleanup.json",
+        "gcp_artifact_registry_orphan_image_cleanup.json",
         neo4j_session,
         {
             "PROJECT_ID": project_id,

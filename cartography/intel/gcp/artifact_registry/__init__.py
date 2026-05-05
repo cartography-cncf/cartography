@@ -86,8 +86,10 @@ def sync(
             neo4j_session,
             cleanup_job_params,
         )
+        # Remove digest-keyed images only after scoped repository-image and
+        # manifest cleanup have removed stale references.
         run_scoped_analysis_job(
-            "gcp_artifact_registry_image_cleanup.json",
+            "gcp_artifact_registry_orphan_image_cleanup.json",
             neo4j_session,
             cleanup_job_params,
         )
