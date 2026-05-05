@@ -37,6 +37,7 @@ SC{{Secret}}
 EK{{EncryptionKey}}
 PR{{PermissionRole}}
 NAC{{NetworkAccessControl}}
+AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
@@ -501,6 +502,24 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_port | The port number the database listens on. |
 | _ont_db_encrypted | Whether the database storage is encrypted. |
 | _ont_db_location | The physical location/region of the database. |
+
+
+### AIModel
+
+```{note}
+AIModel is a semantic label.
+```
+
+An AI/ML model represents a deployed or referenced foundation, custom, or fine-tuned model across cloud providers and AI bills of materials.
+It generalizes concepts like AWS Bedrock foundation and custom models, AWS SageMaker models, GCP Vertex AI models, and AIBOM-detected model components.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Name or identifier of the model (REQUIRED). |
+| _ont_provider | Vendor of the model (e.g. "Anthropic", "Amazon", "Meta") when known, otherwise the cloud provider hosting the model (e.g. "aws", "gcp"), or the framework reporting the model for AIBOM components. |
+| _ont_status | Lifecycle or operational status of the model (when exposed by the source). |
+| _ont_type | One of "foundation", "custom", or "fine-tuned" (when determinable). |
+| _ont_source | Source of the data. |
 
 
 ### PermissionRole
