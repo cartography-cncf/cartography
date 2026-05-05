@@ -179,12 +179,12 @@ cis_aws_4_2_cloudtrail_log_validation = Rule(
 class CloudTrailBucketAccessLoggingOutput(Finding):
     """Output model for CloudTrail S3 bucket access logging check."""
 
-    trail_name: str | None = None
-    trail_arn: str | None = None
     bucket_name: str | None = None
     bucket_id: str | None = None
     region: str | None = None
     logging_enabled: bool | None = None
+    trail_names: list[str] | None = None
+    trail_arns: list[str] | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -201,12 +201,12 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN
-        trail.name AS trail_name,
-        trail.arn AS trail_arn,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
         bucket.logging_enabled AS logging_enabled,
+        collect(DISTINCT trail.name) AS trail_names,
+        collect(DISTINCT trail.arn) AS trail_arns,
         a.id AS account_id,
         a.name AS account
     """,
@@ -216,9 +216,10 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
-    RETURN COUNT(*) AS count
+    MATCH (:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    RETURN COUNT(DISTINCT bucket) AS count
     """,
+    asset_id_field="bucket_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
