@@ -92,7 +92,8 @@ def _sync_data_factory(
     except AzureDataFactoryTransientError as error:
         logger.warning(
             "Skipping Azure Data Factory sync after transient API failures "
-            "(operation=%s, status_code=%s).",
+            "for subscription %s (operation=%s, status_code=%s).",
+            subscription_id,
             error.operation,
             error.status_code,
         )

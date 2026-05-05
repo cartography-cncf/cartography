@@ -34,7 +34,7 @@ def test_get_factories_retries_transient_error() -> None:
         [_AzureResource({"id": "factory-1"})],
     ]
 
-    with patch("cartography.intel.azure.data_factory_util.time.sleep") as mock_sleep:
+    with patch("time.sleep") as mock_sleep:
         result = data_factory.get_factories(client)
 
     assert result == [{"id": "factory-1"}]
@@ -81,14 +81,14 @@ def test_get_factories_raises_transient_error_after_retry_exhaustion() -> None:
     ]
 
     with (
-        patch("cartography.intel.azure.data_factory_util.time.sleep") as mock_sleep,
+        patch("time.sleep") as mock_sleep,
         pytest.raises(AzureDataFactoryTransientError) as excinfo,
     ):
         data_factory.get_factories(client)
 
     assert excinfo.value.operation == "list data factories"
     assert excinfo.value.status_code == 503
-    assert excinfo.value.__cause__ is None
+    assert isinstance(excinfo.value.__cause__, HttpResponseError)
     assert client.factories.list.call_count == 3
     assert mock_sleep.call_count == 2
 
@@ -126,6 +126,82 @@ def test_sync_data_factory_skips_child_syncs_after_transient_error() -> None:
         mock_linked_services.assert_not_called()
         mock_datasets.assert_not_called()
         mock_pipelines.assert_not_called()
+
+
+def test_sync_data_factory_skips_later_children_after_child_transient_error() -> None:
+    neo4j_session = MagicMock()
+    credentials = MagicMock()
+    common_job_parameters = {"UPDATE_TAG": 123}
+    factories = [{"id": "factory-1", "name": "factory-1"}]
+
+    with (
+        patch(
+            "cartography.intel.azure.data_factory.sync_data_factories",
+            return_value=factories,
+        ) as mock_factories,
+        patch(
+            "cartography.intel.azure.data_factory_linked_service.sync_data_factory_linked_services",
+            side_effect=AzureDataFactoryTransientError(
+                "list data factory linked services",
+                503,
+            ),
+        ) as mock_linked_services,
+        patch(
+            "cartography.intel.azure.data_factory_dataset.sync_data_factory_datasets"
+        ) as mock_datasets,
+        patch(
+            "cartography.intel.azure.data_factory_pipeline.sync_data_factory_pipelines"
+        ) as mock_pipelines,
+    ):
+        azure._sync_data_factory(
+            neo4j_session,
+            credentials,
+            "subscription-1",
+            123,
+            common_job_parameters,
+        )
+
+    mock_factories.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
+    mock_linked_services.assert_called_once_with(
+        neo4j_session,
+        credentials,
+        factories,
+        "subscription-1",
+        123,
+        common_job_parameters,
+    )
+    mock_datasets.assert_not_called()
+    mock_pipelines.assert_not_called()
+
+
+def test_sync_data_factory_logs_subscription_when_skipping(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    neo4j_session = MagicMock()
+    credentials = MagicMock()
+
+    with patch(
+        "cartography.intel.azure.data_factory.sync_data_factories",
+        side_effect=AzureDataFactoryTransientError(
+            "list data factories",
+            503,
+        ),
+    ):
+        azure._sync_data_factory(
+            neo4j_session,
+            credentials,
+            "subscription-1",
+            123,
+            {"UPDATE_TAG": 123},
+        )
+
+    assert "subscription-1" in caplog.text
 
 
 def test_sync_data_factory_runs_child_syncs_with_fetched_data() -> None:
@@ -201,7 +277,7 @@ def test_get_factories_does_not_retry_non_transient_error() -> None:
     client.factories.list.side_effect = _SyntheticHttpResponseError(403)
 
     with (
-        patch("cartography.intel.azure.data_factory_util.time.sleep") as mock_sleep,
+        patch("time.sleep") as mock_sleep,
         pytest.raises(HttpResponseError),
     ):
         data_factory.get_factories(client)

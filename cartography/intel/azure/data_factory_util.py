@@ -1,15 +1,16 @@
 import logging
-import time
 from collections.abc import Callable
 from typing import TypeVar
 
+import backoff
 from azure.core.exceptions import HttpResponseError
+
+from cartography.helpers import backoff_handler
 
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
-_MAX_ATTEMPTS = 3
-_RETRY_BACKOFF_SECONDS = 2
+_MAX_TRIES = 3
 
 T = TypeVar("T")
 
@@ -39,24 +40,28 @@ def _get_status_code(error: HttpResponseError) -> int | None:
         return None
 
 
+def _is_retryable_data_factory_error(error: HttpResponseError) -> bool:
+    status_code = _get_status_code(error)
+    return status_code in _RETRYABLE_STATUS_CODES
+
+
 def call_data_factory_operation(operation: str, func: Callable[[], T]) -> T:
-    for attempt in range(1, _MAX_ATTEMPTS + 1):
-        try:
-            return func()
-        except HttpResponseError as error:
-            status_code = _get_status_code(error)
-            if status_code not in _RETRYABLE_STATUS_CODES:
-                raise
+    @backoff.on_exception(  # type: ignore[misc]
+        backoff.expo,
+        HttpResponseError,
+        max_tries=_MAX_TRIES,
+        giveup=lambda error: not _is_retryable_data_factory_error(error),
+        on_backoff=backoff_handler,
+    )
+    def _call() -> T:
+        return func()
 
-            if attempt == _MAX_ATTEMPTS:
-                raise AzureDataFactoryTransientError(operation, status_code) from None
-
-            logger.warning(
-                "Transient Azure Data Factory API error during %s "
-                "(status_code=%s). Retrying.",
-                operation,
-                status_code,
-            )
-            time.sleep(_RETRY_BACKOFF_SECONDS**attempt)
-
-    raise RuntimeError("unreachable")
+    try:
+        return _call()
+    except HttpResponseError as error:
+        if not _is_retryable_data_factory_error(error):
+            raise
+        raise AzureDataFactoryTransientError(
+            operation,
+            _get_status_code(error),
+        ) from error
