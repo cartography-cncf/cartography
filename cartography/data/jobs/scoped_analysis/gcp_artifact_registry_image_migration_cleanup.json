@@ -1,28 +1,16 @@
 {
   "name": "GCP Artifact Registry legacy image cleanup",
-  "__comment__": "Remove old GCPArtifactRegistryContainerImage / GCPArtifactRegistryPlatformImage labels and nodes after the RepositoryImage/Image model is loaded. New ingests do not emit these labels.",
+  "__comment__": "Delete old GCPArtifactRegistryContainerImage / GCPArtifactRegistryPlatformImage nodes after the RepositoryImage/Image model is loaded. New ingests do not emit these labels.",
   "statements": [
     {
-      "__comment__": "Remove the old scoped image label from RepositoryImage nodes created by transitional versions of the model.",
-      "query": "MATCH (repo_img:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage) WITH repo_img LIMIT $LIMIT_SIZE REMOVE repo_img:GCPArtifactRegistryContainerImage RETURN COUNT(*) AS TotalCompleted",
+      "__comment__": "Delete remaining pure legacy scoped container-image nodes.",
+      "query": "MATCH (old:GCPArtifactRegistryContainerImage) WHERE NOT old:GCPArtifactRegistryRepositoryImage AND NOT old:GCPArtifactRegistryImage WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     },
     {
-      "__comment__": "Remove the old platform image label from canonical Image nodes created by transitional versions of the model.",
-      "query": "MATCH (img:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage) WITH img LIMIT $LIMIT_SIZE REMOVE img:GCPArtifactRegistryPlatformImage RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 1000
-    },
-    {
-      "__comment__": "Delete remaining legacy scoped container-image nodes.",
-      "query": "MATCH (old:GCPArtifactRegistryContainerImage) WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 1000
-    },
-    {
-      "__comment__": "Delete remaining legacy platform-image nodes.",
-      "query": "MATCH (old:GCPArtifactRegistryPlatformImage) WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
+      "__comment__": "Delete remaining pure legacy platform-image nodes.",
+      "query": "MATCH (old:GCPArtifactRegistryPlatformImage) WHERE NOT old:GCPArtifactRegistryImage WITH old LIMIT $LIMIT_SIZE DETACH DELETE old RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     }
