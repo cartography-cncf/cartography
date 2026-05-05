@@ -96,26 +96,22 @@ def _get_successful_jobs(
         jobs.extend(page_jobs)
 
         next_page = response.headers.get("X-Next-Page")
-        if next_page:
-            page = int(next_page)
-            continue
-        if len(page_jobs) < DEPENDENCY_SCAN_JOBS_PER_PAGE:
+        if not next_page:
             break
-        page += 1
+        page = int(next_page)
 
     return jobs
 
 
 def _is_cyclonedx_artifact(path: str) -> bool:
     filename = path.rsplit("/", 1)[-1]
-    if not filename.startswith("gl-sbom"):
-        return False
-    if not filename.endswith(CYCLONEDX_ARTIFACT_SUFFIXES):
-        return False
     return filename in {
         "gl-sbom.cdx.json",
         "gl-sbom.cdx.json.gz",
-    } or filename.startswith("gl-sbom-")
+    } or (
+        filename.startswith("gl-sbom-")
+        and filename.endswith(CYCLONEDX_ARTIFACT_SUFFIXES)
+    )
 
 
 def _load_cyclonedx_json(content: bytes, path: str) -> dict[str, Any]:
@@ -371,9 +367,6 @@ def get_dependencies(
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading artifacts for job ID {job_id}: {e}")
-        return []
-    except zipfile.BadZipFile as e:
-        logger.error(f"Invalid ZIP file for job ID {job_id}: {e}")
         return []
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in CycloneDX SBOM: {e}")
