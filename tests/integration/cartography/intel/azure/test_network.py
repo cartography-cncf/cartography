@@ -313,29 +313,50 @@ def test_sync_network(
         == expected_rule_ids
     )
 
-    # Assert NSG -[:CONTAINS]-> AzureNetworkSecurityRule for every rule.
-    expected_nsg_rule_rels = {
-        (nsg["id"], rule["id"])
+    # Assert rule -[:MEMBER_OF_AZURE_NSG]-> NSG for every rule (rule -> NSG).
+    expected_rule_nsg_rels = {
+        (rule["id"], nsg["id"])
         for nsg in MOCK_NSGS
         for rule in (
             nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
         )
     }
-    actual_nsg_rule_rels = check_rels(
+    actual_rule_nsg_rels = check_rels(
         neo4j_session,
-        "AzureNetworkSecurityGroup",
-        "id",
         "AzureNetworkSecurityRule",
         "id",
-        "CONTAINS",
+        "AzureNetworkSecurityGroup",
+        "id",
+        "MEMBER_OF_AZURE_NSG",
         rel_direction_right=True,
     )
-    assert actual_nsg_rule_rels == expected_nsg_rule_rels
+    assert actual_rule_nsg_rels == expected_rule_nsg_rels
 
-    # Assert that an Allow / Inbound / port 22 / source '*' rule is queryable.
+    # Assert ontology labels: every inbound rule carries IpPermissionInbound +
+    # IpRule, every outbound rule carries IpPermissionEgress + IpRule.
+    inbound_query = neo4j_session.run(
+        """
+        MATCH (r:AzureNetworkSecurityRule:IpPermissionInbound:IpRule)
+        WHERE r.direction = 'Inbound'
+        RETURN count(r) AS c
+        """
+    ).single()
+    expected_inbound_count = sum(
+        1
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+        if (rule.get("direction") or rule.get("properties", {}).get("direction"))
+        == "Inbound"
+    )
+    assert inbound_query["c"] == expected_inbound_count
+
+    # Assert that an Allow / Inbound / port 22 / source '*' rule is queryable
+    # via the cross-cloud IpRule label.
     inbound_ssh = neo4j_session.run(
         """
-        MATCH (r:AzureNetworkSecurityRule)
+        MATCH (r:IpRule:IpPermissionInbound)
         WHERE r.direction = 'Inbound'
           AND r.access = 'Allow'
           AND r.source_address_prefix IN ['*', 'Internet', '0.0.0.0/0']

@@ -588,22 +588,31 @@ def test_sync_sql_servers_and_databases(
         == expected_firewall_rule_nodes
     )
 
-    # Assert AzureSQLServer -[:CONTAINS]-> AzureSQLServerFirewallRule.
+    # Assert rule -[:MEMBER_OF_AZURE_SQL_SERVER]-> AzureSQLServer (rule -> server).
     expected_firewall_rule_rels = {
-        (server1, fr["id"]) for fr in DESCRIBE_FIREWALL_RULES
+        (fr["id"], server1) for fr in DESCRIBE_FIREWALL_RULES
     }
     assert (
         check_rels(
             neo4j_session,
-            "AzureSQLServer",
-            "id",
             "AzureSQLServerFirewallRule",
             "id",
-            "CONTAINS",
+            "AzureSQLServer",
+            "id",
+            "MEMBER_OF_AZURE_SQL_SERVER",
             rel_direction_right=True,
         )
         == expected_firewall_rule_rels
     )
+
+    # Assert ontology labels: every firewall rule carries IpPermissionInbound + IpRule.
+    iprule_count = neo4j_session.run(
+        """
+        MATCH (r:AzureSQLServerFirewallRule:IpPermissionInbound:IpRule)
+        RETURN count(r) AS c
+        """
+    ).single()
+    assert iprule_count["c"] == len(DESCRIBE_FIREWALL_RULES)
 
     # Assert subscription -[:RESOURCE]-> AzureSQLServerFirewallRule for cleanup scoping.
     expected_firewall_rule_sub_rels = {

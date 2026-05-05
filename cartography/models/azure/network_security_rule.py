@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -59,23 +60,54 @@ class AzureNetworkSecurityRuleToNSGRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AzureNetworkSecurityGroup)-[:CONTAINS]->(:AzureNetworkSecurityRule)
+# (:AzureNetworkSecurityRule)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
 class AzureNetworkSecurityRuleToNSGRel(CartographyRelSchema):
     target_node_label: str = "AzureNetworkSecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("nsg_id")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_AZURE_NSG"
     properties: AzureNetworkSecurityRuleToNSGRelProperties = (
         AzureNetworkSecurityRuleToNSGRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureNetworkSecurityRuleSchema(CartographyNodeSchema):
+class AzureInboundNetworkSecurityRuleSchema(CartographyNodeSchema):
+    """Schema for inbound NSG rules. Carries the cross-cloud `IpRule` and
+    `IpPermissionInbound` semantic labels so it can be matched alongside
+    AWS / GCP equivalents."""
+
     label: str = "AzureNetworkSecurityRule"
-    properties: AzureNetworkSecurityRuleProperties = AzureNetworkSecurityRuleProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["IpPermissionInbound", "IpRule"]
+    )
+    properties: AzureNetworkSecurityRuleProperties = (
+        AzureNetworkSecurityRuleProperties()
+    )
+    sub_resource_relationship: AzureNetworkSecurityRuleToSubscriptionRel = (
+        AzureNetworkSecurityRuleToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureNetworkSecurityRuleToNSGRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class AzureOutboundNetworkSecurityRuleSchema(CartographyNodeSchema):
+    """Schema for outbound NSG rules. Carries the cross-cloud `IpRule` and
+    `IpPermissionEgress` semantic labels."""
+
+    label: str = "AzureNetworkSecurityRule"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["IpPermissionEgress", "IpRule"]
+    )
+    properties: AzureNetworkSecurityRuleProperties = (
+        AzureNetworkSecurityRuleProperties()
+    )
     sub_resource_relationship: AzureNetworkSecurityRuleToSubscriptionRel = (
         AzureNetworkSecurityRuleToSubscriptionRel()
     )

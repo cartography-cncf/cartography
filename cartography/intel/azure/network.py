@@ -13,7 +13,10 @@ from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
 from cartography.models.azure.network_security_rule import (
-    AzureNetworkSecurityRuleSchema,
+    AzureInboundNetworkSecurityRuleSchema,
+)
+from cartography.models.azure.network_security_rule import (
+    AzureOutboundNetworkSecurityRuleSchema,
 )
 from cartography.models.azure.public_ip_address import AzurePublicIPAddressSchema
 from cartography.models.azure.subnet import AzureSubnetSchema
@@ -337,13 +340,29 @@ def load_network_security_rules(
     subscription_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        AzureNetworkSecurityRuleSchema(),
-        data,
-        lastupdated=update_tag,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-    )
+    """
+    Load NSG rules into Neo4j, splitting Inbound and Outbound rules so each
+    batch picks up the appropriate ontology label (`IpPermissionInbound` vs
+    `IpPermissionEgress`).
+    """
+    inbound = [r for r in data if (r.get("direction") or "").lower() == "inbound"]
+    outbound = [r for r in data if (r.get("direction") or "").lower() == "outbound"]
+    if inbound:
+        load(
+            neo4j_session,
+            AzureInboundNetworkSecurityRuleSchema(),
+            inbound,
+            lastupdated=update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
+        )
+    if outbound:
+        load(
+            neo4j_session,
+            AzureOutboundNetworkSecurityRuleSchema(),
+            outbound,
+            lastupdated=update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
+        )
 
 
 @timeit
@@ -492,8 +511,10 @@ def _sync_network_security_groups(
         neo4j_session, transformed_rules, subscription_id, update_tag
     )
     load_nsg_tags(neo4j_session, subscription_id, nsgs, update_tag)
+    # Both rule schemas share the AzureNetworkSecurityRule node label, so a
+    # single cleanup pass covers nodes loaded under either schema.
     GraphJob.from_node_schema(
-        AzureNetworkSecurityRuleSchema(), common_job_parameters
+        AzureInboundNetworkSecurityRuleSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_node_schema(
         AzureNetworkSecurityGroupSchema(), common_job_parameters

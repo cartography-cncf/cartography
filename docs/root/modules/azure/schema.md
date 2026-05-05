@@ -446,9 +446,9 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
     ```
     (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
     ```
-- Azure SQL Server contains one or more Azure SQL Server Firewall Rules.
+- Azure SQL Server has one or more firewall rules whose `IpRule` label makes them queryable alongside the equivalents on AWS / GCP.
     ```cypher
-    (AzureSQLServer)-[CONTAINS]->(AzureSQLServerFirewallRule)
+    (AzureSQLServerFirewallRule)-[MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
     ```
 
 - Azure SQL Servers can be tagged with Azure Tags.
@@ -633,9 +633,11 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
         (AzureSubscription)-[RESOURCE]->(AzureElasticPool)
     ```
 
-### AzureSQLServerFirewallRule
+### AzureSQLServerFirewallRule :: IpPermissionInbound :: IpRule
 
 Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules). Firewall rules whose `start_ip_address` and `end_ip_address` cover `0.0.0.0` to `255.255.255.255` (or the special "Allow Azure Services" `0.0.0.0`/`0.0.0.0` row) make the server reachable from public IPs.
+
+> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
 
 | Field | Description |
 |-------|-------------|
@@ -648,13 +650,13 @@ Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en
 
 #### Relationships
 
-- Azure SQL Server contains one or more firewall rules.
+- A firewall rule is a member of an Azure SQL Server.
     ```cypher
-    (AzureSQLServer)-[CONTAINS]->(AzureSQLServerFirewallRule)
+    (AzureSQLServerFirewallRule)-[:MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
     ```
 - Firewall rules belong to a Subscription.
     ```cypher
-    (AzureSubscription)-[RESOURCE]->(AzureSQLServerFirewallRule)
+    (AzureSubscription)-[:RESOURCE]->(AzureSQLServerFirewallRule)
     ```
 
 ### AzureSQLDatabase
@@ -2240,14 +2242,17 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
     (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
     ```
 
-  - An Azure Network Security Group contains one or more Security Rules.
+  - An Azure Network Security Group has one or more Security Rules whose direction is encoded in the `IpPermissionInbound` / `IpPermissionEgress` extra label.
     ```cypher
-    (AzureNetworkSecurityGroup)-[:CONTAINS]->(:AzureNetworkSecurityRule)
+    (:AzureNetworkSecurityRule:IpPermissionInbound)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
+    (:AzureNetworkSecurityRule:IpPermissionEgress)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
     ```
 
-### AzureNetworkSecurityRule
+### AzureNetworkSecurityRule :: IpPermissionInbound / IpPermissionEgress :: IpRule
 
 Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
+
+> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `EC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
 
 | Field | Description |
 |-------|-------------|
@@ -2276,9 +2281,9 @@ Representation of a single rule inside an [Azure Network Security Group](https:/
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityRule)
     ```
-- An Azure Network Security Rule is contained by a Network Security Group.
+- An Azure Network Security Rule is a member of a Network Security Group.
     ```cypher
-    (AzureNetworkSecurityGroup)-[:CONTAINS]->(:AzureNetworkSecurityRule)
+    (AzureNetworkSecurityRule)-[:MEMBER_OF_AZURE_NSG]->(AzureNetworkSecurityGroup)
     ```
 
 ### AzureFirewall
