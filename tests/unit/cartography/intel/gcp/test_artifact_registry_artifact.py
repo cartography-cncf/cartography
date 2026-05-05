@@ -158,7 +158,7 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
     )
     neo4j_session = MagicMock()
     node_schema = MagicMock()
-    node_schema.label = "GCPArtifactRegistryContainerImage"
+    node_schema.label = "GCPArtifactRegistryRepositoryImage"
 
     with (
         patch(
@@ -193,7 +193,7 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
     assert "Loaded test GAR nodes batch 1/2" in caplog.text
     assert "Loaded test GAR nodes batch 2/2" in caplog.text
     stat_handler.incr.assert_called_once_with(
-        "node.gcpartifactregistrycontainerimage.loaded", 3
+        "node.gcpartifactregistryrepositoryimage.loaded", 3
     )
 
 

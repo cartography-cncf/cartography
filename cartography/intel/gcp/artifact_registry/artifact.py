@@ -30,6 +30,7 @@ from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_pr
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
 )
+from cartography.intel.gcp.artifact_registry.util import MANIFEST_LIST_MEDIA_TYPES
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
@@ -61,11 +62,6 @@ from cartography.models.gcp.artifact_registry.repository_image import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-MANIFEST_LIST_MEDIA_TYPES = {
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.index.v1+json",
-}
 
 
 @dataclass(frozen=True)
@@ -360,25 +356,34 @@ def transform_docker_images(
     transformed: list[dict] = []
     for image in images_data:
         name = image.get("name", "")
-        uri = image.get("uri", "")
+        digest_uri = image.get("uri", "")
+        digest = digest_uri.split("@")[-1] if "@" in digest_uri else None
+        base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
+        tags = image.get("tags") or []
+        refs = tags or [None]
 
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "uri": uri,
-                "digest": uri.split("@")[-1] if "@" in uri else None,
-                "tags": image.get("tags"),
-                "image_size_bytes": image.get("imageSizeBytes"),
-                "media_type": image.get("mediaType"),
-                "upload_time": image.get("uploadTime"),
-                "build_time": image.get("buildTime"),
-                "update_time": image.get("updateTime"),
-                "artifact_type": image.get("artifactType"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
+        for tag in refs:
+            uri = f"{base_uri}:{tag}" if tag else digest_uri
+            transformed.append(
+                {
+                    "id": uri,
+                    "name": name.split("/")[-1] if name else None,
+                    "uri": uri,
+                    "digest": digest,
+                    "tag": tag,
+                    "tags": tags,
+                    "resource_name": name,
+                    "digest_uri": digest_uri,
+                    "image_size_bytes": image.get("imageSizeBytes"),
+                    "media_type": image.get("mediaType"),
+                    "upload_time": image.get("uploadTime"),
+                    "build_time": image.get("buildTime"),
+                    "update_time": image.get("updateTime"),
+                    "artifact_type": image.get("artifactType"),
+                    "repository_id": repository_id,
+                    "project_id": project_id,
+                }
+            )
     return transformed
 
 
@@ -407,15 +412,6 @@ def transform_docker_images_to_canonical_images(
             "digest": digest,
             "type": _image_type_from_media_type(media_type),
             "media_type": media_type,
-            "architecture": None,
-            "os": None,
-            "os_version": None,
-            "os_features": None,
-            "variant": None,
-            "source_uri": None,
-            "source_revision": None,
-            "source_file": None,
-            "layer_diff_ids": None,
             "child_image_digests": [],
         }
     return list(images_by_digest.values())
@@ -793,6 +789,9 @@ def cleanup_docker_images(
     GraphJob.from_node_schema(
         GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
     ).run(neo4j_session)
+    # The split write path attaches these relationships with MatchLinks, so
+    # clean them explicitly after node cleanup has used the project RESOURCE
+    # edge to scope stale repository-image deletion.
     GraphJob.from_matchlink(
         GCPArtifactRegistryProjectToRepositoryImageRel(),
         "GCPProject",
@@ -901,18 +900,25 @@ def transform_image_manifests(
     :param project_id: The GCP project ID.
     :return: List of transformed platform image dicts.
     """
+    from cartography.intel.gcp.artifact_registry.manifest import (
+        extract_digest_from_reference,
+    )
     from cartography.intel.gcp.artifact_registry.manifest import transform_manifests
 
     all_manifests: list[dict] = []
 
     for artifact in docker_images_raw:
         artifact_name = artifact.get("name", "")
+        artifact_uri = artifact.get("uri", "")
+        parent_digest = extract_digest_from_reference(
+            artifact_uri
+        ) or extract_digest_from_reference(artifact_name)
         # imageManifests field is returned by the API for multi-arch images
         image_manifests = artifact.get("imageManifests", [])
 
         if image_manifests:
             # Transform the manifests using the existing transform function
-            manifests = transform_manifests(image_manifests, artifact_name, project_id)
+            manifests = transform_manifests(image_manifests, parent_digest)
             all_manifests.extend(manifests)
 
     return all_manifests

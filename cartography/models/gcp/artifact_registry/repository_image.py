@@ -21,7 +21,11 @@ class GCPArtifactRegistryRepositoryImageNodeProperties(CartographyNodeProperties
     uri: PropertyRef = PropertyRef("uri", extra_index=True)
     _ont_uri: PropertyRef = PropertyRef("uri")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
+    tag: PropertyRef = PropertyRef("tag")
+    _ont_tag: PropertyRef = PropertyRef("tag")
     tags: PropertyRef = PropertyRef("tags")
+    resource_name: PropertyRef = PropertyRef("resource_name", extra_index=True)
+    digest_uri: PropertyRef = PropertyRef("digest_uri")
     image_size_bytes: PropertyRef = PropertyRef("image_size_bytes")
     media_type: PropertyRef = PropertyRef("media_type")
     upload_time: PropertyRef = PropertyRef("upload_time")
@@ -197,7 +201,4 @@ class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
             GCPArtifactRegistryRepositoryImageToImageRel(),
         ]
     )
-    # DEPRECATED: GCPArtifactRegistryContainerImage compatibility label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["ImageTag", "GCPArtifactRegistryContainerImage"]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageTag"])

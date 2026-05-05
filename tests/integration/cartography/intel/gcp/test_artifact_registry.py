@@ -19,14 +19,15 @@ from cartography.intel.gcp.artifact_registry.repository import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageSchema,
-)
+from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageContainsImageMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageSchema,
 )
 from cartography.util import run_scoped_analysis_job
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
@@ -49,6 +50,15 @@ TEST_MAVEN_REPO_ID = (
 TEST_APT_REPO_ID = "projects/test-project/locations/us-east1/repositories/apt-repo"
 TEST_YUM_REPO_ID = "projects/test-project/locations/us-east1/repositories/yum-repo"
 TEST_DOCKER_IMAGE_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123"
+TEST_DOCKER_IMAGE_LATEST_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:latest"
+)
+TEST_DOCKER_IMAGE_VERSION_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0"
+)
+TEST_DOCKER_IMAGE_DIGEST_URI = (
+    "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123"
+)
 TEST_HELM_CHART_ID = "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789"
 TEST_MAVEN_ARTIFACT_ID = "projects/test-project/locations/us-central1/repositories/maven-repo/mavenArtifacts/com.example:my-lib:1.0.0"
 TEST_APT_ARTIFACT_ID = "projects/test-project/locations/us-east1/repositories/apt-repo/packages/curl/versions/7.88.1"
@@ -110,12 +120,22 @@ def _make_docker_image(
 ) -> dict[str, Any]:
     digest = f"sha256:{index:064x}"
     name = f"{repository_id}/dockerImages/app-{index}@{digest}"
+    digest_uri = f"us-central1-docker.pkg.dev/test-project/repo/app-{index}@{digest}"
+    tag = "latest" if index % 2 == 0 else None
+    uri = (
+        f"us-central1-docker.pkg.dev/test-project/repo/app-{index}:{tag}"
+        if tag
+        else digest_uri
+    )
     return {
-        "id": name,
+        "id": uri,
         "name": name.split("/")[-1],
-        "uri": f"us-central1-docker.pkg.dev/test-project/repo/app-{index}@{digest}",
+        "uri": uri,
         "digest": digest,
-        "tags": ["latest"] if index % 2 == 0 else [],
+        "tag": tag,
+        "tags": ["latest"] if tag else [],
+        "resource_name": name,
+        "digest_uri": digest_uri,
         "image_size_bytes": str(index),
         "media_type": media_type,
         "upload_time": "2024-01-10T00:00:00Z",
@@ -126,9 +146,11 @@ def _make_docker_image(
     }
 
 
-def _make_platform_image(parent_artifact_id: str, project_id: str, index: int) -> dict:
+def _make_platform_image(
+    parent_resource_name: str, project_id: str, index: int
+) -> dict:
     digest = f"sha256:{index:064x}"
-    parent_digest = parent_artifact_id.split("@")[-1]
+    parent_digest = parent_resource_name.split("@")[-1]
     return {
         "id": digest,
         "digest": digest,
@@ -220,21 +242,32 @@ def test_sync_artifact_registry(
 
     # Assert: Check repository image and canonical image nodes
     assert check_nodes(neo4j_session, "GCPArtifactRegistryRepositoryImage", ["id"]) == {
-        (TEST_DOCKER_IMAGE_ID,),
+        (TEST_DOCKER_IMAGE_LATEST_URI,),
+        (TEST_DOCKER_IMAGE_VERSION_URI,),
     }
     assert check_nodes(
         neo4j_session,
         "GCPArtifactRegistryRepositoryImage",
-        ["id", "uri", "_ont_uri"],
+        ["id", "uri", "_ont_uri", "tag", "_ont_tag", "resource_name", "digest_uri"],
     ) == {
         (
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            TEST_DOCKER_IMAGE_LATEST_URI,
+            "latest",
+            "latest",
             TEST_DOCKER_IMAGE_ID,
-            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
-            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123",
+            TEST_DOCKER_IMAGE_DIGEST_URI,
         ),
-    }
-    assert check_nodes(neo4j_session, "GCPArtifactRegistryContainerImage", ["id"]) == {
-        (TEST_DOCKER_IMAGE_ID,),
+        (
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            TEST_DOCKER_IMAGE_VERSION_URI,
+            "v1.0.0",
+            "v1.0.0",
+            TEST_DOCKER_IMAGE_ID,
+            TEST_DOCKER_IMAGE_DIGEST_URI,
+        ),
     }
     assert check_nodes(neo4j_session, "GCPArtifactRegistryImage", ["id"]) == {
         (TEST_DOCKER_IMAGE_DIGEST,),
@@ -258,12 +291,6 @@ def test_sync_artifact_registry(
         (TEST_YUM_ARTIFACT_ID,),
     }
 
-    # Assert: Check platform image nodes
-    assert check_nodes(neo4j_session, "GCPArtifactRegistryPlatformImage", ["id"]) == {
-        (TEST_PLATFORM_IMAGE_AMD64_ID,),
-        (TEST_PLATFORM_IMAGE_ARM64_ID,),
-    }
-
     # Assert: Check GCPProject -> GCPArtifactRegistryRepository relationships
     assert check_rels(
         neo4j_session,
@@ -279,15 +306,18 @@ def test_sync_artifact_registry(
         (TEST_PROJECT_ID, TEST_YUM_REPO_ID),
     }
 
-    # Assert: Check GCPProject -> GCPArtifactRegistryContainerImage relationships
+    # Assert: Check GCPProject -> GCPArtifactRegistryRepositoryImage relationships
     assert check_rels(
         neo4j_session,
         "GCPProject",
         "id",
-        "GCPArtifactRegistryContainerImage",
+        "GCPArtifactRegistryRepositoryImage",
         "id",
         "RESOURCE",
-    ) == {(TEST_PROJECT_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_PROJECT_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_PROJECT_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check GCPProject -> GCPArtifactRegistryHelmChart relationships
     assert check_rels(
@@ -299,15 +329,18 @@ def test_sync_artifact_registry(
         "RESOURCE",
     ) == {(TEST_PROJECT_ID, TEST_HELM_CHART_ID)}
 
-    # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryContainerImage relationships
+    # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryRepositoryImage relationships
     assert check_rels(
         neo4j_session,
         "GCPArtifactRegistryRepository",
         "id",
-        "GCPArtifactRegistryContainerImage",
+        "GCPArtifactRegistryRepositoryImage",
         "id",
         "CONTAINS",
-    ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check ontology-standard ContainerRegistry -> ImageTag relationships
     assert check_rels(
@@ -317,7 +350,10 @@ def test_sync_artifact_registry(
         "ImageTag",
         "id",
         "REPO_IMAGE",
-    ) == {(TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_ID)}
+    ) == {
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_LATEST_URI),
+        (TEST_DOCKER_REPO_ID, TEST_DOCKER_IMAGE_VERSION_URI),
+    }
 
     # Assert: Check GCPArtifactRegistryRepository -> GCPArtifactRegistryHelmChart relationships
     assert check_rels(
@@ -374,6 +410,24 @@ def test_sync_artifact_registry(
         ).single()["count"]
         == 0
     )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPArtifactRegistryContainerImage)
+            RETURN count(*) AS count
+            """,
+        ).single()["count"]
+        == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPArtifactRegistryPlatformImage)
+            RETURN count(*) AS count
+            """,
+        ).single()["count"]
+        == 0
+    )
 
     # Assert: Check ontology-standard manifest-list -> platform-image relationships
     assert check_rels(
@@ -420,7 +474,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPProject {id: $project_id})
-            -[r:RESOURCE]->(:GCPArtifactRegistryContainerImage)
+            -[r:RESOURCE]->(:GCPArtifactRegistryRepositoryImage)
             RETURN count(r) AS count
             """,
             project_id=project_id,
@@ -431,7 +485,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
-            -[r:CONTAINS]->(:GCPArtifactRegistryContainerImage)
+            -[r:CONTAINS]->(:GCPArtifactRegistryRepositoryImage)
             RETURN count(r) AS count
             """,
             repo_id=repo_1,
@@ -453,7 +507,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
-            -[r:CONTAINS]->(:GCPArtifactRegistryContainerImage)
+            -[r:CONTAINS]->(:GCPArtifactRegistryRepositoryImage)
             RETURN count(r) AS count
             """,
             repo_id=repo_2,
@@ -484,6 +538,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
             repository_image.digest AS digest,
             repository_image.uri AS uri,
             repository_image._ont_uri AS ont_uri,
+            repository_image._ont_tag AS ont_tag,
             labels(repository_image) AS labels,
             r.firstseen AS rel_firstseen,
             r.lastupdated AS rel_lastupdated,
@@ -499,6 +554,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert result["digest"] == first_image_digest
     assert result["uri"] == docker_images[0]["uri"]
     assert result["ont_uri"] == docker_images[0]["uri"]
+    assert result["ont_tag"] == docker_images[0]["tag"]
     assert "ImageTag" in result["labels"]
     assert "Image" not in result["labels"]
     assert result["rel_lastupdated"] == TEST_UPDATE_TAG
@@ -510,7 +566,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     repo_rel_result = neo4j_session.run(
         """
         MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
-        -[r:CONTAINS]->(:GCPArtifactRegistryContainerImage {id: $image_id})
+        -[r:CONTAINS]->(:GCPArtifactRegistryRepositoryImage {id: $image_id})
         RETURN
             r._sub_resource_label AS rel_sub_resource_label,
             r._sub_resource_id AS rel_sub_resource_id
@@ -579,7 +635,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     load_docker_images(neo4j_session, [stale_image], project_id, TEST_UPDATE_TAG)
 
     GraphJob.from_node_schema(
-        GCPArtifactRegistryContainerImageSchema(),
+        GCPArtifactRegistryRepositoryImageSchema(),
         {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
         iterationsize=1,
     ).run(neo4j_session)
@@ -588,7 +644,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPProject {id: $project_id})
-            -[:RESOURCE]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
+            -[:RESOURCE]->(:GCPArtifactRegistryRepositoryImage {id: $stale_image_id})
             RETURN count(*) AS count
             """,
             project_id=project_id,
@@ -600,7 +656,7 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
         neo4j_session.run(
             """
             MATCH (:GCPArtifactRegistryRepository {id: $repo_id})
-            -[:CONTAINS|REPO_IMAGE]->(:GCPArtifactRegistryContainerImage {id: $stale_image_id})
+            -[:CONTAINS|REPO_IMAGE]->(:GCPArtifactRegistryRepositoryImage {id: $stale_image_id})
             RETURN count(*) AS count
             """,
             repo_id=repo_1,
@@ -909,6 +965,124 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
 
 
+def test_get_unmatched_gcp_images_with_history_uses_parent_ref_for_platform_child(
+    neo4j_session,
+):
+    project_id = "test-gar-platform-history-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+    parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
+    child = _make_platform_image(parent["resource_name"], project_id, 1)
+
+    load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+    load_image_layers(
+        neo4j_session,
+        [
+            {
+                "diff_id": "sha256:platform-layer",
+                "history": "COPY app /app",
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "architecture": child["architecture"],
+                "os": child["os"],
+                "os_version": None,
+                "os_features": None,
+                "variant": None,
+                "source_uri": None,
+                "source_revision": None,
+                "source_file": None,
+                "layer_diff_ids": ["sha256:platform-layer"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    images = get_unmatched_gcp_images_with_history(
+        neo4j_session,
+        "GitHubOrganization",
+        "example-org",
+        TEST_UPDATE_TAG,
+    )
+
+    matched = [image for image in images if image.digest == child["digest"]]
+    assert len(matched) == 1
+    assert matched[0].uri == parent["uri"]
+    assert matched[0].registry_id == repo_id
+    assert matched[0].display_name == parent["name"]
+    assert matched[0].layer_history == [
+        {
+            "created_by": "COPY app /app",
+            "diff_id": "sha256:platform-layer",
+            "empty_layer": False,
+        },
+    ]
+
+
+def test_load_manifests_preserves_existing_source_fields(neo4j_session):
+    project_id = "test-gar-manifest-preserve-source-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+    parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
+    child = _make_platform_image(parent["resource_name"], project_id, 1)
+
+    load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "architecture": child["architecture"],
+                "os": child["os"],
+                "os_version": None,
+                "os_features": None,
+                "variant": child["variant"],
+                "source_uri": "https://github.com/foo/bar",
+                "source_revision": "revision-1",
+                "source_file": "Dockerfile",
+                "layer_diff_ids": ["sha256:platform-layer"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG + 1)
+
+    result = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
+        RETURN image.source_uri AS source_uri,
+               image.source_revision AS source_revision,
+               image.source_file AS source_file,
+               image.layer_diff_ids AS layer_diff_ids,
+               image.lastupdated AS lastupdated
+        """,
+        image_id=child["digest"],
+    ).single()
+    assert result["source_uri"] == "https://github.com/foo/bar"
+    assert result["source_revision"] == "revision-1"
+    assert result["source_file"] == "Dockerfile"
+    assert result["layer_diff_ids"] == ["sha256:platform-layer"]
+    assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
 def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session):
     project_id = "test-gar-large-platform-project"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
@@ -922,11 +1096,11 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     load_docker_images(neo4j_session, parent_images, project_id, TEST_UPDATE_TAG)
 
     platform_images = [
-        _make_platform_image(parent_images[0]["id"], project_id, index)
+        _make_platform_image(parent_images[0]["resource_name"], project_id, index)
         for index in range(1005)
     ]
     platform_images.extend(
-        _make_platform_image(parent_images[1]["id"], project_id, index)
+        _make_platform_image(parent_images[1]["resource_name"], project_id, index)
         for index in range(1005, 1210)
     )
 
@@ -956,7 +1130,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     first_platform_id = platform_images[0]["id"]
     result = neo4j_session.run(
         """
-        MATCH (image:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $image_id})
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
         RETURN
             image.firstseen AS node_firstseen,
             image._module_name AS node_module_name,
@@ -980,7 +1154,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
 
     platform_with_variant = neo4j_session.run(
         """
-        MATCH (image:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $image_id})
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
         RETURN image.variant AS variant, image._ont_variant AS ont_variant
         """,
         image_id=platform_images[1]["id"],
@@ -991,7 +1165,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
         """
         MATCH (:GCPArtifactRegistryImage {digest: $parent_digest})
         -[contains_image:CONTAINS_IMAGE]->
-        (:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $image_id})
+        (:GCPArtifactRegistryImage {id: $image_id})
         RETURN
             contains_image.firstseen AS contains_image_firstseen,
             contains_image.lastupdated AS contains_image_lastupdated,
@@ -1013,7 +1187,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
 
     result = neo4j_session.run(
         """
-        MATCH (image:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $image_id})
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
         RETURN
             image.firstseen AS node_firstseen,
             image.lastupdated AS node_lastupdated
@@ -1027,7 +1201,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
         """
         MATCH (:GCPArtifactRegistryImage {digest: $parent_digest})
         -[contains_image:CONTAINS_IMAGE]->
-        (:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $image_id})
+        (:GCPArtifactRegistryImage {id: $image_id})
         RETURN
             contains_image.firstseen AS contains_image_firstseen,
             contains_image.lastupdated AS contains_image_lastupdated
@@ -1043,7 +1217,11 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
         TEST_UPDATE_TAG + 1
     )
 
-    stale_platform = _make_platform_image(parent_images[0]["id"], project_id, 9999)
+    stale_platform = _make_platform_image(
+        parent_images[0]["resource_name"],
+        project_id,
+        9999,
+    )
     load_manifests(neo4j_session, [stale_platform], project_id, TEST_UPDATE_TAG)
 
     GraphJob.from_matchlink(
@@ -1058,7 +1236,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
         neo4j_session.run(
             """
             MATCH (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->
-            (:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage {id: $stale_image_id})
+            (:GCPArtifactRegistryImage {id: $stale_image_id})
             RETURN count(*) AS count
             """,
             project_id=project_id,
@@ -1070,35 +1248,24 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
 
 def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
     project_id = "test-gar-preserve-manifest-children"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    parent = _make_docker_image(repo_id, 1, TEST_MANIFEST_LIST_MEDIA_TYPE)
+    child = _make_platform_image(parent["resource_name"], project_id, 1)
+    load_docker_images(neo4j_session, [parent], project_id, TEST_UPDATE_TAG)
+    load_manifests(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+
     neo4j_session.run(
         """
-        MERGE (p:GCPProject {id: $project_id})
-        MERGE (ref:GCPArtifactRegistryRepositoryImage:ImageTag {id: 'ref-parent'})
-        SET ref.digest = 'sha256:parent',
-            ref.lastupdated = $update_tag
-        MERGE (parent:GCPArtifactRegistryImage:ImageManifestList {id: 'sha256:parent'})
-        SET parent.digest = 'sha256:parent',
-            parent.lastupdated = $update_tag
-        MERGE (child:GCPArtifactRegistryImage:GCPArtifactRegistryPlatformImage:Image {id: 'sha256:child'})
-        SET child.digest = 'sha256:child',
-            child.lastupdated = $update_tag
-        MERGE (parent)-[contains:CONTAINS_IMAGE]->(child)
-        SET contains.lastupdated = $update_tag,
-            contains._sub_resource_label = 'GCPProject',
-            contains._sub_resource_id = $project_id
-        MERGE (p)-[resource:RESOURCE]->(ref)
-        SET resource.lastupdated = $update_tag
-        MERGE (ref)-[image:IMAGE]->(parent)
-        SET image.lastupdated = $update_tag,
-            image._sub_resource_label = 'GCPProject',
-            image._sub_resource_id = $project_id
+        MATCH (child:GCPArtifactRegistryImage {id: $child_id})
         MERGE (container:Container {id: 'container-uses-child'})
         MERGE (container)-[has_image:HAS_IMAGE]->(child)
         SET has_image.firstseen = 111,
             has_image.lastupdated = $update_tag
         """,
-        project_id=project_id,
+        child_id=child["id"],
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -1111,13 +1278,31 @@ def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
         },
     )
 
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "CONTAINS_IMAGE",
+    ) >= {(parent["digest"], child["id"])}
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "HAS_IMAGE",
+    ) >= {("container-uses-child", child["id"])}
     result = neo4j_session.run(
         """
         MATCH (:Container {id: 'container-uses-child'})-[has_image:HAS_IMAGE]->
-              (child:GCPArtifactRegistryImage {id: 'sha256:child'})
-        MATCH (:GCPArtifactRegistryImage {id: 'sha256:parent'})-[:CONTAINS_IMAGE]->(child)
+              (child:GCPArtifactRegistryImage {id: $child_id})
+        MATCH (:GCPArtifactRegistryImage {id: $parent_id})-[:CONTAINS_IMAGE]->(child)
         RETURN has_image.firstseen AS firstseen
-        """
+        """,
+        child_id=child["id"],
+        parent_id=parent["digest"],
     ).single()
     assert result["firstseen"] == 111
 
@@ -1157,7 +1342,7 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         },
     )
     run_scoped_analysis_job(
-        "gcp_artifact_registry_image_migration_cleanup.json",
+        "gcp_artifact_registry_orphan_image_cleanup.json",
         neo4j_session,
         {
             "PROJECT_ID": project_id,
@@ -1178,47 +1363,7 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
     )
 
 
-def test_cleanup_manifests_preserves_legacy_platform_nodes_for_migration(
-    neo4j_session,
-):
-    project_id = "test-gar-preserve-legacy-platform"
-    _clear_gar_project(neo4j_session, project_id)
-    neo4j_session.run(
-        """
-        MERGE (p:GCPProject {id: $project_id})
-        MERGE (old_child:GCPArtifactRegistryPlatformImage {id: 'legacy-child-for-migration'})
-        SET old_child.digest = 'sha256:child',
-            old_child.lastupdated = $old_tag
-        MERGE (container:Container {id: 'container-legacy-child'})
-        MERGE (container)-[has_image:HAS_IMAGE]->(old_child)
-        SET has_image.firstseen = 222,
-            has_image.lastupdated = $old_tag
-        MERGE (p)-[:RESOURCE]->(old_child)
-        """,
-        project_id=project_id,
-        old_tag=TEST_UPDATE_TAG - 1,
-    )
-
-    cleanup_manifests(
-        neo4j_session,
-        {
-            "PROJECT_ID": project_id,
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "LIMIT_SIZE": 1,
-        },
-    )
-
-    result = neo4j_session.run(
-        """
-        MATCH (:Container {id: 'container-legacy-child'})-[has_image:HAS_IMAGE]->
-              (:GCPArtifactRegistryPlatformImage {id: 'legacy-child-for-migration'})
-        RETURN has_image.firstseen AS firstseen
-        """
-    ).single()
-    assert result["firstseen"] == 222
-
-
-def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_shape(
+def test_image_migration_cleanup_deletes_legacy_image_nodes(
     neo4j_session,
 ):
     project_id = "test-gar-image-migration-project"
@@ -1226,61 +1371,58 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
     neo4j_session.run(
         """
         MERGE (p:GCPProject {id: $project_id})
-        MERGE (old:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:Image {id: 'old-ref'})
-        SET old.digest = 'sha256:canonical',
-            old.lastupdated = $old_tag
+        MERGE (repo:GCPArtifactRegistryRepository {id: 'repo-1'})
+
         MERGE (old_container:GCPArtifactRegistryContainerImage:Image {id: 'old-container'})
-        SET old_container.digest = 'sha256:container-canonical',
+        SET old_container.digest = 'sha256:old-container',
             old_container.lastupdated = $old_tag
-        MERGE (img:GCPArtifactRegistryImage:Image {id: 'sha256:canonical'})
-        SET img.digest = 'sha256:canonical',
-            img.lastupdated = $update_tag
-        MERGE (container_img_ref:GCPArtifactRegistryRepositoryImage:GCPArtifactRegistryContainerImage:ImageTag {id: 'old-container'})
-        SET container_img_ref.digest = 'sha256:container-canonical',
-            container_img_ref.lastupdated = $update_tag
-        MERGE (container_img:GCPArtifactRegistryImage:Image {id: 'sha256:container-canonical'})
-        SET container_img.digest = 'sha256:container-canonical',
-            container_img.lastupdated = $update_tag
-        MERGE (container_img_ref)-[:IMAGE]->(container_img)
-        MERGE (repo:CodeRepository {id: 'repo-1'})
+        MERGE (repo_img_replacement:GCPArtifactRegistryRepositoryImage:ImageTag {id: 'registry.example.com/repo/old-container:latest'})
+        SET repo_img_replacement.digest = 'sha256:old-container',
+            repo_img_replacement.resource_name = 'old-container',
+            repo_img_replacement.lastupdated = $update_tag
+        MERGE (canonical_img:GCPArtifactRegistryImage:Image {id: 'sha256:old-container'})
+        SET canonical_img.digest = 'sha256:old-container',
+            canonical_img.lastupdated = $update_tag
+        MERGE (repo_img_replacement)-[:IMAGE]->(canonical_img)
+        MERGE (p)-[:RESOURCE]->(old_container)
+        MERGE (repo)-[:CONTAINS]->(old_container)
+
+        MERGE (old_orphan:GCPArtifactRegistryContainerImage:Image {id: 'old-orphan'})
+        SET old_orphan.digest = 'sha256:old-orphan',
+            old_orphan.lastupdated = $old_tag
+
+        MERGE (code_repo:CodeRepository {id: 'code-repo-1'})
         MERGE (scanner:AIBOMSource {id: 'scanner-1'})
         MERGE (pkg:TrivyPackage {id: 'pkg-1'})
         MERGE (finding:TrivyImageFinding {id: 'finding-1'})
         MERGE (container:Container {id: 'container-1'})
-        MERGE (p)-[:RESOURCE]->(old)
-        MERGE (p)-[:RESOURCE]->(old_container)
-        MERGE (container)-[has_image:HAS_IMAGE]->(old)
+        MERGE (container)-[has_image:HAS_IMAGE]->(old_container)
         SET has_image.firstseen = 111,
             has_image.lastupdated = $old_tag,
             has_image.match_method = 'runtime'
-        MERGE (scanner)-[scanned:SCANNED_IMAGE]->(old)
+        MERGE (scanner)-[scanned:SCANNED_IMAGE]->(old_container)
         SET scanned.firstseen = 222,
             scanned.lastupdated = $old_tag
-        MERGE (pkg)-[deployed:DEPLOYED]->(old)
+        MERGE (pkg)-[deployed:DEPLOYED]->(old_container)
         SET deployed.firstseen = 333,
             deployed.lastupdated = $old_tag
-        MERGE (finding)-[affects:AFFECTS]->(old)
+        MERGE (finding)-[affects:AFFECTS]->(old_container)
         SET affects.firstseen = 444,
             affects.lastupdated = $old_tag
-        MERGE (old)-[packaged:PACKAGED_FROM]->(repo)
+        MERGE (old_container)-[packaged:PACKAGED_FROM]->(code_repo)
         SET packaged.firstseen = 555,
             packaged.lastupdated = $old_tag,
             packaged.match_method = 'dockerfile',
             packaged.confidence = 0.75,
             packaged.source_file = 'Dockerfile'
-        MERGE (container2:Container {id: 'container-2'})
-        MERGE (repo2:CodeRepository {id: 'repo-2'})
-        MERGE (container2)-[has_image2:HAS_IMAGE]->(old_container)
-        SET has_image2.firstseen = 666,
-            has_image2.lastupdated = $old_tag,
-            has_image2.match_method = 'runtime'
-        MERGE (old_container)-[packaged2:PACKAGED_FROM]->(repo2)
-        SET packaged2.firstseen = 777,
-            packaged2.lastupdated = $old_tag,
-            packaged2.match_method = 'dockerfile'
+
         MERGE (old_parent:GCPArtifactRegistryContainerImage {id: 'old-parent'})
         SET old_parent.digest = 'sha256:parent',
             old_parent.lastupdated = $old_tag
+        MERGE (repo_img_parent_replacement:GCPArtifactRegistryRepositoryImage:ImageTag {id: 'registry.example.com/repo/old-parent:latest'})
+        SET repo_img_parent_replacement.digest = 'sha256:parent',
+            repo_img_parent_replacement.resource_name = 'old-parent',
+            repo_img_parent_replacement.lastupdated = $update_tag
         MERGE (old_child:GCPArtifactRegistryPlatformImage {id: 'old-child'})
         SET old_child.digest = 'sha256:child',
             old_child.lastupdated = $old_tag
@@ -1292,6 +1434,8 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
             child.lastupdated = $update_tag
         MERGE (p)-[:RESOURCE]->(old_parent)
         MERGE (p)-[:RESOURCE]->(old_child)
+        MERGE (repo)-[:CONTAINS]->(old_parent)
+        MERGE (repo_img_parent_replacement)-[:IMAGE]->(parent)
         MERGE (parent)-[:CONTAINS_IMAGE]->(child)
         MERGE (old_parent)-[:HAS_MANIFEST]->(old_child)
         MERGE (old_parent)-[:CONTAINS_IMAGE]->(old_child)
@@ -1309,73 +1453,47 @@ def test_image_migration_cleanup_moves_legacy_edges_and_deletes_old_manifest_sha
 
     result = neo4j_session.run(
         """
-        MATCH (:Container {id: 'container-1'})-[has_image:HAS_IMAGE]->
-              (img:GCPArtifactRegistryImage {id: 'sha256:canonical'})
-        MATCH (:AIBOMSource {id: 'scanner-1'})-[scanned:SCANNED_IMAGE]->(img)
-        MATCH (:TrivyPackage {id: 'pkg-1'})-[deployed:DEPLOYED]->(img)
-        MATCH (:TrivyImageFinding {id: 'finding-1'})-[affects:AFFECTS]->(img)
-        MATCH (img)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'repo-1'})
-        RETURN
-            has_image.firstseen AS has_image_firstseen,
-            has_image.match_method AS has_image_match_method,
-            scanned.firstseen AS scanned_firstseen,
-            deployed.firstseen AS deployed_firstseen,
-            affects.firstseen AS affects_firstseen,
-            packaged.firstseen AS packaged_firstseen,
-            packaged.match_method AS packaged_match_method,
-            packaged.confidence AS packaged_confidence,
-            packaged.source_file AS packaged_source_file
-        """,
-    ).single()
-    assert result["has_image_firstseen"] == 111
-    assert result["has_image_match_method"] == "runtime"
-    assert result["scanned_firstseen"] == 222
-    assert result["deployed_firstseen"] == 333
-    assert result["affects_firstseen"] == 444
-    assert result["packaged_firstseen"] == 555
-    assert result["packaged_match_method"] == "dockerfile"
-    assert result["packaged_confidence"] == 0.75
-    assert result["packaged_source_file"] == "Dockerfile"
-
-    legacy_container_result = neo4j_session.run(
-        """
-        MATCH (:Container {id: 'container-2'})-[has_image:HAS_IMAGE]->
-              (img:GCPArtifactRegistryImage {id: 'sha256:container-canonical'})
-        MATCH (img)-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'repo-2'})
         OPTIONAL MATCH (old_container:GCPArtifactRegistryContainerImage {id: 'old-container'})
-        WHERE NOT old_container:GCPArtifactRegistryRepositoryImage
-        RETURN
-            has_image.firstseen AS has_image_firstseen,
-            has_image.match_method AS has_image_match_method,
-            packaged.firstseen AS packaged_firstseen,
-            packaged.match_method AS packaged_match_method,
-            count(old_container) AS old_container_count
-        """,
-    ).single()
-    assert legacy_container_result["has_image_firstseen"] == 666
-    assert legacy_container_result["has_image_match_method"] == "runtime"
-    assert legacy_container_result["packaged_firstseen"] == 777
-    assert legacy_container_result["packaged_match_method"] == "dockerfile"
-    assert legacy_container_result["old_container_count"] == 0
-
-    cleanup_counts = neo4j_session.run(
-        """
-        MATCH (old:GCPArtifactRegistryRepositoryImage {id: 'old-ref'})
-        OPTIONAL MATCH (:GCPArtifactRegistryContainerImage)-[legacy_manifest:HAS_MANIFEST|CONTAINS_IMAGE]->
-                       (:GCPArtifactRegistryPlatformImage)
+        OPTIONAL MATCH (old_orphan:GCPArtifactRegistryContainerImage {id: 'old-orphan'})
+        OPTIONAL MATCH (old_parent:GCPArtifactRegistryContainerImage {id: 'old-parent'})
         OPTIONAL MATCH (old_child:GCPArtifactRegistryPlatformImage {id: 'old-child'})
+        OPTIONAL MATCH (:Container {id: 'container-1'})-[has_image:HAS_IMAGE]->()
+        OPTIONAL MATCH (:AIBOMSource {id: 'scanner-1'})-[scanned:SCANNED_IMAGE]->()
+        OPTIONAL MATCH (:TrivyPackage {id: 'pkg-1'})-[deployed:DEPLOYED]->()
+        OPTIONAL MATCH (:TrivyImageFinding {id: 'finding-1'})-[affects:AFFECTS]->()
+        OPTIONAL MATCH ()-[packaged:PACKAGED_FROM]->(:CodeRepository {id: 'code-repo-1'})
+        MATCH (repo_img_replacement:GCPArtifactRegistryRepositoryImage:ImageTag {id: 'registry.example.com/repo/old-container:latest'})
+        MATCH (repo_img_replacement)-[:IMAGE]->(:GCPArtifactRegistryImage {id: 'sha256:old-container'})
+        MATCH (parent:GCPArtifactRegistryImage {id: 'sha256:parent'})-[:CONTAINS_IMAGE]->
+              (:GCPArtifactRegistryImage {id: 'sha256:child'})
         RETURN
-            old:Image AS old_still_image,
-            count(legacy_manifest) AS legacy_manifest_count,
-            count(old_child) AS old_child_count
+            count(old_container) AS old_container_count,
+            count(old_orphan) AS old_orphan_count,
+            count(old_parent) AS old_parent_count,
+            count(old_child) AS old_child_count,
+            count(has_image) AS old_has_image_count,
+            count(scanned) AS old_scanned_count,
+            count(deployed) AS old_deployed_count,
+            count(affects) AS old_affects_count,
+            count(packaged) AS old_packaged_count,
+            labels(repo_img_replacement) AS repo_img_labels,
+            labels(parent) AS parent_labels
         """,
     ).single()
-    assert cleanup_counts["old_still_image"] is False
-    assert cleanup_counts["legacy_manifest_count"] == 0
-    assert cleanup_counts["old_child_count"] == 0
+    assert result["old_container_count"] == 0
+    assert result["old_orphan_count"] == 0
+    assert result["old_parent_count"] == 0
+    assert result["old_child_count"] == 0
+    assert result["old_has_image_count"] == 0
+    assert result["old_scanned_count"] == 0
+    assert result["old_deployed_count"] == 0
+    assert result["old_affects_count"] == 0
+    assert result["old_packaged_count"] == 0
+    assert "GCPArtifactRegistryContainerImage" not in result["repo_img_labels"]
+    assert "GCPArtifactRegistryPlatformImage" not in result["parent_labels"]
 
 
-def test_image_migration_cleanup_keeps_legacy_platform_nodes_scoped_to_other_projects(
+def test_image_migration_cleanup_deletes_shared_legacy_nodes_when_seen_in_scope(
     neo4j_session,
 ):
     project_id = "test-gar-shared-legacy-platform-project"
@@ -1407,26 +1525,6 @@ def test_image_migration_cleanup_keeps_legacy_platform_nodes_scoped_to_other_pro
         {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    result = neo4j_session.run(
-        """
-        MATCH (old_child:GCPArtifactRegistryPlatformImage {id: 'old-shared-child'})
-        OPTIONAL MATCH (:GCPProject {id: $project_id})-[current_resource:RESOURCE]->(old_child)
-        OPTIONAL MATCH (:GCPProject {id: $other_project_id})-[other_resource:RESOURCE]->(old_child)
-        RETURN count(current_resource) AS current_resource_count,
-               count(other_resource) AS other_resource_count
-        """,
-        project_id=project_id,
-        other_project_id=other_project_id,
-    ).single()
-    assert result["current_resource_count"] == 0
-    assert result["other_resource_count"] == 1
-
-    run_scoped_analysis_job(
-        "gcp_artifact_registry_image_migration_cleanup.json",
-        neo4j_session,
-        {"PROJECT_ID": other_project_id, "UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
     assert (
         neo4j_session.run(
             """
@@ -1436,3 +1534,16 @@ def test_image_migration_cleanup_keeps_legacy_platform_nodes_scoped_to_other_pro
         ).single()["count"]
         == 0
     )
+
+    result = neo4j_session.run(
+        """
+        OPTIONAL MATCH (:GCPProject {id: $project_id})-[current_resource:RESOURCE]->()
+        OPTIONAL MATCH (:GCPProject {id: $other_project_id})-[other_resource:RESOURCE]->()
+        RETURN count(current_resource) AS current_resource_count,
+               count(other_resource) AS other_resource_count
+        """,
+        project_id=project_id,
+        other_project_id=other_project_id,
+    ).single()
+    assert result["current_resource_count"] == 0
+    assert result["other_resource_count"] == 0

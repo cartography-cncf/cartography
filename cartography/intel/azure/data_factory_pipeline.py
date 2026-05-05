@@ -6,6 +6,7 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.data_factory_util import call_data_factory_operation
 from cartography.models.azure.data_factory.data_factory_pipeline import (
     AzureDataFactoryPipelineSchema,
 )
@@ -26,9 +27,12 @@ def get_pipelines(
     """
     Gets Pipelines for a given Data Factory.
     """
-    return [
-        p.as_dict() for p in client.pipelines.list_by_factory(rg_name, factory_name)
-    ]
+    return call_data_factory_operation(
+        "list data factory pipelines",
+        lambda: [
+            p.as_dict() for p in client.pipelines.list_by_factory(rg_name, factory_name)
+        ],
+    )
 
 
 def transform_pipelines(

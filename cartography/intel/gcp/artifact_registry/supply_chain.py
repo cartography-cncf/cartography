@@ -850,7 +850,7 @@ def load_image_provenance(
         merged_updates,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         progress_description=(
-            f"Artifact Registry container image provenance updates for project {project_id}"
+            f"Artifact Registry image provenance updates for project {project_id}"
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,

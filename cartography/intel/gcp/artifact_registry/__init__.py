@@ -81,19 +81,23 @@ def sync(
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id
         cleanup_manifests(neo4j_session, cleanup_job_params)
+        run_scoped_analysis_job(
+            "gcp_artifact_registry_image_migration_cleanup.json",
+            neo4j_session,
+            cleanup_job_params,
+        )
+        # Remove digest-keyed images only after scoped repository-image and
+        # manifest cleanup have removed stale references.
+        run_scoped_analysis_job(
+            "gcp_artifact_registry_orphan_image_cleanup.json",
+            neo4j_session,
+            cleanup_job_params,
+        )
     else:
         logger.warning(
-            "Skipping Artifact Registry manifest cleanup for project %s because artifact discovery was incomplete.",
+            "Skipping Artifact Registry image cleanup for project %s because artifact discovery was incomplete.",
             project_id,
         )
-
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    run_scoped_analysis_job(
-        "gcp_artifact_registry_image_migration_cleanup.json",
-        neo4j_session,
-        cleanup_job_params,
-    )
 
     # Enrich images with build provenance and layer data from OCI configs
     if artifact_result.docker_images_raw:

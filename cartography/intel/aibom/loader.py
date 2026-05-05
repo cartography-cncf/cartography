@@ -34,10 +34,11 @@ def _resolve_digests_for_source(
     For digest-based URIs (repo@sha256:...), extracts the digest directly
     and verifies it exists on any node carrying the :Image label.
 
-    For tag-based URIs (repo:tag), looks up via ECRRepositoryImage → ECRImage
-    as a provider-specific fallback. Returns single-platform image digests
-    directly, and for manifest lists traverses CONTAINS_IMAGE to return
-    all child single-platform image digests.
+    For tag-based URIs (repo:tag), looks up via provider-specific repository
+    image/reference nodes such as ECRRepositoryImage and
+    GCPArtifactRegistryRepositoryImage. Returns single-platform image digests
+    directly, and for manifest lists traverses CONTAINS_IMAGE to return all
+    child single-platform image digests.
 
     Returns a list of digest strings (empty if no match is found).
     """
@@ -64,29 +65,10 @@ def _resolve_digests_for_source(
         WHERE child.type = 'image'
         RETURN child.digest AS digest
         UNION
-        MATCH (repo_img:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(img:GCPArtifactRegistryImage)
-        WITH repo_img, img,
-             CASE
-                 WHEN repo_img.uri CONTAINS '@' THEN split(repo_img.uri, '@')[0]
-                 ELSE repo_img.uri
-             END AS base_uri
-        WHERE repo_img.uri = $image_uri
-           OR any(tag IN coalesce(repo_img.tags, []) WHERE base_uri + ':' + tag = $image_uri)
-        WITH img
+        MATCH (:GCPArtifactRegistryRepositoryImage {id: $image_uri})-[:IMAGE]->(root:GCPArtifactRegistryImage)
+        MATCH (root)-[:CONTAINS_IMAGE*0..1]->(img:GCPArtifactRegistryImage)
         WHERE img.type = 'image'
         RETURN img.digest AS digest
-        UNION
-        MATCH (repo_img:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->(:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE]->(child:GCPArtifactRegistryImage)
-        WITH repo_img, child,
-             CASE
-                 WHEN repo_img.uri CONTAINS '@' THEN split(repo_img.uri, '@')[0]
-                 ELSE repo_img.uri
-             END AS base_uri
-        WHERE repo_img.uri = $image_uri
-           OR any(tag IN coalesce(repo_img.tags, []) WHERE base_uri + ':' + tag = $image_uri)
-        WITH child
-        WHERE child.type = 'image'
-        RETURN child.digest AS digest
         """,
         image_uri=image_uri,
     )
