@@ -76,42 +76,39 @@ from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_6_7_cloudsql_backup
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_1_bigquery_dataset_public
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_2_bigquery_table_cmek
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_3_bigquery_dataset_cmek
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_12_unused_credentials
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_13_multiple_access_keys
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_14_access_key_not_rotated
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_15_user_direct_policies
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_18_expired_certificates
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_12_multiple_access_keys
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_14_user_direct_policies
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_18_expired_certificates
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_1_cloudtrail_multi_region,
+    cis_aws_4_1_cloudtrail_multi_region,
 )
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_4_cloudtrail_log_validation,
+    cis_aws_4_2_cloudtrail_log_validation,
 )
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_5_cloudtrail_cloudwatch,
+    cis_aws_4_4_cloudtrail_bucket_access_logging,
 )
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_7_cloudtrail_encryption,
+    cis_aws_4_5_cloudtrail_encryption,
+)
+from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_1_1_ebs_encryption
+from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_6_3_remote_admin_ipv4,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_5_3_remote_admin_ipv4,
+    cis_aws_6_4_remote_admin_ipv6,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_5_4_remote_admin_ipv6,
+    cis_aws_6_5_default_sg_traffic,
 )
-from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_5_5_default_sg_traffic,
-)
-from cartography.rules.data.rules.cis_aws_networking import cis_aws_5_7_ec2_imdsv2
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_1_s3_versioning
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_2_s3_mfa_delete
+from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_7_ec2_imdsv2
+from cartography.rules.data.rules.cis_aws_storage import cis_aws_3_1_2_s3_mfa_delete
 from cartography.rules.data.rules.cis_aws_storage import (
-    cis_aws_2_1_4_s3_block_public_access,
+    cis_aws_3_1_4_s3_block_public_access,
 )
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_5_s3_access_logging
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_6_s3_encryption
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_2_1_rds_encryption
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_3_1_ebs_encryption
+from cartography.rules.data.rules.cis_aws_storage import cis_aws_3_2_1_rds_encryption
 from cartography.rules.data.rules.cis_google_workspace import (
     cis_gw_1_1_1_super_admin_count_too_low,
 )
@@ -241,30 +238,27 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 
 # Rule registry - all available rules
 RULES = {
-    # CIS AWS IAM Rules (Section 1)
-    cis_aws_1_12_unused_credentials.id: cis_aws_1_12_unused_credentials,
-    cis_aws_1_13_multiple_access_keys.id: cis_aws_1_13_multiple_access_keys,
-    cis_aws_1_14_access_key_not_rotated.id: cis_aws_1_14_access_key_not_rotated,
-    cis_aws_1_15_user_direct_policies.id: cis_aws_1_15_user_direct_policies,
-    cis_aws_1_18_expired_certificates.id: cis_aws_1_18_expired_certificates,
-    # CIS AWS Storage Rules (Section 2)
-    cis_aws_2_1_1_s3_versioning.id: cis_aws_2_1_1_s3_versioning,
-    cis_aws_2_1_2_s3_mfa_delete.id: cis_aws_2_1_2_s3_mfa_delete,
-    cis_aws_2_1_4_s3_block_public_access.id: cis_aws_2_1_4_s3_block_public_access,
-    cis_aws_2_1_5_s3_access_logging.id: cis_aws_2_1_5_s3_access_logging,
-    cis_aws_2_1_6_s3_encryption.id: cis_aws_2_1_6_s3_encryption,
-    cis_aws_2_2_1_rds_encryption.id: cis_aws_2_2_1_rds_encryption,
-    cis_aws_2_3_1_ebs_encryption.id: cis_aws_2_3_1_ebs_encryption,
-    # CIS AWS Logging Rules (Section 3)
-    cis_aws_3_1_cloudtrail_multi_region.id: cis_aws_3_1_cloudtrail_multi_region,
-    cis_aws_3_4_cloudtrail_log_validation.id: cis_aws_3_4_cloudtrail_log_validation,
-    cis_aws_3_5_cloudtrail_cloudwatch.id: cis_aws_3_5_cloudtrail_cloudwatch,
-    cis_aws_3_7_cloudtrail_encryption.id: cis_aws_3_7_cloudtrail_encryption,
-    # CIS AWS Networking Rules (Section 5)
-    cis_aws_5_3_remote_admin_ipv4.id: cis_aws_5_3_remote_admin_ipv4,
-    cis_aws_5_4_remote_admin_ipv6.id: cis_aws_5_4_remote_admin_ipv6,
-    cis_aws_5_5_default_sg_traffic.id: cis_aws_5_5_default_sg_traffic,
-    cis_aws_5_7_ec2_imdsv2.id: cis_aws_5_7_ec2_imdsv2,
+    # CIS AWS IAM Rules (Section 2)
+    cis_aws_2_11_unused_credentials.id: cis_aws_2_11_unused_credentials,
+    cis_aws_2_12_multiple_access_keys.id: cis_aws_2_12_multiple_access_keys,
+    cis_aws_2_13_access_key_not_rotated.id: cis_aws_2_13_access_key_not_rotated,
+    cis_aws_2_14_user_direct_policies.id: cis_aws_2_14_user_direct_policies,
+    cis_aws_2_18_expired_certificates.id: cis_aws_2_18_expired_certificates,
+    # CIS AWS Storage Rules (Section 3)
+    cis_aws_3_1_2_s3_mfa_delete.id: cis_aws_3_1_2_s3_mfa_delete,
+    cis_aws_3_1_4_s3_block_public_access.id: cis_aws_3_1_4_s3_block_public_access,
+    cis_aws_3_2_1_rds_encryption.id: cis_aws_3_2_1_rds_encryption,
+    # CIS AWS Logging Rules (Section 4)
+    cis_aws_4_1_cloudtrail_multi_region.id: cis_aws_4_1_cloudtrail_multi_region,
+    cis_aws_4_2_cloudtrail_log_validation.id: cis_aws_4_2_cloudtrail_log_validation,
+    cis_aws_4_4_cloudtrail_bucket_access_logging.id: cis_aws_4_4_cloudtrail_bucket_access_logging,
+    cis_aws_4_5_cloudtrail_encryption.id: cis_aws_4_5_cloudtrail_encryption,
+    # CIS AWS Networking Rules (Section 6)
+    cis_aws_6_1_1_ebs_encryption.id: cis_aws_6_1_1_ebs_encryption,
+    cis_aws_6_3_remote_admin_ipv4.id: cis_aws_6_3_remote_admin_ipv4,
+    cis_aws_6_4_remote_admin_ipv6.id: cis_aws_6_4_remote_admin_ipv6,
+    cis_aws_6_5_default_sg_traffic.id: cis_aws_6_5_default_sg_traffic,
+    cis_aws_6_7_ec2_imdsv2.id: cis_aws_6_7_ec2_imdsv2,
     # SubImage Coverage Rules
     subimage_module_not_configured.id: subimage_module_not_configured,
     subimage_framework_disabled_module_enabled.id: subimage_framework_disabled_module_enabled,
