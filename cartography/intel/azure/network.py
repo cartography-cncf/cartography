@@ -12,6 +12,9 @@ from cartography.models.azure.network_interface import AzureNetworkInterfaceSche
 from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
+from cartography.models.azure.network_security_rule import (
+    AzureNetworkSecurityRuleSchema,
+)
 from cartography.models.azure.public_ip_address import AzurePublicIPAddressSchema
 from cartography.models.azure.subnet import AzureSubnetSchema
 from cartography.models.azure.subnet import AzureSubnetToNSGRel
@@ -137,6 +140,63 @@ def transform_network_security_groups(nsgs: list[dict]) -> list[dict]:
     return transformed
 
 
+def transform_network_security_rules(nsgs: list[dict]) -> list[dict]:
+    """
+    Flatten the inbound/outbound and default security rules from each NSG into a
+    single list, tagging each rule with its parent NSG id.
+    """
+    transformed: list[dict[str, Any]] = []
+    for nsg in nsgs:
+        nsg_id = nsg.get("id")
+        # Azure SDK as_dict() may flatten or nest under "properties"
+        nsg_props = nsg.get("properties", {})
+
+        rule_collections = (
+            (nsg.get("security_rules") or nsg_props.get("security_rules") or []),
+            (
+                nsg.get("default_security_rules")
+                or nsg_props.get("default_security_rules")
+                or []
+            ),
+        )
+        is_default_flags = (False, True)
+
+        for rules, is_default in zip(rule_collections, is_default_flags):
+            for rule in rules:
+                rule_props = rule.get("properties", {})
+                merged = {**rule_props, **{k: v for k, v in rule.items() if v}}
+                transformed.append(
+                    {
+                        "id": rule.get("id"),
+                        "name": rule.get("name"),
+                        "nsg_id": nsg_id,
+                        "description": merged.get("description"),
+                        "protocol": merged.get("protocol"),
+                        "direction": merged.get("direction"),
+                        "access": merged.get("access"),
+                        "priority": merged.get("priority"),
+                        "source_port_range": merged.get("source_port_range"),
+                        "source_port_ranges": merged.get("source_port_ranges"),
+                        "destination_port_range": merged.get("destination_port_range"),
+                        "destination_port_ranges": merged.get(
+                            "destination_port_ranges"
+                        ),
+                        "source_address_prefix": merged.get("source_address_prefix"),
+                        "source_address_prefixes": merged.get(
+                            "source_address_prefixes"
+                        ),
+                        "destination_address_prefix": merged.get(
+                            "destination_address_prefix"
+                        ),
+                        "destination_address_prefixes": merged.get(
+                            "destination_address_prefixes"
+                        ),
+                        "is_default": is_default,
+                    }
+                )
+    return transformed
+
+
 def transform_public_ip_addresses(public_ips: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for public_ip in public_ips:
@@ -199,6 +259,11 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         vm_ref = interface.get("virtual_machine")
         vm_id = vm_ref.get("id").lower() if vm_ref and vm_ref.get("id") else None
 
+        nsg_ref = interface.get("network_security_group") or interface.get(
+            "properties", {}
+        ).get("network_security_group")
+        nsg_id = nsg_ref.get("id") if nsg_ref and isinstance(nsg_ref, dict) else None
+
         transformed.append(
             {
                 "id": interface.get("id"),
@@ -209,6 +274,7 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                 "VIRTUAL_MACHINE_ID": vm_id,
                 "SUBNET_IDS": subnet_ids,
                 "PUBLIC_IP_IDS": public_ip_ids,
+                "NSG_ID": nsg_id,
             }
         )
     return transformed
@@ -258,6 +324,22 @@ def load_network_security_groups(
     load(
         neo4j_session,
         AzureNetworkSecurityGroupSchema(),
+        data,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def load_network_security_rules(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureNetworkSecurityRuleSchema(),
         data,
         lastupdated=update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
@@ -397,14 +479,22 @@ def _sync_network_security_groups(
     common_job_parameters: dict,
 ) -> None:
     """
-    Syncs Network Security Groups.
+    Syncs Network Security Groups and the inbound/outbound security rules they
+    contain.
     """
     nsgs = get_network_security_groups(client)
     transformed_nsgs = transform_network_security_groups(nsgs)
     load_network_security_groups(
         neo4j_session, transformed_nsgs, subscription_id, update_tag
     )
+    transformed_rules = transform_network_security_rules(nsgs)
+    load_network_security_rules(
+        neo4j_session, transformed_rules, subscription_id, update_tag
+    )
     load_nsg_tags(neo4j_session, subscription_id, nsgs, update_tag)
+    GraphJob.from_node_schema(
+        AzureNetworkSecurityRuleSchema(), common_job_parameters
+    ).run(neo4j_session)
     GraphJob.from_node_schema(
         AzureNetworkSecurityGroupSchema(), common_job_parameters
     ).run(neo4j_session)

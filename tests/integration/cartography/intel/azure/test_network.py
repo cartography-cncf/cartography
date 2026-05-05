@@ -298,3 +298,66 @@ def test_sync_network(
         "ASSOCIATED_WITH",
     )
     assert actual_nic_pip_rels == expected_nic_pip_rels
+
+    # Assert AzureNetworkSecurityRule nodes were created from NSG security_rules
+    # and default_security_rules.
+    expected_rule_ids = {
+        (rule["id"],)
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+    }
+    assert (
+        check_nodes(neo4j_session, "AzureNetworkSecurityRule", ["id"])
+        == expected_rule_ids
+    )
+
+    # Assert NSG -[:CONTAINS]-> AzureNetworkSecurityRule for every rule.
+    expected_nsg_rule_rels = {
+        (nsg["id"], rule["id"])
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+    }
+    actual_nsg_rule_rels = check_rels(
+        neo4j_session,
+        "AzureNetworkSecurityGroup",
+        "id",
+        "AzureNetworkSecurityRule",
+        "id",
+        "CONTAINS",
+        rel_direction_right=True,
+    )
+    assert actual_nsg_rule_rels == expected_nsg_rule_rels
+
+    # Assert that an Allow / Inbound / port 22 / source '*' rule is queryable.
+    inbound_ssh = neo4j_session.run(
+        """
+        MATCH (r:AzureNetworkSecurityRule)
+        WHERE r.direction = 'Inbound'
+          AND r.access = 'Allow'
+          AND r.source_address_prefix IN ['*', 'Internet', '0.0.0.0/0']
+          AND r.destination_port_range = '22'
+        RETURN r.id AS id, r.is_default AS is_default
+        """,
+    ).single()
+    assert inbound_ssh is not None
+    assert inbound_ssh["is_default"] is False
+
+    # Assert NIC -[:ASSOCIATED_WITH]-> NSG only for NICs that declared an NSG ref.
+    expected_nic_nsg_rels = set()
+    for nic in MOCK_NETWORK_INTERFACES:
+        nsg_ref = nic.get("network_security_group")
+        if nsg_ref and nsg_ref.get("id"):
+            expected_nic_nsg_rels.add((nic["id"], nsg_ref["id"]))
+    actual_nic_nsg_rels = check_rels(
+        neo4j_session,
+        "AzureNetworkInterface",
+        "id",
+        "AzureNetworkSecurityGroup",
+        "id",
+        "ASSOCIATED_WITH",
+    )
+    assert actual_nic_nsg_rels == expected_nic_nsg_rels

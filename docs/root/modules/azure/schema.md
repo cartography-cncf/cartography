@@ -409,6 +409,8 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 |kind | Specifies the kind of SQL server|
 |state | The state of the server|
 |version | The version of the server |
+|public_network_access | Whether public network access is enabled (`Enabled` or `Disabled`).|
+|minimal_tls_version | The minimum TLS version enforced for client connections.|
 
 #### Relationships
 
@@ -443,6 +445,10 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 - Azure SQL Server contains one or more Azure SQL Database.
     ```
     (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+    ```
+- Azure SQL Server contains one or more Azure SQL Server Firewall Rules.
+    ```cypher
+    (AzureSQLServer)-[CONTAINS]->(AzureSQLServerFirewallRule)
     ```
 
 - Azure SQL Servers can be tagged with Azure Tags.
@@ -625,6 +631,30 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 - Azure Elastic Pool belongs to a Subscription.
     ```
         (AzureSubscription)-[RESOURCE]->(AzureElasticPool)
+    ```
+
+### AzureSQLServerFirewallRule
+
+Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules). Firewall rules whose `start_ip_address` and `end_ip_address` cover `0.0.0.0` to `255.255.255.255` (or the special "Allow Azure Services" `0.0.0.0`/`0.0.0.0` row) make the server reachable from public IPs.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID|
+|name | The name of the firewall rule|
+|start_ip_address | The lowest IP address allowed to connect (inclusive). |
+|end_ip_address | The highest IP address allowed to connect (inclusive). |
+
+#### Relationships
+
+- Azure SQL Server contains one or more firewall rules.
+    ```cypher
+    (AzureSQLServer)-[CONTAINS]->(AzureSQLServerFirewallRule)
+    ```
+- Firewall rules belong to a Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureSQLServerFirewallRule)
     ```
 
 ### AzureSQLDatabase
@@ -2210,6 +2240,47 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
     (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
     ```
 
+  - An Azure Network Security Group contains one or more Security Rules.
+    ```cypher
+    (AzureNetworkSecurityGroup)-[:CONTAINS]->(:AzureNetworkSecurityRule)
+    ```
+
+### AzureNetworkSecurityRule
+
+Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID of the security rule|
+|name | The name of the rule |
+|description | Free-text rule description |
+|protocol | `Tcp`, `Udp`, `Icmp`, `Esp`, `Ah`, or `*` |
+|direction | `Inbound` or `Outbound` |
+|access | `Allow` or `Deny` |
+|priority | Numeric priority; lower values are evaluated first |
+|source_port_range | Single source port or range (e.g. `*`, `80`, `1024-65535`) |
+|source_port_ranges | List of source port ranges (when more than one is set) |
+|destination_port_range | Single destination port or range |
+|destination_port_ranges | List of destination port ranges |
+|source_address_prefix | Single source CIDR / service tag (e.g. `*`, `Internet`, `10.0.0.0/8`) |
+|source_address_prefixes | List of source CIDRs / service tags |
+|destination_address_prefix | Single destination CIDR / service tag |
+|destination_address_prefixes | List of destination CIDRs / service tags |
+|is_default | `true` if this is a platform default rule, `false` if user-defined |
+
+#### Relationships
+
+- An Azure Network Security Rule belongs to a Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityRule)
+    ```
+- An Azure Network Security Rule is contained by a Network Security Group.
+    ```cypher
+    (AzureNetworkSecurityGroup)-[:CONTAINS]->(:AzureNetworkSecurityRule)
+    ```
+
 ### AzureFirewall
 
 Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
@@ -2432,6 +2503,11 @@ Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us
   - An Azure Network Interface is associated with one or more Public IP Addresses.
     ```cypher
     (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
+  - An Azure Network Interface can be associated with a Network Security Group at the NIC level.
+    ```cypher
+    (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
     ```
 
 ### AzurePublicIPAddress
