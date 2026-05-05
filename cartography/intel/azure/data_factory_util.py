@@ -38,28 +38,33 @@ def _get_status_code(error: HttpResponseError) -> int | None:
 
 
 def _is_retryable_data_factory_error(error: HttpResponseError) -> bool:
-    status_code = _get_status_code(error)
+    return _is_retryable_status_code(_get_status_code(error))
+
+
+def _is_retryable_status_code(status_code: int | None) -> bool:
     return status_code in _RETRYABLE_STATUS_CODES
 
 
-def call_data_factory_operation(operation: str, func: Callable[[], T]) -> T:
-    @backoff.on_exception(  # type: ignore[misc]
-        backoff.expo,
-        HttpResponseError,
-        max_tries=_MAX_TRIES,
-        giveup=lambda error: not _is_retryable_data_factory_error(error),
-        on_backoff=backoff_handler,
-        logger=None,
-    )
-    def _call() -> T:
-        return func()
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    HttpResponseError,
+    max_tries=_MAX_TRIES,
+    giveup=lambda error: not _is_retryable_data_factory_error(error),
+    on_backoff=backoff_handler,
+    logger=None,
+)
+def _call_data_factory_operation(func: Callable[[], T]) -> T:
+    return func()
 
+
+def call_data_factory_operation(operation: str, func: Callable[[], T]) -> T:
     try:
-        return _call()
+        return _call_data_factory_operation(func)
     except HttpResponseError as error:
-        if not _is_retryable_data_factory_error(error):
+        status_code = _get_status_code(error)
+        if not _is_retryable_status_code(status_code):
             raise
         raise AzureDataFactoryTransientError(
             operation,
-            _get_status_code(error),
+            status_code,
         ) from error

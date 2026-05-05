@@ -1,6 +1,4 @@
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 
@@ -51,7 +49,7 @@ def _sync_data_factory(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     try:
         factories_raw = data_factory.sync_data_factories(
@@ -104,7 +102,7 @@ def _sync_one_subscription(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     compute.sync(
         neo4j_session,
@@ -287,7 +285,7 @@ def _sync_tenant(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Azure Tenant: %s", credentials.tenant_id)
     tenant.sync(
@@ -303,9 +301,9 @@ def _sync_multiple_subscriptions(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     tenant_id: str,
-    subscriptions: List[Dict],
+    subscriptions: list[dict],
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Azure subscriptions")
 
