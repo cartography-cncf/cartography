@@ -126,7 +126,7 @@ def test_extract_source_from_spdx_sbom_reads_described_package_download_location
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     )
 
-    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(image_digest), image_digest)
+    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(image_digest))
 
     assert provenance == {"source_uri": "https://github.com/example/widgets"}
 
@@ -156,7 +156,7 @@ def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
         ],
     )
 
-    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+    provenance = _extract_source_from_spdx_sbom(sbom)
 
     assert provenance == {"source_uri": "https://github.com/example/widgets"}
 
@@ -168,7 +168,6 @@ def test_extract_source_from_spdx_sbom_reads_expected_source_package():
 
     provenance = _extract_source_from_spdx_sbom(
         _ko_spdx_sbom(image_digest),
-        image_digest,
         expected_source_uri="https://github.com/example/widgets",
     )
 
@@ -182,7 +181,6 @@ def test_extract_source_from_spdx_sbom_rejects_missing_expected_source_package()
 
     provenance = _extract_source_from_spdx_sbom(
         _ko_spdx_sbom(image_digest),
-        image_digest,
         expected_source_uri="https://github.com/example/other",
     )
 
@@ -209,7 +207,7 @@ def test_extract_source_from_spdx_sbom_ignores_dependency_only_packages():
         ],
     )
 
-    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+    provenance = _extract_source_from_spdx_sbom(sbom)
 
     assert provenance == {}
 
@@ -235,7 +233,7 @@ def test_extract_source_from_spdx_sbom_requires_one_described_repo():
         ],
     )
 
-    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+    provenance = _extract_source_from_spdx_sbom(sbom)
 
     assert provenance == {}
 
@@ -248,7 +246,7 @@ def test_extract_source_from_spdx_sbom_accepts_generic_document_identity():
     sbom["name"] = "sbom.spdx.json"
     sbom["documentNamespace"] = "https://example.test/sbom/generic"
 
-    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
+    provenance = _extract_source_from_spdx_sbom(sbom)
 
     assert provenance == {"source_uri": "https://github.com/example/widgets"}
 

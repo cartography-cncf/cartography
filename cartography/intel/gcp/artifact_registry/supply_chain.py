@@ -322,7 +322,6 @@ def _repo_url_from_spdx_package(package: dict[str, Any]) -> str | None:
 
 def _extract_source_from_spdx_sbom(
     sbom: dict[str, Any],
-    image_digest: str,
     expected_source_uri: str | None = None,
 ) -> dict[str, str]:
     """Extract source repo from a digest-specific SPDX SBOM.
@@ -424,7 +423,6 @@ async def _fetch_spdx_layer_provenance(
 
         provenance = _extract_source_from_spdx_sbom(
             blob,
-            subject_digest,
             expected_source_uri=expected_source_uri,
         )
         if provenance:
