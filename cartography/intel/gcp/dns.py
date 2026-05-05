@@ -88,11 +88,11 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
     zones: List[Dict] = []
     for z in dns_zones:
         dnssec_specs = z.get("dnssecConfig", {}).get("defaultKeySpecs", [])
-        key_signing_spec = next(
+        key_signing_spec: Dict = next(
             (spec for spec in dnssec_specs if spec.get("keyType") == "keySigning"),
             {},
         )
-        zone_signing_spec = next(
+        zone_signing_spec: Dict = next(
             (spec for spec in dnssec_specs if spec.get("keyType") == "zoneSigning"),
             {},
         )

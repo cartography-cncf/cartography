@@ -44,12 +44,8 @@ from cartography.rules.data.rules.cis_kubernetes_rbac import (
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_1_6_sa_token_mounts,
 )
-from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_3_host_pid,
-)
-from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_4_host_ipc,
-)
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_3_host_pid
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_4_host_ipc
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_2_5_host_network,
 )
@@ -63,10 +59,10 @@ from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_2_12_host_ports,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_6_2_runtime_default_seccomp,
+    cis_k8s_5_4_1_secrets_in_env_vars,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_4_1_secrets_in_env_vars,
+    cis_k8s_5_6_2_runtime_default_seccomp,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_6_4_default_namespace,

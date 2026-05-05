@@ -1,5 +1,5 @@
-import logging
 import json
+import logging
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -92,9 +92,11 @@ def transform_datasets(datasets_data: list[dict], project_id: str) -> list[dict]
                 "default_kms_key_name": dataset.get(
                     "defaultEncryptionConfiguration", {}
                 ).get("kmsKeyName"),
-                "access_entries": json.dumps(dataset.get("access", []))
-                if dataset.get("access")
-                else None,
+                "access_entries": (
+                    json.dumps(dataset.get("access", []))
+                    if dataset.get("access")
+                    else None
+                ),
                 "project_id": project_id,
             }
         )

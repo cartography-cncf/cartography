@@ -47,9 +47,9 @@ def test_rule_names_follow_cis_convention():
     ]
 
     for rule in rules:
-        assert rule.name.startswith("CIS Google Workspace"), (
-            f"Rule {rule.id} name should start with 'CIS Google Workspace'"
-        )
+        assert rule.name.startswith(
+            "CIS Google Workspace"
+        ), f"Rule {rule.id} name should start with 'CIS Google Workspace'"
 
 
 def test_facts_have_expected_structure():

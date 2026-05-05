@@ -3,9 +3,9 @@ from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_3_dnssec_enabled
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_4_dnssec_no_rsasha1_ksk
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_5_dnssec_no_rsasha1_zsk
-from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_8_vpc_flow_logs
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_8_vpc_flow_logs
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_1_default_service_account
 from cartography.rules.data.rules.cis_4_0_gcp import (
     cis_gcp_4_2_default_service_account_full_api,
