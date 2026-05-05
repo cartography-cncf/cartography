@@ -52,6 +52,7 @@ def call_data_factory_operation(operation: str, func: Callable[[], T]) -> T:
         max_tries=_MAX_TRIES,
         giveup=lambda error: not _is_retryable_data_factory_error(error),
         on_backoff=backoff_handler,
+        logger=None,
     )
     def _call() -> T:
         return func()

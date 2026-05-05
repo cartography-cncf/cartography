@@ -284,3 +284,23 @@ def test_get_factories_does_not_retry_non_transient_error() -> None:
 
     assert client.factories.list.call_count == 1
     mock_sleep.assert_not_called()
+
+
+def test_get_factories_does_not_log_raw_error_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client = MagicMock()
+    client.factories.list.side_effect = [
+        _SyntheticHttpResponseError(503),
+        [_AzureResource({"id": "factory-1"})],
+    ]
+
+    with (
+        patch("time.sleep"),
+        patch.object(
+            _SyntheticHttpResponseError, "__str__", return_value="raw-response-body"
+        ),
+    ):
+        data_factory.get_factories(client)
+
+    assert "raw-response-body" not in caplog.text
