@@ -38,6 +38,10 @@ stat_handler = get_stats_client(__name__)
 
 ARTIFACT_REGISTRY_LOAD_BATCH_SIZE = 1000
 DEFAULT_ARTIFACT_REGISTRY_WORKERS = 8
+MANIFEST_LIST_MEDIA_TYPES = {
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.index.v1+json",
+}
 
 ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")

@@ -126,45 +126,23 @@ class AzureContainerInstanceToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties(
+class AzureContainerInstanceToGCPArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryContainerImageRel(
-    CartographyRelSchema
-):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+class AzureContainerInstanceToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: (
-        AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties
-    ) = AzureContainerInstanceToGCPArtifactRegistryContainerImageRelProperties()
-
-
-@dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AzureContainerInstanceToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+    properties: AzureContainerInstanceToGCPArtifactRegistryImageRelProperties = (
+        AzureContainerInstanceToGCPArtifactRegistryImageRelProperties()
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: (
-        AzureContainerInstanceToGCPArtifactRegistryPlatformImageRelProperties
-    ) = AzureContainerInstanceToGCPArtifactRegistryPlatformImageRelProperties()
 
 
 @dataclass(frozen=True)
@@ -183,7 +161,6 @@ class AzureContainerInstanceSchema(CartographyNodeSchema):
             AzureContainerInstanceToGroupContainerWorkloadParentRel(),
             AzureContainerInstanceToECRImageRel(),
             AzureContainerInstanceToGitLabContainerImageRel(),
-            AzureContainerInstanceToGCPArtifactRegistryContainerImageRel(),
-            AzureContainerInstanceToGCPArtifactRegistryPlatformImageRel(),
+            AzureContainerInstanceToGCPArtifactRegistryImageRel(),
         ],
     )

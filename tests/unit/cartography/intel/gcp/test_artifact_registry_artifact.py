@@ -114,9 +114,6 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
         patch(
             "cartography.intel.gcp.artifact_registry.artifact.load_matchlinks_with_progress"
         ) as load_matchlinks_with_progress,
-        patch(
-            "cartography.intel.gcp.artifact_registry.artifact.apply_conditional_labels"
-        ) as apply_conditional_labels,
     ):
         load_docker_images(
             MagicMock(),
@@ -125,18 +122,33 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
             123,
         )
 
-    load_nodes_without_relationships.assert_called_once()
-    assert load_nodes_without_relationships.call_args.kwargs["apply_labels"] is False
+    assert load_nodes_without_relationships.call_count == 2
     assert (
-        load_nodes_without_relationships.call_args.kwargs["batch_size"]
+        load_nodes_without_relationships.call_args_list[1].kwargs["apply_labels"]
+        is False
+    )
+    assert (
+        load_nodes_without_relationships.call_args_list[0].kwargs["batch_size"]
         == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
     )
-    assert load_matchlinks_with_progress.call_count == 2
+    assert (
+        load_nodes_without_relationships.call_args_list[1].kwargs["batch_size"]
+        == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
+    )
+    assert load_matchlinks_with_progress.call_count == 4
+    assert [
+        call.args[1].__class__.__name__
+        for call in load_matchlinks_with_progress.call_args_list
+    ] == [
+        "GCPArtifactRegistryProjectToRepositoryImageRel",
+        "GCPArtifactRegistryRepositoryToRepositoryImageRel",
+        "GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel",
+        "GCPArtifactRegistryRepositoryImageToImageMatchLink",
+    ]
     for call in load_matchlinks_with_progress.call_args_list:
         assert call.kwargs["batch_size"] == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
         assert call.kwargs["_sub_resource_label"] == "GCPProject"
         assert call.kwargs["_sub_resource_id"] == "test-project"
-    apply_conditional_labels.assert_called_once()
 
 
 def test_load_nodes_without_relationships_logs_batch_progress(caplog):
@@ -146,7 +158,7 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
     )
     neo4j_session = MagicMock()
     node_schema = MagicMock()
-    node_schema.label = "GCPArtifactRegistryContainerImage"
+    node_schema.label = "GCPArtifactRegistryRepositoryImage"
 
     with (
         patch(
@@ -181,7 +193,7 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
     assert "Loaded test GAR nodes batch 1/2" in caplog.text
     assert "Loaded test GAR nodes batch 2/2" in caplog.text
     stat_handler.incr.assert_called_once_with(
-        "node.gcpartifactregistrycontainerimage.loaded", 3
+        "node.gcpartifactregistryrepositoryimage.loaded", 3
     )
 
 

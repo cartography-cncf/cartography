@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 AWS_AUTH_TEMPLATE_PATTERN = re.compile(r"{{[^}]+}}")
+ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE = (
+    "authentication mode must be set to one of [API, API_AND_CONFIG_MAP]"
+)
 
 
 @timeit
@@ -81,6 +84,37 @@ def _contains_unsupported_template(value: str) -> bool:
         token not in {"{{AccountID}}", "{{SessionName}}", "{{SessionNameRaw}}"}
         for token in AWS_AUTH_TEMPLATE_PATTERN.findall(value)
     )
+
+
+def _is_access_entries_unsupported_auth_mode_error(error: ClientError) -> bool:
+    error_details = error.response.get("Error", {})
+    error_code = error_details.get("Code")
+    error_message = error_details.get("Message", "")
+    return (
+        error_code == "InvalidRequestException"
+        and ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE in error_message
+    )
+
+
+def _list_access_entry_principal_arns(client: Any, cluster_name: str) -> list[str]:
+    principal_arns = []
+
+    try:
+        paginator = client.get_paginator("list_access_entries")
+        page_iterator = paginator.paginate(clusterName=cluster_name)
+        for page in page_iterator:
+            principal_arns.extend(page.get("accessEntries", []))
+    except ClientError as e:
+        if _is_access_entries_unsupported_auth_mode_error(e):
+            logger.info(
+                "EKS Access Entries are unavailable for cluster %s authentication "
+                "mode; skipping Access Entries.",
+                cluster_name,
+            )
+            return []
+        raise
+
+    return principal_arns
 
 
 def _replace_account_id_template(value: str, principal_arn: str) -> str | None:
@@ -357,27 +391,25 @@ def get_access_entries(
     if cluster_name.startswith("arn:aws:eks:"):
         cluster_name = cluster_name.split("/")[-1]
 
-    paginator = client.get_paginator("list_access_entries")
-    page_iterator = paginator.paginate(clusterName=cluster_name)
+    principal_arns = _list_access_entry_principal_arns(client, cluster_name)
 
     # Get detailed information for each access entry
-    for page in page_iterator:
-        for principal_arn in page.get("accessEntries", []):
-            try:
-                detail_response = client.describe_access_entry(
-                    clusterName=cluster_name, principalArn=principal_arn
+    for principal_arn in principal_arns:
+        try:
+            detail_response = client.describe_access_entry(
+                clusterName=cluster_name, principalArn=principal_arn
+            )
+            access_entries.append(detail_response["accessEntry"])
+        except ClientError as e:
+            # If the access entry is not found, we can safely skip it.
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                logger.warning(
+                    f"Access entry lookup failed for principal {principal_arn}: {e}"
                 )
-                access_entries.append(detail_response["accessEntry"])
-            except ClientError as e:
-                # If the access entry is not found, we can safely skip it.
-                if e.response["Error"]["Code"] == "ResourceNotFoundException":
-                    logger.warning(
-                        f"Access entry lookup failed for principal {principal_arn}: {e}"
-                    )
-                    continue
-                # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
-                # returning partial data which could cause destructive cleanup.
-                raise
+                continue
+            # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
+            # returning partial data which could cause destructive cleanup.
+            raise
 
     logger.info(
         f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}"
