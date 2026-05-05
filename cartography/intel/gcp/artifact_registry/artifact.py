@@ -789,6 +789,9 @@ def cleanup_docker_images(
     GraphJob.from_node_schema(
         GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
     ).run(neo4j_session)
+    # The split write path attaches these relationships with MatchLinks, so
+    # clean them explicitly after node cleanup has used the project RESOURCE
+    # edge to scope stale repository-image deletion.
     GraphJob.from_matchlink(
         GCPArtifactRegistryProjectToRepositoryImageRel(),
         "GCPProject",
