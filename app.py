@@ -173,7 +173,7 @@ def process_request(context, args, retry=0):
                 "updateTag": args.get("runTimestamp"),
                 "refreshEntitlements": args.get("refreshEntitlements"),
                 "identityStoreRegion": args.get("identityStoreRegion"),
-                "awsInternalAccounts": args.get("awsInternalAccounts"),
+                "internalAccounts": args.get("internalAccounts"),
             }
 
             resp = cartography.cli.run_aws(body)
