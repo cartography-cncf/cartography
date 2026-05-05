@@ -4,8 +4,11 @@ Unit tests for Semgrep OSS findings helpers.
 
 from pathlib import Path
 
+import pytest
+
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.semgrep.ossfindings import _build_oss_sast_finding_id
+from cartography.intel.semgrep.ossfindings import get_semgrep_oss_report
 from cartography.intel.semgrep.ossfindings import (
     get_semgrep_oss_reports_for_repository_mapping,
 )
@@ -54,6 +57,20 @@ def test_get_semgrep_oss_reports_for_repository_mapping_happy_path():
     assert len(report_collection.reports) == 1
     assert report_collection.reports[0][0].name == "oss_sast_report.json"
     assert isinstance(report_collection.reports[0][1]["results"], list)
+
+
+def test_get_semgrep_oss_repository_mappings_rejects_multiple_yaml_files():
+    fixture_path = Path("tests/data/semgrep/repository_mappings_multiple_yaml")
+    with pytest.raises(
+        ValueError,
+        match="Semgrep OSS repository mapping source must contain exactly one YAML file.",
+    ):
+        get_semgrep_oss_repository_mappings(LocalReportReader(str(fixture_path)))
+
+
+def test_get_semgrep_oss_report_rejects_multiple_artifacts():
+    fixture_path = Path("tests/data/semgrep/multiple_report_artifacts")
+    assert get_semgrep_oss_report(LocalReportReader(str(fixture_path))) is None
 
 
 def test_build_oss_sast_finding_id_prefers_fingerprint_when_present():
