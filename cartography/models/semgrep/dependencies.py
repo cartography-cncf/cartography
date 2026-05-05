@@ -20,6 +20,9 @@ class SemgrepDependencyNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     ecosystem: PropertyRef = PropertyRef("ecosystem")
     version: PropertyRef = PropertyRef("version")
+    type: PropertyRef = PropertyRef("type")
+    purl: PropertyRef = PropertyRef("purl")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
 
 
 @dataclass(frozen=True)

@@ -405,6 +405,14 @@ def test_sync_github_dependencies(
     )
     assert expected_ontology_fields.issubset(actual_ontology_fields)
 
+    # Assert - GitHub dependency graph nodes have a source-specific label for ontology mapping
+    actual_github_dependency_nodes = check_nodes(
+        neo4j_session,
+        "GitHubDependency",
+        ["id", "normalized_id", "version", "type", "purl"],
+    )
+    assert expected_ontology_fields.issubset(actual_github_dependency_nodes)
+
 
 @patch.object(
     cartography.intel.github.repos,

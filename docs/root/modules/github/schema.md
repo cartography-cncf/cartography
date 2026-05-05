@@ -435,6 +435,8 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
+> **Ontology Mapping**: Exact-version dependency nodes also have the extra label `GitHubDependency` and can link to the canonical `Package` ontology node by canonical Package URL.
+
 #### Relationships
 
 - **GitHubRepository** via **REQUIRES** relationship

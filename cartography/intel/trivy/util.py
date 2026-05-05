@@ -9,6 +9,17 @@ import re
 
 from packageurl import PackageURL
 
+_PACKAGE_TYPE_ALIASES = {
+    "gomod": "golang",
+}
+
+
+def normalize_package_type(pkg_type: str | None) -> str | None:
+    if not pkg_type:
+        return None
+    pkg_type_lower = pkg_type.lower()
+    return _PACKAGE_TYPE_ALIASES.get(pkg_type_lower, pkg_type_lower)
+
 
 def normalize_package_name(name: str, pkg_type: str) -> str:
     """
@@ -60,6 +71,35 @@ def parse_purl(purl: str | None) -> dict | None:
     }
 
 
+def make_canonical_purl(
+    purl: str | None = None,
+    name: str | None = None,
+    version: str | None = None,
+    pkg_type: str | None = None,
+) -> str | None:
+    """
+    Create a deterministic Package URL for cross-tool package matching.
+
+    Prefer a source PURL when present. If a source only provides package
+    components, build a PURL from type, name, and version.
+    """
+    if purl:
+        try:
+            return PackageURL.from_string(purl).to_string()
+        except ValueError:
+            pass
+
+    normalized_type = normalize_package_type(pkg_type)
+    if name and version and normalized_type:
+        return PackageURL(
+            type=normalized_type,
+            name=normalize_package_name(name, normalized_type),
+            version=version,
+        ).to_string()
+
+    return None
+
+
 def make_normalized_package_id(
     purl: str | None = None,
     name: str | None = None,
@@ -88,8 +128,9 @@ def make_normalized_package_id(
     Returns:
         Normalized ID in format "{type}|{namespace/}{normalized_name}|{version}" or None
     """
-    if purl:
-        parsed = parse_purl(purl)
+    canonical_purl = make_canonical_purl(purl, name, version, pkg_type)
+    if canonical_purl:
+        parsed = parse_purl(canonical_purl)
         if parsed and parsed["name"] and parsed["version"]:
             norm_name = normalize_package_name(parsed["name"], parsed["type"])
             ns_prefix = f"{parsed['namespace']}/" if parsed.get("namespace") else ""
@@ -97,8 +138,9 @@ def make_normalized_package_id(
 
     # Fallback to provided components
     if name and version and pkg_type:
-        norm_name = normalize_package_name(name, pkg_type)
-        pkg_type_lower = pkg_type.lower() if pkg_type else "unknown"
+        normalized_type = normalize_package_type(pkg_type)
+        norm_name = normalize_package_name(name, normalized_type or "")
+        pkg_type_lower = normalized_type or "unknown"
         return f"{pkg_type_lower}|{norm_name}|{version}"
 
     return None

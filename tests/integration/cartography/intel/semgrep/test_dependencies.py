@@ -94,6 +94,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "name",
             "version",
             "ecosystem",
+            "type",
+            "purl",
+            "normalized_id",
         ],
     ) == {
         (
@@ -102,6 +105,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/baz",
             "1.2.3",
             "gomod",
+            "golang",
+            "pkg:golang/github.com/foo/baz@1.2.3",
+            "golang|github.com/foo/baz|1.2.3",
         ),
         (
             "github.com/foo/buzz|4.5.0",
@@ -109,6 +115,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/buzz",
             "4.5.0",
             "gomod",
+            "golang",
+            "pkg:golang/github.com/foo/buzz@4.5.0",
+            "golang|github.com/foo/buzz|4.5.0",
         ),
         (
             "github.com/foo/biz|5.0.0",
@@ -116,6 +125,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/biz",
             "5.0.0",
             "npm",
+            "npm",
+            "pkg:npm/github.com/foo/biz@5.0.0",
+            "npm|github.com/foo/biz|5.0.0",
         ),
     }
 
@@ -128,6 +140,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "name",
             "version",
             "ecosystem",
+            "type",
+            "purl",
+            "normalized_id",
         ],
     ) == {
         (
@@ -136,6 +151,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/baz",
             "1.2.3",
             "gomod",
+            "golang",
+            "pkg:golang/github.com/foo/baz@1.2.3",
+            "golang|github.com/foo/baz|1.2.3",
         ),
         (
             "github.com/foo/buzz|4.5.0",
@@ -143,6 +161,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/buzz",
             "4.5.0",
             "gomod",
+            "golang",
+            "pkg:golang/github.com/foo/buzz@4.5.0",
+            "golang|github.com/foo/buzz|4.5.0",
         ),
     }
 
@@ -155,6 +176,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "name",
             "version",
             "ecosystem",
+            "type",
+            "purl",
+            "normalized_id",
         ],
     ) == {
         (
@@ -163,6 +187,9 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
             "github.com/foo/biz",
             "5.0.0",
             "npm",
+            "npm",
+            "pkg:npm/github.com/foo/biz@5.0.0",
+            "npm|github.com/foo/biz|5.0.0",
         ),
     }
 

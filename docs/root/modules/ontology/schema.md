@@ -783,6 +783,8 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:GitHubDependency)
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
     ```
 - `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
