@@ -5823,6 +5823,8 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockCustomModel, AWSSageMakerModel, GCPVertexAIModel).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -5875,6 +5877,8 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
 ### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSSageMakerModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|
@@ -6243,6 +6247,8 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 ### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSBedrockCustomModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|

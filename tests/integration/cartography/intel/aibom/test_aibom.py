@@ -283,6 +283,16 @@ def test_sync_aibom_from_dir(
     assert check_nodes(neo4j_session, "AIModel", ["name"]) == {
         ("openai:gpt-4.1-mini",),
     }
+    # The conditional :AIModel label brings the aimodels semantic-label mapping
+    # so AIBOMComponent nodes with category="model" expose _ont_name (from
+    # model_name) and _ont_provider (from framework).
+    assert check_nodes(
+        neo4j_session,
+        "AIModel",
+        ["_ont_name", "_ont_provider", "_ont_source"],
+    ) == {
+        ("gpt-4.1-mini", "openai", "aibom"),
+    }
     assert check_nodes(neo4j_session, "AITool", ["name"]) == {
         ("fetch_customer_profile",),
     }

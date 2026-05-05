@@ -1,3 +1,4 @@
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -8,9 +9,13 @@ import cartography.intel.gcp.cloudrun.service as cloudrun_service
 from tests.data.gcp.cloudrun import MOCK_EXECUTIONS
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_JOBS
+from tests.data.gcp.cloudrun import MOCK_LATEST_READY_REVISION_WITH_DIGESTED_IMAGES
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISIONS
 from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
+from tests.data.gcp.cloudrun import (
+    MOCK_SERVICE_WITH_TAG_ONLY_TEMPLATE_AND_DIGESTED_REVISION,
+)
 from tests.data.gcp.cloudrun import MOCK_SERVICES
 from tests.data.gcp.cloudrun import TEST_JOB_PRIMARY_DIGEST
 from tests.data.gcp.cloudrun import TEST_JOB_SIDECAR_DIGEST
@@ -143,9 +148,11 @@ def _create_image_registry_nodes(neo4j_session):
 @patch("cartography.intel.gcp.cloudrun.execution.get_executions")
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
+@patch("cartography.intel.gcp.cloudrun.service.get_latest_ready_revisions")
 @patch("cartography.intel.gcp.cloudrun.service.get_services")
 def test_sync_cloudrun(
     mock_get_services,
+    mock_get_latest_ready_revisions,
     mock_get_revisions,
     mock_get_jobs,
     mock_get_executions,
@@ -160,6 +167,7 @@ def test_sync_cloudrun(
 
     # Arrange: Mock all 4 API calls
     mock_get_services.return_value = MOCK_SERVICES["services"]
+    mock_get_latest_ready_revisions.return_value = {}
     mock_get_revisions.return_value = MOCK_REVISIONS["revisions"]
     mock_get_jobs.return_value = MOCK_JOBS["jobs"]
     mock_get_executions.return_value = MOCK_EXECUTIONS["executions"]
@@ -504,4 +512,98 @@ def test_cloud_run_image_prerequisites(
     assert {(r["id"], r["state"]) for r in job_container_states} == {
         (job_primary_container_id, "running"),
         (job_sidecar_container_id, "running"),
+    }
+
+
+@patch("cartography.intel.gcp.cloudrun.service.proto_message_to_dict")
+@patch("cartography.intel.gcp.cloudrun.service.build_cloud_run_revision_client")
+@patch("cartography.intel.gcp.cloudrun.service.get_services")
+def test_cloud_run_service_container_uses_latest_ready_revision_digest(
+    mock_get_services,
+    mock_build_cloud_run_revision_client,
+    mock_proto_message_to_dict,
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    mock_get_services.return_value = (
+        MOCK_SERVICE_WITH_TAG_ONLY_TEMPLATE_AND_DIGESTED_REVISION
+    )
+    revision_response = object()
+    mock_revision_client = MagicMock()
+    mock_revision_client.get_revision.return_value = revision_response
+    mock_build_cloud_run_revision_client.return_value = mock_revision_client
+    mock_proto_message_to_dict.return_value = next(
+        iter(MOCK_LATEST_READY_REVISION_WITH_DIGESTED_IMAGES.values()),
+    )
+
+    _create_prerequisite_nodes(neo4j_session)
+    _create_image_registry_nodes(neo4j_session)
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    mock_credentials = MagicMock()
+
+    cloudrun_service.sync_services(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+        TEST_CLOUD_RUN_LOCATIONS,
+        mock_credentials,
+    )
+    mock_build_cloud_run_revision_client.assert_called_once_with(
+        credentials=mock_credentials,
+    )
+    mock_revision_client.get_revision.assert_called_once_with(
+        name=TEST_REVISION_ID,
+        retry=ANY,
+        timeout=cloudrun_service.CLOUD_RUN_LIST_TIMEOUT,
+    )
+    mock_proto_message_to_dict.assert_called_once_with(revision_response)
+
+    service_primary_container_id = f"{TEST_SERVICE_ID}/containers/server"
+    service_sidecar_container_id = f"{TEST_SERVICE_ID}/containers/metrics"
+    digest_service_container_id = (
+        "projects/test-project/locations/us-central1/services/digest-service"
+        "/containers/server"
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudRunServiceContainer",
+        ["id", "image", "image_digest"],
+    ) == {
+        (
+            service_primary_container_id,
+            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/server:abc1234",
+            TEST_REVISION_PRIMARY_DIGEST,
+        ),
+        (
+            service_sidecar_container_id,
+            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/test-service/metrics:def5678"
+            f"@{TEST_REVISION_SIDECAR_DIGEST}",
+            TEST_REVISION_SIDECAR_DIGEST,
+        ),
+        (
+            digest_service_container_id,
+            "us-central1-docker.pkg.dev/test-project/runtime-repo/github.com/example-org/digest-service/server"
+            f"@{TEST_REVISION_PRIMARY_DIGEST}",
+            TEST_REVISION_PRIMARY_DIGEST,
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunServiceContainer",
+        "id",
+        "GCPArtifactRegistryImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {
+        (service_primary_container_id, TEST_REVISION_PRIMARY_DIGEST),
+        (service_sidecar_container_id, TEST_REVISION_SIDECAR_DIGEST),
+        (digest_service_container_id, TEST_REVISION_PRIMARY_DIGEST),
     }
