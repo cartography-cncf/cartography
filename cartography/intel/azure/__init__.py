@@ -9,6 +9,7 @@ from cartography.util import timeit
 
 from . import aks
 from . import app_service
+from . import application_gateways
 from . import compute
 from . import container_instances
 from . import cosmosdb
@@ -246,6 +247,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    application_gateways.sync(
         neo4j_session,
         credentials,
         subscription_id,

@@ -2115,6 +2115,139 @@ Representation of an Inbound NAT Rule for an Azure Load Balancer.
 
 *(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
 
+### AzureApplicationGateway
+
+Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-us/azure/application-gateway/overview). The data model mirrors `AzureLoadBalancer`: the parent gateway plus three sub-resource node types (frontend IP, backend pool, rule). HTTP listener and backend HTTP settings configuration is folded onto each `AzureApplicationGatewayRule`, parallel to how `AzureLoadBalancerRule` carries `protocol` / `frontend_port` / `backend_port` directly.
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, AzureLoadBalancer, GCPForwardingRule).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Application Gateway.            |
+| name       | The name of the Application Gateway.                        |
+| location   | The Azure region where the Application Gateway is deployed. |
+| sku\_name   | The SKU name (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_tier   | The SKU tier (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_capacity | The SKU capacity (instance count).                        |
+| operational\_state | The operational state (e.g., `Running`, `Stopped`). |
+| provisioning\_state | The provisioning state.                            |
+| enable\_http2 | Whether HTTP/2 is enabled.                              |
+| firewall\_policy\_id | Resource ID of the associated WAF policy, if any. |
+| subnet\_id | Resource ID of the subnet the gateway is deployed into.    |
+
+#### Relationships
+
+- An Azure Application Gateway is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGateway)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway contains its component parts.
+    ```cypher
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayBackendPool)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway is deployed in a subnet.
+    ```cypher
+    (AzureApplicationGateway)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+- Azure Application Gateways can be tagged with Azure Tags.
+    ```cypher
+    (AzureApplicationGateway)-[:TAGGED]->(AzureTag)
+    ```
+
+### AzureApplicationGatewayFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Application Gateway.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| private\_ip\_allocation\_method | The private IP allocation method (e.g., `Dynamic`, `Static`).  |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+| subnet\_id            | The resource ID of the associated subnet, if applicable (private frontend). |
+
+#### Relationships
+
+- A Frontend IP Configuration can be associated with a Public IP Address.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+- A private Frontend IP Configuration is bound to a Subnet.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+### AzureApplicationGatewayBackendPool
+
+Representation of a Backend Address Pool for an Azure Application Gateway.
+
+| Field        | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| firstseen    | Timestamp of when a sync job discovered this node                        |
+| lastupdated  | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Backend Pool.                                |
+| name         | The name of the Backend Pool.                                            |
+| fqdns        | List of backend FQDNs.                                                   |
+| ip\_addresses | List of backend IP addresses.                                           |
+
+#### Relationships
+
+- A Backend Pool routes traffic to Network Interfaces, Public IPs (matched by `ip_address`), and any node carrying the cross-provider `DNSRecord` ontology label whose `name` matches an FQDN backend (e.g. `AWSDNSRecord`, `GCPRecordSet`, `CloudflareDNSRecord`, `VercelDNSRecord`).
+    ```cypher
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzurePublicIPAddress)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:DNSRecord)
+    ```
+
+### AzureApplicationGatewayRule
+
+Representation of a Request Routing Rule for an Azure Application Gateway. Properties of the rule's HTTP listener and backend HTTP settings are folded onto this node, so a single Rule node is the complete description of one routing entry (parallel to `AzureLoadBalancerRule`).
+
+| Field      | Description                                                                  |
+| ---------- | ---------------------------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node                            |
+| lastupdated| Timestamp of the last time the node was updated                              |
+| **id** | The full resource ID of the Routing Rule.                                    |
+| name       | The name of the Routing Rule.                                                |
+| rule\_type | The rule type (e.g., `Basic`, `PathBasedRouting`).                           |
+| priority   | The rule priority.                                                           |
+| url\_path\_map\_id | Resource ID of the referenced URL path map for `PathBasedRouting` rules; null for `Basic` rules. |
+| listener\_id | Resource ID of the underlying HTTP listener (kept for traceability).       |
+| listener\_protocol | The listener protocol (e.g., `Http`, `Https`).                       |
+| listener\_port | The listener port (resolved from the referenced `frontendPorts` entry).  |
+| listener\_host\_name | The host name the listener matches, if any.                        |
+| listener\_host\_names | List of host names the listener matches (multi-site listeners).   |
+| listener\_require\_server\_name\_indication | Whether SNI is required.                  |
+| listener\_ssl\_certificate\_id | Resource ID of the associated SSL certificate, if any. |
+| backend\_http\_settings\_id | Resource ID of the underlying backend HTTP settings (kept for traceability). |
+| backend\_protocol | The backend protocol (e.g., `Http`, `Https`).                         |
+| backend\_port | The backend port.                                                         |
+| backend\_cookie\_based\_affinity | Whether cookie-based affinity is enabled.              |
+| backend\_request\_timeout | The backend request timeout in seconds.                       |
+| backend\_host\_name | The host name to send to the backend, if pinned.                    |
+| backend\_pick\_host\_name\_from\_backend\_address | Whether to pick the host name from the backend address. |
+
+#### Relationships
+
+- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. `PathBasedRouting` rules expose only `url_path_map_id` as a pointer; their `ROUTES_TO` edge and `backend_*` properties are not populated, since individual path rules can target different backends and are not yet modeled.
+    ```cypher
+    (AzureApplicationGatewayRule)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
+    ```
+
 ### AzureTag
 
 Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
