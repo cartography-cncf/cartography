@@ -375,9 +375,6 @@ def get_dependencies(
     except zipfile.BadZipFile as e:
         logger.error(f"Invalid ZIP file for job ID {job_id}: {e}")
         return []
-    except gzip.BadGzipFile as e:
-        logger.error(f"Invalid gzip file in CycloneDX SBOM for job ID {job_id}: {e}")
-        return []
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in CycloneDX SBOM: {e}")
         return []

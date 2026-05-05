@@ -4,6 +4,8 @@ import json
 import zipfile
 from unittest.mock import Mock
 
+import pytest
+
 from cartography.intel.gitlab.dependencies import _parse_cyclonedx_sbom
 from cartography.intel.gitlab.dependencies import _select_dependency_scan_job
 from cartography.intel.gitlab.dependencies import (
@@ -752,3 +754,38 @@ def test_get_dependencies_returns_empty_and_logs_warning_on_forbidden_artifacts(
     assert dependencies == []
     assert "download CI job artifacts" in caplog.text
     assert "Developer or Maintainer access" in caplog.text
+
+
+def test_get_dependencies_propagates_invalid_gzip_cyclonedx(mocker) -> None:
+    jobs_response = _build_response(
+        json_data=[
+            {
+                "id": 704,
+                "name": AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME,
+                "ref": "main",
+                "artifacts": [
+                    {
+                        "file_type": "cyclonedx",
+                        "filename": "gl-sbom.cdx.json.gz",
+                    },
+                ],
+            },
+        ]
+    )
+    artifacts_response = _build_response(
+        content=_build_artifacts_zip({"gl-sbom.cdx.json.gz": b"not gzip"})
+    )
+    mocker.patch(
+        "cartography.intel.gitlab.dependencies.make_request_with_retry",
+        side_effect=[jobs_response, artifacts_response],
+    )
+    mocker.patch("cartography.intel.gitlab.dependencies.check_rate_limit_remaining")
+
+    with pytest.raises(gzip.BadGzipFile):
+        get_dependencies(
+            "https://gitlab.example.com",
+            "token",
+            42,
+            [],
+            default_branch="main",
+        )
