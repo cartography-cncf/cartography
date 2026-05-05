@@ -327,9 +327,10 @@ def _extract_source_from_spdx_sbom(
 ) -> dict[str, str]:
     """Extract source repo from a digest-specific SPDX SBOM.
 
-    Only the package(s) named by documentDescribes are considered. Dependency
-    packages can also contain GitHub URLs, but they are not evidence that the
-    image itself was packaged from those repositories.
+    Without an expected source, only packages named by documentDescribes are
+    considered. When the image path already identifies the expected repository,
+    accept that repository from any package because ko SBOMs often describe the
+    OCI image package and list the source module as a dependency package.
     """
     digest_value = (
         image_digest.split(":", 1)[1] if ":" in image_digest else image_digest
@@ -362,8 +363,6 @@ def _extract_source_from_spdx_sbom(
 
     repo_urls: set[str] = set()
     for package in packages:
-        if not isinstance(package, dict):
-            continue
         if package.get("SPDXID") not in described_ids:
             continue
         repo_url = _repo_url_from_spdx_package(package)
@@ -403,12 +402,17 @@ async def _fetch_spdx_layer_provenance(
     expected_source_uri: str | None = None,
 ) -> dict[str, str]:
     manifest_url = build_manifest_url(registry, image_path, reference)
-    manifest = await _fetch_json(
-        http_client,
-        manifest_url,
-        token_manager,
-        ALL_MANIFEST_ACCEPT,
-    )
+    try:
+        manifest = await _fetch_json(
+            http_client,
+            manifest_url,
+            token_manager,
+            ALL_MANIFEST_ACCEPT,
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return {}
+        raise
 
     for layer in manifest.get("layers") or []:
         layer_mt = layer.get("mediaType", "").lower()
@@ -522,59 +526,62 @@ async def _process_single_image(
     variant = config.get("variant")
     provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
+    subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
 
     # OCI labels are fast but not always present; fall back to the Referrers API.
     # The Referrers endpoint requires a digest, not a tag.
-    if not provenance.get("source_uri"):
-        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
-        if subject_digest and subject_digest.startswith("sha256:"):
-            try:
-                slsa_provenance = await _fetch_attestation_provenance(
-                    http_client,
-                    token_manager,
-                    registry,
-                    image_path,
-                    subject_digest,
-                )
-            except (httpx.HTTPError, json.JSONDecodeError) as e:
-                logger.warning(
-                    "Failed to fetch attestation provenance for %s: %s",
-                    uri or name,
-                    e,
-                )
-                slsa_provenance = {}
-                fetch_failed = True
-            provenance.update(slsa_provenance)
+    if (
+        not provenance.get("source_uri")
+        and subject_digest
+        and subject_digest.startswith("sha256:")
+    ):
+        try:
+            slsa_provenance = await _fetch_attestation_provenance(
+                http_client,
+                token_manager,
+                registry,
+                image_path,
+                subject_digest,
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch attestation provenance for %s: %s",
+                uri or name,
+                e,
+            )
+            slsa_provenance = {}
+            fetch_failed = True
+        provenance.update(slsa_provenance)
 
     # Some older build flows publish SPDX SBOMs as digest-specific image tags
     # instead of OCI referrers. Use them only when the document itself ties back
     # to this image digest and names one described source package.
-    if not provenance.get("source_uri"):
-        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
-        if subject_digest and subject_digest.startswith("sha256:"):
-            try:
-                sbom_provenance = await _fetch_legacy_sbom_provenance(
-                    http_client,
-                    token_manager,
-                    registry,
-                    image_path,
-                    subject_digest,
-                )
-            except (httpx.HTTPError, json.JSONDecodeError) as e:
-                logger.warning(
-                    "Failed to fetch SBOM provenance for %s: %s",
-                    uri or name,
-                    e,
-                )
-                sbom_provenance = {}
-                fetch_failed = True
-            provenance.update(sbom_provenance)
+    if (
+        not provenance.get("source_uri")
+        and subject_digest
+        and subject_digest.startswith("sha256:")
+    ):
+        try:
+            sbom_provenance = await _fetch_legacy_sbom_provenance(
+                http_client,
+                token_manager,
+                registry,
+                image_path,
+                subject_digest,
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch SBOM provenance for %s: %s",
+                uri or name,
+                e,
+            )
+            sbom_provenance = {}
+            fetch_failed = True
+        provenance.update(sbom_provenance)
 
     if not provenance.get("source_uri") and sbom_artifacts_by_digest:
-        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
-        subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
-        if subject_digest_str is not None and (
-            sbom_artifact := sbom_artifacts_by_digest.get(subject_digest_str)
+        if subject_digest and (
+            sbom_artifact := sbom_artifacts_by_digest.get(subject_digest)
         ):
             sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
             if sbom_parsed:
@@ -586,7 +593,7 @@ async def _process_single_image(
                         sbom_registry,
                         sbom_image_path,
                         sbom_reference,
-                        subject_digest_str,
+                        subject_digest,
                         expected_source_uri=_repo_url_from_github_path(sbom_image_path),
                     )
                 except (httpx.HTTPError, json.JSONDecodeError) as e:
@@ -605,7 +612,7 @@ async def _process_single_image(
     if not provenance.get("source_uri") and not diff_ids and not has_platform:
         return None, fetch_failed
 
-    digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+    digest = subject_digest
     if not digest:
         return None, fetch_failed
 

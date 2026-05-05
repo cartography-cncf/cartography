@@ -855,6 +855,72 @@ async def test_process_single_image_falls_back_to_tagged_spdx_sbom_artifact():
 
 
 @pytest.mark.asyncio
+async def test_process_single_image_treats_missing_tagged_spdx_sbom_as_noop():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    image_digest_hex = image_digest.split(":", 1)[1]
+    image_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{image_digest}"
+    )
+    sbom_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/"
+        "github.com/example/widgets/cmd/server@sha256:sbommanifest"
+    )
+    artifact_name = (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{image_digest}"
+    )
+    manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/manifests/{image_digest}"
+    )
+    referrers_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/referrers/{image_digest}"
+    )
+    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
+    config_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/blobs/{config_digest}"
+    )
+    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
+    config_without_labels["config"]["Labels"] = {}
+    client = _FakeClient(
+        {
+            manifest_url: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": image_digest},
+            ),
+            config_url: _FakeResponse(200, json_body=config_without_labels),
+            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": artifact_name,
+            "uri": image_uri,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        {
+            image_digest: {
+                "uri": sbom_uri,
+                "tags": [f"sha256-{image_digest_hex}.sbom"],
+            }
+        },
+    )
+
+    assert fetch_failed is False
+    assert result["digest"] == image_digest
+    assert "source_uri" not in result
+
+
+@pytest.mark.asyncio
 async def test_process_single_image_skips_manifest_list():
     image_uri = (
         "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
