@@ -1082,14 +1082,16 @@ def get_unmatched_gcp_images_with_history(
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
           )
-        OPTIONAL MATCH (img)<-[:IMAGE]-(direct_repo_img:GCPArtifactRegistryRepositoryImage)<-[:CONTAINS]-(direct_repo:GCPArtifactRegistryRepository)
-        OPTIONAL MATCH (img)<-[:CONTAINS_IMAGE]-(:GCPArtifactRegistryImage)<-[:IMAGE]-(parent_repo_img:GCPArtifactRegistryRepositoryImage)<-[:CONTAINS]-(parent_repo:GCPArtifactRegistryRepository)
+        OPTIONAL MATCH (img)<-[:IMAGE]-(direct_repo_img:GCPArtifactRegistryRepositoryImage)<-[:REPO_IMAGE]-(direct_repo:GCPArtifactRegistryRepository)
+        OPTIONAL MATCH (img)<-[:CONTAINS_IMAGE]-(:GCPArtifactRegistryImage)<-[:IMAGE]-(parent_repo_img:GCPArtifactRegistryRepositoryImage)<-[:REPO_IMAGE]-(parent_repo:GCPArtifactRegistryRepository)
         WITH img,
              coalesce(direct_repo_img, parent_repo_img) AS repo_img,
              coalesce(direct_repo, parent_repo) AS gcpRepo
         WHERE repo_img IS NOT NULL
         WITH coalesce(gcpRepo.id, img.id) AS group_key, img, repo_img
-        ORDER BY repo_img.upload_time DESC
+        ORDER BY
+            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
+            repo_img.upload_time DESC
         WITH group_key, collect({img: img, repo_img: repo_img})[0] AS selected
         WITH selected.img AS img, selected.repo_img AS repo_img
         UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
@@ -1098,7 +1100,7 @@ def get_unmatched_gcp_images_with_history(
         WITH img, repo_img, idx, {
             diff_id: diff_id,
             history: layer.history,
-            is_empty: layer.is_empty
+            is_empty: false
         } AS layer_info
         ORDER BY idx
         WITH img, repo_img, collect(layer_info) AS layer_history
