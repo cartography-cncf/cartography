@@ -379,7 +379,6 @@ _k8s_allow_privilege_escalation = Fact(
     """,
     cypher_count_query="""
     MATCH (c:KubernetesContainer)
-    WHERE coalesce(c.allow_privilege_escalation, false) = true
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
