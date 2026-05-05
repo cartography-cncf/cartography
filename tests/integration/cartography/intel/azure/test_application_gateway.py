@@ -43,6 +43,19 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         subnet_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-vnet/subnets/my-appgw-subnet",
         tag=TEST_UPDATE_TAG,
     )
+    # Backend public IP target (matched by AzurePublicIPAddress.ip_address)
+    neo4j_session.run(
+        "MERGE (p:AzurePublicIPAddress{id: $pip_id}) SET p.lastupdated = $tag, p.ip_address = '10.0.1.4'",
+        pip_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/backend-public-ip",
+        tag=TEST_UPDATE_TAG,
+    )
+    # Backend FQDN target via the DNSRecord ontology label (any provider works;
+    # using a generic node here mimics what AWS/GCP/Cloudflare/Vercel DNS syncs
+    # would produce).
+    neo4j_session.run(
+        "MERGE (d:DNSRecord{name: 'backend.example.com'}) " "SET d.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -169,6 +182,30 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         "ROUTES_TO",
         rel_direction_right=True,
     ) == {(backend_pool_id, nic_id)}
+
+    # BackendPool -> AzurePublicIPAddress (ROUTES_TO via ip_address match)
+    backend_pip_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/backend-public-ip"
+    assert check_rels(
+        neo4j_session,
+        "AzureApplicationGatewayBackendPool",
+        "id",
+        "AzurePublicIPAddress",
+        "id",
+        "ROUTES_TO",
+        rel_direction_right=True,
+    ) == {(backend_pool_id, backend_pip_id)}
+
+    # BackendPool -> DNSRecord (ROUTES_TO via FQDN match against the cross-provider
+    # ontology label)
+    dns_routes = neo4j_session.run(
+        """
+        MATCH (p:AzureApplicationGatewayBackendPool {id: $pool_id})
+              -[:ROUTES_TO]->(d:DNSRecord)
+        RETURN d.name AS name
+        """,
+        pool_id=backend_pool_id,
+    )
+    assert {row["name"] for row in dns_routes} == {"backend.example.com"}
 
     # Rule wiring (Basic + PathBasedRouting both produce edges, parallel to AzureLoadBalancerRule)
     assert check_rels(

@@ -62,6 +62,46 @@ class AzureApplicationGatewayBackendPoolToNICRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToPublicIPRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToPublicIPRel(CartographyRelSchema):
+    target_node_label: str = "AzurePublicIPAddress"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ip_address": PropertyRef("ip_addresses", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: AzureApplicationGatewayBackendPoolToPublicIPRelProperties = (
+        AzureApplicationGatewayBackendPoolToPublicIPRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToDNSRecordRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToDNSRecordRel(CartographyRelSchema):
+    target_node_label: str = "DNSRecord"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("fqdns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: AzureApplicationGatewayBackendPoolToDNSRecordRelProperties = (
+        AzureApplicationGatewayBackendPoolToDNSRecordRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToSubscriptionRelProperties(
     CartographyRelProperties,
 ):
@@ -94,5 +134,7 @@ class AzureApplicationGatewayBackendPoolSchema(CartographyNodeSchema):
         [
             AzureApplicationGatewayBackendPoolToGatewayRel(),
             AzureApplicationGatewayBackendPoolToNICRel(),
+            AzureApplicationGatewayBackendPoolToPublicIPRel(),
+            AzureApplicationGatewayBackendPoolToDNSRecordRel(),
         ],
     )

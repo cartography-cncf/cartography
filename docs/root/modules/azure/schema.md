@@ -2206,9 +2206,11 @@ Representation of a Backend Address Pool for an Azure Application Gateway.
 
 #### Relationships
 
-- A Backend Pool routes traffic to Network Interfaces. Pools targeting raw IP addresses, FQDNs, or App Service backends are captured as `ip_addresses` / `fqdns` properties only; `ROUTES_TO` is currently NIC-only.
+- A Backend Pool routes traffic to Network Interfaces, Public IPs (matched by `ip_address`), and any node carrying the cross-provider `DNSRecord` ontology label whose `name` matches an FQDN backend (e.g. `AWSDNSRecord`, `GCPRecordSet`, `CloudflareDNSRecord`, `VercelDNSRecord`).
     ```cypher
     (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzurePublicIPAddress)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:DNSRecord)
     ```
 
 ### AzureApplicationGatewayRule
