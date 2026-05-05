@@ -332,15 +332,6 @@ def _extract_source_from_spdx_sbom(
     accept that repository from any package because ko SBOMs often describe the
     OCI image package and list the source module as a dependency package.
     """
-    digest_value = (
-        image_digest.split(":", 1)[1] if ":" in image_digest else image_digest
-    )
-    sbom_identity = " ".join(
-        str(sbom.get(field, "")) for field in ("name", "documentNamespace")
-    )
-    if image_digest not in sbom_identity and digest_value not in sbom_identity:
-        return {}
-
     described_ids = {
         spdx_id
         for spdx_id in sbom.get("documentDescribes") or []
@@ -377,8 +368,8 @@ def _extract_source_from_spdx_sbom(
 
 def _sbom_artifacts_by_subject_digest(
     docker_artifacts_raw: list[dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    sbom_artifacts: dict[str, dict[str, Any]] = {}
+) -> dict[str, list[dict[str, Any]]]:
+    sbom_artifacts: dict[str, list[dict[str, Any]]] = {}
     for artifact in docker_artifacts_raw:
         for tag in artifact.get("tags") or []:
             if not isinstance(tag, str):
@@ -388,7 +379,7 @@ def _sbom_artifacts_by_subject_digest(
             digest_value = tag.removeprefix("sha256-").removesuffix(".sbom")
             if not digest_value:
                 continue
-            sbom_artifacts.setdefault(f"sha256:{digest_value}", artifact)
+            sbom_artifacts.setdefault(f"sha256:{digest_value}", []).append(artifact)
     return sbom_artifacts
 
 
@@ -479,7 +470,7 @@ async def _process_single_image(
     http_client: httpx.AsyncClient,
     token_manager: _TokenManager,
     artifact: dict[str, Any],
-    sbom_artifacts_by_digest: dict[str, dict[str, Any]] | None = None,
+    sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -527,13 +518,14 @@ async def _process_single_image(
     provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
     subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+    subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
 
     # OCI labels are fast but not always present; fall back to the Referrers API.
     # The Referrers endpoint requires a digest, not a tag.
     if (
         not provenance.get("source_uri")
-        and subject_digest
-        and subject_digest.startswith("sha256:")
+        and subject_digest_str
+        and subject_digest_str.startswith("sha256:")
     ):
         try:
             slsa_provenance = await _fetch_attestation_provenance(
@@ -541,7 +533,7 @@ async def _process_single_image(
                 token_manager,
                 registry,
                 image_path,
-                subject_digest,
+                subject_digest_str,
             )
         except (httpx.HTTPError, json.JSONDecodeError) as e:
             logger.warning(
@@ -556,18 +548,19 @@ async def _process_single_image(
     # Some older build flows publish SPDX SBOMs as digest-specific image tags
     # instead of OCI referrers. Use them only when the document itself ties back
     # to this image digest and names one described source package.
-    if (
-        not provenance.get("source_uri")
-        and subject_digest
-        and subject_digest.startswith("sha256:")
-    ):
+    sbom_artifacts = (
+        sbom_artifacts_by_digest.get(subject_digest_str)
+        if subject_digest_str and sbom_artifacts_by_digest
+        else None
+    )
+    if not provenance.get("source_uri") and sbom_artifacts and subject_digest_str:
         try:
             sbom_provenance = await _fetch_legacy_sbom_provenance(
                 http_client,
                 token_manager,
                 registry,
                 image_path,
-                subject_digest,
+                subject_digest_str,
             )
         except (httpx.HTTPError, json.JSONDecodeError) as e:
             logger.warning(
@@ -579,32 +572,34 @@ async def _process_single_image(
             fetch_failed = True
         provenance.update(sbom_provenance)
 
-    if not provenance.get("source_uri") and sbom_artifacts_by_digest:
-        if subject_digest and (
-            sbom_artifact := sbom_artifacts_by_digest.get(subject_digest)
-        ):
+    if not provenance.get("source_uri") and sbom_artifacts and subject_digest_str:
+        for sbom_artifact in sbom_artifacts:
             sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
-            if sbom_parsed:
-                sbom_registry, sbom_image_path, sbom_reference = sbom_parsed
-                try:
-                    sbom_provenance = await _fetch_spdx_layer_provenance(
-                        http_client,
-                        token_manager,
-                        sbom_registry,
-                        sbom_image_path,
-                        sbom_reference,
-                        subject_digest,
-                        expected_source_uri=_repo_url_from_github_path(sbom_image_path),
-                    )
-                except (httpx.HTTPError, json.JSONDecodeError) as e:
-                    logger.warning(
-                        "Failed to fetch tagged SBOM provenance for %s: %s",
-                        uri or name,
-                        e,
-                    )
-                    sbom_provenance = {}
-                    fetch_failed = True
-                provenance.update(sbom_provenance)
+            if not sbom_parsed:
+                continue
+
+            sbom_registry, sbom_image_path, sbom_reference = sbom_parsed
+            try:
+                sbom_provenance = await _fetch_spdx_layer_provenance(
+                    http_client,
+                    token_manager,
+                    sbom_registry,
+                    sbom_image_path,
+                    sbom_reference,
+                    subject_digest_str,
+                    expected_source_uri=_repo_url_from_github_path(sbom_image_path),
+                )
+            except (httpx.HTTPError, json.JSONDecodeError) as e:
+                logger.warning(
+                    "Failed to fetch tagged SBOM provenance for %s: %s",
+                    uri or name,
+                    e,
+                )
+                sbom_provenance = {}
+                fetch_failed = True
+            provenance.update(sbom_provenance)
+            if provenance.get("source_uri"):
+                break
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
     has_platform = any(value is not None for value in (architecture, os_name, variant))
@@ -612,7 +607,7 @@ async def _process_single_image(
     if not provenance.get("source_uri") and not diff_ids and not has_platform:
         return None, fetch_failed
 
-    digest = subject_digest
+    digest = subject_digest_str
     if not digest:
         return None, fetch_failed
 

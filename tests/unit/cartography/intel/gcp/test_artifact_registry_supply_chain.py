@@ -240,17 +240,17 @@ def test_extract_source_from_spdx_sbom_requires_one_described_repo():
     assert provenance == {}
 
 
-def test_extract_source_from_spdx_sbom_requires_matching_image_digest():
+def test_extract_source_from_spdx_sbom_accepts_generic_document_identity():
     image_digest = (
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     )
-    other_digest = (
-        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    )
+    sbom = _spdx_sbom(image_digest)
+    sbom["name"] = "sbom.spdx.json"
+    sbom["documentNamespace"] = "https://example.test/sbom/generic"
 
-    provenance = _extract_source_from_spdx_sbom(_spdx_sbom(other_digest), image_digest)
+    provenance = _extract_source_from_spdx_sbom(sbom, image_digest)
 
-    assert provenance == {}
+    assert provenance == {"source_uri": "https://github.com/example/widgets"}
 
 
 # ---------------------------------------------------------------------------
@@ -758,6 +758,14 @@ async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
             "uri": image_uri,
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
+        {
+            image_digest: [
+                {
+                    "uri": image_uri,
+                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                }
+            ]
+        },
     )
 
     assert fetch_failed is False
@@ -842,10 +850,111 @@ async def test_process_single_image_falls_back_to_tagged_spdx_sbom_artifact():
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: {
-                "uri": sbom_uri,
-                "tags": [f"sha256-{image_digest_hex}.sbom"],
-            }
+            image_digest: [
+                {
+                    "uri": sbom_uri,
+                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                }
+            ]
+        },
+    )
+
+    assert fetch_failed is False
+    assert result["digest"] == image_digest
+    assert result["source_uri"] == "https://github.com/example/widgets"
+
+
+@pytest.mark.asyncio
+async def test_process_single_image_tries_all_tagged_spdx_sbom_artifacts():
+    image_digest = (
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    image_digest_hex = image_digest.split(":", 1)[1]
+    image_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{image_digest}"
+    )
+    missing_sbom_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/"
+        "github.com/example/missing/cmd/server@sha256:missing"
+    )
+    good_sbom_uri = (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/"
+        "github.com/example/widgets/cmd/server@sha256:sbommanifest"
+    )
+    artifact_name = (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{image_digest}"
+    )
+    manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/manifests/{image_digest}"
+    )
+    referrers_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/referrers/{image_digest}"
+    )
+    good_sbom_manifest_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        "github.com/example/widgets/cmd/server/manifests/sha256:sbommanifest"
+    )
+    good_sbom_blob_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        "github.com/example/widgets/cmd/server/blobs/sha256:sbom"
+    )
+    config_digest = MOCK_SINGLE_IMAGE_MANIFEST["config"]["digest"]
+    config_url = (
+        "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+        f"widgets-api/blobs/{config_digest}"
+    )
+    config_without_labels = json.loads(json.dumps(MOCK_SINGLE_IMAGE_CONFIG))
+    config_without_labels["config"]["Labels"] = {}
+    client = _FakeClient(
+        {
+            manifest_url: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": image_digest},
+            ),
+            config_url: _FakeResponse(200, json_body=config_without_labels),
+            referrers_url: _FakeResponse(200, json_body={"manifests": []}),
+            good_sbom_manifest_url: _FakeResponse(
+                200,
+                json_body={
+                    "layers": [
+                        {
+                            "mediaType": "text/spdx+json",
+                            "digest": "sha256:sbom",
+                        }
+                    ],
+                },
+            ),
+            good_sbom_blob_url: _FakeResponse(
+                200,
+                json_body=_ko_spdx_sbom(image_digest),
+            ),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": artifact_name,
+            "uri": image_uri,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        {
+            image_digest: [
+                {
+                    "uri": missing_sbom_uri,
+                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                },
+                {
+                    "uri": good_sbom_uri,
+                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                },
+            ]
         },
     )
 
@@ -908,10 +1017,12 @@ async def test_process_single_image_treats_missing_tagged_spdx_sbom_as_noop():
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
-            image_digest: {
-                "uri": sbom_uri,
-                "tags": [f"sha256-{image_digest_hex}.sbom"],
-            }
+            image_digest: [
+                {
+                    "uri": sbom_uri,
+                    "tags": [f"sha256-{image_digest_hex}.sbom"],
+                }
+            ]
         },
     )
 
