@@ -84,6 +84,144 @@ _aws_trust_relationship_manipulation = Fact(
 )
 
 
+# GCP
+_gcp_trust_relationship_manipulation = Fact(
+    id="gcp_trust_relationship_manipulation",
+    name="GCP Principals with Service Account Impersonation Permissions",
+    description=(
+        "GCP principals bound to a role granting `iam.serviceAccounts.actAs` "
+        "(impersonate any service account in the project), "
+        "`iam.serviceAccounts.implicitDelegation` (chain SA tokens), or "
+        "`iam.serviceAccountKeys.create` (mint long-lived SA keys). All "
+        "three open lateral identity-takeover paths analogous to AWS "
+        "AssumeRolePolicy modification."
+    ),
+    cypher_query="""
+    MATCH (project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH (binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WITH project, principal, role,
+        [
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.implicitDelegation',
+            'iam.serviceAccounts.getAccessToken',
+            'iam.serviceAccounts.signBlob',
+            'iam.serviceAccounts.signJwt',
+            'iam.serviceAccountKeys.create'
+        ] AS patterns
+    WITH project, principal, role, patterns,
+         [perm IN coalesce(role.permissions, [])
+            WHERE perm IN patterns OR perm = 'iam.*' OR perm = '*'] AS matched
+    WHERE size(matched) > 0
+    RETURN DISTINCT
+        project.id AS account,
+        project.id AS account_id,
+        coalesce(principal.email, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        [label IN labels(principal) WHERE label <> 'GCPPrincipal'][0] AS principal_type,
+        role.name AS policy_name,
+        matched AS actions,
+        [project.id] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH p2=(binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WHERE ANY(perm IN coalesce(role.permissions, []) WHERE
+        perm IN [
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.implicitDelegation',
+            'iam.serviceAccounts.getAccessToken',
+            'iam.serviceAccounts.signBlob',
+            'iam.serviceAccounts.signJwt',
+            'iam.serviceAccountKeys.create'
+        ]
+        OR perm = 'iam.*' OR perm = '*'
+    )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (principal:GCPPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Azure
+_azure_trust_relationship_manipulation = Fact(
+    id="azure_trust_relationship_manipulation",
+    name="Azure Principals with Managed Identity Assignment Permissions",
+    description=(
+        "Entra principals holding a role assignment whose role definition "
+        "grants `Microsoft.ManagedIdentity/userAssignedIdentities/.../"
+        "assign/action` (attach a UAMI to a workload, the closest analog "
+        "to AWS UpdateAssumeRolePolicy) or "
+        "`Microsoft.Authorization/roleAssignments/write` (grant arbitrary "
+        "role assignments to other principals)."
+    ),
+    cypher_query="""
+    MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    WITH sub, ra, rd, perm, principal,
+        [
+            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action',
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
+            'Microsoft.Authorization/roleAssignments/write'
+        ] AS patterns
+    WITH sub, ra, rd, perm, principal, patterns,
+         [a IN coalesce(perm.actions, [])
+            WHERE a IN patterns
+              OR a = 'Microsoft.ManagedIdentity/*'
+              OR a = 'Microsoft.Authorization/*'
+              OR a = '*'] AS matched
+    WHERE size(matched) > 0
+      AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE na = '*' OR na IN matched)
+    RETURN DISTINCT
+        sub.id AS account,
+        sub.id AS account_id,
+        coalesce(principal.user_principal_name,
+                 principal.display_name,
+                 principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        [label IN labels(principal)
+            WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.role_name AS policy_name,
+        matched AS actions,
+        [ra.scope] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+      AND any(a IN coalesce(perm.actions, []) WHERE
+        a IN [
+          'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action',
+          'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
+          'Microsoft.Authorization/roleAssignments/write'
+        ]
+        OR a = 'Microsoft.ManagedIdentity/*'
+        OR a = 'Microsoft.Authorization/*'
+        OR a = '*')
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (ra:AzureRoleAssignment)
+    RETURN COUNT(ra) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class DelegationBoundaryModifiable(Finding):
     principal_name: str | None = None
@@ -104,7 +242,11 @@ delegation_boundary_modifiable = Rule(
         "allowing cross-account or lateral impersonation paths."
     ),
     output_model=DelegationBoundaryModifiable,
-    facts=(_aws_trust_relationship_manipulation,),
+    facts=(
+        _aws_trust_relationship_manipulation,
+        _azure_trust_relationship_manipulation,
+        _gcp_trust_relationship_manipulation,
+    ),
     tags=(
         "iam",
         "stride:elevation_of_privilege",

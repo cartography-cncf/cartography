@@ -10,13 +10,13 @@ def test_eol_software_rule_registered() -> None:
 
 def test_eol_software_rule_shape() -> None:
     assert eol_software.name == "End-of-Life Software"
-    assert len(eol_software.facts) == 3
+    assert len(eol_software.facts) == 5
     assert len(eol_software.references) >= 5
 
 
 def test_eol_software_fact_modules() -> None:
     modules = {fact.module for fact in eol_software.facts}
-    assert modules == {Module.AWS, Module.KUBERNETES}
+    assert modules == {Module.AWS, Module.AZURE, Module.GCP, Module.KUBERNETES}
 
 
 def test_eol_software_facts_are_experimental() -> None:

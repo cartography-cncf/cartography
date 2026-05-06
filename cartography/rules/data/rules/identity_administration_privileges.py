@@ -82,6 +82,148 @@ _aws_account_manipulation_permissions = Fact(
 )
 
 
+# GCP
+_gcp_account_manipulation_permissions = Fact(
+    id="gcp_account_manipulation_permissions",
+    name="GCP Principals with Identity Administration Permissions",
+    description=(
+        "GCP principals (service accounts, users, groups) bound to a role "
+        "that grants permissions to create, update, or impersonate IAM "
+        "identities. Includes role wildcards (`iam.*`, `*`) and the most "
+        "common identity-administration permissions: "
+        "iam.serviceAccounts.create / actAs / setIamPolicy / "
+        "iam.serviceAccountKeys.create / iam.roles.create / iam.roles.update."
+    ),
+    cypher_query="""
+    MATCH (project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH (binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WITH project, principal, role,
+        [
+            'iam.serviceAccounts.create',
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.setIamPolicy',
+            'iam.serviceAccounts.update',
+            'iam.serviceAccountKeys.create',
+            'iam.roles.create',
+            'iam.roles.update',
+            'resourcemanager.projects.setIamPolicy'
+        ] AS patterns
+    WITH project, principal, role, patterns,
+         [perm IN coalesce(role.permissions, [])
+            WHERE perm IN patterns OR perm = 'iam.*' OR perm = '*'] AS matched
+    WHERE size(matched) > 0
+    RETURN DISTINCT
+        project.id AS account_id,
+        project.id AS account,
+        coalesce(principal.email, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        [label IN labels(principal) WHERE label <> 'GCPPrincipal'][0] AS principal_type,
+        role.name AS policy_name,
+        matched AS actions,
+        [project.id] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH p2=(binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WHERE ANY(perm IN coalesce(role.permissions, []) WHERE
+        perm IN [
+            'iam.serviceAccounts.create',
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.setIamPolicy',
+            'iam.serviceAccounts.update',
+            'iam.serviceAccountKeys.create',
+            'iam.roles.create',
+            'iam.roles.update',
+            'resourcemanager.projects.setIamPolicy'
+        ]
+        OR perm = 'iam.*' OR perm = '*'
+    )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (principal:GCPPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Azure
+_azure_account_manipulation_permissions = Fact(
+    id="azure_account_manipulation_permissions",
+    name="Azure Principals with Identity Administration Permissions",
+    description=(
+        "Entra principals (users, groups, service principals) holding a role "
+        "assignment whose role definition grants permissions to manage role "
+        "assignments, role definitions, or directory-level identities. "
+        "Matches `Microsoft.Authorization/*/write`, "
+        "`Microsoft.Authorization/roleAssignments/write`, "
+        "`Microsoft.Authorization/roleDefinitions/write`, "
+        "`Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action`, "
+        "and the broader `*` wildcard. Excludes assignments shadowed by "
+        "matching `not_actions`."
+    ),
+    cypher_query="""
+    MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    WITH sub, ra, rd, perm, principal,
+        [
+            'Microsoft.Authorization/roleAssignments/write',
+            'Microsoft.Authorization/roleDefinitions/write',
+            'Microsoft.Authorization/*/write',
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
+        ] AS patterns
+    WITH sub, ra, rd, perm, principal, patterns,
+         [a IN coalesce(perm.actions, [])
+            WHERE a IN patterns OR a = 'Microsoft.Authorization/*' OR a = '*'] AS matched
+    WHERE size(matched) > 0
+      AND NOT ANY(na IN coalesce(perm.not_actions, [])
+                  WHERE na = '*' OR na IN matched)
+    RETURN DISTINCT
+        sub.id AS account_id,
+        sub.id AS account,
+        coalesce(principal.user_principal_name,
+                 principal.display_name,
+                 principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        [label IN labels(principal)
+            WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.role_name AS policy_name,
+        matched AS actions,
+        [ra.scope] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+      AND any(a IN coalesce(perm.actions, []) WHERE
+        a IN [
+          'Microsoft.Authorization/roleAssignments/write',
+          'Microsoft.Authorization/roleDefinitions/write',
+          'Microsoft.Authorization/*/write',
+          'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
+        ] OR a = 'Microsoft.Authorization/*' OR a = '*')
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (ra:AzureRoleAssignment)
+    RETURN COUNT(ra) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class IdentityAdministrationPrivileges(Finding):
     principal_name: str | None = None
@@ -102,7 +244,11 @@ identity_administration_privileges = Rule(
         "(users/roles/groups) and their bindings—classic escalation surface."
     ),
     output_model=IdentityAdministrationPrivileges,
-    facts=(_aws_account_manipulation_permissions,),
+    facts=(
+        _aws_account_manipulation_permissions,
+        _azure_account_manipulation_permissions,
+        _gcp_account_manipulation_permissions,
+    ),
     tags=(
         "iam",
         "stride:elevation_of_privilege",

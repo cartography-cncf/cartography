@@ -7,6 +7,8 @@ from cartography.rules.spec.model import RuleReference
 
 _OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR = 33
 _OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 29
+_OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR = 30
+_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR = 30
 _AMAZON_LINUX_2_EOL_DATE = "2026-06-30"
 
 EOL_SOFTWARE_REFERENCES = [
@@ -21,6 +23,14 @@ EOL_SOFTWARE_REFERENCES = [
     RuleReference(
         text="Amazon EKS Kubernetes version lifecycle",
         url="https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html",
+    ),
+    RuleReference(
+        text="GKE release schedule and support",
+        url="https://cloud.google.com/kubernetes-engine/docs/release-schedule",
+    ),
+    RuleReference(
+        text="AKS supported Kubernetes versions",
+        url="https://learn.microsoft.com/en-us/azure/aks/supported-kubernetes-versions",
     ),
     RuleReference(
         text="Amazon Linux 2 release notes",
@@ -109,6 +119,110 @@ _eks_cluster_kubernetes_version_eol = Fact(
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
+
+_gke_cluster_kubernetes_version_eol = Fact(
+    id="gke_cluster_kubernetes_version_eol",
+    name="GKE clusters running end-of-life Kubernetes versions",
+    description=(
+        "Detects GKE clusters whose control-plane (current_master_version) "
+        f"runs a Kubernetes minor older than {_OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR}, "
+        "the oldest minor still supported by Google's release schedule."
+    ),
+    cypher_query=f"""
+    MATCH (g:GKECluster)
+    WITH g,
+         CASE
+             WHEN g.current_master_version IS NULL
+                  OR size(split(toString(g.current_master_version), '.')) < 2 THEN NULL
+             ELSE toInteger(split(split(toString(g.current_master_version), '.')[1], '-')[0])
+         END AS kubernetes_minor
+    WHERE kubernetes_minor IS NOT NULL
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR}
+    RETURN g.id AS asset_id,
+           g.name AS asset_name,
+           'GKECluster' AS asset_type,
+           'kubernetes' AS software_name,
+           toString(g.current_master_version) AS software_version,
+           1 AS software_major,
+           kubernetes_minor AS software_minor,
+           g.location AS location,
+           'provider' AS support_basis,
+           'eol' AS support_status
+    ORDER BY asset_name
+    """,
+    cypher_visual_query=f"""
+    MATCH project_path=(p:GCPProject)-[:RESOURCE]->(g:GKECluster)
+    WITH project_path, g,
+         CASE
+             WHEN g.current_master_version IS NULL
+                  OR size(split(toString(g.current_master_version), '.')) < 2 THEN NULL
+             ELSE toInteger(split(split(toString(g.current_master_version), '.')[1], '-')[0])
+         END AS kubernetes_minor
+    WHERE kubernetes_minor IS NOT NULL
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR}
+    RETURN g AS cluster, project_path
+    """,
+    cypher_count_query="""
+    MATCH (g:GKECluster)
+    RETURN COUNT(g) AS count
+    """,
+    asset_id_field="asset_id",
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_aks_cluster_kubernetes_version_eol = Fact(
+    id="aks_cluster_kubernetes_version_eol",
+    name="AKS clusters running end-of-life Kubernetes versions",
+    description=(
+        "Detects AKS clusters whose kubernetes_version runs a minor older "
+        f"than {_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR}, the oldest minor "
+        "still supported by Microsoft's AKS supported versions policy."
+    ),
+    cypher_query=f"""
+    MATCH (a:AzureKubernetesCluster)
+    WITH a,
+         CASE
+             WHEN a.kubernetes_version IS NULL
+                  OR size(split(toString(a.kubernetes_version), '.')) < 2 THEN NULL
+             ELSE toInteger(split(split(toString(a.kubernetes_version), '.')[1], '-')[0])
+         END AS kubernetes_minor
+    WHERE kubernetes_minor IS NOT NULL
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR}
+    RETURN a.id AS asset_id,
+           a.name AS asset_name,
+           'AzureKubernetesCluster' AS asset_type,
+           'kubernetes' AS software_name,
+           toString(a.kubernetes_version) AS software_version,
+           1 AS software_major,
+           kubernetes_minor AS software_minor,
+           a.location AS location,
+           'provider' AS support_basis,
+           'eol' AS support_status
+    ORDER BY asset_name
+    """,
+    cypher_visual_query=f"""
+    MATCH sub_path=(s:AzureSubscription)-[:RESOURCE]->(a:AzureKubernetesCluster)
+    WITH sub_path, a,
+         CASE
+             WHEN a.kubernetes_version IS NULL
+                  OR size(split(toString(a.kubernetes_version), '.')) < 2 THEN NULL
+             ELSE toInteger(split(split(toString(a.kubernetes_version), '.')[1], '-')[0])
+         END AS kubernetes_minor
+    WHERE kubernetes_minor IS NOT NULL
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR}
+    RETURN a AS cluster, sub_path
+    """,
+    cypher_count_query="""
+    MATCH (a:AzureKubernetesCluster)
+    RETURN COUNT(a) AS count
+    """,
+    asset_id_field="asset_id",
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
 
 _kubernetes_cluster_kubernetes_version_eol = Fact(
     id="kubernetes_cluster_kubernetes_version_eol",
@@ -238,6 +352,8 @@ eol_software = Rule(
     output_model=EOLSoftwareOutput,
     facts=(
         _eks_cluster_kubernetes_version_eol,
+        _gke_cluster_kubernetes_version_eol,
+        _aks_cluster_kubernetes_version_eol,
         _kubernetes_cluster_kubernetes_version_eol,
         _ec2_instance_amazon_linux_2_eol,
     ),
