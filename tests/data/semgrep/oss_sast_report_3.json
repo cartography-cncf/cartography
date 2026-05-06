@@ -1,0 +1,105 @@
+{
+  "version": "1.161.0",
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.ssrf.fake-6",
+      "path": "/workspace/chatbox-sandbox/app/http_client.py",
+      "start": {
+        "line": 34,
+        "col": 16,
+        "offset": 902
+      },
+      "end": {
+        "line": 34,
+        "col": 49,
+        "offset": 935
+      },
+      "extra": {
+        "message": "Untrusted input controls an outbound HTTP request target.",
+        "metadata": {
+          "category": "security",
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-918: Server-Side Request Forgery (SSRF)"
+          ],
+          "owasp": [
+            "A10:2021 - Server-Side Request Forgery"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29"
+          ],
+          "subcategory": [
+            "vuln"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Server-Side Request Forgery"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "fake-fingerprint-6",
+        "lines": "fake lines 6",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.deserialize.fake-7",
+      "path": "/workspace/chatbox-sandbox/app/cache.py",
+      "start": {
+        "line": 91,
+        "col": 14,
+        "offset": 2603
+      },
+      "end": {
+        "line": 91,
+        "col": 44,
+        "offset": 2633
+      },
+      "extra": {
+        "message": "Untrusted data is deserialized with an unsafe loader.",
+        "metadata": {
+          "category": "security",
+          "confidence": "MEDIUM",
+          "cwe": [
+            "CWE-502: Deserialization of Untrusted Data"
+          ],
+          "owasp": [
+            "A08:2021 - Software and Data Integrity Failures"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Unsafe Deserialization"
+          ]
+        },
+        "severity": "WARNING",
+        "fingerprint": "fake-fingerprint-7",
+        "lines": "fake lines 7",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {
+    "scanned": [
+      "/workspace/chatbox-sandbox/app/http_client.py",
+      "/workspace/chatbox-sandbox/app/cache.py"
+    ]
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.1
+  },
+  "engine_requested": "OSS"
+}
