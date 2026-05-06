@@ -8,7 +8,10 @@ from cartography.rules.spec.model import RuleReference
 _OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR = 33
 _OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 29
 _OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR = 30
-_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR = 30
+# Microsoft AKS supported versions table starts at 1.33 as of 2026-05; 1.32
+# reached community EOL in March 2026. See:
+# https://learn.microsoft.com/en-us/azure/aks/supported-kubernetes-versions
+_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR = 33
 _AMAZON_LINUX_2_EOL_DATE = "2026-06-30"
 
 EOL_SOFTWARE_REFERENCES = [

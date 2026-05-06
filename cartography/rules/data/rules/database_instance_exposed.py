@@ -127,14 +127,21 @@ _aws_rds_public_access = Fact(
     description=(
         "AWS RDS instances reachable from the public internet. The DB must "
         "have publicly_accessible = true AND at least one attached security "
-        "group with an inbound rule permitting 0.0.0.0/0. Either flag alone "
-        "is not sufficient for actual public reachability."
+        "group with an inbound rule permitting 0.0.0.0/0 on a port range "
+        "that covers the DB's endpoint_port (or all ports). Either flag "
+        "alone is not sufficient for actual public reachability."
     ),
     cypher_query="""
     MATCH (rds:RDSInstance {publicly_accessible: true})
+    WHERE rds.endpoint_port IS NOT NULL
     MATCH (rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
         <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(:AWSIpRange {range: '0.0.0.0/0'})
+    WHERE rule.fromport IS NULL
+       OR (
+         coalesce(rule.fromport, 0) <= rds.endpoint_port
+         AND coalesce(rule.toport, rule.fromport, 0) >= rds.endpoint_port
+       )
     RETURN DISTINCT
         rds.id AS id,
         rds.engine AS engine,
@@ -149,6 +156,14 @@ _aws_rds_public_access = Fact(
     MATCH p2=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
         <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound:AWSIpRule)
     MATCH p3=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange {range: '0.0.0.0/0'})
+    WHERE rds.endpoint_port IS NOT NULL
+      AND (
+        rule.fromport IS NULL
+        OR (
+          coalesce(rule.fromport, 0) <= rds.endpoint_port
+          AND coalesce(rule.toport, rule.fromport, 0) >= rds.endpoint_port
+        )
+      )
     RETURN *
     """,
     cypher_count_query="""

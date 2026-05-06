@@ -11,9 +11,11 @@ _missing_mfa_aws = Fact(
     description=(
         "AWS IAM users that are not associated with any MFA device. The "
         "check looks for the absence of a `:MFA_DEVICE` relationship from "
-        "an AWSMfaDevice. Console access (passwordlastused IS NOT NULL) is "
-        "surfaced via the `firstname` field so callers can prioritise "
-        "users who have actually signed in via the console."
+        "an AWSMfaDevice. Console access (passwordlastused_dt IS NOT NULL) "
+        "is surfaced via the `firstname` field so callers can prioritise "
+        "users who have actually signed in via the console. The string "
+        "`passwordlastused` is left empty rather than NULL by the AWS "
+        "intel transform, so the typed `_dt` field is the reliable signal."
     ),
     module=Module.AWS,
     cypher_query="""
@@ -22,7 +24,7 @@ _missing_mfa_aws = Fact(
     RETURN
         user.arn AS id,
         user.name AS email,
-        CASE WHEN user.passwordlastused IS NOT NULL
+        CASE WHEN user.passwordlastused_dt IS NOT NULL
              THEN 'console-active'
              ELSE 'programmatic-only' END AS firstname,
         account.name AS lastname,

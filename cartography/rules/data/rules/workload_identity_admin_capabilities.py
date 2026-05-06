@@ -174,70 +174,6 @@ _aws_service_account_manipulation_via_lambda = Fact(
 )
 
 
-# GCP
-_gcp_service_account_manipulation_via_gce = Fact(
-    id="gcp_service_account_manipulation_via_gce",
-    name="GCE Instances Bound to a Broad-Scope Service Account",
-    description=(
-        "GCE instances attached to the default Compute Engine service "
-        "account, or to a service account configured with the full "
-        "cloud-platform or iam OAuth scope. The scope check is exact to "
-        "avoid matching read-only variants like cloud-platform.read-only "
-        "or iam.readonly. The deeper variant (instance to SA permissions) "
-        "requires an explicit :HAS_SERVICE_ACCOUNT edge that is not yet "
-        "modeled."
-    ),
-    cypher_query="""
-    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
-    WHERE instance.service_account_email IS NOT NULL
-      AND (
-        instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
-        OR ANY(scope IN coalesce(instance.service_account_scopes, [])
-               WHERE scope IN [
-                   'https://www.googleapis.com/auth/cloud-platform',
-                   'https://www.googleapis.com/auth/iam'
-               ])
-      )
-    OPTIONAL MATCH (instance)<-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)
-    OPTIONAL MATCH (nic)<-[:RESOURCE]-(ac:GCPNicAccessConfig)
-    WHERE ac.type = 'ONE_TO_ONE_NAT'
-      AND ac.public_ip IS NOT NULL
-    WITH project, instance, head(collect(ac.public_ip)) AS public_ip
-    RETURN DISTINCT
-        instance.id AS workload_id,
-        instance.name AS workload_name,
-        project.id AS account,
-        project.id AS account_id,
-        instance.service_account_email AS role_name,
-        coalesce(instance.service_account_scopes, []) AS actions,
-        public_ip IS NOT NULL AS internet_accessible,
-        public_ip AS public_ip_address
-    ORDER BY account, workload_id
-    """,
-    cypher_visual_query="""
-    MATCH p1=(project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
-    WHERE instance.service_account_email IS NOT NULL
-      AND (
-        instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
-        OR ANY(scope IN coalesce(instance.service_account_scopes, [])
-               WHERE scope IN [
-                   'https://www.googleapis.com/auth/cloud-platform',
-                   'https://www.googleapis.com/auth/iam'
-               ])
-      )
-    OPTIONAL MATCH p2=(instance)<-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)<-[:RESOURCE]-(ac:GCPNicAccessConfig)
-    RETURN *
-    """,
-    cypher_count_query="""
-    MATCH (instance:GCPInstance)
-    RETURN COUNT(instance) AS count
-    """,
-    asset_id_field="workload_id",
-    module=Module.GCP,
-    maturity=Maturity.EXPERIMENTAL,
-)
-
-
 # Rule
 class WorkloadIdentityAdminCapabilities(Finding):
     workload_name: str | None = None
@@ -261,7 +197,6 @@ workload_identity_admin_capabilities = Rule(
     facts=(
         _aws_service_account_manipulation_via_ec2,
         _aws_service_account_manipulation_via_lambda,
-        _gcp_service_account_manipulation_via_gce,
     ),
     tags=(
         "iam",
