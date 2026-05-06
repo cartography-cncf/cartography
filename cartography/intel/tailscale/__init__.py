@@ -18,6 +18,27 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_OAUTH_TIMEOUT = (10, 30)
+
+
+def _mint_oauth_bearer(
+    api_session: requests.Session,
+    base_url: str,
+    client_id: str,
+    client_secret: str,
+) -> str:
+    response = api_session.post(
+        f"{base_url.rstrip('/')}/oauth/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=_OAUTH_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()["access_token"]
+
 
 @timeit
 def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -28,23 +49,41 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    if not config.tailscale_token or not config.tailscale_org:
+    has_oauth_client = bool(
+        config.tailscale_oauth_client_id and config.tailscale_oauth_client_secret,
+    )
+    if not config.tailscale_org or not (config.tailscale_token or has_oauth_client):
         logger.info(
             "Tailscale import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
 
-    # Create requests sessions
+    if config.tailscale_token and has_oauth_client:
+        logger.warning(
+            "Both --tailscale-token-env-var and --tailscale-oauth-client-* are "
+            "set; using the OAuth client.",
+        )
+
     api_session = requests.session()
     retry_policy = Retry(
         total=5,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
+        allowed_methods=["GET", "POST"],
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    api_session.headers.update({"Authorization": f"Bearer {config.tailscale_token}"})
+
+    if has_oauth_client:
+        bearer_token = _mint_oauth_bearer(
+            api_session,
+            config.tailscale_base_url,
+            config.tailscale_oauth_client_id,
+            config.tailscale_oauth_client_secret,
+        )
+    else:
+        bearer_token = config.tailscale_token
+    api_session.headers.update({"Authorization": f"Bearer {bearer_token}"})
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
