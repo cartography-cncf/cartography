@@ -19,8 +19,6 @@ class S1AgentNodeProperties(CartographyNodeProperties):
     os_name: PropertyRef = PropertyRef("os_name")
     os_revision: PropertyRef = PropertyRef("os_revision")
     domain: PropertyRef = PropertyRef("domain")
-    user_email: PropertyRef = PropertyRef("user_email")
-    user_name: PropertyRef = PropertyRef("user_name")
     last_active: PropertyRef = PropertyRef("last_active")
     last_successful_scan: PropertyRef = PropertyRef("last_successful_scan")
     scan_status: PropertyRef = PropertyRef("scan_status")
