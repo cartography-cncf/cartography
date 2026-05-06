@@ -177,11 +177,16 @@ _gke_cluster_kubernetes_version_eol = Fact(
 
 _aks_cluster_kubernetes_version_eol = Fact(
     id="aks_cluster_kubernetes_version_eol",
-    name="AKS clusters running end-of-life Kubernetes versions",
+    name="AKS clusters outside Microsoft's standard-support window",
     description=(
         "Detects AKS clusters whose kubernetes_version runs a minor older "
         f"than {_OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR}, the oldest minor "
-        "still supported by Microsoft's AKS supported versions policy."
+        "still in Microsoft's standard AKS support window. Microsoft also "
+        "offers a paid Long-Term Support (LTS) tier on selected minors "
+        "(e.g. 1.32 LTS to March 2027). The current AKS data model does "
+        "not expose an LTS / supportTier flag, so clusters enrolled in "
+        "LTS may show up here as a false positive: treat the finding as "
+        "'standard-support EOL' rather than 'unsupported by the provider'."
     ),
     cypher_query=f"""
     MATCH (a:AzureKubernetesCluster)
@@ -202,7 +207,7 @@ _aks_cluster_kubernetes_version_eol = Fact(
            kubernetes_minor AS software_minor,
            a.location AS location,
            'provider' AS support_basis,
-           'eol' AS support_status
+           'standard-support-eol' AS support_status
     ORDER BY asset_name
     """,
     cypher_visual_query=f"""

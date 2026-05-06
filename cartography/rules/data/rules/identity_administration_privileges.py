@@ -95,9 +95,12 @@ _gcp_account_manipulation_permissions = Fact(
         "iam.serviceAccountKeys.create / iam.roles.create / iam.roles.update."
     ),
     cypher_query="""
-    MATCH (project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH (binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
+    WHERE any(label IN labels(scope)
+              WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
+    MATCH (binding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
     MATCH (binding)-[:GRANTS_ROLE]->(role:GCPRole)
-    WITH project, principal, role,
+    WITH scope, principal, role,
         [
             'iam.serviceAccounts.create',
             'iam.serviceAccounts.actAs',
@@ -106,25 +109,29 @@ _gcp_account_manipulation_permissions = Fact(
             'iam.serviceAccountKeys.create',
             'iam.roles.create',
             'iam.roles.update',
-            'resourcemanager.projects.setIamPolicy'
+            'resourcemanager.projects.setIamPolicy',
+            'resourcemanager.folders.setIamPolicy',
+            'resourcemanager.organizations.setIamPolicy'
         ] AS patterns
-    WITH project, principal, role, patterns,
+    WITH scope, principal, role, patterns,
          [perm IN coalesce(role.permissions, [])
             WHERE perm IN patterns OR perm = 'iam.*' OR perm = '*'] AS matched
     WHERE size(matched) > 0
     RETURN DISTINCT
-        project.id AS account_id,
-        project.id AS account,
+        scope.id AS account_id,
+        scope.id AS account,
         coalesce(principal.email, principal.id) AS principal_name,
         principal.id AS principal_identifier,
         [label IN labels(principal) WHERE label <> 'GCPPrincipal'][0] AS principal_type,
         role.name AS policy_name,
         matched AS actions,
-        [project.id] AS resources
+        [scope.id] AS resources
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""
-    MATCH p1=(project:GCPProject)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH p1=(scope)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    WHERE any(label IN labels(scope)
+              WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
     MATCH p2=(binding)-[:GRANTS_ROLE]->(role:GCPRole)
     WHERE ANY(perm IN coalesce(role.permissions, []) WHERE
         perm IN [
@@ -135,7 +142,9 @@ _gcp_account_manipulation_permissions = Fact(
             'iam.serviceAccountKeys.create',
             'iam.roles.create',
             'iam.roles.update',
-            'resourcemanager.projects.setIamPolicy'
+            'resourcemanager.projects.setIamPolicy',
+            'resourcemanager.folders.setIamPolicy',
+            'resourcemanager.organizations.setIamPolicy'
         ]
         OR perm = 'iam.*' OR perm = '*'
     )
@@ -172,28 +181,40 @@ _azure_account_manipulation_permissions = Fact(
     MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     WHERE any(label IN labels(principal)
               WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // Expand each searched pattern through the role's actions list (handles
+    // bare `*` and trailing-wildcard provider/namespace grants like
+    // `Microsoft.Authorization/*`), then subtract any pattern shadowed by
+    // not_actions. This makes roles like Contributor (actions=['*'],
+    // not_actions=['Microsoft.Authorization/*/Write', ...]) correctly drop
+    // the role-assignment / role-definition patterns.
     WITH sub, ra, rd, perm, principal,
+         coalesce(perm.actions, []) AS role_actions,
+         coalesce(perm.not_actions, []) AS role_not_actions,
         [
             'Microsoft.Authorization/roleAssignments/write',
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/*/write',
             'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
         ] AS patterns
-    WITH sub, ra, rd, perm, principal, patterns,
-         [a IN coalesce(perm.actions, [])
-            WHERE a IN patterns OR a = 'Microsoft.Authorization/*' OR a = '*'] AS matched
-    WHERE size(matched) > 0
-      // Shadow matched actions if a not_action equals '*', equals one of
-      // them, or is a trailing-wildcard prefix. Inner wildcards
-      // (e.g. Microsoft.Authorization/*/write) are not currently expanded.
-      AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE
-            na = '*'
-            OR na IN matched
-            OR (
-              na ENDS WITH '*'
-              AND ANY(a IN matched WHERE a STARTS WITH split(na, '*')[0])
+    WITH sub, ra, rd, perm, principal, role_not_actions,
+        [
+            p IN patterns
+            WHERE ANY(a IN role_actions WHERE
+                a = '*'
+                OR a = p
+                OR (a ENDS WITH '*' AND p STARTS WITH split(a, '*')[0])
             )
-          )
+        ] AS granted
+    WITH sub, ra, rd, perm, principal,
+        [
+            p IN granted
+            WHERE NOT ANY(na IN role_not_actions WHERE
+                na = '*'
+                OR na = p
+                OR (na ENDS WITH '*' AND p STARTS WITH split(na, '*')[0])
+            )
+        ] AS matched
+    WHERE size(matched) > 0
     RETURN DISTINCT
         sub.id AS account_id,
         sub.id AS account,
