@@ -27,7 +27,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
 
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
-   | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
+   | **Actions** | Read | Optional | GitHub Actions workflows, self-hosted runners, runs, and artifacts. |
    | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
@@ -40,6 +40,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
+   | **Actions** | Read | Optional | Organization-level self-hosted runner inventory. |
    | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
    | **Variables** | Read | Optional | Organization variables for Actions workflows. |
 
@@ -77,6 +78,7 @@ Some data requires elevated permissions. Without these, Cartography will log war
 
 | Data | Requirement |
 |------|-------------|
+| **Self-hosted runners** | `Actions: Read` at the relevant scope. Organization-level runners come from `Organization -> Actions: Read`; repository-visible runners come from `Repository -> Actions: Read`. Without this, Cartography logs a warning and skips runner sync/cleanup for the denied scope. |
 | **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
 | **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
@@ -177,6 +179,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 
 | Issue | Solution |
 |-------|----------|
+| `Token lacks permission to read organization runners...` or `...repository runners...` | Add `Actions: Read` at the denied scope. Cartography treats `403` on runner endpoints as a skipped scope and intentionally avoids cleanup for that scope to prevent deleting previously synced runners. |
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
 | `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires the `read:packages` scope on a classic PAT (or a GitHub App). Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
