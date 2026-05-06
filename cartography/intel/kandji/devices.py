@@ -16,6 +16,20 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 
 
+def _extract_kandji_user_email(device: Dict[str, Any]) -> str | None:
+    user = device.get("user")
+    if isinstance(user, dict):
+        for key in ("email", "email_address"):
+            value = user.get(key)
+            if value:
+                return value
+    for key in ("user_email", "email"):
+        value = device.get(key)
+        if value:
+            return value
+    return None
+
+
 @timeit
 def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     api_endpoint = f"{kandji_base_uri}/api/v1/devices"
@@ -62,6 +76,7 @@ def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for device in api_result:
         n_device = device
         n_device["id"] = device["device_id"]
+        n_device["user_email"] = _extract_kandji_user_email(device)
         result.append(n_device)
     return result
 

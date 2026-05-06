@@ -13,6 +13,14 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _first_present(agent: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = agent.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
 @timeit
 def get_agents(
     api_url: str,
@@ -65,6 +73,17 @@ def transform_agents(agent_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "os_name": agent.get("osName"),
             "os_revision": agent.get("osRevision"),
             "domain": agent.get("domain"),
+            "user_email": _first_present(
+                agent,
+                "lastLoggedInUserEmail",
+                "lastLoggedInUserMail",
+                "userEmail",
+            ),
+            "user_name": _first_present(
+                agent,
+                "lastLoggedInUserName",
+                "userName",
+            ),
             "last_active": agent.get("lastActiveDate"),
             "last_successful_scan": agent.get("lastSuccessfulScanDate"),
             "scan_status": agent.get("scanStatus"),

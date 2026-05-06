@@ -2,6 +2,11 @@
   "name": "Ontology - Devices relationship linking",
   "statements": [
     {
+      "__comment": "Link Device to User based on CrowdstrikeHost assigned_to_uid matching a canonical account id",
+      "query": "MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.assigned_to_uid IS NOT NULL AND trim(toString(host.assigned_to_uid)) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, trim(toString(host.assigned_to_uid)) AS assigned_to_uid MATCH (u:User)-[:HAS_ACCOUNT]->(acct:UserAccount) WHERE acct.id = assigned_to_uid MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
       "__comment": "Link Device to User based on CrowdstrikeHost email matching canonical User email",
       "query": "MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND trim(host.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(host.email)) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = host_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
@@ -34,6 +39,21 @@
     {
       "__comment": "Link Device to User based on Jamf device email matching canonical User email",
       "query": "MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link Device to User based on SentinelOne agent user_email matching canonical User email",
+      "query": "MATCH (agent:S1Agent)<-[obs:OBSERVED_AS]-(d:Device) WHERE agent.user_email IS NOT NULL AND trim(agent.user_email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(agent.user_email)) AS agent_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = agent_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link Device to User based on Kandji device user_email matching canonical User email",
+      "query": "MATCH (kd:KandjiDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE kd.user_email IS NOT NULL AND trim(kd.user_email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(kd.user_email)) AS kandji_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = kandji_email MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link Device to User based on User-HAS_ACCOUNT-EntraUser-ENROLLED_TO-IntuneManagedDevice",
+      "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {

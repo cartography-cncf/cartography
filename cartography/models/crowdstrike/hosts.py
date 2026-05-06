@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CrowdstrikeHostNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("device_id")
     cid: PropertyRef = PropertyRef("cid")
+    assigned_to_uid: PropertyRef = PropertyRef("assigned_to_uid", extra_index=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
     instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)

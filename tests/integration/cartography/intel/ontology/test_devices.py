@@ -480,6 +480,52 @@ def test_link_ontology_devices_from_crowdstrike_email(neo4j_session):
     ) == {("hjsimpson@simpson.corp", "falcon-host-02")}
 
 
+def test_link_ontology_devices_from_crowdstrike_assigned_to_uid(neo4j_session):
+    """CrowdStrike assigned_to_uid should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'hjsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (acct:UserAccount {id: 'falcon-user-1'})
+        SET acct.lastupdated = $update_tag
+        MERGE (u)-[:HAS_ACCOUNT]->(acct)
+
+        CREATE (:CrowdstrikeHost {
+            id: 'crowdstrike-host-3',
+            device_id: 'crowdstrike-host-3',
+            hostname: 'falcon-host-03',
+            platform_name: 'Windows',
+            os_version: '11.0.22631',
+            system_product_name: 'Latitude 9440',
+            serial_number: 'SN-CROWDSTRIKE-003',
+            assigned_to_uid: 'falcon-user-1',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("hjsimpson@simpson.corp", "falcon-host-03")}
+
+
 @pytest.mark.parametrize("source_of_truth", [["microsoft"], ["entra"]])
 def test_load_ontology_devices_from_entra_intune(neo4j_session, source_of_truth):
     """Intune managed devices should produce ontology devices and OBSERVED_AS links."""
@@ -692,6 +738,134 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
         ("IPHONESPRING001", "IPHONESPRING001"),
         ("IPADSPRING001", "IPADSPRING001"),
     }
+
+
+def test_link_ontology_devices_from_sentinelone_user_email(neo4j_session):
+    """SentinelOne agent user_email should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'HJSimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (:S1Agent {
+            id: 's1-agent-ownership-1',
+            uuid: 'uuid-ownership-1',
+            computer_name: 'sentinel-host-owned',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            serial_number: 'SN-S1-OWNED-001',
+            user_email: 'hjsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("hjsimpson@simpson.corp", "sentinel-host-owned")}
+
+
+def test_link_ontology_devices_from_kandji_user_email(neo4j_session):
+    """Kandji device user_email should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'mbsimpson@simpson.corp'})
+        SET u.email = 'MBSimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (:KandjiDevice {
+            id: 'kandji-device-ownership-1',
+            device_id: 'kandji-device-ownership-1',
+            device_name: 'kandji-host-owned',
+            platform: 'Mac',
+            os_version: '14.5',
+            serial_number: 'SN-KANDJI-001',
+            user_email: 'mbsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["kandji"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("mbsimpson@simpson.corp", "kandji-host-owned")}
+
+
+def test_link_ontology_devices_from_intune_enrolled_to(neo4j_session):
+    """Intune enrollment should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'lisa@simpson.corp'})
+        SET u.email = 'lisa@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (eu:EntraUser {id: 'entra-user-1'})
+        SET eu.user_principal_name = 'lisa@simpson.corp',
+            eu.lastupdated = $update_tag
+        MERGE (u)-[:HAS_ACCOUNT]->(eu)
+
+        CREATE (device:IntuneManagedDevice {
+            id: 'intune-device-ownership-1',
+            device_name: 'entra-owned-laptop',
+            operating_system: 'Windows',
+            os_version: '11.0.22631',
+            model: 'Surface Laptop 6',
+            serial_number: 'SN-INTUNE-OWNED-001',
+            lastupdated: $update_tag
+        })
+        MERGE (eu)-[:ENROLLED_TO]->(device)
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["microsoft"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("lisa@simpson.corp", "entra-owned-laptop")}
 
 
 def test_link_ontology_devices_from_jamf_computer_email(neo4j_session):

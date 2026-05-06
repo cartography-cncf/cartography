@@ -23,7 +23,7 @@ def test_load_kandji_devices_relationship(neo4j_session):
     cartography.intel.kandji.devices.load_devices(
         neo4j_session,
         common_job_parameters,
-        data,
+        cartography.intel.kandji.devices.transform(data),
     )
 
     # Assert
@@ -43,14 +43,14 @@ def test_load_kandji_devices_relationship(neo4j_session):
 
     # Make sure the expected Devices are created
     expected_nodes = {
-        ("fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed",),
-        ("f27bcd08-f653-4930-83b0-51970e923b98",),
+        ("fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed", "hjsimpson@simpson.corp"),
+        ("f27bcd08-f653-4930-83b0-51970e923b98", "mbsimpson@simpson.corp"),
     }
     assert (
         check_nodes(
             neo4j_session,
             "KandjiDevice",
-            ["id"],
+            ["id", "user_email"],
         )
         == expected_nodes
     )
