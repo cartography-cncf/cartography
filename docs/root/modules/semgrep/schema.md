@@ -54,29 +54,9 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
 
 Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered either from the Semgrep Cloud Platform or from OSS Semgrep CLI JSON reports ingested via `--semgrep-oss-source`. Cloud findings come from the Semgrep Findings API. OSS findings come from explicit Semgrep OSS JSON report artifacts described in a repository mapping file passed to `--semgrep-oss-source`.
 
-> **Note**: The OSS Semgrep JSON report does not include repository identity. Cartography therefore requires `--semgrep-oss-source` to point to a repository mapping YAML file that declares the repository metadata and the explicit report artifact(s) associated with that repository. The mapping file must be valid UTF-8 YAML, must contain a top-level `repositories` list, and each repository entry must include `provider`, `owner`, `repo`, `url`, `branch`, and a non-empty `reports` list.
->
-> Example repository mapping file:
-> ```yaml
-> repositories:
->   - provider: "github"
->     owner: "simpsoncorp"
->     repo: "sample_repo"
->     url: "https://github.com/simpsoncorp/sample_repo"
->     branch: "main"
->     reports:
->       - "s3://security-artifacts/semgrep/sample_repo/main.json"
->   - provider: "github"
->     owner: "different-org"
->     repo: "different-repo"
->     url: "https://github.com/different-org/different-repo"
->     branch: "main"
->     reports:
->       - "gs://security-artifacts/semgrep/different-repo/job-1.json"
->       - "gs://security-artifacts/semgrep/different-repo/job-2.json"
-> ```
->
-> Each `reports` entry must point to exactly one Semgrep OSS JSON artifact for the repository it is nested under. For sharded or monorepo scans, list each generated JSON artifact separately under `reports`; a `reports` entry must not be a directory or object-store prefix containing multiple JSON files. Cartography treats one repository entry as the intended snapshot for that repository in the current run. If all listed reports for a repository are successfully processed, Cartography runs cleanup for stale OSS findings scoped to that repository URL. If any listed report for that repository fails to resolve, fails to parse, or is not Semgrep-shaped, Cartography skips cleanup for that repository to avoid deleting findings from an incomplete snapshot.
+>> **Note**: The OSS Semgrep JSON report does not include repository identity. Cartography therefore requires `--semgrep-oss-source` to point to a repository mapping YAML file. See more in the [Semgrep config](./config.md#oss-semgrep-configuration)
+
+
 >
 > To create `FOUND_IN` relationships for OSS findings, matching `GitHubRepository` nodes must already exist in the graph with `id` equal to the repository `url` declared in the mapping file. If the repository nodes are absent, Cartography still ingests the `SemgrepSASTFinding` nodes but cannot attach them to GitHub repositories.
 
@@ -130,7 +110,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SecurityAssessment).
 
 | Field | Description |
 |-------|--------------|

@@ -25,6 +25,8 @@ The repository mapping file must:
 - Give each repository entry `provider`, `owner`, `repo`, `url`, `branch`, and a non-empty `reports` list.
 - Use `reports` entries that each point to exactly one Semgrep OSS JSON artifact.
 
+- Each `reports` entry must point to exactly one Semgrep OSS JSON artifact for the repository it is nested under. For sharded or monorepo scans, list each generated JSON artifact separately under `reports`; a `reports` entry must not be a directory or object-store prefix containing multiple JSON files. Cartography treats one repository entry as the intended snapshot for that repository in the current run. If all listed reports for a repository are successfully processed, Cartography runs cleanup for stale OSS findings scoped to that repository URL. If any listed report for that repository fails to resolve, fails to parse, or is not Semgrep-shaped, Cartography skips cleanup for that repository to avoid deleting findings from an incomplete snapshot.
+
 Example repository mapping file:
 
 ```yaml
