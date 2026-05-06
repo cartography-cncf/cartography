@@ -116,3 +116,8 @@ def test_super_admin_rules_use_is_admin_as_super_admin_signal():
 
     assert "coalesce(u.is_admin, false) = true" in dual_role_fact.cypher_query
     assert "coalesce(u.is_delegated_admin, false) = true" in dual_role_fact.cypher_query
+    assert "coalesce(u.is_admin, false) = true" in dual_role_fact.cypher_count_query
+    assert (
+        "coalesce(u.is_delegated_admin, false) = true"
+        not in dual_role_fact.cypher_count_query
+    )
