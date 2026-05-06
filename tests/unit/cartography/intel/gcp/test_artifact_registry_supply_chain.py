@@ -106,6 +106,7 @@ def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
 def test_extract_source_from_spdx_sbom_reads_expected_source_package():
     provenance = _extract_source_from_spdx_sbom(
         mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+        subject_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         expected_source_uri="https://github.com/example/widgets",
     )
 
@@ -115,7 +116,17 @@ def test_extract_source_from_spdx_sbom_reads_expected_source_package():
 def test_extract_source_from_spdx_sbom_rejects_missing_expected_source_package():
     provenance = _extract_source_from_spdx_sbom(
         mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+        subject_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         expected_source_uri="https://github.com/example/other",
+    )
+
+    assert provenance == {}
+
+
+def test_extract_source_from_spdx_sbom_rejects_expected_source_without_subject_match():
+    provenance = _extract_source_from_spdx_sbom(
+        mock_ko_spdx_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+        expected_source_uri="https://github.com/example/widgets",
     )
 
     assert provenance == {}

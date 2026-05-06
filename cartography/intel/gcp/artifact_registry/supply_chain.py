@@ -410,7 +410,15 @@ def _extract_source_from_spdx_sbom(
 
     if expected_source_uri:
         expected_source_uri = _normalize_github_url(expected_source_uri)
+        for package in described_packages:
+            repo_url = _repo_url_from_spdx_package(package)
+            if repo_url == expected_source_uri:
+                return {"source_uri": expected_source_uri}
+        if not subject_digest_verified:
+            return {}
         for package in packages:
+            if package.get("SPDXID") in described_ids:
+                continue
             repo_url = _repo_url_from_spdx_package(package)
             if repo_url == expected_source_uri:
                 return {"source_uri": expected_source_uri}
