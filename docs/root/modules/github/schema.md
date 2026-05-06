@@ -26,6 +26,7 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+R -- RESOURCE --> GR
 R -- AVAILABLE_TO --> GR
 W -- USES_ACTION --> A(GitHubAction)
 W -- REFERENCES_SECRET --> RS
@@ -646,8 +647,14 @@ Represents a GitHub Actions self-hosted runner. Cartography syncs both organizat
     (GitHubRepository)-[:AVAILABLE_TO]->(GitHubRunner)
     ```
 
+- GitHubRepositories are sub-resources for repository-visible GitHubRunners (for cleanup scoping).
+
+    ```
+    (GitHubRepository)-[:RESOURCE]->(GitHubRunner)
+    ```
+
 Notes:
-- `:RESOURCE` on `GitHubRunner` means the runner was returned by the organization endpoint.
+- `:RESOURCE` on `GitHubRunner` scopes cleanup to the organization or repository that returned the runner.
 - `:AVAILABLE_TO` means the runner was visible from the repository endpoint; this may include org-owned runners as well as repo-specific runners.
 
 

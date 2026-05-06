@@ -341,6 +341,19 @@ def test_sync_github_actions_runners(
         (25, "https://github.com/simpsoncorp/sample_repo"),
     }
 
+    assert check_rels(
+        neo4j_session,
+        "GitHubRunner",
+        "id",
+        "GitHubRepository",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (23, "https://github.com/simpsoncorp/sample_repo"),
+        (25, "https://github.com/simpsoncorp/sample_repo"),
+    }
+
 
 @patch.object(
     cartography.intel.github.actions,

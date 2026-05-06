@@ -16,6 +16,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -58,7 +59,18 @@ class GitHubOrgRunnerSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class GitHubRepoRunnerToRepositoryRel(CartographyRelSchema):
+class GitHubRepoRunnerToRepositoryResourceRel(CartographyRelSchema):
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("repo_url", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubRunnerRelProperties = GitHubRunnerRelProperties()
+
+
+@dataclass(frozen=True)
+class GitHubRepoRunnerAvailableToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repo_url", set_in_kwargs=True)},
@@ -72,6 +84,9 @@ class GitHubRepoRunnerToRepositoryRel(CartographyRelSchema):
 class GitHubRepoRunnerSchema(CartographyNodeSchema):
     label: str = "GitHubRunner"
     properties: GitHubRunnerNodeProperties = GitHubRunnerNodeProperties()
-    sub_resource_relationship: GitHubRepoRunnerToRepositoryRel = (
-        GitHubRepoRunnerToRepositoryRel()
+    sub_resource_relationship: GitHubRepoRunnerToRepositoryResourceRel = (
+        GitHubRepoRunnerToRepositoryResourceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubRepoRunnerAvailableToRepositoryRel()],
     )
