@@ -35,7 +35,12 @@ def start_portkey_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     resources.sync_mcp_integrations(neo4j_session, api_session, common_job_parameters)
     resources.sync_api_keys(neo4j_session, api_session, common_job_parameters)
     resources.sync_virtual_keys(neo4j_session, api_session, common_job_parameters)
-    resources.sync_configs(neo4j_session, api_session, common_job_parameters)
+    resources.sync_configs(
+        neo4j_session,
+        api_session,
+        workspace_data,
+        common_job_parameters,
+    )
     resources.sync_providers(
         neo4j_session,
         api_session,
@@ -48,7 +53,12 @@ def start_portkey_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         workspace_data,
         common_job_parameters,
     )
-    resources.sync_guardrails(neo4j_session, api_session, common_job_parameters)
+    resources.sync_guardrails(
+        neo4j_session,
+        api_session,
+        workspace_data,
+        common_job_parameters,
+    )
     resources.sync_prompt_collections_and_prompts(
         neo4j_session,
         api_session,

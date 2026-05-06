@@ -1,4 +1,5 @@
 import copy
+from collections import defaultdict
 from typing import Any
 
 import neo4j
@@ -7,20 +8,18 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.portkey import util
-from cartography.models.portkey.resources import (
-    PortkeyAPIKeySchema,
-    PortkeyConfigSchema,
-    PortkeyGuardrailSchema,
-    PortkeyIntegrationSchema,
-    PortkeyInviteSchema,
-    PortkeyMCPIntegrationSchema,
-    PortkeyMCPServerSchema,
-    PortkeyPromptCollectionSchema,
-    PortkeyPromptSchema,
-    PortkeyProviderSchema,
-    PortkeySecretReferenceSchema,
-    PortkeyVirtualKeySchema,
-)
+from cartography.models.portkey.resources import PortkeyAPIKeySchema
+from cartography.models.portkey.resources import PortkeyConfigSchema
+from cartography.models.portkey.resources import PortkeyGuardrailSchema
+from cartography.models.portkey.resources import PortkeyIntegrationSchema
+from cartography.models.portkey.resources import PortkeyInviteSchema
+from cartography.models.portkey.resources import PortkeyMCPIntegrationSchema
+from cartography.models.portkey.resources import PortkeyMCPServerSchema
+from cartography.models.portkey.resources import PortkeyPromptCollectionSchema
+from cartography.models.portkey.resources import PortkeyPromptSchema
+from cartography.models.portkey.resources import PortkeyProviderSchema
+from cartography.models.portkey.resources import PortkeySecretReferenceSchema
+from cartography.models.portkey.resources import PortkeyVirtualKeySchema
 from cartography.util import timeit
 
 
@@ -54,6 +53,44 @@ def _cleanup_resource(
     GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
 
 
+def _group_by_workspace(data: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in data:
+        workspace_id = item.get("workspace_id")
+        if workspace_id:
+            grouped[workspace_id].append(item)
+    return grouped
+
+
+def _load_workspace_resource(
+    neo4j_session: neo4j.Session,
+    schema: Any,
+    data: list[dict[str, Any]],
+    workspace_id: str,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    load(
+        neo4j_session,
+        schema,
+        data,
+        lastupdated=common_job_parameters["UPDATE_TAG"],
+        WORKSPACE_ID=workspace_id,
+    )
+
+
+def _cleanup_workspace_resource(
+    neo4j_session: neo4j.Session,
+    schema: Any,
+    workspace_id: str,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    workspace_job_parameters = {
+        **common_job_parameters,
+        "WORKSPACE_ID": workspace_id,
+    }
+    GraphJob.from_node_schema(schema, workspace_job_parameters).run(neo4j_session)
+
+
 @timeit
 def sync_invites(
     neo4j_session: neo4j.Session,
@@ -61,7 +98,9 @@ def sync_invites(
     common_job_parameters: dict[str, Any],
 ) -> None:
     invites = []
-    for invite in util.list_user_invites(api_session, common_job_parameters["BASE_URL"]):
+    for invite in util.list_user_invites(
+        api_session, common_job_parameters["BASE_URL"]
+    ):
         invite["workspace_ids"] = [
             workspace["workspace_id"]
             for workspace in invite.get("workspaces", [])
@@ -91,6 +130,7 @@ def sync_api_keys(
             common_job_parameters["BASE_URL"],
             item["id"],
         )
+        details.pop("key", None)
         data.append(
             _jsonify(
                 details,
@@ -124,7 +164,9 @@ def sync_virtual_keys(
                 },
             )
         )
-    _load_resource(neo4j_session, PortkeyVirtualKeySchema(), data, common_job_parameters)
+    _load_resource(
+        neo4j_session, PortkeyVirtualKeySchema(), data, common_job_parameters
+    )
     _cleanup_resource(neo4j_session, PortkeyVirtualKeySchema(), common_job_parameters)
 
 
@@ -132,11 +174,29 @@ def sync_virtual_keys(
 def sync_configs(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
+    workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
     data = util.list_configs(api_session, common_job_parameters["BASE_URL"])
-    _load_resource(neo4j_session, PortkeyConfigSchema(), data, common_job_parameters)
-    _cleanup_resource(neo4j_session, PortkeyConfigSchema(), common_job_parameters)
+    data_by_workspace = _group_by_workspace(data)
+    schema = PortkeyConfigSchema()
+    for workspace in workspaces:
+        workspace_id = workspace["id"]
+        workspace_data = data_by_workspace.get(workspace_id, [])
+        if workspace_data:
+            _load_workspace_resource(
+                neo4j_session,
+                schema,
+                workspace_data,
+                workspace_id,
+                common_job_parameters,
+            )
+        _cleanup_workspace_resource(
+            neo4j_session,
+            schema,
+            workspace_id,
+            common_job_parameters,
+        )
 
 
 @timeit
@@ -227,30 +287,38 @@ def sync_mcp_servers(
     workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    data = []
+    data_by_workspace: dict[str, list[dict[str, Any]]] = {
+        workspace["id"]: [] for workspace in workspaces
+    }
     seen_ids: set[str] = set()
     for workspace in workspaces:
+        workspace_id = workspace["id"]
         for item in util.list_mcp_servers(
             api_session,
             common_job_parameters["BASE_URL"],
-            workspace["id"],
+            workspace_id,
         ):
             if item["id"] in seen_ids:
                 continue
             seen_ids.add(item["id"])
-            item["workspace_id"] = item.get("workspace_id") or workspace["id"]
-            data.append(item)
-    load(
-        neo4j_session,
-        PortkeyMCPServerSchema(),
-        data,
-        lastupdated=common_job_parameters["UPDATE_TAG"],
-    )
-    _cleanup_resource(
-        neo4j_session,
-        PortkeyMCPServerSchema(),
-        common_job_parameters,
-    )
+            item["workspace_id"] = item.get("workspace_id") or workspace_id
+            data_by_workspace.setdefault(item["workspace_id"], []).append(item)
+    schema = PortkeyMCPServerSchema()
+    for workspace_id, workspace_data in data_by_workspace.items():
+        if workspace_data:
+            _load_workspace_resource(
+                neo4j_session,
+                schema,
+                workspace_data,
+                workspace_id,
+                common_job_parameters,
+            )
+        _cleanup_workspace_resource(
+            neo4j_session,
+            schema,
+            workspace_id,
+            common_job_parameters,
+        )
 
 
 @timeit
@@ -285,6 +353,7 @@ def sync_providers(
 def sync_guardrails(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
+    workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
     data = []
@@ -292,8 +361,25 @@ def sync_guardrails(
         item["checks_json"] = util.json_dumps(item.get("checks"))
         item["actions_json"] = util.json_dumps(item.get("actions"))
         data.append(item)
-    _load_resource(neo4j_session, PortkeyGuardrailSchema(), data, common_job_parameters)
-    _cleanup_resource(neo4j_session, PortkeyGuardrailSchema(), common_job_parameters)
+    data_by_workspace = _group_by_workspace(data)
+    schema = PortkeyGuardrailSchema()
+    for workspace in workspaces:
+        workspace_id = workspace["id"]
+        workspace_data = data_by_workspace.get(workspace_id, [])
+        if workspace_data:
+            _load_workspace_resource(
+                neo4j_session,
+                schema,
+                workspace_data,
+                workspace_id,
+                common_job_parameters,
+            )
+        _cleanup_workspace_resource(
+            neo4j_session,
+            schema,
+            workspace_id,
+            common_job_parameters,
+        )
 
 
 @timeit
@@ -303,21 +389,20 @@ def sync_prompt_collections_and_prompts(
     workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    collections = []
-    prompts = []
-    collection_to_workspace: dict[str, str] = {}
     for workspace in workspaces:
         workspace_id = workspace["id"]
+        collections = []
+        prompts = []
         for collection in util.list_prompt_collections(
             api_session,
             common_job_parameters["BASE_URL"],
             workspace_id,
         ):
+            collection["workspace_id"] = collection.get("workspace_id") or workspace_id
             collection["collection_details_json"] = util.json_dumps(
                 collection.get("collection_details")
             )
             collections.append(collection)
-            collection_to_workspace[collection["id"]] = workspace_id
         for prompt in util.list_prompts(
             api_session,
             common_job_parameters["BASE_URL"],
@@ -327,21 +412,31 @@ def sync_prompt_collections_and_prompts(
             if not prompt.get("collection_id"):
                 prompt["collection_id"] = None
             prompts.append(prompt)
-    load(
-        neo4j_session,
-        PortkeyPromptCollectionSchema(),
-        collections,
-        lastupdated=common_job_parameters["UPDATE_TAG"],
-    )
-    load(
-        neo4j_session,
-        PortkeyPromptSchema(),
-        prompts,
-        lastupdated=common_job_parameters["UPDATE_TAG"],
-    )
-    _cleanup_resource(
-        neo4j_session,
-        PortkeyPromptCollectionSchema(),
-        common_job_parameters,
-    )
-    _cleanup_resource(neo4j_session, PortkeyPromptSchema(), common_job_parameters)
+        collection_schema = PortkeyPromptCollectionSchema()
+        prompt_schema = PortkeyPromptSchema()
+        _load_workspace_resource(
+            neo4j_session,
+            collection_schema,
+            collections,
+            workspace_id,
+            common_job_parameters,
+        )
+        _load_workspace_resource(
+            neo4j_session,
+            prompt_schema,
+            prompts,
+            workspace_id,
+            common_job_parameters,
+        )
+        _cleanup_workspace_resource(
+            neo4j_session,
+            collection_schema,
+            workspace_id,
+            common_job_parameters,
+        )
+        _cleanup_workspace_resource(
+            neo4j_session,
+            prompt_schema,
+            workspace_id,
+            common_job_parameters,
+        )

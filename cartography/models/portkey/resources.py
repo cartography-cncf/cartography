@@ -7,9 +7,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.core.relationships import make_target_node_matcher
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ class _WorkspaceRelProperties(CartographyRelProperties):
 class _ResourceToWorkspaceRel(CartographyRelSchema):
     target_node_label: str = "PortkeyWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -189,7 +189,9 @@ class _ProviderToIntegrationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES"
-    properties: _ProviderToIntegrationRelProperties = _ProviderToIntegrationRelProperties()
+    properties: _ProviderToIntegrationRelProperties = (
+        _ProviderToIntegrationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -258,7 +260,6 @@ class PortkeyInviteSchema(CartographyNodeSchema):
 class PortkeyAPIKeyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     object: PropertyRef = PropertyRef("object")
-    key: PropertyRef = PropertyRef("key")
     name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")
     type: PropertyRef = PropertyRef("type")
@@ -339,9 +340,9 @@ class PortkeyConfigNodeProperties(CartographyNodeProperties):
 class PortkeyConfigSchema(CartographyNodeSchema):
     label: str = "PortkeyConfig"
     properties: PortkeyConfigNodeProperties = PortkeyConfigNodeProperties()
-    scoped_cleanup: bool = False
+    sub_resource_relationship: _ResourceToWorkspaceRel = _ResourceToWorkspaceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _ResourceToOwnerUserRel(), _ResourceToUpdatedByUserRel()],
+        [_ResourceToOwnerUserRel(), _ResourceToUpdatedByUserRel()],
     )
 
 
@@ -425,9 +426,9 @@ class PortkeyGuardrailNodeProperties(CartographyNodeProperties):
 class PortkeyGuardrailSchema(CartographyNodeSchema):
     label: str = "PortkeyGuardrail"
     properties: PortkeyGuardrailNodeProperties = PortkeyGuardrailNodeProperties()
-    scoped_cleanup: bool = False
+    sub_resource_relationship: _ResourceToWorkspaceRel = _ResourceToWorkspaceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _ResourceToOwnerUserRel(), _ResourceToUpdatedByUserRel()],
+        [_ResourceToOwnerUserRel(), _ResourceToUpdatedByUserRel()],
     )
 
 
@@ -461,7 +462,7 @@ class PortkeyMCPIntegrationSchema(CartographyNodeSchema):
         _PortkeyResourceToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _ResourceToOwnerUserRel()],
+        [_AvailableInWorkspaceRel(), _ResourceToOwnerUserRel()],
     )
 
 
@@ -490,9 +491,9 @@ class PortkeyMCPServerNodeProperties(CartographyNodeProperties):
 class PortkeyMCPServerSchema(CartographyNodeSchema):
     label: str = "PortkeyMCPServer"
     properties: PortkeyMCPServerNodeProperties = PortkeyMCPServerNodeProperties()
-    scoped_cleanup: bool = False
+    sub_resource_relationship: _ResourceToWorkspaceRel = _ResourceToWorkspaceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _ResourceToOwnerUserRel(), _MCPServerToIntegrationRel()],
+        [_ResourceToOwnerUserRel(), _MCPServerToIntegrationRel()],
     )
 
 
@@ -517,9 +518,9 @@ class PortkeyPromptCollectionSchema(CartographyNodeSchema):
     properties: PortkeyPromptCollectionNodeProperties = (
         PortkeyPromptCollectionNodeProperties()
     )
-    scoped_cleanup: bool = False
+    sub_resource_relationship: _ResourceToWorkspaceRel = _ResourceToWorkspaceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _CollectionToParentCollectionRel()],
+        [_CollectionToParentCollectionRel()],
     )
 
 
@@ -542,9 +543,9 @@ class PortkeyPromptNodeProperties(CartographyNodeProperties):
 class PortkeyPromptSchema(CartographyNodeSchema):
     label: str = "PortkeyPrompt"
     properties: PortkeyPromptNodeProperties = PortkeyPromptNodeProperties()
-    scoped_cleanup: bool = False
+    sub_resource_relationship: _ResourceToWorkspaceRel = _ResourceToWorkspaceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [_ResourceToWorkspaceRel(), _PromptToCollectionRel()],
+        [_PromptToCollectionRel()],
     )
 
 

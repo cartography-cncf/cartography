@@ -160,7 +160,9 @@ PORTKEY_INTEGRATIONS = [
         "last_updated_at": "2023-11-07T05:31:56Z",
         "slug": "openai-production",
         "description": "Primary OpenAI integration",
-        "secret_mappings": [{"target_field": "key", "secret_reference_id": "secret-ref-1"}],
+        "secret_mappings": [
+            {"target_field": "key", "secret_reference_id": "secret-ref-1"}
+        ],
     }
 ]
 

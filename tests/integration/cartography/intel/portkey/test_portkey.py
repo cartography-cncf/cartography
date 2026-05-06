@@ -117,6 +117,13 @@ def test_load_portkey_module(neo4j_session, mocker):
     assert check_nodes(neo4j_session, "PortkeyAPIKey", ["id", "name"]) == {
         ("pk-1", "Engineering API key"),
     }
+    assert (
+        neo4j_session.run(
+            "MATCH (n:PortkeyAPIKey {id: $id}) RETURN n.key AS key",
+            id="pk-1",
+        ).single()["key"]
+        is None
+    )
     assert check_nodes(neo4j_session, "PortkeyIntegration", ["id", "name"]) == {
         ("int-openai", "OpenAI Production"),
     }
@@ -199,6 +206,50 @@ def test_load_portkey_module(neo4j_session, mocker):
         rel_direction_right=True,
     ) == {
         ("provider-openai", "int-openai"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "PortkeyMCPIntegration",
+        "id",
+        "PortkeyWorkspace",
+        "id",
+        "AVAILABLE_IN",
+        rel_direction_right=True,
+    ) == {
+        ("mcp-int-1", "ws-eng"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "PortkeyUser",
+        "id",
+        "PortkeyMCPIntegration",
+        "id",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {
+        ("user-1", "mcp-int-1"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "PortkeyWorkspace",
+        "id",
+        "PortkeyConfig",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("ws-eng", "cfg-1"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "PortkeyWorkspace",
+        "id",
+        "PortkeyGuardrail",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("ws-eng", "gr-1"),
     }
     assert check_rels(
         neo4j_session,

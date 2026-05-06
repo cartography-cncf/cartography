@@ -8,10 +8,8 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.portkey.util import list_workspace_members
 from cartography.intel.portkey.util import list_workspaces
-from cartography.models.portkey.workspace import (
-    PortkeyUserWorkspaceMembershipMatchLink,
-    PortkeyWorkspaceSchema,
-)
+from cartography.models.portkey.workspace import PortkeyUserWorkspaceMembershipMatchLink
+from cartography.models.portkey.workspace import PortkeyWorkspaceSchema
 from cartography.util import timeit
 
 

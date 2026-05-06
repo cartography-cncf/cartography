@@ -20,15 +20,17 @@ VK -- AVAILABLE_IN --> W
 INT -- USES_SECRET --> SR
 PR -- USES --> INT
 PR -- AVAILABLE_IN --> W
-C(Config) -- RESOURCE --> W
+W -- RESOURCE --> C(Config)
 U -- OWNS --> C
 C -- UPDATED_BY --> U
-G(Guardrail) -- RESOURCE --> W
+W -- RESOURCE --> G(Guardrail)
 U -- OWNS --> G
 G -- UPDATED_BY --> U
-MS(MCPServer) -- RESOURCE --> W
+W -- RESOURCE --> MS(MCPServer)
 U -- OWNS --> MS
 MS -- USES --> MI
+U -- OWNS --> MI
+MI -- AVAILABLE_IN --> W
 W -- RESOURCE --> PC(PromptCollection)
 W -- RESOURCE --> P(Prompt)
 P -- MEMBER_OF --> PC
@@ -72,6 +74,7 @@ Represents an organization user in Portkey.
 | role | Organization role |
 | created_at | Creation timestamp |
 | last_updated_at | Last update timestamp |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyUser)`
@@ -91,6 +94,7 @@ Represents a Portkey workspace.
 | description | Workspace description |
 | created_at | Creation timestamp |
 | last_updated_at | Last update timestamp |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyWorkspace)`
@@ -117,6 +121,7 @@ Represents a pending, accepted, cancelled, or expired organization invite.
 | created_at | Creation timestamp |
 | expires_at | Expiration timestamp |
 | accepted_at | Acceptance timestamp |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyInvite)`
@@ -138,6 +143,7 @@ Represents an API key in Portkey.
 | scopes | Scope list |
 | created_at | Creation timestamp |
 | expires_at | Expiration timestamp |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyAPIKey)`
@@ -157,6 +163,7 @@ Represents a virtual key in Portkey.
 | status | Virtual key status |
 | created_at | Creation timestamp |
 | expires_at | Expiration timestamp |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyVirtualKey)`
@@ -173,6 +180,7 @@ Represents a workspace-scoped Portkey config.
 | slug | Config slug |
 | status | Config status |
 | is_default | Default flag |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyWorkspace)-[:RESOURCE]->(:PortkeyConfig)`
@@ -190,6 +198,7 @@ Represents an organization-scoped provider integration configured in Portkey.
 | name | Integration name |
 | slug | Integration slug |
 | status | Integration status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyIntegration)`
@@ -205,6 +214,7 @@ Represents an organization-scoped provider that can be made available to workspa
 | name | Provider name |
 | integration_id | Backing integration ID |
 | status | Provider status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyProvider)`
@@ -221,6 +231,7 @@ Represents a workspace-scoped guardrail configured in Portkey.
 | name | Guardrail name |
 | slug | Guardrail slug |
 | status | Guardrail status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyWorkspace)-[:RESOURCE]->(:PortkeyGuardrail)`
@@ -238,6 +249,7 @@ Represents a prompt collection within a workspace.
 | slug | Collection slug |
 | parent_collection_id | Parent collection ID |
 | status | Collection status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyWorkspace)-[:RESOURCE]->(:PortkeyPromptCollection)`
@@ -254,6 +266,7 @@ Represents a prompt in Portkey prompt management.
 | slug | Prompt slug |
 | model | Backing model |
 | status | Prompt status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyWorkspace)-[:RESOURCE]->(:PortkeyPrompt)`
@@ -271,24 +284,30 @@ Represents an external secret reference managed by Portkey.
 | manager_type | External secret-manager type |
 | secret_path | Secret path in the backing manager |
 | status | Secret reference status |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeySecretReference)`
 
 ### PortkeyMCPIntegration
 
-Represents an organization-level MCP integration.
+Represents an organization-scoped MCP integration that can be made available to a workspace.
 
 | Field | Description |
 |-------|-------------|
 | **id** | MCP integration ID |
 | name | Integration name |
+| owner_id | Owning user ID |
+| workspace_id | Workspace where the integration is available |
 | type | Integration type |
 | status | Integration status |
 | url | Backing MCP integration URL |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyOrganization)-[:RESOURCE]->(:PortkeyMCPIntegration)`
+- `(:PortkeyMCPIntegration)-[:AVAILABLE_IN]->(:PortkeyWorkspace)`
+- `(:PortkeyUser)-[:OWNS]->(:PortkeyMCPIntegration)`
 
 ### PortkeyMCPServer
 
@@ -301,6 +320,7 @@ Represents a workspace-scoped MCP server.
 | slug | MCP server slug |
 | status | MCP server status |
 | url | MCP server URL |
+| lastupdated | Timestamp of the most recent sync |
 
 #### Relationships
 - `(PortkeyWorkspace)-[:RESOURCE]->(:PortkeyMCPServer)`
