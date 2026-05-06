@@ -180,12 +180,12 @@ _gcp_service_account_manipulation_via_gce = Fact(
     name="GCE Instances Bound to a Broad-Scope Service Account",
     description=(
         "GCE instances attached to the default Compute Engine service "
-        "account, or to any service account with a permissive OAuth scope "
-        "(`cloud-platform`, `iam`, or `iam.admin`). A workload with these "
-        "scopes can call effectively any GCP API granted to the SA, "
-        "creating an identity-admin blast radius if compromised. "
-        "The deeper variant (instance to SA permissions) requires an "
-        "explicit `:HAS_SERVICE_ACCOUNT` edge that is not yet modeled."
+        "account, or to a service account configured with the full "
+        "cloud-platform or iam OAuth scope. The scope check is exact to "
+        "avoid matching read-only variants like cloud-platform.read-only "
+        "or iam.readonly. The deeper variant (instance to SA permissions) "
+        "requires an explicit :HAS_SERVICE_ACCOUNT edge that is not yet "
+        "modeled."
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
@@ -193,8 +193,10 @@ _gcp_service_account_manipulation_via_gce = Fact(
       AND (
         instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
         OR ANY(scope IN coalesce(instance.service_account_scopes, [])
-               WHERE scope CONTAINS 'cloud-platform'
-                  OR scope CONTAINS '/auth/iam')
+               WHERE scope IN [
+                   'https://www.googleapis.com/auth/cloud-platform',
+                   'https://www.googleapis.com/auth/iam'
+               ])
       )
     OPTIONAL MATCH (instance)<-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)
     OPTIONAL MATCH (nic)<-[:RESOURCE]-(ac:GCPNicAccessConfig)
@@ -218,8 +220,10 @@ _gcp_service_account_manipulation_via_gce = Fact(
       AND (
         instance.service_account_email ENDS WITH '-compute@developer.gserviceaccount.com'
         OR ANY(scope IN coalesce(instance.service_account_scopes, [])
-               WHERE scope CONTAINS 'cloud-platform'
-                  OR scope CONTAINS '/auth/iam')
+               WHERE scope IN [
+                   'https://www.googleapis.com/auth/cloud-platform',
+                   'https://www.googleapis.com/auth/iam'
+               ])
       )
     OPTIONAL MATCH p2=(instance)<-[:NETWORK_INTERFACE]-(nic:GCPNetworkInterface)<-[:RESOURCE]-(ac:GCPNicAccessConfig)
     RETURN *
