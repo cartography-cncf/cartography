@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.actions
 from tests.data.github.actions import GET_ENV_SECRETS_PRODUCTION
 from tests.data.github.actions import GET_ENV_SECRETS_STAGING
@@ -22,6 +24,20 @@ TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 TEST_ORGANIZATION = "simpsoncorp"
 FAKE_API_KEY = "asdf"
+
+
+@pytest.fixture(autouse=True)
+def mock_runner_fetches(monkeypatch):
+    monkeypatch.setattr(
+        cartography.intel.github.actions,
+        "get_org_runners",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        cartography.intel.github.actions,
+        "get_repo_runners",
+        lambda *args, **kwargs: [],
+    )
 
 
 def _ensure_repo_exists(neo4j_session):
