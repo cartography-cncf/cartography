@@ -680,13 +680,11 @@ def test_buffer_error_with_none_wait_time(mock_logger, mock_sleep):
 @patch("cartography.client.core.tx.load_graph_data")
 @patch("cartography.client.core.tx.ensure_indexes")
 @patch("cartography.client.core.tx.build_ingestion_query")
-@patch("cartography.client.core.tx.build_conditional_label_queries")
 @patch("cartography.client.core.tx.stat_handler")
 @patch("cartography.client.core.tx.logger")
 def test_load_emits_metrics_and_logs(
     mock_logger,
     mock_stat_handler,
-    mock_build_cond_labels,
     mock_build_query,
     mock_ensure_indexes,
     mock_load_graph_data,
@@ -699,7 +697,6 @@ def test_load_emits_metrics_and_logs(
     mock_node_schema = MagicMock()
     mock_node_schema.label = "TestNode"
     mock_build_query.return_value = "UNWIND ..."
-    mock_build_cond_labels.return_value = []
 
     test_data = [{"id": "1"}, {"id": "2"}, {"id": "3"}]
 
@@ -715,13 +712,11 @@ def test_load_emits_metrics_and_logs(
 @patch("cartography.client.core.tx.load_graph_data")
 @patch("cartography.client.core.tx.ensure_indexes")
 @patch("cartography.client.core.tx.build_ingestion_query")
-@patch("cartography.client.core.tx.build_conditional_label_queries")
 @patch("cartography.client.core.tx.stat_handler")
 @patch("cartography.client.core.tx.logger")
 def test_load_no_metrics_for_empty_data(
     mock_logger,
     mock_stat_handler,
-    mock_build_cond_labels,
     mock_build_query,
     mock_ensure_indexes,
     mock_load_graph_data,
