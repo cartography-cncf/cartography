@@ -124,11 +124,19 @@ _gcp_cloud_sql_public_access = Fact(
 _aws_rds_public_access = Fact(
     id="aws_rds_public_access",
     name="Internet-Accessible RDS Database Attack Surface",
-    description="AWS RDS instances accessible from the internet",
+    description=(
+        "AWS RDS instances reachable from the public internet. The DB must "
+        "have publicly_accessible = true AND at least one attached security "
+        "group with an inbound rule permitting 0.0.0.0/0. Either flag alone "
+        "is not sufficient for actual public reachability."
+    ),
     cypher_query="""
-    MATCH (rds:RDSInstance)
-    WHERE rds.publicly_accessible = true
-    RETURN rds.id AS id,
+    MATCH (rds:RDSInstance {publicly_accessible: true})
+    MATCH (rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+        <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+    MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(:AWSIpRange {range: '0.0.0.0/0'})
+    RETURN DISTINCT
+        rds.id AS id,
         rds.engine AS engine,
         rds.db_instance_class AS instance_class,
         rds.endpoint_address AS host,
@@ -137,10 +145,10 @@ _aws_rds_public_access = Fact(
         rds.storage_encrypted AS encrypted
     """,
     cypher_visual_query="""
-    MATCH p1=(rds:RDSInstance{publicly_accessible: true})
-    OPTIONAL MATCH p2=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-    OPTIONAL MATCH p3=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound:AWSIpRule)
-    OPTIONAL MATCH p4=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound:AWSIpRule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange)
+    MATCH p1=(rds:RDSInstance {publicly_accessible: true})
+    MATCH p2=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+        <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound:AWSIpRule)
+    MATCH p3=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange {range: '0.0.0.0/0'})
     RETURN *
     """,
     cypher_count_query="""

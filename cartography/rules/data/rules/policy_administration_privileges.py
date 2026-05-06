@@ -177,7 +177,17 @@ _azure_policy_manipulation_capabilities = Fact(
          [a IN coalesce(perm.actions, [])
             WHERE a IN patterns OR a = 'Microsoft.Authorization/*' OR a = '*'] AS matched
     WHERE size(matched) > 0
-      AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE na = '*' OR na IN matched)
+      // Shadow matched actions if a not_action equals '*', equals one of
+      // them, or is a trailing-wildcard prefix. Inner wildcards
+      // (e.g. Microsoft.Authorization/*/write) are not currently expanded.
+      AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE
+            na = '*'
+            OR na IN matched
+            OR (
+              na ENDS WITH '*'
+              AND ANY(a IN matched WHERE a STARTS WITH split(na, '*')[0])
+            )
+          )
     UNWIND matched AS action
     RETURN DISTINCT
         sub.id AS account,

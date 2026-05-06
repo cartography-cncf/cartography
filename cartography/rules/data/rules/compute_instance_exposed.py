@@ -176,18 +176,37 @@ _aws_ec2_instance_internet_exposed = Fact(
     id="aws_ec2_instance_internet_exposed",
     name="Internet-Exposed EC2 Instances on Common Management Ports",
     description=(
-        "EC2 instances exposed to the internet on ports 22, 3389, 3306, 5432, 6379, 9200, 27017"
+        "EC2 instances exposed to the internet on ports 22, 3389, 3306, "
+        "5432, 6379, 9200, 27017. Matches inbound 0.0.0.0/0 SG rules whose "
+        "port range covers any of those ports, including all-ports rules "
+        "(`fromport` IS NULL) and ranges like 0-65535. Aligned with the "
+        "GCP and Azure facts in this same rule."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
-    WHERE rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
-    RETURN a.id as account_id, a.name AS account, ec2.instanceid AS instance_id, rule.fromport AS port, sg.groupid AS security_group order by account, instance_id, port, security_group
+    UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
+    WITH a, ec2, sg, rule, managed_port
+    WHERE rule.fromport IS NULL
+       OR (
+         coalesce(rule.fromport, 0) <= managed_port
+         AND coalesce(rule.toport, rule.fromport, 0) >= managed_port
+       )
+    RETURN DISTINCT
+        a.id AS account_id,
+        a.name AS account,
+        ec2.instanceid AS instance_id,
+        managed_port AS port,
+        sg.groupid AS security_group
+    ORDER BY account, instance_id, port, security_group
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH p2=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
-    WHERE rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+    WHERE rule.fromport IS NULL
+       OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+              WHERE coalesce(rule.fromport, 0) <= managed_port
+                AND coalesce(rule.toport, rule.fromport, 0) >= managed_port)
     RETURN *
     """,
     cypher_count_query="""
