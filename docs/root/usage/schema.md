@@ -114,6 +114,9 @@
 ```{include} ../modules/openai/schema.md
 ```
 
+```{include} ../modules/portkey/schema.md
+```
+
 ```{include} ../modules/pagerduty/schema.md
 ```
 
