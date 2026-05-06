@@ -33,8 +33,11 @@ class GCPSqlInstanceProperties(CartographyNodeProperties):
     availability_type: PropertyRef = PropertyRef("availability_type")
     backup_enabled: PropertyRef = PropertyRef("backup_enabled")
     require_ssl: PropertyRef = PropertyRef("require_ssl")
+    ssl_mode: PropertyRef = PropertyRef("ssl_mode")
     ip_addresses: PropertyRef = PropertyRef("ip_addresses")
+    authorized_networks: PropertyRef = PropertyRef("authorized_networks")
     backup_configuration: PropertyRef = PropertyRef("backup_configuration")
+    database_flags: PropertyRef = PropertyRef("database_flags")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -93,6 +93,7 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
  | lifecyclestate | The project's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v1/projects#LifecycleState). |
  | parent_org     | If the project's parent is an organization, this field contains the organization ID, e.g. "organizations/1234"                                                                |
  | parent_folder  | If the project's parent is a folder, this field contains the folder ID, e.g. "folders/5678"                                                                                  |
+ | compute_project_enable_oslogin | Project-level Compute metadata value for `enable-oslogin` when configured in common instance metadata. |
 
  ### Relationships
 
@@ -193,6 +194,9 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
 | created_at | The date and time the zone was created                  |
 | description              | An optional description of the zone|
 | dns_name | The DNS name of this managed zone, for instance "example.com.". |
+| dnssec_state | DNSSEC state for the managed zone, e.g. `on` or `off`. |
+| dnssec_key_signing_algorithm | Algorithm configured for the DNSSEC key-signing key, when present. |
+| dnssec_zone_signing_algorithm | Algorithm configured for the DNSSEC zone-signing key, when present. |
 | firstseen  | Timestamp of when a sync job first discovered this node |
 | **id**                   |Unique identifier|
 | name       | The name of the zone                                    |
@@ -276,6 +280,16 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | instancename     | The name of the instance, e.g. "my-instance" |
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
+| machine_type | The instance machine type short name, e.g. `n2d-standard-4`. |
+| service_account_email | Primary attached service account email when the instance has one. |
+| service_account_scopes | OAuth scopes configured on the primary attached service account. |
+| can_ip_forward | Whether the instance is configured with IP forwarding enabled. |
+| enable_vtpm | Shielded VM vTPM state from `shieldedInstanceConfig.enableVtpm`. |
+| enable_integrity_monitoring | Shielded VM Integrity Monitoring state from `shieldedInstanceConfig.enableIntegrityMonitoring`. |
+| enable_confidential_compute | Confidential Computing state from `confidentialInstanceConfig.enableConfidentialCompute`. |
+| enable_oslogin_metadata | Instance metadata value for `enable-oslogin` when explicitly set. |
+| block_project_ssh_keys | Instance metadata value for `block-project-ssh-keys` when explicitly set. |
+| serial_port_enable | Instance metadata value for `serial-port-enable` when explicitly set. |
 | exposed_internet | Set to `true` if the instance is internet-exposed via either path: (1) `'direct'` — the instance has a public IP and an ingress firewall rule allowing traffic from 0.0.0.0/0 with no higher-priority deny rule blocking it, or (2) `'gcp_lb'` — the instance is behind an external-facing GCPBackendService via the InstanceGroup chain. Set by the `gcp_compute_exposure` scoped analysis job. |
 | exposed_internet_type | A string indicating the type of internet exposure: `'direct'` (exposed via firewall rules + public IP) or `'gcp_lb'` (exposed via an external load balancer). |
 | status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
@@ -522,6 +536,12 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 | ip_cidr_range            | The CIDR range covered by this Subnet                                                                                                                                                              |
 | vpc_partial_uri          | The partial URI of the VPC that this Subnet is a part of                                                                                                                                           |
 | private_ip_google_access | Whether the VMs in this subnet can access Google services without assigned external IP addresses. This field can be both set at resource creation time and updated using setPrivateIpGoogleAccess. |
+| purpose                  | Purpose of the subnet, e.g. `PRIVATE` or service-specific values such as internal load-balancer reservations. |
+| flow_logs_enabled        | Whether VPC Flow Logs are enabled for the subnet. |
+| flow_logs_aggregation_interval | Flow Logs aggregation interval, e.g. `INTERVAL_5_SEC`. |
+| flow_logs_sampling       | Flow Logs sampling rate, e.g. `1.0` for 100%. |
+| flow_logs_metadata       | Flow Logs metadata mode, e.g. `INCLUDE_ALL_METADATA`. |
+| flow_logs_filter_expr    | Optional Flow Logs filter expression when subnet logging is filtered. |
 
 #### Relationships
 
@@ -1364,8 +1384,11 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
 | availability\_type | Availability configuration (`ZONAL` or `REGIONAL` for high availability). |
 | backup\_enabled | Boolean indicating if automated backups are enabled. |
 | require\_ssl | Boolean indicating if SSL/TLS encryption is required for connections. |
+| ssl\_mode | Cloud SQL SSL mode, such as `ENCRYPTED_ONLY`. |
 | ip\_addresses | JSON string containing array of IP addresses with their types (PRIMARY, PRIVATE, OUTGOING). |
+| authorized\_networks | JSON string containing authorized public network CIDRs configured on the instance. |
 | backup\_configuration | JSON string containing full backup configuration including retention and point-in-time recovery settings. |
+| database\_flags | JSON string containing configured Cloud SQL database flags for the instance. |
 
 #### Relationships
 
@@ -2297,6 +2320,8 @@ Represents a GCP BigQuery Dataset.
 | last_modified_time | Last modification time of the dataset |
 | default_table_expiration_ms | Default expiration time for tables in milliseconds |
 | default_partition_expiration_ms | Default expiration time for partitions in milliseconds |
+| default_kms_key_name | Default customer-managed encryption key configured for new tables in the dataset, when present. |
+| access_entries | JSON string containing the dataset access entries returned by the BigQuery API. |
 
 #### Relationships
 
@@ -2337,6 +2362,7 @@ Represents a GCP BigQuery Table, View, or Materialized View.
 | description | Description of the table |
 | friendly_name | User-friendly name for the table |
 | connection_id | The BigQuery connection resource name used by external tables |
+| kms_key_name | Customer-managed encryption key configured on the table, when present. |
 
 #### Relationships
 

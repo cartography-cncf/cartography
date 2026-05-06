@@ -32,6 +32,13 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_limit: PropertyRef = PropertyRef("memory_limit")
     cpu_limit: PropertyRef = PropertyRef("cpu_limit")
+    allow_privilege_escalation: PropertyRef = PropertyRef("allow_privilege_escalation")
+    run_as_non_root: PropertyRef = PropertyRef("run_as_non_root")
+    run_as_user: PropertyRef = PropertyRef("run_as_user")
+    seccomp_profile_type: PropertyRef = PropertyRef("seccomp_profile_type")
+    added_capabilities: PropertyRef = PropertyRef("added_capabilities")
+    dropped_capabilities: PropertyRef = PropertyRef("dropped_capabilities")
+    host_ports: PropertyRef = PropertyRef("host_ports")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

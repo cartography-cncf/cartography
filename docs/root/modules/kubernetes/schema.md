@@ -139,6 +139,12 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | deletion\_timestamp | Timestamp of the deletion time of the Kubernetes pod |
 | **namespace** | The Kubernetes namespace where this pod is deployed |
 | service\_account\_name | Name of the ServiceAccount used by the pod. Derived from `pod.spec.service_account_name` and defaults to `default` when unset. |
+| automount\_service\_account\_token | Pod-level override for whether a service account token is automatically mounted. Derived from `pod.spec.automount_service_account_token`. |
+| host\_pid | Whether the pod shares the host PID namespace. Derived from `pod.spec.host_pid`. |
+| host\_ipc | Whether the pod shares the host IPC namespace. Derived from `pod.spec.host_ipc`. |
+| host\_network | Whether the pod shares the host network namespace. Derived from `pod.spec.host_network`. |
+| seccomp\_profile\_type | Pod-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `pod.spec.security_context.seccomp_profile.type`. |
+| host\_path\_volume\_paths | List of host filesystem paths mounted via `hostPath` pod volumes. Derived from `pod.spec.volumes[].host_path.path`. |
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
@@ -201,6 +207,13 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
 | memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
 | cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
+| allow\_privilege\_escalation | Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`. |
+| run\_as\_non\_root | Whether the container is configured to run as non-root. Derived from `container.security_context.run_as_non_root`. |
+| run\_as\_user | Explicit UID configured for the container. Derived from `container.security_context.run_as_user`. |
+| seccomp\_profile\_type | Container-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `container.security_context.seccomp_profile.type`. |
+| added\_capabilities | Linux capabilities explicitly added to the container. Derived from `container.security_context.capabilities.add`. |
+| dropped\_capabilities | Linux capabilities explicitly dropped by the container. Derived from `container.security_context.capabilities.drop`. |
+| host\_ports | List of host ports exposed by the container. Derived from `container.ports[].host_port`. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
