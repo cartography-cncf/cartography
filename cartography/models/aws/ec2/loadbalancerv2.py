@@ -124,7 +124,9 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     canonicalhostedzonenameid: PropertyRef = PropertyRef("CanonicalHostedZoneId")
     type: PropertyRef = PropertyRef("Type")
     scheme: PropertyRef = PropertyRef("Scheme")
-    exposed_internet: PropertyRef = PropertyRef("exposed_internet", extra_index=True)  # Populated by aws_ec2_asset_exposure.json.
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by aws_ec2_asset_exposure.json.
     arn: PropertyRef = PropertyRef("LoadBalancerArn", extra_index=True)
     createdtime: PropertyRef = PropertyRef("CreatedTime")
 
