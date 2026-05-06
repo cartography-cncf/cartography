@@ -170,10 +170,11 @@ _azure_policy_manipulation_capabilities = Fact(
     MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     WHERE any(label IN labels(principal)
               WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-    // Expand each searched pattern through the role's actions, then subtract
-    // any pattern shadowed by not_actions, so wildcards like `*` and
-    // `Microsoft.Authorization/*` interact correctly with not_actions like
-    // `Microsoft.Authorization/*/Write` (built-in Contributor pattern).
+    // Treat each action / not_action as a case-insensitive glob: `.` is
+    // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
+    // anywhere now correctly matches; built-in Contributor with
+    // not_actions like `Microsoft.Authorization/*/Write` drops the
+    // matching patterns instead of letting them flag.
     WITH sub, ra, rd, perm, principal,
          coalesce(perm.actions, []) AS role_actions,
          coalesce(perm.not_actions, []) AS role_not_actions,
@@ -181,25 +182,20 @@ _azure_policy_manipulation_capabilities = Fact(
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/roleDefinitions/delete',
             'Microsoft.Authorization/policyDefinitions/write',
-            'Microsoft.Authorization/policyAssignments/write',
-            'Microsoft.Authorization/*/write'
+            'Microsoft.Authorization/policyAssignments/write'
         ] AS patterns
     WITH sub, ra, rd, perm, principal, role_not_actions,
         [
             p IN patterns
             WHERE ANY(a IN role_actions WHERE
-                a = '*'
-                OR a = p
-                OR (a ENDS WITH '*' AND p STARTS WITH split(a, '*')[0])
+                toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*')
             )
         ] AS granted
     WITH sub, ra, rd, perm, principal,
         [
             p IN granted
             WHERE NOT ANY(na IN role_not_actions WHERE
-                na = '*'
-                OR na = p
-                OR (na ENDS WITH '*' AND p STARTS WITH split(na, '*')[0])
+                toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*')
             )
         ] AS matched
     WHERE size(matched) > 0

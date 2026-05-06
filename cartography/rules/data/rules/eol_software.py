@@ -6,7 +6,10 @@ from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
 _OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR = 33
-_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 29
+# AWS EKS supports 1.35 / 1.34 / 1.33 in standard support and 1.32 / 1.31 /
+# 1.30 in extended support as of 2026-05; 1.29 is no longer covered.
+# https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 30
 _OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR = 30
 # Microsoft AKS supported versions table starts at 1.33 as of 2026-05; 1.32
 # reached community EOL in March 2026. See:

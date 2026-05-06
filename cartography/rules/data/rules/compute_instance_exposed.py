@@ -148,7 +148,8 @@ _azure_vm_internet_exposed = Fact(
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(vm:AzureVirtualMachine)
     MATCH p2=(vm)<-[:ATTACHED_TO]-(nic:AzureNetworkInterface)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress)
     MATCH p3=(rule:AzureNetworkSecurityRule:IpPermissionInbound)-[:MEMBER_OF_AZURE_NSG]->(nsg:AzureNetworkSecurityGroup)
-    WHERE rule.access = 'Allow'
+    WHERE pip.ip_address IS NOT NULL
+      AND rule.access = 'Allow'
       AND rule.protocol IN ['Tcp', '*']
       AND (
         EXISTS { (nic)-[:ASSOCIATED_WITH]->(nsg) }
@@ -159,6 +160,26 @@ _azure_vm_internet_exposed = Fact(
         OR ANY(src IN coalesce(rule.source_address_prefixes, [])
                WHERE src IN ['*', 'Internet', '0.0.0.0/0'])
       )
+      // Mirror the finding query: keep only rules whose destination port
+      // (or port range / list) covers a management port.
+      AND ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+              WHERE
+                coalesce(rule.destination_port_range, '') = '*'
+                OR coalesce(rule.destination_port_range, '') = toString(managed_port)
+                OR (
+                  coalesce(rule.destination_port_range, '') CONTAINS '-'
+                  AND toInteger(split(rule.destination_port_range, '-')[0]) <= managed_port
+                  AND toInteger(split(rule.destination_port_range, '-')[1]) >= managed_port
+                )
+                OR ANY(p IN coalesce(rule.destination_port_ranges, [])
+                       WHERE p = '*'
+                          OR p = toString(managed_port)
+                          OR (
+                            p CONTAINS '-'
+                            AND toInteger(split(p, '-')[0]) <= managed_port
+                            AND toInteger(split(p, '-')[1]) >= managed_port
+                          ))
+              )
     RETURN *
     """,
     cypher_count_query="""

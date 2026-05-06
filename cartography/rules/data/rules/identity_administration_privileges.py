@@ -181,37 +181,35 @@ _azure_account_manipulation_permissions = Fact(
     MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     WHERE any(label IN labels(principal)
               WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-    // Expand each searched pattern through the role's actions list (handles
-    // bare `*` and trailing-wildcard provider/namespace grants like
-    // `Microsoft.Authorization/*`), then subtract any pattern shadowed by
-    // not_actions. This makes roles like Contributor (actions=['*'],
-    // not_actions=['Microsoft.Authorization/*/Write', ...]) correctly drop
-    // the role-assignment / role-definition patterns.
+    // For each literal RBAC pattern, treat each action / not_action as a
+    // case-insensitive glob: replace `.` with the regex char class `[.]`
+    // (so dots are literal), then `*` with `.*`. A `*` anywhere in the
+    // entry now correctly matches. This makes the built-in Contributor
+    // role (actions=['*'], not_actions=['Microsoft.Authorization/*/Write',
+    // 'Microsoft.Authorization/*/Delete', ...]) drop the role-assignment
+    // / role-definition / managed-identity patterns rather than flag.
     WITH sub, ra, rd, perm, principal,
          coalesce(perm.actions, []) AS role_actions,
          coalesce(perm.not_actions, []) AS role_not_actions,
         [
             'Microsoft.Authorization/roleAssignments/write',
+            'Microsoft.Authorization/roleAssignments/delete',
             'Microsoft.Authorization/roleDefinitions/write',
-            'Microsoft.Authorization/*/write',
-            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
+            'Microsoft.Authorization/roleDefinitions/delete',
+            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action'
         ] AS patterns
     WITH sub, ra, rd, perm, principal, role_not_actions,
         [
             p IN patterns
             WHERE ANY(a IN role_actions WHERE
-                a = '*'
-                OR a = p
-                OR (a ENDS WITH '*' AND p STARTS WITH split(a, '*')[0])
+                toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*')
             )
         ] AS granted
     WITH sub, ra, rd, perm, principal,
         [
             p IN granted
             WHERE NOT ANY(na IN role_not_actions WHERE
-                na = '*'
-                OR na = p
-                OR (na ENDS WITH '*' AND p STARTS WITH split(na, '*')[0])
+                toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*')
             )
         ] AS matched
     WHERE size(matched) > 0

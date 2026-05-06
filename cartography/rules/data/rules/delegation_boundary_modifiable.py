@@ -172,34 +172,30 @@ _azure_trust_relationship_manipulation = Fact(
     MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     WHERE any(label IN labels(principal)
               WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-    // Expand each searched pattern through actions, then subtract any
-    // pattern shadowed by not_actions, so wildcards like `*` /
-    // `Microsoft.Authorization/*` correctly drop the assignment patterns
-    // when the role's not_actions exclude them (built-in Contributor).
+    // Treat each action / not_action as a case-insensitive glob: `.` is
+    // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
+    // anywhere now correctly matches; Contributor (actions=['*'],
+    // not_actions including `Microsoft.Authorization/*/Write`) is
+    // shadowed for the role-assignment write pattern.
     WITH sub, ra, rd, perm, principal,
          coalesce(perm.actions, []) AS role_actions,
          coalesce(perm.not_actions, []) AS role_not_actions,
         [
             'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action',
-            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
             'Microsoft.Authorization/roleAssignments/write'
         ] AS patterns
     WITH sub, ra, rd, perm, principal, role_not_actions,
         [
             p IN patterns
             WHERE ANY(a IN role_actions WHERE
-                a = '*'
-                OR a = p
-                OR (a ENDS WITH '*' AND p STARTS WITH split(a, '*')[0])
+                toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*')
             )
         ] AS granted
     WITH sub, ra, rd, perm, principal,
         [
             p IN granted
             WHERE NOT ANY(na IN role_not_actions WHERE
-                na = '*'
-                OR na = p
-                OR (na ENDS WITH '*' AND p STARTS WITH split(na, '*')[0])
+                toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*')
             )
         ] AS matched
     WHERE size(matched) > 0
