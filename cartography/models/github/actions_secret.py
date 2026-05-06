@@ -85,7 +85,7 @@ class GitHubActionsSecretToRepoRelProperties(CartographyRelProperties):
 class GitHubActionsSecretToRepoRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_url")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_SECRET"
@@ -96,15 +96,24 @@ class GitHubActionsSecretToRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRepoActionsSecretSchema(CartographyNodeSchema):
-    """Schema for repository-level secrets."""
+    """
+    Schema for repository-level secrets.
+
+    Uses GitHubOrganization as the sub-resource for cleanup scoping so a single
+    GraphJob run cleans up secrets from every repo in the org. The HAS_SECRET
+    edge to the owning repository is kept as an other_relationship.
+    """
 
     label: str = "GitHubActionsSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["Secret"]
     )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
-    sub_resource_relationship: GitHubActionsSecretToRepoRel = (
-        GitHubActionsSecretToRepoRel()
+    sub_resource_relationship: GitHubActionsSecretToOrgRel = (
+        GitHubActionsSecretToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubActionsSecretToRepoRel()]
     )
 
 

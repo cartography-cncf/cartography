@@ -500,11 +500,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
     (:AWSLambda)-[:HAS]->(:ECRImage)
     ```
 
-- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryContainerImage`.
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, or `GCPArtifactRegistryImage`.
     ```
     (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - AWSLambda functions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -2599,8 +2599,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -5191,8 +5190,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryPlatformImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### EfsFileSystem
@@ -5825,6 +5823,8 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockCustomModel, AWSSageMakerModel, GCPVertexAIModel).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -5877,6 +5877,8 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
 ### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSSageMakerModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|
@@ -6245,6 +6247,8 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 ### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSBedrockCustomModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|

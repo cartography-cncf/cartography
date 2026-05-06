@@ -26,6 +26,7 @@ class GCPBigQueryTableProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     friendly_name: PropertyRef = PropertyRef("friendly_name")
     connection_id: PropertyRef = PropertyRef("connection_id")
+    kms_key_name: PropertyRef = PropertyRef("kms_key_name")
 
 
 @dataclass(frozen=True)

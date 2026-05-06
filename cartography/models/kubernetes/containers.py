@@ -32,6 +32,13 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_limit: PropertyRef = PropertyRef("memory_limit")
     cpu_limit: PropertyRef = PropertyRef("cpu_limit")
+    allow_privilege_escalation: PropertyRef = PropertyRef("allow_privilege_escalation")
+    run_as_non_root: PropertyRef = PropertyRef("run_as_non_root")
+    run_as_user: PropertyRef = PropertyRef("run_as_user")
+    seccomp_profile_type: PropertyRef = PropertyRef("seccomp_profile_type")
+    added_capabilities: PropertyRef = PropertyRef("added_capabilities")
+    dropped_capabilities: PropertyRef = PropertyRef("dropped_capabilities")
+    host_ports: PropertyRef = PropertyRef("host_ports")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -168,50 +175,26 @@ class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties(
+class KubernetesContainerToGCPArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+class KubernetesContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
     """
     Matches containers to GAR image artifacts by runtime digest (status_image_sha).
     """
 
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("status_image_sha")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties = (
-        KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    """
-    Matches containers to GAR platform manifests by runtime digest (status_image_sha).
-    """
-
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("status_image_sha")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties = (
-        KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties()
+    properties: KubernetesContainerToGCPArtifactRegistryImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryImageRelProperties()
     )
 
 
@@ -230,7 +213,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToKubernetesPodWorkloadParentRel(),
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
-            KubernetesContainerToGCPArtifactRegistryContainerImageRel(),
-            KubernetesContainerToGCPArtifactRegistryPlatformImageRel(),
+            KubernetesContainerToGCPArtifactRegistryImageRel(),
         ]
     )

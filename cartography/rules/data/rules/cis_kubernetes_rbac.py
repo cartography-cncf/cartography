@@ -218,6 +218,11 @@ cis_k8s_5_1_2_secret_access = Rule(
     ),
 )
 
+# =============================================================================
+# TODO: CIS K8s 5.1.2: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for secrets access; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
+
 
 # =============================================================================
 # CIS K8s 5.1.3: Minimize wildcard use in Roles and ClusterRoles
@@ -435,6 +440,11 @@ cis_k8s_5_1_4_pod_create_access = Rule(
     ),
 )
 
+# =============================================================================
+# TODO: CIS K8s 5.1.4: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for pod creation; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
+
 
 # =============================================================================
 # CIS K8s 5.1.5: Default service accounts not actively used
@@ -449,6 +459,8 @@ class DefaultSaBindingsOutput(Finding):
     service_account_name: str | None = None
     namespace: str | None = None
     role_name: str | None = None
+    pod_name: str | None = None
+    automount_service_account_token: bool | None = None
     cluster_name: str | None = None
 
 
@@ -526,19 +538,91 @@ _k8s_default_sa_role_bindings = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
+_k8s_default_sa_used_by_pods = Fact(
+    id="k8s_default_sa_used_by_pods",
+    name="Kubernetes pods using the default service account",
+    description=(
+        "Detects pods that are still configured to run under the default service account. "
+        "The benchmark recommends creating explicit service accounts instead."
+    ),
+    cypher_query="""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN
+        pod.id AS binding_id,
+        'PodUsesDefaultServiceAccount' AS binding_type,
+        sa.name AS service_account_name,
+        sa.namespace AS namespace,
+        pod.name AS pod_name,
+        cluster.name AS cluster_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN COUNT(sa) AS count
+    """,
+    asset_id_field="binding_id",
+    module=Module.KUBERNETES,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+_k8s_default_sa_automount_enabled = Fact(
+    id="k8s_default_sa_automount_enabled",
+    name="Kubernetes default service accounts with token automount enabled",
+    description=(
+        "Detects default service accounts that do not explicitly disable automatic "
+        "token mounting with automountServiceAccountToken=false."
+    ),
+    cypher_query="""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN
+        sa.id AS binding_id,
+        'ServiceAccountAutomount' AS binding_type,
+        sa.name AS service_account_name,
+        sa.namespace AS namespace,
+        sa.automount_service_account_token AS automount_service_account_token,
+        cluster.name AS cluster_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN COUNT(sa) AS count
+    """,
+    asset_id_field="binding_id",
+    module=Module.KUBERNETES,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
 cis_k8s_5_1_5_default_sa_bindings = Rule(
     id="cis_k8s_5_1_5_default_sa_bindings",
     name="CIS K8s 5.1.5: Default Service Account Bindings",
     description=(
         "The default service account should not be used to ensure that rights "
         "granted to applications can be more easily audited and reviewed. "
-        "This rule detects role bindings to the default service account, which "
-        "indicate it has been granted extra privileges beyond its defaults. "
-        "Note: this rule cannot verify automountServiceAccountToken settings "
-        "or active pod usage of the default SA (not ingested)."
+        "This rule detects privilege bindings, active pod usage of the default service "
+        "account, and default service accounts that do not explicitly disable token automount."
     ),
     output_model=DefaultSaBindingsOutput,
-    facts=(_k8s_default_sa_cluster_role_bindings, _k8s_default_sa_role_bindings),
+    facts=(
+        _k8s_default_sa_cluster_role_bindings,
+        _k8s_default_sa_role_bindings,
+        _k8s_default_sa_used_by_pods,
+        _k8s_default_sa_automount_enabled,
+    ),
     tags=("rbac", "service-accounts", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
@@ -552,6 +636,11 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.5: Partial control coverage
+# Missing datamodel or evidence: defaults-only role binding baseline and workload necessity; current rule cannot distinguish system-required usage from benign default usage
+# =============================================================================
 
 
 # =============================================================================
@@ -764,6 +853,11 @@ cis_k8s_5_1_8_escalation_permissions = Rule(
     ),
 )
 
+# =============================================================================
+# TODO: CIS K8s 5.1.8: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for bind, impersonate, and escalate verbs; current rule detects role definitions, not the principals that actually receive these permissions
+# =============================================================================
+
 
 # =============================================================================
 # CIS K8s 5.1.9: Minimize access to create persistent volumes
@@ -868,6 +962,11 @@ cis_k8s_5_1_9_pv_create_access = Rule(
     ),
 )
 
+# =============================================================================
+# TODO: CIS K8s 5.1.9: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for persistentvolume creation; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
+
 
 # =============================================================================
 # CIS K8s 5.1.10: Minimize access to the proxy sub-resource of nodes
@@ -936,6 +1035,11 @@ cis_k8s_5_1_10_node_proxy_access = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.10: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive node proxy access
+# =============================================================================
 
 
 # =============================================================================
@@ -1006,6 +1110,11 @@ cis_k8s_5_1_11_csr_approval_access = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.11: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive CSR approval access
+# =============================================================================
 
 
 # =============================================================================
@@ -1091,6 +1200,11 @@ cis_k8s_5_1_12_webhook_config_access = Rule(
     ),
 )
 
+# =============================================================================
+# TODO: CIS K8s 5.1.12: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage; current rule only checks ClusterRoles even though the benchmark calls for reviewing both roles and cluster roles
+# =============================================================================
+
 
 # =============================================================================
 # CIS K8s 5.1.13: Minimize access to service account token creation
@@ -1160,3 +1274,8 @@ cis_k8s_5_1_13_sa_token_creation = Rule(
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.13: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive service account token creation access
+# =============================================================================

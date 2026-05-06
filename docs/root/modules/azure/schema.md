@@ -409,6 +409,8 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 |kind | Specifies the kind of SQL server|
 |state | The state of the server|
 |version | The version of the server |
+|public_network_access | Whether public network access is enabled (`Enabled` or `Disabled`).|
+|minimal_tls_version | The minimum TLS version enforced for client connections.|
 
 #### Relationships
 
@@ -443,6 +445,10 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 - Azure SQL Server contains one or more Azure SQL Database.
     ```
     (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+    ```
+- Azure SQL Server has one or more firewall rules whose `IpRule` label makes them queryable alongside the equivalents on AWS / GCP.
+    ```cypher
+    (AzureSQLServerFirewallRule)-[MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
     ```
 
 - Azure SQL Servers can be tagged with Azure Tags.
@@ -625,6 +631,37 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 - Azure Elastic Pool belongs to a Subscription.
     ```
         (AzureSubscription)-[RESOURCE]->(AzureElasticPool)
+    ```
+
+### AzureSQLServerFirewallRule :: IpPermissionInbound :: IpRule
+
+Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules).
+
+Two distinct cases are worth calling out and should NOT be conflated by downstream rules:
+
+- **Public-internet exposure**: a rule whose range covers public IP space (for example `start_ip_address = 0.0.0.0` / `end_ip_address = 255.255.255.255`, or any rule whose range overlaps the public internet) lets arbitrary clients on the public internet reach the server.
+- **Allow Azure services**: the special `start_ip_address = 0.0.0.0` / `end_ip_address = 0.0.0.0` row (also exposed via the SQL Server's `public_network_access` + the "Allow Azure services and resources to access this server" toggle) allows traffic from Azure-hosted services / resources only, not arbitrary public IPs. It is a different exposure class and should be flagged separately.
+
+> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID|
+|name | The name of the firewall rule|
+|start_ip_address | The lowest IP address allowed to connect (inclusive). |
+|end_ip_address | The highest IP address allowed to connect (inclusive). |
+
+#### Relationships
+
+- A firewall rule is a member of an Azure SQL Server.
+    ```cypher
+    (AzureSQLServerFirewallRule)-[:MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
+    ```
+- Firewall rules belong to a Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSQLServerFirewallRule)
     ```
 
 ### AzureSQLDatabase
@@ -1527,7 +1564,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     ```cypher
     (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryContainerImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 - Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -1981,10 +2018,9 @@ Representation of an individual container within an [Azure Container Group](http
     ```
 - AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher
-    (AzureContainerInstance)-[:HAS_IMAGE]->(ECRImage)
-    (AzureContainerInstance)-[:HAS_IMAGE]->(GitLabContainerImage)
-    (AzureContainerInstance)-[:HAS_IMAGE]->(GCPArtifactRegistryContainerImage)
-    (AzureContainerInstance)-[:HAS_IMAGE]->(GCPArtifactRegistryPlatformImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### AzureLoadBalancer
@@ -2116,6 +2152,139 @@ Representation of an Inbound NAT Rule for an Azure Load Balancer.
 
 *(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
 
+### AzureApplicationGateway
+
+Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-us/azure/application-gateway/overview). The data model mirrors `AzureLoadBalancer`: the parent gateway plus three sub-resource node types (frontend IP, backend pool, rule). HTTP listener and backend HTTP settings configuration is folded onto each `AzureApplicationGatewayRule`, parallel to how `AzureLoadBalancerRule` carries `protocol` / `frontend_port` / `backend_port` directly.
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, AzureLoadBalancer, GCPForwardingRule).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Application Gateway.            |
+| name       | The name of the Application Gateway.                        |
+| location   | The Azure region where the Application Gateway is deployed. |
+| sku\_name   | The SKU name (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_tier   | The SKU tier (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_capacity | The SKU capacity (instance count).                        |
+| operational\_state | The operational state (e.g., `Running`, `Stopped`). |
+| provisioning\_state | The provisioning state.                            |
+| enable\_http2 | Whether HTTP/2 is enabled.                              |
+| firewall\_policy\_id | Resource ID of the associated WAF policy, if any. |
+| subnet\_id | Resource ID of the subnet the gateway is deployed into.    |
+
+#### Relationships
+
+- An Azure Application Gateway is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGateway)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway contains its component parts.
+    ```cypher
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayBackendPool)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway is deployed in a subnet.
+    ```cypher
+    (AzureApplicationGateway)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+- Azure Application Gateways can be tagged with Azure Tags.
+    ```cypher
+    (AzureApplicationGateway)-[:TAGGED]->(AzureTag)
+    ```
+
+### AzureApplicationGatewayFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Application Gateway.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| private\_ip\_allocation\_method | The private IP allocation method (e.g., `Dynamic`, `Static`).  |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+| subnet\_id            | The resource ID of the associated subnet, if applicable (private frontend). |
+
+#### Relationships
+
+- A Frontend IP Configuration can be associated with a Public IP Address.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+- A private Frontend IP Configuration is bound to a Subnet.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+### AzureApplicationGatewayBackendPool
+
+Representation of a Backend Address Pool for an Azure Application Gateway.
+
+| Field        | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| firstseen    | Timestamp of when a sync job discovered this node                        |
+| lastupdated  | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Backend Pool.                                |
+| name         | The name of the Backend Pool.                                            |
+| fqdns        | List of backend FQDNs.                                                   |
+| ip\_addresses | List of backend IP addresses.                                           |
+
+#### Relationships
+
+- A Backend Pool routes traffic to Network Interfaces, Public IPs (matched by `ip_address`), and any node carrying the cross-provider `DNSRecord` ontology label whose `name` matches an FQDN backend (e.g. `AWSDNSRecord`, `GCPRecordSet`, `CloudflareDNSRecord`, `VercelDNSRecord`).
+    ```cypher
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzurePublicIPAddress)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:DNSRecord)
+    ```
+
+### AzureApplicationGatewayRule
+
+Representation of a Request Routing Rule for an Azure Application Gateway. Properties of the rule's HTTP listener and backend HTTP settings are folded onto this node, so a single Rule node is the complete description of one routing entry (parallel to `AzureLoadBalancerRule`).
+
+| Field      | Description                                                                  |
+| ---------- | ---------------------------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node                            |
+| lastupdated| Timestamp of the last time the node was updated                              |
+| **id** | The full resource ID of the Routing Rule.                                    |
+| name       | The name of the Routing Rule.                                                |
+| rule\_type | The rule type (e.g., `Basic`, `PathBasedRouting`).                           |
+| priority   | The rule priority.                                                           |
+| url\_path\_map\_id | Resource ID of the referenced URL path map for `PathBasedRouting` rules; null for `Basic` rules. |
+| listener\_id | Resource ID of the underlying HTTP listener (kept for traceability).       |
+| listener\_protocol | The listener protocol (e.g., `Http`, `Https`).                       |
+| listener\_port | The listener port (resolved from the referenced `frontendPorts` entry).  |
+| listener\_host\_name | The host name the listener matches, if any.                        |
+| listener\_host\_names | List of host names the listener matches (multi-site listeners).   |
+| listener\_require\_server\_name\_indication | Whether SNI is required.                  |
+| listener\_ssl\_certificate\_id | Resource ID of the associated SSL certificate, if any. |
+| backend\_http\_settings\_id | Resource ID of the underlying backend HTTP settings (kept for traceability). |
+| backend\_protocol | The backend protocol (e.g., `Http`, `Https`).                         |
+| backend\_port | The backend port.                                                         |
+| backend\_cookie\_based\_affinity | Whether cookie-based affinity is enabled.              |
+| backend\_request\_timeout | The backend request timeout in seconds.                       |
+| backend\_host\_name | The host name to send to the backend, if pinned.                    |
+| backend\_pick\_host\_name\_from\_backend\_address | Whether to pick the host name from the backend address. |
+
+#### Relationships
+
+- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. `PathBasedRouting` rules expose only `url_path_map_id` as a pointer; their `ROUTES_TO` edge and `backend_*` properties are not populated, since individual path rules can target different backends and are not yet modeled.
+    ```cypher
+    (AzureApplicationGatewayRule)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
+    ```
+
 ### AzureTag
 
 Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
@@ -2209,6 +2378,50 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
   - Azure Network Security Groups can be tagged with Azure Tags.
     ```cypher
     (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
+    ```
+
+  - An Azure Network Security Group has one or more Security Rules whose direction is encoded in the `IpPermissionInbound` / `IpPermissionEgress` extra label.
+    ```cypher
+    (:AzureNetworkSecurityRule:IpPermissionInbound)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
+    (:AzureNetworkSecurityRule:IpPermissionEgress)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityRule :: IpPermissionInbound / IpPermissionEgress :: IpRule
+
+Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
+
+> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `EC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID of the security rule|
+|name | The name of the rule |
+|description | Free-text rule description |
+|protocol | `Tcp`, `Udp`, `Icmp`, `Esp`, `Ah`, or `*` |
+|direction | `Inbound` or `Outbound` |
+|access | `Allow` or `Deny` |
+|priority | Numeric priority; lower values are evaluated first |
+|source_port_range | Single source port or range (e.g. `*`, `80`, `1024-65535`) |
+|source_port_ranges | List of source port ranges (when more than one is set) |
+|destination_port_range | Single destination port or range |
+|destination_port_ranges | List of destination port ranges |
+|source_address_prefix | Single source CIDR / service tag (e.g. `*`, `Internet`, `10.0.0.0/8`) |
+|source_address_prefixes | List of source CIDRs / service tags |
+|destination_address_prefix | Single destination CIDR / service tag |
+|destination_address_prefixes | List of destination CIDRs / service tags |
+|is_default | `true` if this is a platform default rule, `false` if user-defined |
+
+#### Relationships
+
+- An Azure Network Security Rule belongs to a Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityRule)
+    ```
+- An Azure Network Security Rule is a member of a Network Security Group.
+    ```cypher
+    (AzureNetworkSecurityRule)-[:MEMBER_OF_AZURE_NSG]->(AzureNetworkSecurityGroup)
     ```
 
 ### AzureFirewall
@@ -2433,6 +2646,11 @@ Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us
   - An Azure Network Interface is associated with one or more Public IP Addresses.
     ```cypher
     (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
+  - An Azure Network Interface can be associated with a Network Security Group at the NIC level.
+    ```cypher
+    (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
     ```
 
 ### AzurePublicIPAddress

@@ -19,6 +19,49 @@ MOCK_NSGS = [
         "name": "my-test-nsg",
         "location": "eastus",
         "tags": {"env": "prod", "service": "nsg"},
+        "security_rules": [
+            {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg/securityRules/allow-ssh-from-internet",
+                "name": "allow-ssh-from-internet",
+                "description": "Allow SSH from the internet",
+                "protocol": "Tcp",
+                "direction": "Inbound",
+                "access": "Allow",
+                "priority": 100,
+                "source_port_range": "*",
+                "destination_port_range": "22",
+                "source_address_prefix": "*",
+                "destination_address_prefix": "*",
+            },
+            {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg/securityRules/deny-rdp",
+                "name": "deny-rdp",
+                "properties": {
+                    "protocol": "Tcp",
+                    "direction": "Inbound",
+                    "access": "Deny",
+                    "priority": 200,
+                    "source_port_range": "*",
+                    "destination_port_ranges": ["3389"],
+                    "source_address_prefix": "Internet",
+                    "destination_address_prefix": "*",
+                },
+            },
+        ],
+        "default_security_rules": [
+            {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg/defaultSecurityRules/AllowVnetInBound",
+                "name": "AllowVnetInBound",
+                "protocol": "*",
+                "direction": "Inbound",
+                "access": "Allow",
+                "priority": 65000,
+                "source_port_range": "*",
+                "destination_port_range": "*",
+                "source_address_prefix": "VirtualNetwork",
+                "destination_address_prefix": "VirtualNetwork",
+            },
+        ],
     },
 ]
 
@@ -83,6 +126,9 @@ MOCK_NETWORK_INTERFACES = [
         "mac_address": "00-0D-3A-1B-C7-21",
         "virtual_machine": {
             "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/my-vm-1",
+        },
+        "network_security_group": {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg",
         },
         "ip_configurations": [
             {

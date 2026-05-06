@@ -1,62 +1,16 @@
+import importlib
 import logging
 import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
+from typing import Any
 from typing import Callable
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
-import cartography.intel.aibom
-import cartography.intel.airbyte
-import cartography.intel.analysis
-import cartography.intel.anthropic
-import cartography.intel.aws
-import cartography.intel.azure
-import cartography.intel.bigfix
-import cartography.intel.cloudflare
-import cartography.intel.create_indexes
-import cartography.intel.crowdstrike
-import cartography.intel.cve
-import cartography.intel.cve_metadata
-import cartography.intel.digitalocean
-import cartography.intel.docker_scout
-import cartography.intel.duo
-import cartography.intel.gcp
-import cartography.intel.github
-import cartography.intel.gitlab
-import cartography.intel.googleworkspace
-import cartography.intel.gsuite
-import cartography.intel.jamf
-import cartography.intel.jumpcloud
-import cartography.intel.kandji
-import cartography.intel.keycloak
-import cartography.intel.kubernetes
-import cartography.intel.lastpass
-import cartography.intel.microsoft
-import cartography.intel.oci
-import cartography.intel.okta
-import cartography.intel.ontology
-import cartography.intel.openai
-import cartography.intel.pagerduty
-import cartography.intel.scaleway
-import cartography.intel.semgrep
-import cartography.intel.sentinelone
-import cartography.intel.sentry
-import cartography.intel.slack
-import cartography.intel.snipeit
-import cartography.intel.socketdev
-import cartography.intel.spacelift
-import cartography.intel.subimage
-import cartography.intel.syft
-import cartography.intel.tailscale
-import cartography.intel.trivy
-import cartography.intel.ubuntu
-import cartography.intel.vercel
-import cartography.intel.workday
-import cartography.intel.workos
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -65,57 +19,116 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
+class _LazyStage:
+    """Callable that defers `from cartography.intel.X import func` until first invocation.
+
+    Keeps `import cartography.sync` cheap: provider SDKs (boto3, azure-mgmt-*,
+    google-cloud-*, etc.) only load when the stage is actually run.
+    """
+
+    __slots__ = ("_module", "_attr", "_resolved")
+
+    def __init__(self, module: str, attr: str) -> None:
+        self._module = module
+        self._attr = attr
+        self._resolved: Callable[..., None] | None = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        if self._resolved is None:
+            self._resolved = getattr(importlib.import_module(self._module), self._attr)
+        self._resolved(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return f"_LazyStage({self._module}.{self._attr})"
+
+
 TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
-        "create-indexes": cartography.intel.create_indexes.run,
-        "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
-        "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
-        "aws": cartography.intel.aws.start_aws_ingestion,
-        "azure": cartography.intel.azure.start_azure_ingestion,
-        "microsoft": cartography.intel.microsoft.start_microsoft_ingestion,
-        "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
-        "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
-        "gcp": cartography.intel.gcp.start_gcp_ingestion,
-        "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
-        "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
-        "cve": cartography.intel.cve.start_cve_ingestion,
-        "cve_metadata": cartography.intel.cve_metadata.start_cve_metadata_ingestion,
-        "oci": cartography.intel.oci.start_oci_ingestion,
-        "okta": cartography.intel.okta.start_okta_ingestion,
-        "openai": cartography.intel.openai.start_openai_ingestion,
-        "github": cartography.intel.github.start_github_ingestion,
-        "gitlab": cartography.intel.gitlab.start_gitlab_ingestion,
-        "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
-        "kandji": cartography.intel.kandji.start_kandji_ingestion,
-        "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
-        "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
-        "jumpcloud": cartography.intel.jumpcloud.start_jumpcloud_ingestion,
-        "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
-        "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
-        "duo": cartography.intel.duo.start_duo_ingestion,
-        "workday": cartography.intel.workday.start_workday_ingestion,
-        "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
-        "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
-        "sentry": cartography.intel.sentry.start_sentry_ingestion,
-        "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
-        "socketdev": cartography.intel.socketdev.start_socketdev_ingestion,
-        "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
-        "jamf": cartography.intel.jamf.start_jamf_ingestion,
-        "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
-        "docker_scout": cartography.intel.docker_scout.start_docker_scout_ingestion,
-        "trivy": cartography.intel.trivy.start_trivy_ingestion,
-        "syft": cartography.intel.syft.start_syft_ingestion,
-        "aibom": cartography.intel.aibom.start_aibom_ingestion,
-        "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
-        "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
-        "slack": cartography.intel.slack.start_slack_ingestion,
-        "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
-        "workos": cartography.intel.workos.start_workos_ingestion,
-        "subimage": cartography.intel.subimage.start_subimage_ingestion,
-        "vercel": cartography.intel.vercel.start_vercel_ingestion,
-        "ontology": cartography.intel.ontology.run,
+        "create-indexes": _LazyStage("cartography.intel.create_indexes", "run"),
+        "airbyte": _LazyStage("cartography.intel.airbyte", "start_airbyte_ingestion"),
+        "anthropic": _LazyStage(
+            "cartography.intel.anthropic", "start_anthropic_ingestion"
+        ),
+        "aws": _LazyStage("cartography.intel.aws", "start_aws_ingestion"),
+        "azure": _LazyStage("cartography.intel.azure", "start_azure_ingestion"),
+        "microsoft": _LazyStage(
+            "cartography.intel.microsoft", "start_microsoft_ingestion"
+        ),
+        "cloudflare": _LazyStage(
+            "cartography.intel.cloudflare", "start_cloudflare_ingestion"
+        ),
+        "crowdstrike": _LazyStage(
+            "cartography.intel.crowdstrike", "start_crowdstrike_ingestion"
+        ),
+        "gcp": _LazyStage("cartography.intel.gcp", "start_gcp_ingestion"),
+        "googleworkspace": _LazyStage(
+            "cartography.intel.googleworkspace", "start_googleworkspace_ingestion"
+        ),
+        "gsuite": _LazyStage("cartography.intel.gsuite", "start_gsuite_ingestion"),
+        "cve": _LazyStage("cartography.intel.cve", "start_cve_ingestion"),
+        "cve_metadata": _LazyStage(
+            "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
+        ),
+        "oci": _LazyStage("cartography.intel.oci", "start_oci_ingestion"),
+        "okta": _LazyStage("cartography.intel.okta", "start_okta_ingestion"),
+        "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
+        "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
+        "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
+        "digitalocean": _LazyStage(
+            "cartography.intel.digitalocean", "start_digitalocean_ingestion"
+        ),
+        "kandji": _LazyStage("cartography.intel.kandji", "start_kandji_ingestion"),
+        "keycloak": _LazyStage(
+            "cartography.intel.keycloak", "start_keycloak_ingestion"
+        ),
+        "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
+        "jumpcloud": _LazyStage(
+            "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"
+        ),
+        "lastpass": _LazyStage(
+            "cartography.intel.lastpass", "start_lastpass_ingestion"
+        ),
+        "bigfix": _LazyStage("cartography.intel.bigfix", "start_bigfix_ingestion"),
+        "duo": _LazyStage("cartography.intel.duo", "start_duo_ingestion"),
+        "workday": _LazyStage("cartography.intel.workday", "start_workday_ingestion"),
+        "scaleway": _LazyStage(
+            "cartography.intel.scaleway", "start_scaleway_ingestion"
+        ),
+        "semgrep": _LazyStage("cartography.intel.semgrep", "start_semgrep_ingestion"),
+        "sentry": _LazyStage("cartography.intel.sentry", "start_sentry_ingestion"),
+        "snipeit": _LazyStage("cartography.intel.snipeit", "start_snipeit_ingestion"),
+        "socketdev": _LazyStage(
+            "cartography.intel.socketdev", "start_socketdev_ingestion"
+        ),
+        "tailscale": _LazyStage(
+            "cartography.intel.tailscale", "start_tailscale_ingestion"
+        ),
+        "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
+        "pagerduty": _LazyStage(
+            "cartography.intel.pagerduty", "start_pagerduty_ingestion"
+        ),
+        "docker_scout": _LazyStage(
+            "cartography.intel.docker_scout", "start_docker_scout_ingestion"
+        ),
+        "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
+        "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
+        "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
+        "sentinelone": _LazyStage(
+            "cartography.intel.sentinelone", "start_sentinelone_ingestion"
+        ),
+        "slack": _LazyStage("cartography.intel.slack", "start_slack_ingestion"),
+        "spacelift": _LazyStage(
+            "cartography.intel.spacelift", "start_spacelift_ingestion"
+        ),
+        "workos": _LazyStage("cartography.intel.workos", "start_workos_ingestion"),
+        "subimage": _LazyStage(
+            "cartography.intel.subimage", "start_subimage_ingestion"
+        ),
+        "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
+        "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
-        "analysis": cartography.intel.analysis.run,
+        "analysis": _LazyStage("cartography.intel.analysis", "run"),
     }
 )
 
@@ -304,11 +317,14 @@ class Sync:
             The 'create-indexes' and 'analysis' modules are handled specially
             to ensure consistent ordering regardless of discovery order.
         """
+        intel_pkg = importlib.import_module("cartography.intel")
         available_modules = OrderedDict({})
-        available_modules["create-indexes"] = cartography.intel.create_indexes.run
+        available_modules["create-indexes"] = importlib.import_module(
+            "cartography.intel.create_indexes"
+        ).run
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
-        for intel_module_info in iter_modules(cartography.intel.__path__):
+        for intel_module_info in iter_modules(intel_pkg.__path__):
             if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
@@ -345,8 +361,12 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
-        available_modules["ontology"] = cartography.intel.ontology.run
-        available_modules["analysis"] = cartography.intel.analysis.run
+        available_modules["ontology"] = importlib.import_module(
+            "cartography.intel.ontology"
+        ).run
+        available_modules["analysis"] = importlib.import_module(
+            "cartography.intel.analysis"
+        ).run
         return available_modules
 
 

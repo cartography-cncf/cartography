@@ -119,42 +119,22 @@ class CloudRunJobContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunJobContainerToArtifactRegistryContainerImageRelProperties(
+class CloudRunJobContainerToArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunJobContainerToArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+class CloudRunJobContainerToArtifactRegistryImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobContainerToArtifactRegistryContainerImageRelProperties = (
-        CloudRunJobContainerToArtifactRegistryContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunJobContainerToArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunJobContainerToArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobContainerToArtifactRegistryPlatformImageRelProperties = (
-        CloudRunJobContainerToArtifactRegistryPlatformImageRelProperties()
+    properties: CloudRunJobContainerToArtifactRegistryImageRelProperties = (
+        CloudRunJobContainerToArtifactRegistryImageRelProperties()
     )
 
 
@@ -172,7 +152,6 @@ class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
             CloudRunJobContainerToJobWorkloadParentRel(),
             CloudRunJobContainerToECRImageRel(),
             CloudRunJobContainerToGitLabContainerImageRel(),
-            CloudRunJobContainerToArtifactRegistryContainerImageRel(),
-            CloudRunJobContainerToArtifactRegistryPlatformImageRel(),
+            CloudRunJobContainerToArtifactRegistryImageRel(),
         ],
     )

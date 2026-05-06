@@ -21,7 +21,7 @@ class PagerDutyEscalationPolicyRuleProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PagerDutyEscalationPolicyRuleToEscalationPolicyProperties(
+class PagerDutyEscalationPolicyRuleToEscalationPolicyRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -37,13 +37,13 @@ class PagerDutyEscalationPolicyRuleToEscalationPolicyRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_RULE"
-    properties: PagerDutyEscalationPolicyRuleToEscalationPolicyProperties = (
-        PagerDutyEscalationPolicyRuleToEscalationPolicyProperties()
+    properties: PagerDutyEscalationPolicyRuleToEscalationPolicyRelProperties = (
+        PagerDutyEscalationPolicyRuleToEscalationPolicyRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class PagerDutyEscalationPolicyRuleToUserProperties(CartographyRelProperties):
+class PagerDutyEscalationPolicyRuleToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,13 +56,13 @@ class PagerDutyEscalationPolicyRuleToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: PagerDutyEscalationPolicyRuleToUserProperties = (
-        PagerDutyEscalationPolicyRuleToUserProperties()
+    properties: PagerDutyEscalationPolicyRuleToUserRelProperties = (
+        PagerDutyEscalationPolicyRuleToUserRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class PagerDutyEscalationPolicyRuleToScheduleProperties(CartographyRelProperties):
+class PagerDutyEscalationPolicyRuleToScheduleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -75,8 +75,8 @@ class PagerDutyEscalationPolicyRuleToScheduleRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: PagerDutyEscalationPolicyRuleToScheduleProperties = (
-        PagerDutyEscalationPolicyRuleToScheduleProperties()
+    properties: PagerDutyEscalationPolicyRuleToScheduleRelProperties = (
+        PagerDutyEscalationPolicyRuleToScheduleRelProperties()
     )
 
 

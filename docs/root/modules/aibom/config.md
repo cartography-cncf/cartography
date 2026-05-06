@@ -56,7 +56,7 @@ The module preserves those optional fields when present.
 AIBOM links scan results to any node carrying the `:Image` ontology label, making it provider-agnostic across ECR, GCP Artifact Registry, GitLab Container Registry, and other supported registries.
 
 - **Digest-based URIs** (`repo@sha256:...`): The digest is extracted directly and verified against `:Image` nodes via `_ont_digest`. No provider-specific traversal is needed.
-- **Tag-based URIs** (`repo:tag`): A provider-specific fallback resolves the tag via `ECRRepositoryImage` → `ECRImage`. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests, creating one-to-many relationships from a single source or component to multiple platform images.
+- **Tag-based URIs** (`repo:tag`): Provider-specific fallbacks resolve the tag through registry reference nodes such as `ECRRepositoryImage` and `GCPArtifactRegistryRepositoryImage`, then follow `IMAGE` to the canonical image node. Single-platform images are returned directly. For manifest lists, the resolver traverses `CONTAINS_IMAGE` to return all child single-platform image digests, creating one-to-many relationships from a single source or component to multiple platform images.
 
 ### Provenance behavior
 
@@ -69,7 +69,7 @@ This makes stale coverage, failed scans, and mismatched image URIs visible in th
 
 ### Prerequisite
 
-Run image provider ingestion (ECR, GCP Artifact Registry, GitLab, etc.) before AIBOM ingestion so `:Image` nodes with `_ont_digest` exist in the graph. For tag-based URI resolution, `ECRRepositoryImage` nodes must also exist. In the default sync order AIBOM runs after provider modules automatically.
+Run image provider ingestion (ECR, GCP Artifact Registry, GitLab, etc.) before AIBOM ingestion so `:Image` nodes with `_ont_digest` exist in the graph. For tag-based URI resolution, provider tag/reference nodes such as `ECRRepositoryImage` or `GCPArtifactRegistryRepositoryImage` must also exist. In the default sync order AIBOM runs after provider modules automatically.
 
 ### Results layout
 

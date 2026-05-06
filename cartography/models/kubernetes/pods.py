@@ -21,6 +21,14 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
     namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
     service_account_name: PropertyRef = PropertyRef("service_account_name")
+    automount_service_account_token: PropertyRef = PropertyRef(
+        "automount_service_account_token"
+    )
+    host_pid: PropertyRef = PropertyRef("host_pid")
+    host_ipc: PropertyRef = PropertyRef("host_ipc")
+    host_network: PropertyRef = PropertyRef("host_network")
+    seccomp_profile_type: PropertyRef = PropertyRef("seccomp_profile_type")
+    host_path_volume_paths: PropertyRef = PropertyRef("host_path_volume_paths")
     labels: PropertyRef = PropertyRef("labels")
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True

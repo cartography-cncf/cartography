@@ -71,6 +71,15 @@ cis_azure_iam.py      # CIS Azure IAM controls
 # =============================================================================
 ```
 
+For controls that are not covered yet, use the same header style so gaps are easy to spot and grep for:
+
+```python
+# =============================================================================
+# TODO: CIS AWS 1.14: Access keys not rotated in 90 days
+# Missing: IAM access key rotation detection
+# =============================================================================
+```
+
 ## Tags vs frameworks
 
 Use `frameworks` for compliance refs:

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+from cartography.client.gcp.artifact_registry import get_gcp_container_images
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
@@ -87,12 +88,12 @@ def test_sync_trivy_gcp(
     neo4j_session,
 ):
     """
-    Ensure that Trivy scan results create relationships to GCPArtifactRegistryPlatformImage nodes
+    Ensure that Trivy scan results create relationships to canonical GCPArtifactRegistryImage nodes
     for multi-arch images. The test uses:
-    - ContainerImage with manifest list digest: sha256:abc123
-    - PlatformImage with platform-specific digest: sha256:def456 (linux/amd64)
+    - GCPArtifactRegistryImage with manifest list digest: sha256:abc123
+    - GCPArtifactRegistryImage with platform-specific digest: sha256:def456 (linux/amd64)
     - Trivy reports the platform-specific digest: sha256:def456
-    - Relationships should be created to the PlatformImage, not ContainerImage
+    - Relationships should be created to the platform-specific canonical image, not the manifest list
     """
     # Arrange - create GCP project
     _create_test_project(neo4j_session)
@@ -115,6 +116,50 @@ def test_sync_trivy_gcp(
     mock_build_artifact_registry_client.assert_called_once_with(
         credentials=mock_credentials,
     )
+    assert set(get_gcp_container_images(neo4j_session)) == {
+        (
+            "us-central1",
+            "latest",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:latest",
+            "docker-repo",
+            "sha256:abc123",
+        ),
+        (
+            "us-central1",
+            "latest",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:latest",
+            "docker-repo",
+            "sha256:def456",
+        ),
+        (
+            "us-central1",
+            "latest",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:latest",
+            "docker-repo",
+            "sha256:ghi789",
+        ),
+        (
+            "us-central1",
+            "v1.0.0",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0",
+            "docker-repo",
+            "sha256:abc123",
+        ),
+        (
+            "us-central1",
+            "v1.0.0",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0",
+            "docker-repo",
+            "sha256:def456",
+        ),
+        (
+            "us-central1",
+            "v1.0.0",
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0",
+            "docker-repo",
+            "sha256:ghi789",
+        ),
+    }
 
     # Act - sync Trivy results
     sync_trivy_from_dir(
