@@ -68,9 +68,36 @@ def test_get_semgrep_oss_repository_mappings_rejects_multiple_yaml_files():
         get_semgrep_oss_repository_mappings(LocalReportReader(str(fixture_path)))
 
 
+def test_get_semgrep_oss_repository_mappings_rejects_missing_required_fields():
+    fixture_path = Path("tests/data/semgrep/repository_mappings_missing_fields.yaml")
+    with pytest.raises(
+        ValueError,
+        match="Semgrep OSS repository mapping file is invalid",
+    ):
+        get_semgrep_oss_repository_mappings(LocalReportReader(str(fixture_path)))
+
+
+def test_get_semgrep_oss_repository_mappings_rejects_empty_reports():
+    fixture_path = Path("tests/data/semgrep/repository_mappings_empty_reports.yaml")
+    with pytest.raises(
+        ValueError,
+        match="Semgrep OSS repository mapping file is invalid",
+    ):
+        get_semgrep_oss_repository_mappings(LocalReportReader(str(fixture_path)))
+
+
 def test_get_semgrep_oss_report_rejects_multiple_artifacts():
     fixture_path = Path("tests/data/semgrep/multiple_report_artifacts")
     assert get_semgrep_oss_report(LocalReportReader(str(fixture_path))) is None
+
+
+def test_get_semgrep_oss_report_rejects_non_semgrep_json():
+    fixture_path = Path("tests/data/semgrep/non_semgrep_report.json")
+    assert get_semgrep_oss_report(LocalReportReader(str(fixture_path))) is None
+
+
+def test_get_semgrep_oss_report_rejects_zero_artifacts(tmp_path):
+    assert get_semgrep_oss_report(LocalReportReader(str(tmp_path))) is None
 
 
 def test_build_oss_sast_finding_id_prefers_fingerprint_when_present():
