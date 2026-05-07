@@ -250,30 +250,10 @@ tests/integration/cartography/intel/your_service/
 └── test_entities.py     # Integration tests
 ```
 
-### Test Utilities
+### Tests
 
-```python
-from tests.integration.util import check_nodes, check_rels
-
-# Check nodes
-expected_nodes = {("user-123", "alice@example.com")}
-assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
-
-# Check relationships
-expected_rels = {("user-123", "tenant-123")}
-assert check_rels(
-    neo4j_session,
-    "YourServiceUser", "id",
-    "YourServiceTenant", "id",
-    "RESOURCE",
-    rel_direction_right=True,
-) == expected_rels
-```
-
-### Integration Test Boundary
-
-- Integration tests may seed prerequisite graph state with Cypher, but should exercise real Cartography `sync()` / `sync_*()` flows end-to-end whenever practical.
-- Prefer mocking only external boundaries such as API clients, service discovery, credentials, and network responses; do not mock Cartography internal sync, load, or cleanup functions in integration tests.
+For test-specific guidance, including integration test boundaries, Cypher usage,
+fixtures, and `check_nodes()` / `check_rels()` helpers, see `tests/AGENTS.md`.
 
 ---
 
