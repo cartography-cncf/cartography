@@ -9,7 +9,7 @@
     },
     {
       "__comment": "Create RESOLVED_IMAGE for containers by treating HAS_IMAGE targets as published image artifacts, or by following one IMAGE hop when the target is an ImageTag. Direct Image artifacts resolve immediately. ImageManifestList artifacts resolve through a single architecture-matched CONTAINS_IMAGE child. Only creates the edge when exactly one distinct concrete image candidate exists.",
-      "query": "MATCH (c:Container)-[:HAS_IMAGE]->()-[:IMAGE*0..1]->(published) WHERE published:Image OR published:ImageManifestList OPTIONAL MATCH (published)-[:CONTAINS_IMAGE]->(child:Image) WHERE published:ImageManifestList AND c.architecture_normalized IS NOT NULL AND child._ont_architecture = c.architecture_normalized WITH c, collect(DISTINCT CASE WHEN published:Image AND NOT published:ImageManifestList THEN published WHEN child IS NOT NULL THEN child END) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "query": "MATCH (c:Container)-[:HAS_IMAGE]->()-[:IMAGE*0..1]->(published) WHERE published:Image OR published:ImageManifestList OPTIONAL MATCH (published)-[:CONTAINS_IMAGE]->(child:Image) WHERE c.architecture_normalized IS NOT NULL AND child._ont_architecture = c.architecture_normalized WITH c, collect(DISTINCT CASE WHEN published:Image AND NOT published:ImageManifestList THEN published WHEN child IS NOT NULL THEN child END) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
@@ -20,7 +20,7 @@
     },
     {
       "__comment": "Create RESOLVED_IMAGE for functions by treating HAS_IMAGE targets as published image artifacts, or by following one IMAGE hop when the target is an ImageTag. Direct Image artifacts resolve immediately. ImageManifestList artifacts resolve through a single architecture-matched CONTAINS_IMAGE child. Only creates the edge when exactly one distinct concrete image candidate exists.",
-      "query": "MATCH (f:Function)-[:HAS_IMAGE]->()-[:IMAGE*0..1]->(published) WHERE published:Image OR published:ImageManifestList OPTIONAL MATCH (published)-[:CONTAINS_IMAGE]->(child:Image) WHERE published:ImageManifestList AND f.architecture_normalized IS NOT NULL AND child._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT CASE WHEN published:Image AND NOT published:ImageManifestList THEN published WHEN child IS NOT NULL THEN child END) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "query": "MATCH (f:Function)-[:HAS_IMAGE]->()-[:IMAGE*0..1]->(published) WHERE published:Image OR published:ImageManifestList OPTIONAL MATCH (published)-[:CONTAINS_IMAGE]->(child:Image) WHERE f.architecture_normalized IS NOT NULL AND child._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT CASE WHEN published:Image AND NOT published:ImageManifestList THEN published WHEN child IS NOT NULL THEN child END) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     }
   ]
