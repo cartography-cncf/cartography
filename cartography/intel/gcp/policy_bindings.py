@@ -67,7 +67,7 @@ class _FullNameMapping:
 
 
 @dataclass(frozen=True)
-class _ResourceTarget:
+class _AppliesToTarget:
     label: str
     property_name: str
     value: str
@@ -317,25 +317,26 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
 def _parse_bigquery_resource_name(
     parts: list[str],
     marker: str,
+    name_segment: str,
     id_mode: str,
 ) -> str | None:
     try:
         project_id = parts[parts.index("projects") + 1]
-        dataset_id = parts[parts.index("datasets") + 1]
     except (ValueError, IndexError):
         return None
 
     if id_mode == "bigquery_dataset":
-        return f"{project_id}:{dataset_id}"
+        return f"{project_id}:{name_segment}"
 
     try:
+        dataset_id = parts[parts.index("datasets") + 1]
         resource_id = parts[parts.index(marker) + 1]
     except (ValueError, IndexError):
         return None
     return f"{project_id}:{dataset_id}.{resource_id}"
 
 
-def _target_from_full_resource_name(full_name: str) -> _ResourceTarget | None:
+def _parse_full_resource_name(full_name: str) -> _AppliesToTarget | None:
     """
     Parse a GCP Cloud Asset full resource name and return the matching
     Cartography node target when the resource type is part of the Cartography
@@ -373,18 +374,14 @@ def _target_from_full_resource_name(full_name: str) -> _ResourceTarget | None:
                 value = f"{mapping.id_prefix}{value}"
         elif mapping.id_mode.startswith("bigquery_"):
             value = _parse_bigquery_resource_name(
-                parts, mapping.marker, mapping.id_mode
+                parts,
+                mapping.marker,
+                name_segment,
+                mapping.id_mode,
             )
         if value:
-            return _ResourceTarget(mapping.label, mapping.target_property, value)
+            return _AppliesToTarget(mapping.label, mapping.target_property, value)
     return None
-
-
-def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
-    target = _target_from_full_resource_name(full_name)
-    if target is None:
-        return None, None
-    return target.label, target.value
 
 
 class PolicyBindingsSyncStatus(str, Enum):
@@ -671,7 +668,7 @@ def _group_applies_to_links(
     """
     grouped: dict[tuple[str, str], list[dict[str, str]]] = {}
     for binding in bindings:
-        target = _target_from_full_resource_name(binding["resource"])
+        target = _parse_full_resource_name(binding["resource"])
         if target is None:
             continue
         grouped.setdefault((target.label, target.property_name), []).append(

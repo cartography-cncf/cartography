@@ -9,6 +9,7 @@ from google.api_core.exceptions import RetryError
 
 import cartography.intel.gcp
 import cartography.intel.gcp.policy_bindings as policy_bindings
+from cartography.intel.gcp.policy_bindings import _AppliesToTarget
 from cartography.intel.gcp.policy_bindings import _group_applies_to_links
 from cartography.intel.gcp.policy_bindings import _parse_full_resource_name
 
@@ -251,7 +252,20 @@ COMMON_JOB_PARAMS = {
     ],
 )
 def test_parse_full_resource_name(full_name, expected):
-    assert _parse_full_resource_name(full_name) == expected
+    if expected == (None, None):
+        assert _parse_full_resource_name(full_name) is None
+        return
+
+    expected_label, expected_value = expected
+    expected_property = {
+        "GCPArtifactRegistryRepositoryImage": "resource_name",
+        "GCPServiceAccount": "email",
+    }.get(expected_label, "id")
+    assert _parse_full_resource_name(full_name) == _AppliesToTarget(
+        expected_label,
+        expected_property,
+        expected_value,
+    )
 
 
 def test_group_applies_to_links_groups_by_target_matcher():

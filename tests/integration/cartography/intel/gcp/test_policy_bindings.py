@@ -220,6 +220,11 @@ def test_sync_gcp_policy_bindings(
             "resource",
         ),
         (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "roles/viewer",
+            "resource",
+        ),
+        (
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
             "roles/bigquery.dataViewer",
             "resource",
@@ -262,6 +267,10 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+        ),
+        (
+            TEST_PROJECT_ID,
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
     }
@@ -288,6 +297,10 @@ def test_sync_gcp_policy_bindings(
         (
             "alice@example.com",
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+        (
+            "alice@example.com",
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
         ),
         (
             "bob@example.com",
@@ -346,6 +359,10 @@ def test_sync_gcp_policy_bindings(
         (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
+        ),
+        (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "roles/viewer",
         ),
         (
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
@@ -415,6 +432,23 @@ def test_sync_gcp_policy_bindings(
         (
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
             "project-abc:dataset_a.events",
+        ),
+    }
+
+    # Check GCPPolicyBinding to GCPServiceAccount APPLIES_TO relationships. This
+    # target matches on email instead of id.
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "sa@project-abc.iam.gserviceaccount.com",
         ),
     }
 
