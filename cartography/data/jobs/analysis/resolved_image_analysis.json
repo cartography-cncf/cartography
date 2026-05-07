@@ -13,8 +13,8 @@
       "iterative": false
     },
     {
-      "__comment": "Create RESOLVED_IMAGE for containers whose HAS_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the platform child :Image whose architecture matches the container's architecture_normalized, and only creates the edge when exactly one child matches.",
-      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized WITH c, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for containers whose HAS_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the platform child :Image whose architecture matches the container's architecture_normalized.",
+      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized MERGE (c)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
@@ -23,8 +23,8 @@
       "iterative": false
     },
     {
-      "__comment": "Create RESOLVED_IMAGE for containers whose HAS_IMAGE points at an ImageTag that points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image and only creates the edge when exactly one child matches.",
-      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized WITH c, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for containers whose HAS_IMAGE points at an ImageTag that points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image.",
+      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized MERGE (c)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
@@ -39,8 +39,8 @@
       "iterative": false
     },
     {
-      "__comment": "Create RESOLVED_IMAGE for functions whose direct HAS_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image and only creates the edge when exactly one child matches.",
-      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for functions whose direct HAS_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image.",
+      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized MERGE (f)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
@@ -49,8 +49,8 @@
       "iterative": false
     },
     {
-      "__comment": "Create RESOLVED_IMAGE for functions whose HAS_IMAGE points at an ImageTag that points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image and only creates the edge when exactly one child matches.",
-      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for functions whose HAS_IMAGE points at an ImageTag that points at an ImageManifestList. Traverses CONTAINS_IMAGE to the architecture-matching child Image.",
+      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized MERGE (f)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     }
   ]
