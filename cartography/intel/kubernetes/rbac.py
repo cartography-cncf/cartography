@@ -79,6 +79,9 @@ def transform_service_accounts(
                 "id": f"{cluster_name}/{sa.metadata.namespace}/{sa.metadata.name}",
                 "name": sa.metadata.name,
                 "namespace": sa.metadata.namespace,
+                "automount_service_account_token": getattr(
+                    sa, "automount_service_account_token", None
+                ),
                 "aws_role_arn": annotations.get(IRSA_ROLE_ARN_ANNOTATION),
                 "gcp_service_account": annotations.get(
                     GKE_WORKLOAD_IDENTITY_ANNOTATION

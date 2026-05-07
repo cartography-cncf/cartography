@@ -1,8 +1,8 @@
 """
 CIS AWS Logging Security Checks
 
-Implements CIS AWS Foundations Benchmark Section 3: Logging
-Based on CIS AWS Foundations Benchmark v5.0
+Implements CIS AWS Foundations Benchmark Section 4: Logging
+Based on CIS AWS Foundations Benchmark v6.0.0
 
 Each Rule represents a distinct security concept with a consistent main node type.
 Facts within a Rule are provider-specific implementations of the same concept.
@@ -18,7 +18,7 @@ from cartography.rules.spec.model import RuleReference
 
 CIS_REFERENCES = [
     RuleReference(
-        text="CIS AWS Foundations Benchmark v5.0",
+        text="CIS AWS Foundations Benchmark v6.0.0",
         url="https://www.cisecurity.org/benchmark/amazon_web_services",
     ),
     RuleReference(
@@ -29,7 +29,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 3.1: CloudTrail Multi-Region
+# CIS AWS 4.1: CloudTrail is enabled in all regions
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailMultiRegionOutput(Finding):
@@ -76,9 +76,9 @@ _aws_cloudtrail_not_multi_region = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_1_cloudtrail_multi_region = Rule(
-    id="cis_aws_3_1_cloudtrail_multi_region",
-    name="CIS AWS 3.1: CloudTrail Multi-Region",
+cis_aws_4_1_cloudtrail_multi_region = Rule(
+    id="cis_aws_4_1_cloudtrail_multi_region",
+    name="CIS AWS 4.1: CloudTrail Multi-Region",
     description=(
         "CloudTrail should be enabled in all regions to ensure complete visibility "
         "into API activity across the entire AWS infrastructure."
@@ -93,15 +93,15 @@ cis_aws_3_1_cloudtrail_multi_region = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="3.1",
+            revision="6.0.0",
+            requirement="4.1",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 3.4: CloudTrail Log File Validation
+# CIS AWS 4.2: CloudTrail Log File Validation
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailLogValidationOutput(Finding):
@@ -148,9 +148,9 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_4_cloudtrail_log_validation = Rule(
-    id="cis_aws_3_4_cloudtrail_log_validation",
-    name="CIS AWS 3.4: CloudTrail Log File Validation",
+cis_aws_4_2_cloudtrail_log_validation = Rule(
+    id="cis_aws_4_2_cloudtrail_log_validation",
+    name="CIS AWS 4.2: CloudTrail Log File Validation",
     description=(
         "CloudTrail should have log file validation enabled to ensure the integrity "
         "of log files through digitally signed digest files."
@@ -165,71 +165,75 @@ cis_aws_3_4_cloudtrail_log_validation = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="3.4",
+            revision="6.0.0",
+            requirement="4.2",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 3.5: CloudTrail CloudWatch Integration
-# Main node: CloudTrailTrail
+# CIS AWS 4.4: Server access logging on the CloudTrail S3 bucket
+# Main node: S3Bucket
 # =============================================================================
-class CloudTrailCloudWatchOutput(Finding):
-    """Output model for CloudTrail CloudWatch integration check."""
+class CloudTrailBucketAccessLoggingOutput(Finding):
+    """Output model for CloudTrail S3 bucket access logging check."""
 
-    trail_name: str | None = None
-    trail_arn: str | None = None
-    home_region: str | None = None
-    cloudwatch_log_group: str | None = None
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    logging_enabled: bool | None = None
+    trail_names: list[str] | None = None
+    trail_arns: list[str] | None = None
     account_id: str | None = None
     account: str | None = None
 
 
-_aws_cloudtrail_no_cloudwatch = Fact(
-    id="aws_cloudtrail_no_cloudwatch",
-    name="AWS CloudTrail not integrated with CloudWatch Logs",
+_aws_cloudtrail_bucket_access_logging_disabled = Fact(
+    id="aws_cloudtrail_bucket_access_logging_disabled",
+    name="AWS CloudTrail S3 bucket without server access logging",
     description=(
-        "Detects CloudTrail trails that are not sending logs to CloudWatch Logs. "
-        "Integrating CloudTrail with CloudWatch Logs enables real-time analysis "
-        "and alerting on API activity."
+        "Detects S3 buckets that are CloudTrail destinations but do not have "
+        "server access logging enabled. Access logging on the CloudTrail bucket "
+        "captures requests against audit logs themselves."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
-    WHERE trail.cloudwatch_logs_log_group_arn IS NULL OR trail.cloudwatch_logs_log_group_arn = ''
+    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN
-        trail.name AS trail_name,
-        trail.arn AS trail_arn,
-        trail.home_region AS home_region,
-        trail.cloudwatch_logs_log_group_arn AS cloudwatch_log_group,
+        bucket.name AS bucket_name,
+        bucket.id AS bucket_id,
+        bucket.region AS region,
+        bucket.logging_enabled AS logging_enabled,
+        collect(DISTINCT trail.name) AS trail_names,
+        collect(DISTINCT trail.arn) AS trail_arns,
         a.id AS account_id,
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
-    WHERE trail.cloudwatch_logs_log_group_arn IS NULL OR trail.cloudwatch_logs_log_group_arn = ''
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (trail:CloudTrailTrail)
-    RETURN COUNT(trail) AS count
+    MATCH (:CloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    RETURN COUNT(DISTINCT bucket) AS count
     """,
-    asset_id_field="trail_arn",
+    asset_id_field="bucket_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_5_cloudtrail_cloudwatch = Rule(
-    id="cis_aws_3_5_cloudtrail_cloudwatch",
-    name="CIS AWS 3.5: CloudTrail CloudWatch Integration",
+cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
+    id="cis_aws_4_4_cloudtrail_bucket_access_logging",
+    name="CIS AWS 4.4: CloudTrail S3 Bucket Access Logging",
     description=(
-        "CloudTrail should be integrated with CloudWatch Logs to enable real-time "
-        "analysis and alerting on API activity."
+        "Server access logging should be enabled on the S3 bucket that stores "
+        "CloudTrail logs to capture requests against the audit logs themselves."
     ),
-    output_model=CloudTrailCloudWatchOutput,
-    facts=(_aws_cloudtrail_no_cloudwatch,),
-    tags=("logging", "cloudtrail", "cloudwatch", "stride:repudiation"),
+    output_model=CloudTrailBucketAccessLoggingOutput,
+    facts=(_aws_cloudtrail_bucket_access_logging_disabled,),
+    tags=("logging", "cloudtrail", "s3", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
@@ -237,15 +241,15 @@ cis_aws_3_5_cloudtrail_cloudwatch = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="3.5",
+            revision="6.0.0",
+            requirement="4.4",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 3.7: CloudTrail KMS Encryption
+# CIS AWS 4.5: CloudTrail KMS Encryption
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailEncryptionOutput(Finding):
@@ -292,9 +296,9 @@ _aws_cloudtrail_not_encrypted = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_7_cloudtrail_encryption = Rule(
-    id="cis_aws_3_7_cloudtrail_encryption",
-    name="CIS AWS 3.7: CloudTrail KMS Encryption",
+cis_aws_4_5_cloudtrail_encryption = Rule(
+    id="cis_aws_4_5_cloudtrail_encryption",
+    name="CIS AWS 4.5: CloudTrail KMS Encryption",
     description=(
         "CloudTrail logs should be encrypted using AWS KMS customer managed keys "
         "to provide an additional layer of security for sensitive API activity data."
@@ -309,8 +313,38 @@ cis_aws_3_7_cloudtrail_encryption = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="3.7",
+            revision="6.0.0",
+            requirement="4.5",
         ),
     ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 4.3: AWS Config is enabled in all regions
+# Missing datamodel or evidence: AWS Config recorder and delivery channel inventory plus recorder status per region
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.6: Rotation for customer-created symmetric CMKs is enabled
+# Missing datamodel or evidence: KMS key inventory including KeySpec or equivalent symmetric-key discriminator and KeyRotationEnabled state
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.7: VPC flow logging is enabled in all VPCs
+# Missing datamodel or evidence: VPC Flow Log inventory and delivery status per VPC
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.8: Object-level logging for write events is enabled for S3 buckets
+# Missing datamodel or evidence: CloudTrail event selectors and S3 data event coverage for write-only or all object events
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 4.9: Object-level logging for read events is enabled for S3 buckets
+# Missing datamodel or evidence: CloudTrail event selectors and S3 data event coverage for read-only or all object events
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 5.16: AWS Security Hub is enabled
+# Missing datamodel or evidence: Security Hub regional hub subscription state
+# =============================================================================

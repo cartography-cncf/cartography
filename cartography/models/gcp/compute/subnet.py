@@ -23,6 +23,14 @@ class GCPSubnetNodeProperties(CartographyNodeProperties):
     gateway_address: PropertyRef = PropertyRef("gateway_address")
     ip_cidr_range: PropertyRef = PropertyRef("ip_cidr_range")
     private_ip_google_access: PropertyRef = PropertyRef("private_ip_google_access")
+    flow_logs_enabled: PropertyRef = PropertyRef("flow_logs_enabled")
+    flow_logs_aggregation_interval: PropertyRef = PropertyRef(
+        "flow_logs_aggregation_interval"
+    )
+    flow_logs_sampling: PropertyRef = PropertyRef("flow_logs_sampling")
+    flow_logs_metadata: PropertyRef = PropertyRef("flow_logs_metadata")
+    flow_logs_filter_expr: PropertyRef = PropertyRef("flow_logs_filter_expr")
+    purpose: PropertyRef = PropertyRef("purpose")
     vpc_partial_uri: PropertyRef = PropertyRef("vpc_partial_uri")
 
 

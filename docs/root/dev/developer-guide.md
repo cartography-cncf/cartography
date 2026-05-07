@@ -36,11 +36,12 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 --frozen ensures that only the pinned dependencies from the lockfile are used, rather than resolving to the latest available versions.
 :::
 
-1. **(OPTIONAL) Setup environment variables for integration tests**
+1. **(OPTIONAL) Configure Neo4j for integration tests**
 
-    The integration tests expect Neo4j to be running locally, listening on default ports, and with auth disabled.
+    By default, integration tests start a Neo4j testcontainer automatically. Ensure Docker is running locally before
+    running integration tests.
 
-    To run the integration tests on a specific Neo4j instance, add the following environment variable:
+    To run the integration tests on a specific existing Neo4j instance instead, add the following environment variable:
 
     `export "NEO4J_URL=<your_neo4j_instance_bolt_url:your_neo4j_instance_port>"`
 
@@ -49,7 +50,8 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
     - `test_unit` runs the unit test suite.
 
     :::{warning}
-    The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.
+    Integration tests **DELETE ALL NODES** from the Neo4j database they use. The default testcontainer path is
+    disposable; if you set `NEO4J_URL`, point it at a database you are ok with clearing.
     :::
 
     - `make test_integration` runs the integration test suite.
@@ -57,7 +59,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
       - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py`
       - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups`
       - `uv run pytest -k test_load_groups`
-    - `uv run make test` can be used to run all of the above.
+    - `make test` can be used to run all of the above.
 
 ### Coverage reports
 

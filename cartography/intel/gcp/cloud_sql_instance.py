@@ -103,6 +103,14 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if backup_config:
             backup_config_json = json.dumps(backup_config)
 
+        authorized_networks_json = None
+        if ip_config.get("authorizedNetworks"):
+            authorized_networks_json = json.dumps(ip_config.get("authorizedNetworks"))
+
+        database_flags_json = None
+        if settings.get("databaseFlags"):
+            database_flags_json = json.dumps(settings.get("databaseFlags"))
+
         # Normalize privateNetwork to match GCPVpc ID format
         # Cloud SQL API returns: /projects/.../global/networks/...
         # GCPVpc uses: projects/.../global/networks/... (no leading slash)
@@ -127,9 +135,12 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
                 "availability_type": settings.get("availabilityType"),
                 "backup_enabled": backup_config.get("enabled"),
                 "require_ssl": ip_config.get("requireSsl"),
+                "ssl_mode": ip_config.get("sslMode"),
                 "network_id": network_id,
                 "ip_addresses": ip_addresses_json,
+                "authorized_networks": authorized_networks_json,
                 "backup_configuration": backup_config_json,
+                "database_flags": database_flags_json,
                 "project_id": project_id,
                 "userLabels": settings.get("userLabels", {}),
             },
