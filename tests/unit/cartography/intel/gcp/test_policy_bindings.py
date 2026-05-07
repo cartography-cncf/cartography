@@ -9,6 +9,7 @@ from google.api_core.exceptions import RetryError
 
 import cartography.intel.gcp
 import cartography.intel.gcp.policy_bindings as policy_bindings
+from cartography.intel.gcp.policy_bindings import _group_applies_to_links
 from cartography.intel.gcp.policy_bindings import _parse_full_resource_name
 
 TEST_PROJECT_ID = "project-abc"
@@ -110,9 +111,131 @@ COMMON_JOB_PARAMS = {
             "//compute.googleapis.com/projects/p/global/firewalls/fw-allow-ssh",
             ("GCPFirewall", "projects/p/global/firewalls/fw-allow-ssh"),
         ),
-        # Unknown service
+        # Artifact Registry child resources
+        (
+            "//artifactregistry.googleapis.com/projects/p/locations/us/repositories/r/dockerImages/nginx@sha256:abc123",
+            (
+                "GCPArtifactRegistryRepositoryImage",
+                "projects/p/locations/us/repositories/r/dockerImages/nginx@sha256:abc123",
+            ),
+        ),
+        (
+            "//artifactregistry.googleapis.com/projects/p/locations/us/repositories/r/mavenArtifacts/com.example:app:1.0.0",
+            (
+                "GCPArtifactRegistryLanguagePackage",
+                "projects/p/locations/us/repositories/r/mavenArtifacts/com.example:app:1.0.0",
+            ),
+        ),
+        # BigQuery
         (
             "//bigquery.googleapis.com/projects/p/datasets/d",
+            ("GCPBigQueryDataset", "p:d"),
+        ),
+        (
+            "//bigquery.googleapis.com/projects/p/datasets/d/tables/events",
+            ("GCPBigQueryTable", "p:d.events"),
+        ),
+        (
+            "//bigquery.googleapis.com/projects/p/datasets/d/routines/routine_1",
+            ("GCPBigQueryRoutine", "p:d.routine_1"),
+        ),
+        # Cloud Functions
+        (
+            "//cloudfunctions.googleapis.com/projects/p/locations/us-central1/functions/fn",
+            ("GCPCloudFunction", "projects/p/locations/us-central1/functions/fn"),
+        ),
+        # Cloud Run
+        (
+            "//run.googleapis.com/projects/p/locations/us-central1/jobs/job-1/executions/job-1-abc",
+            (
+                "GCPCloudRunExecution",
+                "projects/p/locations/us-central1/jobs/job-1/executions/job-1-abc",
+            ),
+        ),
+        (
+            "//run.googleapis.com/projects/p/locations/us-central1/jobs/job-1",
+            ("GCPCloudRunJob", "projects/p/locations/us-central1/jobs/job-1"),
+        ),
+        (
+            "//run.googleapis.com/projects/p/locations/us-central1/revisions/rev-1",
+            (
+                "GCPCloudRunRevision",
+                "projects/p/locations/us-central1/revisions/rev-1",
+            ),
+        ),
+        # Cloud SQL
+        (
+            "//sqladmin.googleapis.com/projects/p/instances/sql-1",
+            (
+                "GCPCloudSQLInstance",
+                "https://sqladmin.googleapis.com/sql/v1beta4/projects/p/instances/sql-1",
+            ),
+        ),
+        # GKE
+        (
+            "//container.googleapis.com/projects/p/locations/us-central1/clusters/cluster-1",
+            (
+                "GKECluster",
+                "https://container.googleapis.com/v1/projects/p/locations/us-central1/clusters/cluster-1",
+            ),
+        ),
+        # IAM
+        (
+            "//iam.googleapis.com/projects/p/serviceAccounts/sa@p.iam.gserviceaccount.com/keys/key-1",
+            (
+                "GCPServiceAccountKey",
+                "projects/p/serviceAccounts/sa@p.iam.gserviceaccount.com/keys/key-1",
+            ),
+        ),
+        (
+            "//iam.googleapis.com/projects/p/serviceAccounts/sa@p.iam.gserviceaccount.com",
+            ("GCPServiceAccount", "sa@p.iam.gserviceaccount.com"),
+        ),
+        (
+            "//iam.googleapis.com/projects/p/roles/customRole",
+            ("GCPRole", "projects/p/roles/customRole"),
+        ),
+        # Vertex AI
+        (
+            "//aiplatform.googleapis.com/projects/p/locations/us-central1/models/model-1",
+            (
+                "GCPVertexAIModel",
+                "projects/p/locations/us-central1/models/model-1",
+            ),
+        ),
+        (
+            "//aiplatform.googleapis.com/projects/p/locations/us-central1/trainingPipelines/pipeline-1",
+            (
+                "GCPVertexAITrainingPipeline",
+                "projects/p/locations/us-central1/trainingPipelines/pipeline-1",
+            ),
+        ),
+        # Compute additions
+        (
+            "//compute.googleapis.com/projects/p/global/backendServices/backend-1",
+            ("GCPBackendService", "projects/p/global/backendServices/backend-1"),
+        ),
+        (
+            "//compute.googleapis.com/projects/p/regions/us-central1/forwardingRules/fr-1",
+            (
+                "GCPForwardingRule",
+                "projects/p/regions/us-central1/forwardingRules/fr-1",
+            ),
+        ),
+        (
+            "//compute.googleapis.com/projects/p/zones/us-central1-a/instanceGroups/group-1",
+            (
+                "GCPInstanceGroup",
+                "projects/p/zones/us-central1-a/instanceGroups/group-1",
+            ),
+        ),
+        (
+            "//compute.googleapis.com/projects/p/global/securityPolicies/policy-1",
+            ("GCPCloudArmorPolicy", "projects/p/global/securityPolicies/policy-1"),
+        ),
+        # Unknown service
+        (
+            "//pubsub.googleapis.com/projects/p/topics/topic-1",
             (None, None),
         ),
         # Empty suffix
@@ -129,6 +252,34 @@ COMMON_JOB_PARAMS = {
 )
 def test_parse_full_resource_name(full_name, expected):
     assert _parse_full_resource_name(full_name) == expected
+
+
+def test_group_applies_to_links_groups_by_target_matcher():
+    bindings = [
+        {
+            "id": "sa-binding",
+            "resource": "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com",
+        },
+        {
+            "id": "image-binding",
+            "resource": "//artifactregistry.googleapis.com/projects/project-abc/locations/us/repositories/repo/dockerImages/nginx@sha256:abc123",
+        },
+    ]
+
+    assert _group_applies_to_links(bindings) == {
+        ("GCPServiceAccount", "email"): [
+            {
+                "binding_id": "sa-binding",
+                "target_value": "sa@project-abc.iam.gserviceaccount.com",
+            },
+        ],
+        ("GCPArtifactRegistryRepositoryImage", "resource_name"): [
+            {
+                "binding_id": "image-binding",
+                "target_value": "projects/project-abc/locations/us/repositories/repo/dockerImages/nginx@sha256:abc123",
+            },
+        ],
+    }
 
 
 def test_wait_for_cai_policy_bindings_slot_reserves_per_operation_slots():

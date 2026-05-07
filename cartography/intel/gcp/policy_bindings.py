@@ -26,6 +26,8 @@ from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
 from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
@@ -48,12 +50,27 @@ class _FullNameMapping:
         * ``"type_prefixed"``  — ``"{marker}/{name}"`` (GCPFolder, GCPOrganization).
         * ``"full_path"``      — the whole path up to and including the name
           (KMS, Secrets, Artifact Registry, Cloud Run, Compute).
+        * ``"prefixed_full_path"`` — the full path with ``id_prefix`` prepended.
+        * ``"bigquery_dataset"`` / ``"bigquery_child"`` — BigQuery's legacy
+          ``project:dataset`` and ``project:dataset.resource`` node ids.
+    - ``target_property``: the target node property to match on. Most resources
+      use ``id``; a few existing schemas use another indexed canonical field.
+    - ``id_prefix``: prefix for resources whose node id is the API selfLink.
     """
 
     service_prefix: str
     marker: str
     label: str
     id_mode: str
+    target_property: str = "id"
+    id_prefix: str | None = None
+
+
+@dataclass(frozen=True)
+class _ResourceTarget:
+    label: str
+    property_name: str
+    value: str
 
 
 # Order matters within a given service_prefix: more specific mappings first so
@@ -115,23 +132,159 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
     # Artifact Registry.
     _FullNameMapping(
         "//artifactregistry.googleapis.com/",
+        "dockerImages",
+        "GCPArtifactRegistryRepositoryImage",
+        "full_path",
+        "resource_name",
+    ),
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
+        "mavenArtifacts",
+        "GCPArtifactRegistryLanguagePackage",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
+        "npmPackages",
+        "GCPArtifactRegistryLanguagePackage",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
+        "pythonPackages",
+        "GCPArtifactRegistryLanguagePackage",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//artifactregistry.googleapis.com/",
         "repositories",
         "GCPArtifactRegistryRepository",
         "full_path",
     ),
-    # Cloud Run services.
+    # BigQuery.
+    _FullNameMapping(
+        "//bigquery.googleapis.com/",
+        "tables",
+        "GCPBigQueryTable",
+        "bigquery_child",
+    ),
+    _FullNameMapping(
+        "//bigquery.googleapis.com/",
+        "routines",
+        "GCPBigQueryRoutine",
+        "bigquery_child",
+    ),
+    _FullNameMapping(
+        "//bigquery.googleapis.com/",
+        "datasets",
+        "GCPBigQueryDataset",
+        "bigquery_dataset",
+    ),
+    # Cloud Functions.
+    _FullNameMapping(
+        "//cloudfunctions.googleapis.com/",
+        "functions",
+        "GCPCloudFunction",
+        "full_path",
+    ),
+    # Cloud Run.
+    _FullNameMapping(
+        "//run.googleapis.com/",
+        "executions",
+        "GCPCloudRunExecution",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//run.googleapis.com/",
+        "jobs",
+        "GCPCloudRunJob",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//run.googleapis.com/",
+        "revisions",
+        "GCPCloudRunRevision",
+        "full_path",
+    ),
     _FullNameMapping(
         "//run.googleapis.com/",
         "services",
         "GCPCloudRunService",
         "full_path",
     ),
+    # Cloud SQL.
+    _FullNameMapping(
+        "//sqladmin.googleapis.com/",
+        "instances",
+        "GCPCloudSQLInstance",
+        "prefixed_full_path",
+        id_prefix="https://sqladmin.googleapis.com/sql/v1beta4/",
+    ),
+    # GKE.
+    _FullNameMapping(
+        "//container.googleapis.com/",
+        "clusters",
+        "GKECluster",
+        "prefixed_full_path",
+        id_prefix="https://container.googleapis.com/v1/",
+    ),
+    # IAM. Service account keys must precede service accounts.
+    _FullNameMapping(
+        "//iam.googleapis.com/",
+        "keys",
+        "GCPServiceAccountKey",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//iam.googleapis.com/",
+        "serviceAccounts",
+        "GCPServiceAccount",
+        "last_segment",
+        "email",
+    ),
+    _FullNameMapping(
+        "//iam.googleapis.com/",
+        "roles",
+        "GCPRole",
+        "full_path",
+    ),
+    # Vertex AI.
+    _FullNameMapping(
+        "//aiplatform.googleapis.com/",
+        "models",
+        "GCPVertexAIModel",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//aiplatform.googleapis.com/",
+        "trainingPipelines",
+        "GCPVertexAITrainingPipeline",
+        "full_path",
+    ),
     # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
     # which matches the path left after stripping the service prefix.
     _FullNameMapping(
         "//compute.googleapis.com/",
+        "backendServices",
+        "GCPBackendService",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "forwardingRules",
+        "GCPForwardingRule",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
         "instances",
         "GCPInstance",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
+        "instanceGroups",
+        "GCPInstanceGroup",
         "full_path",
     ),
     _FullNameMapping(
@@ -148,6 +301,12 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
     ),
     _FullNameMapping(
         "//compute.googleapis.com/",
+        "securityPolicies",
+        "GCPCloudArmorPolicy",
+        "full_path",
+    ),
+    _FullNameMapping(
+        "//compute.googleapis.com/",
         "firewalls",
         "GCPFirewall",
         "full_path",
@@ -155,11 +314,32 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
 ]
 
 
-def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
+def _parse_bigquery_resource_name(
+    parts: list[str],
+    marker: str,
+    id_mode: str,
+) -> str | None:
+    try:
+        project_id = parts[parts.index("projects") + 1]
+        dataset_id = parts[parts.index("datasets") + 1]
+    except (ValueError, IndexError):
+        return None
+
+    if id_mode == "bigquery_dataset":
+        return f"{project_id}:{dataset_id}"
+
+    try:
+        resource_id = parts[parts.index(marker) + 1]
+    except (ValueError, IndexError):
+        return None
+    return f"{project_id}:{dataset_id}.{resource_id}"
+
+
+def _target_from_full_resource_name(full_name: str) -> _ResourceTarget | None:
     """
     Parse a GCP Cloud Asset full resource name and return the matching
-    (target_node_label, target_id) pair when the resource type is part of the
-    Cartography ontology, or (None, None) otherwise.
+    Cartography node target when the resource type is part of the Cartography
+    ontology.
 
     Full resource name format: ``//{service}.googleapis.com/{path}``.
     """
@@ -179,16 +359,32 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
         name_segment = parts[marker_idx + 1]
         if not name_segment:
             continue
+        value = None
         if mapping.id_mode == "last_segment":
-            return mapping.label, name_segment
-        if mapping.id_mode == "type_prefixed":
-            return mapping.label, f"{mapping.marker}/{name_segment}"
-        # full_path: keep everything up to and including the resource name.
-        # Sub-paths (e.g. a policy on a secret version, or on a cryptoKey
-        # version) resolve to the nearest ancestor in the ontology via the
-        # mapping order defined above.
-        return mapping.label, "/".join(parts[: marker_idx + 2])
-    return None, None
+            value = name_segment
+        elif mapping.id_mode == "type_prefixed":
+            value = f"{mapping.marker}/{name_segment}"
+        elif mapping.id_mode in ("full_path", "prefixed_full_path"):
+            # Keep everything up to and including the resource name. Sub-paths
+            # resolve to the nearest ancestor in the ontology via mapping order.
+            value = "/".join(parts[: marker_idx + 2])
+            if mapping.id_mode == "prefixed_full_path":
+                assert mapping.id_prefix is not None
+                value = f"{mapping.id_prefix}{value}"
+        elif mapping.id_mode.startswith("bigquery_"):
+            value = _parse_bigquery_resource_name(
+                parts, mapping.marker, mapping.id_mode
+            )
+        if value:
+            return _ResourceTarget(mapping.label, mapping.target_property, value)
+    return None
+
+
+def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
+    target = _target_from_full_resource_name(full_name)
+    if target is None:
+        return None, None
+    return target.label, target.value
 
 
 class PolicyBindingsSyncStatus(str, Enum):
@@ -466,21 +662,20 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _group_applies_to_links(
     bindings: list[dict[str, Any]],
-) -> dict[str, list[dict[str, str]]]:
+) -> dict[tuple[str, str], list[dict[str, str]]]:
     """
-    Group bindings by the Cartography label of their bound resource so
-    load_matchlinks can be invoked once per target label. Bindings whose
-    resource type is not yet in the ontology are silently dropped here — the
-    binding node is still created by the main load(), just without an
-    APPLIES_TO edge.
+    Group bindings by target label and property so load_matchlinks can be
+    invoked once per target matcher. Bindings whose resource type is not yet in
+    the ontology are silently dropped here — the binding node is still created
+    by the main load(), just without an APPLIES_TO edge.
     """
-    grouped: dict[str, list[dict[str, str]]] = {}
+    grouped: dict[tuple[str, str], list[dict[str, str]]] = {}
     for binding in bindings:
-        label, target_id = _parse_full_resource_name(binding["resource"])
-        if not label or not target_id:
+        target = _target_from_full_resource_name(binding["resource"])
+        if target is None:
             continue
-        grouped.setdefault(label, []).append(
-            {"binding_id": binding["id"], "target_id": target_id},
+        grouped.setdefault((target.label, target.property_name), []).append(
+            {"binding_id": binding["id"], "target_value": target.value},
         )
     return grouped
 
@@ -500,10 +695,17 @@ def load_bindings(
         PROJECT_ID=project_id,
     )
 
-    for target_label, links in _group_applies_to_links(bindings).items():
+    for (target_label, target_property), links in _group_applies_to_links(
+        bindings
+    ).items():
         load_matchlinks(
             neo4j_session,
-            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            GCPPolicyBindingAppliesToMatchLink(
+                target_node_label=target_label,
+                target_node_matcher=make_target_node_matcher(
+                    {target_property: PropertyRef("target_value")},
+                ),
+            ),
             links,
             lastupdated=update_tag,
             _sub_resource_label="GCPProject",
