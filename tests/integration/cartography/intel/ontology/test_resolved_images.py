@@ -2,25 +2,12 @@
 Integration test for the Container/Function -> Image RESOLVED_IMAGE analysis job.
 """
 
-from dataclasses import dataclass
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
 import cartography.intel.gcp.cloudrun.service as cloudrun_service
-from cartography.client.core.tx import load
-from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties
-from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
-from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.core.relationships import CartographyRelProperties
-from cartography.models.core.relationships import CartographyRelSchema
-from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
-from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.util import run_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
@@ -38,128 +25,6 @@ TEST_CLOUD_RUN_LOCATIONS = [
     "projects/test-project/locations/us-central1",
     "projects/test-project/locations/us-west1",
 ]
-
-
-@dataclass(frozen=True)
-class ResolvedImageProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    type: PropertyRef = PropertyRef("type")
-    _ont_architecture: PropertyRef = PropertyRef("architecture")
-    child_image_ids: PropertyRef = PropertyRef("child_image_ids")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ResolvedImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ResolvedImageContainsImageRel(CartographyRelSchema):
-    target_node_label: str = "ResolvedImageTestImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("child_image_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "CONTAINS_IMAGE"
-    properties: ResolvedImageRelProperties = ResolvedImageRelProperties()
-
-
-@dataclass(frozen=True)
-class ResolvedImageSchema(CartographyNodeSchema):
-    label: str = "ResolvedImageTestImage"
-    properties: ResolvedImageProperties = ResolvedImageProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [ResolvedImageContainsImageRel()],
-    )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [
-            ConditionalNodeLabel(label="Image", conditions={"type": "image"}),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
-                conditions={"type": "manifest_list"},
-            ),
-        ],
-    )
-
-
-@dataclass(frozen=True)
-class ResolvedImageTagProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    image_ids: PropertyRef = PropertyRef("image_ids")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ResolvedImageTagToImageRel(CartographyRelSchema):
-    target_node_label: str = "ResolvedImageTestImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("image_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "IMAGE"
-    properties: ResolvedImageRelProperties = ResolvedImageRelProperties()
-
-
-@dataclass(frozen=True)
-class ResolvedImageTagSchema(CartographyNodeSchema):
-    label: str = "ResolvedImageTestImageTag"
-    properties: ResolvedImageTagProperties = ResolvedImageTagProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [ResolvedImageTagToImageRel()],
-    )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageTag"])
-
-
-@dataclass(frozen=True)
-class ResolvedImageWorkloadProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    image_ids: PropertyRef = PropertyRef("image_ids")
-    image_tag_ids: PropertyRef = PropertyRef("image_tag_ids")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ResolvedImageWorkloadToImageRel(CartographyRelSchema):
-    target_node_label: str = "ResolvedImageTestImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("image_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: ResolvedImageRelProperties = ResolvedImageRelProperties()
-
-
-@dataclass(frozen=True)
-class ResolvedImageWorkloadToImageTagRel(CartographyRelSchema):
-    target_node_label: str = "ResolvedImageTestImageTag"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("image_tag_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: ResolvedImageRelProperties = ResolvedImageRelProperties()
-
-
-@dataclass(frozen=True)
-class ResolvedImageContainerSchema(CartographyNodeSchema):
-    label: str = "ResolvedImageTestContainer"
-    properties: ResolvedImageWorkloadProperties = ResolvedImageWorkloadProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [ResolvedImageWorkloadToImageRel(), ResolvedImageWorkloadToImageTagRel()],
-    )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
-
-
-@dataclass(frozen=True)
-class ResolvedImageFunctionSchema(CartographyNodeSchema):
-    label: str = "ResolvedImageTestFunction"
-    properties: ResolvedImageWorkloadProperties = ResolvedImageWorkloadProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [ResolvedImageWorkloadToImageRel(), ResolvedImageWorkloadToImageTagRel()],
-    )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
 
 
 def _image(
@@ -204,24 +69,107 @@ def _load_resolved_image_prerequisites(
     containers: list[dict] | None = None,
     functions: list[dict] | None = None,
 ) -> None:
-    load(neo4j_session, ResolvedImageSchema(), images, lastupdated=TEST_UPDATE_TAG)
-    load(
-        neo4j_session,
-        ResolvedImageTagSchema(),
-        image_tags or [],
-        lastupdated=TEST_UPDATE_TAG,
+    image_tags = image_tags or []
+    containers = containers or []
+    functions = functions or []
+
+    neo4j_session.run(
+        """
+        UNWIND $images AS image
+        WITH image WHERE image.type = 'image'
+        MERGE (i:ResolvedImageTestImage:Image {id: image.id})
+        SET i.type = image.type,
+            i._ont_architecture = image.architecture,
+            i.lastupdated = $update_tag
+        """,
+        images=images,
+        update_tag=TEST_UPDATE_TAG,
     )
-    load(
-        neo4j_session,
-        ResolvedImageContainerSchema(),
-        containers or [],
-        lastupdated=TEST_UPDATE_TAG,
+    neo4j_session.run(
+        """
+        UNWIND $images AS image
+        WITH image WHERE image.type = 'manifest_list'
+        MERGE (i:ResolvedImageTestImage:ImageManifestList {id: image.id})
+        SET i.type = image.type,
+            i._ont_architecture = image.architecture,
+            i.lastupdated = $update_tag
+        """,
+        images=images,
+        update_tag=TEST_UPDATE_TAG,
     )
-    load(
+    neo4j_session.run(
+        """
+        UNWIND $images AS image
+        UNWIND image.child_image_ids AS child_id
+        MATCH (parent:ResolvedImageTestImage {id: image.id})
+        MATCH (child:ResolvedImageTestImage {id: child_id})
+        MERGE (parent)-[r:CONTAINS_IMAGE]->(child)
+        SET r.lastupdated = $update_tag
+        """,
+        images=images,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        UNWIND $image_tags AS image_tag
+        MERGE (tag:ResolvedImageTestImageTag:ImageTag {id: image_tag.id})
+        SET tag.lastupdated = $update_tag
+        WITH tag, image_tag
+        UNWIND image_tag.image_ids AS image_id
+        MATCH (image:ResolvedImageTestImage {id: image_id})
+        MERGE (tag)-[r:IMAGE]->(image)
+        SET r.lastupdated = $update_tag
+        """,
+        image_tags=image_tags,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    _load_workload_prerequisites(
         neo4j_session,
-        ResolvedImageFunctionSchema(),
-        functions or [],
-        lastupdated=TEST_UPDATE_TAG,
+        "ResolvedImageTestContainer",
+        "Container",
+        containers,
+    )
+    _load_workload_prerequisites(
+        neo4j_session,
+        "ResolvedImageTestFunction",
+        "Function",
+        functions,
+    )
+
+
+def _load_workload_prerequisites(
+    neo4j_session,
+    test_label: str,
+    ontology_label: str,
+    workloads: list[dict],
+) -> None:
+    label = f"{test_label}:{ontology_label}"
+    neo4j_session.run(
+        f"""
+        UNWIND $workloads AS workload
+        MERGE (w:{label} {{id: workload.id}})
+        SET w.architecture_normalized = workload.architecture_normalized,
+            w.lastupdated = $update_tag
+        WITH w, workload
+        UNWIND workload.image_ids AS image_id
+        MATCH (image:ResolvedImageTestImage {{id: image_id}})
+        MERGE (w)-[r:HAS_IMAGE]->(image)
+        SET r.lastupdated = $update_tag
+        """,
+        workloads=workloads,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        f"""
+        UNWIND $workloads AS workload
+        MATCH (w:{label} {{id: workload.id}})
+        UNWIND workload.image_tag_ids AS image_tag_id
+        MATCH (image_tag:ResolvedImageTestImageTag {{id: image_tag_id}})
+        MERGE (w)-[r:HAS_IMAGE]->(image_tag)
+        SET r.lastupdated = $update_tag
+        """,
+        workloads=workloads,
+        update_tag=TEST_UPDATE_TAG,
     )
 
 
