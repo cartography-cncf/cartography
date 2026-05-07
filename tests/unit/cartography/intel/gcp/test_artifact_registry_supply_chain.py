@@ -678,6 +678,7 @@ async def test_process_single_image_falls_back_to_digest_specific_spdx_sbom():
     assert result["layer_diff_ids"] == [
         "sha256:2222222222222222222222222222222222222222222222222222222222222222",
     ]
+    assert MOCK_SUPPLY_CHAIN_DIGEST_SBOM_MANIFEST_URL in client.calls
 
 
 @pytest.mark.asyncio
@@ -731,6 +732,7 @@ async def test_process_single_image_falls_back_to_tagged_spdx_sbom_artifact():
     assert fetch_failed is False
     assert result["digest"] == MOCK_SUPPLY_CHAIN_IMAGE_DIGEST
     assert result["source_uri"] == "https://github.com/example/widgets"
+    assert MOCK_SUPPLY_CHAIN_DIGEST_SBOM_MANIFEST_URL not in client.calls
 
 
 @pytest.mark.asyncio
@@ -882,8 +884,10 @@ class _FakeResponse:
 class _FakeClient:
     def __init__(self, responses_by_url):
         self._responses = responses_by_url
+        self.calls = []
 
     async def get(self, url, headers=None, timeout=None):
+        self.calls.append(url)
         if url not in self._responses:
             return _FakeResponse(404)
         return self._responses[url]

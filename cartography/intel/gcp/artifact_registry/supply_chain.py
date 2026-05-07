@@ -633,7 +633,20 @@ async def _process_single_image(
         if subject_digest_str and sbom_artifacts_by_digest
         else None
     )
-    if not provenance.get("source_uri") and sbom_artifacts and subject_digest_str:
+    same_path_sbom_artifacts = []
+    for sbom_artifact in sbom_artifacts or []:
+        sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
+        if not sbom_parsed:
+            continue
+        sbom_registry, sbom_image_path, _ = sbom_parsed
+        if sbom_registry == registry and sbom_image_path == image_path:
+            same_path_sbom_artifacts.append(sbom_artifact)
+
+    if (
+        not provenance.get("source_uri")
+        and same_path_sbom_artifacts
+        and subject_digest_str
+    ):
         try:
             sbom_provenance = await _fetch_legacy_sbom_provenance(
                 http_client,
