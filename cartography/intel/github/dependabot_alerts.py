@@ -207,9 +207,7 @@ def transform(
                     if identifier.get("value")
                 ],
                 "references": [
-                    reference["url"]
-                    for reference in references
-                    if reference.get("url")
+                    reference["url"] for reference in references if reference.get("url")
                 ],
                 "repository_url": repository.get("html_url"),
                 "repository_name": repository.get("name"),

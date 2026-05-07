@@ -89,12 +89,17 @@ GET_DEPENDABOT_ALERTS = [
             "summary": "Prototype pollution in lodash",
             "description": "Prototype pollution in lodash.",
             "severity": "critical",
-            "cvss": {"vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", "score": 9.8},
+            "cvss": {
+                "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "score": 9.8,
+            },
             "identifiers": [
                 {"type": "GHSA", "value": "GHSA-35jh-r3h4-6jhm"},
                 {"type": "CVE", "value": "CVE-2019-10744"},
             ],
-            "references": [{"url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm"}],
+            "references": [
+                {"url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm"}
+            ],
         },
         "security_vulnerability": {
             "package": {"ecosystem": "npm", "name": "lodash"},

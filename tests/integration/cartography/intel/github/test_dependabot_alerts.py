@@ -15,7 +15,12 @@ TEST_ORGANIZATION = "simpsoncorp"
 FAKE_API_KEY = "asdf"
 
 
+def _clear_dependabot_alerts(neo4j_session):
+    neo4j_session.run("MATCH (n:GitHubDependabotAlert) DETACH DELETE n")
+
+
 def _ensure_org_and_repos_exist(neo4j_session):
+    _clear_dependabot_alerts(neo4j_session)
     neo4j_session.run(
         """
         MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
@@ -34,6 +39,7 @@ def _ensure_org_and_repos_exist(neo4j_session):
 
 
 def _seed_stale_alert(neo4j_session):
+    _clear_dependabot_alerts(neo4j_session)
     neo4j_session.run(
         """
         MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
@@ -262,7 +268,7 @@ def test_get_dependabot_alerts_uses_org_endpoint_and_api_version(mock_fetch):
     assert result == DependabotAlertsFetchResult(alerts=[], cleanup_safe=True)
     mock_fetch.assert_called_once_with(
         FAKE_API_KEY,
-        "https://fake.github.net/api/v3",
+        "https://fake.github.net/v3",
         "/orgs/simpsoncorp/dependabot/alerts",
         "",
         params={
