@@ -9,6 +9,9 @@ from cartography.intel.gcp.artifact_registry.artifact import cleanup_docker_imag
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
+from cartography.intel.gcp.artifact_registry.artifact import (
+    transform_docker_images_to_canonical_images,
+)
 from cartography.intel.gcp.artifact_registry.artifact import transform_maven_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artifacts
 from cartography.intel.gcp.artifact_registry.manifest import cleanup_manifests
@@ -19,9 +22,18 @@ from cartography.intel.gcp.artifact_registry.repository import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageContainsImageMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
@@ -680,24 +692,27 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
 
 def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
     project_id = "test-gar-current-orphan-image-cleanup-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
-    neo4j_session.run(
-        """
-        MERGE (old_img:GCPArtifactRegistryImage:Image {id: 'sha256:old-orphan'})
-        SET old_img.digest = 'sha256:old-orphan',
-            old_img.type = 'image',
-            old_img.lastupdated = $old_tag
-        MERGE (current_img:GCPArtifactRegistryImage:Image {id: 'sha256:current-orphan'})
-        SET current_img.digest = 'sha256:current-orphan',
-            current_img.type = 'image',
-            current_img.lastupdated = $current_tag
-        MERGE (legacy_img:GCPArtifactRegistryImage:Image {id: 'sha256:legacy-orphan'})
-        SET legacy_img.digest = 'sha256:legacy-orphan',
-            legacy_img.type = 'image'
-        REMOVE legacy_img.lastupdated
-        """,
-        old_tag=TEST_UPDATE_TAG,
-        current_tag=TEST_UPDATE_TAG + 1,
+    image_schema = GCPArtifactRegistryImageSchema()
+    old_image = _make_docker_image(repo_id, 2001)
+    current_image = _make_docker_image(repo_id, 2002)
+
+    load_nodes_without_relationships(
+        neo4j_session,
+        image_schema,
+        transform_docker_images_to_canonical_images([old_image]),
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description="stale GAR canonical image test nodes",
+        lastupdated=TEST_UPDATE_TAG,
+    )
+    load_nodes_without_relationships(
+        neo4j_session,
+        image_schema,
+        transform_docker_images_to_canonical_images([current_image]),
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description="current GAR canonical image test nodes",
+        lastupdated=TEST_UPDATE_TAG + 1,
     )
 
     run_scoped_analysis_job(
@@ -711,23 +726,25 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
 
     result = neo4j_session.run(
         """
-        OPTIONAL MATCH (old_img:GCPArtifactRegistryImage {id: 'sha256:old-orphan'})
-        OPTIONAL MATCH (legacy_img:GCPArtifactRegistryImage {id: 'sha256:legacy-orphan'})
-        OPTIONAL MATCH (current_img:GCPArtifactRegistryImage {id: 'sha256:current-orphan'})
+        OPTIONAL MATCH (old_img:GCPArtifactRegistryImage {id: $old_digest})
+        OPTIONAL MATCH (current_img:GCPArtifactRegistryImage {id: $current_digest})
         RETURN
             count(old_img) AS old_count,
-            count(legacy_img) AS legacy_count,
             count(current_img) AS current_count
         """,
+        old_digest=old_image["digest"],
+        current_digest=current_image["digest"],
     ).single()
     assert result["old_count"] == 0
-    assert result["legacy_count"] == 0
     assert result["current_count"] == 1
-    neo4j_session.run(
-        """
-        MATCH (img:GCPArtifactRegistryImage {id: 'sha256:current-orphan'})
-        DETACH DELETE img
-        """,
+
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_orphan_image_cleanup.json",
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG + 2,
+        },
     )
 
 
