@@ -50,6 +50,22 @@ test-specific expectations.
   not let tests pass because of leftovers from module-scoped fixtures or earlier
   tests.
 
+## Test Structure
+
+- Structure each test with `# Arrange`, `# Act`, and `# Assert` comments to mark
+  the three phases. This makes it obvious where setup ends, where the behavior
+  under test is exercised, and where the assertions begin.
+- `# Arrange` covers fixture loading, mock setup, seeding the graph, and any
+  prerequisite state. `# Act` is the single call to the function under test
+  (e.g. `sync()`, `load_*()`, `transform_*()`, `cleanup_*()`). `# Assert` covers
+  `check_nodes()`, `check_rels()`, and any direct read queries.
+- Combine phases as `# Act and assert` only when the action and assertion are a
+  single expression (for example, `pytest.raises(...)` around the call).
+- Keep each phase contiguous; avoid interleaving setup between assertions. If a
+  test naturally splits into multiple act/assert cycles (e.g. two update tags
+  for an idempotency or cleanup test), repeat the comments for each cycle so the
+  structure stays readable.
+
 ## Coverage Expectations
 
 - Assert both node existence and the relationships that make the data traversable.
