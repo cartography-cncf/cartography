@@ -79,9 +79,10 @@ _eks_cluster_kubernetes_version_eol = Fact(
     id="eks_cluster_kubernetes_version_eol",
     name="EKS clusters running end-of-life Kubernetes versions",
     description=(
-        "Detects EKS clusters running Kubernetes minor versions that are no longer "
-        "supported by Amazon EKS. As of 2026-03-10, EKS-supported Kubernetes "
-        "minors are 1.34, 1.33, 1.32, 1.31, 1.30, and 1.29."
+        "Detects EKS clusters running Kubernetes minor versions that are no "
+        "longer supported by Amazon EKS. As of 2026-05, EKS standard support "
+        "covers 1.35 / 1.34 / 1.33 and extended support covers 1.32 / 1.31 / "
+        "1.30; 1.29 and earlier are EOL."
     ),
     cypher_query=f"""
     MATCH (e:EKSCluster)

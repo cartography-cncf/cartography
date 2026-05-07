@@ -220,14 +220,19 @@ _azure_policy_manipulation_capabilities = Fact(
     MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     WHERE any(label IN labels(principal)
               WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-      AND any(a IN coalesce(perm.actions, []) WHERE
-        a IN [
-          'Microsoft.Authorization/roleDefinitions/write',
-          'Microsoft.Authorization/roleDefinitions/delete',
-          'Microsoft.Authorization/policyDefinitions/write',
-          'Microsoft.Authorization/policyAssignments/write',
-          'Microsoft.Authorization/*/write'
-        ] OR a = 'Microsoft.Authorization/*' OR a = '*')
+      // Mirror the finding query: at least one searched pattern is granted
+      // by actions AND not shadowed by not_actions.
+      AND ANY(p IN [
+            'Microsoft.Authorization/roleDefinitions/write',
+            'Microsoft.Authorization/roleDefinitions/delete',
+            'Microsoft.Authorization/policyDefinitions/write',
+            'Microsoft.Authorization/policyAssignments/write'
+        ]
+        WHERE ANY(a IN coalesce(perm.actions, []) WHERE
+                  toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*'))
+          AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE
+                  toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*'))
+      )
     RETURN *
     """,
     cypher_count_query="""

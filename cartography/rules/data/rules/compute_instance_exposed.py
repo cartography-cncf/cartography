@@ -198,14 +198,17 @@ _aws_ec2_instance_internet_exposed = Fact(
     name="Internet-Exposed EC2 Instances on Common Management Ports",
     description=(
         "EC2 instances exposed to the internet on ports 22, 3389, 3306, "
-        "5432, 6379, 9200, 27017. Matches inbound 0.0.0.0/0 SG rules whose "
-        "port range covers any of those ports, including all-ports rules "
-        "(`fromport` IS NULL) and ranges like 0-65535. Aligned with the "
-        "GCP and Azure facts in this same rule."
+        "5432, 6379, 9200, 27017. Matches inbound 0.0.0.0/0 SG rules over "
+        "TCP (or `-1` / `all` covering every protocol) whose port range "
+        "covers any of those ports, including all-ports rules "
+        "(`fromport` IS NULL) and ranges like 0-65535. UDP / ICMP rules "
+        "are intentionally skipped so a wide-open UDP rule does not flag "
+        "TCP management ports. Aligned with the GCP and Azure facts."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
+    WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
     UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
     WITH a, ec2, sg, rule, managed_port
     WHERE rule.fromport IS NULL
@@ -224,10 +227,13 @@ _aws_ec2_instance_internet_exposed = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH p2=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
-    WHERE rule.fromport IS NULL
-       OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
-              WHERE coalesce(rule.fromport, 0) <= managed_port
-                AND coalesce(rule.toport, rule.fromport, 0) >= managed_port)
+    WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND (
+        rule.fromport IS NULL
+        OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+               WHERE coalesce(rule.fromport, 0) <= managed_port
+                 AND coalesce(rule.toport, rule.fromport, 0) >= managed_port)
+      )
     RETURN *
     """,
     cypher_count_query="""
