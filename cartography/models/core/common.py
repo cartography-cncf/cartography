@@ -43,6 +43,8 @@ class PropertyRef:
         ignore_case=False,
         fuzzy_and_ignore_case=False,
         one_to_many=False,
+        preserve_existing=False,
+        prefer_existing=False,
     ):
         """
         Initialize a PropertyRef instance.
@@ -66,6 +68,12 @@ class PropertyRef:
                 associations. If True, this property ref points to a list stored on the data dict
                 where each item is an ID. Only has effect as part of a TargetNodeMatcher and is
                 not supported for sub resource relationships. Defaults to False.
+            preserve_existing (bool, optional): If True, node ingestion keeps the existing
+                graph property when the incoming value is null or absent. Only has effect
+                for node property SET clauses. Defaults to False.
+            prefer_existing (bool, optional): If True with preserve_existing, node ingestion
+                keeps the existing graph property whenever it is non-null and only fills it
+                from incoming data when the graph property is null. Defaults to False.
 
         Examples:
             Case-insensitive matching for GitHub usernames:
@@ -109,6 +117,8 @@ class PropertyRef:
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
         self.one_to_many = one_to_many
+        self.preserve_existing = preserve_existing
+        self.prefer_existing = prefer_existing
 
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
@@ -120,6 +130,18 @@ class PropertyRef:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
                 "`ignore_case` or `fuzzy_and_ignore_case`.",
+            )
+
+        if self.prefer_existing and not self.preserve_existing:
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": '
+                "`prefer_existing` requires `preserve_existing=True`.",
+            )
+
+        if self.set_in_kwargs and self.preserve_existing:
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": '
+                "`preserve_existing` cannot be used with `set_in_kwargs=True`.",
             )
 
     def _parameterize_name(self) -> str:

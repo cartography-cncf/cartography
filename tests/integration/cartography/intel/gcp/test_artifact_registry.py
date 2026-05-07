@@ -932,6 +932,27 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
         project_id,
         TEST_UPDATE_TAG + 1,
     )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": docker_image["digest"],
+                "type": None,
+                "media_type": None,
+                "architecture": None,
+                "os": None,
+                "os_version": None,
+                "os_features": None,
+                "variant": " ",
+                "source_uri": "",
+                "source_revision": " ",
+                "source_file": None,
+                "layer_diff_ids": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 2,
+    )
 
     result = neo4j_session.run(
         """
@@ -962,7 +983,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_architecture"] == "arm64"
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
-    assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+    assert result["lastupdated"] == TEST_UPDATE_TAG + 2
 
 
 def test_get_unmatched_gcp_images_with_history_uses_parent_ref_for_platform_child(
