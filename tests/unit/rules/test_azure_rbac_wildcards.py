@@ -65,16 +65,12 @@ def _shadow(pattern: str, actions: list[str], not_actions: list[str]) -> bool:
 def test_contributor_role_does_not_grant_role_assignment_write() -> None:
     # Contributor: actions=['*'], not_actions cover Microsoft.Authorization/*/Write
     pattern = "Microsoft.Authorization/roleAssignments/write"
-    assert (
-        _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is False
-    )
+    assert _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is False
 
 
 def test_contributor_role_does_not_grant_role_definitions_write() -> None:
     pattern = "Microsoft.Authorization/roleDefinitions/write"
-    assert (
-        _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is False
-    )
+    assert _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is False
 
 
 def test_contributor_role_does_not_grant_managed_identity_assign() -> None:
@@ -111,9 +107,7 @@ def test_facts_use_regex_wildcard_expansion() -> None:
     the regex-based wildcard expansion. If someone reverts to plain
     string equality, this test will fail.
     """
-    expected_snippet = (
-        "replace(replace(toLower(a), '.', '[.]'), '*', '.*')"
-    )
+    expected_snippet = "replace(replace(toLower(a), '.', '[.]'), '*', '.*')"
     for rule in (
         identity_administration_privileges,
         policy_administration_privileges,

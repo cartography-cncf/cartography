@@ -98,7 +98,7 @@ _gcp_account_manipulation_permissions = Fact(
     MATCH (binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
     WHERE any(label IN labels(scope)
               WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
-    MATCH (binding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
     MATCH (binding)-[:GRANTS_ROLE]->(role:GCPRole)
     WITH scope, principal, role,
         [
@@ -129,7 +129,7 @@ _gcp_account_manipulation_permissions = Fact(
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""
-    MATCH p1=(scope)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)-[:HAS_ALLOW_POLICY]->(principal:GCPPrincipal)
+    MATCH p1=(principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
     WHERE any(label IN labels(scope)
               WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
     MATCH p2=(binding)-[:GRANTS_ROLE]->(role:GCPRole)
