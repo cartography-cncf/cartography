@@ -8,13 +8,8 @@
       "iterationsize": 1000
     },
     {
-      "__comment": "Create RESOLVED_IMAGE by traversing the existing HAS_IMAGE edge from Container to Image. Excludes :ImageManifestList to guarantee the target is a deterministic single-platform image. HAS_IMAGE is created at ingest time by matching container runtime digest to image digest, so its existence is already a deterministic digest-level identification.",
-      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList MERGE (c)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-      "iterative": false
-    },
-    {
-      "__comment": "Create RESOLVED_IMAGE for containers whose HAS_IMAGE points at an ImageManifestList. Traverses CONTAINS_IMAGE to the platform child :Image whose architecture matches the container's architecture_normalized, and only creates the edge when exactly one child matches (determinism guard).",
-      "query": "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized WITH c, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for containers by collecting concrete :Image candidates from direct HAS_IMAGE, architecture-matched ImageManifestList children, ImageTag -> Image, and ImageTag -> ImageManifestList -> CONTAINS_IMAGE paths. Only creates the edge when exactly one distinct concrete image candidate exists.",
+      "query": "MATCH (c:Container)-[:HAS_IMAGE]->() WITH DISTINCT c CALL { WITH c MATCH (c)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList RETURN i AS candidate UNION WITH c MATCH (c)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized RETURN i AS candidate UNION WITH c MATCH (c)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(i:Image) WHERE NOT i:ImageManifestList RETURN i AS candidate UNION WITH c MATCH (c)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE c.architecture_normalized IS NOT NULL AND i._ont_architecture = c.architecture_normalized RETURN i AS candidate } WITH c, collect(DISTINCT candidate) AS candidates WHERE size(candidates) = 1 WITH c, candidates[0] AS img MERGE (c)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
@@ -24,13 +19,8 @@
       "iterationsize": 1000
     },
     {
-      "__comment": "Create RESOLVED_IMAGE on :Function via direct HAS_IMAGE (covers container-deployed AWSLambda and AzureFunctionApp, which carry HAS_IMAGE on the node itself). Cloud Run Jobs flow through the :Container path via GCPCloudRunContainer instead.",
-      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList MERGE (f)-[r:RESOLVED_IMAGE]->(i) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-      "iterative": false
-    },
-    {
-      "__comment": "Create RESOLVED_IMAGE on :Function whose direct HAS_IMAGE points at an ImageManifestList. Architecture-match via the Function's own architecture_normalized with a single-candidate determinism guard.",
-      "query": "MATCH (f:Function)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized WITH f, collect(DISTINCT i) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Create RESOLVED_IMAGE for functions by collecting concrete :Image candidates from direct HAS_IMAGE, architecture-matched ImageManifestList children, ImageTag -> Image, and ImageTag -> ImageManifestList -> CONTAINS_IMAGE paths. Only creates the edge when exactly one distinct concrete image candidate exists.",
+      "query": "MATCH (f:Function)-[:HAS_IMAGE]->() WITH DISTINCT f CALL { WITH f MATCH (f)-[:HAS_IMAGE]->(i:Image) WHERE NOT i:ImageManifestList RETURN i AS candidate UNION WITH f MATCH (f)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized RETURN i AS candidate UNION WITH f MATCH (f)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(i:Image) WHERE NOT i:ImageManifestList RETURN i AS candidate UNION WITH f MATCH (f)-[:HAS_IMAGE]->(:ImageTag)-[:IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(i:Image) WHERE f.architecture_normalized IS NOT NULL AND i._ont_architecture = f.architecture_normalized RETURN i AS candidate } WITH f, collect(DISTINCT candidate) AS candidates WHERE size(candidates) = 1 WITH f, candidates[0] AS img MERGE (f)-[r:RESOLVED_IMAGE]->(img) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     }
   ]

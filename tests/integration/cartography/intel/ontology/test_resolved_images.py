@@ -272,6 +272,295 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
     ) == {("container-ml-1", "sha256:childamd64")}
 
 
+def test_resolved_image_analysis_creates_rel_via_container_image_tag(neo4j_session):
+    """A Container HAS_IMAGE edge to an ImageTag should resolve to one concrete Image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:ECSContainer {id: 'container-tag-1'})
+        SET c.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/repo:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (i:Image:ECRImage {id: 'sha256:tagimage'})
+        SET i.lastupdated = $update_tag
+
+        MERGE (c)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image:IMAGE]->(i)
+        SET image.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("container-tag-1", "sha256:tagimage")}
+
+
+def test_resolved_image_analysis_creates_rel_via_container_image_tag_manifest_list(
+    neo4j_session,
+):
+    """An ImageTag that points to an ImageManifestList should resolve to one architecture-matching child Image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:ECSContainer {id: 'container-tag-ml-1'})
+        SET c.architecture_normalized = 'arm64',
+            c.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/repo:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (ml:ImageManifestList {id: 'sha256:tagmanifestlist'})
+        SET ml.lastupdated = $update_tag
+
+        MERGE (child_amd64:Image:ECRImage {id: 'sha256:tagchildamd64'})
+        SET child_amd64._ont_architecture = 'amd64',
+            child_amd64.lastupdated = $update_tag
+
+        MERGE (child_arm64:Image:ECRImage {id: 'sha256:tagchildarm64'})
+        SET child_arm64._ont_architecture = 'arm64',
+            child_arm64.lastupdated = $update_tag
+
+        MERGE (c)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image:IMAGE]->(ml)
+        SET image.lastupdated = $update_tag
+
+        MERGE (ml)-[contains_amd64:CONTAINS_IMAGE]->(child_amd64)
+        SET contains_amd64.lastupdated = $update_tag
+
+        MERGE (ml)-[contains_arm64:CONTAINS_IMAGE]->(child_arm64)
+        SET contains_arm64.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Container",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("container-tag-ml-1", "sha256:tagchildarm64")}
+
+
+def test_resolved_image_analysis_skips_container_image_tag_manifest_list_without_architecture(
+    neo4j_session,
+):
+    """An ImageTag to ImageManifestList path should not resolve when the Container architecture is unknown."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:ECSContainer {id: 'container-tag-ml-no-arch'})
+        SET c.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/repo:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (ml:ImageManifestList {id: 'sha256:tagmanifestlist'})
+        SET ml.lastupdated = $update_tag
+
+        MERGE (child:Image:ECRImage {id: 'sha256:tagchildamd64'})
+        SET child._ont_architecture = 'amd64',
+            child.lastupdated = $update_tag
+
+        MERGE (c)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image:IMAGE]->(ml)
+        SET image.lastupdated = $update_tag
+
+        MERGE (ml)-[contains_image:CONTAINS_IMAGE]->(child)
+        SET contains_image.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "Container",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+
+def test_resolved_image_analysis_skips_ambiguous_container_image_tag(neo4j_session):
+    """An ImageTag that reaches multiple concrete Images should not create RESOLVED_IMAGE."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (c:Container:ECSContainer {id: 'container-tag-ambiguous'})
+        SET c.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/repo:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (image_a:Image:ECRImage {id: 'sha256:tagimagea'})
+        SET image_a.lastupdated = $update_tag
+
+        MERGE (image_b:Image:ECRImage {id: 'sha256:tagimageb'})
+        SET image_b.lastupdated = $update_tag
+
+        MERGE (c)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image_rel_a:IMAGE]->(image_a)
+        SET image_rel_a.lastupdated = $update_tag
+
+        MERGE (tag)-[image_rel_b:IMAGE]->(image_b)
+        SET image_rel_b.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "Container",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+
+
+def test_resolved_image_analysis_creates_rel_via_function_image_tag(neo4j_session):
+    """A Function HAS_IMAGE edge to an ImageTag should resolve to one concrete Image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (f:Function:AWSLambda {id: 'function-tag-1'})
+        SET f.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/function:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (i:Image:ECRImage {id: 'sha256:functiontagimage'})
+        SET i.lastupdated = $update_tag
+
+        MERGE (f)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image:IMAGE]->(i)
+        SET image.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Function",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("function-tag-1", "sha256:functiontagimage")}
+
+
+def test_resolved_image_analysis_creates_rel_via_function_image_tag_manifest_list(
+    neo4j_session,
+):
+    """A Function ImageTag to ImageManifestList path should resolve to one architecture-matching child Image."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (f:Function:AWSLambda {id: 'function-tag-ml-1'})
+        SET f.architecture_normalized = 'amd64',
+            f.lastupdated = $update_tag
+
+        MERGE (tag:ImageTag {id: 'example/function:latest'})
+        SET tag.lastupdated = $update_tag
+
+        MERGE (ml:ImageManifestList {id: 'sha256:functiontagmanifestlist'})
+        SET ml.lastupdated = $update_tag
+
+        MERGE (child_amd64:Image:ECRImage {id: 'sha256:functiontagchildamd64'})
+        SET child_amd64._ont_architecture = 'amd64',
+            child_amd64.lastupdated = $update_tag
+
+        MERGE (child_arm64:Image:ECRImage {id: 'sha256:functiontagchildarm64'})
+        SET child_arm64._ont_architecture = 'arm64',
+            child_arm64.lastupdated = $update_tag
+
+        MERGE (f)-[has_image:HAS_IMAGE]->(tag)
+        SET has_image.lastupdated = $update_tag
+
+        MERGE (tag)-[image:IMAGE]->(ml)
+        SET image.lastupdated = $update_tag
+
+        MERGE (ml)-[contains_amd64:CONTAINS_IMAGE]->(child_amd64)
+        SET contains_amd64.lastupdated = $update_tag
+
+        MERGE (ml)-[contains_arm64:CONTAINS_IMAGE]->(child_arm64)
+        SET contains_arm64.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Function",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("function-tag-ml-1", "sha256:functiontagchildamd64")}
+
+
 def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_list(
     neo4j_session,
 ):

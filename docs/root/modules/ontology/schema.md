@@ -45,12 +45,18 @@ PKG -- DEPENDS_ON --> PKG
 F[TrivyImageFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
+IT -- IMAGE --> IML
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
 CT -- HAS_IMAGE --> IM
 CT -- HAS_IMAGE --> IML
+CT -- HAS_IMAGE --> IT
 CT -- RESOLVED_IMAGE --> IM
+FN -- HAS_IMAGE --> IM
+FN -- HAS_IMAGE --> IML
+FN -- HAS_IMAGE --> IT
+FN -- RESOLVED_IMAGE --> IM
 ```
 
 :::{note}
@@ -337,14 +343,17 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
 
 #### Relationships
 
-- `Container` references the image it was asked to run via `HAS_IMAGE` (created at ingest time by matching container runtime digest to image digest). The target may be either a single-platform `Image` or an `ImageManifestList`:
+- `Container` references the image it was asked to run via `HAS_IMAGE` (created at ingest time from the best available runtime image reference). The target may be a single-platform `Image`, an `ImageManifestList`, or an `ImageTag`:
     ```
     (:Container)-[:HAS_IMAGE]->(:Image)
     (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
+    (:Container)-[:HAS_IMAGE]->(:ImageTag)
     ```
 - `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
     - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
+    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows `(:ImageTag)-[:IMAGE]->(:Image)` directly when there is exactly one concrete `:Image` candidate.
+    - When an `:ImageTag` points at an `:ImageManifestList`, the analysis follows `CONTAINS_IMAGE` and applies the same architecture match and single-candidate guard.
     ```
     (:Container)-[:RESOLVED_IMAGE]->(:Image)
     ```
@@ -694,8 +703,13 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
+    - `HAS_IMAGE` may target an `:Image`, `:ImageManifestList`, or `:ImageTag`.
+    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows the same deterministic `ImageTag` and `ImageTag -> ImageManifestList -> CONTAINS_IMAGE` resolution rules as the `Container` path.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
     ```
+    (:Function)-[:HAS_IMAGE]->(:Image)
+    (:Function)-[:HAS_IMAGE]->(:ImageManifestList)
+    (:Function)-[:HAS_IMAGE]->(:ImageTag)
     (:Function)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
@@ -881,9 +895,10 @@ It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image
 
 #### Relationships
 
-- `ImageTag` points to one or many `Image`:
+- `ImageTag` points to one or many `Image` or `ImageManifestList` nodes:
     ```
     (:ImageTag)-[:IMAGE]->(:Image)
+    (:ImageTag)-[:IMAGE]->(:ImageManifestList)
     ```
 
 
