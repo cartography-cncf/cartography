@@ -526,6 +526,9 @@ def _cleanup_applies_to_relationships(
     project_id: str,
     update_tag: int,
 ) -> None:
+    # APPLIES_TO can point at several resource labels. Clean up by relationship
+    # scope directly instead of running the same stale-edge cleanup once per
+    # possible target label.
     GraphStatement(
         """
         MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()
