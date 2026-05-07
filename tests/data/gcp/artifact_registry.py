@@ -210,19 +210,19 @@ def mock_spdx_sbom(
 
 
 def mock_ko_spdx_sbom(image_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST):
+    image_package_id = "SPDXRef-Package-sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    source_package_id = "SPDXRef-Package-github.com.example.widgets-v1.0.0"
     return {
         "spdxVersion": "SPDX-2.3",
         "name": f"sbom-{image_digest}",
         "documentNamespace": f"https://example.test/sbom/{image_digest}",
         "documentDescribes": [
-            "SPDXRef-Package-sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            image_package_id,
         ],
         "packages": [
             {
                 "name": image_digest,
-                "SPDXID": (
-                    "SPDXRef-Package-sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                ),
+                "SPDXID": image_package_id,
                 "downloadLocation": "NOASSERTION",
                 "externalRefs": [
                     {
@@ -236,7 +236,7 @@ def mock_ko_spdx_sbom(image_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST):
             },
             {
                 "name": "github.com/example/widgets",
-                "SPDXID": "SPDXRef-Package-github.com.example.widgets-v1.0.0",
+                "SPDXID": source_package_id,
                 "downloadLocation": "https://github.com/example/widgets",
                 "externalRefs": [
                     {
@@ -247,6 +247,35 @@ def mock_ko_spdx_sbom(image_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST):
                         ),
                     },
                 ],
+            },
+            {
+                "name": "github.com/example/dependency",
+                "SPDXID": "SPDXRef-Package-github.com.example.dependency-v1.0.0",
+                "downloadLocation": "https://github.com/example/dependency",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:golang/github.com/example/dependency@v1.0.0"
+                            "?type=module"
+                        ),
+                    },
+                ],
+            },
+        ],
+        "relationships": [
+            {
+                "spdxElementId": image_package_id,
+                "relationshipType": "CONTAINS",
+                "relatedSpdxElement": source_package_id,
+            },
+            {
+                "spdxElementId": source_package_id,
+                "relationshipType": "DEPENDS_ON",
+                "relatedSpdxElement": (
+                    "SPDXRef-Package-github.com.example.dependency-v1.0.0"
+                ),
             },
         ],
     }

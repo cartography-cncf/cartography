@@ -366,6 +366,29 @@ def _spdx_package_matches_subject_digest(
     return subject_digest_value in oci_digest_values
 
 
+def _repo_urls_from_contained_spdx_packages(
+    relationships: list[dict[str, Any]],
+    packages_by_id: dict[str, dict[str, Any]],
+    container_package_ids: set[str],
+) -> set[str]:
+    repo_urls: set[str] = set()
+    for relationship in relationships:
+        if relationship.get("relationshipType") != "CONTAINS":
+            continue
+        if relationship.get("spdxElementId") not in container_package_ids:
+            continue
+        related_package_id = relationship.get("relatedSpdxElement")
+        if not isinstance(related_package_id, str):
+            continue
+        related_package = packages_by_id.get(related_package_id)
+        if related_package is None:
+            continue
+        repo_url = _repo_url_from_spdx_package(related_package)
+        if repo_url:
+            repo_urls.add(repo_url)
+    return repo_urls
+
+
 def _extract_source_from_spdx_sbom(
     sbom: dict[str, Any],
     subject_digest: str | None = None,
@@ -391,22 +414,34 @@ def _extract_source_from_spdx_sbom(
     packages = [
         package for package in sbom.get("packages") or [] if isinstance(package, dict)
     ]
+    packages_by_id = {
+        spdx_id: package
+        for package in packages
+        if isinstance(spdx_id := package.get("SPDXID"), str)
+    }
     described_packages = [
         package for package in packages if package.get("SPDXID") in described_ids
     ]
     subject_digest_verified = False
+    subject_package_ids: set[str] = set()
     if subject_digest:
         subject_digest_matches = [
-            matches
+            (package, matches)
             for package in described_packages
             if (
                 matches := _spdx_package_matches_subject_digest(package, subject_digest)
             )
             is not None
         ]
-        if False in subject_digest_matches:
+        if any(matches is False for _, matches in subject_digest_matches):
             return {}
-        subject_digest_verified = any(subject_digest_matches)
+        subject_package_ids = {
+            spdx_id
+            for package, matches in subject_digest_matches
+            if matches is True
+            if isinstance(spdx_id := package.get("SPDXID"), str)
+        }
+        subject_digest_verified = bool(subject_package_ids)
 
     if expected_source_uri:
         expected_source_uri = _normalize_github_url(expected_source_uri)
@@ -434,6 +469,18 @@ def _extract_source_from_spdx_sbom(
         return {"source_uri": next(iter(repo_urls))}
 
     if subject_digest_verified:
+        contained_repo_urls = _repo_urls_from_contained_spdx_packages(
+            [
+                relationship
+                for relationship in sbom.get("relationships") or []
+                if isinstance(relationship, dict)
+            ],
+            packages_by_id,
+            subject_package_ids,
+        )
+        if len(contained_repo_urls) == 1:
+            return {"source_uri": next(iter(contained_repo_urls))}
+
         dependency_repo_urls = {
             repo_url
             for package in packages
