@@ -1,0 +1,13 @@
+{
+  "version": "1.161.0",
+  "results": [],
+  "errors": [],
+  "paths": {
+    "scanned": []
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.1
+  },
+  "engine_requested": "OSS"
+}
