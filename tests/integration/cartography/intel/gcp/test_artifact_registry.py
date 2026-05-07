@@ -603,6 +603,18 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
     assert canonical_result["ont_digest"] == first_image_digest
     assert "ImageManifestList" in canonical_result["labels"]
     assert "Image" not in canonical_result["labels"]
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})
+            -[:RESOURCE]->(repository_image:GCPArtifactRegistryRepositoryImage)
+            WHERE NOT (repository_image)-[:IMAGE]->(:GCPArtifactRegistryImage)
+            RETURN count(repository_image) AS count
+            """,
+            project_id=project_id,
+        ).single()["count"]
+        == 0
+    )
 
     first_node_firstseen = result["node_firstseen"]
     first_rel_firstseen = result["rel_firstseen"]
@@ -663,6 +675,59 @@ def test_load_docker_images_large_grouped_repository_relationships_are_idempoten
             stale_image_id=stale_image["id"],
         ).single()["count"]
         == 0
+    )
+
+
+def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
+    project_id = "test-gar-current-orphan-image-cleanup-project"
+    _clear_gar_project(neo4j_session, project_id)
+    neo4j_session.run(
+        """
+        MERGE (old_img:GCPArtifactRegistryImage:Image {id: 'sha256:old-orphan'})
+        SET old_img.digest = 'sha256:old-orphan',
+            old_img.type = 'image',
+            old_img.lastupdated = $old_tag
+        MERGE (current_img:GCPArtifactRegistryImage:Image {id: 'sha256:current-orphan'})
+        SET current_img.digest = 'sha256:current-orphan',
+            current_img.type = 'image',
+            current_img.lastupdated = $current_tag
+        MERGE (legacy_img:GCPArtifactRegistryImage:Image {id: 'sha256:legacy-orphan'})
+        SET legacy_img.digest = 'sha256:legacy-orphan',
+            legacy_img.type = 'image'
+        REMOVE legacy_img.lastupdated
+        """,
+        old_tag=TEST_UPDATE_TAG,
+        current_tag=TEST_UPDATE_TAG + 1,
+    )
+
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_orphan_image_cleanup.json",
+        neo4j_session,
+        {
+            "PROJECT_ID": project_id,
+            "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        },
+    )
+
+    result = neo4j_session.run(
+        """
+        OPTIONAL MATCH (old_img:GCPArtifactRegistryImage {id: 'sha256:old-orphan'})
+        OPTIONAL MATCH (legacy_img:GCPArtifactRegistryImage {id: 'sha256:legacy-orphan'})
+        OPTIONAL MATCH (current_img:GCPArtifactRegistryImage {id: 'sha256:current-orphan'})
+        RETURN
+            count(old_img) AS old_count,
+            count(legacy_img) AS legacy_count,
+            count(current_img) AS current_count
+        """,
+    ).single()
+    assert result["old_count"] == 0
+    assert result["legacy_count"] == 0
+    assert result["current_count"] == 1
+    neo4j_session.run(
+        """
+        MATCH (img:GCPArtifactRegistryImage {id: 'sha256:current-orphan'})
+        DETACH DELETE img
+        """,
     )
 
 
