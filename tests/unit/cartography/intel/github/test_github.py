@@ -45,6 +45,7 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
 @patch("cartography.intel.github.teams.sync_github_teams")
+@patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.repos.sync")
 @patch("cartography.intel.github.users.sync")
 @patch("cartography.intel.github.make_credential", side_effect=["token-1", "token-2"])
@@ -52,6 +53,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_make_credential: Mock,
     mock_users_sync: Mock,
     mock_repos_sync: Mock,
+    mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
@@ -85,6 +87,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
 
     assert mock_users_sync.call_count == 2
     assert mock_repos_sync.call_count == 2
+    assert mock_dependabot_alerts_sync.call_count == 2
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
@@ -119,6 +122,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
 @patch("cartography.intel.github.teams.sync_github_teams")
+@patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.repos.sync")
 @patch("cartography.intel.github.users.sync")
 @patch("cartography.intel.github.make_credential", return_value="token-1")
@@ -126,6 +130,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_make_credential: Mock,
     mock_users_sync: Mock,
     mock_repos_sync: Mock,
+    mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
@@ -157,6 +162,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_make_credential.assert_called_once_with(github_config["organization"][0])
     mock_users_sync.assert_called_once()
     mock_repos_sync.assert_called_once()
+    mock_dependabot_alerts_sync.assert_called_once()
     mock_cleanup_unscoped_github_resources.assert_not_called()
     assert mock_supply_chain_sync.call_count == 0
 
