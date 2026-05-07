@@ -115,14 +115,22 @@ _gcp_account_manipulation_permissions = Fact(
         ] AS patterns
     WITH scope, principal, role, patterns,
          [perm IN coalesce(role.permissions, [])
-            WHERE perm IN patterns OR perm = 'iam.*' OR perm = '*'] AS matched
+            WHERE perm IN patterns
+               OR perm = 'iam.*'
+               OR perm = 'resourcemanager.*'
+               OR perm = '*'] AS matched
     WHERE size(matched) > 0
     RETURN DISTINCT
         scope.id AS account_id,
         scope.id AS account,
         coalesce(principal.email, principal.id) AS principal_name,
         principal.id AS principal_identifier,
-        [label IN labels(principal) WHERE label <> 'GCPPrincipal'][0] AS principal_type,
+        coalesce(
+            head([l IN ['GCPServiceAccount', 'GoogleWorkspaceUser', 'GoogleWorkspaceGroup']
+                  WHERE l IN labels(principal)]),
+            head([l IN ['ServiceAccount', 'UserAccount', 'UserGroup']
+                  WHERE l IN labels(principal)])
+        ) AS principal_type,
         role.name AS policy_name,
         matched AS actions,
         [scope.id] AS resources
@@ -146,7 +154,9 @@ _gcp_account_manipulation_permissions = Fact(
             'resourcemanager.folders.setIamPolicy',
             'resourcemanager.organizations.setIamPolicy'
         ]
-        OR perm = 'iam.*' OR perm = '*'
+        OR perm = 'iam.*'
+        OR perm = 'resourcemanager.*'
+        OR perm = '*'
     )
     RETURN *
     """,

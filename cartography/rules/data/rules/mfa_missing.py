@@ -70,7 +70,7 @@ _missing_mfa_aws = Fact(
     module=Module.AWS,
     cypher_query="""
     MATCH (account:AWSAccount)-[:RESOURCE]->(user:AWSUser)
-    WHERE NOT (user)<-[:MFA_DEVICE]-(:AWSMfaDevice)
+    WHERE NOT (user)-[:MFA_DEVICE]->(:AWSMfaDevice)
     RETURN
         user.arn AS id,
         user.name AS email,
@@ -83,7 +83,7 @@ _missing_mfa_aws = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(account:AWSAccount)-[:RESOURCE]->(user:AWSUser)
-    WHERE NOT (user)<-[:MFA_DEVICE]-(:AWSMfaDevice)
+    WHERE NOT (user)-[:MFA_DEVICE]->(:AWSMfaDevice)
     RETURN *
     """,
     cypher_count_query="""

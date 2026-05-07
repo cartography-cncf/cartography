@@ -120,7 +120,12 @@ _gcp_trust_relationship_manipulation = Fact(
         scope.id AS account_id,
         coalesce(principal.email, principal.id) AS principal_name,
         principal.id AS principal_identifier,
-        [label IN labels(principal) WHERE label <> 'GCPPrincipal'][0] AS principal_type,
+        coalesce(
+            head([l IN ['GCPServiceAccount', 'GoogleWorkspaceUser', 'GoogleWorkspaceGroup']
+                  WHERE l IN labels(principal)]),
+            head([l IN ['ServiceAccount', 'UserAccount', 'UserGroup']
+                  WHERE l IN labels(principal)])
+        ) AS principal_type,
         role.name AS policy_name,
         matched AS actions,
         [scope.id] AS resources
