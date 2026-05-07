@@ -196,7 +196,7 @@ _azure_account_manipulation_permissions = Fact(
             'Microsoft.Authorization/roleAssignments/delete',
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/roleDefinitions/delete',
-            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action'
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
         ] AS patterns
     WITH sub, ra, rd, perm, principal, role_not_actions,
         [
@@ -242,7 +242,7 @@ _azure_account_manipulation_permissions = Fact(
             'Microsoft.Authorization/roleAssignments/delete',
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/roleDefinitions/delete',
-            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action'
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action'
         ]
         WHERE ANY(a IN coalesce(perm.actions, []) WHERE
                   toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*'))

@@ -32,13 +32,16 @@ def _glob_matches(pattern: str, wildcard: str) -> bool:
     return re.fullmatch(_to_regex(wildcard), pattern.lower()) is not None
 
 
-# Pattern lists the facts search for (literal Azure RBAC actions only).
+# Pattern lists the facts search for. Most are literal Azure RBAC
+# actions, but Microsoft documents the managed-identity assign action
+# with a `*` segment for the identity name (Managed Identity Operator
+# carries it verbatim), so the search pattern needs to match that form.
 IDENTITY_PATTERNS = [
     "Microsoft.Authorization/roleAssignments/write",
     "Microsoft.Authorization/roleAssignments/delete",
     "Microsoft.Authorization/roleDefinitions/write",
     "Microsoft.Authorization/roleDefinitions/delete",
-    "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
 ]
 
 
@@ -73,13 +76,40 @@ def test_contributor_role_does_not_grant_role_definitions_write() -> None:
     assert _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is False
 
 
-def test_contributor_role_does_not_grant_managed_identity_assign() -> None:
-    # Contributor's not_actions don't shadow this one, but the Contributor
-    # role does grant `Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action`
-    # via `*`. We expect this to surface (since Contributor really can attach
-    # UAMIs), so the test asserts the positive direction: granted, not shadowed.
-    pattern = "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action"
+def test_contributor_role_grants_managed_identity_assign() -> None:
+    # Contributor's not_actions don't shadow managed-identity assign, and
+    # the role's `*` should match the wildcard pattern.
+    pattern = "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action"
     assert _shadow(pattern, CONTRIBUTOR_ACTIONS, CONTRIBUTOR_NOT_ACTIONS) is True
+
+
+def test_managed_identity_operator_role_grants_managed_identity_assign() -> None:
+    """
+    Microsoft documents Managed Identity Operator with the action verbatim
+    as `Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action`,
+    plus `.../*/read`. With a literal `.../assign/action` pattern (no `*/`
+    segment) this role would silently miss the rule; assert that the
+    wildcard pattern matches it.
+    """
+    pattern = "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action"
+    operator_actions = [
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/read",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
+    ]
+    assert _shadow(pattern, operator_actions, []) is True
+
+
+def test_managed_identity_operator_does_not_grant_role_assignment_write() -> None:
+    """Negative control: MIO must not flag the role-assignment patterns."""
+    operator_actions = [
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/read",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action",
+    ]
+    for pattern in (
+        "Microsoft.Authorization/roleAssignments/write",
+        "Microsoft.Authorization/roleDefinitions/write",
+    ):
+        assert _shadow(pattern, operator_actions, []) is False
 
 
 def test_owner_role_grants_role_assignment_write() -> None:

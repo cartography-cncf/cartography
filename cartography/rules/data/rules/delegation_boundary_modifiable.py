@@ -181,7 +181,7 @@ _azure_trust_relationship_manipulation = Fact(
          coalesce(perm.actions, []) AS role_actions,
          coalesce(perm.not_actions, []) AS role_not_actions,
         [
-            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action',
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
             'Microsoft.Authorization/roleAssignments/write'
         ] AS patterns
     WITH sub, ra, rd, perm, principal, role_not_actions,
@@ -222,7 +222,7 @@ _azure_trust_relationship_manipulation = Fact(
       // Mirror the finding query: at least one searched pattern is granted
       // by actions AND not shadowed by not_actions.
       AND ANY(p IN [
-            'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action',
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
             'Microsoft.Authorization/roleAssignments/write'
         ]
         WHERE ANY(a IN coalesce(perm.actions, []) WHERE
