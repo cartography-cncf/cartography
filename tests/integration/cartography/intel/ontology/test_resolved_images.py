@@ -551,41 +551,6 @@ def test_resolved_image_analysis_skips_container_image_tag_manifest_list_without
     )
 
 
-def test_resolved_image_analysis_skips_ambiguous_container_image_tag(neo4j_session):
-    """An ImageTag that reaches multiple concrete Images should not create RESOLVED_IMAGE."""
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    _load_resolved_image_prerequisites(
-        neo4j_session,
-        images=[
-            _image("sha256:tagimagea"),
-            _image("sha256:tagimageb"),
-        ],
-        image_tags=[
-            _image_tag("example/repo:latest", ["sha256:tagimagea", "sha256:tagimageb"]),
-        ],
-        containers=[
-            _workload(
-                "container-tag-ambiguous",
-                image_tag_ids=["example/repo:latest"],
-            ),
-        ],
-    )
-
-    _run_resolved_image_analysis(neo4j_session)
-
-    assert (
-        check_rels(
-            neo4j_session,
-            "Container",
-            "id",
-            "Image",
-            "id",
-            "RESOLVED_IMAGE",
-        )
-        == set()
-    )
-
-
 def test_resolved_image_analysis_creates_rel_via_function_image_tag(neo4j_session):
     """A Function HAS_IMAGE edge to an ImageTag should resolve to one concrete Image."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")

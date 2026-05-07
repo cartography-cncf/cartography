@@ -352,7 +352,7 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
 - `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
     - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
-    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows `(:ImageTag)-[:IMAGE]->(:Image)` directly when there is exactly one concrete `:Image` candidate.
+    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows `(:ImageTag)-[:IMAGE]->(:Image)` to concrete `:Image` targets.
     - When an `:ImageTag` points at an `:ImageManifestList`, the analysis follows `CONTAINS_IMAGE` and applies the same architecture match and single-candidate guard.
     ```
     (:Container)-[:RESOLVED_IMAGE]->(:Image)
@@ -704,7 +704,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
     - `HAS_IMAGE` may target an `:Image`, `:ImageManifestList`, or `:ImageTag`.
-    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows the same deterministic `ImageTag` and `ImageTag -> ImageManifestList -> CONTAINS_IMAGE` resolution rules as the `Container` path.
+    - When `HAS_IMAGE` points at an `:ImageTag`, the analysis follows the same `ImageTag` and `ImageTag -> ImageManifestList -> CONTAINS_IMAGE` resolution rules as the `Container` path.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
     ```
     (:Function)-[:HAS_IMAGE]->(:Image)
