@@ -42,17 +42,30 @@ class GCPArtifactRegistryImageManifestChildNodeProperties(CartographyNodePropert
 class GCPArtifactRegistryImageProvenanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("digest")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    type: PropertyRef = PropertyRef("type", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    architecture: PropertyRef = PropertyRef("architecture")
-    os: PropertyRef = PropertyRef("os")
-    os_version: PropertyRef = PropertyRef("os_version")
-    os_features: PropertyRef = PropertyRef("os_features")
-    variant: PropertyRef = PropertyRef("variant")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
+    type: PropertyRef = PropertyRef("type", extra_index=True, preserve_existing=True)
+    media_type: PropertyRef = PropertyRef("media_type", preserve_existing=True)
+    architecture: PropertyRef = PropertyRef("architecture", preserve_existing=True)
+    os: PropertyRef = PropertyRef("os", preserve_existing=True)
+    os_version: PropertyRef = PropertyRef("os_version", preserve_existing=True)
+    os_features: PropertyRef = PropertyRef("os_features", preserve_existing=True)
+    variant: PropertyRef = PropertyRef("variant", preserve_existing=True)
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        extra_index=True,
+        preserve_existing=True,
+        prefer_existing=True,
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        preserve_existing=True,
+        prefer_existing=True,
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file",
+        preserve_existing=True,
+        prefer_existing=True,
+    )
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids", preserve_existing=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

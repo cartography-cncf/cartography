@@ -242,7 +242,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
     assert layer_call_args[2:] == ("proj", 1)
 
 
-def test_load_image_provenance_preserves_existing_values(monkeypatch):
+def test_load_image_provenance_uses_schema_preservation(monkeypatch):
     load_nodes_without_relationships = MagicMock()
     monkeypatch.setattr(
         supply_chain,
@@ -250,23 +250,31 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
         load_nodes_without_relationships,
     )
     neo4j_session = MagicMock()
-    neo4j_session.execute_read.return_value = [
+    updates = [
         {
             "digest": "sha256:img-1",
             "type": "image",
             "media_type": "application/vnd.oci.image.manifest.v1+json",
-            "architecture": "amd64",
-            "os": "linux",
+            "architecture": None,
+            "os": None,
             "os_version": None,
             "os_features": None,
-            "variant": "v8",
-            "source_uri": "https://github.com/foo/bar",
-            "source_revision": "deadbeef",
-            "source_file": "Dockerfile",
-            "layer_diff_ids": ["sha256:a"],
+            "variant": " ",
+            "source_uri": "",
+            "source_revision": " ",
+            "source_file": None,
+            "layer_diff_ids": None,
         },
     ]
-    updates = [
+
+    supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
+
+    neo4j_session.execute_read.assert_not_called()
+    load_nodes_without_relationships.assert_called_once()
+    call = load_nodes_without_relationships.call_args
+    assert call.args[0] == neo4j_session
+    assert call.args[1].__class__.__name__ == "GCPArtifactRegistryImageProvenanceSchema"
+    assert call.args[2] == [
         {
             "digest": "sha256:img-1",
             "type": "image",
@@ -280,30 +288,6 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "source_revision": None,
             "source_file": None,
             "layer_diff_ids": None,
-        },
-    ]
-
-    supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
-
-    neo4j_session.execute_read.assert_called_once()
-    load_nodes_without_relationships.assert_called_once()
-    call = load_nodes_without_relationships.call_args
-    assert call.args[0] == neo4j_session
-    assert call.args[1].__class__.__name__ == "GCPArtifactRegistryImageProvenanceSchema"
-    assert call.args[2] == [
-        {
-            "digest": "sha256:img-1",
-            "type": "image",
-            "media_type": "application/vnd.oci.image.manifest.v1+json",
-            "architecture": "amd64",
-            "os": "linux",
-            "os_version": None,
-            "os_features": None,
-            "variant": "v8",
-            "source_uri": "https://github.com/foo/bar",
-            "source_revision": "deadbeef",
-            "source_file": "Dockerfile",
-            "layer_diff_ids": ["sha256:a"],
         },
     ]
     assert "provenance updates" in call.kwargs["progress_description"]

@@ -103,6 +103,30 @@ An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and
 
 Note that the typehints are necessary for Python dataclasses to work properly.
 
+#### Preserving existing node properties
+
+Most node properties should use the default overwrite behavior. If an API returns
+`None`, the generated loader query writes `None`, which removes the existing Neo4j
+property. This is useful when the current API response is authoritative and the
+graph should forget old values.
+
+For enrichment-only passes where `None` means "not observed this time" rather
+than "clear this value", mark that property with `preserve_existing=True`:
+
+```python
+source_uri: PropertyRef = PropertyRef(
+    "source_uri",
+    extra_index=True,
+    preserve_existing=True,
+)
+```
+
+The generated node load query will keep the existing graph value when the
+incoming value is null or absent from the data dict, while still accepting
+incoming non-null updates. If the existing graph value should win whenever it is
+already populated, add `prefer_existing=True` as well. Use these only for node
+properties whose absence is expected during partial enrichment; do not use them
+for fields where a null value should intentionally clear stale data.
 
 #### Defining node properties
 
