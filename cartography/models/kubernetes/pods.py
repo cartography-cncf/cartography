@@ -35,6 +35,9 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     )
     node: PropertyRef = PropertyRef("node")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by k8s_compute_asset_exposure.json.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
