@@ -9,6 +9,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertSchema
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertUserSchema
@@ -278,7 +279,7 @@ def sync(
     organization: str,
 ) -> None:
     logger.info("Syncing GitHub Dependabot alerts for organization: %s", organization)
-    org_url = f"https://github.com/{organization}"
+    org_url = github_org_url(github_url, organization)
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     fetch_result = get(github_api_key, github_url, organization)

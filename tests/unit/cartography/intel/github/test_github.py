@@ -17,6 +17,7 @@ import cartography.intel.github.packages
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
@@ -219,6 +220,41 @@ def test_cleanup_unscoped_github_resources(
         neo4j_session,
         common_job_parameters,
     )
+
+
+@pytest.mark.parametrize(
+    ("api_url", "organization", "expected"),
+    [
+        (
+            "https://api.github.com/graphql",
+            "simpsoncorp",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "https://api.github.com",
+            "simpsoncorp",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "https://github.example.com/api/graphql",
+            "simpsoncorp",
+            "https://github.example.com/simpsoncorp",
+        ),
+        (
+            "https://github.example.com/api/v3",
+            "simpsoncorp",
+            "https://github.example.com/simpsoncorp",
+        ),
+        (
+            "https://github.example.com/graphql/",
+            "simpsoncorp",
+            "https://github.example.com/simpsoncorp",
+        ),
+    ],
+)
+@typing.no_type_check
+def test_github_org_url(api_url: str, organization: str, expected: str) -> None:
+    assert github_org_url(api_url, organization) == expected
 
 
 @patch("cartography.intel.github.util.time.sleep")

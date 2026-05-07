@@ -7,6 +7,9 @@ from datetime import timedelta
 from datetime import timezone as tz
 from typing import Any
 from typing import NamedTuple
+from urllib.parse import quote
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 import requests
 
@@ -387,6 +390,27 @@ def rest_api_base_url(api_url: str) -> str:
     if normalized_url.endswith("/graphql"):
         return _get_rest_api_base_url(normalized_url)
     return normalized_url
+
+
+def github_org_url(api_url: str, organization: str) -> str:
+    """
+    Return the browser URL GitHub GraphQL reports for an organization.
+
+    GitHubOrganization.id is sourced from GraphQL ``organization.url``. REST-only
+    syncs must derive the same value from the configured API URL so GitHub
+    Enterprise resources attach to the correct organization node.
+    """
+    parsed = urlsplit(api_url.rstrip("/"))
+    if parsed.netloc == "api.github.com":
+        return f"https://github.com/{quote(organization, safe='')}"
+
+    path = parsed.path.rstrip("/")
+    for suffix in ("/api/graphql", "/api/v3", "/graphql"):
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    path = f"{path.rstrip('/')}/{quote(organization, safe='')}"
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
 
 def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:

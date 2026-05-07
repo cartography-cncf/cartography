@@ -11,7 +11,8 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
-TEST_GITHUB_URL = "https://fake.github.net/graphql/"
+TEST_GITHUB_URL = "https://api.github.com/graphql"
+TEST_GITHUB_ENTERPRISE_URL = "https://fake.github.net/graphql/"
 TEST_ORGANIZATION = "simpsoncorp"
 FAKE_API_KEY = "asdf"
 
@@ -39,6 +40,22 @@ def _ensure_org_and_repos_exist(neo4j_session):
     )
 
 
+def _ensure_enterprise_org_and_repos_exist(neo4j_session):
+    _clear_dependabot_alerts(neo4j_session)
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization{id: "https://fake.github.net/simpsoncorp"})
+        SET org.username = "simpsoncorp"
+
+        MERGE (repo1:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"})
+        SET repo1.name = "sample_repo"
+
+        MERGE (repo2:GitHubRepository{id: "https://github.com/simpsoncorp/SampleRepo2"})
+        SET repo2.name = "SampleRepo2"
+        """,
+    )
+
+
 def _seed_stale_alert(neo4j_session):
     _clear_dependabot_alerts(neo4j_session)
     neo4j_session.run(
@@ -46,6 +63,20 @@ def _seed_stale_alert(neo4j_session):
         MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
         MERGE (alert:GitHubDependabotAlert{
             id: "https://github.com/simpsoncorp/sample_repo/security/dependabot/stale"
+        })
+        SET alert.lastupdated = 1, alert.state = "open"
+        MERGE (org)-[:RESOURCE]->(alert)
+        """,
+    )
+
+
+def _seed_enterprise_stale_alert(neo4j_session):
+    _clear_dependabot_alerts(neo4j_session)
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization{id: "https://fake.github.net/simpsoncorp"})
+        MERGE (alert:GitHubDependabotAlert{
+            id: "https://fake.github.net/simpsoncorp/sample_repo/security/dependabot/stale"
         })
         SET alert.lastupdated = 1, alert.state = "open"
         MERGE (org)-[:RESOURCE]->(alert)
@@ -247,6 +278,53 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
 @patch.object(
     cartography.intel.github.dependabot_alerts,
     "get",
+    return_value=DependabotAlertsFetchResult(
+        alerts=GET_DEPENDABOT_ALERTS,
+        cleanup_safe=True,
+    ),
+)
+def test_sync_github_dependabot_alerts_uses_enterprise_org_url(mock_get, neo4j_session):
+    _ensure_enterprise_org_and_repos_exist(neo4j_session)
+
+    cartography.intel.github.dependabot_alerts.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_ENTERPRISE_URL,
+        TEST_ORGANIZATION,
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "GitHubDependabotAlert",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (
+            "https://github.com/simpsoncorp/sample_repo/security/dependabot/1",
+            "https://fake.github.net/simpsoncorp",
+        ),
+        (
+            "https://github.com/simpsoncorp/sample_repo/security/dependabot/2",
+            "https://fake.github.net/simpsoncorp",
+        ),
+        (
+            "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/3",
+            "https://fake.github.net/simpsoncorp",
+        ),
+        (
+            "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/4",
+            "https://fake.github.net/simpsoncorp",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.github.dependabot_alerts,
+    "get",
     return_value=DependabotAlertsFetchResult(alerts=[], cleanup_safe=True),
 )
 def test_sync_github_dependabot_alerts_empty_response_cleans_stale_alerts(
@@ -260,6 +338,28 @@ def test_sync_github_dependabot_alerts_empty_response_cleans_stale_alerts(
         TEST_JOB_PARAMS,
         FAKE_API_KEY,
         TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+
+    assert check_nodes(neo4j_session, "GitHubDependabotAlert", ["id"]) == set()
+
+
+@patch.object(
+    cartography.intel.github.dependabot_alerts,
+    "get",
+    return_value=DependabotAlertsFetchResult(alerts=[], cleanup_safe=True),
+)
+def test_sync_github_dependabot_alerts_enterprise_cleanup_uses_enterprise_org_url(
+    mock_get,
+    neo4j_session,
+):
+    _seed_enterprise_stale_alert(neo4j_session)
+
+    cartography.intel.github.dependabot_alerts.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_ENTERPRISE_URL,
         TEST_ORGANIZATION,
     )
 
@@ -298,7 +398,7 @@ def test_sync_github_dependabot_alerts_unsafe_fetch_skips_cleanup(
 def test_get_dependabot_alerts_uses_org_endpoint_and_api_version(mock_fetch):
     result = cartography.intel.github.dependabot_alerts.get(
         FAKE_API_KEY,
-        TEST_GITHUB_URL,
+        TEST_GITHUB_ENTERPRISE_URL,
         TEST_ORGANIZATION,
     )
 
