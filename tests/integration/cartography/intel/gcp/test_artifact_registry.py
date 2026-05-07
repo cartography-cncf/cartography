@@ -746,6 +746,16 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
             "UPDATE_TAG": TEST_UPDATE_TAG + 2,
         },
     )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (current_img:GCPArtifactRegistryImage {id: $current_digest})
+            RETURN count(current_img) AS current_count
+            """,
+            current_digest=current_image["digest"],
+        ).single()["current_count"]
+        == 0
+    )
 
 
 def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleaned_up(
