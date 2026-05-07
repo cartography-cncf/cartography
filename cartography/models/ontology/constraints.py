@@ -51,6 +51,14 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(
         src="ComputeNamespace", dst="ComputeCluster", label="WORKLOAD_PARENT"
     ),
+    # Runtime image reference: module syncs attach workloads/functions to the
+    # image artifact they were asked to run.
+    RelConstraint(src="Container", dst="Image", label="HAS_IMAGE"),
+    RelConstraint(src="Container", dst="ImageManifestList", label="HAS_IMAGE"),
+    RelConstraint(src="Container", dst="ImageTag", label="HAS_IMAGE"),
+    RelConstraint(src="Function", dst="Image", label="HAS_IMAGE"),
+    RelConstraint(src="Function", dst="ImageManifestList", label="HAS_IMAGE"),
+    RelConstraint(src="Function", dst="ImageTag", label="HAS_IMAGE"),
 )
 
 
