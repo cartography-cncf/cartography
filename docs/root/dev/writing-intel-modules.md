@@ -126,6 +126,15 @@ For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder 
 
 As another example, `region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)` tells the querybuilder to set a field called `region` on the `EMRCluster` node using a keyword argument called `Region` supplied to `cartography.client.core.tx.load()`. `set_in_kwargs=True` is useful in cases where we want every object loaded by a single call to `load()` to have the same value for a given attribute.
 
+##### How property updates work across syncs
+
+Two things to keep in mind about how `load()` updates node properties:
+
+1. The generated query SETs every property declared on the schema's `CartographyNodeProperties`, every run.
+2. If a key is missing from the input dict, the corresponding property is set to `null`, which in Neo4j [removes the property](https://neo4j.com/docs/cypher-manual/current/clauses/set/) from the node.
+
+In other words, the latest run of a schema is the source of truth for every property it declares. There is no merge-with-existing behavior at the property level: a property only retains its prior value if no schema that declares it runs again, or if every such run continues to supply a value for it.
+
 ##### Node property indexes
 Cartography uses its data model to automatically create indexes for
 - node properties that uniquely identify the node (e.g. `id`)
@@ -675,5 +684,7 @@ resources that exist in the graph don't change across syncs.
     ```
 
     The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
+
+    Composite schemas should declare disjoint sets of properties (besides `id`, `firstseen`, and `lastupdated`). See [How property updates work across syncs](#how-property-updates-work-across-syncs): if two schemas declare the same property and resolve to the same node, whichever `load()` ran last wins, and a missing key in that run wipes the value the other schema would have supplied.
 
     In case you're curious, here's some [historical context](https://github.com/cartography-cncf/cartography/issues/1210) on how we got here.
