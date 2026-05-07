@@ -6,6 +6,17 @@ MOCK_SUPPLY_CHAIN_IMAGE_DIGEST = (
     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
 MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX = MOCK_SUPPLY_CHAIN_IMAGE_DIGEST.split(":", 1)[1]
+MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST_HEX = MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST.split(
+    ":", 1
+)[1]
+MOCK_SUPPLY_CHAIN_PARENT_IMAGE_URI = (
+    "pkg:oci/base-image@sha256:"
+    f"{MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST_HEX}"
+    "?repository_url=registry.example.test/base-image"
+)
 MOCK_SUPPLY_CHAIN_IMAGE_URI = (
     "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
     f"@{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST}"
@@ -276,6 +287,61 @@ def mock_ko_spdx_sbom(image_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST):
                 "relatedSpdxElement": (
                     "SPDXRef-Package-github.com.example.dependency-v1.0.0"
                 ),
+            },
+        ],
+    }
+
+
+def mock_spdx_parent_image_sbom(
+    image_digest=MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+    parent_image_digest=MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST,
+    relationship_type="DESCENDANT_OF",
+):
+    image_package_id = "SPDXRef-Package-subject-image"
+    parent_package_id = "SPDXRef-Package-parent-image"
+    parent_digest_value = parent_image_digest.split(":", 1)[1]
+    return {
+        "spdxVersion": "SPDX-2.3",
+        "name": f"sbom-{image_digest}",
+        "documentNamespace": f"https://example.test/sbom/{image_digest}",
+        "documentDescribes": [image_package_id],
+        "packages": [
+            {
+                "name": image_digest,
+                "SPDXID": image_package_id,
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:oci/image@sha256:" f"{image_digest.split(':', 1)[1]}"
+                        ),
+                    },
+                ],
+            },
+            {
+                "name": "registry.example.test/base-image",
+                "SPDXID": parent_package_id,
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:oci/base-image@sha256:"
+                            f"{parent_digest_value}"
+                            "?repository_url=registry.example.test/base-image"
+                        ),
+                    },
+                ],
+            },
+        ],
+        "relationships": [
+            {
+                "spdxElementId": image_package_id,
+                "relationshipType": relationship_type,
+                "relatedSpdxElement": parent_package_id,
             },
         ],
     }
