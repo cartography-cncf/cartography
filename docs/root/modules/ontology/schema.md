@@ -895,7 +895,7 @@ It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image
 
 #### Relationships
 
-- `ImageTag` points to one or many `Image` or `ImageManifestList` nodes:
+- `ImageTag` uses `IMAGE` to point to the digest-scoped image artifact nodes for that tag. `RESOLVED_IMAGE` analysis only treats `:Image` and `:ImageManifestList` targets as runtime image candidates; provider-specific artifact nodes such as `:ImageAttestation` are not concrete runtime images.
     ```
     (:ImageTag)-[:IMAGE]->(:Image)
     (:ImageTag)-[:IMAGE]->(:ImageManifestList)
