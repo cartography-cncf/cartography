@@ -466,7 +466,7 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
 Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alerts) for a dependency vulnerability in a GitHub repository. Alerts are scoped to the owning GitHub organization for cleanup and include triage state, advisory metadata, affected package details, and actor metadata.
 
-> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-scanner queries for security issues.
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-scanner queries for security issues. Alerts with a CVE identifier also receive the `CVE` label and standard `cve_id` property so the `cve_metadata` module can enrich them with NVD and EPSS metadata.
 
 | Field | Description |
 |-------|-------------|
@@ -492,6 +492,8 @@ Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alert
 | severity | Vulnerability severity |
 | advisory_ghsa_id | GitHub Security Advisory ID |
 | advisory_cve_id | CVE ID, if GitHub maps the advisory to a CVE |
+| cve_id | Standard CVE ID field used by `cve_metadata`; mirrors `advisory_cve_id` |
+| has_cve | `true` when a CVE ID is present; used to apply the conditional `CVE` label |
 | advisory_summary | Advisory summary |
 | advisory_description | Advisory description |
 | cvss_score | CVSS score from the advisory |
@@ -535,7 +537,7 @@ Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alert
     (GitHubDependabotAlert)-[:ASSIGNED_TO]->(GitHubUser)
     ```
 
-Dependabot package, CVE, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources.
+Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled `CVE` for compatibility with CVE metadata enrichment.
 
 - **DependencyGraphManifest** via **HAS_DEP** relationship
   - Dependencies are linked to their specific manifest files

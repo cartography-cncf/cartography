@@ -3,6 +3,7 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.github.dependabot_alerts
+from cartography.intel.cve_metadata import get_cve_ids_from_graph
 from cartography.intel.github.dependabot_alerts import DependabotAlertsFetchResult
 from tests.data.github.dependabot_alerts import GET_DEPENDABOT_ALERTS
 from tests.integration.util import check_nodes
@@ -81,6 +82,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "dependency_package_name",
             "severity",
             "advisory_cve_id",
+            "cve_id",
         ],
     ) == {
         (
@@ -90,6 +92,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "django",
             "high",
             "CVE-2018-6188",
+            "CVE-2018-6188",
         ),
         (
             "https://github.com/simpsoncorp/sample_repo/security/dependabot/2",
@@ -97,6 +100,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "npm",
             "lodash",
             "critical",
+            "CVE-2019-10744",
             "CVE-2019-10744",
         ),
         (
@@ -106,6 +110,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "ansible",
             "medium",
             "CVE-2021-20191",
+            "CVE-2021-20191",
         ),
         (
             "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/4",
@@ -114,8 +119,40 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "rack",
             "low",
             None,
+            None,
         ),
     }
+
+    assert {
+        (
+            "https://github.com/simpsoncorp/sample_repo/security/dependabot/1",
+            "CVE-2018-6188",
+        ),
+        (
+            "https://github.com/simpsoncorp/sample_repo/security/dependabot/2",
+            "CVE-2019-10744",
+        ),
+        (
+            "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/3",
+            "CVE-2021-20191",
+        ),
+    }.issubset(check_nodes(neo4j_session, "CVE", ["id", "cve_id"]))
+    assert set(get_cve_ids_from_graph(neo4j_session)).issuperset(
+        {
+            "CVE-2018-6188",
+            "CVE-2019-10744",
+            "CVE-2021-20191",
+        }
+    )
+    ghsa_only_has_cve_label = neo4j_session.run(
+        """
+        MATCH (alert:GitHubDependabotAlert {
+            id: "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/4"
+        })
+        RETURN "CVE" IN labels(alert) AS has_cve_label
+        """,
+    ).single()
+    assert ghsa_only_has_cve_label["has_cve_label"] is False
 
     assert {
         ("https://github.com/hjsimpson", "hjsimpson"),

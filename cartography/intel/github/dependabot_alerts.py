@@ -183,6 +183,7 @@ def transform(
                 "severity": vulnerability.get("severity") or advisory.get("severity"),
                 "advisory_ghsa_id": advisory_ghsa_id,
                 "advisory_cve_id": advisory_cve_id,
+                "has_cve": "true" if advisory_cve_id else "false",
                 "advisory_summary": advisory.get("summary"),
                 "advisory_description": advisory.get("description"),
                 "advisory_published_at": advisory.get("published_at"),

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -44,6 +45,8 @@ class GitHubDependabotAlertNodeProperties(CartographyNodeProperties):
     severity: PropertyRef = PropertyRef("severity", extra_index=True)
     advisory_ghsa_id: PropertyRef = PropertyRef("advisory_ghsa_id", extra_index=True)
     advisory_cve_id: PropertyRef = PropertyRef("advisory_cve_id", extra_index=True)
+    cve_id: PropertyRef = PropertyRef("advisory_cve_id", extra_index=True)
+    has_cve: PropertyRef = PropertyRef("has_cve")
     advisory_summary: PropertyRef = PropertyRef("advisory_summary")
     advisory_description: PropertyRef = PropertyRef("advisory_description")
     advisory_published_at: PropertyRef = PropertyRef("advisory_published_at")
@@ -125,7 +128,13 @@ class GitHubDependabotAlertAssignedToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubDependabotAlertSchema(CartographyNodeSchema):
     label: str = "GitHubDependabotAlert"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "Risk",
+            "SecurityIssue",
+            ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"}),
+        ]
+    )
     properties: GitHubDependabotAlertNodeProperties = (
         GitHubDependabotAlertNodeProperties()
     )
