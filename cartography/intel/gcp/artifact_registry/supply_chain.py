@@ -464,6 +464,10 @@ def _extract_parent_image_from_spdx_sbom(
     return {}
 
 
+def _needs_more_spdx_provenance(provenance: dict[str, Any]) -> bool:
+    return not provenance.get("source_uri") or not provenance.get("parent_image_digest")
+
+
 def _repo_urls_from_contained_spdx_packages(
     relationships: list[dict[str, Any]],
     packages_by_id: dict[str, dict[str, Any]],
@@ -794,7 +798,7 @@ async def _process_single_image(
             same_path_sbom_artifacts.append(sbom_artifact)
 
     if (
-        (not provenance.get("source_uri") or not provenance.get("parent_image_digest"))
+        _needs_more_spdx_provenance(provenance)
         and same_path_sbom_artifacts
         and subject_digest_str
     ):
@@ -818,7 +822,7 @@ async def _process_single_image(
             provenance.setdefault(key, value)
 
     if (
-        (not provenance.get("source_uri") or not provenance.get("parent_image_digest"))
+        _needs_more_spdx_provenance(provenance)
         and sbom_artifacts
         and subject_digest_str
     ):
@@ -848,7 +852,7 @@ async def _process_single_image(
                 fetch_failed = True
             for key, value in sbom_provenance.items():
                 provenance.setdefault(key, value)
-            if provenance.get("source_uri") and provenance.get("parent_image_digest"):
+            if not _needs_more_spdx_provenance(provenance):
                 break
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
@@ -877,16 +881,9 @@ async def _process_single_image(
         result["os"] = os_name
     if variant is not None:
         result["variant"] = variant
-    if provenance.get("source_uri"):
-        result["source_uri"] = provenance["source_uri"]
-    if provenance.get("source_revision"):
-        result["source_revision"] = provenance["source_revision"]
-    if provenance.get("source_file"):
-        result["source_file"] = provenance["source_file"]
-    if provenance.get("parent_image_uri"):
-        result["parent_image_uri"] = provenance["parent_image_uri"]
-    if provenance.get("parent_image_digest"):
-        result["parent_image_digest"] = provenance["parent_image_digest"]
+    for field in PROVENANCE_SOURCE_FIELDS:
+        if provenance.get(field):
+            result[field] = provenance[field]
     if diff_ids:
         result["layer_diff_ids"] = diff_ids
         result["layer_history"] = layer_history

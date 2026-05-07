@@ -1164,7 +1164,9 @@ def test_load_image_provenance_stores_parent_without_missing_parent_edge(
         RETURN
             child.parent_image_uri AS parent_image_uri,
             child.parent_image_digest AS parent_image_digest,
-            exists((child)-[:BUILT_FROM]->(:GCPArtifactRegistryImage)) AS has_edge
+            EXISTS {
+                (child)-[:BUILT_FROM]->(:GCPArtifactRegistryImage)
+            } AS has_edge
         """,
         child_digest=child["digest"],
     ).single()

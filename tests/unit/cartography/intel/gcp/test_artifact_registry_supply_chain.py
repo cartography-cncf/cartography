@@ -343,6 +343,65 @@ def test_extract_parent_image_from_spdx_sbom_rejects_ambiguous_parents():
     assert provenance == {}
 
 
+def test_extract_parent_image_from_spdx_sbom_rejects_ambiguous_descendant_even_with_variant():
+    sbom = mock_spdx_parent_image_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST)
+    sbom["packages"].extend(
+        [
+            {
+                "name": "registry.example.test/other-base",
+                "SPDXID": "SPDXRef-Package-other-parent",
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:docker/other-base@sha256:"
+                            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        ),
+                    },
+                ],
+            },
+            {
+                "name": "registry.example.test/variant-base",
+                "SPDXID": "SPDXRef-Package-variant-parent",
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": (
+                            "pkg:oci/variant-base@sha256:"
+                            "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        ),
+                    },
+                ],
+            },
+        ],
+    )
+    sbom["relationships"].extend(
+        [
+            {
+                "spdxElementId": "SPDXRef-Package-subject-image",
+                "relationshipType": "DESCENDANT_OF",
+                "relatedSpdxElement": "SPDXRef-Package-other-parent",
+            },
+            {
+                "spdxElementId": "SPDXRef-Package-subject-image",
+                "relationshipType": "VARIANT_OF",
+                "relatedSpdxElement": "SPDXRef-Package-variant-parent",
+            },
+        ],
+    )
+
+    provenance = _extract_parent_image_from_spdx_sbom(
+        sbom,
+        MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+    )
+
+    assert provenance == {}
+
+
 # ---------------------------------------------------------------------------
 # Layer history alignment
 # ---------------------------------------------------------------------------
@@ -889,6 +948,64 @@ async def test_process_single_image_extracts_parent_from_spdx_sbom():
     assert result["parent_image_uri"] == MOCK_SUPPLY_CHAIN_PARENT_IMAGE_URI
     assert result["parent_image_digest"] == MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST
     assert "source_uri" not in result
+
+
+@pytest.mark.asyncio
+async def test_process_single_image_returns_parent_only_spdx_provenance():
+    client = _FakeClient(
+        {
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body={"config": {"Labels": {}}},
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(
+                200,
+                json_body={"manifests": []},
+            ),
+            MOCK_SUPPLY_CHAIN_DIGEST_SBOM_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SPDX_SBOM_MANIFEST,
+            ),
+            MOCK_SUPPLY_CHAIN_DIGEST_SBOM_BLOB_URL: _FakeResponse(
+                200,
+                json_body=mock_spdx_parent_image_sbom(MOCK_SUPPLY_CHAIN_IMAGE_DIGEST),
+            ),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        {
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: [
+                {
+                    "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+                    "tags": [
+                        f"sha256-{MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX}.sbom",
+                    ],
+                }
+            ]
+        },
+    )
+
+    assert fetch_failed is False
+    assert result == {
+        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+        "type": "image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "parent_image_uri": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_URI,
+        "parent_image_digest": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST,
+    }
 
 
 @pytest.mark.asyncio
