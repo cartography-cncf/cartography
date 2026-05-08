@@ -161,15 +161,15 @@ def test_sync_aws_organization(neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "AWSOrganization",
-        "id",
         "AWSAccount",
         "id",
-        "RESOURCE",
+        "AWSOrganization",
+        "id",
+        "PARENT",
         rel_direction_right=True,
     ) == {
-        ("o-exampleorgid", "111111111111"),
-        ("o-exampleorgid", "222222222222"),
+        ("111111111111", "o-exampleorgid"),
+        ("222222222222", "o-exampleorgid"),
     }
 
     assert check_rels(
@@ -235,14 +235,14 @@ def test_sync_aws_organization_falls_back_to_current_account_membership(neo4j_se
     }
     assert check_rels(
         neo4j_session,
-        "AWSOrganization",
-        "id",
         "AWSAccount",
         "id",
-        "RESOURCE",
+        "AWSOrganization",
+        "id",
+        "PARENT",
         rel_direction_right=True,
     ) == {
-        ("o-exampleorgid", "111111111111"),
+        ("111111111111", "o-exampleorgid"),
     }
 
 
@@ -296,12 +296,12 @@ def test_sync_aws_organization_cleans_stale_memberships_only(neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "AWSOrganization",
-        "id",
         "AWSAccount",
         "id",
-        "RESOURCE",
+        "AWSOrganization",
+        "id",
+        "PARENT",
         rel_direction_right=True,
     ) == {
-        ("o-exampleorgid", "111111111111"),
+        ("111111111111", "o-exampleorgid"),
     }

@@ -97,7 +97,7 @@ Representation of an AWS Account.
 - `AWSAccount` nodes can belong to an `AWSOrganization`.
 
     ```cypher
-    (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganization)
     ```
 
 - `AWSAccount` nodes scope discovered `AWSOrganization` nodes.
@@ -127,7 +127,7 @@ Representation of an AWS Organization.
 - `AWSAccount` nodes belong to an `AWSOrganization`.
 
     ```cypher
-    (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganization)
     ```
 
 - `AWSOrganization` nodes are scoped to the AWS account that discovered them.
