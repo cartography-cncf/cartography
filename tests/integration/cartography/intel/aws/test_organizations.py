@@ -60,26 +60,26 @@ def test_sync_aws_accounts(neo4j_session):
     """
     Ensure that sync() creates AWSAccount and AWSRootPrincipal nodes.
     """
+    # Arrange
+    accounts = TEST_ACCOUNTS
+
+    # Act
     cartography.intel.aws.organizations.sync(
         neo4j_session,
-        TEST_ACCOUNTS,
+        accounts,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Verify AWSAccount nodes
+    # Assert
     assert check_nodes(neo4j_session, "AWSAccount", ["id", "name"]) == {
         ("111111111111", "test-account-1"),
         ("222222222222", "test-account-2"),
     }
-
-    # Verify AWSRootPrincipal nodes
     assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
         ("arn:aws:iam::111111111111:root",),
         ("arn:aws:iam::222222222222:root",),
     }
-
-    # Verify AWSAccount -[:RESOURCE]-> AWSRootPrincipal
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -99,14 +99,22 @@ def test_sync_aws_organization(neo4j_session):
     Ensure that sync_aws_organization() creates AWSOrganization nodes and ties
     active AWSAccount nodes to the organization.
     """
+    # Arrange
+    organizations_client = FakeOrganizationsClient(
+        TEST_ORGANIZATION,
+        TEST_ORGANIZATION_ACCOUNTS,
+    )
+
+    # Act
     cartography.intel.aws.organizations.sync_aws_organization(
         neo4j_session,
-        FakeOrganizationsClient(TEST_ORGANIZATION, TEST_ORGANIZATION_ACCOUNTS),
+        organizations_client,
         "111111111111",
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    # Assert
     assert check_nodes(
         neo4j_session,
         "AWSOrganization",
@@ -140,7 +148,17 @@ def test_sync_aws_organization(neo4j_session):
             "o-exampleorgid",
         ),
     }
-
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("111111111111", "o-exampleorgid"),
+    }
     assert check_rels(
         neo4j_session,
         "AWSOrganization",
@@ -174,6 +192,7 @@ def test_sync_aws_organization_falls_back_to_current_account_membership(neo4j_se
     requires management or delegated-admin access. If list_accounts() is denied,
     keep existing account metadata and still attach the current account to its org.
     """
+    # Arrange
     cartography.intel.aws.organizations.sync(
         neo4j_session,
         TEST_ACCOUNTS,
@@ -184,18 +203,35 @@ def test_sync_aws_organization_falls_back_to_current_account_membership(neo4j_se
         {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
         "ListAccounts",
     )
+    organizations_client = FakeOrganizationsClient(
+        TEST_ORGANIZATION,
+        list_accounts_error=error,
+    )
 
+    # Act
     cartography.intel.aws.organizations.sync_aws_organization(
         neo4j_session,
-        FakeOrganizationsClient(TEST_ORGANIZATION, list_accounts_error=error),
+        organizations_client,
         "111111111111",
         TEST_SECOND_UPDATE_TAG,
         {"UPDATE_TAG": TEST_SECOND_UPDATE_TAG},
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "AWSAccount", ["id", "name", "org_id"]) == {
         ("111111111111", "test-account-1", "o-exampleorgid"),
         ("222222222222", "test-account-2", None),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("111111111111", "o-exampleorgid"),
     }
     assert check_rels(
         neo4j_session,
@@ -211,24 +247,52 @@ def test_sync_aws_organization_falls_back_to_current_account_membership(neo4j_se
 
 
 def test_sync_aws_organization_cleans_stale_memberships_only(neo4j_session):
+    # Arrange
+    first_organizations_client = FakeOrganizationsClient(
+        TEST_ORGANIZATION,
+        TEST_ORGANIZATION_ACCOUNTS[:2],
+    )
+    second_organizations_client = FakeOrganizationsClient(
+        TEST_ORGANIZATION,
+        TEST_ORGANIZATION_ACCOUNTS[:1],
+    )
+
+    # Act
     cartography.intel.aws.organizations.sync_aws_organization(
         neo4j_session,
-        FakeOrganizationsClient(TEST_ORGANIZATION, TEST_ORGANIZATION_ACCOUNTS[:2]),
+        first_organizations_client,
         "111111111111",
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
+
+    # Act
     cartography.intel.aws.organizations.sync_aws_organization(
         neo4j_session,
-        FakeOrganizationsClient(TEST_ORGANIZATION, TEST_ORGANIZATION_ACCOUNTS[:1]),
+        second_organizations_client,
         "111111111111",
         TEST_SECOND_UPDATE_TAG,
         {"UPDATE_TAG": TEST_SECOND_UPDATE_TAG},
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "AWSAccount", ["id"]) == {
         ("111111111111",),
         ("222222222222",),
+    }
+    assert check_nodes(neo4j_session, "AWSOrganization", ["id"]) == {
+        ("o-exampleorgid",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("111111111111", "o-exampleorgid"),
     }
     assert check_rels(
         neo4j_session,

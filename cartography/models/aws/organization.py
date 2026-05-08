@@ -18,7 +18,20 @@ class AWSOrganizationToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSOrganizationToAWSAccountRel(CartographyRelSchema):
+class AWSOrganizationToSyncingAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationToAWSAccountRelProperties = (
+        AWSOrganizationToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSOrganizationToMemberAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_ids", one_to_many=True)},
@@ -49,8 +62,11 @@ class AWSOrganizationSchema(CartographyNodeSchema):
     label: str = "AWSOrganization"
     properties: AWSOrganizationNodeProperties = AWSOrganizationNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    sub_resource_relationship: AWSOrganizationToSyncingAWSAccountRel = (
+        AWSOrganizationToSyncingAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
-        [AWSOrganizationToAWSAccountRel()],
+        [AWSOrganizationToMemberAWSAccountRel()],
     )
 
 

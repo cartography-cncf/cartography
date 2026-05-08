@@ -244,6 +244,7 @@ def load_aws_organization(
     neo4j_session: neo4j.Session,
     organization: dict[str, Any],
     update_tag: int,
+    sync_account_id: str,
     account_ids: Iterable[str] = (),
 ) -> None:
     load(
@@ -251,16 +252,18 @@ def load_aws_organization(
         AWSOrganizationSchema(),
         [transform_aws_organization(organization, account_ids)],
         lastupdated=update_tag,
+        AWS_ID=sync_account_id,
     )
 
 
 def cleanup_aws_account_organization_memberships(
     neo4j_session: neo4j.Session,
     update_tag: int,
+    sync_account_id: str,
 ) -> None:
     GraphJob.from_node_schema(
         AWSOrganizationSchema(),
-        {"UPDATE_TAG": update_tag},
+        {"UPDATE_TAG": update_tag, "AWS_ID": sync_account_id},
     ).run(neo4j_session)
 
 
@@ -293,6 +296,7 @@ def sync_aws_organization(
             neo4j_session,
             organization,
             update_tag,
+            current_aws_account_id,
             [current_aws_account_id],
         )
         return
@@ -316,9 +320,11 @@ def sync_aws_organization(
         neo4j_session,
         organization,
         update_tag,
+        current_aws_account_id,
         [account["id"] for account in organization_accounts],
     )
     cleanup_aws_account_organization_memberships(
         neo4j_session,
         update_tag,
+        current_aws_account_id,
     )

@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 TEST_ACCOUNTS = {
     "test-account-1": "111111111111",
     "test-account-2": "222222222222",
@@ -10,6 +13,12 @@ TEST_ORGANIZATION = {
     "MasterAccountArn": "arn:aws:organizations::111111111111:account/o-exampleorgid/111111111111",
     "MasterAccountId": "111111111111",
     "MasterAccountEmail": "management@example.com",
+    "AvailablePolicyTypes": [
+        {
+            "Type": "SERVICE_CONTROL_POLICY",
+            "Status": "ENABLED",
+        },
+    ],
 }
 
 TEST_ORGANIZATION_ACCOUNTS = [
@@ -21,7 +30,7 @@ TEST_ORGANIZATION_ACCOUNTS = [
         "Status": "ACTIVE",
         "State": "ACTIVE",
         "JoinedMethod": "CREATED",
-        "JoinedTimestamp": "2020-01-01T00:00:00Z",
+        "JoinedTimestamp": datetime(2020, 1, 1, tzinfo=timezone.utc),
     },
     {
         "Id": "222222222222",
@@ -31,16 +40,16 @@ TEST_ORGANIZATION_ACCOUNTS = [
         "Status": "ACTIVE",
         "State": "ACTIVE",
         "JoinedMethod": "INVITED",
-        "JoinedTimestamp": "2020-01-02T00:00:00Z",
+        "JoinedTimestamp": datetime(2020, 1, 2, tzinfo=timezone.utc),
     },
     {
         "Id": "333333333333",
         "Arn": "arn:aws:organizations::111111111111:account/o-exampleorgid/333333333333",
         "Email": "suspended@example.com",
         "Name": "suspended-account",
-        "Status": "ACTIVE",
+        "Status": "SUSPENDED",
         "State": "SUSPENDED",
         "JoinedMethod": "INVITED",
-        "JoinedTimestamp": "2020-01-03T00:00:00Z",
+        "JoinedTimestamp": datetime(2020, 1, 3, tzinfo=timezone.utc),
     },
 ]

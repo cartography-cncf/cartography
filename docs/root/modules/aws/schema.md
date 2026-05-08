@@ -100,6 +100,12 @@ Representation of an AWS Account.
     (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
     ```
 
+- `AWSAccount` nodes scope discovered `AWSOrganization` nodes.
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSOrganization)
+    ```
+
 ### AWSOrganization
 
 Representation of an AWS Organization.
@@ -122,6 +128,12 @@ Representation of an AWS Organization.
 
     ```cypher
     (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+- `AWSOrganization` nodes are scoped to the AWS account that discovered them.
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSOrganization)
     ```
 
 ### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock
