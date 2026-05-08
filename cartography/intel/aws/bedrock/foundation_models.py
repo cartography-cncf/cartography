@@ -34,7 +34,7 @@ def get_foundation_models(
     """
     Retrieve all foundation models available in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock foundation models in region %s", region)
+    logger.debug("Fetching Bedrock foundation models in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock",
@@ -46,7 +46,7 @@ def get_foundation_models(
     response = client.list_foundation_models()
     models = response.get("modelSummaries", [])
 
-    logger.info("Retrieved %d foundation models in region %s", len(models), region)
+    logger.debug("Retrieved %d foundation models in region %s", len(models), region)
 
     return models
 
@@ -74,8 +74,6 @@ def load_foundation_models(
     """
     Load foundation models into the graph database.
     """
-    logger.info("Loading %d Bedrock foundation models for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockFoundationModelSchema(),

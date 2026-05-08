@@ -108,4 +108,44 @@ MOCK_PERMISSION_RELATIONSHIPS_YAML = [
         ],
         "relationship_name": "CAN_GET_ACCELERATOR_TYPES",
     },
+    {
+        "target_label": "GCPBigQueryDataset",
+        "permissions": [
+            "bigquery.tables.getData",
+        ],
+        "relationship_name": "CAN_READ",
+    },
+    {
+        "target_label": "GCPBigQueryTable",
+        "permissions": [
+            "bigquery.tables.getData",
+        ],
+        "relationship_name": "CAN_READ",
+    },
+    {
+        "target_label": "GCPCryptoKey",
+        "permissions": [
+            "cloudkms.cryptoKeyVersions.useToDecrypt",
+        ],
+        "relationship_name": "CAN_DECRYPT",
+    },
+    {
+        "target_label": "GCPArtifactRegistryRepository",
+        "permissions": [
+            "artifactregistry.repositories.downloadArtifacts",
+        ],
+        "relationship_name": "CAN_READ",
+    },
+    {
+        "target_label": "GCPServiceAccount",
+        "permissions": [
+            "iam.serviceAccounts.actAs",
+            "iam.serviceAccounts.getAccessToken",
+            "iam.serviceAccounts.implicitDelegation",
+            "iam.serviceAccounts.signBlob",
+            "iam.serviceAccounts.signJwt",
+            "iam.serviceAccounts.getOpenIdToken",
+        ],
+        "relationship_name": "CAN_IMPERSONATE",
+    },
 ]

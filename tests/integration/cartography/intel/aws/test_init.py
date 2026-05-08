@@ -6,6 +6,7 @@ from typing import List
 from unittest import mock
 
 import neo4j
+from moto import mock_aws
 from pytest import raises
 
 import cartography.config
@@ -67,47 +68,45 @@ def test_sync_multiple_accounts(
     mock_sync_orgs,
     neo4j_session,
 ):
-    test_config = cartography.config.Config(
-        neo4j_uri="bolt://localhost:7687",
-    )
     cartography.intel.aws._sync_multiple_accounts(
         neo4j_session,
         TEST_ACCOUNTS,
         TEST_UPDATE_TAG,
         GRAPH_JOB_PARAMETERS,
-        test_config,
+        aws_best_effort_mode=False,
+        use_explicit_profile=True,
     )
 
     # Ensure we call _sync_one_account on all accounts in our list.
     mock_sync_one.assert_any_call(
         neo4j_session,
-        mock_boto3_session(),
+        mock_boto3_session(profile_name="profile1"),
         "000000000000",
         TEST_UPDATE_TAG,
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(),
+        aioboto3_session=mock_aioboto3_session(profile_name="profile1"),
     )
     mock_sync_one.assert_any_call(
         neo4j_session,
-        mock_boto3_session(),
+        mock_boto3_session(profile_name="profile2"),
         "000000000001",
         TEST_UPDATE_TAG,
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(),
+        aioboto3_session=mock_aioboto3_session(profile_name="profile2"),
     )
     mock_sync_one.assert_any_call(
         neo4j_session,
-        mock_boto3_session(),
+        mock_boto3_session(profile_name="profile3"),
         "000000000002",
         TEST_UPDATE_TAG,
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(),
+        aioboto3_session=mock_aioboto3_session(profile_name="profile3"),
     )
 
     # Ensure _sync_one_account and _autodiscover is called once for each account
@@ -116,6 +115,134 @@ def test_sync_multiple_accounts(
 
     # This is a brittle test, but it is here to ensure that the mock_cleanup path is correct.
     assert mock_cleanup.call_count == 1
+
+
+@mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+def test_sync_multiple_accounts_single_profile_uses_profile_name(
+    mock_cleanup,
+    mock_autodiscover,
+    mock_sync_one,
+    mock_boto3_session,
+    mock_aioboto3_session,
+    mock_sync_orgs,
+    neo4j_session,
+):
+    # Regression for #1142 and #1185: single explicit profile must not fall back to the default session.
+    single_account = {"spoke1": "000000000099"}
+
+    cartography.intel.aws._sync_multiple_accounts(
+        neo4j_session,
+        single_account,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_best_effort_mode=False,
+        use_explicit_profile=True,
+    )
+
+    mock_boto3_session.assert_any_call(profile_name="spoke1")
+    mock_aioboto3_session.assert_any_call(profile_name="spoke1")
+    mock_sync_one.assert_called_once_with(
+        neo4j_session,
+        mock_boto3_session(profile_name="spoke1"),
+        "000000000099",
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        regions=None,
+        aws_requested_syncs=[],
+        aioboto3_session=mock_aioboto3_session(profile_name="spoke1"),
+    )
+
+
+@mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+def test_sync_multiple_accounts_default_path_uses_default_session(
+    mock_cleanup,
+    mock_autodiscover,
+    mock_sync_one,
+    mock_boto3_session,
+    mock_aioboto3_session,
+    mock_sync_orgs,
+    neo4j_session,
+):
+    # Without --aws-sync-all-profiles the default session must be used (preserves #1042 fix for env-var-only creds).
+    default_account = {"default": "000000000000"}
+
+    cartography.intel.aws._sync_multiple_accounts(
+        neo4j_session,
+        default_account,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_best_effort_mode=False,
+        use_explicit_profile=False,
+    )
+
+    for call in mock_boto3_session.call_args_list:
+        assert "profile_name" not in call.kwargs
+    for call in mock_aioboto3_session.call_args_list:
+        assert "profile_name" not in call.kwargs
+    assert mock_sync_one.call_count == 1
+
+
+@mock_aws
+@mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+def test_sync_multiple_accounts_profile_session_is_usable(
+    mock_cleanup,
+    mock_autodiscover,
+    mock_sync_orgs,
+    neo4j_session,
+    monkeypatch,
+    tmp_path,
+):
+    # Smoke test for #1042/#1142/#1185: the real boto3 Session built for each profile
+    # must resolve credentials from the configured profile and support live AWS calls.
+    # Unlike the mocked plumbing tests above, nothing patches boto3.Session here.
+    creds_file = tmp_path / "credentials"
+    creds_file.write_text(
+        "[spoke1]\n"
+        "aws_access_key_id = spoke-access\n"
+        "aws_secret_access_key = spoke-secret\n",
+    )
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(creds_file))
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+
+    captured_sessions = []
+
+    def capture(neo4j_session, boto3_session, *args, **kwargs):
+        captured_sessions.append(boto3_session)
+
+    with mock.patch.object(
+        cartography.intel.aws, "_sync_one_account", side_effect=capture
+    ):
+        cartography.intel.aws._sync_multiple_accounts(
+            neo4j_session,
+            {"spoke1": "000000000099"},
+            TEST_UPDATE_TAG,
+            GRAPH_JOB_PARAMETERS,
+            aws_best_effort_mode=False,
+            use_explicit_profile=True,
+        )
+
+    assert len(captured_sessions) == 1
+    session = captured_sessions[0]
+    assert session.profile_name == "spoke1"
+    creds = session.get_credentials()
+    assert creds is not None
+    assert creds.access_key == "spoke-access"
+    # The session is good enough to call STS through moto — if profile_name weren't
+    # honored, this would fail with NoCredentialsError (empty creds file).
+    identity = session.client("sts", region_name="us-east-1").get_caller_identity()
+    assert "Account" in identity
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

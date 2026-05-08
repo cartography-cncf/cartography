@@ -31,7 +31,7 @@ def get_guardrails(
     """
     Retrieve all guardrails in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock guardrails in region %s", region)
+    logger.debug("Fetching Bedrock guardrails in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock",
@@ -44,7 +44,7 @@ def get_guardrails(
     for page in paginator.paginate():
         guardrails.extend(page.get("guardrails", []))
 
-    logger.info("Retrieved %d guardrails in region %s", len(guardrails), region)
+    logger.debug("Retrieved %d guardrails in region %s", len(guardrails), region)
 
     return guardrails
 
@@ -79,8 +79,6 @@ def load_guardrails(
     """
     Load guardrails into the graph database.
     """
-    logger.info("Loading %d Bedrock guardrails for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockGuardrailSchema(),

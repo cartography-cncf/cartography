@@ -23,6 +23,7 @@ OLD_FORMAT_NODES = [
     "OktaApplication",
     "OktaGroup",
     "OktaOrganization",
+    "OktaAdministrationRole",
     "AWSAccount",
     "EntraTenant",  # main label is AzureTenant
     "GitHubRepository",

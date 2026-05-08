@@ -46,7 +46,7 @@ class UserToOntologyNodeRelProperties(CartographyRelProperties):
 
 
 # Cleanup-only relationship definitions for custom ontology links.
-# These relations are created by link_ontology_nodes() queries, not by load(UserSchema()).
+# These relations are created by ontology analysis jobs, not by load(UserSchema()).
 # The PropertyRef values intentionally reference fields absent from user load payloads so
 # standard ingestion never creates them, while schema-driven cleanup still knows about them.
 

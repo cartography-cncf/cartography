@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -10,8 +9,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.pagerduty.user import PagerDutyUserSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -43,7 +40,6 @@ def load_user_data(
     """
     Transform and load user information
     """
-    logger.info(f"Loading {len(data)} pagerduty users.")
     load(neo4j_session, PagerDutyUserSchema(), data, lastupdated=update_tag)
 
 

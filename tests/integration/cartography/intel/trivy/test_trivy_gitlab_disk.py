@@ -5,6 +5,7 @@ from unittest.mock import patch
 import cartography.intel.gitlab.container_images
 import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.trivy
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_dir
 from tests.data.gitlab.container_registry import GET_CONTAINER_IMAGES_RESPONSE
 from tests.data.gitlab.container_registry import GET_CONTAINER_MANIFEST_LISTS_RESPONSE
@@ -13,19 +14,20 @@ from tests.data.gitlab.container_registry import TEST_ORG_URL
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTI_REPO_DIGESTS
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_CHILD_AMD64
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_CHILD_ARM64
-from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_MANIFEST_LIST
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_SAMPLE
 from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_finding_extended_fields,
 )
 from tests.integration.cartography.intel.trivy.test_helpers import (
-    assert_trivy_gitlab_image_relationships,
+    assert_trivy_image_relationships,
 )
 from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_package_extended_fields,
 )
 
 TEST_UPDATE_TAG = 123456789
+TEST_ORG_ID = 12345
+TEST_GITLAB_URL = "https://gitlab.example.com"
 TEST_REPOSITORIES = [
     {"id": 1, "project_id": 1, "location": "registry.gitlab.com/myorg/app"}
 ]
@@ -42,12 +44,16 @@ def _create_test_org(neo4j_session):
     """Create test GitLabOrganization node."""
     neo4j_session.run(
         """
-        MERGE (o:GitLabOrganization{id: $org_url})
+        MERGE (o:GitLabOrganization{id: $org_id})
         ON CREATE SET o.firstseen = timestamp()
         SET o.lastupdated = $update_tag,
-            o.name = 'myorg'
+            o.name = 'myorg',
+            o.web_url = $org_url,
+            o.gitlab_url = $gitlab_url
         """,
+        org_id=TEST_ORG_ID,
         org_url=TEST_ORG_URL,
+        gitlab_url=TEST_GITLAB_URL,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -55,12 +61,11 @@ def _create_test_org(neo4j_session):
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_SAMPLE),
+    read_data=json.dumps(TRIVY_GITLAB_SAMPLE).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan.json", name="scan.json")],
 )
 @patch.object(
     cartography.intel.gitlab.container_repository_tags,
@@ -89,7 +94,8 @@ def test_sync_trivy_gitlab(
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "org_url": TEST_ORG_URL,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     }
 
     # First sync GitLab container images
@@ -97,7 +103,7 @@ def test_sync_trivy_gitlab(
         neo4j_session,
         "https://gitlab.example.com",
         "fake-token",
-        TEST_ORG_URL,
+        TEST_ORG_ID,
         TEST_REPOSITORIES,
         TEST_UPDATE_TAG,
         common_job_parameters,
@@ -108,7 +114,7 @@ def test_sync_trivy_gitlab(
         neo4j_session,
         "https://gitlab.example.com",
         "fake-token",
-        TEST_ORG_URL,
+        TEST_ORG_ID,
         [],  # repositories - not used since we're mocking get_all_container_repository_tags
         TEST_UPDATE_TAG,
         common_job_parameters,
@@ -149,7 +155,7 @@ def test_sync_trivy_gitlab(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -167,7 +173,8 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
 
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
-        "org_url": TEST_ORG_URL,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
     }
 
     # Sync GitLab container images
@@ -183,7 +190,7 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
             neo4j_session,
             "https://gitlab.example.com",
             "fake-token",
-            TEST_ORG_URL,
+            TEST_ORG_ID,
             TEST_REPOSITORIES,
             TEST_UPDATE_TAG,
             common_job_parameters,
@@ -199,7 +206,7 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
             neo4j_session,
             "https://gitlab.example.com",
             "fake-token",
-            TEST_ORG_URL,
+            TEST_ORG_ID,
             [],
             TEST_UPDATE_TAG,
             common_job_parameters,
@@ -211,76 +218,11 @@ def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_MANIFEST_LIST),
+    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_AMD64).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-manifest-list.json"},
-)
-def test_sync_trivy_gitlab_multiarch_manifest_list(
-    mock_list_dir_scan_results,
-    mock_file_open,
-    neo4j_session,
-):
-    """
-    Test Trivy scan of a multi-arch manifest list.
-
-    Verifies that findings link to the manifest_list type image node,
-    not to the platform-specific children.
-    """
-    common_job_parameters = _sync_gitlab_data(neo4j_session)
-
-    # Act - sync Trivy results for manifest list
-    sync_trivy_from_dir(
-        neo4j_session,
-        "/tmp",
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Assert - verify findings link to manifest list digest
-    expected_package_rels = {
-        (
-            "3.7.9-2+deb12u3|libgnutls30",
-            "sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-        ),
-    }
-
-    expected_finding_rels = {
-        (
-            "TIF|CVE-2024-77777",
-            "sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-        ),
-    }
-
-    assert_trivy_gitlab_image_relationships(
-        neo4j_session,
-        expected_package_rels,
-        expected_finding_rels,
-    )
-
-    # Verify the image node is of type manifest_list
-    result = neo4j_session.run(
-        """
-        MATCH (img:GitLabContainerImage {digest: $digest})
-        RETURN img.type AS type
-        """,
-        digest="sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
-    ).single()
-    assert result is not None
-    assert result["type"] == "manifest_list"
-
-
 @patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_AMD64),
-)
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-amd64.json"},
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan-amd64.json", name="scan-amd64.json")],
 )
 def test_sync_trivy_gitlab_multiarch_child_amd64(
     mock_list_dir_scan_results,
@@ -318,7 +260,7 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -344,12 +286,11 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_ARM64),
+    read_data=json.dumps(TRIVY_GITLAB_MULTIARCH_CHILD_ARM64).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-arm64.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan-arm64.json", name="scan-arm64.json")],
 )
 def test_sync_trivy_gitlab_multiarch_child_arm64(
     mock_list_dir_scan_results,
@@ -387,7 +328,7 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,
@@ -409,12 +350,13 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_GITLAB_MULTI_REPO_DIGESTS),
+    read_data=json.dumps(TRIVY_GITLAB_MULTI_REPO_DIGESTS).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan-multi-digests.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[
+        ReportRef(uri="/tmp/scan-multi-digests.json", name="scan-multi-digests.json")
+    ],
 )
 def test_sync_trivy_gitlab_multi_repo_digests(
     mock_list_dir_scan_results,
@@ -452,7 +394,7 @@ def test_sync_trivy_gitlab_multi_repo_digests(
         ),
     }
 
-    assert_trivy_gitlab_image_relationships(
+    assert_trivy_image_relationships(
         neo4j_session,
         expected_package_rels,
         expected_finding_rels,

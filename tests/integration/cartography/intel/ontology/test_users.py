@@ -62,6 +62,35 @@ def test_sync_with_empty_source_list(neo4j_session):
     assert user_count == 2
 
 
+def test_sync_accepts_entra_as_alias_for_microsoft_useraccounts(neo4j_session):
+    """Legacy 'entra' source names should still resolve to Microsoft user accounts."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    neo4j_session.run(
+        """
+        CREATE (:UserAccount {
+            id: 'msft-user-1',
+            _ont_source: 'microsoft',
+            _ont_email: 'homer@simpson.corp',
+            _ont_fullname: 'Homer Simpson',
+            _ont_firstname: 'Homer',
+            _ont_lastname: 'Simpson',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.users.sync(
+        neo4j_session, ["entra"], TEST_UPDATE_TAG, {"UPDATE_TAG": TEST_UPDATE_TAG}
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "User",
+        ["email", "firstname", "lastname"],
+    ) == {("homer@simpson.corp", "Homer", "Simpson")}
+
+
 @patch.object(
     cartography.intel.ontology.users,
     "get_source_nodes_from_graph",

@@ -108,7 +108,6 @@ def load_elasticache_topics(
 ) -> None:
     if not topics:
         return
-    logger.info(f"Loading {len(topics)} ElastiCache topics into graph.")
     load(
         neo4j_session,
         ElasticacheTopicSchema(),

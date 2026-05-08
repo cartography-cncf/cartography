@@ -59,7 +59,7 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[dict[str, Any]]:
         all_users.extend(
             paginated_list(
                 client.directory_sync.list_users,
-                directory_id=directory_id,
+                directory=directory_id,
             )
         )
 
@@ -120,7 +120,6 @@ def load_directory_users(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS directory users into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectoryUserSchema(),

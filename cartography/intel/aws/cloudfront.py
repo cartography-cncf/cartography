@@ -46,7 +46,7 @@ def get_cloudfront_distributions(
 
     CloudFront is a global service, so we query from us-east-1.
     """
-    logger.info("Fetching CloudFront distributions")
+    logger.debug("Fetching CloudFront distributions")
     client = create_boto3_client(
         boto3_session,
         "cloudfront",
@@ -208,8 +208,6 @@ def load_cloudfront_distributions(
     """
     Load CloudFront distributions into the graph database.
     """
-    logger.info("Loading %d CloudFront distributions into graph", len(data))
-
     load(
         neo4j_session,
         CloudFrontDistributionSchema(),

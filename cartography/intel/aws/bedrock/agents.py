@@ -33,7 +33,7 @@ def get_agents(
 
     This function first lists all agents, then gets detailed information for each agent
     """
-    logger.info("Fetching Bedrock agents in region %s", region)
+    logger.debug("Fetching Bedrock agents in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock-agent",
@@ -88,7 +88,7 @@ def get_agents(
 
         agents.append(agent_details)
 
-    logger.info("Retrieved %d agents in region %s", len(agents), region)
+    logger.debug("Retrieved %d agents in region %s", len(agents), region)
 
     return agents
 
@@ -188,8 +188,7 @@ def load_agents(
     """
     Load agents into the graph database.
     """
-    logger.info("Loading %d Bedrock agents for region %s", len(data), region)
-
+    logger.info("Loading Bedrock agents for region %s", region)
     load(
         neo4j_session,
         AWSBedrockAgentSchema(),

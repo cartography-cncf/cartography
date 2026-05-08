@@ -75,6 +75,9 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
             "iam_config_bucket_policy_only": (
                 b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
             ),
+            "iam_config_public_access_prevention": (
+                b.get("iamConfiguration", {}).get("publicAccessPrevention")
+            ),
             "id": b["id"],
             # Preserve legacy bucket_id field for compatibility
             "bucket_id": b["id"],

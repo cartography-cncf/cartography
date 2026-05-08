@@ -1,8 +1,8 @@
 """
 CIS AWS Networking Security Checks
 
-Implements CIS AWS Foundations Benchmark Section 5: Networking
-Based on CIS AWS Foundations Benchmark v5.0
+Implements CIS AWS Foundations Benchmark Section 6: Networking
+Based on CIS AWS Foundations Benchmark v6.0.0
 
 Each Rule represents a distinct security concept with a consistent main node type.
 Facts within a Rule are provider-specific implementations of the same concept.
@@ -18,7 +18,7 @@ from cartography.rules.spec.model import RuleReference
 
 CIS_REFERENCES = [
     RuleReference(
-        text="CIS AWS Foundations Benchmark v5.0",
+        text="CIS AWS Foundations Benchmark v6.0.0",
         url="https://www.cisecurity.org/benchmark/amazon_web_services",
     ),
     RuleReference(
@@ -29,7 +29,81 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 5.3: Remote Administration Ports Open to IPv4 Internet
+# CIS AWS 6.1.1: EBS Volume Encryption
+# Main node: EBSVolume
+# =============================================================================
+class EbsEncryptionOutput(Finding):
+    """Output model for EBS encryption check."""
+
+    volume_id: str | None = None
+    region: str | None = None
+    volume_type: str | None = None
+    size_gb: int | None = None
+    state: str | None = None
+    encrypted: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_ebs_encryption_disabled = Fact(
+    id="aws_ebs_encryption_disabled",
+    name="AWS EBS volumes without encryption",
+    description=(
+        "Detects EBS volumes that are not encrypted. Encrypting EBS volumes "
+        "protects data at rest and data in transit between the volume and instance."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
+    WHERE volume.encrypted IS NULL OR volume.encrypted = false
+    RETURN
+        volume.id AS volume_id,
+        volume.region AS region,
+        volume.volumetype AS volume_type,
+        volume.size AS size_gb,
+        volume.state AS state,
+        volume.encrypted AS encrypted,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
+    WHERE volume.encrypted IS NULL OR volume.encrypted = false
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (volume:EBSVolume)
+    RETURN COUNT(volume) AS count
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_aws_6_1_1_ebs_encryption = Rule(
+    id="cis_aws_6_1_1_ebs_encryption",
+    name="CIS AWS 6.1.1: EBS Volume Encryption",
+    description=(
+        "EBS volumes should be encrypted to protect data at rest and in transit "
+        "between the volume and instance."
+    ),
+    output_model=EbsEncryptionOutput,
+    facts=(_aws_ebs_encryption_disabled,),
+    tags=("networking", "ebs", "encryption", "stride:information_disclosure"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="6.0.0",
+            requirement="6.1.1",
+        ),
+    ),
+)
+
+
+# =============================================================================
+# CIS AWS 6.3: Remote Administration Ports Open to IPv4 Internet
 # Main node: EC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv4Output(Finding):
@@ -98,9 +172,9 @@ _aws_remote_admin_ipv4 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_5_3_remote_admin_ipv4 = Rule(
-    id="cis_aws_5_3_remote_admin_ipv4",
-    name="CIS AWS 5.3: IPv4 Remote Administration Ports Open to the Internet",
+cis_aws_6_3_remote_admin_ipv4 = Rule(
+    id="cis_aws_6_3_remote_admin_ipv4",
+    name="CIS AWS 6.3: IPv4 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from 0.0.0.0/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -121,15 +195,15 @@ cis_aws_5_3_remote_admin_ipv4 = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="5.3",
+            revision="6.0.0",
+            requirement="6.3",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 5.4: Remote Administration Ports Open to IPv6 Internet
+# CIS AWS 6.4: Remote Administration Ports Open to IPv6 Internet
 # Main node: EC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv6Output(Finding):
@@ -198,9 +272,9 @@ _aws_remote_admin_ipv6 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_5_4_remote_admin_ipv6 = Rule(
-    id="cis_aws_5_4_remote_admin_ipv6",
-    name="CIS AWS 5.4: IPv6 Remote Administration Ports Open to the Internet",
+cis_aws_6_4_remote_admin_ipv6 = Rule(
+    id="cis_aws_6_4_remote_admin_ipv6",
+    name="CIS AWS 6.4: IPv6 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from ::/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -221,15 +295,15 @@ cis_aws_5_4_remote_admin_ipv6 = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="5.4",
+            revision="6.0.0",
+            requirement="6.4",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 5.5: Default Security Group Restricts All Traffic
+# CIS AWS 6.5: Default Security Group Restricts All Traffic
 # Main node: EC2SecurityGroup
 # =============================================================================
 class DefaultSgAllowsTrafficOutput(Finding):
@@ -298,9 +372,9 @@ _aws_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_5_5_default_sg_traffic = Rule(
-    id="cis_aws_5_5_default_sg_traffic",
-    name="CIS AWS 5.5: Default Security Group Restricts Traffic",
+cis_aws_6_5_default_sg_traffic = Rule(
+    id="cis_aws_6_5_default_sg_traffic",
+    name="CIS AWS 6.5: Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
         "prevent accidental exposure of resources."
@@ -320,15 +394,15 @@ cis_aws_5_5_default_sg_traffic = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="5.5",
+            revision="6.0.0",
+            requirement="6.5",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 5.7: EC2 Instances Should Use IMDSv2
+# CIS AWS 6.7: EC2 Instances Should Use IMDSv2
 # Main node: EC2Instance
 # =============================================================================
 class Ec2Imdsv2RequiredOutput(Finding):
@@ -375,9 +449,9 @@ _aws_ec2_imdsv2_required = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_5_7_ec2_imdsv2 = Rule(
-    id="cis_aws_5_7_ec2_imdsv2",
-    name="CIS AWS 5.7: EC2 Instances Should Use IMDSv2",
+cis_aws_6_7_ec2_imdsv2 = Rule(
+    id="cis_aws_6_7_ec2_imdsv2",
+    name="CIS AWS 6.7: EC2 Instances Should Use IMDSv2",
     description=(
         "EC2 instances should require Instance Metadata Service Version 2 (IMDSv2) "
         "so that IMDSv1 is disabled."
@@ -398,8 +472,31 @@ cis_aws_5_7_ec2_imdsv2 = Rule(
             name="CIS AWS Foundations Benchmark",
             short_name="CIS",
             scope="aws",
-            revision="5.0",
-            requirement="5.7",
+            revision="6.0.0",
+            requirement="6.7",
         ),
     ),
 )
+
+
+# =============================================================================
+# CIS AWS 6.1.1: Partial control coverage
+# Missing datamodel: account-level EnableEbsEncryptionByDefault setting per region;
+# current rule evaluates per-volume encrypted state, which is stricter but does not
+# detect the absence of the account-level default
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.1.2: CIFS access is restricted to trusted networks
+# Missing datamodel or evidence: none; current security group datamodel appears sufficient, but the corresponding rule for port 445 is not implemented yet
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.2: No Network ACLs allow ingress from 0.0.0.0/0 to remote administration ports
+# Missing datamodel or evidence: Network ACL inventory, rule entries, and subnet associations
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 6.6: Routing tables for VPC peering are least access
+# Missing datamodel or evidence: route table entries, peering connection targets, and organization-defined least-access routing baseline
+# =============================================================================

@@ -121,7 +121,9 @@ def get_dependency_files(
 
 def transform_dependency_files(
     raw_dependency_files: list[dict[str, Any]],
+    project_id: int,
     project_url: str,
+    gitlab_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform raw GitLab dependency file data to match our schema.
@@ -138,7 +140,9 @@ def transform_dependency_files(
             "id": dep_file_id,
             "path": file_path,
             "filename": filename,
+            "project_id": project_id,
             "project_url": project_url,
+            "gitlab_url": gitlab_url,
         }
         transformed.append(transformed_file)
 
@@ -150,21 +154,23 @@ def transform_dependency_files(
 def load_dependency_files(
     neo4j_session: neo4j.Session,
     dependency_files: list[dict[str, Any]],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
     update_tag: int,
 ) -> None:
     """
     Load GitLab dependency files into the graph for a specific project.
     """
     logger.info(
-        f"Loading {len(dependency_files)} dependency files for project {project_url}"
+        f"Loading {len(dependency_files)} dependency files for project {project_id}"
     )
     load(
         neo4j_session,
         GitLabDependencyFileSchema(),
         dependency_files,
         lastupdated=update_tag,
-        project_url=project_url,
+        project_id=project_id,
+        gitlab_url=gitlab_url,
     )
 
 
@@ -172,13 +178,18 @@ def load_dependency_files(
 def cleanup_dependency_files(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    project_url: str,
+    project_id: int,
+    gitlab_url: str,
 ) -> None:
     """
     Remove stale GitLab dependency files from the graph for a specific project.
     """
-    logger.info(f"Running GitLab dependency files cleanup for project {project_url}")
-    cleanup_params = {**common_job_parameters, "project_url": project_url}
+    logger.info(f"Running GitLab dependency files cleanup for project {project_id}")
+    cleanup_params = {
+        **common_job_parameters,
+        "project_id": project_id,
+        "gitlab_url": gitlab_url,
+    }
     GraphJob.from_node_schema(GitLabDependencyFileSchema(), cleanup_params).run(
         neo4j_session
     )
@@ -228,7 +239,7 @@ def sync_gitlab_dependency_files(
             continue
 
         transformed_files = transform_dependency_files(
-            raw_dependency_files, project_url
+            raw_dependency_files, project_id, project_url, gitlab_url
         )
 
         # Store for downstream use
@@ -238,7 +249,13 @@ def sync_gitlab_dependency_files(
             f"Found {len(transformed_files)} dependency files in project {project_name}"
         )
 
-        load_dependency_files(neo4j_session, transformed_files, project_url, update_tag)
+        load_dependency_files(
+            neo4j_session,
+            transformed_files,
+            project_id,
+            gitlab_url,
+            update_tag,
+        )
 
     logger.info("GitLab dependency files sync completed")
     return dependency_files_by_project

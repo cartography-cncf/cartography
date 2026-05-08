@@ -29,8 +29,8 @@ def test_normalize_removes_shell_prefix():
 
 def test_normalize_removes_instruction_prefix():
     assert normalize_command("RUN pip install flask") == "pip install flask"
-    assert normalize_command("COPY . /app") == ". /app"
-    assert normalize_command("ADD file.tar /opt") == "file.tar /opt"
+    assert normalize_command("COPY . /app") == "copy_in /app"
+    assert normalize_command("ADD file.tar /opt") == "add_in /opt"
 
 
 def test_normalize_removes_buildkit_prefix():
@@ -46,6 +46,16 @@ def test_normalize_removes_buildkit_mount():
 def test_normalize_removes_nop_marker():
     cmd = "#(nop) WORKDIR /app"
     assert normalize_command(cmd) == "workdir /app"
+
+
+def test_normalize_oci_copy_history_to_destination():
+    cmd = "/bin/sh -c #(nop) COPY file:abc123 in /usr/local/bin/ "
+    assert normalize_command(cmd) == "copy_in /usr/local/bin/"
+
+
+def test_normalize_oci_add_history_to_destination():
+    cmd = "/bin/sh -c #(nop) ADD dir:abc123 in /scripts/ "
+    assert normalize_command(cmd) == "add_in /scripts/"
 
 
 def test_normalize_removes_inline_comments():

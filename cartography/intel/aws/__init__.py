@@ -120,8 +120,9 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE relationships from ECSContainerInstance to EC2Instance
-        "ecs": ["ec2:instance"],
+        # `ecs` creates IS_INSTANCE rels (ECSContainerInstance→EC2Instance) and
+        # TARGETS matchlinks (ELBV2TargetGroup→ECSService)
+        "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
         "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
@@ -266,14 +267,13 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
 
     failed_account_ids = []
     exception_tracebacks = []
-
-    num_accounts = len(accounts)
 
     for profile_name, account_id in accounts.items():
         logger.info(
@@ -282,13 +282,11 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-            aioboto3_session = aioboto3.Session()
-        else:
-            boto3_session = boto3.Session(profile_name=profile_name)
-            aioboto3_session = aioboto3.Session(profile_name=profile_name)
+        # When use_explicit_profile is set, honor configured profiles (hub/spoke STS assume-role configs, #1142/#1185).
+        # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -477,6 +475,9 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
+        # stays decoupled from the CLI option should the two ever diverge.
+        use_explicit_profile=config.aws_sync_all_profiles,
     )
 
     if sync_successful:

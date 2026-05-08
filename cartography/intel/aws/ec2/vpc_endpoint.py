@@ -182,7 +182,6 @@ def load_vpc_endpoint_subnets(
     Uses schema-based loading for automatic cleanup handling.
     """
     if subnet_list:
-        logger.info(f"Loading {len(subnet_list)} VPC endpoint subnet relationships.")
         load(
             neo4j_session,
             EC2SubnetVPCEndpointSchema(),

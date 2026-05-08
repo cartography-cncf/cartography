@@ -68,7 +68,6 @@ def load_gsuite_users(
     """
     Load GSuite users using the modern data model
     """
-    logger.info("Ingesting %s gsuite tenants", len(users_by_customer))
     tenant_data = [{"id": customer_id} for customer_id in users_by_customer.keys()]
     load(
         neo4j_session,

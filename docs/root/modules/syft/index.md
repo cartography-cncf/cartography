@@ -21,10 +21,10 @@ syft nginx:latest -o syft-json=nginx-syft.json
 
 ```bash
 # With local files
-cartography --syft-results-dir ./results
+cartography --syft-source ./results
 
 # With S3
-cartography --syft-s3-bucket my-bucket --syft-s3-prefix syft/
+cartography --syft-source s3://my-bucket/syft/
 ```
 
 ## Key Queries

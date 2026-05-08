@@ -1,0 +1,15 @@
+{
+  "name": "GSuite RESOURCE edge direction migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions created (GSuiteUser)-[:RESOURCE]->(GSuiteTenant) (OUTWARD); the schema now expects (GSuiteTenant)-[:RESOURCE]->(GSuiteUser) (INWARD). Recreate inverted edges and drop the originals so cleanup picks up the new direction. Remove in v1.0.0.",
+      "query": "MATCH (u:GSuiteUser)-[r:RESOURCE]->(t:GSuiteTenant) MERGE (t)-[r2:RESOURCE]->(u) ON CREATE SET r2.lastupdated = r.lastupdated DELETE r",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: same migration for GSuiteGroup. Remove in v1.0.0.",
+      "query": "MATCH (g:GSuiteGroup)-[r:RESOURCE]->(t:GSuiteTenant) MERGE (t)-[r2:RESOURCE]->(g) ON CREATE SET r2.lastupdated = r.lastupdated DELETE r",
+      "iterative": false
+    }
+  ]
+}

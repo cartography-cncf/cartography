@@ -51,7 +51,10 @@ class GitLabProjectHasBranchRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url")},
+        {
+            "id": PropertyRef("project_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_BRANCH"
@@ -77,7 +80,10 @@ class GitLabBranchToProjectRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("project_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

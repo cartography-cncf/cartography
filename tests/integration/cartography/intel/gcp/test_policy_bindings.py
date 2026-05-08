@@ -50,6 +50,19 @@ def _create_test_organization(neo4j_session):
     )
 
 
+def _create_test_bucket(neo4j_session):
+    """Create a test GCP bucket node to verify APPLIES_TO relationship wiring."""
+    neo4j_session.run(
+        """
+        MERGE (bucket:GCPBucket{id: $bucket_id})
+        ON CREATE SET bucket.firstseen = timestamp()
+        SET bucket.lastupdated = $update_tag
+        """,
+        bucket_id="test-bucket",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.policy_bindings,
     "get_policy_bindings",
@@ -107,6 +120,7 @@ def test_sync_gcp_policy_bindings(
     # ARRANGE
     _create_test_project(neo4j_session)
     _create_test_organization(neo4j_session)
+    _create_test_bucket(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
     mock_asset_client = MagicMock()
@@ -142,6 +156,9 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         GSUITE_COMMON_PARAMS,
     )
+    role_permissions_by_name = cartography.intel.gcp.iam.build_role_permissions_by_name(
+        tests.data.gcp.policy_bindings.MOCK_IAM_ROLES
+    )
 
     # ACT
     cartography.intel.gcp.policy_bindings.sync(
@@ -150,6 +167,7 @@ def test_sync_gcp_policy_bindings(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        role_permissions_by_name,
     )
 
     # ASSERT
@@ -173,8 +191,23 @@ def test_sync_gcp_policy_bindings(
             "project",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+            "project",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+            "project",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
+            "resource",
+        ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
             "resource",
         ),
     }
@@ -203,7 +236,19 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            TEST_PROJECT_ID,
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
     }
 
@@ -224,11 +269,23 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "alice@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+        ),
+        (
+            "alice@example.com",
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
         (
             "bob@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+        ),
+        (
+            "bob@example.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+        ),
+        (
+            "bob@example.com",
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
         # IAM service account
         (
@@ -265,10 +322,84 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.admin",
         ),
         (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            "roles/test.gcp_extended",
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            "roles/iam.serviceAccountTokenCreator",
+        ),
+        (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "roles/storage.objectViewer",
         ),
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "roles/bigquery.dataViewer",
+        ),
     }
+
+    # Check GCPPolicyBinding to GCPProject APPLIES_TO relationships
+    # (only created when the bound resource node already exists in the graph)
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPProject",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/test.gcp_extended",
+            TEST_PROJECT_ID,
+        ),
+        (
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/iam.serviceAccountTokenCreator",
+            TEST_PROJECT_ID,
+        ),
+    }
+
+    # Check GCPPolicyBinding to GCPBucket APPLIES_TO relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPBucket",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+            "test-bucket",
+        ),
+    }
+
+    # The bucket binding mixes a real principal with allUsers. The binding is
+    # persisted with is_public=true; allUsers is intentionally NOT added to
+    # the members list (no GCPPrincipal can ever resolve to it).
+    bucket_binding = neo4j_session.run(
+        """
+        MATCH (b:GCPPolicyBinding {id: $binding_id})
+        RETURN b.is_public AS is_public, b.members AS members
+        """,
+        binding_id="//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+    ).single()
+    assert bucket_binding["is_public"] is True
+    assert sorted(bucket_binding["members"]) == ["alice@example.com"]
 
 
 @patch.object(
@@ -284,8 +415,8 @@ def test_sync_gcp_policy_bindings_permission_denied(
 ):
     """
     Test that policy bindings sync handles PermissionDenied gracefully.
-    When the user lacks org-level cloudasset.viewer role, sync should return False
-    and not raise an exception.
+    When the user lacks org-level cloudasset.viewer role, sync should return a
+    skipped status and not raise an exception.
     """
     # ARRANGE
     _create_test_project(neo4j_session)
@@ -298,8 +429,12 @@ def test_sync_gcp_policy_bindings_permission_denied(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        {},
     )
 
-    # ASSERT - sync should return False and not raise an exception
-    assert result is False
+    # ASSERT - sync should return a skipped status and not raise an exception
+    assert (
+        result.status
+        == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+    )
     mock_get_policy_bindings.assert_called_once()

@@ -116,6 +116,11 @@ def start_cve_ingestion(
     """
     if not config.cve_enabled:
         return
+    logger.warning(
+        "The CVE module is deprecated and will no longer receive updates. "
+        "It will be completely removed in the 1.0.0 release. "
+        "For migration, please refer to the CVE Metadata module configuration.",
+    )
     cve_api_key: str | None = config.cve_api_key if config.cve_api_key else None
     with _retryable_session() as http_session:
         _sync_year_archives(

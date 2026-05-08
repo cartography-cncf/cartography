@@ -172,7 +172,7 @@ Represents a specific version of an application.
     (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1AppFinding
+### S1AppFinding::S1Finding::Risk
 
 Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
 

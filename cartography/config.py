@@ -1,3 +1,27 @@
+def _resolve_report_source_config(
+    *,
+    module: str,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    warn_on_legacy: bool = True,
+) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
+    return resolve_report_source_with_legacy_fields(
+        source=source,
+        local_path=local_path,
+        s3_bucket=s3_bucket,
+        s3_prefix=s3_prefix,
+        names=LegacyReportSourceNames.for_config(module),
+        warn_on_legacy=warn_on_legacy,
+    )
+
+
 class Config:
     """
     A common interface for cartography configuration.
@@ -107,7 +131,7 @@ class Config:
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
-    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
+    :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
@@ -188,6 +212,12 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type vercel_token: str
+    :param vercel_token: Vercel API token. Optional.
+    :type vercel_team_id: str
+    :param vercel_team_id: Vercel team ID to sync. Optional.
+    :type vercel_base_url: str
+    :param vercel_base_url: Vercel API base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -196,6 +226,8 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type socketdev_token: str
+    :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
     :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
     :type airbyte_client_secret: str
@@ -204,12 +236,18 @@ class Config:
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
+    :type docker_scout_source: str
+    :param docker_scout_source: Report source locator for Docker Scout reports. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type docker_scout_s3_bucket: str
     :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_s3_prefix: str
     :param docker_scout_s3_prefix: S3 prefix path for Docker Scout recommendation text reports. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_source: str
+    :param trivy_source: Report source locator for Trivy results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     :type ontology_users_source: str
@@ -263,6 +301,9 @@ class Config:
     :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
     :type syft_results_dir: str
     :param syft_results_dir: Local directory containing Syft JSON results. Optional.
+    :type syft_source: str
+    :param syft_source: Report source locator for Syft results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type syft_s3_bucket: str
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
@@ -279,6 +320,9 @@ class Config:
     :param sentry_host: Sentry host URL, defaults to https://sentry.io. Optional.
     :type aibom_results_dir: str
     :param aibom_results_dir: Local directory containing AIBOM JSON results. Optional.
+    :type aibom_source: str
+    :param aibom_source: Report source locator for AIBOM results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type aibom_s3_bucket: str
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
@@ -346,6 +390,8 @@ class Config:
         nist_cve_url=None,
         cve_enabled=False,
         cve_api_key: str | None = None,
+        cve_metadata_src: list[str] | None = None,
+        cve_metadata_nist_api_key: str | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -370,12 +416,16 @@ class Config:
         gitlab_commits_since_days=90,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
+        semgrep_oss_source=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        vercel_token=None,
+        vercel_team_id=None,
+        vercel_base_url=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -387,9 +437,11 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
         docker_scout_s3_prefix=None,
+        trivy_source=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
@@ -416,6 +468,7 @@ class Config:
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
+        syft_source=None,
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
@@ -424,6 +477,7 @@ class Config:
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
+        aibom_source=None,
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
@@ -431,11 +485,13 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        socketdev_token=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
+        _warn_on_legacy_report_source=True,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -499,6 +555,8 @@ class Config:
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
         self.cve_api_key: str | None = cve_api_key
+        self.cve_metadata_src: list[str] | None = cve_metadata_src
+        self.cve_metadata_nist_api_key: str | None = cve_metadata_nist_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
@@ -523,12 +581,16 @@ class Config:
         self.gitlab_commits_since_days = gitlab_commits_since_days
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
+        self.semgrep_oss_source = semgrep_oss_source
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.vercel_token = vercel_token
+        self.vercel_team_id = vercel_team_id
+        self.vercel_base_url = vercel_base_url
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -540,9 +602,26 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
+        self.docker_scout_source = _resolve_report_source_config(
+            module="docker_scout",
+            source=docker_scout_source,
+            local_path=docker_scout_results_dir,
+            s3_bucket=docker_scout_s3_bucket,
+            s3_prefix=docker_scout_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
         self.docker_scout_s3_prefix = docker_scout_s3_prefix
+        self.trivy_source = _resolve_report_source_config(
+            module="trivy",
+            source=trivy_source,
+            local_path=trivy_results_dir,
+            s3_bucket=trivy_s3_bucket,
+            s3_prefix=trivy_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
@@ -569,6 +648,14 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
+        self.syft_source = _resolve_report_source_config(
+            module="syft",
+            source=syft_source,
+            local_path=syft_results_dir,
+            s3_bucket=syft_s3_bucket,
+            s3_prefix=syft_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
@@ -577,6 +664,14 @@ class Config:
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
+        self.aibom_source = _resolve_report_source_config(
+            module="aibom",
+            source=aibom_source,
+            local_path=aibom_results_dir,
+            s3_bucket=aibom_s3_bucket,
+            s3_prefix=aibom_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
@@ -584,3 +679,4 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.socketdev_token = socketdev_token

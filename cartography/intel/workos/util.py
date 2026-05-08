@@ -42,5 +42,5 @@ def paginated_list(list_func: Callable, **kwargs: Any) -> List[Dict[str, Any]]:
         if not after:
             break
 
-    logger.info("Fetched %d items from WorkOS API", len(results))
+    logger.debug("Fetched %d items from WorkOS API", len(results))
     return results

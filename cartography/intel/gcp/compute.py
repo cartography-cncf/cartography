@@ -11,6 +11,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
@@ -202,6 +203,15 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
 
 
 @timeit
+def get_gcp_compute_project_metadata(project_id: str, compute: Resource) -> dict:
+    """
+    Return project-level Compute metadata relevant to CIS checks.
+    """
+    req = compute.projects().get(project=project_id)
+    return gcp_api_execute_with_retry(req)
+
+
+@timeit
 def get_gcp_regional_forwarding_rules(
     project_id: str,
     region: str,
@@ -271,6 +281,36 @@ def transform_gcp_instances(response_objects: list[dict]) -> list[dict]:
             instance["partial_uri"] = f"{prefix}/{instance['name']}"
             instance["project_id"] = prefix_fields.project_id
             instance["zone_name"] = prefix_fields.zone_name
+            machine_type = instance.get("machineType")
+            instance["machine_type"] = (
+                machine_type.split("/")[-1] if machine_type else None
+            )
+            service_accounts = instance.get("serviceAccounts", [])
+            primary_service_account = service_accounts[0] if service_accounts else {}
+            instance["service_account_email"] = primary_service_account.get("email")
+            instance["service_account_scopes"] = primary_service_account.get(
+                "scopes", []
+            )
+            instance["can_ip_forward"] = instance.get("canIpForward")
+            shielded_config = instance.get("shieldedInstanceConfig", {})
+            instance["enable_vtpm"] = shielded_config.get("enableVtpm")
+            instance["enable_integrity_monitoring"] = shielded_config.get(
+                "enableIntegrityMonitoring"
+            )
+            confidential_config = instance.get("confidentialInstanceConfig", {})
+            instance["enable_confidential_compute"] = confidential_config.get(
+                "enableConfidentialCompute"
+            )
+            metadata_items = {
+                item.get("key"): item.get("value")
+                for item in instance.get("metadata", {}).get("items", [])
+                if item.get("key")
+            }
+            instance["block_project_ssh_keys"] = metadata_items.get(
+                "block-project-ssh-keys"
+            )
+            instance["enable_oslogin_metadata"] = metadata_items.get("enable-oslogin")
+            instance["serial_port_enable"] = metadata_items.get("serial-port-enable")
 
             for nic in instance.get("networkInterfaces", []):
                 nic["subnet_partial_uri"] = _parse_compute_full_uri_to_partial_uri(
@@ -384,6 +424,14 @@ def transform_gcp_subnets(subnet_res: dict) -> list[dict]:
         subnet["ip_cidr_range"] = s.get("ipCidrRange", None)
         subnet["self_link"] = s["selfLink"]
         subnet["private_ip_google_access"] = s.get("privateIpGoogleAccess", None)
+        subnet["purpose"] = s.get("purpose", None)
+        subnet["flow_logs_enabled"] = s.get("enableFlowLogs", None)
+        subnet["flow_logs_aggregation_interval"] = s.get("logConfig", {}).get(
+            "aggregationInterval", None
+        )
+        subnet["flow_logs_sampling"] = s.get("logConfig", {}).get("flowSampling", None)
+        subnet["flow_logs_metadata"] = s.get("logConfig", {}).get("metadata", None)
+        subnet["flow_logs_filter_expr"] = s.get("logConfig", {}).get("filterExpr", None)
 
         subnet_list.append(subnet)
     return subnet_list
@@ -520,7 +568,6 @@ def _transform_fw_entry(
 
     # If the protocol covered is TCP or UDP then we need to handle ports
     if protocol == "tcp" or protocol == "udp":
-
         # If ports are specified then create rules for each port and range
         if "ports" in rule:
             for port in rule["ports"]:
@@ -1203,6 +1250,31 @@ def sync_gcp_instances(
 
 
 @timeit
+def update_gcp_project_compute_metadata(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    project_metadata: dict,
+    gcp_update_tag: int,
+) -> None:
+    metadata_items = {
+        item.get("key"): item.get("value")
+        for item in project_metadata.get("commonInstanceMetadata", {}).get("items", [])
+        if item.get("key")
+    }
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (p:GCPProject {id: $PROJECT_ID})
+        SET p.compute_project_enable_oslogin = $COMPUTE_PROJECT_ENABLE_OSLOGIN,
+            p.lastupdated = $LASTUPDATED
+        """,
+        PROJECT_ID=project_id,
+        COMPUTE_PROJECT_ENABLE_OSLOGIN=metadata_items.get("enable-oslogin"),
+        LASTUPDATED=gcp_update_tag,
+    )
+
+
+@timeit
 def sync_gcp_vpcs(
     neo4j_session: neo4j.Session,
     compute: Resource,
@@ -1345,6 +1417,13 @@ def sync(
     if zones is None:
         return
     else:
+        project_metadata = get_gcp_compute_project_metadata(project_id, compute)
+        update_gcp_project_compute_metadata(
+            neo4j_session,
+            project_id,
+            project_metadata,
+            gcp_update_tag,
+        )
         regions = _zones_to_regions(zones)
         sync_gcp_vpcs(
             neo4j_session,

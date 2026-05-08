@@ -17,7 +17,6 @@ class GCPCloudRunJobProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     location: PropertyRef = PropertyRef("location")
-    container_image: PropertyRef = PropertyRef("container_image")
     service_account_email: PropertyRef = PropertyRef("service_account_email")
     project_id: PropertyRef = PropertyRef("project_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -60,8 +59,8 @@ class CloudRunJobToServiceAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPCloudRunJobSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJob"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
     properties: GCPCloudRunJobProperties = GCPCloudRunJobProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
     sub_resource_relationship: ProjectToCloudRunJobRel = ProjectToCloudRunJobRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

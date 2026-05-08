@@ -93,18 +93,16 @@ def test_load_tags_empty_data():
     mock_neo4j_session.execute_write.assert_not_called()
 
 
-def test_get_tags_includes_iam_users_and_roles(mocker):
-    mocker.patch(
+def test_get_tags_does_not_call_iam(mocker):
+    """
+    get_tags() handles only regional resource types. IAM tags are fetched
+    once per sync from sync(), not per region from get_tags().
+    """
+    role_mock = mocker.patch(
         "cartography.intel.aws.resourcegroupstaggingapi.get_role_tags",
-        return_value=[
-            {"ResourceARN": "arn:aws:iam::123456789012:role/test-role", "Tags": []}
-        ],
     )
-    mocker.patch(
+    user_mock = mocker.patch(
         "cartography.intel.aws.resourcegroupstaggingapi.get_user_tags",
-        return_value=[
-            {"ResourceARN": "arn:aws:iam::123456789012:user/test-user", "Tags": []}
-        ],
     )
     mock_session = MagicMock()
     mock_client = MagicMock()
@@ -119,15 +117,82 @@ def test_get_tags_includes_iam_users_and_roles(mocker):
     mock_client.get_paginator.return_value = mock_paginator
     mock_session.client.return_value = mock_client
 
-    result = rgta.get_tags(
-        mock_session,
-        ["iam:role", "iam:user", "s3"],
-        "us-east-1",
+    result = rgta.get_tags(mock_session, ["s3"], "us-east-1")
+
+    assert [item["ResourceARN"] for item in result] == ["arn:aws:s3:::bucket"]
+    role_mock.assert_not_called()
+    user_mock.assert_not_called()
+    mock_paginator.paginate.assert_called_once_with(ResourceTypeFilters=["s3"])
+
+
+def test_sync_fetches_iam_tags_once_across_regions(mocker):
+    """
+    IAM is global, so get_role_tags and get_user_tags must be called exactly
+    once per sync, regardless of how many regions are synced. IAM tags must
+    be loaded with the GLOBAL_REGION marker.
+    """
+    role_mock = mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_role_tags",
+        return_value=[
+            {
+                "ResourceARN": "arn:aws:iam::123456789012:role/test-role",
+                "Tags": [{"Key": "k", "Value": "v"}],
+            }
+        ],
+    )
+    user_mock = mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_user_tags",
+        return_value=[
+            {
+                "ResourceARN": "arn:aws:iam::123456789012:user/test-user",
+                "Tags": [{"Key": "k", "Value": "v"}],
+            }
+        ],
+    )
+    get_tags_mock = mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_tags",
+        return_value=[],
+    )
+    load_tags_mock = mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.load_tags",
+    )
+    mocker.patch("cartography.intel.aws.resourcegroupstaggingapi.cleanup")
+
+    regions = ["us-east-1", "us-west-2", "eu-west-1"]
+    mapping = {
+        "iam:role": rgta.TAG_RESOURCE_TYPE_MAPPINGS["iam:role"],
+        "iam:user": rgta.TAG_RESOURCE_TYPE_MAPPINGS["iam:user"],
+        "s3": rgta.TAG_RESOURCE_TYPE_MAPPINGS["s3"],
+    }
+
+    rgta.sync(
+        neo4j_session=MagicMock(),
+        boto3_session=MagicMock(),
+        regions=regions,
+        current_aws_account_id="123456789012",
+        update_tag=42,
+        common_job_parameters={"UPDATE_TAG": 42, "AWS_ID": "123456789012"},
+        tag_resource_type_mappings=mapping,
     )
 
-    assert {item["ResourceARN"] for item in result} == {
-        "arn:aws:iam::123456789012:role/test-role",
-        "arn:aws:iam::123456789012:user/test-user",
-        "arn:aws:s3:::bucket",
-    }
-    mock_paginator.paginate.assert_called_once_with(ResourceTypeFilters=["s3"])
+    role_mock.assert_called_once()
+    user_mock.assert_called_once()
+
+    # get_tags() is called once per region, never with iam:* in the type list
+    assert get_tags_mock.call_count == len(regions)
+    for call in get_tags_mock.call_args_list:
+        regional_types = (
+            call.args[1] if len(call.args) > 1 else call.kwargs["resource_types"]
+        )
+        assert "iam:role" not in regional_types
+        assert "iam:user" not in regional_types
+
+    # IAM resource types are loaded with region="global", not a real region
+    iam_load_calls = [
+        c
+        for c in load_tags_mock.call_args_list
+        if c.kwargs["resource_type"] in {"iam:role", "iam:user"}
+    ]
+    assert len(iam_load_calls) == 2
+    for call in iam_load_calls:
+        assert call.kwargs["region"] == rgta.GLOBAL_REGION

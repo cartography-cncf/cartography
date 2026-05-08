@@ -65,6 +65,7 @@ KUBERNETES_INGRESS_DATA = [
                 },
             ]
         ),
+        "host_names": ["example.com", "api.example.com"],
         "target_services": ["api-service", "app-service"],
         "ingress_group_name": None,
         "load_balancer_dns_names": [],
@@ -92,6 +93,7 @@ KUBERNETES_INGRESS_DATA = [
                 },
             ]
         ),
+        "host_names": ["simple.example.com"],
         "target_services": ["simple-service"],
         "ingress_group_name": None,
         "load_balancer_dns_names": [],
@@ -131,6 +133,7 @@ KUBERNETES_ALB_INGRESS_DATA = [
             ]
         ),
         "default_backend": json.dumps({}),
+        "host_names": ["api.myapp.example.com"],
         "target_services": ["api-service"],
         "ingress_group_name": "shared-alb",
         "load_balancer_dns_names": [SHARED_ALB_DNS_NAME],
@@ -165,6 +168,7 @@ KUBERNETES_ALB_INGRESS_DATA = [
             ]
         ),
         "default_backend": json.dumps({}),
+        "host_names": ["www.myapp.example.com"],
         "target_services": ["web-service"],
         "ingress_group_name": "shared-alb",
         "load_balancer_dns_names": [SHARED_ALB_DNS_NAME],

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 
@@ -10,7 +9,6 @@ from cartography.models.semgrep.deployment import SemgrepDeploymentSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 _TIMEOUT = (60, 60)
 
@@ -44,7 +42,6 @@ def load_semgrep_deployment(
     deployment: Dict[str, Any],
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading SemgrepDeployment {deployment} into the graph.")
     load(
         neo4j_session,
         SemgrepDeploymentSchema(),

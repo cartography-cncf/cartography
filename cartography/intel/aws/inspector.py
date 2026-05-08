@@ -336,7 +336,6 @@ def _sync_findings_for_account(
                 update_tag,
                 current_aws_account_id,
             )
-            logger.info(f"Loading {len(package_data)} packages")
             load_inspector_packages(
                 neo4j_session,
                 package_data,

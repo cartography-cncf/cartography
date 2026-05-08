@@ -73,7 +73,7 @@ query {
 
 @timeit
 def get_entities(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift entities")
+    logger.debug("Fetching Spacelift entities")
 
     response = call_spacelift_api(session, api_endpoint, GET_ENTITIES_QUERY)
     stacks = response.get("data", {}).get("stacks", [])
@@ -96,7 +96,9 @@ def transform_entities_to_run_map(
     This function processes entities to extract EC2 instance IDs and maps them to
     the runs that created or updated them.
     """
-    logger.info(f"Transforming {len(entities_data)} entities into run-to-instances map")
+    logger.debug(
+        "Transforming %s entities into run-to-instances map", len(entities_data)
+    )
 
     run_to_instances: dict[str, list[dict[str, str]]] = {}
 
@@ -167,7 +169,7 @@ def transform_entities_to_run_map(
 
 @timeit
 def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift runs")
+    logger.debug("Fetching Spacelift runs")
 
     response = call_spacelift_api(session, api_endpoint, GET_RUNS_QUERY)
     stacks = response.get("data", {}).get("stacks", [])
@@ -181,7 +183,9 @@ def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any
             run["stack"] = stack_id
             all_runs.append(run)
 
-    logger.info(f"Retrieved {len(all_runs)} Spacelift runs from {len(stacks)} stacks")
+    logger.debug(
+        "Retrieved %s Spacelift runs from %s stacks", len(all_runs), len(stacks)
+    )
     return all_runs
 
 
@@ -191,7 +195,7 @@ def transform_runs(
     account_id: str,
 ) -> list[dict[str, Any]]:
 
-    logger.info(f"Transforming {len(runs_data)} runs")
+    logger.debug("Transforming %s runs", len(runs_data))
 
     result: list[dict[str, Any]] = []
 
@@ -330,8 +334,6 @@ def load_users(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(users_data)} Spacelift users")
-
 
 def load_runs(
     neo4j_session: neo4j.Session,
@@ -349,8 +351,6 @@ def load_runs(
         lastupdated=update_tag,
         spacelift_account_id=account_id,
     )
-
-    logger.info(f"Loaded {len(runs_data)} Spacelift runs")
 
 
 def load_commits(
@@ -370,8 +370,6 @@ def load_commits(
         lastupdated=update_tag,
         spacelift_account_id=account_id,
     )
-
-    logger.info(f"Loaded {len(commits_data)} Git commits")
 
 
 @timeit
@@ -456,8 +454,4 @@ def sync_runs(
     cleanup_users(neo4j_session, common_job_parameters)
     cleanup_commits(neo4j_session, common_job_parameters)
     cleanup_runs(neo4j_session, common_job_parameters)
-
-    logger.info(
-        f"Synced {len(extracted_users)} users, {len(extracted_commits)} commits, "
-        f"and {len(transformed_runs)} Spacelift runs"
-    )
+    logger.info("Synced Spacelift runs for account %s", account_id)

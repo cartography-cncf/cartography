@@ -369,7 +369,7 @@ def get_user_permissionsets(
     Although a permissionset can be assigned to multiple accounts, it is possible for the user
     to be assigned to just a subset of those!
     """
-    logger.info(f"Getting permissionsets for {len(users)} users")
+    logger.debug("Getting permissionsets for %s users", len(users))
     client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     user_permissionsets = []
 
@@ -404,7 +404,7 @@ def get_group_permissionsets(
     """
     Get permissionsets for SSO groups, taking into account which accounts the group is assigned to.
     """
-    logger.info(f"Getting permissionsets for {len(groups)} groups")
+    logger.debug("Getting permissionsets for %s groups", len(groups))
     client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     group_permissionsets: list[dict[str, Any]] = []
 
@@ -549,7 +549,6 @@ def load_user_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(user_roles)} user roles")
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOUserMatchLink(),
@@ -567,7 +566,6 @@ def load_group_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(group_roles)} group roles")
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOGroupMatchLink(),

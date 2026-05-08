@@ -31,7 +31,7 @@ def get(
         params=params,
     )
 
-    logger.info("Retrieved %d AppFindings from SentinelOne", len(cves))
+    logger.debug("Retrieved %d AppFindings from SentinelOne", len(cves))
     return cves
 
 
@@ -88,7 +88,6 @@ def load_cves(
     """
     Load SentinelOne AppFinding data into Neo4j
     """
-    logger.info(f"Loading {len(data)} SentinelOne AppFindings into Neo4j")
     load(
         neo4j_session,
         S1AppFindingSchema(),

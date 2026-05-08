@@ -39,7 +39,9 @@ def get_agents(
         params=params,
     )
 
-    logger.info(f"Retrieved {len(agents)} agents from SentinelOne account {account_id}")
+    logger.debug(
+        "Retrieved %s agents from SentinelOne account %s", len(agents), account_id
+    )
     return agents
 
 
@@ -88,9 +90,6 @@ def load_agents(
     :param update_tag: Update tag for tracking data freshness
     :return: None
     """
-    logger.info(
-        f"Loading {len(data)} SentinelOne agents into Neo4j for account {account_id}"
-    )
     load(
         neo4j_session,
         S1AgentSchema(),

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,8 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.sentry.util import get_paginated_results
 from cartography.models.sentry.alertrule import SentryAlertRuleSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -65,7 +62,6 @@ def load_alert_rules(
     project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d SentryAlertRule(s) into Neo4j.", len(data))
     load(
         neo4j_session,
         SentryAlertRuleSchema(),

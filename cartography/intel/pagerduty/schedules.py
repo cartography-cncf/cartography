@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,8 +12,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.pagerduty.schedule import PagerDutyScheduleSchema
 from cartography.models.pagerduty.schedule_layer import PagerDutyScheduleLayerSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -72,7 +69,6 @@ def load_schedule_data(
     """
     Transform and load schedule information
     """
-    logger.info(f"Loading {len(data)} pagerduty schedules.")
     load(
         neo4j_session,
         PagerDutyScheduleSchema(),
@@ -90,7 +86,6 @@ def load_layers_data(
     """
     Transform and load schedule layers information
     """
-    logger.info(f"Loading {len(data)} pagerduty schedule layers.")
     load(
         neo4j_session,
         PagerDutyScheduleLayerSchema(),

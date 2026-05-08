@@ -1,0 +1,25 @@
+{
+  "statements": [
+    {
+      "__comment__": "Step 1: mark old AzureContainerInstance nodes (container groups under the pre-swap schema; identified by absence of group_id which is only set on individual containers) with a temporary label. The guard makes this idempotent: post-migration AzureContainerInstance nodes are individual containers and always carry group_id, so this matches nothing on subsequent runs.",
+      "query": "MATCH (n:AzureContainerInstance) WHERE n.group_id IS NULL REMOVE n:AzureContainerInstance SET n:_AzureGroupSwapTmp",
+      "iterative": false
+    },
+    {
+      "__comment__": "Step 2: rename old AzureGroupContainer nodes (individual containers under the pre-swap schema; identified by presence of group_id) to AzureContainerInstance, which now labels the individual container. The guard makes this idempotent: post-migration AzureGroupContainer nodes are container groups and never carry group_id, so this matches nothing on subsequent runs.",
+      "query": "MATCH (n:AzureGroupContainer) WHERE n.group_id IS NOT NULL REMOVE n:AzureGroupContainer SET n:AzureContainerInstance",
+      "iterative": false
+    },
+    {
+      "__comment__": "Step 3: promote the temporary label to AzureGroupContainer, which now labels the container group. Idempotent because no nodes carry the temp label after Step 1 has executed once.",
+      "query": "MATCH (n:_AzureGroupSwapTmp) REMOVE n:_AzureGroupSwapTmp SET n:AzureGroupContainer",
+      "iterative": false
+    },
+    {
+      "__comment__": "Cleanup: strip stale :Container from AzureGroupContainer. Groups never carry :Container under the new schema; this removes the label from any node that had it before the fad226c8 cleanup ran. Idempotent (REMOVE on a missing label is a no-op).",
+      "query": "MATCH (n:AzureGroupContainer:Container) REMOVE n:Container",
+      "iterative": false
+    }
+  ],
+  "name": "Azure container label swap migration"
+}

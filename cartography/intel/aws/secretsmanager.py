@@ -4,6 +4,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -76,8 +77,6 @@ def load_secrets(
     Load transformed secrets into Neo4j using the data model.
     Expects data to already be transformed by transform_secrets().
     """
-    logger.info(f"Loading {len(data)} Secrets for region {region} into graph.")
-
     # Load using the schema-based approach
     load(
         neo4j_session,
@@ -121,7 +120,16 @@ def get_secret_versions(
         if next_token:
             params["NextToken"] = next_token
 
-        response = client.list_secret_version_ids(**params)
+        try:
+            response = client.list_secret_version_ids(**params)
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+                logger.info(
+                    "Secret %s no longer exists while fetching versions; skipping.",
+                    secret_arn,
+                )
+                return []
+            raise
 
         for version in response.get("Versions", []):
             version["SecretId"] = secret_arn
@@ -174,8 +182,6 @@ def load_secret_versions(
     """
     Load secret versions into Neo4j using the data model.
     """
-    logger.info(f"Loading {len(data)} Secret Versions for region {region} into graph.")
-
     load(
         neo4j_session,
         SecretsManagerSecretVersionSchema(),

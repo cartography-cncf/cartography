@@ -4,10 +4,12 @@
 graph LR
 
 O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> B(GitHubBranch)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
+O -- RESOURCE --> DA(GitHubDependabotAlert)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -24,6 +26,9 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+DA -- FOUND_IN --> R
+DA -- DISMISSED_BY --> U
+DA -- ASSIGNED_TO --> U
 W -- USES_ACTION --> A(GitHubAction)
 W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
@@ -33,7 +38,7 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
-IT(ImageTag) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_FROM --> R
 I(Image) -- PACKAGED_BY --> W
 ```
 
@@ -303,6 +308,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
 Representation of a single GitHubBranch [ref object](https://developer.github.com/v4/object/ref). This node contains minimal data for a repository branch.
 
+GitHub branches are modeled as resources scoped to the parent GitHub organization and also linked to their repository via the `BRANCH` relationship.
 
 | Field | Description |
 |-------|--------------|
@@ -313,6 +319,12 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
 
 #### Relationships
+
+- GitHubOrganizations scope GitHubBranches as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranch)
+    ```
 
 - GitHubRepositories have GitHubBranches.
 
@@ -354,10 +366,17 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
+- GitHubBranchProtectionRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
 ### ProgrammingLanguage
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.
 
+ProgrammingLanguage nodes are shared globally across repositories and are linked from each repository with `:LANGUAGE`.
 
 | Field | Description |
 |-------|--------------|
@@ -406,6 +425,13 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Manifests are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    ```
+
 ### Dependency
 https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
 Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
@@ -436,6 +462,83 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (GitHubRepository)-[:REQUIRES]->(Dependency)
     ```
 
+### GitHubDependabotAlert
+
+Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alerts) for a dependency vulnerability in a GitHub repository. Alerts are scoped to the owning GitHub organization for cleanup and include triage state, advisory metadata, affected package details, and actor metadata.
+
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-scanner queries for security issues. Alerts with a CVE identifier also receive the `CVE` label and standard `cve_id` property so the `cve_metadata` module can enrich them with NVD and EPSS metadata.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Alert URL, preferring the GitHub web URL |
+| **number** | Repository-local Dependabot alert number |
+| **state** | Alert state: `open`, `fixed`, `dismissed`, or `auto_dismissed` |
+| html_url | GitHub web URL for the alert |
+| url | GitHub REST API URL for the alert |
+| created_at | Timestamp when the alert was created |
+| updated_at | Timestamp when the alert was last updated |
+| dismissed_at | Timestamp when the alert was dismissed, if applicable |
+| dismissed_reason | GitHub dismissal reason, if applicable |
+| dismissed_comment | Dismissal comment, if applicable |
+| fixed_at | Timestamp when the alert was fixed, if applicable |
+| dependency_package_ecosystem | Package ecosystem, such as `npm`, `pip`, or `maven` |
+| dependency_package_name | Vulnerable package name |
+| dependency_manifest_path | Manifest path where GitHub found the dependency |
+| dependency_scope | Dependency scope returned by GitHub |
+| vulnerable_version_range | Vulnerable version range returned by GitHub |
+| first_patched_version | First patched package version, if known |
+| severity | Vulnerability severity |
+| advisory_ghsa_id | GitHub Security Advisory ID |
+| advisory_cve_id | CVE ID, if GitHub maps the advisory to a CVE |
+| cve_id | Standard CVE ID field used by `cve_metadata`; mirrors `advisory_cve_id` |
+| has_cve | `true` when a CVE ID is present; used to apply the conditional `CVE` label |
+| advisory_summary | Advisory summary |
+| advisory_description | Advisory description |
+| cvss_score | CVSS score from the advisory |
+| cvss_vector_string | CVSS vector from the advisory |
+| cvss_v3_score | CVSS v3 score, if returned |
+| cvss_v3_vector_string | CVSS v3 vector, if returned |
+| cvss_v4_score | CVSS v4 score, if returned |
+| cvss_v4_vector_string | CVSS v4 vector, if returned |
+| epss_percentage | EPSS probability, if returned |
+| epss_percentile | EPSS percentile, if returned |
+| cwe_ids | List of CWE IDs from the advisory |
+| identifiers | List of advisory identifier values, such as GHSA and CVE IDs |
+| references | List of advisory reference URLs |
+| repository_url | GitHub repository URL |
+| repository_name | GitHub repository name |
+| repository_full_name | GitHub owner/name repository string |
+
+#### Relationships
+
+- GitHubDependabotAlerts belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubDependabotAlert)
+    ```
+
+- GitHubDependabotAlerts are found in GitHubRepositories.
+
+    ```
+    (GitHubDependabotAlert)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
+- GitHubDependabotAlerts may be dismissed by a GitHubUser.
+
+    ```
+    (GitHubDependabotAlert)-[:DISMISSED_BY]->(GitHubUser)
+    ```
+
+- GitHubDependabotAlerts may be assigned to one or more GitHubUsers.
+
+    ```
+    (GitHubDependabotAlert)-[:ASSIGNED_TO]->(GitHubUser)
+    ```
+
+Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled `CVE` for compatibility with CVE metadata enrichment.
+
 - **DependencyGraphManifest** via **HAS_DEP** relationship
   - Dependencies are linked to their specific manifest files
 
@@ -443,15 +546,21 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
-### ImageTag to GitHubRepository (Cross-module relationship)
+Dependency nodes are deliberately shared across organizations and repositories
+(the same `name|requirements` id is reused everywhere it appears), so they are
+not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
+are cleaned up globally once per sync cycle, alongside other shared GitHub
+nodes such as `PythonLibrary`.
 
-Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created by analyzing Dockerfile content and matching layer commands against image history.
+### Image to GitHubRepository (Cross-module relationship)
+
+Container images (`Image` nodes from any registry: ECR, GitLab, GCP Artifact Registry, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created from provenance metadata or by analyzing Dockerfile content and matching layer commands against image history.
 
 #### Relationships
 
-- ImageTag nodes may be packaged from a GitHubRepository
+- Image nodes may be packaged from a GitHubRepository
     ```
-    (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
+    (:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
 
     Relationship properties:
@@ -462,13 +571,15 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
     - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
     - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
 
-    Note: This relationship uses the generic `ImageTag` semantic label, enabling cross-registry querying (ECR, GitLab, GCR, etc.).
+    Note: This relationship uses the generic `Image` semantic label, enabling cross-registry querying across image registries. Registry-specific pullable references can be reached from `ImageTag` nodes through `(:ImageTag)-[:IMAGE]->(:Image)`.
 
 ### Dependency::PythonLibrary
 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
 or [setup.cfg](https://setuptools.pypa.io/en/latest/userguide/declarative_config.html) file.
 Within a setup.cfg file, cartography will load everything from `install_requires`, `setup_requires`, and `extras_require`.
+
+These nodes are also shared globally across repositories. Repository-specific version constraints stay on the `:REQUIRES` relationship via the `specifier` property.
 
 | Field | Description |
 |-------|-------------|
@@ -656,9 +767,10 @@ Note that secret **values are never exposed** by the GitHub API - only metadata 
     (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret {level: "environment"})
     ```
 
-- GitHubOrganizations are sub-resources for environment-level GitHubActionsSecrets (for cleanup scoping).
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsSecrets (for cleanup scoping).
 
     ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "repository"})
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "environment"})
     ```
 
@@ -700,8 +812,9 @@ Unlike secrets, variable **values are stored in plaintext**.
     (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "environment"})
     ```
 
-- GitHubOrganizations are sub-resources for environment-level GitHubActionsVariables (for cleanup scoping).
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsVariables (for cleanup scoping).
 
     ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "repository"})
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```

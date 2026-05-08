@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.googleworkspace.groups
@@ -49,6 +50,31 @@ def _ensure_local_neo4j_has_test_groups(neo4j_session):
         TEST_CUSTOMER_ID,
         TEST_UPDATE_TAG,
     )
+
+
+def test_transform_groups_infers_group_membership_when_type_missing():
+    groups = deepcopy(MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE)
+    group_memberships = deepcopy(MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL)
+    del group_memberships["groups/group-engineering"][2]["type"]
+
+    transformed_groups, group_member_relationships, group_owner_relationships = (
+        cartography.intel.googleworkspace.groups.transform_groups(
+            groups,
+            group_memberships,
+        )
+    )
+
+    assert {group["name"] for group in transformed_groups} == {
+        "groups/group-engineering",
+        "groups/group-operations",
+    }
+    assert group_owner_relationships == []
+    assert group_member_relationships == [
+        {
+            "parent_group_id": "groups/group-engineering",
+            "subgroup_email": "operations@simpson.corp",
+        },
+    ]
 
 
 @patch.object(

@@ -137,7 +137,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.CROWDSTRIKE: "crowdstrike",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
-    Module.ENTRA: "entra",
+    Module.ENTRA: "microsoft",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
     Module.GITLAB: "gitlab",

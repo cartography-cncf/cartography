@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -10,8 +9,6 @@ from cartography.intel.slack.utils import slack_paginate
 from cartography.models.slack.bot import SlackBotSchema
 from cartography.models.slack.user import SlackUserSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -57,7 +54,6 @@ def load_users(
     team_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Slack users into Neo4j", len(data))
     load(
         neo4j_session,
         SlackUserSchema(),
@@ -74,7 +70,6 @@ def load_bots(
     team_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Slack bots into Neo4j", len(data))
     load(
         neo4j_session,
         SlackBotSchema(),

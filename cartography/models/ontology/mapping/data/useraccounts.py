@@ -3,7 +3,7 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraUser",
@@ -591,8 +591,25 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(ontology_field="active", node_field="confirmed"),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
@@ -618,4 +635,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "subimage": subimage_mapping,
     "kubernetes": kubernetes_mapping,
     "jumpcloud": jumpcloud_mapping,
+    "vercel": vercel_mapping,
 }

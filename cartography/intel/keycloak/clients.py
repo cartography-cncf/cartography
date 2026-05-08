@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -13,7 +12,6 @@ from cartography.models.keycloak.client import KeycloakClientToFlowMatchLink
 from cartography.models.keycloak.user import KeycloakUserSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -120,7 +118,6 @@ def load_clients(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Clients (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakClientSchema(),
@@ -137,9 +134,6 @@ def load_service_accounts(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info(
-        "Loading %d Keycloak Service Accounts (%s) into Neo4j.", len(data), realm
-    )
     load(
         neo4j_session,
         KeycloakUserSchema(),

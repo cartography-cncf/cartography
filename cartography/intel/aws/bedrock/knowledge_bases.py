@@ -31,7 +31,7 @@ def get_knowledge_bases(
     """
     Retrieve all knowledge bases in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock knowledge bases in region %s", region)
+    logger.debug("Fetching Bedrock knowledge bases in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock-agent",
@@ -138,8 +138,6 @@ def load_knowledge_bases(
     """
     Load knowledge bases into the graph database.
     """
-    logger.info("Loading %d Bedrock knowledge bases for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockKnowledgeBaseSchema(),

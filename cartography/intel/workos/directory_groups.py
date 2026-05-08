@@ -59,7 +59,7 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[Any]:
         all_groups.extend(
             paginated_list(
                 client.directory_sync.list_groups,
-                directory_id=directory_id,
+                directory=directory_id,
             )
         )
 
@@ -112,7 +112,6 @@ def load_directory_groups(
     :param update_tag: Update tag for tracking syncs
     :return: None
     """
-    logger.info("Loading %d WorkOS directory groups into Neo4j", len(data))
     load(
         neo4j_session,
         WorkOSDirectoryGroupSchema(),

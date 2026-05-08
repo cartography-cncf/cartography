@@ -69,7 +69,6 @@ def load_emr_clusters(
         current_aws_account_id: str,
         aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading EMR {len(cluster_data)} clusters for region '{region}' into graph.")
     load(
         neo4j_session,
         EMRClusterSchema(),

@@ -20,7 +20,12 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     endpoint: PropertyRef = PropertyRef("endpoint")
-    endpoint_public_access: PropertyRef = PropertyRef("ClusterEndpointPublic")
+    endpoint_public_access: PropertyRef = PropertyRef(
+        "ClusterEndpointPublic", extra_index=True
+    )  # Populated from sync input and read by aws_eks_asset_exposure.json.
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by aws_eks_asset_exposure.json.
     rolearn: PropertyRef = PropertyRef("roleArn")
     version: PropertyRef = PropertyRef("version")
     platform_version: PropertyRef = PropertyRef("platformVersion")

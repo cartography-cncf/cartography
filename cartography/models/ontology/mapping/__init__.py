@@ -2,6 +2,7 @@ import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
+from cartography.models.ontology.mapping.data.aimodels import AIMODELS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.certificates import (
     CERTIFICATES_ONTOLOGY_MAPPING,
@@ -13,6 +14,15 @@ from cartography.models.ontology.mapping.data.coderepositories import (
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.computenamespaces import (
+    COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computepods import (
+    COMPUTEPODS_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computeservices import (
+    COMPUTESERVICES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.containerregistries import (
     CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
 )
@@ -23,7 +33,16 @@ from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.dnsrecords import (
+    DNSRECORDS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.dnszones import DNSZONES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.encryptionkeys import (
+    ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.file_storage import (
+    FILE_STORAGE_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.firewalls import (
     FIREWALLS_ONTOLOGY_MAPPING,
 )
@@ -44,6 +63,9 @@ from cartography.models.ontology.mapping.data.publicips import (
 )
 from cartography.models.ontology.mapping.data.roles import ROLES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.security_issues import (
+    SECURITY_ISSUES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.serviceaccounts import (
     SERVICEACCOUNTS_ONTOLOGY_MAPPING,
 )
@@ -77,14 +99,21 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 # They are leveraged directly by the load functions of each module at ingestion time
 SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
+    "aimodels": AIMODELS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
     "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
     "computeclusters": CLUSTERS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
+    "computenamespaces": COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+    "computepods": COMPUTEPODS_ONTOLOGY_MAPPING,
+    "computeservices": COMPUTESERVICES_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
+    "dnsrecords": DNSRECORDS_ONTOLOGY_MAPPING,
     "dnszones": DNSZONES_ONTOLOGY_MAPPING,
+    "encryptionkeys": ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
+    "filestorage": FILE_STORAGE_ONTOLOGY_MAPPING,
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,
@@ -93,6 +122,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
     "roles": ROLES_ONTOLOGY_MAPPING,
     "secrets": SECRETS_ONTOLOGY_MAPPING,
+    "securityissues": SECURITY_ISSUES_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,

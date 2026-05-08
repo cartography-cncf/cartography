@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
 from typing import Any
+
+import neo4j
 
 logger = logging.getLogger(__name__)
 
@@ -170,9 +174,6 @@ def normalize_command(cmd: str | None) -> str:
     # Lowercase first for consistent matching
     cmd = cmd.lower()
 
-    # Remove Dockerfile instruction prefixes
-    cmd = re.sub(r"^(run|copy|add)\s+", "", cmd)
-
     # Remove shell prefix added by Docker
     cmd = re.sub(r"^/bin/sh -c\s+", "", cmd)
     cmd = re.sub(r"^#\(nop\)\s+", "", cmd)  # BuildKit nop marker
@@ -187,8 +188,33 @@ def normalize_command(cmd: str | None) -> str:
     cmd = re.sub(r"\s*#.*$", "", cmd)
 
     # Normalize whitespace
-    cmd = " ".join(cmd.split())
+    cmd = " ".join(cmd.split()).strip()
+    if not cmd:
+        return ""
 
+    copy_add_match = re.match(r"^(copy|add)\s+(.+)$", cmd)
+    if copy_add_match:
+        instruction = copy_add_match.group(1)
+        remainder = copy_add_match.group(2)
+
+        # OCI history often looks like:
+        #   copy file:<hash> in /dest/
+        #   add dir:<hash> in /dest/
+        oci_copy_add = re.match(r"^(?:file|dir):\S+\s+in\s+(.+)$", remainder)
+        if oci_copy_add:
+            destination = oci_copy_add.group(1).strip()
+            return f"{instruction}_in {destination}"
+
+        # Dockerfile shell form: COPY src dest
+        # Keep only the destination so it becomes comparable to OCI history.
+        parts = remainder.split()
+        if parts:
+            destination = parts[-1]
+            return f"{instruction}_in {destination}"
+
+    # Remove Dockerfile RUN prefix after shell/buildkit cleanup so shell-wrapped
+    # history and raw Dockerfile instructions normalize the same way.
+    cmd = re.sub(r"^run\s+", "", cmd)
     return cmd.strip()
 
 
@@ -465,7 +491,9 @@ def _match_commands_to_dockerfile(
             command_similarity=0.0,
         )
 
-    df_commands = [instr.normalized_value for instr in df_instructions]
+    df_commands = [
+        normalize_command(f"{instr.cmd} {instr.value}") for instr in df_instructions
+    ]
 
     n_df_commands = len(df_commands)
     if len(image_commands) > n_df_commands:
@@ -517,6 +545,7 @@ class ContainerImage:
     architecture: str | None
     os: str | None
     layer_history: list[dict[str, Any]]
+    scope_keys: dict[str, str] | None = None
 
 
 @dataclass
@@ -545,14 +574,12 @@ def match_images_to_dockerfiles(
     :param min_confidence: Minimum confidence threshold for matches
     :return: List of ImageDockerfileMatch objects
     """
-    parsed_dockerfiles: list[ParsedDockerfile] = []
-    dockerfile_info_map: dict[str, dict[str, Any]] = {}
+    parsed_dockerfiles: list[tuple[ParsedDockerfile, dict[str, Any]]] = []
 
     for df_info in dockerfiles:
         try:
             parsed = parse(df_info["content"])
-            dockerfile_info_map[parsed.content_hash] = df_info
-            parsed_dockerfiles.append(parsed)
+            parsed_dockerfiles.append((parsed, df_info))
         except Exception as e:
             logger.warning("Failed to parse dockerfile %s: %s", df_info.get("path"), e)
 
@@ -585,13 +612,41 @@ def match_images_to_dockerfiles(
             )
             continue
 
+        candidate_dockerfiles = parsed_dockerfiles
+        if image.scope_keys:
+            candidate_dockerfiles = [
+                (parsed, df_info)
+                for parsed, df_info in parsed_dockerfiles
+                if all(
+                    df_info.get("scope_keys", {}).get(scope_name) == scope_value
+                    for scope_name, scope_value in image.scope_keys.items()
+                )
+            ]
+            if not candidate_dockerfiles:
+                logger.debug(
+                    "No Dockerfiles scoped to %s for image %s:%s",
+                    image.scope_keys,
+                    image.display_name,
+                    image.tag,
+                )
+                continue
+
         df_matches = find_best_dockerfile_matches(
-            image_commands, parsed_dockerfiles, min_confidence
+            image_commands,
+            [parsed for parsed, _ in candidate_dockerfiles],
+            min_confidence,
         )
 
         if df_matches:
             best_match = df_matches[0]
-            df_info = dockerfile_info_map.get(best_match.dockerfile.content_hash, {})
+            df_info = next(
+                (
+                    candidate_info
+                    for parsed, candidate_info in candidate_dockerfiles
+                    if parsed is best_match.dockerfile
+                ),
+                {},
+            )
 
             matches.append(
                 ImageDockerfileMatch(
@@ -741,6 +796,174 @@ def normalize_vcs_url(url: str) -> str:
     return normalized
 
 
+def unwrap_attestation_predicate(predicate: Any) -> dict[str, Any] | None:
+    """
+    Normalize a predicate payload into the actual SLSA predicate object.
+
+    Attestation blobs can contain:
+    - an in-toto statement where `predicate` is already the predicate dict
+    - a DSSE/cosign envelope where `predicate.Data` contains a serialized statement
+    """
+    if not isinstance(predicate, dict):
+        return None
+
+    dsse_data = predicate.get("Data")
+    if isinstance(dsse_data, str):
+        try:
+            decoded = json.loads(dsse_data)
+        except ValueError:
+            logger.debug("Failed to decode nested attestation predicate Data")
+            return None
+
+        if isinstance(decoded, dict):
+            nested_predicate = decoded.get("predicate")
+            return nested_predicate if isinstance(nested_predicate, dict) else None
+
+    return predicate
+
+
+def decode_attestation_blob_to_predicate(
+    blob: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Extract an in-toto SLSA predicate from an attestation blob.
+
+    Supports two common shapes:
+    - DSSE/cosign envelopes where the blob contains a base64-encoded `payload`
+      that decodes to an in-toto statement
+    - Raw in-toto statements where the blob already has `predicate` directly
+    """
+    payload_b64 = blob.get("payload")
+    if payload_b64:
+        try:
+            payload = json.loads(base64.b64decode(str(payload_b64)).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            logger.debug("Failed to decode DSSE attestation payload")
+            return None
+        if isinstance(payload, dict) and "predicate" in payload:
+            return unwrap_attestation_predicate(payload.get("predicate"))
+        return None
+
+    if "predicate" in blob:
+        return unwrap_attestation_predicate(blob.get("predicate"))
+
+    return None
+
+
+def get_slsa_dependency_list(predicate: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Return the dependency list across supported SLSA predicate shapes.
+
+    Supports:
+    - SLSA v0.2: predicate.materials
+    - SLSA v1: predicate.buildDefinition.resolvedDependencies
+    """
+    dependency_list = predicate.get("materials", [])
+    if dependency_list:
+        return dependency_list
+
+    build_def = predicate.get("buildDefinition", {})
+    return build_def.get("resolvedDependencies", [])
+
+
+def extract_container_parent_image(predicate: dict[str, Any]) -> dict[str, str]:
+    """
+    Extract the parent/base container image reference from SLSA dependencies.
+
+    Supports both SLSA v0.2 `materials` and SLSA v1 `resolvedDependencies`.
+    Returns the first container image dependency that is not the Dockerfile frontend.
+    """
+    for dependency in get_slsa_dependency_list(predicate):
+        if not isinstance(dependency, dict):
+            continue
+
+        uri = str(dependency.get("uri", ""))
+        uri_l = uri.lower()
+        is_container_ref = (
+            uri_l.startswith("pkg:docker/")
+            or uri_l.startswith("pkg:oci/")
+            or uri_l.startswith("oci://")
+        )
+        if not is_container_ref or "dockerfile" in uri_l:
+            continue
+
+        digest = dependency.get("digest", {})
+        if not isinstance(digest, dict):
+            continue
+
+        sha256_digest = digest.get("sha256")
+        if sha256_digest:
+            return {
+                "parent_image_uri": uri,
+                "parent_image_digest": f"sha256:{sha256_digest}",
+            }
+
+    return {}
+
+
+def extract_image_source_provenance(predicate: dict[str, Any]) -> dict[str, str]:
+    """
+    Extract provider-agnostic image provenance source fields from a SLSA predicate.
+
+    Returns any of:
+    - source_uri
+    - source_revision
+    - source_file
+    """
+    result: dict[str, str] = {}
+
+    metadata = predicate.get("metadata", {})
+    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
+    vcs = buildkit_metadata.get("vcs", {})
+    if not vcs:
+        run_details = predicate.get("runDetails", {})
+        run_metadata = run_details.get("metadata", {})
+        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
+
+    build_def = predicate.get("buildDefinition", {})
+    external_parameters = build_def.get("externalParameters", {})
+    resolved_dependencies = get_slsa_dependency_list(predicate)
+
+    source_uri = vcs.get("source") or external_parameters.get("source")
+    if source_uri:
+        result["source_uri"] = normalize_vcs_url(str(source_uri))
+
+    source_revision = vcs.get("revision")
+    if not source_revision:
+        for dependency in resolved_dependencies:
+            if not isinstance(dependency, dict):
+                continue
+            digest = dependency.get("digest", {})
+            if not isinstance(digest, dict):
+                continue
+            git_commit = digest.get("gitCommit")
+            if git_commit:
+                source_revision = git_commit
+                break
+    if source_revision:
+        result["source_revision"] = str(source_revision)
+
+    invocation = predicate.get("invocation", {})
+    config_source = invocation.get("configSource", {})
+    entry_point = config_source.get("entryPoint", "")
+    if not entry_point:
+        entry_point = external_parameters.get("entryPoint", "")
+    if not entry_point:
+        entry_point = external_parameters.get("configSource", {}).get("path", "")
+    if not entry_point:
+        entry_point = "Dockerfile"
+
+    if "source_uri" in result:
+        dockerfile_dir = (
+            str(vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
+        )
+        result["source_file"] = (
+            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else str(entry_point)
+        )
+
+    return result
+
+
 def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     """
     Extract the workflow file path from a GitHub workflow ref.
@@ -762,3 +985,165 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
         return parts[2]
 
     return None
+
+
+# Standard OCI annotation keys for source provenance
+_OCI_SOURCE_LABELS = [
+    "org.opencontainers.image.source",
+    "vcs.source",
+]
+_OCI_REVISION_LABELS = [
+    "org.opencontainers.image.revision",
+    "vcs.revision",
+]
+
+
+def extract_provenance_from_oci_config(
+    config: dict[str, Any],
+) -> dict[str, str]:
+    """
+    Extract source provenance from an OCI image config's labels and annotations.
+
+    Checks standard OCI annotation keys (org.opencontainers.image.source) and
+    BuildKit VCS metadata (vcs.source, vcs.revision).
+
+    :param config: The parsed OCI image config JSON
+    :return: Dict with any of: source_uri, source_revision
+    """
+    result: dict[str, str] = {}
+
+    labels = config.get("config", {}).get("Labels") or {}
+
+    for key in _OCI_SOURCE_LABELS:
+        value = labels.get(key)
+        if value:
+            result["source_uri"] = normalize_vcs_url(value)
+            break
+
+    for key in _OCI_REVISION_LABELS:
+        value = labels.get(key)
+        if value:
+            result["source_revision"] = str(value)
+            break
+
+    return result
+
+
+def extract_layers_from_oci_config(
+    config: dict[str, Any],
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """
+    Extract layer diff_ids and history from an OCI image config.
+
+    :param config: The parsed OCI image config JSON
+    :return: Tuple of (layer_diff_ids, layer_history) where layer_history
+             entries have 'created_by' and 'empty_layer' keys.
+    """
+    diff_ids: list[str] = config.get("rootfs", {}).get("diff_ids", [])
+
+    raw_history: list[dict[str, Any]] = config.get("history", [])
+    layer_history: list[dict[str, Any]] = [
+        {
+            "created_by": entry.get("created_by", ""),
+            "empty_layer": entry.get("empty_layer", False),
+        }
+        for entry in raw_history
+    ]
+
+    return diff_ids, layer_history
+
+
+def get_unmatched_gcp_images_with_history(
+    neo4j_session: neo4j.Session,
+    sub_resource_label: str,
+    sub_resource_id: str | int,
+    update_tag: int,
+    limit: int | None = None,
+) -> list[ContainerImage]:
+    """
+    Query GCP Artifact Registry images not yet matched by provenance.
+
+    Shared helper used by GitHub and GitLab supply chain modules to include
+    GCP images in Dockerfile analysis alongside ECR/GitLab registry images.
+
+    :param neo4j_session: Neo4j session
+    :param sub_resource_label: The sub-resource label for scoping (e.g., 'GitHubOrganization')
+    :param sub_resource_id: The sub-resource ID for scoping (e.g., org name or ID)
+    :param update_tag: The current sync update tag
+    :param limit: Optional limit on number of images to return
+    :return: List of ContainerImage objects with layer history populated
+    """
+    query = """
+        MATCH (img:Image:GCPArtifactRegistryImage)
+        WHERE img.layer_diff_ids IS NOT NULL
+          AND size(img.layer_diff_ids) > 0
+          AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
+              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
+          )
+        OPTIONAL MATCH (img)<-[:IMAGE]-(direct_repo_img:GCPArtifactRegistryRepositoryImage)<-[:REPO_IMAGE]-(direct_repo:GCPArtifactRegistryRepository)
+        OPTIONAL MATCH (img)<-[:CONTAINS_IMAGE]-(:GCPArtifactRegistryImage)<-[:IMAGE]-(parent_repo_img:GCPArtifactRegistryRepositoryImage)<-[:REPO_IMAGE]-(parent_repo:GCPArtifactRegistryRepository)
+        WITH img,
+             coalesce(direct_repo_img, parent_repo_img) AS repo_img,
+             coalesce(direct_repo, parent_repo) AS gcpRepo
+        WHERE repo_img IS NOT NULL
+        WITH coalesce(gcpRepo.id, img.id) AS group_key, img, repo_img
+        ORDER BY
+            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
+            repo_img.upload_time DESC
+        WITH group_key, collect({img: img, repo_img: repo_img})[0] AS selected
+        WITH selected.img AS img, selected.repo_img AS repo_img
+        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+        WITH img, repo_img, img.layer_diff_ids[idx] AS diff_id, idx
+        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+        WITH img, repo_img, idx, {
+            diff_id: diff_id,
+            history: layer.history,
+            is_empty: false
+        } AS layer_info
+        ORDER BY idx
+        WITH img, repo_img, collect(layer_info) AS layer_history
+        RETURN
+            img.digest AS digest,
+            repo_img.uri AS uri,
+            repo_img.repository_id AS repository_id,
+            repo_img.name AS name,
+            img.layer_diff_ids AS layer_diff_ids,
+            layer_history
+    """
+
+    if limit is not None:
+        query += f" LIMIT {int(limit)}"
+
+    result = neo4j_session.run(
+        query,
+        update_tag=update_tag,
+        sub_resource_label=sub_resource_label,
+        sub_resource_id=sub_resource_id,
+    )
+    images = []
+
+    for record in result:
+        layer_history = convert_layer_history_records(record["layer_history"])
+        images.append(
+            ContainerImage(
+                digest=record["digest"],
+                uri=record["uri"] or "",
+                registry_id=record["repository_id"] or None,
+                display_name=record["name"] or None,
+                tag=None,
+                layer_diff_ids=record["layer_diff_ids"] or [],
+                image_type=None,
+                architecture=None,
+                os=None,
+                layer_history=layer_history,
+            ),
+        )
+
+    if images:
+        logger.info(
+            "Found %d GCP Artifact Registry images with layer history for dockerfile analysis",
+            len(images),
+        )
+    return images

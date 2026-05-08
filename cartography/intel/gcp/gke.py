@@ -186,6 +186,9 @@ def transform_gke_clusters(api_result: Dict[str, Any]) -> List[Dict[str, Any]]:
             ).get("enabled"),
             "legacy_abac": (c.get("legacyAbac", {}) or {}).get("enabled"),
             "shielded_nodes": (c.get("shieldedNodes", {}) or {}).get("enabled"),
+            "workload_identity_enabled": bool(
+                (c.get("workloadIdentityConfig", {}) or {}).get("workloadPool"),
+            ),
             "private_nodes": (c.get("privateClusterConfig", {}) or {}).get(
                 "enablePrivateNodes"
             ),

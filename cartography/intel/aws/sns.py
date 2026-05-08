@@ -99,8 +99,6 @@ def load_sns_topics(
     """
     Load SNS Topics information into the graph
     """
-    logger.info(f"Loading {len(data)} SNS topics for region {region} into graph.")
-
     load(
         neo4j_session,
         SNSTopicSchema(),
