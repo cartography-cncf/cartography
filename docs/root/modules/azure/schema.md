@@ -1714,8 +1714,6 @@ Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest
 
 Representation of a [Pipeline within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/pipelines/get).
 
-> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, SpaceliftStack).
-
 | Field | Description |
 | --- | --- |
 | firstseen | Timestamp of when a sync job discovered this node |

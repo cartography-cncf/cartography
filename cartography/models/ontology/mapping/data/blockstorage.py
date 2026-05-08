@@ -40,9 +40,12 @@ azure_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="size_gb", node_field="disksizegb"),
-                OntologyFieldMapping(
-                    ontology_field="encrypted", node_field="encryption"
-                ),
+                # _ont_encrypted: not mapped. The `encryption` field stored on AzureDisk is
+                # `encryption_settings_collection.enabled`, which reflects the legacy Azure Disk
+                # Encryption (ADE) feature. Azure managed disks are encrypted at rest by default
+                # via Storage Service Encryption (SSE) regardless of that flag, so mapping it
+                # here would make most disks look unencrypted in cross-cloud posture queries.
+                # Revisit once SSE / disk-encryption-set posture is modelled on AzureDisk.
                 OntologyFieldMapping(ontology_field="region", node_field="location"),
                 OntologyFieldMapping(ontology_field="state", node_field="state"),
             ],

@@ -28,26 +28,10 @@ aws_mapping = OntologyMapping(
     ],
 )
 
-azure_mapping = OntologyMapping(
-    module_name="azure",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="AzureDataFactoryPipeline",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "deploy"},
-                ),
-                # _ont_status: pipelines have no resting state, only run-level status.
-            ],
-        ),
-    ],
-)
+# Azure Data Factory pipelines are deliberately excluded from CICDPipeline. ADF pipelines
+# are data-movement / ETL workflows (datasets, linked services, data flows), not CI/CD
+# pipeline definitions. Mapping them here would conflate ETL with build/deploy/IaC and
+# pollute supply-chain inventory queries.
 
 github_mapping = OntologyMapping(
     module_name="github",
@@ -116,7 +100,6 @@ spacelift_mapping = OntologyMapping(
 
 CICDPIPELINES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
-    "azure": azure_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
     "spacelift": spacelift_mapping,

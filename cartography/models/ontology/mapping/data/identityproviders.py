@@ -23,7 +23,11 @@ aws_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "SAML"},
                 ),
-                OntologyFieldMapping(ontology_field="issuer", node_field="arn"),
+                # _ont_issuer: not mapped. The AWS IAM SAML provider ARN identifies the
+                # AWS-local resource, not the SAML issuer / entity ID. The real issuer lives
+                # inside the SAML metadata XML returned by `GetSAMLProvider`, which we do not
+                # currently parse. Mapping the ARN here would make cross-provider issuer
+                # queries compare two different concepts.
                 # _ont_enabled: AWS SAML providers have no enable/disable state.
             ],
         ),
