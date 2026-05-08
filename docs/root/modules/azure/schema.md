@@ -339,6 +339,8 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/compute/disks).
 
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, ScalewayVolume).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -353,6 +355,7 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 |encryption | Specifies whether the disk has encryption enabled |
 |maxshares | Specifies how many machines can share the disk|
 |ostype | The operating system type of the disk|
+|state | The disk lifecycle state (e.g., `Unattached`, `Attached`, `Reserved`)|
 |tier | Performance Tier associated with the disk|
 |sku | The disk sku name|
 |zones | The logical zone list for disk|
