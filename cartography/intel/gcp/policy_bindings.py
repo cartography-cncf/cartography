@@ -128,6 +128,13 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "GCPCloudRunService",
         "full_path",
     ),
+    # Cloud Functions.
+    _FullNameMapping(
+        "//cloudfunctions.googleapis.com/",
+        "functions",
+        "GCPCloudFunction",
+        "full_path",
+    ),
     # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
     # which matches the path left after stripping the service prefix.
     _FullNameMapping(

@@ -11,6 +11,7 @@ import cartography.intel.github.commits
 import cartography.intel.github.container_image_attestations
 import cartography.intel.github.container_image_tags
 import cartography.intel.github.container_images
+import cartography.intel.github.dependabot_alerts
 import cartography.intel.github.packages
 import cartography.intel.github.repos
 import cartography.intel.github.supply_chain
@@ -119,6 +120,13 @@ def start_github_ingestion(
             org_name,
         )
         cartography.intel.github.repos.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+        )
+        cartography.intel.github.dependabot_alerts.sync(
             neo4j_session,
             common_job_parameters,
             token,

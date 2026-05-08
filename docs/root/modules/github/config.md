@@ -30,6 +30,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
    | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Dependabot alerts** | Read | Optional | Dependabot vulnerability alert metadata, triage state, assignees, and dismissal actors. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
    | **Secrets** | Read | Optional | Repository secrets metadata (names, creation dates). |
@@ -67,6 +68,7 @@ Classic PATs use broader OAuth scopes. Use this option if fine-grained PATs are 
    | `read:org` | Organization membership and team data |
    | `read:user` | User profile information |
    | `user:email` | User email addresses |
+   | `security_events` | Optional. Dependabot alerts for private repositories. |
    | `read:packages` | Optional. GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography skips GHCR ingestion. |
 
 4. Click **Generate token** and copy it immediately.
@@ -79,6 +81,7 @@ Some data requires elevated permissions. Without these, Cartography will log war
 |------|-------------|
 | **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
 | **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
+| **Dependabot alerts** | Fine-grained PATs and GitHub Apps require `Repository -> Dependabot alerts: Read`. Classic PATs require `security_events` for private repositories; `public_repo` is sufficient for public repositories. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
 
