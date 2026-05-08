@@ -20,6 +20,20 @@ COMMON_JOB_PARAMS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def reset_inherited_policy_binding_claims():
+    original_update_tag = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG
+    original_seen = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.copy()
+    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
+    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = None
+    try:
+        yield
+    finally:
+        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
+        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.update(original_seen)
+        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = original_update_tag
+
+
 @pytest.mark.parametrize(
     "full_name, expected",
     [
@@ -105,6 +119,11 @@ COMMON_JOB_PARAMS = {
             "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com",
             ("GCPServiceAccount", "sa@project-abc.iam.gserviceaccount.com"),
         ),
+        # Cloud Functions
+        (
+            "//cloudfunctions.googleapis.com/projects/p/locations/us-central1/functions/fn",
+            ("GCPCloudFunction", "projects/p/locations/us-central1/functions/fn"),
+        ),
         # Compute — instance (partial_uri format)
         (
             "//compute.googleapis.com/projects/p/zones/us-central1-a/instances/vm1",
@@ -148,12 +167,23 @@ def test_parse_full_resource_name(full_name, expected):
 
 def test_policy_bindings_search_asset_types_come_from_full_name_mappings():
     assert policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES == [
-        mapping.asset_type
+        asset_type
         for mapping in policy_bindings._FULL_NAME_MAPPINGS
-        if mapping.asset_type is not None
+        for asset_type in (
+            ((mapping.asset_type,) if mapping.asset_type is not None else ())
+            + mapping.additional_asset_types
+        )
     ]
     assert (
         "artifactregistry.googleapis.com/Repository"
+        in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert (
+        "cloudfunctions.googleapis.com/Function"
+        in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert (
+        "cloudfunctions.googleapis.com/CloudFunction"
         in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
     )
     assert (

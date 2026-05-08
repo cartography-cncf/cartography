@@ -6,6 +6,7 @@ from enum import Enum
 from threading import BoundedSemaphore
 from threading import Lock
 from typing import Any
+from typing import TypeAlias
 
 import neo4j
 from google.api_core.exceptions import DeadlineExceeded
@@ -60,6 +61,8 @@ class _FullNameMapping:
       SearchAllIamPolicies for direct child-resource policies. Resource Manager
       scopes are fetched through BatchGetEffectiveIamPolicies instead, so they
       do not need a search asset type here.
+    - ``additional_asset_types``: Extra Cloud Asset asset types that use the
+      same full-name shape and Cartography node label.
     """
 
     service_prefix: str
@@ -67,6 +70,7 @@ class _FullNameMapping:
     label: str
     id_mode: str
     asset_type: str | None = None
+    additional_asset_types: tuple[str, ...] = ()
 
 
 # Order matters within a given service_prefix: more specific mappings first so
@@ -175,6 +179,8 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "functions",
         "GCPCloudFunction",
         "full_path",
+        "cloudfunctions.googleapis.com/Function",
+        ("cloudfunctions.googleapis.com/CloudFunction",),
     ),
     # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
     # which matches the path left after stripping the service prefix.
@@ -270,9 +276,12 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
 
 def _search_asset_types_from_full_name_mappings() -> list[str]:
     return [
-        mapping.asset_type
+        asset_type
         for mapping in _FULL_NAME_MAPPINGS
-        if mapping.asset_type is not None
+        for asset_type in (
+            ((mapping.asset_type,) if mapping.asset_type is not None else ())
+            + mapping.additional_asset_types
+        )
     ]
 
 
@@ -318,7 +327,7 @@ _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE = BoundedSemaphore(
 _INHERITED_POLICY_BINDINGS_LOCK = Lock()
 _INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG: int | None = None
 _INHERITED_POLICY_BINDINGS_SEEN: set[tuple[str, str, str]] = set()
-PolicyBindingSchema = (
+PolicyBindingSchema: TypeAlias = (
     GCPPolicyBindingSchema
     | GCPOrganizationPolicyBindingSchema
     | GCPFolderPolicyBindingSchema

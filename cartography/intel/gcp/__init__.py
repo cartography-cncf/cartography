@@ -151,11 +151,11 @@ def _sync_project_resources(
     :return: True if policy bindings were requested and every project synced them successfully.
     """
     logger.info("Syncing resources for %d GCP projects.", len(projects))
-    policy_bindings_requested_for_run = (
+    policy_bindings_requested = (
         requested_syncs is None or "policy_bindings" in requested_syncs
     )
     policy_bindings_all_projects_succeeded = (
-        policy_bindings_requested_for_run and len(projects) > 0
+        policy_bindings_requested and len(projects) > 0
     )
 
     # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
@@ -635,7 +635,6 @@ def _sync_project_resources(
         # Policy bindings sync uses CAI gRPC client.
         # Runs after all resource modules so that APPLIES_TO matchlinks can find
         # target nodes (secretsmanager, artifact_registry, cloud_run, etc.).
-        policy_bindings_requested = policy_bindings_requested_for_run
         if policy_bindings_requested:
             if policy_bindings_permission_ok is False:
                 policy_bindings_status = (
@@ -925,7 +924,7 @@ def start_gcp_ingestion(
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
         )
-        if policy_bindings_all_projects_succeeded and policy_bindings_requested:
+        if policy_bindings_all_projects_succeeded:
             policy_bindings.cleanup_inherited_policy_bindings(
                 neo4j_session,
                 common_job_parameters,
