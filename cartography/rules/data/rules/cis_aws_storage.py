@@ -8,6 +8,7 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -101,6 +102,7 @@ cis_aws_3_1_2_s3_mfa_delete = Rule(
             revision="6.0.0",
             requirement="3.1.2",
         ),
+        iso27001_annex_a("8.10"),
     ),
 )
 
@@ -183,6 +185,7 @@ cis_aws_3_1_4_s3_block_public_access = Rule(
             revision="6.0.0",
             requirement="3.1.4",
         ),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -260,6 +263,7 @@ cis_aws_3_2_1_rds_encryption = Rule(
             revision="6.0.0",
             requirement="3.2.1",
         ),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -292,4 +296,10 @@ cis_aws_3_2_1_rds_encryption = Rule(
 # =============================================================================
 # TODO: CIS AWS 3.3.1: Encryption is enabled for EFS file systems
 # Missing datamodel or evidence: EFS file system inventory with encrypted state
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 5.12 and 8.12: Data classification and leakage coverage
+# Missing datamodel or evidence: Macie classification findings, sensitive-data
+# labels, and DLP control evidence for S3/RDS data stores.
 # =============================================================================

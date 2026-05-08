@@ -6,6 +6,7 @@ categories and are designed as practical security findings rather than
 certification assertions.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -168,6 +169,8 @@ nist_ai_third_party_app_inventory = Rule(
             requirement="MAP 1",
             revision="1.0",
         ),
+        iso27001_annex_a("5.21"),
+        iso27001_annex_a("5.23"),
     ),
 )
 
@@ -280,6 +283,8 @@ nist_ai_third_party_app_sensitive_scopes = Rule(
             requirement="MANAGE 2",
             revision="1.0",
         ),
+        iso27001_annex_a("5.15"),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -412,6 +417,8 @@ nist_ai_admin_ai_app_authorizations = Rule(
             requirement="GOVERN 5",
             revision="1.0",
         ),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -576,6 +583,8 @@ nist_ai_aibom_agent_inventory = Rule(
             requirement="GOVERN 1",
             revision="1.0",
         ),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
 
@@ -682,6 +691,8 @@ nist_ai_aibom_coverage_gaps = Rule(
             requirement="MANAGE 2",
             revision="1.0",
         ),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
 
@@ -911,6 +922,8 @@ nist_ai_provider_api_key_hygiene = Rule(
             requirement="MANAGE 2",
             revision="1.0",
         ),
+        iso27001_annex_a("5.17"),
+        iso27001_annex_a("5.18"),
     ),
 )
 

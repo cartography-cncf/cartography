@@ -8,6 +8,7 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -97,6 +98,7 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
             revision="1.3",
             requirement="4.1.1.3",
         ),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -182,6 +184,8 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
             revision="1.3",
             requirement="4.1.1.1",
         ),
+        iso27001_annex_a("8.5"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -271,6 +275,7 @@ cis_gw_1_1_1_super_admin_count_too_low = Rule(
             revision="1.3",
             requirement="1.1.1",
         ),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -334,6 +339,8 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
             revision="1.3",
             requirement="1.1.2",
         ),
+        iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -401,6 +408,7 @@ cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
             revision="1.3",
             requirement="1.1.3",
         ),
+        iso27001_annex_a("8.2"),
     ),
 )
 

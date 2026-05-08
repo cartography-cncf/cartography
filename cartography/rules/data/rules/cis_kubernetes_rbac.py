@@ -8,6 +8,7 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -107,6 +108,8 @@ cis_k8s_5_1_1_cluster_admin_usage = Rule(
             revision="1.12",
             requirement="5.1.1",
         ),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -215,6 +218,7 @@ cis_k8s_5_1_2_secret_access = Rule(
             revision="1.12",
             requirement="5.1.2",
         ),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -332,6 +336,8 @@ cis_k8s_5_1_3_wildcard_roles = Rule(
             revision="1.12",
             requirement="5.1.3",
         ),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -437,6 +443,7 @@ cis_k8s_5_1_4_pod_create_access = Rule(
             revision="1.12",
             requirement="5.1.4",
         ),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -634,6 +641,8 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
             revision="1.12",
             requirement="5.1.5",
         ),
+        iso27001_annex_a("5.16"),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -748,6 +757,7 @@ cis_k8s_5_1_7_system_masters_group = Rule(
             revision="1.12",
             requirement="5.1.7",
         ),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -850,6 +860,8 @@ cis_k8s_5_1_8_escalation_permissions = Rule(
             revision="1.12",
             requirement="5.1.8",
         ),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -959,6 +971,7 @@ cis_k8s_5_1_9_pv_create_access = Rule(
             revision="1.12",
             requirement="5.1.9",
         ),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -1033,6 +1046,7 @@ cis_k8s_5_1_10_node_proxy_access = Rule(
             revision="1.12",
             requirement="5.1.10",
         ),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -1108,6 +1122,7 @@ cis_k8s_5_1_11_csr_approval_access = Rule(
             revision="1.12",
             requirement="5.1.11",
         ),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -1197,6 +1212,7 @@ cis_k8s_5_1_12_webhook_config_access = Rule(
             revision="1.12",
             requirement="5.1.12",
         ),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -1272,6 +1288,7 @@ cis_k8s_5_1_13_sa_token_creation = Rule(
             revision="1.12",
             requirement="5.1.13",
         ),
+        iso27001_annex_a("5.17"),
     ),
 )
 

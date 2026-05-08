@@ -13,6 +13,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -110,6 +111,7 @@ cis_aws_2_13_access_key_not_rotated = Rule(
             revision="6.0.0",
             requirement="2.13",
         ),
+        iso27001_annex_a("5.17"),
     ),
 )
 
@@ -190,6 +192,7 @@ cis_aws_2_11_unused_credentials = Rule(
             revision="6.0.0",
             requirement="2.11",
         ),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -260,6 +263,7 @@ cis_aws_2_14_user_direct_policies = Rule(
             revision="6.0.0",
             requirement="2.14",
         ),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -335,6 +339,7 @@ cis_aws_2_12_multiple_access_keys = Rule(
             revision="6.0.0",
             requirement="2.12",
         ),
+        iso27001_annex_a("5.17"),
     ),
 )
 
@@ -410,6 +415,7 @@ cis_aws_2_18_expired_certificates = Rule(
             revision="6.0.0",
             requirement="2.18",
         ),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -456,4 +462,10 @@ cis_aws_2_18_expired_certificates = Rule(
 # =============================================================================
 # TODO: CIS AWS 2.19: IAM External Access Analyzer is enabled for all regions
 # Missing datamodel or evidence: IAM Access Analyzer inventory and regional analyzer status
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 8.5: Secure authentication
+# Missing datamodel or evidence: IAM user console password state, MFA state,
+# root account MFA state, and password policy details.
 # =============================================================================
