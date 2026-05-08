@@ -226,6 +226,9 @@ from cartography.rules.data.rules.object_storage_public import object_storage_pu
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
+from cartography.rules.data.rules.serverless_workload_exposed import (
+    serverless_workload_exposed,
+)
 from cartography.rules.data.rules.subimage_coverage import aws_account_not_synced
 from cartography.rules.data.rules.subimage_coverage import container_image_not_found
 from cartography.rules.data.rules.subimage_coverage import (
@@ -289,6 +292,7 @@ RULES = {
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
     tailscale_security_configuration_gaps.id: tailscale_security_configuration_gaps,
+    serverless_workload_exposed.id: serverless_workload_exposed,
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,

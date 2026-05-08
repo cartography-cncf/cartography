@@ -46,3 +46,22 @@ def test_device_security_posture_gaps_cover_expected_providers():
         Module.JAMF,
         Module.TAILSCALE,
     }
+
+
+def test_tailscale_boolean_predicates_accept_string_values():
+    for fact in tailscale_security_configuration_gaps.facts:
+        assert "toLower(toString(" in fact.cypher_query
+        assert "toLower(toString(" in fact.cypher_visual_query
+
+
+def test_duo_phone_visual_query_keeps_unlinked_phones():
+    duo_phone_fact = next(
+        fact
+        for fact in device_security_posture_gaps.facts
+        if fact.id == "duo_phone_posture_gaps"
+    )
+
+    assert "MATCH (phone:DuoPhone)" in duo_phone_fact.cypher_visual_query
+    assert "OPTIONAL MATCH p=(user:DuoUser)-[:HAS_DUO_PHONE]->(phone)" in (
+        duo_phone_fact.cypher_visual_query
+    )

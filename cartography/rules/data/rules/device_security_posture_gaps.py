@@ -118,10 +118,11 @@ _duo_phone_posture_gaps = Fact(
         issue[1] AS current_value
     """,
     cypher_visual_query="""
-    MATCH p=(user:DuoUser)-[:HAS_DUO_PHONE]->(phone:DuoPhone)
+    MATCH (phone:DuoPhone)
     WHERE phone.encrypted = false
        OR phone.screenlock = false
        OR phone.tampered = true
+    OPTIONAL MATCH p=(user:DuoUser)-[:HAS_DUO_PHONE]->(phone)
     RETURN *
     """,
     cypher_count_query="""
