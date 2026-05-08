@@ -911,6 +911,8 @@ YAML (all `include:` references expanded by GitLab); otherwise the raw
 `.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
 the two cases.
 
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, SpaceliftStack).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |

@@ -30,6 +30,9 @@ DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
 FS{{FileStorage}}
+BS{{BlockStorage}}
+IDP{{IdentityProvider}}
+CICD{{CICDPipeline}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
@@ -605,6 +608,63 @@ or block storage (EBS-like).
 | _ont_name | The name/identifier of the file system/share (REQUIRED). |
 | _ont_location | The region/location of the file storage. |
 | _ont_encrypted | Whether the storage is encrypted at rest. |
+
+
+### BlockStorage
+
+```{note}
+BlockStorage is a semantic label.
+```
+
+A block storage represents a managed block-level volume that can be attached to compute instances.
+It generalizes concepts like AWS EBS volumes, Azure managed disks, and Scaleway Instance volumes,
+as opposed to object storage (S3-like) or network file storage (EFS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the volume (REQUIRED). |
+| _ont_size_gb | The size of the volume in gigabytes. |
+| _ont_encrypted | Whether the volume is encrypted at rest. |
+| _ont_region | The region/zone where the volume lives. |
+| _ont_state | The lifecycle state of the volume (e.g., `available`, `in-use`). |
+
+
+### IdentityProvider
+
+```{note}
+IdentityProvider is a semantic label.
+```
+
+An identity provider represents a federated identity source (SAML, OIDC, or vendor-defined)
+that other systems trust to authenticate users. It generalizes concepts like AWS IAM SAML
+providers, Kubernetes OIDC providers (e.g. on EKS), and Keycloak identity providers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the identity provider (REQUIRED). |
+| _ont_protocol | The federation protocol (`SAML`, `OIDC`, or provider-defined). |
+| _ont_issuer | The issuer URL or trust identifier. |
+| _ont_enabled | Whether the provider is currently active. |
+
+
+### CICDPipeline
+
+```{note}
+CICDPipeline is a semantic label.
+```
+
+A CI/CD pipeline represents a build, deploy, or infrastructure-as-code pipeline definition
+across CI/CD platforms. It generalizes concepts like AWS CodeBuild projects, GitHub Actions
+workflows, GitLab `.gitlab-ci.yml` configs, Azure Data Factory pipelines, and Spacelift stacks.
+This category models pipeline *definitions* only; runtime executions (e.g. workflow runs,
+Spacelift runs) and step components (e.g. third-party GitHub Actions referenced inside a
+workflow) are intentionally excluded.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the pipeline definition (REQUIRED). |
+| _ont_type | The pipeline category, normalized to `build` / `deploy` / `iac`. |
+| _ont_status | The lifecycle state of the pipeline (e.g., `active`, `disabled`). |
 
 
 ### Tenant
