@@ -15,7 +15,7 @@ The rules system uses a simple two-level hierarchy:
 
 ```
 Rule (e.g., mfa-missing, object_storage_public)
-  └─ Fact (e.g., aws_s3_public, missing-mfa-cloudflare)
+  └─ Fact (e.g., aws_s3_public, missing-mfa-ontology)
 ```
 
 **Rules** represent security issues or attack surfaces you want to detect (e.g., "Public Object Storage exposed on internet").
@@ -304,8 +304,8 @@ Output shows all rules with their IDs, names, and fact counts:
 ```
 Available rules:
   - compute_instance_exposed (3 facts)
-  - database_instance_exposed (2 facts)
-  - mfa-missing (1 fact)
+  - database_instance_exposed (4 facts)
+  - mfa-missing (2 facts)
   - object_storage_public (2 facts)
   ...
 ```
@@ -320,18 +320,21 @@ Output shows rule metadata and all associated facts:
 Rule: mfa-missing
 Name: User accounts missing MFA
 Description: Detects user accounts without multi-factor authentication
-Facts: 1
-Version: 0.1.0
+Facts: 2
+Version: 0.2.0
 
 Facts:
-  1. missing-mfa-cloudflare (Cloudflare)
-     Finds Cloudflare member accounts that have MFA disabled
-     Maturity: STABLE
+  1. missing-mfa-aws (AWS)
+     AWS IAM users that are not associated with any MFA device
+     Maturity: EXPERIMENTAL
+  2. missing-mfa-ontology (Cross-cloud)
+     Active UserAccount nodes whose `_ont_has_mfa` is explicitly false
+     Maturity: EXPERIMENTAL
 ```
 
 #### See details of a specific fact
 ```bash
-cartography-rules list mfa-missing missing-mfa-cloudflare
+cartography-rules list mfa-missing missing-mfa-ontology
 ```
 
 ### `run`
