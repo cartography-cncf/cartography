@@ -1,17 +1,9 @@
+from cartography.rules.data.frameworks.subimage import subimage_coverage
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-
-# =============================================================================
-# Shared Coverage Framework
-# =============================================================================
-
-COVERAGE_FRAMEWORK_NAME = "SubImage Coverage"
-COVERAGE_FRAMEWORK_SHORT_NAME = "Coverage"
-COVERAGE_FRAMEWORK_SCOPE = "subimage"
 
 # =============================================================================
 # Rule 1: SubImage Module Not Configured
@@ -75,14 +67,7 @@ subimage_module_not_configured = Rule(
     ),
     facts=(_subimage_module_not_configured_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="1.1",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("1.1"),),
 )
 
 # =============================================================================
@@ -145,14 +130,7 @@ subimage_framework_disabled_module_enabled = Rule(
     ),
     facts=(_subimage_framework_disabled_module_enabled_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="1.2",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("1.2"),),
 )
 
 # =============================================================================
@@ -220,14 +198,7 @@ container_image_not_found = Rule(
     ),
     facts=(_container_image_not_found_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="2.1",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("2.1"),),
 )
 
 # =============================================================================
@@ -292,14 +263,7 @@ aws_account_not_synced = Rule(
     ),
     facts=(_aws_account_not_synced_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="2.2",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("2.2"),),
 )
 
 # =============================================================================
@@ -368,12 +332,5 @@ repository_without_slsa_provenance = Rule(
     ),
     facts=(_repository_without_slsa_provenance_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="3.1",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("3.1"),),
 )

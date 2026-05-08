@@ -13,10 +13,10 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
+from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -104,13 +104,7 @@ cis_aws_2_13_access_key_not_rotated = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="2.13",
-        ),
+        cis_aws("2.13"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -185,13 +179,7 @@ cis_aws_2_11_unused_credentials = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="2.11",
-        ),
+        cis_aws("2.11"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -256,13 +244,7 @@ cis_aws_2_14_user_direct_policies = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="2.14",
-        ),
+        cis_aws("2.14"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -332,13 +314,7 @@ cis_aws_2_12_multiple_access_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="2.12",
-        ),
+        cis_aws("2.12"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -408,13 +384,7 @@ cis_aws_2_18_expired_certificates = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="2.18",
-        ),
+        cis_aws("2.18"),
         iso27001_annex_a("8.24"),
     ),
 )
