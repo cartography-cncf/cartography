@@ -50,7 +50,16 @@ kubernetes_mapping = OntologyMapping(
                     ontology_field="enabled",
                     node_field="status",
                     special_handling="equal_boolean",
-                    extra={"values": ["Active", "active", "Healthy"]},
+                    extra={
+                        "values": [
+                            "ACTIVE",
+                            "Active",
+                            "active",
+                            "HEALTHY",
+                            "Healthy",
+                            "healthy",
+                        ]
+                    },
                 ),
             ],
         ),
