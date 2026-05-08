@@ -289,6 +289,7 @@ def test_start_aws_ingestion(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -296,6 +297,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
+    mock_autodiscover,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -324,6 +326,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     assert "test_account" in message
     assert "test_account2" in message
     assert mock_sync_one.call_count == 2
+    assert mock_autodiscover.call_count == 2
     assert mock_run_cleanup_job.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
@@ -331,6 +334,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -338,6 +342,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
+    mock_autodiscover,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -363,6 +368,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     assert "KeyError" in str(e)
     assert str(e.value).count("foo") == 1
     assert mock_sync_one.call_count == 1
+    assert mock_autodiscover.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
@@ -370,6 +376,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -377,6 +384,7 @@ def test_start_aws_ingestion_does_cleanup(
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
+    mock_autodiscover,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -399,6 +407,7 @@ def test_start_aws_ingestion_does_cleanup(
     # Assert
     assert mock_perform_analysis.call_count == 1
     assert mock_run_cleanup_job.call_count == 1
+    assert mock_autodiscover.call_count == 2
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
