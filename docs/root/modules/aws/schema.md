@@ -28,6 +28,13 @@ Representation of an AWS Account.
 |providers| Number of identity providers in the account. From IAM GetAccountSummary.|
 |server\_certificates| Number of server certificates in the account. From IAM GetAccountSummary.|
 |policy\_versions\_in\_use| Number of policy versions in use. From IAM GetAccountSummary.|
+|arn| The AWS Organizations ARN for this account, when discovered from AWS Organizations.|
+|email| The email address associated with the account, when discovered from AWS Organizations.|
+|state| The AWS Organizations account lifecycle state.|
+|status| The legacy AWS Organizations account status. AWS recommends using `state` instead.|
+|joined\_method| The method by which the account joined the organization.|
+|joined\_timestamp| The date the account joined the organization.|
+|org\_id| The AWS Organization ID that contains this account, when available.|
 
 #### Relationships
 - Many node types belong to an `AWSAccount`.
@@ -85,6 +92,36 @@ Representation of an AWS Account.
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
+    ```
+
+- `AWSAccount` nodes can belong to an `AWSOrganization`.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+### AWSOrganization
+
+Representation of an AWS Organization.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
+| Field | Description |
+|-------|-------------|
+|**id**| The AWS Organization ID.|
+|arn| The AWS Organization ARN.|
+|feature\_set| The feature set of the organization, such as `ALL` or `CONSOLIDATED_BILLING`.|
+|management\_account\_arn| The ARN of the organization's management account.|
+|management\_account\_id| The ID of the organization's management account.|
+|management\_account\_email| The email address of the organization's management account.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSAccount` nodes belong to an `AWSOrganization`.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSAccount)
     ```
 
 ### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock

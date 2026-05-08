@@ -232,30 +232,24 @@ def _autodiscover_accounts(
 ) -> None:
     logger.info("Trying to autodiscover accounts.")
     try:
-        # Fetch all accounts
         client = create_boto3_client(boto3_session, "organizations")
-        paginator = client.get_paginator("list_accounts")
-        accounts: List[Dict] = []
-        for page in paginator.paginate():
-            accounts.extend(page["Accounts"])
-
-        # Filter out every account which is not in the ACTIVE status
-        # and select only the Id and Name fields
-        filtered_accounts: Dict[str, str] = {
-            x["Name"]: x["Id"] for x in accounts if x["Status"] == "ACTIVE"
-        }
-
-        # Add them to the graph
-        logger.info("Loading autodiscovered accounts.")
-        organizations.load_aws_accounts(
+        organizations.sync_aws_organization(
             neo4j_session,
-            filtered_accounts,
+            client,
+            account_id,
             sync_tag,
             common_job_parameters,
         )
-    except botocore.exceptions.ClientError:
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "AWSOrganizationsNotInUseException":
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+            return
         logger.warning(
-            f"The current account ({account_id}) doesn't have enough permissions to perform autodiscovery.",
+            f"The current account ({account_id}) doesn't have enough permissions to perform AWS Organizations autodiscovery.",
         )
 
 
