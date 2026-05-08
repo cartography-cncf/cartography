@@ -85,6 +85,7 @@ def test_sync_nat_gateways(
     Ensure that NAT gateways are loaded with correct properties and all relationships.
     """
     boto3_session = MagicMock()
+    boto3_session.get_partition_for_region.return_value = "aws"
     _setup_prerequisites(neo4j_session, boto3_session)
 
     sync_nat_gateways(

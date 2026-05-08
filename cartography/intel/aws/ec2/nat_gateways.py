@@ -37,6 +37,7 @@ def transform_nat_gateways(
     nat_gateways: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
+    partition: str,
 ) -> list[dict[str, Any]]:
     """
     Transform NAT gateway data, flattening the primary NatGatewayAddresses entry.
@@ -44,8 +45,9 @@ def transform_nat_gateways(
     result = []
     for ngw in nat_gateways:
         ngw_id = ngw["NatGatewayId"]
-        # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
-        arn = f"arn:aws:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
+        arn = (
+            f"arn:{partition}:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
+        )
 
         # Flatten the primary address entry; prefer the entry marked IsPrimary
         addresses = ngw.get("NatGatewayAddresses", [])
@@ -58,13 +60,19 @@ def transform_nat_gateways(
         ]
 
         create_time = ngw.get("CreateTime")
+        if create_time:
+            create_time = (
+                create_time.isoformat()
+                if hasattr(create_time, "isoformat")
+                else str(create_time)
+            )
         result.append(
             {
                 "NatGatewayId": ngw_id,
                 "SubnetId": ngw.get("SubnetId"),
                 "VpcId": ngw.get("VpcId"),
                 "State": ngw.get("State"),
-                "CreateTime": str(create_time) if create_time else None,
+                "CreateTime": create_time,
                 "AllocationId": primary.get("AllocationId"),
                 "AllocationIds": allocation_ids,
                 "NetworkInterfaceId": primary.get("NetworkInterfaceId"),
@@ -122,8 +130,12 @@ def sync_nat_gateways(
             current_aws_account_id,
         )
         nat_gateways = get_nat_gateways(boto3_session, region)
+        partition = boto3_session.get_partition_for_region(region)
         transformed_data = transform_nat_gateways(
-            nat_gateways, region, current_aws_account_id
+            nat_gateways,
+            region,
+            current_aws_account_id,
+            partition,
         )
         load_nat_gateways(
             neo4j_session, transformed_data, region, current_aws_account_id, update_tag

@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 from cartography.intel.aws.ec2.nat_gateways import transform_nat_gateways
 
 
@@ -25,7 +28,7 @@ def test_transform_nat_gateways_public():
             ],
         },
     ]
-    result = transform_nat_gateways(raw, "us-east-1", "123456789012")
+    result = transform_nat_gateways(raw, "us-east-1", "123456789012", "aws")
 
     assert len(result) == 1
     r = result[0]
@@ -73,7 +76,7 @@ def test_transform_nat_gateways_isprimary_selection():
             ],
         },
     ]
-    result = transform_nat_gateways(raw, "us-east-1", "123456789012")
+    result = transform_nat_gateways(raw, "us-east-1", "123456789012", "aws")
 
     assert len(result) == 1
     r = result[0]
@@ -100,7 +103,7 @@ def test_transform_nat_gateways_private_no_addresses():
             "NatGatewayAddresses": [],
         },
     ]
-    result = transform_nat_gateways(raw, "eu-west-1", "123456789012")
+    result = transform_nat_gateways(raw, "eu-west-1", "123456789012", "aws")
 
     assert len(result) == 1
     r = result[0]
@@ -127,7 +130,7 @@ def test_transform_nat_gateways_missing_create_time():
             "NatGatewayAddresses": [],
         },
     ]
-    result = transform_nat_gateways(raw, "us-west-2", "123456789012")
+    result = transform_nat_gateways(raw, "us-west-2", "123456789012", "aws")
 
     assert len(result) == 1
     assert result[0]["CreateTime"] is None
@@ -149,7 +152,7 @@ def test_transform_nat_gateways_multiple():
         }
         for i in range(3)
     ]
-    result = transform_nat_gateways(raw, "ap-southeast-1", "999999999999")
+    result = transform_nat_gateways(raw, "ap-southeast-1", "999999999999", "aws")
 
     assert len(result) == 3
     for i, r in enumerate(result):
@@ -159,3 +162,26 @@ def test_transform_nat_gateways_multiple():
         assert r["Arn"] == (
             f"arn:aws:ec2:ap-southeast-1:999999999999:natgateway/nat-{i:04d}"
         )
+
+
+def test_transform_nat_gateways_uses_partition_and_isoformat():
+    raw = [
+        {
+            "NatGatewayId": "nat-0gov",
+            "SubnetId": "subnet-gov",
+            "VpcId": "vpc-gov",
+            "State": "available",
+            "CreateTime": datetime(2021, 4, 1, tzinfo=timezone.utc),
+            "ConnectivityType": "public",
+            "NatGatewayAddresses": [],
+        },
+    ]
+
+    result = transform_nat_gateways(raw, "us-gov-west-1", "123456789012", "aws-us-gov")
+
+    assert len(result) == 1
+    assert (
+        result[0]["Arn"]
+        == "arn:aws-us-gov:ec2:us-gov-west-1:123456789012:natgateway/nat-0gov"
+    )
+    assert result[0]["CreateTime"] == "2021-04-01T00:00:00+00:00"
