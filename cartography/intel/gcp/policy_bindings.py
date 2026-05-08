@@ -169,6 +169,13 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "last_segment",
         "iam.googleapis.com/ServiceAccount",
     ),
+    # Cloud Functions.
+    _FullNameMapping(
+        "//cloudfunctions.googleapis.com/",
+        "functions",
+        "GCPCloudFunction",
+        "full_path",
+    ),
     # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
     # which matches the path left after stripping the service prefix.
     _FullNameMapping(
