@@ -10,6 +10,9 @@ from cartography.models.ontology.mapping.data.blockstorage import (
 from cartography.models.ontology.mapping.data.certificates import (
     CERTIFICATES_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.cicdpipelines import (
+    CICDPIPELINES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.clusters import CLUSTERS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.coderepositories import (
     CODEREPOSITORIES_ONTOLOGY_MAPPING,
@@ -108,6 +111,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "aimodels": AIMODELS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
     "blockstorage": BLOCK_STORAGE_ONTOLOGY_MAPPING,
+    "cicdpipelines": CICDPIPELINES_ONTOLOGY_MAPPING,
     "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
     "computeclusters": CLUSTERS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
