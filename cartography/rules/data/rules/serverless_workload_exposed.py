@@ -87,6 +87,43 @@ _gcp_cloud_function_http_trigger = Fact(
 )
 
 
+# AWS Facts
+_aws_lambda_anonymous_access = Fact(
+    id="aws_lambda_anonymous_access",
+    name="Internet-Accessible AWS Lambda Attack Surface",
+    description=(
+        "AWS Lambda functions whose resource policy allows anonymous "
+        "invocation. The cartography AWS Lambda intel module sets "
+        "anonymous_access = true when the function's resource-based policy "
+        "grants the lambda:InvokeFunction action (or equivalent) to a "
+        "wildcard principal, which covers Function URLs configured with "
+        "AuthType=NONE as well as policies opened to '*' / Everyone."
+    ),
+    cypher_query="""
+    MATCH (acc:AWSAccount)-[:RESOURCE]->(fn:AWSLambda)
+    WHERE fn.anonymous_access = true
+    RETURN
+        fn.arn AS id,
+        fn.name AS name,
+        fn.region AS region,
+        fn.runtime AS runtime,
+        'lambda_anonymous_invoke' AS exposure_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(acc:AWSAccount)-[:RESOURCE]->(fn:AWSLambda)
+    WHERE fn.anonymous_access = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (fn:AWSLambda)
+    RETURN COUNT(fn) AS count
+    """,
+    asset_id_field="id",
+    module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # TODO: add an Azure Function App fact once the cartography intel module
 # ingests siteConfig.publicNetworkAccess and privateEndpointConnections.
 # Today only `https_only` and `state` are modelled, which is not enough to
@@ -107,11 +144,13 @@ serverless_workload_exposed = Rule(
     name="Internet-Exposed Serverless Workloads",
     description=(
         "Serverless compute reachable from the public internet via "
-        "permissive ingress or anonymous IAM bindings. Covers GCP Cloud "
-        "Run and GCP Cloud Functions."
+        "permissive ingress, anonymous IAM bindings, or unauthenticated "
+        "Function URLs. Covers GCP Cloud Run, GCP Cloud Functions, and "
+        "AWS Lambda."
     ),
     output_model=ServerlessWorkloadExposed,
     facts=(
+        _aws_lambda_anonymous_access,
         _gcp_cloud_run_public_ingress,
         _gcp_cloud_function_http_trigger,
     ),
