@@ -986,8 +986,14 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
   supports `GCPProject`, `GCPFolder`, `GCPOrganization`, `GCPBucket`,
   `GCPKeyRing`, `GCPCryptoKey`, `GCPSecretManagerSecret`,
   `GCPSecretManagerSecretVersion`, `GCPArtifactRegistryRepository`,
-  `GCPCloudRunService`, `GCPInstance`, `GCPVpc`, `GCPSubnet`, and
-  `GCPFirewall` targets.
+  `GCPArtifactRegistryRepositoryImage`, `GCPArtifactRegistryLanguagePackage`,
+  `GCPBigQueryDataset`, `GCPBigQueryTable`, `GCPBigQueryRoutine`,
+  `GCPCloudFunction`, `GCPCloudRunService`, `GCPCloudRunJob`,
+  `GCPCloudRunRevision`, `GCPCloudRunExecution`, `GCPCloudSQLInstance`,
+  `GKECluster`, `GCPServiceAccount`, `GCPServiceAccountKey`, `GCPRole`,
+  `GCPVertexAIModel`, `GCPVertexAITrainingPipeline`, `GCPInstance`,
+  `GCPInstanceGroup`, `GCPBackendService`, `GCPForwardingRule`, `GCPVpc`,
+  `GCPSubnet`, `GCPCloudArmorPolicy`, and `GCPFirewall` targets.
 
     ```
     (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)

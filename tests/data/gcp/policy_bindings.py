@@ -271,6 +271,30 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                 },
             ],
         },
+        {
+            "full_resource_name": (
+                "//iam.googleapis.com/projects/project-abc/"
+                "serviceAccounts/sa@project-abc.iam.gserviceaccount.com"
+            ),
+            "policies": [
+                {
+                    "attached_resource": (
+                        "//iam.googleapis.com/projects/project-abc/"
+                        "serviceAccounts/sa@project-abc.iam.gserviceaccount.com"
+                    ),
+                    "policy": {
+                        "bindings": [
+                            {
+                                "role": "roles/viewer",
+                                "members": [
+                                    "user:alice@example.com",
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
         # Resource-scoped binding on a specific BigQuery table. Used by
         # test_sync_gcp_permission_relationships to verify that scope keys
         # disambiguate sibling tables sharing the same leaf name across

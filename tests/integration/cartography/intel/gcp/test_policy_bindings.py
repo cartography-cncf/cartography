@@ -63,6 +63,19 @@ def _create_test_bucket(neo4j_session):
     )
 
 
+def _create_test_bigquery_table(neo4j_session):
+    """Create a BigQuery table node to verify APPLIES_TO relationship wiring."""
+    neo4j_session.run(
+        """
+        MERGE (table:GCPBigQueryTable{id: $table_id})
+        ON CREATE SET table.firstseen = timestamp()
+        SET table.lastupdated = $update_tag
+        """,
+        table_id="project-abc:dataset_a.events",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.policy_bindings,
     "get_policy_bindings",
@@ -121,6 +134,7 @@ def test_sync_gcp_policy_bindings(
     _create_test_project(neo4j_session)
     _create_test_organization(neo4j_session)
     _create_test_bucket(neo4j_session)
+    _create_test_bigquery_table(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
     mock_asset_client = MagicMock()
@@ -206,6 +220,11 @@ def test_sync_gcp_policy_bindings(
             "resource",
         ),
         (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "roles/viewer",
+            "resource",
+        ),
+        (
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
             "roles/bigquery.dataViewer",
             "resource",
@@ -248,6 +267,10 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+        ),
+        (
+            TEST_PROJECT_ID,
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
         ),
     }
@@ -274,6 +297,10 @@ def test_sync_gcp_policy_bindings(
         (
             "alice@example.com",
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+        (
+            "alice@example.com",
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
         ),
         (
             "bob@example.com",
@@ -334,6 +361,10 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.objectViewer",
         ),
         (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "roles/viewer",
+        ),
+        (
             "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
             "roles/bigquery.dataViewer",
         ),
@@ -385,6 +416,39 @@ def test_sync_gcp_policy_bindings(
         (
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
             "test-bucket",
+        ),
+    }
+
+    # Check GCPPolicyBinding to GCPBigQueryTable APPLIES_TO relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPBigQueryTable",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events_roles/bigquery.dataViewer",
+            "project-abc:dataset_a.events",
+        ),
+    }
+
+    # Check GCPPolicyBinding to GCPServiceAccount APPLIES_TO relationships. This
+    # target matches on email instead of id.
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com_roles/viewer",
+            "sa@project-abc.iam.gserviceaccount.com",
         ),
     }
 
