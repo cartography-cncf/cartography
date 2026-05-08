@@ -1782,6 +1782,8 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
 | source_uri | Source repository URL extracted from OCI image config provenance (e.g., `https://github.com/org/repo`) |
 | source_revision | Git commit hash from build provenance |
 | source_file | Dockerfile path from build provenance |
+| parent_image_uri | Parent/base image URI extracted from digest-verified SPDX SBOM image relationships |
+| parent_image_digest | Parent/base image digest extracted from digest-verified SPDX SBOM image relationships |
 | layer_diff_ids | Ordered list of layer diff IDs from the OCI image config |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
@@ -1791,6 +1793,11 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
 - Manifest-list/index GCPArtifactRegistryImages contain platform-specific child images.
     ```
     (GCPArtifactRegistryImage:ImageManifestList)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryImage:Image)
+    ```
+
+- GCPArtifactRegistryImages can point to a parent/base image when SPDX SBOM relationships identify another loaded GAR image digest.
+    ```
+    (GCPArtifactRegistryImage)-[:BUILT_FROM]->(GCPArtifactRegistryImage)
     ```
 
 - TrivyImageFindings affect GCPArtifactRegistryImages.

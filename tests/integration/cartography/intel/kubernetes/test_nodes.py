@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from uuid import uuid4
 
 import cartography.intel.kubernetes.nodes as nodes_module
 import cartography.intel.kubernetes.pods as pods_module
@@ -19,7 +20,39 @@ CLUSTER_NAME = KUBERNETES_CLUSTER_NAMES[0]
 def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     # Arrange
     monkeypatch.setattr(nodes_module, "get_nodes", lambda client: RAW_NODES)
-    monkeypatch.setattr(pods_module, "get_pods", lambda client: RAW_PODS)
+    monkeypatch.setattr(
+        pods_module,
+        "get_pods",
+        lambda client: RAW_PODS
+        + [
+            SimpleNamespace(
+                metadata=SimpleNamespace(
+                    uid=uuid4().hex,
+                    name="arm-node-test-pod",
+                    namespace="default",
+                    creation_timestamp=None,
+                    deletion_timestamp=None,
+                    labels={},
+                ),
+                spec=SimpleNamespace(
+                    containers=[
+                        SimpleNamespace(
+                            name="arm-node-test-container",
+                            image="arm-node-test:latest",
+                            image_pull_policy="IfNotPresent",
+                            resources=None,
+                            env=None,
+                            env_from=None,
+                        ),
+                    ],
+                    volumes=[],
+                    node_name="my-arm-node",
+                    service_account_name="default",
+                ),
+                status=SimpleNamespace(phase="running", container_statuses=[]),
+            ),
+        ],
+    )
 
     client = SimpleNamespace(name=CLUSTER_NAME)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
@@ -50,16 +83,25 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         "KubernetesNode",
         "name",
         "RUNS_ON",
-    ) == {("node-test-pod", "my-node")}
+    ) == {
+        ("arm-node-test-pod", "my-arm-node"),
+        ("node-test-pod", "my-node"),
+    }
 
     # Assert: pod and container inherit normalized runtime architecture
     assert check_nodes(
         neo4j_session,
         "KubernetesPod",
         ["name", "architecture_normalized"],
-    ) == {("node-test-pod", "amd64")}
+    ) == {
+        ("arm-node-test-pod", "arm64"),
+        ("node-test-pod", "amd64"),
+    }
     assert check_nodes(
         neo4j_session,
         "KubernetesContainer",
         ["name", "architecture_normalized"],
-    ) == {("node-test-container", "amd64")}
+    ) == {
+        ("arm-node-test-container", "arm64"),
+        ("node-test-container", "amd64"),
+    }
