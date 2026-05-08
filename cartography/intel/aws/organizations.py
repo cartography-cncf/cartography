@@ -123,6 +123,7 @@ def transform_aws_organization_accounts(
                 "joined_method": account.get("JoinedMethod"),
                 "joined_timestamp": account.get("JoinedTimestamp"),
                 "org_id": organization_id,
+                "inscope": _is_active_account(account),
             }
         )
     return transformed
@@ -326,7 +327,6 @@ def load_aws_account_nodes_from_organization(
         AWSOrganizationAccountSchema(),
         list(aws_accounts),
         lastupdated=aws_update_tag,
-        inscope=True,
     )
 
 
@@ -431,10 +431,6 @@ def cleanup_aws_organization_hierarchy(
         AWSOrganizationRootSchema(),
         {"UPDATE_TAG": update_tag, "ORG_ID": organization_id},
     ).run(neo4j_session)
-    GraphJob.from_node_schema(
-        AWSOrganizationSchema(),
-        {"UPDATE_TAG": update_tag},
-    ).run(neo4j_session)
 
 
 def cleanup_stale_aws_account_organization_metadata(
@@ -470,6 +466,16 @@ def sync_aws_organization(
 ) -> None:
     organization = get_aws_organization(organizations_client)
     organization_id = organization["Id"]
+    synced_organization_ids = common_job_parameters.setdefault(
+        "_SYNCED_AWS_ORGANIZATION_IDS",
+        set(),
+    )
+    if organization_id in synced_organization_ids:
+        logger.debug(
+            "Skipping AWS Organizations sync for organization %s; it was already synced in this run.",
+            organization_id,
+        )
+        return
 
     try:
         roots, organizational_units, raw_accounts = get_aws_organization_hierarchy(
@@ -531,3 +537,4 @@ def sync_aws_organization(
         organization_id,
         (account["Id"] for account in raw_accounts),
     )
+    synced_organization_ids.add(organization_id)

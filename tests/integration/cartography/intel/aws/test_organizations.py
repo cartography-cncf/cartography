@@ -208,7 +208,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSAccount",
-        ["id", "name", "email", "state", "org_id"],
+        ["id", "name", "email", "state", "org_id", "inscope"],
     ) == {
         (
             "111111111111",
@@ -216,6 +216,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "management@example.com",
             "ACTIVE",
             "o-exampleorgid",
+            True,
         ),
         (
             "222222222222",
@@ -223,6 +224,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "security@example.com",
             "ACTIVE",
             "o-exampleorgid",
+            True,
         ),
         (
             "333333333333",
@@ -230,6 +232,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "suspended@example.com",
             "SUSPENDED",
             "o-exampleorgid",
+            False,
         ),
         (
             "444444444444",
@@ -237,6 +240,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "logging@example.com",
             "ACTIVE",
             "o-exampleorgid",
+            True,
         ),
     }
     assert check_rels(
