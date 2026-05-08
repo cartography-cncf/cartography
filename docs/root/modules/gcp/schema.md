@@ -963,10 +963,15 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
 #### Relationships
 
-- GCPPolicyBindings are resources of GCPProjects.
+- GCPPolicyBindings are resources of the scope where the binding is attached.
+  Project and child-resource bindings are owned by GCPProjects. Inherited
+  organization and folder bindings are owned by GCPOrganizations and GCPFolders,
+  respectively.
 
     ```
     (GCPProject)-[:RESOURCE]->(GCPPolicyBinding)
+    (GCPOrganization)-[:RESOURCE]->(GCPPolicyBinding)
+    (GCPFolder)-[:RESOURCE]->(GCPPolicyBinding)
     ```
 
 - GCPPrincipals have allow policies that grant them access.
