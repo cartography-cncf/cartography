@@ -221,6 +221,101 @@ def test_get_policy_bindings_passes_custom_retry_to_cai_rpcs(
     assert mock_wait_for_slot.call_count == 2
 
 
+@patch.object(policy_bindings, "load_matchlinks")
+@patch.object(policy_bindings, "load")
+def test_load_bindings_uses_policy_binding_batch_size(mock_load, mock_load_matchlinks):
+    bindings = [
+        {
+            "id": "binding-1",
+            "resource": "//storage.googleapis.com/buckets/test-bucket",
+        },
+    ]
+
+    policy_bindings.load_bindings(
+        MagicMock(),
+        bindings,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert (
+        mock_load.call_args.kwargs["batch_size"]
+        == policy_bindings.GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE
+    )
+    assert (
+        mock_load_matchlinks.call_args.kwargs["batch_size"]
+        == policy_bindings.GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE
+    )
+
+
+@patch.object(policy_bindings, "GraphStatement")
+@patch("cartography.intel.gcp.policy_bindings.GraphJob.from_node_schema")
+def test_cleanup_uses_one_generic_applies_to_cleanup(
+    mock_from_node_schema,
+    mock_graph_statement,
+):
+    neo4j_session = MagicMock()
+    cleanup_job = MagicMock()
+    mock_from_node_schema.return_value = cleanup_job
+    applies_to_cleanup = MagicMock()
+    mock_graph_statement.return_value = applies_to_cleanup
+
+    policy_bindings.cleanup(neo4j_session, COMMON_JOB_PARAMS)
+
+    assert (
+        mock_from_node_schema.call_args.kwargs["iterationsize"]
+        == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
+    )
+    cleanup_job.run.assert_called_once_with(neo4j_session)
+    mock_graph_statement.assert_called_once()
+    query = mock_graph_statement.call_args.args[0]
+    assert "MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()" in query
+    assert "r._sub_resource_id = $_sub_resource_id" in query
+    assert (
+        mock_graph_statement.call_args.kwargs["iterationsize"]
+        == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
+    )
+    applies_to_cleanup.run.assert_called_once_with(neo4j_session)
+
+
+@patch.object(policy_bindings, "cleanup")
+@patch.object(policy_bindings, "load_bindings")
+@patch.object(policy_bindings, "build_principals_from_policy_bindings")
+@patch.object(policy_bindings, "transform_bindings")
+@patch.object(policy_bindings, "get_policy_bindings")
+def test_sync_limits_policy_binding_graph_writes(
+    mock_get_policy_bindings,
+    mock_transform_bindings,
+    mock_build_principals,
+    mock_load_bindings,
+    mock_cleanup,
+):
+    graph_semaphore = MagicMock()
+    mock_get_policy_bindings.return_value = {"policy_results": []}
+    mock_transform_bindings.return_value = [{"id": "binding-1"}]
+    mock_build_principals.return_value = {}
+
+    with patch.object(
+        policy_bindings,
+        "_GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE",
+        graph_semaphore,
+    ):
+        result = policy_bindings.sync(
+            MagicMock(),
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            COMMON_JOB_PARAMS,
+            MagicMock(),
+            {},
+        )
+
+    assert result.status == policy_bindings.PolicyBindingsSyncStatus.SUCCESS
+    graph_semaphore.__enter__.assert_called_once()
+    graph_semaphore.__exit__.assert_called_once()
+    mock_load_bindings.assert_called_once()
+    mock_cleanup.assert_called_once()
+
+
 @patch.object(policy_bindings, "cleanup")
 @patch.object(policy_bindings, "load_bindings")
 @patch.object(
