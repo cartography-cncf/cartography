@@ -3,6 +3,7 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
+from threading import BoundedSemaphore
 from threading import Lock
 from typing import Any
 
@@ -22,6 +23,7 @@ from google.protobuf.json_format import MessageToDict
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
@@ -218,8 +220,14 @@ CAI_POLICY_BINDINGS_MIN_INTERVAL_SECONDS = {
     "batch_get_effective_iam_policies": 0.75,
     "search_all_iam_policies": 0.20,
 }
+GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE = 1000
+GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE = 1000
+GCP_POLICY_BINDINGS_GRAPH_CONCURRENCY = 4
 _CAI_POLICY_BINDINGS_THROTTLE_LOCK = Lock()
 _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION: dict[str, float] = {}
+_GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE = BoundedSemaphore(
+    GCP_POLICY_BINDINGS_GRAPH_CONCURRENCY
+)
 
 
 def _wait_for_cai_policy_bindings_slot(operation: str) -> None:
@@ -496,6 +504,7 @@ def load_bindings(
         neo4j_session,
         GCPPolicyBindingSchema(),
         bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -505,10 +514,39 @@ def load_bindings(
             neo4j_session,
             GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
             links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
             lastupdated=update_tag,
             _sub_resource_label="GCPProject",
             _sub_resource_id=project_id,
         )
+
+
+def _cleanup_applies_to_relationships(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    update_tag: int,
+) -> None:
+    # APPLIES_TO can point at several resource labels. Clean up by relationship
+    # scope directly instead of running the same stale-edge cleanup once per
+    # possible target label.
+    GraphStatement(
+        """
+        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()
+        WHERE r.lastupdated <> $UPDATE_TAG
+            AND r._sub_resource_label = $_sub_resource_label
+            AND r._sub_resource_id = $_sub_resource_id
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        parameters={
+            "UPDATE_TAG": update_tag,
+            "_sub_resource_label": "GCPProject",
+            "_sub_resource_id": project_id,
+        },
+        iterative=True,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+        parent_job_name="APPLIES_TO",
+    ).run(neo4j_session)
 
 
 @timeit
@@ -521,20 +559,12 @@ def cleanup(
     GraphJob.from_node_schema(
         GCPPolicyBindingSchema(),
         common_job_parameters,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
 
     project_id = common_job_parameters["PROJECT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
-    # Run a matchlink cleanup for every target label we know how to map. This
-    # clears stale APPLIES_TO edges even if no binding in this sync targeted
-    # that label.
-    for target_label in {mapping.label for mapping in _FULL_NAME_MAPPINGS}:
-        GraphJob.from_matchlink(
-            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
+    _cleanup_applies_to_relationships(neo4j_session, project_id, update_tag)
 
 
 @timeit
@@ -619,8 +649,9 @@ def sync(
         project_id,
     )
 
-    load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    with _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE:
+        load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
+        cleanup(neo4j_session, common_job_parameters)
     return PolicyBindingsSyncResult(
         PolicyBindingsSyncStatus.SUCCESS,
         permission_context,
