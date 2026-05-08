@@ -46,7 +46,7 @@ grep -rn "TODO\|FIXME" cartography/rules/data/rules/
 For each rule file, record:
 
 - file path
-- rule ids declared (`grep -E '^[a-z_]+ = Rule\('`)
+- rule ids declared (`grep -E '^[a-z0-9_]+ = Rule\('`)
 - frameworks attached (`grep -A6 'frameworks=' <file>`)
 - modules touched (parse `module=Module.<X>` per fact)
 
