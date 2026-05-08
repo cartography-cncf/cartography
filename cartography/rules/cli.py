@@ -345,7 +345,7 @@ def run_cmd(
         cartography-rules run all --framework CIS
         cartography-rules run all --framework CIS:aws:5.0
         cartography-rules run mfa-missing
-        cartography-rules run mfa-missing missing-mfa-cloudflare
+        cartography-rules run mfa-missing missing-mfa-ontology
     """
     # If no rule specified but framework filter provided, run all rules
     if rule is None and framework:

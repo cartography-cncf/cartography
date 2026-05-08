@@ -30,6 +30,9 @@ from cartography.intel.gcp.artifact_registry.util import (
 )
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageBuiltFromMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageContainsImageMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image import (
@@ -997,6 +1000,8 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "source_uri": "https://github.com/foo/bar",
                 "source_revision": "revision-1",
                 "source_file": "Dockerfile",
+                "parent_image_uri": "pkg:oci/base@sha256:1111",
+                "parent_image_digest": "sha256:1111",
                 "layer_diff_ids": ["sha256:layer-1"],
             },
         ],
@@ -1018,6 +1023,8 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "source_uri": "https://github.com/other/repo",
                 "source_revision": "revision-2",
                 "source_file": "other/Dockerfile",
+                "parent_image_uri": "pkg:oci/other-base@sha256:2222",
+                "parent_image_digest": "sha256:2222",
                 "layer_diff_ids": ["sha256:layer-2"],
             },
         ],
@@ -1032,6 +1039,8 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
             image.source_uri AS source_uri,
             image.source_revision AS source_revision,
             image.source_file AS source_file,
+            image.parent_image_uri AS parent_image_uri,
+            image.parent_image_digest AS parent_image_digest,
             image.layer_diff_ids AS layer_diff_ids,
             image.architecture AS architecture,
             image.os AS os,
@@ -1047,6 +1056,8 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["source_uri"] == "https://github.com/foo/bar"
     assert result["source_revision"] == "revision-1"
     assert result["source_file"] == "Dockerfile"
+    assert result["parent_image_uri"] == "pkg:oci/base@sha256:1111"
+    assert result["parent_image_digest"] == "sha256:1111"
     assert result["layer_diff_ids"] == ["sha256:layer-2"]
     assert result["architecture"] == "arm64"
     assert result["os"] == "linux"
@@ -1055,6 +1066,189 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_load_image_provenance_creates_parent_image_lineage(neo4j_session):
+    project_id = "test-gar-parent-lineage-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    child = _make_docker_image(repo_id, 12001)
+    parent = _make_docker_image(repo_id, 12002)
+    load_docker_images(neo4j_session, [child, parent], project_id, TEST_UPDATE_TAG)
+
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "parent_image_uri": f"pkg:oci/base@{parent['digest']}",
+                "parent_image_digest": parent["digest"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "BUILT_FROM",
+    ) >= {
+        (child["digest"], parent["digest"]),
+    }
+    result = neo4j_session.run(
+        """
+        MATCH (child:GCPArtifactRegistryImage {id: $child_digest})
+        -[built:BUILT_FROM]->
+        (parent:GCPArtifactRegistryImage {id: $parent_digest})
+        RETURN
+            child.parent_image_uri AS parent_image_uri,
+            child.parent_image_digest AS parent_image_digest,
+            built.parent_image_uri AS rel_parent_image_uri,
+            built.from_sbom AS from_sbom,
+            built.confidence AS confidence,
+            built._sub_resource_label AS sub_resource_label,
+            built._sub_resource_id AS sub_resource_id
+        """,
+        child_digest=child["digest"],
+        parent_digest=parent["digest"],
+    ).single()
+    assert result["parent_image_uri"] == f"pkg:oci/base@{parent['digest']}"
+    assert result["parent_image_digest"] == parent["digest"]
+    assert result["rel_parent_image_uri"] == f"pkg:oci/base@{parent['digest']}"
+    assert result["from_sbom"] is True
+    assert result["confidence"] == "explicit"
+    assert result["sub_resource_label"] == "GCPProject"
+    assert result["sub_resource_id"] == project_id
+
+
+def test_load_image_provenance_stores_parent_without_missing_parent_edge(
+    neo4j_session,
+):
+    project_id = "test-gar-parent-lineage-missing-parent-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    child = _make_docker_image(repo_id, 12101)
+    parent_digest = (
+        "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    )
+    load_docker_images(neo4j_session, [child], project_id, TEST_UPDATE_TAG)
+
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "parent_image_uri": f"pkg:oci/base@{parent_digest}",
+                "parent_image_digest": parent_digest,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (child:GCPArtifactRegistryImage {id: $child_digest})
+        RETURN
+            child.parent_image_uri AS parent_image_uri,
+            child.parent_image_digest AS parent_image_digest,
+            EXISTS {
+                (child)-[:BUILT_FROM]->(:GCPArtifactRegistryImage)
+            } AS has_edge
+        """,
+        child_digest=child["digest"],
+    ).single()
+    assert result["parent_image_uri"] == f"pkg:oci/base@{parent_digest}"
+    assert result["parent_image_digest"] == parent_digest
+    assert result["has_edge"] is False
+
+
+def test_gcp_artifact_registry_built_from_cleanup_removes_stale_edges(
+    neo4j_session,
+):
+    project_id = "test-gar-parent-lineage-cleanup-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    child = _make_docker_image(repo_id, 12201)
+    current_parent = _make_docker_image(repo_id, 12202)
+    stale_parent = _make_docker_image(repo_id, 12203)
+    load_docker_images(
+        neo4j_session,
+        [child, current_parent, stale_parent],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        MATCH (child:GCPArtifactRegistryImage {id: $child_digest})
+        MATCH (stale_parent:GCPArtifactRegistryImage {id: $stale_parent_digest})
+        MERGE (child)-[built:BUILT_FROM]->(stale_parent)
+        SET built.lastupdated = $stale_update_tag,
+            built._sub_resource_label = 'GCPProject',
+            built._sub_resource_id = $project_id
+        """,
+        child_digest=child["digest"],
+        stale_parent_digest=stale_parent["digest"],
+        stale_update_tag=TEST_UPDATE_TAG - 1,
+        project_id=project_id,
+    )
+
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": child["digest"],
+                "type": "image",
+                "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+                "parent_image_uri": f"pkg:oci/base@{current_parent['digest']}",
+                "parent_image_digest": current_parent["digest"],
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryImageBuiltFromMatchLink(),
+        "GCPProject",
+        project_id,
+        TEST_UPDATE_TAG,
+    ).run(neo4j_session)
+
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "id",
+        "GCPArtifactRegistryImage",
+        "id",
+        "BUILT_FROM",
+    ) >= {
+        (child["digest"], current_parent["digest"]),
+    }
+    stale_count = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {id: $child_digest})
+        -[:BUILT_FROM]->
+        (:GCPArtifactRegistryImage {id: $stale_parent_digest})
+        RETURN count(*) AS count
+        """,
+        child_digest=child["digest"],
+        stale_parent_digest=stale_parent["digest"],
+    ).single()["count"]
+    assert stale_count == 0
 
 
 def test_get_unmatched_gcp_images_with_history_uses_parent_ref_for_platform_child(
