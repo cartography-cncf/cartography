@@ -1,4 +1,5 @@
 import logging
+from collections import deque
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -11,9 +12,10 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.intel.aws.util.botocore_config import create_boto3_client
-from cartography.models.aws.organization import AWSAccountOrganizationIdSchema
-from cartography.models.aws.organization import AWSAccountSchema
-from cartography.models.aws.organization import AWSOrganizationAccountSchema
+from cartography.models.aws.account import AWSAccountSchema
+from cartography.models.aws.account import AWSOrganizationAccountSchema
+from cartography.models.aws.organization import AWSOrganizationalUnitSchema
+from cartography.models.aws.organization import AWSOrganizationRootSchema
 from cartography.models.aws.organization import AWSOrganizationSchema
 from cartography.util import timeit
 
@@ -38,12 +40,47 @@ def get_aws_organization(organizations_client: Any) -> dict[str, Any]:
     return organizations_client.describe_organization()["Organization"]
 
 
-def get_aws_organization_accounts(organizations_client: Any) -> list[dict[str, Any]]:
-    paginator = organizations_client.get_paginator("list_accounts")
-    accounts: list[dict[str, Any]] = []
-    for page in paginator.paginate():
-        accounts.extend(page["Accounts"])
-    return accounts
+def _paginate_aws_organizations(
+    organizations_client: Any,
+    paginator_name: str,
+    result_key: str,
+    **kwargs: Any,
+) -> list[dict[str, Any]]:
+    paginator = organizations_client.get_paginator(paginator_name)
+    results: list[dict[str, Any]] = []
+    for page in paginator.paginate(**kwargs):
+        results.extend(page[result_key])
+    return results
+
+
+def get_aws_organization_roots(
+    organizations_client: Any,
+) -> list[dict[str, Any]]:
+    return _paginate_aws_organizations(organizations_client, "list_roots", "Roots")
+
+
+def get_aws_organizational_units_for_parent(
+    organizations_client: Any,
+    parent_id: str,
+) -> list[dict[str, Any]]:
+    return _paginate_aws_organizations(
+        organizations_client,
+        "list_organizational_units_for_parent",
+        "OrganizationalUnits",
+        ParentId=parent_id,
+    )
+
+
+def get_aws_organization_accounts_for_parent(
+    organizations_client: Any,
+    parent_id: str,
+) -> list[dict[str, Any]]:
+    return _paginate_aws_organizations(
+        organizations_client,
+        "list_accounts_for_parent",
+        "Accounts",
+        ParentId=parent_id,
+    )
 
 
 def _get_account_state(account: dict[str, Any]) -> str | None:
@@ -56,7 +93,6 @@ def _is_active_account(account: dict[str, Any]) -> bool:
 
 def transform_aws_organization(
     organization: dict[str, Any],
-    account_ids: Iterable[str] = (),
 ) -> dict[str, Any]:
     return {
         "id": organization["Id"],
@@ -65,7 +101,6 @@ def transform_aws_organization(
         "management_account_arn": organization.get("MasterAccountArn"),
         "management_account_id": organization.get("MasterAccountId"),
         "management_account_email": organization.get("MasterAccountEmail"),
-        "account_ids": list(account_ids),
     }
 
 
@@ -89,6 +124,105 @@ def transform_aws_organization_accounts(
             }
         )
     return transformed
+
+
+def transform_aws_organization_roots(
+    roots: Iterable[dict[str, Any]],
+    organization_id: str,
+) -> list[dict[str, Any]]:
+    transformed = []
+    for root in roots:
+        transformed.append(
+            {
+                "id": root["Id"],
+                "arn": root.get("Arn"),
+                "name": root.get("Name"),
+                "org_id": organization_id,
+                "child_ou_ids": root.get("child_ou_ids", []),
+                "account_ids": root.get("account_ids", []),
+            }
+        )
+    return transformed
+
+
+def transform_aws_organizational_units(
+    organizational_units: Iterable[dict[str, Any]],
+    organization_id: str,
+) -> list[dict[str, Any]]:
+    transformed = []
+    for organizational_unit in organizational_units:
+        transformed.append(
+            {
+                "id": organizational_unit["Id"],
+                "arn": organizational_unit.get("Arn"),
+                "name": organizational_unit.get("Name"),
+                "org_id": organization_id,
+                "root_id": organizational_unit["root_id"],
+                "parent_root_id": organizational_unit.get("parent_root_id"),
+                "parent_ou_id": organizational_unit.get("parent_ou_id"),
+                "child_ou_ids": organizational_unit.get("child_ou_ids", []),
+                "account_ids": organizational_unit.get("account_ids", []),
+            }
+        )
+    return transformed
+
+
+def get_aws_organization_hierarchy(
+    organizations_client: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    roots = [dict(root) for root in get_aws_organization_roots(organizations_client)]
+    organizational_units: list[dict[str, Any]] = []
+    accounts: list[dict[str, Any]] = []
+
+    for root in roots:
+        root_id = root["Id"]
+        root["child_ou_ids"] = []
+        root["account_ids"] = []
+
+        queue: deque[tuple[str, str]] = deque([(root_id, "ROOT")])
+        organizational_unit_by_id: dict[str, dict[str, Any]] = {}
+
+        while queue:
+            parent_id, parent_type = queue.popleft()
+            child_ous = get_aws_organizational_units_for_parent(
+                organizations_client,
+                parent_id,
+            )
+            child_accounts = get_aws_organization_accounts_for_parent(
+                organizations_client,
+                parent_id,
+            )
+            active_child_account_ids = [
+                account["Id"]
+                for account in child_accounts
+                if _is_active_account(account)
+            ]
+            accounts.extend(child_accounts)
+
+            if parent_type == "ROOT":
+                root["child_ou_ids"] = [ou["Id"] for ou in child_ous]
+                root["account_ids"] = active_child_account_ids
+            else:
+                parent_ou = organizational_unit_by_id[parent_id]
+                parent_ou["child_ou_ids"] = [ou["Id"] for ou in child_ous]
+                parent_ou["account_ids"] = active_child_account_ids
+
+            for child_ou in child_ous:
+                child_ou_record = dict(child_ou)
+                child_ou_record["root_id"] = root_id
+                child_ou_record["parent_root_id"] = (
+                    parent_id if parent_type == "ROOT" else None
+                )
+                child_ou_record["parent_ou_id"] = (
+                    parent_id if parent_type == "ORGANIZATIONAL_UNIT" else None
+                )
+                child_ou_record["child_ou_ids"] = []
+                child_ou_record["account_ids"] = []
+                organizational_units.append(child_ou_record)
+                organizational_unit_by_id[child_ou_record["Id"]] = child_ou_record
+                queue.append((child_ou_record["Id"], "ORGANIZATIONAL_UNIT"))
+
+    return roots, organizational_units, accounts
 
 
 def get_aws_account_default(boto3_session: boto3.session.Session) -> Dict:
@@ -194,19 +328,6 @@ def load_aws_account_nodes_from_organization(
     )
 
 
-def load_aws_account_organization_ids(
-    neo4j_session: neo4j.Session,
-    aws_accounts: Iterable[dict[str, Any]],
-    aws_update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AWSAccountOrganizationIdSchema(),
-        list(aws_accounts),
-        lastupdated=aws_update_tag,
-    )
-
-
 def load_aws_accounts(
     neo4j_session: neo4j.Session,
     aws_accounts: Dict,
@@ -244,26 +365,73 @@ def load_aws_organization(
     neo4j_session: neo4j.Session,
     organization: dict[str, Any],
     update_tag: int,
-    sync_account_id: str,
-    account_ids: Iterable[str] = (),
 ) -> None:
     load(
         neo4j_session,
         AWSOrganizationSchema(),
-        [transform_aws_organization(organization, account_ids)],
+        [transform_aws_organization(organization)],
         lastupdated=update_tag,
-        AWS_ID=sync_account_id,
     )
 
 
-def cleanup_aws_account_organization_memberships(
+def load_aws_organization_roots(
+    neo4j_session: neo4j.Session,
+    roots: Iterable[dict[str, Any]],
+    organization_id: str,
+    update_tag: int,
+) -> None:
+    root_list = list(roots)
+    if not root_list:
+        return
+    load(
+        neo4j_session,
+        AWSOrganizationRootSchema(),
+        transform_aws_organization_roots(root_list, organization_id),
+        lastupdated=update_tag,
+        ORG_ID=organization_id,
+    )
+
+
+def load_aws_organizational_units(
+    neo4j_session: neo4j.Session,
+    organizational_units: Iterable[dict[str, Any]],
+    organization_id: str,
+    root_id: str,
+    update_tag: int,
+) -> None:
+    organizational_unit_list = list(organizational_units)
+    if not organizational_unit_list:
+        return
+    load(
+        neo4j_session,
+        AWSOrganizationalUnitSchema(),
+        transform_aws_organizational_units(
+            organizational_unit_list,
+            organization_id,
+        ),
+        lastupdated=update_tag,
+        ROOT_ID=root_id,
+    )
+
+
+def cleanup_aws_organization_hierarchy(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    sync_account_id: str,
+    organization_id: str,
+    root_ids: Iterable[str],
 ) -> None:
+    for root_id in root_ids:
+        GraphJob.from_node_schema(
+            AWSOrganizationalUnitSchema(),
+            {"UPDATE_TAG": update_tag, "ROOT_ID": root_id},
+        ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSOrganizationRootSchema(),
+        {"UPDATE_TAG": update_tag, "ORG_ID": organization_id},
+    ).run(neo4j_session)
     GraphJob.from_node_schema(
         AWSOrganizationSchema(),
-        {"UPDATE_TAG": update_tag, "AWS_ID": sync_account_id},
+        {"UPDATE_TAG": update_tag},
     ).run(neo4j_session)
 
 
@@ -279,25 +447,14 @@ def sync_aws_organization(
     organization_id = organization["Id"]
 
     try:
-        raw_accounts = get_aws_organization_accounts(organizations_client)
+        roots, organizational_units, raw_accounts = get_aws_organization_hierarchy(
+            organizations_client,
+        )
     except botocore.exceptions.ClientError:
         logger.warning(
-            "Unable to list AWS Organization accounts; linking current account %s to organization %s only.",
-            current_aws_account_id,
+            "Unable to enumerate AWS Organization hierarchy for organization %s; skipping AWS Organizations sync.",
             organization_id,
             exc_info=True,
-        )
-        load_aws_account_organization_ids(
-            neo4j_session,
-            [{"id": current_aws_account_id, "org_id": organization_id}],
-            update_tag,
-        )
-        load_aws_organization(
-            neo4j_session,
-            organization,
-            update_tag,
-            current_aws_account_id,
-            [current_aws_account_id],
         )
         return
 
@@ -316,15 +473,28 @@ def sync_aws_organization(
             account["id"],
             update_tag,
         )
-    load_aws_organization(
+    load_aws_organization(neo4j_session, organization, update_tag)
+    load_aws_organization_roots(
         neo4j_session,
-        organization,
+        roots,
+        organization_id,
         update_tag,
-        current_aws_account_id,
-        [account["id"] for account in organization_accounts],
     )
-    cleanup_aws_account_organization_memberships(
+    for root in roots:
+        load_aws_organizational_units(
+            neo4j_session,
+            (
+                organizational_unit
+                for organizational_unit in organizational_units
+                if organizational_unit["root_id"] == root["Id"]
+            ),
+            organization_id,
+            root["Id"],
+            update_tag,
+        )
+    cleanup_aws_organization_hierarchy(
         neo4j_session,
         update_tag,
-        current_aws_account_id,
+        organization_id,
+        (root["Id"] for root in roots),
     )

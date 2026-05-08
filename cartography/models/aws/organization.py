@@ -13,34 +13,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AWSOrganizationToAWSAccountRelProperties(CartographyRelProperties):
+class AWSOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AWSOrganizationToSyncingAWSAccountRel(CartographyRelSchema):
-    target_node_label: str = "AWSAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AWSOrganizationToAWSAccountRelProperties = (
-        AWSOrganizationToAWSAccountRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class AWSMemberAWSAccountToOrganizationParentRel(CartographyRelSchema):
-    target_node_label: str = "AWSAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "PARENT"
-    properties: AWSOrganizationToAWSAccountRelProperties = (
-        AWSOrganizationToAWSAccountRelProperties()
-    )
 
 
 @dataclass(frozen=True)
@@ -62,67 +36,170 @@ class AWSOrganizationSchema(CartographyNodeSchema):
     label: str = "AWSOrganization"
     properties: AWSOrganizationNodeProperties = AWSOrganizationNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
-    sub_resource_relationship: AWSOrganizationToSyncingAWSAccountRel = (
-        AWSOrganizationToSyncingAWSAccountRel()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationRootToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationRootToChildOURel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganizationalUnit"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("child_ou_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationRootToChildAWSAccountResourceRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSAccountToOrganizationRootParentRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PARENT"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationRootNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    name: PropertyRef = PropertyRef("name")
+    org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
+
+
+@dataclass(frozen=True)
+class AWSOrganizationRootSchema(CartographyNodeSchema):
+    label: str = "AWSOrganizationRoot"
+    properties: AWSOrganizationRootNodeProperties = AWSOrganizationRootNodeProperties()
+    sub_resource_relationship: AWSOrganizationRootToOrganizationRel = (
+        AWSOrganizationRootToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [AWSMemberAWSAccountToOrganizationParentRel()],
+        [
+            AWSOrganizationRootToChildOURel(),
+            AWSOrganizationRootToChildAWSAccountResourceRel(),
+            AWSAccountToOrganizationRootParentRel(),
+        ],
     )
 
 
 @dataclass(frozen=True)
-class AWSAccountNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    inscope: PropertyRef = PropertyRef("inscope", set_in_kwargs=True)
+class AWSOrganizationalUnitToRootRel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganizationRoot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ROOT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
 
 
 @dataclass(frozen=True)
-class AWSAccountSchema(CartographyNodeSchema):
-    label: str = "AWSAccount"
-    properties: AWSAccountNodeProperties = AWSAccountNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
-    scoped_cleanup: bool = False
+class AWSOrganizationalUnitToRootParentRel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganizationRoot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("parent_root_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PARENT"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
 
 
 @dataclass(frozen=True)
-class AWSOrganizationAccountNodeProperties(CartographyNodeProperties):
+class AWSOrganizationalUnitToOUParentRel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganizationalUnit"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("parent_ou_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PARENT"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationalUnitToChildOURel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganizationalUnit"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("child_ou_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationalUnitToChildAWSAccountResourceRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSAccountToOrganizationalUnitParentRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PARENT"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSOrganizationalUnitNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
-    email: PropertyRef = PropertyRef("email")
-    state: PropertyRef = PropertyRef("state")
-    status: PropertyRef = PropertyRef("status")
-    joined_method: PropertyRef = PropertyRef("joined_method")
-    joined_timestamp: PropertyRef = PropertyRef("joined_timestamp")
+    name: PropertyRef = PropertyRef("name")
     org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
-    inscope: PropertyRef = PropertyRef("inscope", set_in_kwargs=True)
+    root_id: PropertyRef = PropertyRef("root_id", extra_index=True)
+    parent_root_id: PropertyRef = PropertyRef("parent_root_id")
+    parent_ou_id: PropertyRef = PropertyRef("parent_ou_id")
 
 
 @dataclass(frozen=True)
-class AWSOrganizationAccountSchema(CartographyNodeSchema):
-    label: str = "AWSAccount"
-    properties: AWSOrganizationAccountNodeProperties = (
-        AWSOrganizationAccountNodeProperties()
+class AWSOrganizationalUnitSchema(CartographyNodeSchema):
+    label: str = "AWSOrganizationalUnit"
+    properties: AWSOrganizationalUnitNodeProperties = (
+        AWSOrganizationalUnitNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
-    scoped_cleanup: bool = False
-
-
-@dataclass(frozen=True)
-class AWSAccountOrganizationIdNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
-
-
-@dataclass(frozen=True)
-class AWSAccountOrganizationIdSchema(CartographyNodeSchema):
-    label: str = "AWSAccount"
-    properties: AWSAccountOrganizationIdNodeProperties = (
-        AWSAccountOrganizationIdNodeProperties()
+    sub_resource_relationship: AWSOrganizationalUnitToRootRel = (
+        AWSOrganizationalUnitToRootRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
-    scoped_cleanup: bool = False
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSOrganizationalUnitToRootParentRel(),
+            AWSOrganizationalUnitToOUParentRel(),
+            AWSOrganizationalUnitToChildOURel(),
+            AWSOrganizationalUnitToChildAWSAccountResourceRel(),
+            AWSAccountToOrganizationalUnitParentRel(),
+        ],
+    )

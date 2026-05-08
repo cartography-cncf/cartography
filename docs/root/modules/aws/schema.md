@@ -94,16 +94,18 @@ Representation of an AWS Account.
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
-- `AWSAccount` nodes can belong to an `AWSOrganization`.
+- `AWSAccount` nodes can belong to an `AWSOrganizationRoot` or `AWSOrganizationalUnit`.
 
     ```cypher
-    (:AWSAccount)-[:PARENT]->(:AWSOrganization)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
     ```
 
-- `AWSAccount` nodes scope discovered `AWSOrganization` nodes.
+- `AWSOrganizationRoot` and `AWSOrganizationalUnit` nodes can scope organization account placement.
 
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSOrganization)
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
     ```
 
 ### AWSOrganization
@@ -124,16 +126,72 @@ Representation of an AWS Organization.
 
 #### Relationships
 
-- `AWSAccount` nodes belong to an `AWSOrganization`.
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
 
     ```cypher
-    (:AWSAccount)-[:PARENT]->(:AWSOrganization)
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
     ```
 
-- `AWSOrganization` nodes are scoped to the AWS account that discovered them.
+### AWSOrganizationRoot
+
+Representation of an AWS Organizations root.
+
+| Field | Description |
+|-------|-------------|
+|**id**| The AWS Organizations root ID.|
+|arn| The AWS Organizations root ARN.|
+|name| The AWS Organizations root name.|
+|org\_id| The AWS Organization ID.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
 
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSOrganization)
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    ```
+
+- `AWSOrganizationRoot` nodes can contain AWS accounts and organizational units.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    ```
+
+### AWSOrganizationalUnit
+
+Representation of an AWS Organizations organizational unit.
+
+| Field | Description |
+|-------|-------------|
+|**id**| The AWS Organizations organizational unit ID.|
+|arn| The AWS Organizations organizational unit ARN.|
+|name| The AWS Organizations organizational unit name.|
+|org\_id| The AWS Organization ID.|
+|root\_id| The AWS Organizations root ID that scopes the organizational unit.|
+|parent\_root\_id| The parent root ID, when the organizational unit is directly under a root.|
+|parent\_ou\_id| The parent organizational unit ID, when the organizational unit is nested under another organizational unit.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationalUnit` nodes can be nested under roots or other OUs.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
+- `AWSOrganizationalUnit` nodes can contain AWS accounts.
+
+    ```cypher
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
     ```
 
 ### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock

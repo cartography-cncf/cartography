@@ -4,6 +4,7 @@ from datetime import timezone
 TEST_ACCOUNTS = {
     "test-account-1": "111111111111",
     "test-account-2": "222222222222",
+    "test-account-3": "444444444444",
 }
 
 TEST_ORGANIZATION = {
@@ -52,4 +53,59 @@ TEST_ORGANIZATION_ACCOUNTS = [
         "JoinedMethod": "INVITED",
         "JoinedTimestamp": datetime(2020, 1, 3, tzinfo=timezone.utc),
     },
+    {
+        "Id": "444444444444",
+        "Arn": "arn:aws:organizations::111111111111:account/o-exampleorgid/444444444444",
+        "Email": "logging@example.com",
+        "Name": "logging-account",
+        "Status": "ACTIVE",
+        "State": "ACTIVE",
+        "JoinedMethod": "INVITED",
+        "JoinedTimestamp": datetime(2020, 1, 4, tzinfo=timezone.utc),
+    },
 ]
+
+TEST_ORGANIZATION_ROOTS = [
+    {
+        "Id": "r-exam",
+        "Arn": "arn:aws:organizations::111111111111:root/o-exampleorgid/r-exam",
+        "Name": "Root",
+        "PolicyTypes": [
+            {
+                "Type": "SERVICE_CONTROL_POLICY",
+                "Status": "ENABLED",
+            },
+        ],
+    },
+]
+
+TEST_ORGANIZATIONAL_UNITS = {
+    "r-exam": [
+        {
+            "Id": "ou-exam-a1b2c3d4",
+            "Arn": "arn:aws:organizations::111111111111:ou/o-exampleorgid/ou-exam-a1b2c3d4",
+            "Name": "Security",
+        },
+    ],
+    "ou-exam-a1b2c3d4": [
+        {
+            "Id": "ou-exam-b2c3d4e5",
+            "Arn": "arn:aws:organizations::111111111111:ou/o-exampleorgid/ou-exam-b2c3d4e5",
+            "Name": "Logging",
+        },
+    ],
+    "ou-exam-b2c3d4e5": [],
+}
+
+TEST_ACCOUNTS_FOR_PARENT = {
+    "r-exam": [
+        TEST_ORGANIZATION_ACCOUNTS[0],
+        TEST_ORGANIZATION_ACCOUNTS[2],
+    ],
+    "ou-exam-a1b2c3d4": [
+        TEST_ORGANIZATION_ACCOUNTS[1],
+    ],
+    "ou-exam-b2c3d4e5": [
+        TEST_ORGANIZATION_ACCOUNTS[3],
+    ],
+}
