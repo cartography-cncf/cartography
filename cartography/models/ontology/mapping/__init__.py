@@ -53,6 +53,9 @@ from cartography.models.ontology.mapping.data.functions import (
     FUNCTIONS_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.groups import GROUPS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.identityproviders import (
+    IDENTITYPROVIDERS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.images import IMAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
@@ -121,6 +124,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,
+    "identityproviders": IDENTITYPROVIDERS_ONTOLOGY_MAPPING,
     "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
