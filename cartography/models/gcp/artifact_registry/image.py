@@ -52,6 +52,8 @@ class GCPArtifactRegistryImageProvenanceNodeProperties(CartographyNodeProperties
     source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
     source_revision: PropertyRef = PropertyRef("source_revision")
     source_file: PropertyRef = PropertyRef("source_file")
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -81,6 +83,35 @@ class GCPArtifactRegistryImageMatchLinkProperties(CartographyRelProperties):
         "_sub_resource_label", set_in_kwargs=True
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageBuiltFromRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    from_sbom: PropertyRef = PropertyRef("from_sbom")
+    confidence: PropertyRef = PropertyRef("confidence")
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageBuiltFromMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryImage"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"digest": PropertyRef("digest")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("parent_image_digest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILT_FROM"
+    properties: GCPArtifactRegistryImageBuiltFromRelProperties = (
+        GCPArtifactRegistryImageBuiltFromRelProperties()
+    )
 
 
 @dataclass(frozen=True)

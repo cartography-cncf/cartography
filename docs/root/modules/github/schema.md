@@ -9,6 +9,7 @@ O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
+O -- RESOURCE --> DA(GitHubDependabotAlert)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -25,6 +26,9 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+DA -- FOUND_IN --> R
+DA -- DISMISSED_BY --> U
+DA -- ASSIGNED_TO --> U
 W -- USES_ACTION --> A(GitHubAction)
 W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
@@ -457,6 +461,83 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     ```
     (GitHubRepository)-[:REQUIRES]->(Dependency)
     ```
+
+### GitHubDependabotAlert
+
+Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alerts) for a dependency vulnerability in a GitHub repository. Alerts are scoped to the owning GitHub organization for cleanup and include triage state, advisory metadata, affected package details, and actor metadata.
+
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-scanner queries for security issues. Alerts with a CVE identifier also receive the `CVE` label and standard `cve_id` property so the `cve_metadata` module can enrich them with NVD and EPSS metadata.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Alert URL, preferring the GitHub web URL |
+| **number** | Repository-local Dependabot alert number |
+| **state** | Alert state: `open`, `fixed`, `dismissed`, or `auto_dismissed` |
+| html_url | GitHub web URL for the alert |
+| url | GitHub REST API URL for the alert |
+| created_at | Timestamp when the alert was created |
+| updated_at | Timestamp when the alert was last updated |
+| dismissed_at | Timestamp when the alert was dismissed, if applicable |
+| dismissed_reason | GitHub dismissal reason, if applicable |
+| dismissed_comment | Dismissal comment, if applicable |
+| fixed_at | Timestamp when the alert was fixed, if applicable |
+| dependency_package_ecosystem | Package ecosystem, such as `npm`, `pip`, or `maven` |
+| dependency_package_name | Vulnerable package name |
+| dependency_manifest_path | Manifest path where GitHub found the dependency |
+| dependency_scope | Dependency scope returned by GitHub |
+| vulnerable_version_range | Vulnerable version range returned by GitHub |
+| first_patched_version | First patched package version, if known |
+| severity | Vulnerability severity |
+| advisory_ghsa_id | GitHub Security Advisory ID |
+| advisory_cve_id | CVE ID, if GitHub maps the advisory to a CVE |
+| cve_id | Standard CVE ID field used by `cve_metadata`; mirrors `advisory_cve_id` |
+| has_cve | `true` when a CVE ID is present; used to apply the conditional `CVE` label |
+| advisory_summary | Advisory summary |
+| advisory_description | Advisory description |
+| cvss_score | CVSS score from the advisory |
+| cvss_vector_string | CVSS vector from the advisory |
+| cvss_v3_score | CVSS v3 score, if returned |
+| cvss_v3_vector_string | CVSS v3 vector, if returned |
+| cvss_v4_score | CVSS v4 score, if returned |
+| cvss_v4_vector_string | CVSS v4 vector, if returned |
+| epss_percentage | EPSS probability, if returned |
+| epss_percentile | EPSS percentile, if returned |
+| cwe_ids | List of CWE IDs from the advisory |
+| identifiers | List of advisory identifier values, such as GHSA and CVE IDs |
+| references | List of advisory reference URLs |
+| repository_url | GitHub repository URL |
+| repository_name | GitHub repository name |
+| repository_full_name | GitHub owner/name repository string |
+
+#### Relationships
+
+- GitHubDependabotAlerts belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubDependabotAlert)
+    ```
+
+- GitHubDependabotAlerts are found in GitHubRepositories.
+
+    ```
+    (GitHubDependabotAlert)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
+- GitHubDependabotAlerts may be dismissed by a GitHubUser.
+
+    ```
+    (GitHubDependabotAlert)-[:DISMISSED_BY]->(GitHubUser)
+    ```
+
+- GitHubDependabotAlerts may be assigned to one or more GitHubUsers.
+
+    ```
+    (GitHubDependabotAlert)-[:ASSIGNED_TO]->(GitHubUser)
+    ```
+
+Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled `CVE` for compatibility with CVE metadata enrichment.
 
 - **DependencyGraphManifest** via **HAS_DEP** relationship
   - Dependencies are linked to their specific manifest files

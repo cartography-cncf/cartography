@@ -28,6 +28,9 @@ from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageBuiltFromMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageProvenanceSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
@@ -336,6 +339,30 @@ def _digest_value_from_oci_purl(locator: str) -> str | None:
     return digest_part.split("?", 1)[0].split("#", 1)[0]
 
 
+def _image_digest_from_purl(locator: str) -> str | None:
+    if not locator.startswith(("pkg:oci/", "pkg:docker/")):
+        return None
+    _, separator, digest_part = locator.partition("@sha256:")
+    if not separator:
+        return None
+    digest_value = digest_part.split("?", 1)[0].split("#", 1)[0]
+    return f"sha256:{digest_value}" if digest_value else None
+
+
+def _image_purl_from_spdx_package(package: dict[str, Any]) -> str | None:
+    for external_ref in package.get("externalRefs") or []:
+        if not isinstance(external_ref, dict):
+            continue
+        if external_ref.get("referenceType") != "purl":
+            continue
+        locator = external_ref.get("referenceLocator")
+        if not isinstance(locator, str):
+            continue
+        if _image_digest_from_purl(locator):
+            return locator
+    return None
+
+
 def _spdx_package_matches_subject_digest(
     package: dict[str, Any],
     subject_digest: str,
@@ -364,6 +391,81 @@ def _spdx_package_matches_subject_digest(
     if not oci_digest_values:
         return None
     return subject_digest_value in oci_digest_values
+
+
+def _extract_parent_image_from_spdx_sbom(
+    sbom: dict[str, Any],
+    subject_digest: str | None,
+) -> dict[str, str]:
+    if not subject_digest:
+        return {}
+
+    described_ids = {
+        spdx_id
+        for spdx_id in sbom.get("documentDescribes") or []
+        if isinstance(spdx_id, str)
+    }
+    if not described_ids:
+        return {}
+
+    packages = [
+        package for package in sbom.get("packages") or [] if isinstance(package, dict)
+    ]
+    packages_by_id = {
+        spdx_id: package
+        for package in packages
+        if isinstance(spdx_id := package.get("SPDXID"), str)
+    }
+    subject_package_ids = {
+        spdx_id
+        for spdx_id in described_ids
+        if (package := packages_by_id.get(spdx_id)) is not None
+        if _spdx_package_matches_subject_digest(package, subject_digest) is True
+    }
+    if not subject_package_ids:
+        return {}
+
+    relationships = [
+        relationship
+        for relationship in sbom.get("relationships") or []
+        if isinstance(relationship, dict)
+        and relationship.get("spdxElementId") in subject_package_ids
+    ]
+    for relationship_type in ("DESCENDANT_OF", "VARIANT_OF"):
+        parent_candidates: dict[str, str] = {}
+        for relationship in relationships:
+            if relationship.get("relationshipType") != relationship_type:
+                continue
+            related_package_id = relationship.get("relatedSpdxElement")
+            if not isinstance(related_package_id, str):
+                continue
+            related_package = packages_by_id.get(related_package_id)
+            if related_package is None:
+                continue
+            parent_image_uri = _image_purl_from_spdx_package(related_package)
+            if parent_image_uri is None:
+                continue
+            parent_image_digest = _image_digest_from_purl(parent_image_uri)
+            if parent_image_digest is None or parent_image_digest == subject_digest:
+                continue
+            parent_candidates[parent_image_digest] = parent_image_uri
+
+        if len(parent_candidates) == 1:
+            parent_image_digest, parent_image_uri = next(
+                iter(parent_candidates.items())
+            )
+            return {
+                "parent_image_uri": parent_image_uri,
+                "parent_image_digest": parent_image_digest,
+            }
+        if len(parent_candidates) > 1:
+            return {}
+
+    return {}
+
+
+def _needs_more_spdx_provenance(provenance: dict[str, Any]) -> bool:
+    return not provenance.get("source_uri") or not provenance.get("parent_image_digest")
 
 
 def _repo_urls_from_contained_spdx_packages(
@@ -554,6 +656,12 @@ async def _fetch_spdx_layer_provenance(
             subject_digest=subject_digest,
             expected_source_uri=expected_source_uri,
         )
+        provenance.update(
+            _extract_parent_image_from_spdx_sbom(
+                blob,
+                subject_digest=subject_digest,
+            )
+        )
         if provenance:
             return provenance
 
@@ -690,7 +798,7 @@ async def _process_single_image(
             same_path_sbom_artifacts.append(sbom_artifact)
 
     if (
-        not provenance.get("source_uri")
+        _needs_more_spdx_provenance(provenance)
         and same_path_sbom_artifacts
         and subject_digest_str
     ):
@@ -710,9 +818,14 @@ async def _process_single_image(
             )
             sbom_provenance = {}
             fetch_failed = True
-        provenance.update(sbom_provenance)
+        for key, value in sbom_provenance.items():
+            provenance.setdefault(key, value)
 
-    if not provenance.get("source_uri") and sbom_artifacts and subject_digest_str:
+    if (
+        _needs_more_spdx_provenance(provenance)
+        and sbom_artifacts
+        and subject_digest_str
+    ):
         for sbom_artifact in sbom_artifacts:
             sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
             if not sbom_parsed:
@@ -737,14 +850,20 @@ async def _process_single_image(
                 )
                 sbom_provenance = {}
                 fetch_failed = True
-            provenance.update(sbom_provenance)
-            if provenance.get("source_uri"):
+            for key, value in sbom_provenance.items():
+                provenance.setdefault(key, value)
+            if not _needs_more_spdx_provenance(provenance):
                 break
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
     has_platform = any(value is not None for value in (architecture, os_name, variant))
 
-    if not provenance.get("source_uri") and not diff_ids and not has_platform:
+    if (
+        not provenance.get("source_uri")
+        and not provenance.get("parent_image_digest")
+        and not diff_ids
+        and not has_platform
+    ):
         return None, fetch_failed
 
     digest = subject_digest_str
@@ -762,12 +881,9 @@ async def _process_single_image(
         result["os"] = os_name
     if variant is not None:
         result["variant"] = variant
-    if provenance.get("source_uri"):
-        result["source_uri"] = provenance["source_uri"]
-    if provenance.get("source_revision"):
-        result["source_revision"] = provenance["source_revision"]
-    if provenance.get("source_file"):
-        result["source_file"] = provenance["source_file"]
+    for field in PROVENANCE_SOURCE_FIELDS:
+        if provenance.get(field):
+            result[field] = provenance[field]
     if diff_ids:
         result["layer_diff_ids"] = diff_ids
         result["layer_history"] = layer_history
@@ -902,6 +1018,8 @@ PROVENANCE_SOURCE_FIELDS = (
     "source_uri",
     "source_revision",
     "source_file",
+    "parent_image_uri",
+    "parent_image_digest",
 )
 
 PROVENANCE_FIELDS = (
@@ -937,6 +1055,8 @@ def _merge_existing_image_provenance(
             img.source_uri AS source_uri,
             img.source_revision AS source_revision,
             img.source_file AS source_file,
+            img.parent_image_uri AS parent_image_uri,
+            img.parent_image_digest AS parent_image_digest,
             img.layer_diff_ids AS layer_diff_ids
         """,
         digests=digests,
@@ -961,9 +1081,9 @@ def _merge_existing_image_provenance(
             value = update.get(field)
             if value is not None:
                 merged[field] = value
-        # Source fields are digest-level provenance. Keep existing non-null values
-        # so a later ref without equivalent source metadata does not erase or
-        # replace a source discovered through another ref for the same digest.
+        # These fields are digest-level provenance. Keep existing non-null values
+        # so a later ref without equivalent metadata does not erase or replace
+        # provenance discovered through another ref for the same digest.
         for field in PROVENANCE_SOURCE_FIELDS:
             value = update.get(field)
             if merged.get(field) is None and value is not None:
@@ -996,6 +1116,30 @@ def load_image_provenance(
         ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    parent_updates = [
+        {
+            **update,
+            "from_sbom": True,
+            "confidence": "explicit",
+        }
+        for update in merged_updates
+        if update.get("parent_image_digest")
+        and update.get("parent_image_uri")
+        and update.get("parent_image_digest") != update.get("digest")
+    ]
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageBuiltFromMatchLink(),
+        parent_updates,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image BUILT_FROM relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 
@@ -1076,6 +1220,8 @@ def sync(
                 "source_uri": e.get("source_uri"),
                 "source_revision": e.get("source_revision"),
                 "source_file": e.get("source_file"),
+                "parent_image_uri": e.get("parent_image_uri"),
+                "parent_image_digest": e.get("parent_image_digest"),
                 "layer_diff_ids": e.get("layer_diff_ids"),
                 "architecture": e.get("architecture"),
                 "os": e.get("os"),
@@ -1122,23 +1268,32 @@ def sync(
             GCPArtifactRegistryImageLayerSchema(),
             cleanup_params,
         ).run(neo4j_session)
-        # The split write path attaches this relationship with a MatchLink, so
-        # clean it explicitly after node cleanup has used the project RESOURCE
-        # edge to scope stale node deletion.
+        # The split write path attaches these relationships with MatchLinks, so
+        # clean them explicitly after node cleanup has used project RESOURCE
+        # edges to scope stale layer-node deletion.
         GraphJob.from_matchlink(
             GCPArtifactRegistryProjectToImageLayerRel(),
             "GCPProject",
             project_id,
             update_tag,
         ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageBuiltFromMatchLink(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
+    parent_count = sum(1 for e in enrichments if e.get("parent_image_digest"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
     logger.info(
         "Completed supply chain sync for GCP project %s: "
-        "%d images with provenance, %d with layer data, %d unique layers",
+        "%d images with source provenance, %d with parent image lineage, "
+        "%d with layer data, %d unique layers",
         project_id,
         provenance_count,
+        parent_count,
         layer_count,
         len(layer_dicts),
     )
