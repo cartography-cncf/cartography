@@ -193,7 +193,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
 
-1. **Run Neo4j graph database version 5.x or higher.**
+1. **Run Neo4j graph database version 5.23 or higher.** Cartography emits scoped subqueries (`CALL (var) { ... }`) that earlier 5.x releases do not support.
 
     1. We recommend running Neo4j as a Docker container so that you save time and don't need to install Java. Run `docker run --publish=7474:7474 --publish=7687:7687 -v data:/data --env=NEO4J_AUTH=none neo4j:5-community`.
 
@@ -203,7 +203,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
             ⚠️ Make sure you have the `JAVA_HOME` environment variable set. The following works for Mac OS: `export JAVA_HOME=$(/usr/libexec/java_home)`
 
-        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.\*.
+        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.23 or higher.
 
         1. [Install](https://neo4j.com/docs/operations-manual/current/installation/) Neo4j.
 
