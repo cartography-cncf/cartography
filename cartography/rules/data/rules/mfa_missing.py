@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -120,4 +121,5 @@ missing_mfa_rule = Rule(
         _missing_mfa_ontology,
     ),
     version="0.2.0",
+    frameworks=(iso27001_annex_a("8.5"),),
 )

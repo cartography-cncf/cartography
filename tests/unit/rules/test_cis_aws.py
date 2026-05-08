@@ -26,6 +26,9 @@ from cartography.rules.data.rules.cis_aws_logging import (
 )
 from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_1_1_ebs_encryption
 from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_6_1_2_cifs_restricted,
+)
+from cartography.rules.data.rules.cis_aws_networking import (
     cis_aws_6_3_remote_admin_ipv4,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
@@ -57,6 +60,7 @@ ALL_CIS_AWS_RULES = [
     cis_aws_4_4_cloudtrail_bucket_access_logging,
     cis_aws_4_5_cloudtrail_encryption,
     cis_aws_6_1_1_ebs_encryption,
+    cis_aws_6_1_2_cifs_restricted,
     cis_aws_6_3_remote_admin_ipv4,
     cis_aws_6_4_remote_admin_ipv6,
     cis_aws_6_5_default_sg_traffic,
@@ -165,6 +169,7 @@ class TestCisAwsRuleIds:
         "cis_aws_4_4_cloudtrail_bucket_access_logging": "4.4",
         "cis_aws_4_5_cloudtrail_encryption": "4.5",
         "cis_aws_6_1_1_ebs_encryption": "6.1.1",
+        "cis_aws_6_1_2_cifs_restricted": "6.1.2",
         "cis_aws_6_3_remote_admin_ipv4": "6.3",
         "cis_aws_6_4_remote_admin_ipv6": "6.4",
         "cis_aws_6_5_default_sg_traffic": "6.5",
@@ -203,6 +208,7 @@ class TestIso27001AwsMappings:
         "cis_aws_4_4_cloudtrail_bucket_access_logging": {"8.15"},
         "cis_aws_4_5_cloudtrail_encryption": {"8.24"},
         "cis_aws_6_1_1_ebs_encryption": {"8.24"},
+        "cis_aws_6_1_2_cifs_restricted": {"8.20"},
         "cis_aws_6_3_remote_admin_ipv4": {"8.20"},
         "cis_aws_6_4_remote_admin_ipv6": {"8.20"},
         "cis_aws_6_5_default_sg_traffic": {"8.20", "8.22"},

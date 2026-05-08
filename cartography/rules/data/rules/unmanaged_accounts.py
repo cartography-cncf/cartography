@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -51,4 +52,8 @@ unmanaged_accounts = Rule(
     tags=("identity", "iam", "compliance"),
     facts=(_unmanaged_accounts_ontology,),
     version="0.1.1",
+    frameworks=(
+        iso27001_annex_a("5.16"),
+        iso27001_annex_a("5.18"),
+    ),
 )

@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -2229,4 +2230,8 @@ malicious_npm_dependencies_shai_hulud = Rule(
             url="https://github.com/debug-js/debug/issues/1005#issuecomment-3266885191",
         ),
     ],
+    frameworks=(
+        iso27001_annex_a("5.21"),
+        iso27001_annex_a("8.8"),
+    ),
 )
