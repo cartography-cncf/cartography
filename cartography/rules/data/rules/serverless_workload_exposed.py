@@ -53,9 +53,11 @@ _gcp_cloud_function_http_trigger = Fact(
     name="Internet-Accessible Cloud Function Attack Surface",
     description=(
         "Cloud Functions configured with an HTTPS trigger AND granting "
-        "roles/cloudfunctions.invoker to allUsers or allAuthenticatedUsers "
-        "via an unconditional IAM binding. Anonymous callers can invoke "
-        "the function over the public internet."
+        "an invoker role (roles/cloudfunctions.invoker for 1st gen, "
+        "roles/run.invoker for 2nd gen, which runs on Cloud Run) to "
+        "allUsers or allAuthenticatedUsers via an unconditional IAM "
+        "binding. Anonymous callers can invoke the function over the "
+        "public internet."
     ),
     cypher_query="""
     MATCH (fn:GCPCloudFunction)
@@ -64,7 +66,10 @@ _gcp_cloud_function_http_trigger = Fact(
           MATCH (fn)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
           WHERE binding.is_public = true
             AND coalesce(binding.has_condition, false) = false
-            AND binding.role = 'roles/cloudfunctions.invoker'
+            AND binding.role IN [
+                'roles/cloudfunctions.invoker',
+                'roles/run.invoker'
+            ]
       }
     RETURN
         fn.id AS id,
@@ -78,7 +83,10 @@ _gcp_cloud_function_http_trigger = Fact(
     WHERE fn.https_trigger_url IS NOT NULL
       AND binding.is_public = true
       AND coalesce(binding.has_condition, false) = false
-      AND binding.role = 'roles/cloudfunctions.invoker'
+      AND binding.role IN [
+          'roles/cloudfunctions.invoker',
+          'roles/run.invoker'
+      ]
     RETURN *
     """,
     cypher_count_query="""
