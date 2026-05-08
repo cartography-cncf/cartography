@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import botocore.exceptions
 import pytest
 
@@ -129,6 +131,54 @@ def _sync_organization(neo4j_session, client, update_tag=TEST_UPDATE_TAG):
     )
 
 
+def _make_second_organization_client_with_colliding_root_and_ou_ids():
+    organization = {
+        **TEST_ORGANIZATION,
+        "Id": "o-otherorgid",
+        "Arn": "arn:aws:organizations::555555555555:organization/o-otherorgid",
+        "MasterAccountArn": "arn:aws:organizations::555555555555:account/o-otherorgid/555555555555",
+        "MasterAccountId": "555555555555",
+        "MasterAccountEmail": "other-management@example.com",
+    }
+    roots = [
+        {
+            **TEST_ORGANIZATION_ROOTS[0],
+            "Arn": "arn:aws:organizations::555555555555:root/o-otherorgid/r-exam",
+        },
+    ]
+    account_id_map = {
+        "111111111111": "555555555555",
+        "222222222222": "666666666666",
+        "333333333333": "777777777777",
+        "444444444444": "888888888888",
+    }
+    accounts = []
+    for account in TEST_ORGANIZATION_ACCOUNTS:
+        new_account = deepcopy(account)
+        new_account["Id"] = account_id_map[account["Id"]]
+        new_account["Arn"] = (
+            "arn:aws:organizations::555555555555:account/o-otherorgid/"
+            f"{new_account['Id']}"
+        )
+        new_account["Email"] = f"{new_account['Name']}@other.example.com"
+        accounts.append(new_account)
+    accounts_for_parent = {
+        "r-exam": [accounts[0], accounts[2]],
+        "ou-exam-a1b2c3d4": [accounts[1]],
+        "ou-exam-b2c3d4e5": [accounts[3]],
+    }
+    organizational_units = deepcopy(TEST_ORGANIZATIONAL_UNITS)
+    for units in organizational_units.values():
+        for unit in units:
+            unit["Arn"] = unit["Arn"].replace("o-exampleorgid", "o-otherorgid")
+    return FakeOrganizationsClient(
+        organization,
+        roots,
+        organizational_units,
+        accounts_for_parent,
+    )
+
+
 def test_sync_aws_accounts(neo4j_session):
     """
     Ensure that sync() creates AWSAccount and AWSRootPrincipal nodes.
@@ -194,16 +244,32 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "111111111111",
         ),
     }
-    assert check_nodes(neo4j_session, "AWSOrganizationRoot", ["id", "name"]) == {
-        ("r-exam", "Root"),
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        ["id", "root_id", "name"],
+    ) == {
+        ("o-exampleorgid/r-exam", "r-exam", "Root"),
     }
     assert check_nodes(
         neo4j_session,
         "AWSOrganizationalUnit",
-        ["id", "name", "parent_root_id", "parent_ou_id"],
+        ["id", "ou_id", "name", "parent_root_id", "parent_ou_id"],
     ) == {
-        ("ou-exam-a1b2c3d4", "Security", "r-exam", None),
-        ("ou-exam-b2c3d4e5", "Logging", None, "ou-exam-a1b2c3d4"),
+        (
+            "o-exampleorgid/ou-exam-a1b2c3d4",
+            "ou-exam-a1b2c3d4",
+            "Security",
+            "o-exampleorgid/r-exam",
+            None,
+        ),
+        (
+            "o-exampleorgid/ou-exam-b2c3d4e5",
+            "ou-exam-b2c3d4e5",
+            "Logging",
+            None,
+            "o-exampleorgid/ou-exam-a1b2c3d4",
+        ),
     }
     assert check_nodes(
         neo4j_session,
@@ -251,7 +317,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {("o-exampleorgid", "r-exam")}
+    ) == {("o-exampleorgid", "o-exampleorgid/r-exam")}
     assert check_rels(
         neo4j_session,
         "AWSOrganizationRoot",
@@ -261,8 +327,8 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("r-exam", "ou-exam-a1b2c3d4"),
-        ("r-exam", "ou-exam-b2c3d4e5"),
+        ("o-exampleorgid/r-exam", "o-exampleorgid/ou-exam-a1b2c3d4"),
+        ("o-exampleorgid/r-exam", "o-exampleorgid/ou-exam-b2c3d4e5"),
     }
     assert check_rels(
         neo4j_session,
@@ -272,7 +338,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {("ou-exam-a1b2c3d4", "ou-exam-b2c3d4e5")}
+    ) == {("o-exampleorgid/ou-exam-a1b2c3d4", "o-exampleorgid/ou-exam-b2c3d4e5")}
     assert check_rels(
         neo4j_session,
         "AWSOrganizationRoot",
@@ -281,7 +347,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {("r-exam", "111111111111")}
+    ) == {("o-exampleorgid/r-exam", "111111111111")}
     assert check_rels(
         neo4j_session,
         "AWSOrganizationalUnit",
@@ -291,8 +357,8 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("ou-exam-a1b2c3d4", "222222222222"),
-        ("ou-exam-b2c3d4e5", "444444444444"),
+        ("o-exampleorgid/ou-exam-a1b2c3d4", "222222222222"),
+        ("o-exampleorgid/ou-exam-b2c3d4e5", "444444444444"),
     }
     assert check_rels(
         neo4j_session,
@@ -302,7 +368,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "PARENT",
         rel_direction_right=True,
-    ) == {("ou-exam-a1b2c3d4", "r-exam")}
+    ) == {("o-exampleorgid/ou-exam-a1b2c3d4", "o-exampleorgid/r-exam")}
     assert check_rels(
         neo4j_session,
         "AWSOrganizationalUnit",
@@ -311,7 +377,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "PARENT",
         rel_direction_right=True,
-    ) == {("ou-exam-b2c3d4e5", "ou-exam-a1b2c3d4")}
+    ) == {("o-exampleorgid/ou-exam-b2c3d4e5", "o-exampleorgid/ou-exam-a1b2c3d4")}
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -320,7 +386,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "id",
         "PARENT",
         rel_direction_right=True,
-    ) == {("111111111111", "r-exam")}
+    ) == {("111111111111", "o-exampleorgid/r-exam")}
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -330,8 +396,8 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         "PARENT",
         rel_direction_right=True,
     ) == {
-        ("222222222222", "ou-exam-a1b2c3d4"),
-        ("444444444444", "ou-exam-b2c3d4e5"),
+        ("222222222222", "o-exampleorgid/ou-exam-a1b2c3d4"),
+        ("444444444444", "o-exampleorgid/ou-exam-b2c3d4e5"),
     }
     assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
         ("arn:aws:iam::111111111111:root",),
@@ -360,11 +426,11 @@ def test_sync_aws_organization_denied_hierarchy_preserves_prior_data(neo4j_sessi
 
     # Assert
     assert check_nodes(neo4j_session, "AWSOrganizationRoot", ["id"]) == {
-        ("r-exam",),
+        ("o-exampleorgid/r-exam",),
     }
     assert check_nodes(neo4j_session, "AWSOrganizationalUnit", ["id"]) == {
-        ("ou-exam-a1b2c3d4",),
-        ("ou-exam-b2c3d4e5",),
+        ("o-exampleorgid/ou-exam-a1b2c3d4",),
+        ("o-exampleorgid/ou-exam-b2c3d4e5",),
     }
     assert check_rels(
         neo4j_session,
@@ -375,8 +441,79 @@ def test_sync_aws_organization_denied_hierarchy_preserves_prior_data(neo4j_sessi
         "PARENT",
         rel_direction_right=True,
     ) == {
-        ("222222222222", "ou-exam-a1b2c3d4"),
-        ("444444444444", "ou-exam-b2c3d4e5"),
+        ("222222222222", "o-exampleorgid/ou-exam-a1b2c3d4"),
+        ("444444444444", "o-exampleorgid/ou-exam-b2c3d4e5"),
+    }
+
+
+def test_sync_aws_organization_scopes_root_and_ou_ids_by_organization(
+    neo4j_session,
+):
+    """
+    AWS documents root and OU IDs as unique only within an organization, so
+    separate organizations with the same raw IDs must not merge graph nodes.
+    """
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    second_organization_client = (
+        _make_second_organization_client_with_colliding_root_and_ou_ids()
+    )
+
+    # Act
+    cartography.intel.aws.organizations.sync_aws_organization(
+        neo4j_session,
+        second_organization_client,
+        "555555555555",
+        TEST_SECOND_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_SECOND_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        ["id", "root_id", "org_id"],
+    ) == {
+        ("o-exampleorgid/r-exam", "r-exam", "o-exampleorgid"),
+        ("o-otherorgid/r-exam", "r-exam", "o-otherorgid"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationalUnit",
+        ["id", "ou_id", "org_id"],
+    ) == {
+        (
+            "o-exampleorgid/ou-exam-a1b2c3d4",
+            "ou-exam-a1b2c3d4",
+            "o-exampleorgid",
+        ),
+        (
+            "o-exampleorgid/ou-exam-b2c3d4e5",
+            "ou-exam-b2c3d4e5",
+            "o-exampleorgid",
+        ),
+        (
+            "o-otherorgid/ou-exam-a1b2c3d4",
+            "ou-exam-a1b2c3d4",
+            "o-otherorgid",
+        ),
+        (
+            "o-otherorgid/ou-exam-b2c3d4e5",
+            "ou-exam-b2c3d4e5",
+            "o-otherorgid",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSOrganization",
+        "id",
+        "AWSOrganizationRoot",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid", "o-exampleorgid/r-exam"),
+        ("o-otherorgid", "o-otherorgid/r-exam"),
     }
 
 
@@ -417,8 +554,8 @@ def test_sync_aws_organization_moves_account_between_parents(neo4j_session):
         "PARENT",
         rel_direction_right=True,
     ) == {
-        ("111111111111", "r-exam"),
-        ("222222222222", "r-exam"),
+        ("111111111111", "o-exampleorgid/r-exam"),
+        ("222222222222", "o-exampleorgid/r-exam"),
     }
     assert check_rels(
         neo4j_session,
@@ -428,7 +565,7 @@ def test_sync_aws_organization_moves_account_between_parents(neo4j_session):
         "id",
         "PARENT",
         rel_direction_right=True,
-    ) == {("444444444444", "ou-exam-b2c3d4e5")}
+    ) == {("444444444444", "o-exampleorgid/ou-exam-b2c3d4e5")}
     assert check_rels(
         neo4j_session,
         "AWSOrganizationalUnit",
@@ -437,7 +574,7 @@ def test_sync_aws_organization_moves_account_between_parents(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {("ou-exam-b2c3d4e5", "444444444444")}
+    ) == {("o-exampleorgid/ou-exam-b2c3d4e5", "444444444444")}
 
 
 def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
@@ -466,7 +603,7 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
 
     # Assert
     assert check_nodes(neo4j_session, "AWSOrganizationalUnit", ["id"]) == {
-        ("ou-exam-a1b2c3d4",),
+        ("o-exampleorgid/ou-exam-a1b2c3d4",),
     }
     assert check_nodes(neo4j_session, "AWSAccount", ["id", "org_id", "state"]) == {
         ("111111111111", "o-exampleorgid", "ACTIVE"),
@@ -482,4 +619,4 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
         "id",
         "PARENT",
         rel_direction_right=True,
-    ) == {("222222222222", "ou-exam-a1b2c3d4")}
+    ) == {("222222222222", "o-exampleorgid/ou-exam-a1b2c3d4")}

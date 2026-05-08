@@ -92,6 +92,10 @@ def _is_active_account(account: dict[str, Any]) -> bool:
     return _get_account_state(account) == "ACTIVE"
 
 
+def _make_org_scoped_id(organization_id: str, resource_id: str) -> str:
+    return f"{organization_id}/{resource_id}"
+
+
 def transform_aws_organization(
     organization: dict[str, Any],
 ) -> dict[str, Any]:
@@ -137,11 +141,15 @@ def transform_aws_organization_roots(
     for root in roots:
         transformed.append(
             {
-                "id": root["Id"],
+                "id": _make_org_scoped_id(organization_id, root["Id"]),
+                "root_id": root["Id"],
                 "arn": root.get("Arn"),
                 "name": root.get("Name"),
                 "org_id": organization_id,
-                "child_ou_ids": root.get("child_ou_ids", []),
+                "child_ou_ids": [
+                    _make_org_scoped_id(organization_id, child_ou_id)
+                    for child_ou_id in root.get("child_ou_ids", [])
+                ],
                 "account_ids": root.get("account_ids", []),
             }
         )
@@ -156,14 +164,35 @@ def transform_aws_organizational_units(
     for organizational_unit in organizational_units:
         transformed.append(
             {
-                "id": organizational_unit["Id"],
+                "id": _make_org_scoped_id(organization_id, organizational_unit["Id"]),
+                "ou_id": organizational_unit["Id"],
                 "arn": organizational_unit.get("Arn"),
                 "name": organizational_unit.get("Name"),
                 "org_id": organization_id,
-                "root_id": organizational_unit["root_id"],
-                "parent_root_id": organizational_unit.get("parent_root_id"),
-                "parent_ou_id": organizational_unit.get("parent_ou_id"),
-                "child_ou_ids": organizational_unit.get("child_ou_ids", []),
+                "root_id": _make_org_scoped_id(
+                    organization_id,
+                    organizational_unit["root_id"],
+                ),
+                "parent_root_id": (
+                    _make_org_scoped_id(
+                        organization_id,
+                        organizational_unit["parent_root_id"],
+                    )
+                    if organizational_unit.get("parent_root_id")
+                    else None
+                ),
+                "parent_ou_id": (
+                    _make_org_scoped_id(
+                        organization_id,
+                        organizational_unit["parent_ou_id"],
+                    )
+                    if organizational_unit.get("parent_ou_id")
+                    else None
+                ),
+                "child_ou_ids": [
+                    _make_org_scoped_id(organization_id, child_ou_id)
+                    for child_ou_id in organizational_unit.get("child_ou_ids", [])
+                ],
                 "account_ids": organizational_unit.get("account_ids", []),
             }
         )
@@ -523,14 +552,14 @@ def sync_aws_organization(
                 if organizational_unit["root_id"] == root["Id"]
             ),
             organization_id,
-            root["Id"],
+            _make_org_scoped_id(organization_id, root["Id"]),
             update_tag,
         )
     cleanup_aws_organization_hierarchy(
         neo4j_session,
         update_tag,
         organization_id,
-        (root["Id"] for root in roots),
+        (_make_org_scoped_id(organization_id, root["Id"]) for root in roots),
     )
     cleanup_stale_aws_account_organization_metadata(
         neo4j_session,

@@ -98,11 +98,12 @@ def test_transform_aws_organization_roots_preserves_root_fields_and_child_ids():
     # Assert
     assert result == [
         {
-            "id": "r-exam",
+            "id": "o-exampleorgid/r-exam",
+            "root_id": "r-exam",
             "arn": "arn:aws:organizations::111111111111:root/o-exampleorgid/r-exam",
             "name": "Root",
             "org_id": "o-exampleorgid",
-            "child_ou_ids": ["ou-exam-a1b2c3d4"],
+            "child_ou_ids": ["o-exampleorgid/ou-exam-a1b2c3d4"],
             "account_ids": ["111111111111"],
         },
     ]
@@ -128,13 +129,14 @@ def test_transform_aws_organizational_units_preserves_parent_fields():
     # Assert
     assert result == [
         {
-            "id": "ou-exam-b2c3d4e5",
+            "id": "o-exampleorgid/ou-exam-b2c3d4e5",
+            "ou_id": "ou-exam-b2c3d4e5",
             "arn": "arn:aws:organizations::111111111111:ou/o-exampleorgid/ou-exam-b2c3d4e5",
             "name": "Logging",
             "org_id": "o-exampleorgid",
-            "root_id": "r-exam",
+            "root_id": "o-exampleorgid/r-exam",
             "parent_root_id": None,
-            "parent_ou_id": "ou-exam-a1b2c3d4",
+            "parent_ou_id": "o-exampleorgid/ou-exam-a1b2c3d4",
             "child_ou_ids": [],
             "account_ids": ["444444444444"],
         },

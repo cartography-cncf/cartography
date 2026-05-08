@@ -86,6 +86,7 @@ class AWSAccountToOrganizationRootParentRel(CartographyRelSchema):
 class AWSOrganizationRootNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    root_id: PropertyRef = PropertyRef("root_id", extra_index=True)
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
@@ -177,6 +178,7 @@ class AWSAccountToOrganizationalUnitParentRel(CartographyRelSchema):
 class AWSOrganizationalUnitNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    ou_id: PropertyRef = PropertyRef("ou_id", extra_index=True)
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     org_id: PropertyRef = PropertyRef("org_id", extra_index=True)

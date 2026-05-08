@@ -138,7 +138,8 @@ Representation of an AWS Organizations root.
 
 | Field | Description |
 |-------|-------------|
-|**id**| The AWS Organizations root ID.|
+|**id**| Cartography ID for this root, formatted as `{org_id}/{root_id}` because AWS root IDs are unique only within an organization.|
+|root\_id| The raw AWS Organizations root ID.|
 |arn| The AWS Organizations root ARN.|
 |name| The AWS Organizations root name.|
 |org\_id| The AWS Organization ID.|
@@ -167,13 +168,14 @@ Representation of an AWS Organizations organizational unit.
 
 | Field | Description |
 |-------|-------------|
-|**id**| The AWS Organizations organizational unit ID.|
+|**id**| Cartography ID for this organizational unit, formatted as `{org_id}/{ou_id}` because AWS organizational unit IDs are unique only within an organization.|
+|ou\_id| The raw AWS Organizations organizational unit ID.|
 |arn| The AWS Organizations organizational unit ARN.|
 |name| The AWS Organizations organizational unit name.|
 |org\_id| The AWS Organization ID.|
-|root\_id| The AWS Organizations root ID that scopes the organizational unit.|
-|parent\_root\_id| The parent root ID, when the organizational unit is directly under a root.|
-|parent\_ou\_id| The parent organizational unit ID, when the organizational unit is nested under another organizational unit.|
+|root\_id| The Cartography root ID that scopes the organizational unit, formatted as `{org_id}/{root_id}`.|
+|parent\_root\_id| The Cartography parent root ID, when the organizational unit is directly under a root.|
+|parent\_ou\_id| The Cartography parent organizational unit ID, when the organizational unit is nested under another organizational unit.|
 |lastupdated| Timestamp of the last time the node was updated.|
 
 #### Relationships
