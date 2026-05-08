@@ -249,7 +249,11 @@ def _autodiscover_accounts(
             )
             return
         logger.warning(
-            f"The current account ({account_id}) doesn't have enough permissions to perform AWS Organizations autodiscovery.",
+            "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
+            "AWS Organizations error code: %s.",
+            account_id,
+            error_code,
+            exc_info=True,
         )
 
 

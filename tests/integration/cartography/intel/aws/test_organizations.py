@@ -225,6 +225,13 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "o-exampleorgid",
         ),
         (
+            "333333333333",
+            "suspended-account",
+            "suspended@example.com",
+            "SUSPENDED",
+            "o-exampleorgid",
+        ),
+        (
             "444444444444",
             "logging-account",
             "logging@example.com",
@@ -394,6 +401,7 @@ def test_sync_aws_organization_moves_account_between_parents(neo4j_session):
     assert check_nodes(neo4j_session, "AWSAccount", ["id"]) == {
         ("111111111111",),
         ("222222222222",),
+        ("333333333333",),
         ("444444444444",),
     }
     assert check_rels(
@@ -456,10 +464,11 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
     assert check_nodes(neo4j_session, "AWSOrganizationalUnit", ["id"]) == {
         ("ou-exam-a1b2c3d4",),
     }
-    assert check_nodes(neo4j_session, "AWSAccount", ["id"]) == {
-        ("111111111111",),
-        ("222222222222",),
-        ("444444444444",),
+    assert check_nodes(neo4j_session, "AWSAccount", ["id", "org_id", "state"]) == {
+        ("111111111111", "o-exampleorgid", "ACTIVE"),
+        ("222222222222", "o-exampleorgid", "ACTIVE"),
+        ("333333333333", "o-exampleorgid", "SUSPENDED"),
+        ("444444444444", None, None),
     }
     assert check_rels(
         neo4j_session,

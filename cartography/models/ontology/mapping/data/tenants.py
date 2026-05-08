@@ -40,6 +40,16 @@ aws_mapping = OntologyMapping(
                 # domain: Not available
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AWSOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
     ],
 )
 

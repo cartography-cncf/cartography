@@ -9,6 +9,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.intel.aws.util.botocore_config import create_boto3_client
@@ -117,6 +118,7 @@ def transform_aws_organization_accounts(
                 "email": account.get("Email"),
                 "name": account.get("Name"),
                 "state": _get_account_state(account),
+                # TODO: Remove status after AWS retires it on 2026-09-09.
                 "status": account.get("Status"),
                 "joined_method": account.get("JoinedMethod"),
                 "joined_timestamp": account.get("JoinedTimestamp"),
@@ -435,6 +437,29 @@ def cleanup_aws_organization_hierarchy(
     ).run(neo4j_session)
 
 
+def cleanup_stale_aws_account_organization_metadata(
+    neo4j_session: neo4j.Session,
+    organization_id: str,
+    current_account_ids: Iterable[str],
+) -> None:
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (account:AWSAccount {org_id: $ORG_ID})
+        WHERE NOT account.id IN $CURRENT_ACCOUNT_IDS
+        SET account.arn = null,
+            account.email = null,
+            account.state = null,
+            account.status = null,
+            account.joined_method = null,
+            account.joined_timestamp = null,
+            account.org_id = null
+        """,
+        ORG_ID=organization_id,
+        CURRENT_ACCOUNT_IDS=list(current_account_ids),
+    )
+
+
 @timeit
 def sync_aws_organization(
     neo4j_session: neo4j.Session,
@@ -459,15 +484,18 @@ def sync_aws_organization(
         return
 
     organization_accounts = transform_aws_organization_accounts(
-        (account for account in raw_accounts if _is_active_account(account)),
+        raw_accounts,
         organization_id,
     )
+    active_organization_accounts = [
+        account for account in organization_accounts if account["state"] == "ACTIVE"
+    ]
     load_aws_account_nodes_from_organization(
         neo4j_session,
         organization_accounts,
         update_tag,
     )
-    for account in organization_accounts:
+    for account in active_organization_accounts:
         sync_root_principal(
             neo4j_session,
             account["id"],
@@ -497,4 +525,9 @@ def sync_aws_organization(
         update_tag,
         organization_id,
         (root["Id"] for root in roots),
+    )
+    cleanup_stale_aws_account_organization_metadata(
+        neo4j_session,
+        organization_id,
+        (account["Id"] for account in raw_accounts),
     )
