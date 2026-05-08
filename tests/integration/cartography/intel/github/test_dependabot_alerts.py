@@ -395,7 +395,34 @@ def test_sync_github_dependabot_alerts_unsafe_fetch_skips_cleanup(
     "fetch_all_rest_api_pages",
     return_value=[],
 )
-def test_get_dependabot_alerts_uses_org_endpoint_and_api_version(mock_fetch):
+def test_get_dependabot_alerts_uses_public_github_api_version(mock_fetch):
+    result = cartography.intel.github.dependabot_alerts.get(
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+
+    assert result == DependabotAlertsFetchResult(alerts=[], cleanup_safe=True)
+    mock_fetch.assert_called_once_with(
+        FAKE_API_KEY,
+        "https://api.github.com",
+        "/orgs/simpsoncorp/dependabot/alerts",
+        "",
+        params={
+            "state": "open,fixed,dismissed,auto_dismissed",
+            "per_page": 100,
+        },
+        raise_on_status=(403, 404),
+        api_version="2026-03-10",
+    )
+
+
+@patch.object(
+    cartography.intel.github.dependabot_alerts,
+    "fetch_all_rest_api_pages",
+    return_value=[],
+)
+def test_get_dependabot_alerts_uses_enterprise_default_api_version(mock_fetch):
     result = cartography.intel.github.dependabot_alerts.get(
         FAKE_API_KEY,
         TEST_GITHUB_ENTERPRISE_URL,
@@ -413,7 +440,6 @@ def test_get_dependabot_alerts_uses_org_endpoint_and_api_version(mock_fetch):
             "per_page": 100,
         },
         raise_on_status=(403, 404),
-        api_version="2026-03-10",
     )
 
 

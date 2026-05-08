@@ -392,6 +392,11 @@ def rest_api_base_url(api_url: str) -> str:
     return normalized_url
 
 
+def is_github_dotcom_api_url(api_url: str) -> bool:
+    """Return True when the configured API URL targets public github.com."""
+    return urlsplit(rest_api_base_url(api_url)).netloc == "api.github.com"
+
+
 def github_org_url(api_url: str, organization: str) -> str:
     """
     Return the browser URL GitHub GraphQL reports for an organization.

@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
+from cartography.intel.github.util import is_github_dotcom_api_url
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertSchema
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertUserSchema
@@ -46,17 +47,26 @@ def get(
         "state": DEPENDABOT_ALERT_STATES,
         "per_page": 100,
     }
-
     try:
-        alerts = fetch_all_rest_api_pages(
-            token,
-            base_url,
-            endpoint,
-            "",
-            params=params,
-            raise_on_status=(403, 404),
-            api_version=DEPENDABOT_ALERTS_API_VERSION,
-        )
+        if is_github_dotcom_api_url(api_url):
+            alerts = fetch_all_rest_api_pages(
+                token,
+                base_url,
+                endpoint,
+                "",
+                params=params,
+                raise_on_status=(403, 404),
+                api_version=DEPENDABOT_ALERTS_API_VERSION,
+            )
+        else:
+            alerts = fetch_all_rest_api_pages(
+                token,
+                base_url,
+                endpoint,
+                "",
+                params=params,
+                raise_on_status=(403, 404),
+            )
     except requests.exceptions.HTTPError as err:
         status = err.response.status_code if err.response is not None else None
         if status in (403, 404):

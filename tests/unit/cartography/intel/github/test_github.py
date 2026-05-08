@@ -19,6 +19,7 @@ from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
+from cartography.intel.github.util import is_github_dotcom_api_url
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
 
@@ -255,6 +256,20 @@ def test_cleanup_unscoped_github_resources(
 @typing.no_type_check
 def test_github_org_url(api_url: str, organization: str, expected: str) -> None:
     assert github_org_url(api_url, organization) == expected
+
+
+@pytest.mark.parametrize(
+    ("api_url", "expected"),
+    [
+        ("https://api.github.com/graphql", True),
+        ("https://api.github.com", True),
+        ("https://github.example.com/api/graphql", False),
+        ("https://github.example.com/api/v3", False),
+    ],
+)
+@typing.no_type_check
+def test_is_github_dotcom_api_url(api_url: str, expected: bool) -> None:
+    assert is_github_dotcom_api_url(api_url) is expected
 
 
 @patch("cartography.intel.github.util.time.sleep")
