@@ -406,6 +406,8 @@ Represents a client scope in Keycloak that defines what access is requested or g
 
 Represents an external identity provider configured in Keycloak for federated authentication.
 
+> **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KubernetesOIDCProvider).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
