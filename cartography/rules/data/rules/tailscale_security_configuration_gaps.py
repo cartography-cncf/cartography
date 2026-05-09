@@ -165,27 +165,55 @@ _tailscale_device_key_expiry_disabled = Fact(
 )
 
 
-tailscale_security_configuration_gaps = Rule(
-    id="tailscale_security_configuration_gaps",
-    name="Tailscale Security Configuration Gaps",
+tailscale_tailnet_approval_disabled = Rule(
+    id="tailscale_tailnet_approval_disabled",
+    name="Tailscale Tailnet Approval Disabled",
     description=(
-        "Detects Tailscale tailnet and device settings that weaken approval, "
-        "logging, update, or key-expiry controls."
+        "Detects Tailscale tailnet settings that allow new users or devices "
+        "without explicit approval."
     ),
     output_model=TailscaleSecurityConfigurationGapOutput,
     facts=(
         _tailscale_device_approval_disabled,
         _tailscale_user_approval_disabled,
-        _tailscale_network_flow_logging_disabled,
-        _tailscale_device_auto_updates_disabled,
-        _tailscale_device_key_expiry_disabled,
     ),
-    tags=("network", "device", "logging", "compliance", "stride:spoofing"),
+    tags=("network", "device", "compliance", "stride:spoofing"),
     version="0.1.0",
-    frameworks=(
-        iso27001_annex_a("5.15"),
-        iso27001_annex_a("8.15"),
-        iso27001_annex_a("8.20"),
-        iso27001_annex_a("8.8"),
-    ),
+    frameworks=(iso27001_annex_a("5.15"),),
+)
+
+
+tailscale_network_flow_logging_disabled = Rule(
+    id="tailscale_network_flow_logging_disabled",
+    name="Tailscale Network Flow Logging Disabled",
+    description="Detects Tailscale tailnets where network flow logging is disabled.",
+    output_model=TailscaleSecurityConfigurationGapOutput,
+    facts=(_tailscale_network_flow_logging_disabled,),
+    tags=("network", "logging", "compliance"),
+    version="0.1.0",
+    frameworks=(iso27001_annex_a("8.15"),),
+)
+
+
+tailscale_device_auto_updates_disabled = Rule(
+    id="tailscale_device_auto_updates_disabled",
+    name="Tailscale Device Auto-Updates Disabled",
+    description="Detects Tailscale tailnets where device auto-updates are disabled.",
+    output_model=TailscaleSecurityConfigurationGapOutput,
+    facts=(_tailscale_device_auto_updates_disabled,),
+    tags=("device", "patching", "compliance"),
+    version="0.1.0",
+    frameworks=(iso27001_annex_a("8.8"),),
+)
+
+
+tailscale_device_key_expiry_disabled = Rule(
+    id="tailscale_device_key_expiry_disabled",
+    name="Tailscale Device Key Expiry Disabled",
+    description="Detects Tailscale devices where key expiry is disabled.",
+    output_model=TailscaleSecurityConfigurationGapOutput,
+    facts=(_tailscale_device_key_expiry_disabled,),
+    tags=("device", "authentication", "compliance", "stride:spoofing"),
+    version="0.1.0",
+    frameworks=(iso27001_annex_a("5.17"),),
 )

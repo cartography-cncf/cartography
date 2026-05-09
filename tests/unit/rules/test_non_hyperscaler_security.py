@@ -4,13 +4,25 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.identity_mfa_gaps import identity_mfa_gaps
 from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
-    tailscale_security_configuration_gaps,
+    tailscale_device_auto_updates_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_device_key_expiry_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_network_flow_logging_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_tailnet_approval_disabled,
 )
 from cartography.rules.spec.model import Module
 
 NON_HYPERSCALER_RULES = [
     identity_mfa_gaps,
-    tailscale_security_configuration_gaps,
+    tailscale_tailnet_approval_disabled,
+    tailscale_network_flow_logging_disabled,
+    tailscale_device_auto_updates_disabled,
+    tailscale_device_key_expiry_disabled,
     device_security_posture_gaps,
 ]
 
@@ -35,9 +47,13 @@ def test_identity_mfa_gaps_cover_expected_providers():
 
 
 def test_tailscale_security_configuration_gaps_are_tailscale_only():
-    assert {fact.module for fact in tailscale_security_configuration_gaps.facts} == {
-        Module.TAILSCALE,
-    }
+    for rule in (
+        tailscale_tailnet_approval_disabled,
+        tailscale_network_flow_logging_disabled,
+        tailscale_device_auto_updates_disabled,
+        tailscale_device_key_expiry_disabled,
+    ):
+        assert {fact.module for fact in rule.facts} == {Module.TAILSCALE}
 
 
 def test_device_security_posture_gaps_cover_expected_providers():
@@ -49,9 +65,15 @@ def test_device_security_posture_gaps_cover_expected_providers():
 
 
 def test_tailscale_boolean_predicates_accept_string_values():
-    for fact in tailscale_security_configuration_gaps.facts:
-        assert "toLower(toString(" in fact.cypher_query
-        assert "toLower(toString(" in fact.cypher_visual_query
+    for rule in (
+        tailscale_tailnet_approval_disabled,
+        tailscale_network_flow_logging_disabled,
+        tailscale_device_auto_updates_disabled,
+        tailscale_device_key_expiry_disabled,
+    ):
+        for fact in rule.facts:
+            assert "toLower(toString(" in fact.cypher_query
+            assert "toLower(toString(" in fact.cypher_visual_query
 
 
 def test_duo_phone_visual_query_keeps_unlinked_phones():

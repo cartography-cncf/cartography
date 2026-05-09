@@ -631,10 +631,7 @@ cis_k8s_5_6_4_default_namespace = Rule(
     tags=("namespaces", "general-policies", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    frameworks=(
-        cis_kubernetes("5.6.4"),
-        iso27001_annex_a("8.22"),
-    ),
+    frameworks=(cis_kubernetes("5.6.4"),),
 )
 
 # =============================================================================

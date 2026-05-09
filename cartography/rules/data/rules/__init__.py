@@ -241,7 +241,16 @@ from cartography.rules.data.rules.subimage_coverage import (
     subimage_module_not_configured,
 )
 from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
-    tailscale_security_configuration_gaps,
+    tailscale_device_auto_updates_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_device_key_expiry_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_network_flow_logging_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_tailnet_approval_disabled,
 )
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
@@ -291,7 +300,10 @@ RULES = {
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
-    tailscale_security_configuration_gaps.id: tailscale_security_configuration_gaps,
+    tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
+    tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
+    tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,
+    tailscale_device_key_expiry_disabled.id: tailscale_device_key_expiry_disabled,
     serverless_workload_exposed.id: serverless_workload_exposed,
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,

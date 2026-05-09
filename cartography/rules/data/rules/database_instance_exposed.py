@@ -211,8 +211,5 @@ database_instance_exposed = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
-    frameworks=(
-        iso27001_annex_a("8.20"),
-        iso27001_annex_a("8.24"),
-    ),
+    frameworks=(iso27001_annex_a("8.20"),),
 )
