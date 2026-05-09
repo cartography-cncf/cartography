@@ -21,6 +21,9 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790  # For simulating a second sync
+SKIPPED_PROJECT_RESOURCES_RESULT = cartography.intel.gcp.GCPProjectResourcesSyncResult(
+    policy_bindings_cleanup_safe=False,
+)
 
 
 def _make_fake_credentials():
@@ -39,7 +42,7 @@ def _make_fake_credentials():
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
-    return_value=None,  # Skip project resource sync for these tests
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,  # Skip project resource sync for these tests
 )
 @patch.object(
     cartography.intel.gcp.crm.projects,
@@ -143,7 +146,7 @@ def test_deferred_cleanup_order(
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
-    return_value=None,
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
 )
 @patch.object(
     cartography.intel.gcp.crm.projects,
@@ -241,7 +244,7 @@ def test_org_deletion_cleanup(
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
-    return_value=None,
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
 )
 @patch.object(
     cartography.intel.gcp.crm.projects,
@@ -323,7 +326,7 @@ def test_partial_deletion_cleanup(
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
-    return_value=None,  # Skip project resource sync for these tests
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,  # Skip project resource sync for these tests
 )
 @patch.object(
     cartography.intel.gcp.iam,
