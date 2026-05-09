@@ -326,6 +326,8 @@ _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE = BoundedSemaphore(
 )
 _INHERITED_POLICY_BINDINGS_LOCK = Lock()
 _INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG: int | None = None
+# Deduplicate inherited binding graph writes within one Cartography update tag.
+# Scope keys include the owning org/folder id, so different owners do not collide.
 _INHERITED_POLICY_BINDINGS_SEEN: set[tuple[str, str, str]] = set()
 PolicyBindingSchema: TypeAlias = (
     GCPPolicyBindingSchema
@@ -773,6 +775,9 @@ def cleanup(
 ) -> None:
     logger.debug("Running GCP policy bindings cleanup job")
 
+    # During migration, project cleanup also removes stale project-owned
+    # RESOURCE edges for inherited org/folder bindings that are now owned by
+    # their real scope.
     GraphJob.from_node_schema(
         GCPPolicyBindingSchema(),
         common_job_parameters,

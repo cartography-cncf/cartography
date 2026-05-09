@@ -29,7 +29,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPPolicyBindingToProjectRelProperties(CartographyRelProperties):
+class GCPPolicyBindingResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -41,8 +41,8 @@ class GCPPolicyBindingToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPPolicyBindingToProjectRelProperties = (
-        GCPPolicyBindingToProjectRelProperties()
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
     )
 
 
@@ -54,8 +54,8 @@ class GCPPolicyBindingToOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPPolicyBindingToProjectRelProperties = (
-        GCPPolicyBindingToProjectRelProperties()
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
     )
 
 
@@ -67,8 +67,8 @@ class GCPPolicyBindingToFolderRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPPolicyBindingToProjectRelProperties = (
-        GCPPolicyBindingToProjectRelProperties()
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
     )
 
 
@@ -198,12 +198,12 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
 
 def make_policy_binding_applies_to_matchlink(
     target_node_label: str,
-    source_node_label: str,
+    owner_label: str,
 ) -> GCPPolicyBindingAppliesToMatchLink:
     return GCPPolicyBindingAppliesToMatchLink(
         target_node_label=target_node_label,
         source_node_sub_resource=MatchLinkSubResource(
-            target_node_label=source_node_label,
+            target_node_label=owner_label,
             target_node_matcher=make_target_node_matcher(
                 {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
             ),

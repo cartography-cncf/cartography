@@ -97,6 +97,7 @@ service_names = Services(
 
 class GCPProjectResourcesSyncResult(NamedTuple):
     policy_bindings_cleanup_safe: bool
+    policy_bindings_cleanup_skip_reason: str | None = None
 
 
 def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
@@ -160,6 +161,9 @@ def _sync_project_resources(
         requested_syncs is None or "policy_bindings" in requested_syncs
     )
     policy_bindings_cleanup_safe = policy_bindings_requested and len(projects) > 0
+    policy_bindings_cleanup_skip_reason = (
+        "no_projects" if policy_bindings_requested and not projects else None
+    )
 
     # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
     # CAI is used for:
@@ -701,6 +705,7 @@ def _sync_project_resources(
                 != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
             ):
                 policy_bindings_cleanup_safe = False
+                policy_bindings_cleanup_skip_reason = "project_sync_incomplete"
 
         permission_relationships_requested = (
             requested_syncs is None or "permission_relationships" in requested_syncs
@@ -778,6 +783,7 @@ def _sync_project_resources(
 
     return GCPProjectResourcesSyncResult(
         policy_bindings_cleanup_safe=policy_bindings_cleanup_safe,
+        policy_bindings_cleanup_skip_reason=policy_bindings_cleanup_skip_reason,
     )
 
 
@@ -936,12 +942,23 @@ def start_gcp_ingestion(
                 [folder["name"] for folder in folders if folder.get("name")],
             )
         elif policy_bindings_requested:
-            logger.warning(
-                "Skipping inherited GCP policy bindings cleanup for %s because "
-                "not every project policy bindings sync succeeded. Preserving "
-                "existing inherited policy bindings.",
-                org_resource_name,
-            )
+            if (
+                project_resources_result.policy_bindings_cleanup_skip_reason
+                == "no_projects"
+            ):
+                logger.info(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "no GCP projects were discovered. Preserving existing inherited "
+                    "policy bindings.",
+                    org_resource_name,
+                )
+            else:
+                logger.warning(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "not every project policy bindings sync succeeded. Preserving "
+                    "existing inherited policy bindings.",
+                    org_resource_name,
+                )
 
         # Clean up org-level roles for this org (after all project resources have been synced)
         if (

@@ -227,7 +227,7 @@ def test_sync_gcp_policy_bindings(
     """
     Test that GCP policy bindings sync creates the expected nodes and relationships.
     """
-    # ARRANGE
+    # Arrange
     _create_test_project(neo4j_session)
     _create_test_organization(neo4j_session)
     _create_test_bucket(neo4j_session)
@@ -270,7 +270,7 @@ def test_sync_gcp_policy_bindings(
         tests.data.gcp.policy_bindings.MOCK_IAM_ROLES
     )
 
-    # ACT
+    # Act
     cartography.intel.gcp.policy_bindings.sync(
         neo4j_session,
         TEST_PROJECT_ID,
@@ -280,7 +280,7 @@ def test_sync_gcp_policy_bindings(
         role_permissions_by_name,
     )
 
-    # ASSERT
+    # Assert
     # Check GCP policy binding nodes
     assert check_nodes(
         neo4j_session, "GCPPolicyBinding", ["id", "role", "resource_type"]
@@ -755,11 +755,11 @@ def test_sync_gcp_policy_bindings_permission_denied(
     When the user lacks org-level cloudasset.viewer role, sync should return a
     skipped status and not raise an exception.
     """
-    # ARRANGE
+    # Arrange
     _create_test_project(neo4j_session)
     mock_asset_client = MagicMock()
 
-    # ACT
+    # Act
     result = cartography.intel.gcp.policy_bindings.sync(
         neo4j_session,
         TEST_PROJECT_ID,
@@ -769,7 +769,7 @@ def test_sync_gcp_policy_bindings_permission_denied(
         {},
     )
 
-    # ASSERT - sync should return a skipped status and not raise an exception
+    # Assert - sync should return a skipped status and not raise an exception
     assert (
         result.status
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
