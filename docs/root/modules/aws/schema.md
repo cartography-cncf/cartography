@@ -253,6 +253,24 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
 | archived | Whether the finding has been archived |
+| service_action_type | The GuardDuty service action type for the finding (for example `AWS_API_CALL` or `NETWORK_CONNECTION`) |
+| service_count | The number of times GuardDuty observed the activity represented by the finding |
+| service_resource_role | The role of the affected resource in the activity (for example `TARGET` or `ACTOR`) |
+| api_call_name | For `AWS_API_CALL` findings, the AWS API operation invoked |
+| api_call_service_name | For `AWS_API_CALL` findings, the AWS service endpoint associated with the API call |
+| api_call_caller_type | For `AWS_API_CALL` findings, the caller type reported by GuardDuty |
+| api_call_error_code | For `AWS_API_CALL` findings, the AWS error code associated with the API call, if present |
+| api_call_remote_ip | For `AWS_API_CALL` findings, the remote IPv4 or IPv6 address associated with the API call |
+| api_call_remote_country | For `AWS_API_CALL` findings, the remote caller country name |
+| api_call_remote_city | For `AWS_API_CALL` findings, the remote caller city name |
+| api_call_remote_org | For `AWS_API_CALL` findings, the remote caller organization name |
+| api_call_remote_asn | For `AWS_API_CALL` findings, the remote caller ASN |
+| api_call_remote_asn_org | For `AWS_API_CALL` findings, the remote caller ASN organization |
+| api_call_remote_isp | For `AWS_API_CALL` findings, the remote caller ISP |
+| api_call_remote_lat | For `AWS_API_CALL` findings, the remote caller latitude |
+| api_call_remote_lon | For `AWS_API_CALL` findings, the remote caller longitude |
+| api_call_remote_account_id | For `AWS_API_CALL` findings, the remote AWS account ID when GuardDuty provides `RemoteAccountDetails` |
+| api_call_remote_account_affiliated | For `AWS_API_CALL` findings, whether the remote AWS account is marked as affiliated when GuardDuty provides `RemoteAccountDetails` |
 
 #### Relationships
 
@@ -264,6 +282,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings link back to the detector that produced them
     ```cypher
     (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
+    ```
+
+- GuardDuty API-call findings may link to the remote AWS account that triggered them when GuardDuty provides `RemoteAccountDetails`
+    ```cypher
+    (:GuardDutyFinding)-[:REMOTE_ACCOUNT]->(:AWSAccount)
     ```
 
 - GuardDuty findings may affect EC2 Instances

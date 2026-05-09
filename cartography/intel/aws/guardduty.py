@@ -170,6 +170,19 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for f in findings:
         service = f.get("Service", {})
+        action = service.get("Action", {})
+        action_type = action.get("ActionType")
+
+        # Extract AwsApiCallAction fields when applicable
+        api_call: dict[str, Any] = {}
+        if action_type == "AWS_API_CALL":
+            api_call = action.get("AwsApiCallAction", {})
+
+        remote_ip_details = api_call.get("RemoteIpDetails", {})
+        remote_account_details = api_call.get("RemoteAccountDetails", {})
+        remote_geo = remote_ip_details.get("GeoLocation", {})
+        remote_org = remote_ip_details.get("Organization", {})
+
         item: dict[str, Any] = {
             "id": f["Id"],
             "arn": f.get("Arn"),
@@ -192,6 +205,35 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "region": f.get("Region"),
             "detectorid": f.get("DetectorId"),
             "archived": f.get("Archived"),
+            # Service-level fields
+            "service_action_type": action_type,
+            "service_count": service.get("Count"),
+            "service_resource_role": service.get("ResourceRole"),
+            # AwsApiCallAction fields
+            "api_call_name": api_call.get("Api"),
+            "api_call_service_name": api_call.get("ServiceName"),
+            "api_call_caller_type": api_call.get("CallerType"),
+            "api_call_error_code": api_call.get("ErrorCode"),
+            "api_call_remote_ip": remote_ip_details.get(
+                "IpAddressV4",
+                remote_ip_details.get("IpAddressV6"),
+            ),
+            "api_call_remote_country": remote_ip_details.get("Country", {}).get(
+                "CountryName",
+            ),
+            "api_call_remote_city": remote_ip_details.get("City", {}).get(
+                "CityName",
+            ),
+            "api_call_remote_org": remote_org.get("Org"),
+            "api_call_remote_asn": remote_org.get("Asn"),
+            "api_call_remote_asn_org": remote_org.get("AsnOrg"),
+            "api_call_remote_isp": remote_org.get("Isp"),
+            "api_call_remote_lat": remote_geo.get("Lat"),
+            "api_call_remote_lon": remote_geo.get("Lon"),
+            "api_call_remote_account_id": remote_account_details.get("AccountId"),
+            "api_call_remote_account_affiliated": remote_account_details.get(
+                "Affiliated",
+            ),
         }
 
         # Handle nested resource information
