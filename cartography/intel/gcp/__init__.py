@@ -3,6 +3,7 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Set
 
@@ -94,6 +95,10 @@ service_names = Services(
 )
 
 
+class GCPProjectResourcesSyncResult(NamedTuple):
+    policy_bindings_cleanup_safe: bool
+
+
 def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
     """
     Return a list of all Google API services that are enabled on the given project ID.
@@ -139,7 +144,7 @@ def _sync_project_resources(
     credentials: GoogleCredentials,
     requested_syncs: Set[str] | None = None,
     org_role_permissions_by_name: dict[str, list[str]] | None = None,
-) -> bool:
+) -> GCPProjectResourcesSyncResult:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
     :param neo4j_session: The Neo4j session
@@ -148,15 +153,13 @@ def _sync_project_resources(
     :param common_job_parameters: Other parameters sent to Neo4j
     :param credentials: GCP credentials to use for API calls.
     :param requested_syncs: Optional set of resource names to sync. If None, all resources are synced.
-    :return: True if policy bindings were requested and every project synced them successfully.
+    :return: Summary of project resource sync state needed by org-scoped follow-up cleanup.
     """
     logger.info("Syncing resources for %d GCP projects.", len(projects))
     policy_bindings_requested = (
         requested_syncs is None or "policy_bindings" in requested_syncs
     )
-    policy_bindings_all_projects_succeeded = (
-        policy_bindings_requested and len(projects) > 0
-    )
+    policy_bindings_cleanup_safe = policy_bindings_requested and len(projects) > 0
 
     # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
     # CAI is used for:
@@ -697,7 +700,7 @@ def _sync_project_resources(
                 policy_bindings_status
                 != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
             ):
-                policy_bindings_all_projects_succeeded = False
+                policy_bindings_cleanup_safe = False
 
         permission_relationships_requested = (
             requested_syncs is None or "permission_relationships" in requested_syncs
@@ -773,7 +776,9 @@ def _sync_project_resources(
 
         del common_job_parameters["PROJECT_ID"]
 
-    return policy_bindings_all_projects_succeeded
+    return GCPProjectResourcesSyncResult(
+        policy_bindings_cleanup_safe=policy_bindings_cleanup_safe,
+    )
 
 
 @timeit
@@ -911,7 +916,7 @@ def start_gcp_ingestion(
             org_role_permissions_by_name = {}
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
-        policy_bindings_all_projects_succeeded = _sync_project_resources(
+        project_resources_result = _sync_project_resources(
             neo4j_session,
             projects,
             config.update_tag,
@@ -924,7 +929,7 @@ def start_gcp_ingestion(
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
         )
-        if policy_bindings_all_projects_succeeded:
+        if project_resources_result.policy_bindings_cleanup_safe:
             policy_bindings.cleanup_inherited_policy_bindings(
                 neo4j_session,
                 common_job_parameters,

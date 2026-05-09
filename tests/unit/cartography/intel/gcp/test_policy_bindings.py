@@ -619,7 +619,7 @@ def test_sync_project_resources_skips_permission_relationships_after_policy_bind
     assert mock_services_enabled.call_count == 2
     mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
-    assert result is False
+    assert result.policy_bindings_cleanup_safe is False
 
 
 @patch("cartography.intel.gcp.build_asset_client")
@@ -668,7 +668,7 @@ def test_sync_project_resources_reports_policy_bindings_partial_failure(
 
     assert mock_services_enabled.call_count == 3
     assert mock_policy_bindings_sync.call_count == 2
-    assert result is False
+    assert result.policy_bindings_cleanup_safe is False
 
 
 @patch("cartography.intel.gcp.build_asset_client")
@@ -711,7 +711,7 @@ def test_sync_project_resources_reports_policy_bindings_full_success(
 
     assert mock_services_enabled.call_count == 3
     assert mock_policy_bindings_sync.call_count == 2
-    assert result is True
+    assert result.policy_bindings_cleanup_safe is True
 
 
 @patch("cartography.intel.gcp.build_asset_client")
@@ -744,4 +744,4 @@ def test_sync_project_resources_skips_permission_relationships_when_cai_api_disa
     assert mock_services_enabled.call_count == 2
     mock_policy_bindings_sync.assert_not_called()
     mock_permission_relationships_sync.assert_not_called()
-    assert result is False
+    assert result.policy_bindings_cleanup_safe is False
