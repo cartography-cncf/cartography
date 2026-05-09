@@ -769,7 +769,8 @@ def test_sync_gcp_policy_bindings_permission_denied(
         {},
     )
 
-    # Assert - sync should return a skipped status and not raise an exception
+    # Assert
+    # Sync should return a skipped status and not raise an exception.
     assert (
         result.status
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
