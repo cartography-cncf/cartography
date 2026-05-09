@@ -17,6 +17,14 @@ from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
+TEST_FOLDER_ID = tests.data.gcp.crm.GCP_FOLDERS[0]["name"]
+TEST_POLICY_BINDING_GSUITE_USERS = tests.data.gcp.policy_bindings.MOCK_GSUITE_USERS[0][
+    "users"
+]
+TEST_POLICY_BINDING_PRINCIPAL_EMAIL = TEST_POLICY_BINDING_GSUITE_USERS[0][
+    "primaryEmail"
+]
+TEST_VIEWER_ROLE = "roles/viewer"
 COMMON_JOB_PARAMS = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
     "ORG_RESOURCE_NAME": "organizations/1337",
@@ -28,6 +36,8 @@ GSUITE_COMMON_PARAMS = {
 }
 INHERITED_ORG_BINDING_ID = tests.data.gcp.policy_bindings.INHERITED_ORG_BINDING_ID
 INHERITED_FOLDER_BINDING_ID = tests.data.gcp.policy_bindings.INHERITED_FOLDER_BINDING_ID
+STALE_INHERITED_ORG_BINDING_ID = "old-org-binding"
+STALE_INHERITED_FOLDER_BINDING_ID = "old-folder-binding"
 
 
 def _create_test_project(neo4j_session):
@@ -112,7 +122,7 @@ def _sync_test_principal_and_role(neo4j_session):
     viewer_role = [
         role
         for role in tests.data.gcp.policy_bindings.MOCK_IAM_ROLES
-        if role["name"] == "roles/viewer"
+        if role["name"] == TEST_VIEWER_ROLE
     ]
     with (
         patch.object(
@@ -161,15 +171,57 @@ def _reset_inherited_policy_binding_test_scope(neo4j_session):
         """,
         project_id=TEST_PROJECT_ID,
         org_id=COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
-        folder_id="folders/1414",
-        email="alice@example.com",
-        role="roles/viewer",
+        folder_id=TEST_FOLDER_ID,
+        email=TEST_POLICY_BINDING_PRINCIPAL_EMAIL,
+        role=TEST_VIEWER_ROLE,
         binding_ids=[
             INHERITED_ORG_BINDING_ID,
             INHERITED_FOLDER_BINDING_ID,
-            "old-org-binding",
-            "old-folder-binding",
+            STALE_INHERITED_ORG_BINDING_ID,
+            STALE_INHERITED_FOLDER_BINDING_ID,
         ],
+    )
+
+
+def _seed_stale_inherited_policy_bindings(neo4j_session):
+    neo4j_session.run(
+        """
+        MATCH (org:GCPOrganization {id: $org_id})
+        MATCH (folder:GCPFolder {id: $folder_id})
+        MATCH (principal:GCPPrincipal {email: $email})
+        MATCH (role:GCPRole {name: $role})
+        MERGE (org_binding:GCPPolicyBinding {id: $org_binding_id})
+        SET org_binding.lastupdated = $old_update_tag
+        MERGE (folder_binding:GCPPolicyBinding {id: $folder_binding_id})
+        SET folder_binding.lastupdated = $old_update_tag
+        MERGE (org)-[org_resource:RESOURCE]->(org_binding)
+        SET org_resource.lastupdated = $old_update_tag
+        MERGE (folder)-[folder_resource:RESOURCE]->(folder_binding)
+        SET folder_resource.lastupdated = $old_update_tag
+        MERGE (principal)-[org_policy:HAS_ALLOW_POLICY]->(org_binding)
+        SET org_policy.lastupdated = $old_update_tag
+        MERGE (principal)-[folder_policy:HAS_ALLOW_POLICY]->(folder_binding)
+        SET folder_policy.lastupdated = $old_update_tag
+        MERGE (org_binding)-[org_role:GRANTS_ROLE]->(role)
+        SET org_role.lastupdated = $old_update_tag
+        MERGE (folder_binding)-[folder_role:GRANTS_ROLE]->(role)
+        SET folder_role.lastupdated = $old_update_tag
+        MERGE (org_binding)-[org_applies:APPLIES_TO]->(org)
+        SET org_applies.lastupdated = $old_update_tag,
+            org_applies._sub_resource_label = "GCPOrganization",
+            org_applies._sub_resource_id = $org_id
+        MERGE (folder_binding)-[folder_applies:APPLIES_TO]->(folder)
+        SET folder_applies.lastupdated = $old_update_tag,
+            folder_applies._sub_resource_label = "GCPFolder",
+            folder_applies._sub_resource_id = $folder_id
+        """,
+        org_id=COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
+        folder_id=TEST_FOLDER_ID,
+        email=TEST_POLICY_BINDING_PRINCIPAL_EMAIL,
+        role=TEST_VIEWER_ROLE,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+        org_binding_id=STALE_INHERITED_ORG_BINDING_ID,
+        folder_binding_id=STALE_INHERITED_FOLDER_BINDING_ID,
     )
 
 
@@ -533,7 +585,7 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         MagicMock(),
-        {"roles/viewer": ["storage.objects.get"]},
+        {TEST_VIEWER_ROLE: ["storage.objects.get"]},
     )
 
     # Assert
@@ -555,12 +607,12 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
     assert inherited_nodes == {
         (
             INHERITED_ORG_BINDING_ID,
-            "roles/viewer",
+            TEST_VIEWER_ROLE,
             "organization",
         ),
         (
             INHERITED_FOLDER_BINDING_ID,
-            "roles/viewer",
+            TEST_VIEWER_ROLE,
             "folder",
         ),
     }
@@ -588,7 +640,7 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
         rel_direction_right=True,
     ) == {
         (
-            "folders/1414",
+            TEST_FOLDER_ID,
             INHERITED_FOLDER_BINDING_ID,
         ),
     }
@@ -616,11 +668,11 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
     }
     assert has_allow_policy_rels == {
         (
-            "alice@example.com",
+            TEST_POLICY_BINDING_PRINCIPAL_EMAIL,
             INHERITED_ORG_BINDING_ID,
         ),
         (
-            "alice@example.com",
+            TEST_POLICY_BINDING_PRINCIPAL_EMAIL,
             INHERITED_FOLDER_BINDING_ID,
         ),
     }
@@ -638,11 +690,11 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
     assert grants_role_rels == {
         (
             INHERITED_ORG_BINDING_ID,
-            "roles/viewer",
+            TEST_VIEWER_ROLE,
         ),
         (
             INHERITED_FOLDER_BINDING_ID,
-            "roles/viewer",
+            TEST_VIEWER_ROLE,
         ),
     }
     assert check_rels(
@@ -670,7 +722,7 @@ def test_sync_gcp_inherited_policy_bindings_are_owned_by_scope(
     ) == {
         (
             INHERITED_FOLDER_BINDING_ID,
-            "folders/1414",
+            TEST_FOLDER_ID,
         ),
     }
 
@@ -680,45 +732,7 @@ def test_cleanup_gcp_inherited_policy_bindings(neo4j_session):
     _reset_inherited_policy_binding_test_scope(neo4j_session)
     folders = _sync_test_resource_hierarchy(neo4j_session)
     _sync_test_principal_and_role(neo4j_session)
-    neo4j_session.run(
-        """
-        MATCH (org:GCPOrganization {id: $org_id})
-        MATCH (folder:GCPFolder {id: $folder_id})
-        MATCH (principal:GCPPrincipal {email: $email})
-        MATCH (role:GCPRole {name: $role})
-        MERGE (org_binding:GCPPolicyBinding {id: $org_binding_id})
-        SET org_binding.lastupdated = $old_update_tag
-        MERGE (folder_binding:GCPPolicyBinding {id: $folder_binding_id})
-        SET folder_binding.lastupdated = $old_update_tag
-        MERGE (org)-[org_resource:RESOURCE]->(org_binding)
-        SET org_resource.lastupdated = $old_update_tag
-        MERGE (folder)-[folder_resource:RESOURCE]->(folder_binding)
-        SET folder_resource.lastupdated = $old_update_tag
-        MERGE (principal)-[org_policy:HAS_ALLOW_POLICY]->(org_binding)
-        SET org_policy.lastupdated = $old_update_tag
-        MERGE (principal)-[folder_policy:HAS_ALLOW_POLICY]->(folder_binding)
-        SET folder_policy.lastupdated = $old_update_tag
-        MERGE (org_binding)-[org_role:GRANTS_ROLE]->(role)
-        SET org_role.lastupdated = $old_update_tag
-        MERGE (folder_binding)-[folder_role:GRANTS_ROLE]->(role)
-        SET folder_role.lastupdated = $old_update_tag
-        MERGE (org_binding)-[org_applies:APPLIES_TO]->(org)
-        SET org_applies.lastupdated = $old_update_tag,
-            org_applies._sub_resource_label = "GCPOrganization",
-            org_applies._sub_resource_id = $org_id
-        MERGE (folder_binding)-[folder_applies:APPLIES_TO]->(folder)
-        SET folder_applies.lastupdated = $old_update_tag,
-            folder_applies._sub_resource_label = "GCPFolder",
-            folder_applies._sub_resource_id = $folder_id
-        """,
-        org_id=COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
-        folder_id="folders/1414",
-        email="alice@example.com",
-        role="roles/viewer",
-        old_update_tag=TEST_UPDATE_TAG - 1,
-        org_binding_id="old-org-binding",
-        folder_binding_id="old-folder-binding",
-    )
+    _seed_stale_inherited_policy_bindings(neo4j_session)
 
     # Act
     cartography.intel.gcp.policy_bindings.cleanup_inherited_policy_bindings(
@@ -734,7 +748,10 @@ def test_cleanup_gcp_inherited_policy_bindings(neo4j_session):
         WHERE binding.id IN $binding_ids
         RETURN count(binding) AS count
         """,
-        binding_ids=["old-org-binding", "old-folder-binding"],
+        binding_ids=[
+            STALE_INHERITED_ORG_BINDING_ID,
+            STALE_INHERITED_FOLDER_BINDING_ID,
+        ],
     ).single()["count"]
     assert stale_nodes == 0
 
