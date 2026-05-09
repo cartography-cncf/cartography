@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -12,6 +13,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -63,7 +65,8 @@ def load_launch_configurations(
         config.ebs_optimized = lc.EbsOptimized,
         config.associate_public_ip_address = lc.AssociatePublicIpAddress,
         config.placement_tenancy = lc.PlacementTenancy,
-        config.region=$Region
+        config.region=$Region,
+        config.consolelink = lc.consolelink
         WITH config
         MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (aa)-[r:RESOURCE]->(config)
@@ -72,6 +75,7 @@ def load_launch_configurations(
     """
     for lc in data:
         lc['CreatedTime'] = str(int(lc['CreatedTime'].timestamp()))
+        lc['consolelink'] = aws_console_link.get_console_link(arn=lc['LaunchConfigurationARN'])
 
     neo4j_session.run(
         ingest_lc,
@@ -102,7 +106,8 @@ def load_ec2_auto_scaling_groups(
         group.maxinstancelifetime = ag.MaxInstanceLifetime, group.capacityrebalance = ag.CapacityRebalance,
         group.name = ag.AutoScalingGroupName,
         group.lastupdated = $update_tag,
-        group.region=$Region
+        group.region=$Region,
+        group.consolelink = ag.consolelink
         WITH group
         MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (aa)-[r:RESOURCE]->(group)
@@ -166,6 +171,7 @@ def load_ec2_auto_scaling_groups(
             launch_templates.append(group)
 
         group['CreatedTime'] = str(group['CreatedTime'])
+        group['consolelink'] = aws_console_link.get_console_link(arn=group['AutoScalingGroupARN'])
 
     neo4j_session.run(
         ingest_group,

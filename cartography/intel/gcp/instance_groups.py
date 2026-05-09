@@ -5,6 +5,7 @@ from typing import List
 from typing import Optional
 
 import neo4j
+from cloudconsolelink.clouds.gcp import GCPLinker
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
@@ -12,6 +13,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+gcp_console_link = GCPLinker()
 
 
 def _parse_mig_zone_region(self_link: str, fallback_zone: Optional[str], fallback_region: Optional[str]) -> Dict:
@@ -57,6 +59,12 @@ def _get_zonal_managed_instance_groups(
                             "region": zone_region["region"],
                             # Used later in listManagedInstances() calls.
                             "instanceGroupManager_name": igm["name"],
+                            "consolelink": gcp_console_link.get_console_link(
+                                resource_name='global_instance_group',
+                                project_id=project_id,
+                                zone=zone_region["zone"],
+                                instance_group_name=igm["name"],
+                            ),
                         },
                     )
         except HttpError as e:
@@ -88,6 +96,12 @@ def _get_regional_managed_instance_groups(compute: Resource, project_id: str, re
                             "region": zone_region["region"],
                             # Used later in listManagedInstances() calls.
                             "instanceGroupManager_name": igm["name"],
+                            "consolelink": gcp_console_link.get_console_link(
+                                resource_name='regional_instance_group',
+                                project_id=project_id,
+                                region=zone_region["region"],
+                                instance_group_name=igm["name"],
+                            ),
                         },
                     )
         except HttpError as e:
@@ -124,7 +138,8 @@ def _load_managed_instance_groups_tx(
         ig.name = mig.name,
         ig.project_id = mig.project_id,
         ig.zone = mig.zone,
-        ig.region = mig.region
+        ig.region = mig.region,
+        ig.consolelink = mig.consolelink
     WITH ig
     MATCH (owner:GCPProject{id: $ProjectId})
     MERGE (owner)-[r:RESOURCE]->(ig)

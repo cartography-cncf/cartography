@@ -153,6 +153,7 @@ class Config:
         partial=None,
         manual_run=None,
         dc=None,
+        aws_excluded_regions=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -216,3 +217,4 @@ class Config:
         self.partial = partial
         self.manual_run = manual_run
         self.dc = dc
+        self.aws_excluded_regions = aws_excluded_regions or []

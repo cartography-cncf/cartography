@@ -8,12 +8,14 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
+from cloudconsolelink.clouds.aws import AWSLinker
 from dateutil import parser
 
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -51,7 +53,8 @@ def load_hub(
     n.region = $region,
     n.auto_enable_controls = hub.AutoEnableControls,
     n.lastupdated = $aws_update_tag,
-    n.arn = hub.HubArn
+    n.arn = hub.HubArn,
+    n.consolelink = $consolelink
     WITH n
     MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (owner)-[r:RESOURCE]->(n)
@@ -64,6 +67,7 @@ def load_hub(
         region="global",
         AWS_ACCOUNT_ID=current_aws_account_id,
         aws_update_tag=aws_update_tag,
+        consolelink=aws_console_link.get_console_link(arn=data.get('HubArn', '')),
     )
 
 

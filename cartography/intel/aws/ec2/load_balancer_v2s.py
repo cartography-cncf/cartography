@@ -6,6 +6,7 @@ from typing import List
 import boto3
 import botocore
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -13,6 +14,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -76,7 +78,8 @@ def load_load_balancer_v2s(
     elbv2.canonicalhostedzonenameid = $HOSTED_ZONE_NAME_ID,
     elbv2.type = $ELBv2_TYPE,
     elbv2.scheme = $SCHEME, elbv2.region = $Region,
-    elbv2.arn = $Arn
+    elbv2.arn = $Arn,
+    elbv2.consolelink = $consolelink
     WITH elbv2
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(elbv2)
@@ -101,6 +104,7 @@ def load_load_balancer_v2s(
             Region=region,
             Arn=load_balancer_arn,
             update_tag=update_tag,
+            consolelink=aws_console_link.get_console_link(arn=load_balancer_arn),
         )
 
         if lb["AvailabilityZones"]:

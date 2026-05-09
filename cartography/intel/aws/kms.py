@@ -12,6 +12,7 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
+from cloudconsolelink.clouds.aws import AWSLinker
 from policyuniverse.policy import Policy
 
 from cartography.intel.aws.ec2.util import get_botocore_config
@@ -20,6 +21,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -326,7 +328,8 @@ def load_kms_keys(
     kmskey.customkeystoreid = k.CustomKeyStoreId,
     kmskey.cloudhsmclusterid = k.CloudHsmClusterId,
     kmskey.lastupdated =$aws_update_tag,
-    kmskey.region = k.region
+    kmskey.region = k.region,
+    kmskey.consolelink = k.consolelink
     WITH kmskey
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(kmskey)
@@ -340,6 +343,7 @@ def load_kms_keys(
         key['CreationDate'] = str(key['CreationDate'])
         key['DeletionDate'] = str(key.get('DeletionDate'))
         key['ValidTo'] = str(key.get('ValidTo'))
+        key['consolelink'] = aws_console_link.get_console_link(arn=key['Arn'])
 
     neo4j_session.run(
         ingest_keys,

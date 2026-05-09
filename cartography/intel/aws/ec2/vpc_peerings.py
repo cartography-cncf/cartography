@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -12,6 +13,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -49,7 +51,8 @@ def load_vpc_peerings(
     pcx.accepter_region = vpc_peering.AccepterVpcInfo.Region,
     pcx.status_code = vpc_peering.Status.Code,
     pcx.status_message = vpc_peering.Status.Message,
-    pcx.arn = vpc_peering.Arn
+    pcx.arn = vpc_peering.Arn,
+    pcx.consolelink = vpc_peering.consolelink
 
 
     MERGE (avpc:AWSVpc{id: vpc_peering.AccepterVpcInfo.VpcId})
@@ -88,6 +91,7 @@ def load_vpc_peerings(
 
     for item in data:
         item['arn'] = f"arn:aws:ec2:{region}:{aws_account_id}:vpc-peering-connection/{item['VpcPeeringConnectionId']}"
+        item['consolelink'] = aws_console_link.get_console_link(arn=item['arn'])
 
     neo4j_session.run(
         ingest_vpc_peerings, vpc_peerings=data, update_tag=update_tag,

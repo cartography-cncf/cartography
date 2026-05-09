@@ -498,6 +498,11 @@ def _sync_multiple_accounts(
             logger.info("regions could not be fetched. reading regions from input parameters")
             regions = config.params.get("regions", [])
 
+        if config.aws_excluded_regions:
+            excluded = set(config.aws_excluded_regions)
+            regions = [r for r in regions if r not in excluded]
+            logger.info(f"Excluding regions: {excluded}. Remaining regions: {regions}")
+
         _sync_one_account(
             neo4j_session,
             boto3_session,

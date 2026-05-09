@@ -5,12 +5,14 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 def get_boto3_client(boto3_session: boto3.session.Session, service: str, region: str):
@@ -31,6 +33,7 @@ def get_bedrock_agents_list(boto3_session: boto3.session.Session, current_aws_ac
         for bedrock_agent in bedrock_agents:
             bedrock_agent["region"] = region
             bedrock_agent["arn"] = f"arn:aws:bedrock:{region}:{current_aws_account_id}:agent/{bedrock_agent['agentId']}"
+            bedrock_agent["consolelink"] = aws_console_link.get_console_link(arn=bedrock_agent["arn"])
 
     except Exception as e:
         logger.warning(
@@ -67,7 +70,8 @@ def _load_bedrock_agents_tx(
     i.status = agent.agentStatus,
     i.latestagentversion = agent.latestAgentVersion,
     i.lastupdated =$aws_update_tag,
-    i.region = agent.region
+    i.region = agent.region,
+    i.consolelink = agent.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)
@@ -95,6 +99,7 @@ def get_model_customisation_jobs_list(boto3_session: boto3.session.Session, regi
 
         for model_customisation_job in model_customisation_jobs:
             model_customisation_job["region"] = region
+            model_customisation_job["consolelink"] = aws_console_link.get_console_link(arn=model_customisation_job['jobArn'])
 
     except Exception as e:
         logger.warning(
@@ -130,7 +135,8 @@ def _load_model_customisation_jobs_tx(
     e.name = job.jobName,
     e.status = job.status,
     e.lastupdated =$aws_update_tag,
-    e.region = job.region
+    e.region = job.region,
+    e.consolelink = job.consolelink
     WITH e
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(e)
@@ -158,6 +164,7 @@ def get_bedrock_guardrails_list(boto3_session: boto3.session.Session, region: st
 
         for bedrock_guardrail in bedrock_guardrails:
             bedrock_guardrail["region"] = region
+            bedrock_guardrail["consolelink"] = aws_console_link.get_console_link(arn=bedrock_guardrail['arn'])
 
     except Exception as e:
         logger.warning(
@@ -194,7 +201,8 @@ def _load_bedrock_guardrails_tx(
     i.status = rail.status,
     i.version = rail.version,
     i.lastupdated =$aws_update_tag,
-    i.region = rail.region
+    i.region = rail.region,
+    i.consolelink = rail.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)
@@ -222,6 +230,7 @@ def get_custom_models(boto3_session: boto3.session.Session, region: str) -> List
 
         for custom_model in custom_models:
             custom_model["region"] = region
+            custom_model["consolelink"] = aws_console_link.get_console_link(arn=custom_model['modelArn'])
 
     except Exception as e:
         logger.warning(
@@ -255,7 +264,8 @@ def _load_custom_models_tx(
     e.creationtime = model.CreationTime
     SET e.name = model.modelName,
     e.lastupdated =$aws_update_tag,
-    e.region = model.region
+    e.region = model.region,
+    e.consolelink = model.consolelink
     WITH e
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(e)

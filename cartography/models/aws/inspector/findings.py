@@ -17,6 +17,7 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id')
     arn: PropertyRef = PropertyRef('arn', extra_index=True)
     awsaccount: PropertyRef = PropertyRef('awsaccount')
+    consolelink: PropertyRef = PropertyRef('consolelink')
     name: PropertyRef = PropertyRef('title')
     instanceid: PropertyRef = PropertyRef('instanceid')
     ecrimageid: PropertyRef = PropertyRef('ecrimageid')

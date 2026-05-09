@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import time
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -75,10 +77,14 @@ def _sync_one_subscription(
     if os.environ.get("LOCAL_RUN", "0") == "1" or os.environ.get("CDX_RUN_AS") == "EKS":
         # BEGIN - Sequential Run
 
+        service_timings: Dict[str, float] = {}
+        sub_start = time.time()
+
         for func_name in requested_syncs:
             if func_name in RESOURCE_FUNCTIONS:
                 try:
                     logger.info(f"Processing {func_name}")
+                    t0 = time.time()
                     if func_name == 'iam':
                         RESOURCE_FUNCTIONS[func_name](neo4j_session, credentials, credentials.tenant_id, update_tag, common_job_parameters)
 
@@ -87,10 +93,32 @@ def _sync_one_subscription(
 
                     else:
                         RESOURCE_FUNCTIONS[func_name](neo4j_session, credentials.arm_credentials, subscription_id, update_tag, common_job_parameters, config.params.get('regions', None))
+
+                    elapsed = round(time.time() - t0, 2)
+                    service_timings[func_name] = elapsed
+                    logger.info(
+                        json.dumps({
+                            "event": "azure_service_timing",
+                            "subscription_id": subscription_id,
+                            "service": func_name,
+                            "duration_seconds": elapsed,
+                        }),
+                    )
                 except Exception as e:
                     logger.warning(f"error to process service {func_name} - {e}")
             else:
                 logger.warning(f'AZURE sync function "{func_name}" was specified but does not exist. Did you misspell it?')
+
+        total_services_elapsed = round(time.time() - sub_start, 2)
+        logger.info(
+            json.dumps({
+                "event": "azure_subscription_timing_summary",
+                "subscription_id": subscription_id,
+                "total_duration_seconds": total_services_elapsed,
+                "service_timings": service_timings,
+                "slowest_service": max(service_timings, key=service_timings.get) if service_timings else None,
+            }),
+        )
 
         # END - Sequential Run
 
@@ -185,57 +213,31 @@ def _sync_multiple_subscriptions(
             config,
         )
 
-        run_analysis_job(
+        _analysis_jobs = [
             'azure_network_security_group_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_vm_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-        run_analysis_job(
             'azure_network_subnet_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_network_interface_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_network_load_balancer_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_storage_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_sql_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_cosmosdb_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_analysis_job(
             'azure_keyvault_asset_exposure.json',
-            neo4j_session,
-            common_job_parameters,
+        ]
+        analysis_timings: Dict[str, float] = {}
+        for job_file in _analysis_jobs:
+            t0 = time.time()
+            run_analysis_job(job_file, neo4j_session, common_job_parameters)
+            elapsed = round(time.time() - t0, 2)
+            analysis_timings[job_file] = elapsed
+
+        logger.info(
+            json.dumps({
+                "event": "azure_analysis_jobs_timing",
+                "subscription_id": sub['subscriptionId'],
+                "total_duration_seconds": round(sum(analysis_timings.values()), 2),
+                "job_timings": analysis_timings,
+            }),
         )
 
         del common_job_parameters["AZURE_SUBSCRIPTION_ID"]

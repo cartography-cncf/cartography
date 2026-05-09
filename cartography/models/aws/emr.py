@@ -15,6 +15,7 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef('ClusterArn', extra_index=True)
     auto_terminate: PropertyRef = PropertyRef('AutoTerminate')
     autoscaling_role: PropertyRef = PropertyRef('AutoScalingRole')
+    consolelink: PropertyRef = PropertyRef('consolelink')
     custom_ami_id: PropertyRef = PropertyRef('CustomAmiId')
     id: PropertyRef = PropertyRef('Id')
     instance_collection_type: PropertyRef = PropertyRef('InstanceCollectionType')

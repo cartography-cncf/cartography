@@ -17,6 +17,7 @@ class SSMInstanceInformationNodeProperties(CartographyNodeProperties):
     instance_id: PropertyRef = PropertyRef('InstanceId', extra_index=True)
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    consolelink: PropertyRef = PropertyRef('consolelink')
     ping_status: PropertyRef = PropertyRef('PingStatus')
     last_ping_date_time: PropertyRef = PropertyRef('LastPingDateTime')
     agent_version: PropertyRef = PropertyRef('AgentVersion')

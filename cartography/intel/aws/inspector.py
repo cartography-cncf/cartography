@@ -6,6 +6,7 @@ from typing import Tuple
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -17,6 +18,7 @@ from cartography.util import timeit
 
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -80,6 +82,7 @@ def transform_inspector_findings(results: List[Dict[str, Any]]) -> Tuple[List[Di
         finding['description'] = f['description']
         finding['type'] = f['type']
         finding['status'] = f['status']
+        finding['consolelink'] = aws_console_link.get_console_link(arn=f['findingArn'])
         if f.get('inspectorScoreDetails'):
             finding['cvssscore'] = f['inspectorScoreDetails']['adjustedCvss']['score']
         if f['resources'][0]['type'] == "AWS_EC2_INSTANCE":

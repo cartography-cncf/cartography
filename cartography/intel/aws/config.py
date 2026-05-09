@@ -5,12 +5,14 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -62,7 +64,8 @@ def load_configuration_recorders(
             n.recording_group_all_supported = recorder.recordingGroup.allSupported,
             n.recording_group_include_global_resource_types = recorder.recordingGroup.includeGlobalResourceTypes,
             n.recording_group_resource_types = recorder.recordingGroup.resourceTypes,
-            n.region = $Region, n.lastupdated = $aws_update_tag
+            n.region = $Region, n.lastupdated = $aws_update_tag,
+            n.consolelink = recorder.consolelink
         WITH n
         MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (owner)-[r:RESOURCE]->(n)
@@ -74,6 +77,8 @@ def load_configuration_recorders(
     # itself is unique per region.
     for recorder in data:
         recorder['_id'] = f'{recorder["name"]}:{current_aws_account_id}:{region}'
+        arn = f'arn:aws:config:{region}:{current_aws_account_id}:configuration-recorder/{recorder["name"]}'
+        recorder['consolelink'] = aws_console_link.get_console_link(arn=arn)
 
     neo4j_session.run(
         ingest_configuration_recorders,
@@ -102,7 +107,8 @@ def load_delivery_channels(
             n.s3_kms_key_arn = channel.s3KmsKeyArn,
             n.sns_topic_arn = channel.snsTopicARN,
             n.config_snapshot_delivery_properties_delivery_frequency = channel.configSnapshotDeliveryProperties.deliveryFrequency,
-            n.region = $Region, n.lastupdated = $aws_update_tag
+            n.region = $Region, n.lastupdated = $aws_update_tag,
+            n.consolelink = channel.consolelink
         WITH n
         MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (owner)-[r:RESOURCE]->(n)
@@ -114,6 +120,8 @@ def load_delivery_channels(
     # itself is unique per region.
     for channel in data:
         channel['_id'] = f'{channel["name"]}:{current_aws_account_id}:{region}'
+        arn = f'arn:aws:config:{region}:{current_aws_account_id}:delivery-channel/{channel["name"]}'
+        channel['consolelink'] = aws_console_link.get_console_link(arn=arn)
 
     neo4j_session.run(
         ingest_delivery_channels,
@@ -149,7 +157,8 @@ def load_config_rules(
             n.input_parameters = rule.InputParameters,
             n.maximum_execution_frequency = rule.MaximumExecutionFrequency,
             n.created_by = rule.CreatedBy,
-            n.region = $Region, n.lastupdated = $aws_update_tag
+            n.region = $Region, n.lastupdated = $aws_update_tag,
+            n.consolelink = rule.consolelink
         WITH n
         MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (owner)-[r:RESOURCE]->(n)
@@ -162,6 +171,7 @@ def load_config_rules(
             for detail in rule["Source"]["SourceDetails"]:
                 details.append(f'{detail}')
         rule["_source_details"] = details
+        rule["consolelink"] = aws_console_link.get_console_link(arn=rule['ConfigRuleArn'])
     neo4j_session.run(
         ingest_config_rules,
         Rules=data,

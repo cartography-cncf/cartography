@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -13,6 +14,7 @@ from cartography.util import timeit
 # from cartography.intel.aws.util.common import get_default_vpc
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 def get_default_vpc(ec2_client):
@@ -92,6 +94,9 @@ def load_internet_gateways(
 ) -> None:
     logger.info("Loading %d Internet Gateways in %s.", len(internet_gateways), region)
     # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
+    for igw in internet_gateways:
+        arn = f"arn:aws:ec2:{region}:{igw.get('OwnerId', '')}:internet-gateway/{igw['InternetGatewayId']}"
+        igw['consolelink'] = aws_console_link.get_console_link(arn=arn)
     query = """
     UNWIND $internet_gateways as igw
         MERGE (ig:AWSInternetGateway{id: igw.InternetGatewayId})
@@ -102,7 +107,8 @@ def load_internet_gateways(
             ig.ownerid = igw.OwnerId,
             ig.lastupdated = $aws_update_tag,
             ig.arn = "arn:aws:ec2:"+$region+":"+igw.OwnerId+":internet-gateway/"+igw.InternetGatewayId,
-            ig.is_default = igw.isDefault
+            ig.is_default = igw.isDefault,
+            ig.consolelink = igw.consolelink
         WITH igw, ig
 
         MATCH (awsAccount:AWSAccount {id: $aws_account_id})

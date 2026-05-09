@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -12,6 +13,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -51,7 +53,8 @@ def load_launch_templates(
         SET template.default_version_number = lt.DefaultVersionNumber,
         template.latest_version_number = lt.LatestVersionNumber,
         template.lastupdated = $update_tag,
-        template.region=$Region
+        template.region=$Region,
+        template.consolelink = lt.consolelink
         WITH template, lt._template_versions as versions
         MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (aa)-[r:RESOURCE]->(template)
@@ -89,6 +92,8 @@ def load_launch_templates(
     """
     for lt in data:
         lt['CreateTime'] = str(time.mktime(lt['CreateTime'].timetuple()))
+        arn = f"arn:aws:ec2:{region}:{current_aws_account_id}:launch-template/{lt['LaunchTemplateId']}"
+        lt['consolelink'] = aws_console_link.get_console_link(arn=arn)
         for tv in lt.get("_template_versions", []):
             tv['CreateTime'] = str(time.mktime(tv['CreateTime'].timetuple()))
 

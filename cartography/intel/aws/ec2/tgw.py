@@ -6,6 +6,7 @@ from typing import List
 import boto3
 import botocore.exceptions
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from .util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -13,6 +14,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -85,7 +87,8 @@ def load_transit_gateways(
     tgw.state = $State,
     tgw.description = $Description,
     tgw.region = $Region,
-    tgw.lastupdated = $update_tag
+    tgw.lastupdated = $update_tag,
+    tgw.consolelink = $consolelink
 
     WITH tgw
     MERGE (ownerAccount)-[r:RESOURCE]->(tgw)
@@ -106,6 +109,7 @@ def load_transit_gateways(
             OwnerId=tgw["OwnerId"],
             State=tgw["State"],
             update_tag=update_tag,
+            consolelink=aws_console_link.get_console_link(arn=tgw["TransitGatewayArn"]),
         )
         _attach_shared_transit_gateway(
             neo4j_session, tgw, region, current_aws_account_id, update_tag,
@@ -150,7 +154,8 @@ def load_tgw_attachments(
     tgwa.resource_type = $ResourceType,
     tgwa.state = $State,
     tgwa.arn = $Arn,
-    tgwa.lastupdated = $update_tag
+    tgwa.lastupdated = $update_tag,
+    tgwa.consolelink = $consolelink
 
     WITH tgwa
     MATCH (awsAccount:AWSAccount {id: $AWS_ACCOUNT_ID})
@@ -180,6 +185,7 @@ def load_tgw_attachments(
             State=tgwa["State"],
             Arn=tgwa_arn,
             update_tag=update_tag,
+            consolelink=aws_console_link.get_console_link(arn=tgwa_arn),
         )
 
         if tgwa.get("VpcId"):  # only attach if the TGW attachment is a VPC TGW attachment

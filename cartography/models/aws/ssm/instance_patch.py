@@ -17,6 +17,7 @@ class SSMInstancePatchNodeProperties(CartographyNodeProperties):
     instance_id: PropertyRef = PropertyRef('_instance_id', extra_index=True)
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    consolelink: PropertyRef = PropertyRef('consolelink')
     title: PropertyRef = PropertyRef('Title', extra_index=True)
     kb_id: PropertyRef = PropertyRef('KBId', extra_index=True)
     classification: PropertyRef = PropertyRef('Classification')

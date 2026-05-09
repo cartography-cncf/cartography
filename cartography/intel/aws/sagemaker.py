@@ -5,12 +5,14 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 def get_boto3_client(boto3_session: boto3.session.Session, service: str, region: str):
@@ -30,6 +32,7 @@ def get_notebook_instances_list(boto3_session: boto3.session.Session, region: st
 
         for instance in instances:
             instance["region"] = region
+            instance["consolelink"] = aws_console_link.get_console_link(arn=instance['NotebookInstanceArn'])
 
     except Exception as e:
         logger.warning(
@@ -68,7 +71,8 @@ def _load_notebook_instances_tx(
     i.instancetype = instance.InstanceType,
     i.defaultcoderepository = instance.DefaultCodeRepository,
     i.lastupdated =$aws_update_tag,
-    i.region = instance.region
+    i.region = instance.region,
+    i.consolelink = instance.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)
@@ -96,6 +100,7 @@ def get_endpoints_list(boto3_session: boto3.session.Session, region: str) -> Lis
 
         for endpoint in endpoints:
             endpoint["region"] = region
+            endpoint["consolelink"] = aws_console_link.get_console_link(arn=endpoint['EndpointArn'])
 
     except Exception as e:
         logger.warning(
@@ -131,7 +136,8 @@ def _load_endpoints_tx(
     e.name = endpoint.EndpointName,
     e.status = endpoint.EndpointStatus,
     e.lastupdated =$aws_update_tag,
-    e.region = endpoint.region
+    e.region = endpoint.region,
+    e.consolelink = endpoint.consolelink
     WITH e
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(e)
@@ -159,6 +165,7 @@ def get_training_jobs_list(boto3_session: boto3.session.Session, region: str) ->
 
         for training_job in training_jobs:
             training_job["region"] = region
+            training_job["consolelink"] = aws_console_link.get_console_link(arn=training_job['TrainingJobArn'])
 
     except Exception as e:
         logger.warning(
@@ -195,7 +202,8 @@ def _load_training_jobs_tx(
     i.status = job.TrainingJobStatus,
     i.trainingplanarn = job.TrainingPlanArn,
     i.lastupdated =$aws_update_tag,
-    i.region = job.region
+    i.region = job.region,
+    i.consolelink = job.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)
@@ -223,6 +231,7 @@ def get_models_list(boto3_session: boto3.session.Session, region: str) -> List[D
 
         for model in models:
             model["region"] = region
+            model["consolelink"] = aws_console_link.get_console_link(arn=model['ModelArn'])
 
     except Exception as e:
         logger.warning(
@@ -256,7 +265,8 @@ def _load_models_tx(
     e.creationtime = model.CreationTime
     SET e.name = model.ModelName,
     e.lastupdated =$aws_update_tag,
-    e.region = model.region
+    e.region = model.region,
+    e.consolelink = model.consolelink
     WITH e
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(e)
@@ -284,6 +294,7 @@ def get_domains_list(boto3_session: boto3.session.Session, region: str) -> List[
 
         for domain in domains:
             domain["region"] = region
+            domain["consolelink"] = aws_console_link.get_console_link(arn=domain['DomainArn'])
 
     except Exception as e:
         logger.warning(
@@ -321,7 +332,8 @@ def _load_domains_tx(
     i.url = domain.Url,
     i.id = domain.DomainId,
     i.lastupdated =$aws_update_tag,
-    i.region = domain.region
+    i.region = domain.region,
+    i.consolelink = domain.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)
@@ -349,6 +361,7 @@ def get_clusters_list(boto3_session: boto3.session.Session, region: str) -> List
 
         for cluster in clusters:
             cluster["region"] = region
+            cluster["consolelink"] = aws_console_link.get_console_link(arn=cluster['ClusterArn'])
 
     except Exception as e:
         logger.warning(
@@ -383,7 +396,8 @@ def _load_clusters_tx(
     SET i.name = cluster.ClusterName,
     i.status = cluster.ClusterStatus,
     i.lastupdated =$aws_update_tag,
-    i.region = cluster.region
+    i.region = cluster.region,
+    i.consolelink = cluster.consolelink
     WITH i
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(i)

@@ -112,6 +112,7 @@ class AppContext:
         aws_cost_saving_request_topic=None,
         aws_cost_saving_response_topic=None,
         aws_cartography_queue_url=None,
+        aws_excluded_regions=None,
     ):
         self.region = region
         self.log_level = log_level
@@ -221,10 +222,12 @@ class AppContext:
         self.aws_cost_saving_response_topic = aws_cost_saving_response_topic
 
         self.aws_cartography_queue_url = aws_cartography_queue_url
+        self.aws_excluded_regions = aws_excluded_regions or []
 
     def parse(self, config):
         config = json.loads(config)
         self.sns_offline_url = self.get_value(config, ['common', 'sns', 'offlineURL'])
+        self.aws_excluded_regions = self.get_value(config, ['common', 'aws', 'excludedRegions']) or []
 
         self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "aws", "queueUrl", "us"])
         if os.environ.get("CDX_DC") == "IN":

@@ -82,7 +82,7 @@ def load_route_tables(
     associations: List[Dict] = []
     for route_table in data:
         route_table['arn'] = f"arn:aws:ec2:{route_table['region']}:{aws_account_id}:route-table/{route_table['RouteTableId']}"
-        route_table['consolelink'] = ''  # TODO aws_console_link.get_console_link(arn=route_table['arn'])
+        route_table['consolelink'] = aws_console_link.get_console_link(arn=route_table['arn'])
         associations.extend(route_table['Associations'])
         for route in route_table['Routes']:
             route['RouteTableId'] = route_table['RouteTableId']

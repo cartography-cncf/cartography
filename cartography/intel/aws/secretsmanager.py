@@ -5,6 +5,7 @@ from typing import List
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.util import aws_handle_regions
@@ -13,6 +14,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+aws_console_link = AWSLinker()
 
 
 @timeit
@@ -45,7 +47,8 @@ def load_secrets(
             s.last_accessed_date = secret.LastAccessedDate, s.deleted_date = secret.DeletedDate,
             s.owning_service = secret.OwningService, s.created_date = secret.CreatedDate,
             s.primary_region = secret.PrimaryRegion, s.region = $Region,
-            s.lastupdated = $aws_update_tag, s.arn = secret.ARN
+            s.lastupdated = $aws_update_tag, s.arn = secret.ARN,
+            s.consolelink = secret.consolelink
         WITH s
         MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
         MERGE (owner)-[r:RESOURCE]->(s)
@@ -58,6 +61,7 @@ def load_secrets(
         secret['LastAccessedDate'] = dict_date_to_epoch(secret, 'LastAccessedDate')
         secret['DeletedDate'] = dict_date_to_epoch(secret, 'DeletedDate')
         secret['CreatedDate'] = dict_date_to_epoch(secret, 'CreatedDate')
+        secret['consolelink'] = aws_console_link.get_console_link(arn=secret['ARN'])
 
     neo4j_session.run(
         ingest_secrets,

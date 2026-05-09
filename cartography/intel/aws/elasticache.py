@@ -6,6 +6,7 @@ from typing import Set
 
 import boto3
 import neo4j
+from cloudconsolelink.clouds.aws import AWSLinker
 
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.stats import get_stats_client
@@ -16,6 +17,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+aws_console_link = AWSLinker()
 
 
 def _get_topic(cluster: Dict) -> Dict:
@@ -48,6 +50,7 @@ def get_elasticache_clusters(boto3_session: boto3.session.Session, region: str) 
         clusters.extend(page['CacheClusters'])
     for cluster in clusters:
         cluster['region'] = region
+        cluster['consolelink'] = aws_console_link.get_console_link(arn=cluster['ARN'])
     return clusters
 
 
@@ -64,7 +67,8 @@ def load_elasticache_clusters(
             cluster.topic_arn = elasticache_cluster.NotificationConfiguration.TopicArn,
             cluster.cache_cluster_id = elasticache_cluster.CacheClusterId,
             cluster.region = elasticache_cluster.region
-        SET cluster.lastupdated = $aws_update_tag
+        SET cluster.lastupdated = $aws_update_tag,
+            cluster.consolelink = elasticache_cluster.consolelink
 
         WITH cluster, elasticache_cluster
         MATCH (owner:AWSAccount{id: $aws_account_id})

@@ -60,7 +60,7 @@ def get_registry_list(
                 else None,
                 "creation_date": registry.creation_date.isoformat() if registry.creation_date else None,
                 "console_link": azure_console_link.get_console_link(
-                    id=registry["id"],
+                    id=registry.id,
                     primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
                 ),
                 "subscription_id": subscription_id,
