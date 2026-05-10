@@ -966,11 +966,8 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 - GCPPolicyBindings are resources of the scope where the binding is attached.
   Project and child-resource bindings are owned by GCPProjects. Inherited
   organization and folder bindings are owned by GCPOrganizations and GCPFolders,
-  respectively. In earlier versions, inherited organization and folder bindings
-  were repeatedly attached to each project that observed them. Downstream queries
-  that need inherited bindings should traverse the binding's real owner scope or
-  its `APPLIES_TO` edge instead of assuming every inherited binding is
-  project-owned.
+  respectively. Queries that need inherited bindings should traverse the
+  binding's owner scope or its `APPLIES_TO` edge.
 
     ```
     (GCPProject)-[:RESOURCE]->(GCPPolicyBinding)

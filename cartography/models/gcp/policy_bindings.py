@@ -194,20 +194,3 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
         direction=LinkDirection.INWARD,
         rel_label="RESOURCE",
     )
-
-
-def make_policy_binding_applies_to_matchlink(
-    target_node_label: str,
-    owner_label: str,
-) -> GCPPolicyBindingAppliesToMatchLink:
-    return GCPPolicyBindingAppliesToMatchLink(
-        target_node_label=target_node_label,
-        source_node_sub_resource=MatchLinkSubResource(
-            target_node_label=owner_label,
-            target_node_matcher=make_target_node_matcher(
-                {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
-            ),
-            direction=LinkDirection.INWARD,
-            rel_label="RESOURCE",
-        ),
-    )

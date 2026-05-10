@@ -20,20 +20,6 @@ COMMON_JOB_PARAMS = {
 }
 
 
-@pytest.fixture(autouse=True)
-def reset_inherited_policy_binding_claims():
-    original_update_tag = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG
-    original_seen = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.copy()
-    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
-    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = None
-    try:
-        yield
-    finally:
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.update(original_seen)
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = original_update_tag
-
-
 @pytest.mark.parametrize(
     "full_name, expected",
     [
@@ -324,11 +310,7 @@ def test_split_bindings_by_graph_scope_keeps_inherited_separate():
     }
 
 
-def test_claim_inherited_bindings_for_graph_dedupes_per_update_tag():
-    original_update_tag = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG
-    original_seen = policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.copy()
-    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
-    policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = None
+def test_claim_inherited_bindings_for_graph_dedupes_per_claim_state():
     inherited = {
         ("GCPOrganization", "organizations/1337"): [
             {
@@ -338,27 +320,24 @@ def test_claim_inherited_bindings_for_graph_dedupes_per_update_tag():
             },
         ],
     }
-    try:
-        first_claim = policy_bindings._claim_inherited_bindings_for_graph(
-            inherited,
-            TEST_UPDATE_TAG,
-        )
-        second_claim = policy_bindings._claim_inherited_bindings_for_graph(
-            inherited,
-            TEST_UPDATE_TAG,
-        )
-        next_run_claim = policy_bindings._claim_inherited_bindings_for_graph(
-            inherited,
-            TEST_UPDATE_TAG + 1,
-        )
+    claim_state = policy_bindings.InheritedPolicyBindingClaimState()
 
-        assert first_claim == inherited
-        assert second_claim == {}
-        assert next_run_claim == inherited
-    finally:
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.clear()
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN.update(original_seen)
-        policy_bindings._INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = original_update_tag
+    first_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        claim_state,
+    )
+    second_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        claim_state,
+    )
+    next_run_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        policy_bindings.InheritedPolicyBindingClaimState(),
+    )
+
+    assert first_claim == inherited
+    assert second_claim == {}
+    assert next_run_claim == inherited
 
 
 @patch.object(policy_bindings, "load_matchlinks")

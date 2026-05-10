@@ -164,6 +164,7 @@ def _sync_project_resources(
     policy_bindings_cleanup_skip_reason = (
         "no_projects" if policy_bindings_requested and not projects else None
     )
+    inherited_binding_claim_state = policy_bindings.InheritedPolicyBindingClaimState()
 
     # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
     # CAI is used for:
@@ -690,6 +691,7 @@ def _sync_project_resources(
                     common_job_parameters,
                     cai_grpc_client,
                     role_permissions_by_name,
+                    inherited_binding_claim_state,
                 )
                 policy_bindings_status = policy_bindings_result.status
                 permission_context = policy_bindings_result.permission_context

@@ -2,11 +2,11 @@ import hashlib
 import logging
 import time
 from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
 from threading import BoundedSemaphore
 from threading import Lock
 from typing import Any
-from typing import TypeAlias
 
 import neo4j
 from google.api_core.exceptions import DeadlineExceeded
@@ -29,12 +29,14 @@ from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
 from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.gcp.policy_bindings import GCPFolderPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPOrganizationPolicyBindingSchema
+from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
-from cartography.models.gcp.policy_bindings import (
-    make_policy_binding_applies_to_matchlink,
-)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -324,16 +326,12 @@ _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION: dict[str, float] = {}
 _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE = BoundedSemaphore(
     GCP_POLICY_BINDINGS_GRAPH_CONCURRENCY
 )
-_INHERITED_POLICY_BINDINGS_LOCK = Lock()
-_INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG: int | None = None
-# Deduplicate inherited binding graph writes within one Cartography update tag.
-# Scope keys include the owning org/folder id, so different owners do not collide.
-_INHERITED_POLICY_BINDINGS_SEEN: set[tuple[str, str, str]] = set()
-PolicyBindingSchema: TypeAlias = (
-    GCPPolicyBindingSchema
-    | GCPOrganizationPolicyBindingSchema
-    | GCPFolderPolicyBindingSchema
-)
+
+
+@dataclass
+class InheritedPolicyBindingClaimState:
+    lock: Lock = field(default_factory=Lock)
+    seen: set[tuple[str, str, str]] = field(default_factory=set)
 
 
 def _wait_for_cai_policy_bindings_slot(operation: str) -> None:
@@ -629,79 +627,37 @@ def _split_bindings_by_graph_scope(
 
 def _claim_inherited_bindings_for_graph(
     inherited_bindings: dict[tuple[str, str], list[dict[str, Any]]],
-    update_tag: int,
+    claim_state: InheritedPolicyBindingClaimState,
 ) -> dict[tuple[str, str], list[dict[str, Any]]]:
-    global _INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG
-
     claimed: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    with _INHERITED_POLICY_BINDINGS_LOCK:
-        if _INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG != update_tag:
-            _INHERITED_POLICY_BINDINGS_SEEN.clear()
-            _INHERITED_POLICY_BINDINGS_SEEN_UPDATE_TAG = update_tag
-
+    with claim_state.lock:
         for scope, bindings in inherited_bindings.items():
             owner_label, owner_id = scope
             for binding in bindings:
                 seen_key = (owner_label, owner_id, binding["id"])
-                if seen_key in _INHERITED_POLICY_BINDINGS_SEEN:
+                if seen_key in claim_state.seen:
                     continue
-                _INHERITED_POLICY_BINDINGS_SEEN.add(seen_key)
+                claim_state.seen.add(seen_key)
                 claimed.setdefault(scope, []).append(binding)
 
     return claimed
 
 
-def _get_policy_binding_schema_for_scope(
+def make_policy_binding_applies_to_matchlink(
+    target_node_label: str,
     owner_label: str,
-) -> PolicyBindingSchema:
-    if owner_label == "GCPProject":
-        return GCPPolicyBindingSchema()
-    if owner_label == "GCPOrganization":
-        return GCPOrganizationPolicyBindingSchema()
-    if owner_label == "GCPFolder":
-        return GCPFolderPolicyBindingSchema()
-    raise ValueError(f"Unsupported GCP policy binding owner label: {owner_label}")
-
-
-def _get_policy_binding_scope_kwargs(owner_label: str, owner_id: str) -> dict[str, str]:
-    if owner_label == "GCPProject":
-        return {"PROJECT_ID": owner_id}
-    if owner_label == "GCPOrganization":
-        return {"ORG_RESOURCE_NAME": owner_id}
-    if owner_label == "GCPFolder":
-        return {"FOLDER_ID": owner_id}
-    raise ValueError(f"Unsupported GCP policy binding owner label: {owner_label}")
-
-
-def _load_bindings_for_scope(
-    neo4j_session: neo4j.Session,
-    bindings: list[dict[str, Any]],
-    owner_label: str,
-    owner_id: str,
-    update_tag: int,
-) -> None:
-    if not bindings:
-        return
-
-    load(
-        neo4j_session,
-        _get_policy_binding_schema_for_scope(owner_label),
-        bindings,
-        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
-        lastupdated=update_tag,
-        **_get_policy_binding_scope_kwargs(owner_label, owner_id),
+) -> GCPPolicyBindingAppliesToMatchLink:
+    return GCPPolicyBindingAppliesToMatchLink(
+        target_node_label=target_node_label,
+        source_node_sub_resource=MatchLinkSubResource(
+            target_node_label=owner_label,
+            target_node_matcher=make_target_node_matcher(
+                {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+            ),
+            direction=LinkDirection.INWARD,
+            rel_label="RESOURCE",
+        ),
     )
-
-    for target_label, links in _group_applies_to_links(bindings).items():
-        load_matchlinks(
-            neo4j_session,
-            make_policy_binding_applies_to_matchlink(target_label, owner_label),
-            links,
-            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
-            lastupdated=update_tag,
-            _sub_resource_label=owner_label,
-            _sub_resource_id=owner_id,
-        )
 
 
 @timeit
@@ -711,13 +667,88 @@ def load_bindings(
     project_id: str,
     update_tag: int,
 ) -> None:
-    _load_bindings_for_scope(
+    if not bindings:
+        return
+
+    load(
         neo4j_session,
+        GCPPolicyBindingSchema(),
         bindings,
-        "GCPProject",
-        project_id,
-        update_tag,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
     )
+
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            make_policy_binding_applies_to_matchlink(target_label, "GCPProject"),
+            links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPProject",
+            _sub_resource_id=project_id,
+        )
+
+
+def _load_organization_bindings(
+    neo4j_session: neo4j.Session,
+    bindings: list[dict[str, Any]],
+    org_resource_name: str,
+    update_tag: int,
+) -> None:
+    if not bindings:
+        return
+
+    load(
+        neo4j_session,
+        GCPOrganizationPolicyBindingSchema(),
+        bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+        lastupdated=update_tag,
+        ORG_RESOURCE_NAME=org_resource_name,
+    )
+
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            make_policy_binding_applies_to_matchlink(target_label, "GCPOrganization"),
+            links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPOrganization",
+            _sub_resource_id=org_resource_name,
+        )
+
+
+def _load_folder_bindings(
+    neo4j_session: neo4j.Session,
+    bindings: list[dict[str, Any]],
+    folder_id: str,
+    update_tag: int,
+) -> None:
+    if not bindings:
+        return
+
+    load(
+        neo4j_session,
+        GCPFolderPolicyBindingSchema(),
+        bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+        lastupdated=update_tag,
+        FOLDER_ID=folder_id,
+    )
+
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            make_policy_binding_applies_to_matchlink(target_label, "GCPFolder"),
+            links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPFolder",
+            _sub_resource_id=folder_id,
+        )
 
 
 @timeit
@@ -728,13 +759,24 @@ def load_inherited_bindings(
 ) -> int:
     loaded_count = 0
     for (owner_label, owner_id), bindings in inherited_bindings.items():
-        _load_bindings_for_scope(
-            neo4j_session,
-            bindings,
-            owner_label,
-            owner_id,
-            update_tag,
-        )
+        if owner_label == "GCPOrganization":
+            _load_organization_bindings(
+                neo4j_session,
+                bindings,
+                owner_id,
+                update_tag,
+            )
+        elif owner_label == "GCPFolder":
+            _load_folder_bindings(
+                neo4j_session,
+                bindings,
+                owner_id,
+                update_tag,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported inherited GCP policy binding owner label: {owner_label}"
+            )
         loaded_count += len(bindings)
     return loaded_count
 
@@ -842,6 +884,7 @@ def sync(
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
     role_permissions_by_name: dict[str, list[str]],
+    inherited_binding_claim_state: InheritedPolicyBindingClaimState | None = None,
 ) -> PolicyBindingsSyncResult:
     """
     Sync GCP IAM policy bindings for a project.
@@ -919,10 +962,13 @@ def sync(
         project_id,
     )
 
+    if inherited_binding_claim_state is None:
+        inherited_binding_claim_state = InheritedPolicyBindingClaimState()
+
     with _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE:
         inherited_bindings_to_load = _claim_inherited_bindings_for_graph(
             inherited_bindings,
-            update_tag,
+            inherited_binding_claim_state,
         )
         inherited_loaded_count = load_inherited_bindings(
             neo4j_session,
