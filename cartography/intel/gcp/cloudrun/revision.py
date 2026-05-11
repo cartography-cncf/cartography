@@ -29,8 +29,9 @@ def get_revisions(
 
     def fetch_for_location(location: str) -> list[dict]:
         return list_cloud_run_resources_for_location(
-            fetcher=lambda: client.list_revisions(
+            fetcher=lambda **kw: client.list_revisions(
                 parent=f"{location}/services/-",
+                **kw,
             ),
             resource_type="revisions",
             location=location,

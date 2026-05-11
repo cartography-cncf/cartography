@@ -26,6 +26,23 @@ CVE_METADATA_FEED_ID = "CVE_METADATA"
 ALL_SOURCES = {"nvd", "epss"}
 
 
+def _get_cve_feed_year(cve_id: str) -> str | None:
+    parts = cve_id.split("-")
+    if len(parts) < 2 or not parts[1].isdigit():
+        return None
+    return str(max(int(parts[1]), nvd.NVD_YEARLY_FEED_START_YEAR))
+
+
+def _build_yearly_cve_batches(cve_ids: list[str]) -> list[list[str]]:
+    by_year: dict[str, list[str]] = {}
+    for cve_id in sorted(cve_ids):
+        year_bucket = _get_cve_feed_year(cve_id)
+        if year_bucket is None:
+            continue
+        by_year.setdefault(year_bucket, []).append(cve_id)
+    return [by_year[year] for year in sorted(by_year)]
+
+
 @timeit
 def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
     """Query Neo4j for all CVE node IDs present in the graph."""
@@ -96,11 +113,18 @@ def start_cve_metadata_ingestion(
     # Step 1: Get all CVE IDs from the graph — this is the authoritative list
     cve_ids = get_cve_ids_from_graph(neo4j_session)
     logger.info("Found %d CVE nodes in graph to enrich.", len(cve_ids))
+    yearly_batches = _build_yearly_cve_batches(cve_ids)
+    skipped_cves = len(cve_ids) - sum(len(batch) for batch in yearly_batches)
+    if skipped_cves:
+        logger.warning(
+            "Skipping %d CVE IDs with unexpected format during CVE metadata enrichment.",
+            skipped_cves,
+        )
 
-    # Build one entry per graph CVE; each source enriches these dicts
-    cves: list[dict[str, Any]] = [{"id": cve_id} for cve_id in cve_ids]
+    # Load the feed node first so each batch can attach RESOURCE links to it.
+    load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
 
-    if cve_ids:
+    if yearly_batches:
         session = Session()
         retry_policy = Retry(
             total=8,
@@ -112,32 +136,34 @@ def start_cve_metadata_ingestion(
         session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
         with session as http_session:
-            # Step 2: Enrich with NVD data (failures propagate — NVD is the primary source)
-            if "nvd" in sources:
-                nvd_data = nvd.get_and_transform_nvd_cves(
-                    http_session,
-                    set(cve_ids),
-                    api_key=config.cve_metadata_nist_api_key,
-                )
-                nvd.merge_nvd_into_cves(cves, nvd_data)
-                logger.info("NVD enriched %d CVEs.", len(nvd_data))
+            # Step 2: Enrich and load one CVE year at a time to keep memory bounded.
+            for batch_cve_ids in yearly_batches:
+                cves: list[dict[str, Any]] = [
+                    {"id": cve_id} for cve_id in batch_cve_ids
+                ]
 
-            # Step 3: Enrich with EPSS scores (non-fatal — optional enrichment)
-            if "epss" in sources:
-                try:
-                    epss_data = epss.get_epss_scores(http_session, cve_ids)
-                    epss.merge_epss_into_cves(cves, epss_data)
-                except requests.exceptions.RequestException:
-                    logger.warning(
-                        "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
-                        exc_info=True,
+                if "nvd" in sources:
+                    nvd_data = nvd.get_and_transform_nvd_cves(
+                        http_session,
+                        set(batch_cve_ids),
+                        api_key=config.cve_metadata_nist_api_key,
                     )
+                    nvd.merge_nvd_into_cves(cves, nvd_data)
+                    logger.info("NVD enriched %d CVEs in batch.", len(nvd_data))
 
-    # Step 4: Load into graph (always runs so cleanup removes stale CVEMetadata nodes)
-    load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
-    load_cve_metadata(neo4j_session, cves, config.update_tag)
+                if "epss" in sources:
+                    try:
+                        epss_data = epss.get_epss_scores(http_session, batch_cve_ids)
+                        epss.merge_epss_into_cves(cves, epss_data)
+                    except requests.exceptions.RequestException:
+                        logger.warning(
+                            "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
+                            exc_info=True,
+                        )
 
-    # Step 5: Cleanup stale CVEMetadata nodes from previous syncs
+                load_cve_metadata(neo4j_session, cves, config.update_tag)
+
+    # Step 4: Cleanup stale CVEMetadata nodes from previous syncs
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "FEED_ID": CVE_METADATA_FEED_ID,

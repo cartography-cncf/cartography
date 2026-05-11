@@ -13,6 +13,7 @@ from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.iam import GCPOrgRoleSchema
 from cartography.models.gcp.iam import GCPProjectRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
+from cartography.models.gcp.iam_keys import GCPServiceAccountKeySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,33 @@ def get_gcp_service_accounts(
             )
         )
     return service_accounts
+
+
+@timeit
+def get_gcp_service_account_keys(
+    iam_client: Resource, service_account_name: str
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve user-managed keys for a single GCP service account.
+
+    System-managed keys are intentionally skipped: Google rotates them
+    automatically and they are not a credential-management concern.
+
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :param service_account_name: Full SA resource name, e.g.
+        "projects/{project_id}/serviceAccounts/{email}".
+    :return: A list of dictionaries representing GCP service account keys.
+    """
+    response = gcp_api_execute_with_retry(
+        iam_client.projects()
+        .serviceAccounts()
+        .keys()
+        .list(
+            name=service_account_name,
+            keyTypes=["USER_MANAGED"],
+        ),
+    )
+    return response.get("keys", [])
 
 
 @timeit
@@ -150,6 +178,70 @@ def load_gcp_service_accounts(
         neo4j_session,
         GCPServiceAccountSchema(),
         service_accounts,
+        lastupdated=gcp_update_tag,
+        projectId=project_id,
+    )
+
+
+def transform_gcp_service_account_keys(
+    raw_keys: List[Dict[str, Any]],
+    service_account_email: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform raw GCP service account keys into loader-friendly dicts.
+
+    The full key resource name is used as the node id so that the same key
+    is represented identically across ingestions.
+    """
+    result: List[Dict[str, Any]] = []
+    for key in raw_keys:
+        key_name = key.get("name")
+        if not key_name:
+            # The IAM API contract guarantees `name` on every key; a record
+            # missing it is a real anomaly worth surfacing rather than
+            # silently dropping. Log only known-safe descriptive fields so
+            # future API additions cannot leak identifiers into the log.
+            logger.warning(
+                "Skipping GCP service account key without a 'name' field "
+                "(keyType=%s, keyAlgorithm=%s)",
+                key.get("keyType"),
+                key.get("keyAlgorithm"),
+            )
+            continue
+        result.append(
+            {
+                "id": key_name,
+                "name": key_name,
+                "keyType": key.get("keyType"),
+                "keyOrigin": key.get("keyOrigin"),
+                "keyAlgorithm": key.get("keyAlgorithm"),
+                "validAfterTime": key.get("validAfterTime"),
+                "validBeforeTime": key.get("validBeforeTime"),
+                "disabled": key.get("disabled", False),
+                "serviceAccountEmail": service_account_email,
+            },
+        )
+    return result
+
+
+@timeit
+def load_gcp_service_account_keys(
+    neo4j_session: neo4j.Session,
+    keys: List[Dict[str, Any]],
+    project_id: str,
+    gcp_update_tag: int,
+) -> None:
+    """
+    Load GCP service account key data into Neo4j.
+    """
+    if not keys:
+        return
+    logger.debug(f"Loading {len(keys)} service account keys for project {project_id}")
+
+    load(
+        neo4j_session,
+        GCPServiceAccountKeySchema(),
+        keys,
         lastupdated=gcp_update_tag,
         projectId=project_id,
     )
@@ -278,6 +370,26 @@ def load_project_roles(
 
 
 @timeit
+def cleanup_service_account_keys(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
+    """
+    Run cleanup job for GCP service account keys in Neo4j.
+
+    Keys are leaf nodes hanging off service accounts; clean them up before
+    cleaning up service accounts to avoid orphan HAS_KEY relationships.
+    """
+    logger.debug("Running GCP service account key cleanup job")
+    job_params = {
+        **common_job_parameters,
+        "projectId": common_job_parameters.get("PROJECT_ID"),
+    }
+
+    cleanup_job = GraphJob.from_node_schema(GCPServiceAccountKeySchema(), job_params)
+    cleanup_job.run(neo4j_session)
+
+
+@timeit
 def cleanup_service_accounts(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
@@ -395,11 +507,18 @@ def sync(
 
     This syncs:
     - Service accounts (project-specific)
+    - User-managed service account keys (per service account)
     - Custom project-level roles (projects/{project}/roles/*)
 
     Note: Predefined roles and custom org roles are synced separately via sync_org_iam().
 
     Cleanup is NOT run here - it should be called separately after syncing all projects.
+
+    Side effect: sets ``_iam_keys_sync_complete`` on ``common_job_parameters`` to
+    ``False`` if any service account's keys could not be listed. The caller is
+    expected to read this flag before running ``cleanup_service_account_keys``;
+    skipping cleanup on failure prevents stale keys from being silently deleted
+    when the failure was a transient quota/permission issue on a single SA.
 
     :param neo4j_session: The Neo4j session.
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
@@ -418,6 +537,40 @@ def sync(
     load_gcp_service_accounts(
         neo4j_session, service_accounts, project_id, gcp_update_tag
     )
+
+    # Sync user-managed keys for each service account.
+    # Track per-SA failures: if any fetch fails we cannot safely run the keys
+    # cleanup job — keys we did not refresh would be deleted as stale.
+    all_keys: list[dict[str, Any]] = []
+    keys_sync_complete = True
+    for sa in service_accounts_raw:
+        sa_email = sa.get("email")
+        sa_name = sa.get("name")
+        if not sa_email or not sa_name:
+            continue
+        try:
+            keys_raw = get_gcp_service_account_keys(iam_client, sa_name)
+            all_keys.extend(transform_gcp_service_account_keys(keys_raw, sa_email))
+        except Exception as e:
+            keys_sync_complete = False
+            # Log the SA's opaque uniqueId rather than the email so log
+            # aggregators do not pick up identifiers that double as account
+            # names. Operators can resolve the uniqueId back to a SA via the
+            # synced graph if they need to triage.
+            logger.warning(
+                "Failed to list keys for service account uniqueId=%s in "
+                "project %s: %s. Skipping service account key cleanup for "
+                "this project to avoid deleting keys that were not "
+                "re-ingested.",
+                sa.get("uniqueId", "<unknown>"),
+                project_id,
+                e,
+            )
+    common_job_parameters["_iam_keys_sync_complete"] = keys_sync_complete
+    if all_keys:
+        load_gcp_service_account_keys(
+            neo4j_session, all_keys, project_id, gcp_update_tag
+        )
 
     # Sync custom project-level roles only (not predefined roles)
     project_roles_raw = get_gcp_project_custom_roles(iam_client, project_id)

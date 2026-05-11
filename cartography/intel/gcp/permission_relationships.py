@@ -23,23 +23,84 @@ GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
     """
-    Resolve GCP scope to follow the standard hierarchy pattern.
+    Resolve a GCP IAM scope string to its canonical project-scoped form.
 
     Process breakdown:
-    - If scope starts with cloudresourcemanager.googleapis.com, return project/{project_id}/* (ORG,FOLDER,PROJECT)
-    - Otherwise, return project/{project_id}/resource/{resource_id} where resource_id is scope.split("/")[-1]
+    - If scope is at the resource manager hierarchy (org / folder / project),
+      return project/{project_id}/* — this matches every project resource.
+    - Otherwise, strip the leading "//{service.host}/" and use the remaining
+      path verbatim. The path uniquely identifies the resource within the
+      project — using the last segment alone collides for nested resources
+      (e.g. two BigQuery tables named "events" in different datasets, or two
+      KMS keys named "default" in different keyrings).
 
-    Typical Scope Examples:
+    Typical Scope Examples (followed by their resolved form):
+
     - ORG: //cloudresourcemanager.googleapis.com/organizations/{id}
+        -> project/{project_id}/*
     - FOLDER: //cloudresourcemanager.googleapis.com/folders/{id}
+        -> project/{project_id}/*
     - PROJECT: //cloudresourcemanager.googleapis.com/projects/{id}
+        -> project/{project_id}/*
     - BUCKET: //storage.googleapis.com/buckets/{bucket_name}
-    - INSTANCE: //compute.googleapis.com/projects/{project_id}/zones/{zone}/instances/{instance_id}
+        -> project/{project_id}/resource/buckets/{bucket_name}
+    - BIGQUERY TABLE: //bigquery.googleapis.com/projects/{p}/datasets/{d}/tables/{t}
+        -> project/{project_id}/resource/projects/{p}/datasets/{d}/tables/{t}
+    - INSTANCE: //compute.googleapis.com/projects/{p}/zones/{z}/instances/{i}
+        -> project/{project_id}/resource/projects/{p}/zones/{z}/instances/{i}
     """
     if "cloudresourcemanager.googleapis.com" in scope:
         return f"project/{project_id}/*"
 
-    return f"project/{project_id}/resource/{scope.split('/')[-1]}"
+    path = scope
+    if path.startswith("//"):
+        # Strip protocol marker and service host, keeping the resource path.
+        without_protocol = path[2:]
+        slash_idx = without_protocol.find("/")
+        if slash_idx > 0:
+            path = without_protocol[slash_idx + 1 :]
+    return f"project/{project_id}/resource/{path}"
+
+
+# Resource id formats that need a service-specific prefix to align with the
+# path encoded in the IAM scope string. Most GCP resource ids already start
+# with "projects/..." which matches their scope path verbatim; the table only
+# needs entries for resources whose id is a bare name.
+_GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX: dict[str, str] = {
+    "GCPBucket": "buckets",
+}
+
+
+def _canonical_resource_path(target_label: str, resource_id: str) -> str:
+    """Return the resource path used in scope strings for this target label.
+
+    Most GCP resource ids ingested by cartography are already in the
+    ``projects/{p}/...`` form that matches what GCP IAM puts in the scope
+    string. Two label families need translation:
+
+    - ``GCPBucket``: the id is the bare bucket name; IAM scope path is
+      ``buckets/{name}``.
+    - BigQuery (``GCPBigQueryDataset``, ``GCPBigQueryTable``): cartography
+      uses the legacy ``{project}:{dataset}[.table]`` id format, while IAM
+      scope path is ``projects/{p}/datasets/{d}[/tables/{t}]``.
+    """
+    if target_label == "GCPBigQueryDataset":
+        # "project:dataset" -> "projects/project/datasets/dataset"
+        if ":" in resource_id:
+            project_id, dataset_id = resource_id.split(":", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}"
+        return resource_id
+    if target_label == "GCPBigQueryTable":
+        # "project:dataset.table" -> "projects/project/datasets/dataset/tables/table"
+        if ":" in resource_id and "." in resource_id:
+            project_id, rest = resource_id.split(":", 1)
+            dataset_id, table_id = rest.split(".", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}/tables/{table_id}"
+        return resource_id
+    prefix = _GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX.get(target_label)
+    if prefix is None:
+        return resource_id
+    return f"{prefix}/{resource_id}"
 
 
 def compile_gcp_regex(item: str) -> re.Pattern:
@@ -284,10 +345,15 @@ def get_resource_ids(
         get_resource_query_template,
         ProjectId=project_id,
     )
+    # Use the full resource_id (or its target-label-aware canonical form) as
+    # the scope value so nested resources stay distinguishable. Truncating to
+    # the last segment merged sibling resources sharing a leaf name (e.g. two
+    # BigQuery tables named "events" in different datasets).
     resource_dict = {
-        resource_id: f'project/{project_id}/resource/{resource_id.split("/")[-1]}'
-        # Resource scope is project/{project_id}/resource/{last part of resource_id when separated by /}
-        # Resource_id as key for loading and resource scope as value for scope evaluation
+        resource_id: (
+            f"project/{project_id}/resource/"
+            f"{_canonical_resource_path(target_label, resource_id)}"
+        )
         for resource_id in resource_ids
     }
     return resource_dict

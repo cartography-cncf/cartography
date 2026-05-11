@@ -45,6 +45,9 @@ def transform_volumes(volumes: list[Volume]) -> dict[str, list[dict[str, Any]]]:
     for volume in volumes:
         project_id = volume.project
         formatted_volume = scaleway_obj_to_dict(volume)
+        size_bytes = formatted_volume.get("size")
+        if size_bytes is not None:
+            formatted_volume["size_gb"] = round(size_bytes / (1024**3))
         result.setdefault(project_id, []).append(formatted_volume)
     return result
 

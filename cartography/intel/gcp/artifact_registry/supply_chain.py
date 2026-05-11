@@ -8,21 +8,36 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
 from cartography.intel.gcp.clients import _resolve_credentials
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
-from cartography.models.gcp.artifact_registry.container_image import (
-    GCPArtifactRegistryContainerImageProvenanceSchema,
+from cartography.intel.supply_chain import normalize_vcs_url
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageBuiltFromMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageProvenanceSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryProjectToImageLayerRel,
 )
 from cartography.util import timeit
 
@@ -41,6 +56,13 @@ ALL_MANIFEST_ACCEPT = ", ".join(
 )
 
 ATTESTATION_MEDIA_TYPE_FRAGMENTS = {"attestation", "in-toto"}
+SPDX_MEDIA_TYPE_FRAGMENTS = {"spdx+json", "spdx.json"}
+GITHUB_URL_PREFIXES = (
+    "https://github.com/",
+    "git@github.com:",
+    "ssh://git@github.com/",
+)
+GOLANG_GITHUB_PURL_PREFIX = "pkg:golang/github.com/"
 
 
 class _TokenManager:
@@ -77,13 +99,13 @@ class _TokenManager:
             self._generation += 1
 
 
-async def _fetch_json(
+async def _authed_get(
     http_client: httpx.AsyncClient,
     url: str,
     token_manager: _TokenManager,
     accept: str | None = None,
-) -> dict[str, Any]:
-    """Fetch a JSON document. Refreshes credentials once on 401, otherwise raises."""
+) -> httpx.Response:
+    """GET with token-manager auth. Refreshes credentials once on 401, otherwise raises."""
     for attempt in range(2):
         observed_generation = token_manager.generation
         headers: dict[str, str] = {}
@@ -96,8 +118,18 @@ async def _fetch_json(
             await token_manager.refresh(observed_generation)
             continue
         resp.raise_for_status()
-        return resp.json()
+        return resp
     raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+
+
+async def _fetch_json(
+    http_client: httpx.AsyncClient,
+    url: str,
+    token_manager: _TokenManager,
+    accept: str | None = None,
+) -> dict[str, Any]:
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json()
 
 
 async def _fetch_manifest_with_digest(
@@ -106,20 +138,8 @@ async def _fetch_manifest_with_digest(
     token_manager: _TokenManager,
     accept: str,
 ) -> tuple[dict[str, Any], str | None]:
-    """Fetch a manifest and return (manifest_json, subject_digest). Raises on errors."""
-    for attempt in range(2):
-        observed_generation = token_manager.generation
-        headers: dict[str, str] = {"Accept": accept}
-        token_manager.apply_auth(headers)
-        resp = await http_client.get(url, headers=headers, timeout=30.0)
-        if resp.status_code == 401 and attempt == 0:
-            logger.debug("Got 401 from %s, refreshing GCP credentials", url)
-            await token_manager.refresh(observed_generation)
-            continue
-        resp.raise_for_status()
-        digest = resp.headers.get("Docker-Content-Digest")
-        return resp.json(), digest
-    raise RuntimeError(f"unreachable: exhausted retries fetching {url}")
+    resp = await _authed_get(http_client, url, token_manager, accept)
+    return resp.json(), resp.headers.get("Docker-Content-Digest")
 
 
 async def _fetch_image_config(
@@ -233,10 +253,459 @@ async def _fetch_attestation_provenance(
     return {}
 
 
+def _legacy_sbom_tag_for_digest(image_digest: str) -> str | None:
+    """Return the legacy ko SBOM tag for a sha256 digest."""
+    algorithm, separator, digest_value = image_digest.partition(":")
+    if algorithm != "sha256" or not separator or not digest_value:
+        return None
+    return f"sha256-{digest_value}.sbom"
+
+
+def _normalize_github_url(url: str) -> str:
+    if url.startswith("ssh://git@github.com/"):
+        url = url.replace("ssh://git@github.com/", "git@github.com:", 1)
+    return normalize_vcs_url(url)
+
+
+def _repo_url_from_golang_purl(locator: str) -> str | None:
+    if not locator.startswith(GOLANG_GITHUB_PURL_PREFIX):
+        return None
+
+    package_path = locator[len("pkg:golang/") :]
+    package_path = package_path.split("?", 1)[0].split("@", 1)[0]
+    parts = package_path.split("/")
+    if len(parts) < 3 or parts[0].lower() != "github.com":
+        return None
+
+    owner = parts[1]
+    repo = parts[2]
+    if not owner or not repo:
+        return None
+    return _normalize_github_url(f"https://github.com/{owner}/{repo}")
+
+
+def _repo_url_from_github_path(path: str) -> str | None:
+    parts = path.split("/")
+    try:
+        github_idx = parts.index("github.com")
+    except ValueError:
+        return None
+
+    if len(parts) <= github_idx + 2:
+        return None
+
+    owner = parts[github_idx + 1]
+    repo = parts[github_idx + 2]
+    if not owner or not repo:
+        return None
+    return _normalize_github_url(f"https://github.com/{owner}/{repo}")
+
+
+def _repo_url_from_spdx_package(package: dict[str, Any]) -> str | None:
+    download_location = package.get("downloadLocation")
+    if isinstance(download_location, str) and download_location.startswith(
+        GITHUB_URL_PREFIXES
+    ):
+        return _normalize_github_url(download_location)
+
+    for external_ref in package.get("externalRefs") or []:
+        if not isinstance(external_ref, dict):
+            continue
+        if external_ref.get("referenceType") != "purl":
+            continue
+        locator = external_ref.get("referenceLocator")
+        if not isinstance(locator, str):
+            continue
+        repo_url = _repo_url_from_golang_purl(locator)
+        if repo_url:
+            return repo_url
+
+    return None
+
+
+def _sha256_digest_value(digest: str) -> str | None:
+    algorithm, separator, digest_value = digest.partition(":")
+    if algorithm != "sha256" or not separator or not digest_value:
+        return None
+    return digest_value
+
+
+def _digest_value_from_oci_purl(locator: str) -> str | None:
+    if not locator.startswith("pkg:oci/"):
+        return None
+    _, separator, digest_part = locator.partition("@sha256:")
+    if not separator:
+        return None
+    return digest_part.split("?", 1)[0].split("#", 1)[0]
+
+
+def _image_digest_from_purl(locator: str) -> str | None:
+    if not locator.startswith(("pkg:oci/", "pkg:docker/")):
+        return None
+    _, separator, digest_part = locator.partition("@sha256:")
+    if not separator:
+        return None
+    digest_value = digest_part.split("?", 1)[0].split("#", 1)[0]
+    return f"sha256:{digest_value}" if digest_value else None
+
+
+def _image_purl_from_spdx_package(package: dict[str, Any]) -> str | None:
+    for external_ref in package.get("externalRefs") or []:
+        if not isinstance(external_ref, dict):
+            continue
+        if external_ref.get("referenceType") != "purl":
+            continue
+        locator = external_ref.get("referenceLocator")
+        if not isinstance(locator, str):
+            continue
+        if _image_digest_from_purl(locator):
+            return locator
+    return None
+
+
+def _spdx_package_matches_subject_digest(
+    package: dict[str, Any],
+    subject_digest: str,
+) -> bool | None:
+    subject_digest_value = _sha256_digest_value(subject_digest)
+    if subject_digest_value is None:
+        return None
+
+    package_name = package.get("name")
+    if package_name == subject_digest or package_name == subject_digest_value:
+        return True
+
+    oci_digest_values = set()
+    for external_ref in package.get("externalRefs") or []:
+        if not isinstance(external_ref, dict):
+            continue
+        if external_ref.get("referenceType") != "purl":
+            continue
+        locator = external_ref.get("referenceLocator")
+        if not isinstance(locator, str):
+            continue
+        oci_digest_value = _digest_value_from_oci_purl(locator)
+        if oci_digest_value:
+            oci_digest_values.add(oci_digest_value)
+
+    if not oci_digest_values:
+        return None
+    return subject_digest_value in oci_digest_values
+
+
+def _extract_parent_image_from_spdx_sbom(
+    sbom: dict[str, Any],
+    subject_digest: str | None,
+) -> dict[str, str]:
+    if not subject_digest:
+        return {}
+
+    described_ids = {
+        spdx_id
+        for spdx_id in sbom.get("documentDescribes") or []
+        if isinstance(spdx_id, str)
+    }
+    if not described_ids:
+        return {}
+
+    packages = [
+        package for package in sbom.get("packages") or [] if isinstance(package, dict)
+    ]
+    packages_by_id = {
+        spdx_id: package
+        for package in packages
+        if isinstance(spdx_id := package.get("SPDXID"), str)
+    }
+    subject_package_ids = {
+        spdx_id
+        for spdx_id in described_ids
+        if (package := packages_by_id.get(spdx_id)) is not None
+        if _spdx_package_matches_subject_digest(package, subject_digest) is True
+    }
+    if not subject_package_ids:
+        return {}
+
+    relationships = [
+        relationship
+        for relationship in sbom.get("relationships") or []
+        if isinstance(relationship, dict)
+        and relationship.get("spdxElementId") in subject_package_ids
+    ]
+    for relationship_type in ("DESCENDANT_OF", "VARIANT_OF"):
+        parent_candidates: dict[str, str] = {}
+        for relationship in relationships:
+            if relationship.get("relationshipType") != relationship_type:
+                continue
+            related_package_id = relationship.get("relatedSpdxElement")
+            if not isinstance(related_package_id, str):
+                continue
+            related_package = packages_by_id.get(related_package_id)
+            if related_package is None:
+                continue
+            parent_image_uri = _image_purl_from_spdx_package(related_package)
+            if parent_image_uri is None:
+                continue
+            parent_image_digest = _image_digest_from_purl(parent_image_uri)
+            if parent_image_digest is None or parent_image_digest == subject_digest:
+                continue
+            parent_candidates[parent_image_digest] = parent_image_uri
+
+        if len(parent_candidates) == 1:
+            parent_image_digest, parent_image_uri = next(
+                iter(parent_candidates.items())
+            )
+            return {
+                "parent_image_uri": parent_image_uri,
+                "parent_image_digest": parent_image_digest,
+            }
+        if len(parent_candidates) > 1:
+            return {}
+
+    return {}
+
+
+def _needs_more_spdx_provenance(provenance: dict[str, Any]) -> bool:
+    return not provenance.get("source_uri") or not provenance.get("parent_image_digest")
+
+
+def _repo_urls_from_contained_spdx_packages(
+    relationships: list[dict[str, Any]],
+    packages_by_id: dict[str, dict[str, Any]],
+    container_package_ids: set[str],
+) -> set[str]:
+    repo_urls: set[str] = set()
+    for relationship in relationships:
+        if relationship.get("relationshipType") != "CONTAINS":
+            continue
+        if relationship.get("spdxElementId") not in container_package_ids:
+            continue
+        related_package_id = relationship.get("relatedSpdxElement")
+        if not isinstance(related_package_id, str):
+            continue
+        related_package = packages_by_id.get(related_package_id)
+        if related_package is None:
+            continue
+        repo_url = _repo_url_from_spdx_package(related_package)
+        if repo_url:
+            repo_urls.add(repo_url)
+    return repo_urls
+
+
+def _extract_source_from_spdx_sbom(
+    sbom: dict[str, Any],
+    subject_digest: str | None = None,
+    expected_source_uri: str | None = None,
+) -> dict[str, str]:
+    """Extract source repo from a digest-specific SPDX SBOM.
+
+    Without an expected source, only packages named by documentDescribes are
+    considered. When the image path already identifies the expected repository,
+    accept that repository from any package because ko SBOMs often describe the
+    OCI image package and list the source module as a dependency package. When
+    documentDescribes names the OCI image package, validate that it matches the
+    expected image digest before using dependency package source hints.
+    """
+    described_ids = {
+        spdx_id
+        for spdx_id in sbom.get("documentDescribes") or []
+        if isinstance(spdx_id, str)
+    }
+    if not described_ids:
+        return {}
+
+    packages = [
+        package for package in sbom.get("packages") or [] if isinstance(package, dict)
+    ]
+    packages_by_id = {
+        spdx_id: package
+        for package in packages
+        if isinstance(spdx_id := package.get("SPDXID"), str)
+    }
+    described_packages = [
+        package for package in packages if package.get("SPDXID") in described_ids
+    ]
+    subject_digest_verified = False
+    subject_package_ids: set[str] = set()
+    if subject_digest:
+        subject_digest_matches = [
+            (package, matches)
+            for package in described_packages
+            if (
+                matches := _spdx_package_matches_subject_digest(package, subject_digest)
+            )
+            is not None
+        ]
+        if any(matches is False for _, matches in subject_digest_matches):
+            return {}
+        subject_package_ids = {
+            spdx_id
+            for package, matches in subject_digest_matches
+            if matches is True
+            if isinstance(spdx_id := package.get("SPDXID"), str)
+        }
+        subject_digest_verified = bool(subject_package_ids)
+
+    if expected_source_uri:
+        expected_source_uri = _normalize_github_url(expected_source_uri)
+        for package in described_packages:
+            repo_url = _repo_url_from_spdx_package(package)
+            if repo_url == expected_source_uri:
+                return {"source_uri": expected_source_uri}
+        if not subject_digest_verified:
+            return {}
+        for package in packages:
+            if package.get("SPDXID") in described_ids:
+                continue
+            repo_url = _repo_url_from_spdx_package(package)
+            if repo_url == expected_source_uri:
+                return {"source_uri": expected_source_uri}
+        return {}
+
+    repo_urls: set[str] = set()
+    for package in described_packages:
+        repo_url = _repo_url_from_spdx_package(package)
+        if repo_url:
+            repo_urls.add(repo_url)
+
+    if len(repo_urls) == 1:
+        return {"source_uri": next(iter(repo_urls))}
+
+    if subject_digest_verified:
+        contained_repo_urls = _repo_urls_from_contained_spdx_packages(
+            [
+                relationship
+                for relationship in sbom.get("relationships") or []
+                if isinstance(relationship, dict)
+            ],
+            packages_by_id,
+            subject_package_ids,
+        )
+        if len(contained_repo_urls) == 1:
+            return {"source_uri": next(iter(contained_repo_urls))}
+
+        dependency_repo_urls = {
+            repo_url
+            for package in packages
+            if package.get("SPDXID") not in described_ids
+            if (repo_url := _repo_url_from_spdx_package(package))
+        }
+        if len(dependency_repo_urls) == 1:
+            return {"source_uri": next(iter(dependency_repo_urls))}
+
+    return {}
+
+
+def _sbom_artifacts_by_subject_digest(
+    docker_artifacts_raw: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    sbom_artifacts: dict[str, list[dict[str, Any]]] = {}
+    for artifact in docker_artifacts_raw:
+        for tag in artifact.get("tags") or []:
+            if not isinstance(tag, str):
+                continue
+            if not tag.startswith("sha256-") or not tag.endswith(".sbom"):
+                continue
+            digest_value = tag.removeprefix("sha256-").removesuffix(".sbom")
+            if not digest_value:
+                continue
+            sbom_artifacts.setdefault(f"sha256:{digest_value}", []).append(artifact)
+    return sbom_artifacts
+
+
+async def _fetch_spdx_layer_provenance(
+    http_client: httpx.AsyncClient,
+    token_manager: _TokenManager,
+    registry: str,
+    image_path: str,
+    reference: str,
+    subject_digest: str,
+    expected_source_uri: str | None = None,
+) -> dict[str, str]:
+    manifest_url = build_manifest_url(registry, image_path, reference)
+    try:
+        manifest = await _fetch_json(
+            http_client,
+            manifest_url,
+            token_manager,
+            ALL_MANIFEST_ACCEPT,
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return {}
+        raise
+
+    for layer in manifest.get("layers") or []:
+        layer_mt = layer.get("mediaType", "").lower()
+        if not any(fragment in layer_mt for fragment in SPDX_MEDIA_TYPE_FRAGMENTS):
+            continue
+
+        layer_digest = layer.get("digest")
+        if not layer_digest:
+            continue
+
+        blob_url = build_blob_url(registry, image_path, layer_digest)
+        try:
+            blob = await _fetch_json(http_client, blob_url, token_manager)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                continue
+            raise
+
+        provenance = _extract_source_from_spdx_sbom(
+            blob,
+            subject_digest=subject_digest,
+            expected_source_uri=expected_source_uri,
+        )
+        provenance.update(
+            _extract_parent_image_from_spdx_sbom(
+                blob,
+                subject_digest=subject_digest,
+            )
+        )
+        if provenance:
+            return provenance
+
+    return {}
+
+
+async def _fetch_legacy_sbom_provenance(
+    http_client: httpx.AsyncClient,
+    token_manager: _TokenManager,
+    registry: str,
+    image_path: str,
+    image_digest: str,
+) -> dict[str, str]:
+    """Attempt to extract source repo from legacy ko SPDX SBOM images.
+
+    Older ko builds can publish digest-specific SBOM artifacts as tags shaped
+    like ``sha256-<digest>.sbom``. A matching tag plus an SPDX
+    documentDescribes root package gives high-confidence source evidence.
+    """
+    sbom_tag = _legacy_sbom_tag_for_digest(image_digest)
+    if sbom_tag is None:
+        return {}
+
+    try:
+        return await _fetch_spdx_layer_provenance(
+            http_client,
+            token_manager,
+            registry,
+            image_path,
+            sbom_tag,
+            image_digest,
+            expected_source_uri=_repo_url_from_github_path(image_path),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return {}
+        raise
+
+
 async def _process_single_image(
     http_client: httpx.AsyncClient,
     token_manager: _TokenManager,
     artifact: dict[str, Any],
+    sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -247,6 +716,11 @@ async def _process_single_image(
     """
     name = artifact.get("name", "")
     uri = artifact.get("uri", "")
+    media_type = artifact.get("mediaType", "")
+
+    if media_type not in SINGLE_IMAGE_MEDIA_TYPES:
+        logger.debug("Skipping OCI config enrichment for non-image artifact %s", name)
+        return None, False
 
     parsed = parse_docker_image_uri(uri)
     if not parsed:
@@ -268,46 +742,148 @@ async def _process_single_image(
     if not config:
         return None, False
 
+    raw_architecture = config.get("architecture")
+    architecture = (
+        normalize_architecture(raw_architecture)
+        if raw_architecture is not None
+        else None
+    )
+    os_name = config.get("os")
+    variant = config.get("variant")
     provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
+    subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
+    subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
 
     # OCI labels are fast but not always present; fall back to the Referrers API.
     # The Referrers endpoint requires a digest, not a tag.
-    if not provenance.get("source_uri"):
-        subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
-        if subject_digest and subject_digest.startswith("sha256:"):
+    if (
+        not provenance.get("source_uri")
+        and subject_digest_str
+        and subject_digest_str.startswith("sha256:")
+    ):
+        try:
+            slsa_provenance = await _fetch_attestation_provenance(
+                http_client,
+                token_manager,
+                registry,
+                image_path,
+                subject_digest_str,
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch attestation provenance for %s: %s",
+                uri or name,
+                e,
+            )
+            slsa_provenance = {}
+            fetch_failed = True
+        provenance.update(slsa_provenance)
+
+    # Some older build flows publish SPDX SBOMs as digest-specific image tags
+    # instead of OCI referrers. Use them only when the document itself ties back
+    # to this image digest and names one described source package.
+    sbom_artifacts = (
+        sbom_artifacts_by_digest.get(subject_digest_str)
+        if subject_digest_str and sbom_artifacts_by_digest
+        else None
+    )
+    same_path_sbom_artifacts = []
+    for sbom_artifact in sbom_artifacts or []:
+        sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
+        if not sbom_parsed:
+            continue
+        sbom_registry, sbom_image_path, _ = sbom_parsed
+        if sbom_registry == registry and sbom_image_path == image_path:
+            same_path_sbom_artifacts.append(sbom_artifact)
+
+    if (
+        _needs_more_spdx_provenance(provenance)
+        and same_path_sbom_artifacts
+        and subject_digest_str
+    ):
+        try:
+            sbom_provenance = await _fetch_legacy_sbom_provenance(
+                http_client,
+                token_manager,
+                registry,
+                image_path,
+                subject_digest_str,
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch SBOM provenance for %s: %s",
+                uri or name,
+                e,
+            )
+            sbom_provenance = {}
+            fetch_failed = True
+        for key, value in sbom_provenance.items():
+            provenance.setdefault(key, value)
+
+    if (
+        _needs_more_spdx_provenance(provenance)
+        and sbom_artifacts
+        and subject_digest_str
+    ):
+        for sbom_artifact in sbom_artifacts:
+            sbom_parsed = parse_docker_image_uri(sbom_artifact.get("uri", ""))
+            if not sbom_parsed:
+                continue
+
+            sbom_registry, sbom_image_path, sbom_reference = sbom_parsed
             try:
-                slsa_provenance = await _fetch_attestation_provenance(
+                sbom_provenance = await _fetch_spdx_layer_provenance(
                     http_client,
                     token_manager,
-                    registry,
-                    image_path,
-                    subject_digest,
+                    sbom_registry,
+                    sbom_image_path,
+                    sbom_reference,
+                    subject_digest_str,
+                    expected_source_uri=_repo_url_from_github_path(sbom_image_path),
                 )
             except (httpx.HTTPError, json.JSONDecodeError) as e:
                 logger.warning(
-                    "Failed to fetch attestation provenance for %s: %s",
+                    "Failed to fetch tagged SBOM provenance for %s: %s",
                     uri or name,
                     e,
                 )
-                slsa_provenance = {}
+                sbom_provenance = {}
                 fetch_failed = True
-            provenance.update(slsa_provenance)
+            for key, value in sbom_provenance.items():
+                provenance.setdefault(key, value)
+            if not _needs_more_spdx_provenance(provenance):
+                break
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
+    has_platform = any(value is not None for value in (architecture, os_name, variant))
 
-    if not provenance.get("source_uri") and not diff_ids:
+    if (
+        not provenance.get("source_uri")
+        and not provenance.get("parent_image_digest")
+        and not diff_ids
+        and not has_platform
+    ):
+        return None, fetch_failed
+
+    digest = subject_digest_str
+    if not digest:
         return None, fetch_failed
 
     result: dict[str, Any] = {
-        "id": name,
+        "digest": digest,
+        "type": "image",
+        "media_type": artifact.get("mediaType"),
     }
-    if provenance.get("source_uri"):
-        result["source_uri"] = provenance["source_uri"]
-    if provenance.get("source_revision"):
-        result["source_revision"] = provenance["source_revision"]
-    if provenance.get("source_file"):
-        result["source_file"] = provenance["source_file"]
+    if architecture is not None:
+        result["architecture"] = architecture
+    if os_name is not None:
+        result["os"] = os_name
+    if variant is not None:
+        result["variant"] = variant
+    for field in PROVENANCE_SOURCE_FIELDS:
+        if provenance.get(field):
+            result[field] = provenance[field]
     if diff_ids:
         result["layer_diff_ids"] = diff_ids
         result["layer_history"] = layer_history
@@ -331,6 +907,7 @@ async def _fetch_all_image_provenance(
     if not resolved.valid:
         resolved.refresh(Request())
     token_manager = _TokenManager(resolved)
+    sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
     single_images = [
         a
@@ -348,7 +925,12 @@ async def _fetch_all_image_provenance(
         artifact: dict[str, Any], client: httpx.AsyncClient
     ) -> tuple[dict[str, Any] | None, bool]:
         async with semaphore:
-            return await _process_single_image(client, token_manager, artifact)
+            return await _process_single_image(
+                client,
+                token_manager,
+                artifact,
+                sbom_artifacts_by_digest,
+            )
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
         tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
@@ -421,6 +1003,183 @@ def _build_layer_dicts(
     return list(layers_by_diff_id.values())
 
 
+PROVENANCE_UPDATE_FIELDS = (
+    "type",
+    "media_type",
+    "architecture",
+    "os",
+    "os_version",
+    "os_features",
+    "variant",
+    "layer_diff_ids",
+)
+
+PROVENANCE_SOURCE_FIELDS = (
+    "source_uri",
+    "source_revision",
+    "source_file",
+    "parent_image_uri",
+    "parent_image_digest",
+)
+
+PROVENANCE_FIELDS = (
+    *PROVENANCE_UPDATE_FIELDS,
+    *PROVENANCE_SOURCE_FIELDS,
+)
+
+
+def _merge_existing_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    digests = sorted(
+        {update["digest"] for update in provenance_updates if update.get("digest")}
+    )
+    if not digests:
+        return []
+
+    existing_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $digests AS digest
+        MATCH (img:GCPArtifactRegistryImage {digest: digest})
+        RETURN
+            img.digest AS digest,
+            img.type AS type,
+            img.media_type AS media_type,
+            img.architecture AS architecture,
+            img.os AS os,
+            img.os_version AS os_version,
+            img.os_features AS os_features,
+            img.variant AS variant,
+            img.source_uri AS source_uri,
+            img.source_revision AS source_revision,
+            img.source_file AS source_file,
+            img.parent_image_uri AS parent_image_uri,
+            img.parent_image_digest AS parent_image_digest,
+            img.layer_diff_ids AS layer_diff_ids
+        """,
+        digests=digests,
+    )
+    merged_by_digest = {
+        row["digest"]: {
+            "digest": row["digest"],
+            **{field: row.get(field) for field in PROVENANCE_FIELDS},
+        }
+        for row in existing_rows
+    }
+
+    for update in provenance_updates:
+        digest = update.get("digest")
+        if not digest:
+            continue
+        merged = merged_by_digest.setdefault(
+            digest,
+            {"digest": digest, **dict.fromkeys(PROVENANCE_FIELDS)},
+        )
+        for field in PROVENANCE_UPDATE_FIELDS:
+            value = update.get(field)
+            if value is not None:
+                merged[field] = value
+        # These fields are digest-level provenance. Keep existing non-null values
+        # so a later ref without equivalent metadata does not erase or replace
+        # provenance discovered through another ref for the same digest.
+        for field in PROVENANCE_SOURCE_FIELDS:
+            value = update.get(field)
+            if merged.get(field) is None and value is not None:
+                merged[field] = value
+
+    return list(merged_by_digest.values())
+
+
+@timeit
+def load_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not provenance_updates:
+        return
+
+    merged_updates = _merge_existing_image_provenance(
+        neo4j_session,
+        provenance_updates,
+    )
+    load_nodes_without_relationships(
+        neo4j_session,
+        GCPArtifactRegistryImageProvenanceSchema(),
+        merged_updates,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image provenance updates for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+    parent_updates = [
+        {
+            **update,
+            "from_sbom": True,
+            "confidence": "explicit",
+        }
+        for update in merged_updates
+        if update.get("parent_image_digest")
+        and update.get("parent_image_uri")
+        and update.get("parent_image_digest") != update.get("digest")
+    ]
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageBuiltFromMatchLink(),
+        parent_updates,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image BUILT_FROM relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+
+@timeit
+def load_image_layers(
+    neo4j_session: neo4j.Session,
+    layer_dicts: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    if not layer_dicts:
+        return
+
+    schema = GCPArtifactRegistryImageLayerSchema()
+    load_nodes_without_relationships(
+        neo4j_session,
+        schema,
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer nodes for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryProjectToImageLayerRel(),
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer project RESOURCE relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -455,32 +1214,33 @@ def sync(
     if enrichments:
         provenance_updates = [
             {
-                "id": e["id"],
+                "digest": e["digest"],
+                "type": e.get("type", "image"),
+                "media_type": e.get("media_type"),
                 "source_uri": e.get("source_uri"),
                 "source_revision": e.get("source_revision"),
                 "source_file": e.get("source_file"),
+                "parent_image_uri": e.get("parent_image_uri"),
+                "parent_image_digest": e.get("parent_image_digest"),
                 "layer_diff_ids": e.get("layer_diff_ids"),
+                "architecture": e.get("architecture"),
+                "os": e.get("os"),
+                "os_version": e.get("os_version"),
+                "os_features": e.get("os_features"),
+                "variant": e.get("variant"),
             }
             for e in enrichments
         ]
-        load(
+        load_image_provenance(
             neo4j_session,
-            GCPArtifactRegistryContainerImageProvenanceSchema(),
             provenance_updates,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
+            project_id,
+            update_tag,
         )
 
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
-        logger.info("Loading %d image layer nodes", len(layer_dicts))
-        load(
-            neo4j_session,
-            GCPArtifactRegistryImageLayerSchema(),
-            layer_dicts,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
-        )
+        load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs
@@ -489,32 +1249,51 @@ def sync(
     # re-fetch this run. We still run cleanup when enrichments is empty (e.g.,
     # all images deleted, or no enrichable artifacts left), so orphan layer
     # nodes do not accumulate.
-    if cleanup_safe and fetch_failures == 0:
+    skip_reasons = []
+    if not cleanup_safe:
+        skip_reasons.append("artifact discovery was incomplete")
+    if fetch_failures:
+        skip_reasons.append(f"{fetch_failures} image(s) failed to enrich")
+
+    if skip_reasons:
+        logger.warning(
+            "Skipping image layer cleanup for project %s: %s.",
+            project_id,
+            "; ".join(skip_reasons),
+        )
+    else:
         cleanup_params = common_job_parameters.copy()
         cleanup_params["PROJECT_ID"] = project_id
         GraphJob.from_node_schema(
             GCPArtifactRegistryImageLayerSchema(),
             cleanup_params,
         ).run(neo4j_session)
-    elif not cleanup_safe:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because artifact discovery was incomplete.",
+        # The split write path attaches these relationships with MatchLinks, so
+        # clean them explicitly after node cleanup has used project RESOURCE
+        # edges to scope stale layer-node deletion.
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryProjectToImageLayerRel(),
+            "GCPProject",
             project_id,
-        )
-    else:
-        logger.warning(
-            "Skipping image layer cleanup for project %s because %d image(s) failed to enrich.",
+            update_tag,
+        ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageBuiltFromMatchLink(),
+            "GCPProject",
             project_id,
-            fetch_failures,
-        )
+            update_tag,
+        ).run(neo4j_session)
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
+    parent_count = sum(1 for e in enrichments if e.get("parent_image_digest"))
     layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
     logger.info(
         "Completed supply chain sync for GCP project %s: "
-        "%d images with provenance, %d with layer data, %d unique layers",
+        "%d images with source provenance, %d with parent image lineage, "
+        "%d with layer data, %d unique layers",
         project_id,
         provenance_count,
+        parent_count,
         layer_count,
         len(layer_dicts),
     )

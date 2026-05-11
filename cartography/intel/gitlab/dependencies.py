@@ -4,6 +4,7 @@ GitLab Dependencies Intelligence Module
 Fetches and parses individual dependencies from dependency scanning job artifacts.
 """
 
+import gzip
 import io
 import json
 import logging
@@ -33,18 +34,23 @@ DEFAULT_DEPENDENCY_SCAN_JOB_NAMES = frozenset(
         AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME,
     )
 )
+DEPENDENCY_SCAN_JOBS_PER_PAGE = 100
+CYCLONEDX_ARTIFACT_SUFFIXES = (".cdx.json", ".cdx.json.gz")
 
 
 def _select_dependency_scan_job(
     jobs: list[dict[str, Any]],
     dependency_scan_job_name: str | None,
+    default_branch: str | None = None,
 ) -> dict[str, Any] | None:
     """
     Select the latest dependency scan job from successful jobs.
 
     If no custom job name is configured, support all known GitLab dependency
     scan job names (default + AutoDevOps language-specific names). For any
-    custom job name, only that specific name is matched.
+    custom job name, only that specific name is matched. Prefer jobs that ran
+    on the project default branch so branch-scoped dependency data wins over
+    newer merge request or feature branch jobs.
     """
     candidate_names: set[str] | frozenset[str]
     if dependency_scan_job_name is None:
@@ -52,10 +58,165 @@ def _select_dependency_scan_job(
     else:
         candidate_names = {dependency_scan_job_name}
 
-    for job in jobs:
-        if job.get("name") in candidate_names:
-            return job
-    return None
+    matching_jobs = [job for job in jobs if job.get("name") in candidate_names]
+    if not matching_jobs:
+        return None
+
+    if default_branch:
+        for job in matching_jobs:
+            if job.get("ref") == default_branch:
+                return job
+
+    return matching_jobs[0]
+
+
+def _get_successful_jobs(
+    gitlab_url: str,
+    headers: dict[str, str],
+    project_id: int,
+) -> list[dict[str, Any]]:
+    jobs: list[dict[str, Any]] = []
+    jobs_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs"
+    page = 1
+
+    while True:
+        params: dict[str, Any] = {
+            "page": page,
+            "per_page": DEPENDENCY_SCAN_JOBS_PER_PAGE,
+            "scope[]": ["success"],
+        }
+        response = make_request_with_retry("GET", jobs_url, headers, params)
+        response.raise_for_status()
+        check_rate_limit_remaining(response)
+
+        page_jobs = response.json()
+        if not page_jobs:
+            break
+
+        jobs.extend(page_jobs)
+
+        next_page = response.headers.get("X-Next-Page")
+        if not next_page:
+            break
+        page = int(next_page)
+
+    return jobs
+
+
+def _is_cyclonedx_artifact(path: str) -> bool:
+    filename = path.rsplit("/", 1)[-1]
+    return filename in {
+        "gl-sbom.cdx.json",
+        "gl-sbom.cdx.json.gz",
+    } or (
+        filename.startswith("gl-sbom-")
+        and filename.endswith(CYCLONEDX_ARTIFACT_SUFFIXES)
+    )
+
+
+def _load_cyclonedx_json(content: bytes, path: str) -> dict[str, Any]:
+    if path.endswith(".gz"):
+        content = gzip.decompress(content)
+    return json.loads(content.decode("utf-8"))
+
+
+def _parse_cyclonedx_artifact(
+    content: bytes,
+    path: str,
+    dependency_files: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    report_data = _load_cyclonedx_json(content, path)
+    return _parse_cyclonedx_sbom(report_data, dependency_files)
+
+
+def _parse_cyclonedx_artifacts_zip(
+    content: bytes,
+    dependency_files: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    all_dependencies: list[dict[str, Any]] = []
+    with zipfile.ZipFile(io.BytesIO(content)) as artifacts_zip:
+        cdx_files = [f for f in artifacts_zip.namelist() if _is_cyclonedx_artifact(f)]
+
+        if not cdx_files:
+            logger.debug("No CycloneDX SBOM files found in artifacts archive.")
+            logger.debug("Available files: %s", artifacts_zip.namelist())
+            return []
+
+        for cdx_file in cdx_files:
+            logger.debug("Parsing CycloneDX SBOM file: %s", cdx_file)
+            with artifacts_zip.open(cdx_file) as report_file:
+                all_dependencies.extend(
+                    _parse_cyclonedx_artifact(
+                        report_file.read(),
+                        cdx_file,
+                        dependency_files,
+                    )
+                )
+
+    return all_dependencies
+
+
+def _get_dependency_scan_artifact_paths(job: dict[str, Any]) -> list[str]:
+    artifact_paths: list[str] = []
+    for artifact in job.get("artifacts") or []:
+        path = artifact.get("filename")
+        if path and _is_cyclonedx_artifact(path):
+            artifact_paths.append(path)
+    return artifact_paths
+
+
+def _download_raw_cyclonedx_artifacts(
+    gitlab_url: str,
+    headers: dict[str, str],
+    project_id: int,
+    job_id: int,
+    artifact_paths: list[str],
+    dependency_files: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    all_dependencies: list[dict[str, Any]] = []
+    for artifact_path in artifact_paths:
+        artifacts_url = (
+            f"{gitlab_url}/api/v4/projects/{project_id}/jobs/"
+            f"{job_id}/artifacts/{artifact_path}"
+        )
+        response = make_request_with_retry("GET", artifacts_url, headers)
+        if response.status_code == 404:
+            logger.debug(
+                "CycloneDX artifact %s was listed for job ID %s but is not downloadable.",
+                artifact_path,
+                job_id,
+            )
+            continue
+        if response.status_code in (401, 403):
+            _log_artifact_permission_warning(project_id, job_id, response.status_code)
+            return []
+        response.raise_for_status()
+        check_rate_limit_remaining(response)
+        all_dependencies.extend(
+            _parse_cyclonedx_artifact(
+                response.content,
+                artifact_path,
+                dependency_files,
+            )
+        )
+
+    return all_dependencies
+
+
+def _log_artifact_permission_warning(
+    project_id: int,
+    job_id: int | None,
+    status_code: int,
+) -> None:
+    logger.warning(
+        "GitLab returned %s while downloading dependency scanning artifacts for "
+        "project ID %s job ID %s. Ensure the token user can download CI job "
+        "artifacts for this project; artifacts:access restrictions may require "
+        "Developer or Maintainer access.",
+        status_code,
+        project_id,
+        job_id,
+    )
 
 
 def get_dependencies(
@@ -69,8 +230,8 @@ def get_dependencies(
     """
     Fetch dependencies from the latest dependency scanning job artifacts.
 
-    Finds the most recent successful dependency scanning job, downloads its artifacts,
-    and parses the dependency scanning report.
+    Finds a successful dependency scanning job, downloads its artifacts by job ID,
+    and parses CycloneDX dependency scanning reports.
 
     Uses retry logic with exponential backoff for rate limiting and transient errors.
 
@@ -96,23 +257,17 @@ def get_dependencies(
         f"Fetching dependencies from scanning artifacts for project ID {project_id}"
     )
 
-    # Find the latest successful dependency scanning job
-    jobs_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs"
-    params: dict[str, Any] = {
-        "per_page": 10,
-        "scope[]": ["success"],
-    }
-
     job_id: int | None = None
     dep_scan_job: dict[str, Any] | None = None
     try:
-        response = make_request_with_retry("GET", jobs_url, headers, params)
-        response.raise_for_status()
-        check_rate_limit_remaining(response)
-        jobs = response.json()
+        jobs = _get_successful_jobs(gitlab_url, headers, project_id)
 
         # Find the most recent dependency scanning job matching the configured name
-        dep_scan_job = _select_dependency_scan_job(jobs, dependency_scan_job_name)
+        dep_scan_job = _select_dependency_scan_job(
+            jobs,
+            dependency_scan_job_name,
+            default_branch,
+        )
 
         if not dep_scan_job:
             configured_job_name = (
@@ -129,9 +284,10 @@ def get_dependencies(
         job_id = dep_scan_job.get("id")
         job_name = dep_scan_job.get("name", DEFAULT_DEPENDENCY_SCAN_JOB_NAME)
         logger.debug(
-            "Found dependency scanning job '%s' (ID %s) for project ID %s",
+            "Found dependency scanning job '%s' (ID %s, ref %s) for project ID %s",
             job_name,
             job_id,
+            dep_scan_job.get("ref"),
             project_id,
         )
 
@@ -143,73 +299,74 @@ def get_dependencies(
     if not dep_scan_job:
         return []
 
-    artifacts_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs/artifacts/{default_branch}/download"
-    params_artifacts: dict[str, str] = {"job": dep_scan_job["name"]}
+    if job_id is None:
+        logger.info(
+            "Dependency scanning job for project ID %s did not include a job ID.",
+            project_id,
+        )
+        return []
+
+    artifacts_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs/{job_id}/artifacts"
 
     logger.debug(
-        f"Downloading artifacts from branch '{default_branch}' for project ID {project_id}"
+        "Downloading artifacts for project ID %s job ID %s", project_id, job_id
     )
 
     try:
-        response = make_request_with_retry(
-            "GET", artifacts_url, headers, params_artifacts
-        )
+        response = make_request_with_retry("GET", artifacts_url, headers)
 
         logger.debug(f"Artifacts download response status: {response.status_code}")
 
         if response.status_code == 404:
             logger.info(
-                "No artifacts found for dependency scanning job in project %s",
+                "No artifacts found for dependency scanning job in project ID %s",
                 project_id,
             )
             return []
 
-        if response.status_code == 401:
-            # Auth errors are systemic - fail fast rather than silently skipping
-            raise requests.exceptions.HTTPError(
-                "Unauthorized (401) - token may need 'api' or 'read_api' scope",
-                response=response,
-            )
+        if response.status_code in (401, 403):
+            _log_artifact_permission_warning(project_id, job_id, response.status_code)
+            return []
 
         response.raise_for_status()
         check_rate_limit_remaining(response)
 
-        # The response is a ZIP file containing the artifacts
-        artifacts_zip = zipfile.ZipFile(io.BytesIO(response.content))
-
-        # Find and parse CycloneDX SBOM files (gl-sbom-*.cdx.json)
-        # GitLab now uses CycloneDX format instead of the old gl-dependency-scanning-report.json
-        cdx_files = [
-            f
-            for f in artifacts_zip.namelist()
-            if f.startswith("gl-sbom-") and f.endswith(".cdx.json")
-        ]
-
-        if not cdx_files:
-            logger.debug(
-                f"No CycloneDX SBOM files found in artifacts for project ID {project_id}"
+        try:
+            all_dependencies = _parse_cyclonedx_artifacts_zip(
+                response.content,
+                dependency_files,
             )
-            logger.debug(f"Available files: {artifacts_zip.namelist()}")
-            return []
+        except zipfile.BadZipFile:
+            all_dependencies = _parse_cyclonedx_artifact(
+                response.content,
+                (
+                    "gl-sbom.cdx.json.gz"
+                    if response.content.startswith(b"\x1f\x8b")
+                    else "gl-sbom.cdx.json"
+                ),
+                dependency_files,
+            )
 
-        # Parse all CycloneDX files (there may be multiple for different package managers)
-        all_dependencies: list[dict[str, Any]] = []
-        for cdx_file in cdx_files:
-            logger.debug(f"Parsing CycloneDX SBOM file: {cdx_file}")
-            with artifacts_zip.open(cdx_file) as report_file:
-                report_data = json.load(report_file)
-                deps = _parse_cyclonedx_sbom(report_data, dependency_files)
-                all_dependencies.extend(deps)
+        if not all_dependencies:
+            artifact_paths = _get_dependency_scan_artifact_paths(dep_scan_job)
+            all_dependencies = _download_raw_cyclonedx_artifacts(
+                gitlab_url,
+                headers,
+                project_id,
+                job_id,
+                artifact_paths,
+                dependency_files,
+            )
 
         logger.debug(
-            f"Successfully parsed {len(cdx_files)} CycloneDX SBOM file(s) for project ID {project_id}"
+            "Successfully parsed %s dependencies from CycloneDX SBOM artifact(s) "
+            "for project ID %s",
+            len(all_dependencies),
+            project_id,
         )
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading artifacts for job ID {job_id}: {e}")
-        return []
-    except zipfile.BadZipFile as e:
-        logger.error(f"Invalid ZIP file for job ID {job_id}: {e}")
         return []
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in CycloneDX SBOM: {e}")

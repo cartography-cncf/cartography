@@ -49,6 +49,7 @@ class CloudRunServiceToContainerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class CloudRunServiceToContainerRel(CartographyRelSchema):
     target_node_label: str = "GCPCloudRunService"
@@ -59,6 +60,27 @@ class CloudRunServiceToContainerRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: CloudRunServiceToContainerRelProperties = (
         CloudRunServiceToContainerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunServiceContainerToServiceWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPCloudRunServiceContainer)-[:WORKLOAD_PARENT]->(:GCPCloudRunService)
+class CloudRunServiceContainerToServiceWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "GCPCloudRunService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("service_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: CloudRunServiceContainerToServiceWorkloadParentRelProperties = (
+        CloudRunServiceContainerToServiceWorkloadParentRelProperties()
     )
 
 
@@ -101,42 +123,22 @@ class CloudRunServiceContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties(
+class CloudRunServiceContainerToArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+class CloudRunServiceContainerToArtifactRegistryImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: (
-        CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties
-    ) = CloudRunServiceContainerToArtifactRegistryContainerImageRelProperties()
-
-
-@dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunServiceContainerToArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties = (
-        CloudRunServiceContainerToArtifactRegistryPlatformImageRelProperties()
+    properties: CloudRunServiceContainerToArtifactRegistryImageRelProperties = (
+        CloudRunServiceContainerToArtifactRegistryImageRelProperties()
     )
 
 
@@ -153,9 +155,9 @@ class GCPCloudRunServiceContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunServiceToContainerRel(),
+            CloudRunServiceContainerToServiceWorkloadParentRel(),
             CloudRunServiceContainerToECRImageRel(),
             CloudRunServiceContainerToGitLabContainerImageRel(),
-            CloudRunServiceContainerToArtifactRegistryContainerImageRel(),
-            CloudRunServiceContainerToArtifactRegistryPlatformImageRel(),
+            CloudRunServiceContainerToArtifactRegistryImageRel(),
         ],
     )

@@ -30,7 +30,45 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "pod_id": pod.metadata.uid,
             "image_pull_policy": container.image_pull_policy,
             "architecture_normalized": node_arch,
+            "allow_privilege_escalation": None,
+            "run_as_non_root": None,
+            "run_as_user": None,
+            "seccomp_profile_type": None,
+            "added_capabilities": [],
+            "dropped_capabilities": [],
+            "host_ports": [],
         }
+
+        security_context = getattr(container, "security_context", None)
+        if security_context:
+            containers[container.name]["allow_privilege_escalation"] = getattr(
+                security_context, "allow_privilege_escalation", None
+            )
+            containers[container.name]["run_as_non_root"] = getattr(
+                security_context, "run_as_non_root", None
+            )
+            containers[container.name]["run_as_user"] = getattr(
+                security_context, "run_as_user", None
+            )
+
+            if getattr(security_context, "seccomp_profile", None):
+                containers[container.name]["seccomp_profile_type"] = getattr(
+                    security_context.seccomp_profile, "type", None
+                )
+
+            if getattr(security_context, "capabilities", None):
+                containers[container.name]["added_capabilities"] = sorted(
+                    security_context.capabilities.add or []
+                )
+                containers[container.name]["dropped_capabilities"] = sorted(
+                    security_context.capabilities.drop or []
+                )
+
+        ports = getattr(container, "ports", None)
+        if ports:
+            containers[container.name]["host_ports"] = sorted(
+                [port.host_port for port in ports if port.host_port is not None]
+            )
 
         # Extract resource requests and limits
         if container.resources:
@@ -166,6 +204,26 @@ def transform_pods(
                 "deletion_timestamp": get_epoch(pod.metadata.deletion_timestamp),
                 "namespace": pod.metadata.namespace,
                 "service_account_name": service_account_name,
+                "automount_service_account_token": getattr(
+                    pod.spec, "automount_service_account_token", None
+                ),
+                "host_pid": getattr(pod.spec, "host_pid", None),
+                "host_ipc": getattr(pod.spec, "host_ipc", None),
+                "host_network": getattr(pod.spec, "host_network", None),
+                "seccomp_profile_type": (
+                    getattr(pod.spec.security_context.seccomp_profile, "type", None)
+                    if getattr(pod.spec, "security_context", None)
+                    and getattr(pod.spec.security_context, "seccomp_profile", None)
+                    else None
+                ),
+                "host_path_volume_paths": sorted(
+                    [
+                        volume.host_path.path
+                        for volume in (pod.spec.volumes or [])
+                        if getattr(volume, "host_path", None)
+                        and getattr(volume.host_path, "path", None)
+                    ]
+                ),
                 "service_account_id": (
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),

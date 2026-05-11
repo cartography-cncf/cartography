@@ -29,6 +29,9 @@ class GCPBucketNodeProperties(CartographyNodeProperties):
     iam_config_bucket_policy_only: PropertyRef = PropertyRef(
         "iam_config_bucket_policy_only"
     )
+    iam_config_public_access_prevention: PropertyRef = PropertyRef(
+        "iam_config_public_access_prevention"
+    )
     owner_entity: PropertyRef = PropertyRef("owner_entity")
     owner_entity_id: PropertyRef = PropertyRef("owner_entity_id")
     versioning_enabled: PropertyRef = PropertyRef("versioning_enabled")

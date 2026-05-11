@@ -3,6 +3,7 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Set
 
@@ -94,6 +95,11 @@ service_names = Services(
 )
 
 
+class GCPProjectResourcesSyncResult(NamedTuple):
+    policy_bindings_cleanup_safe: bool
+    policy_bindings_cleanup_skip_reason: str | None = None
+
+
 def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
     """
     Return a list of all Google API services that are enabled on the given project ID.
@@ -139,7 +145,7 @@ def _sync_project_resources(
     credentials: GoogleCredentials,
     requested_syncs: Set[str] | None = None,
     org_role_permissions_by_name: dict[str, list[str]] | None = None,
-) -> None:
+) -> GCPProjectResourcesSyncResult:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
     :param neo4j_session: The Neo4j session
@@ -148,9 +154,17 @@ def _sync_project_resources(
     :param common_job_parameters: Other parameters sent to Neo4j
     :param credentials: GCP credentials to use for API calls.
     :param requested_syncs: Optional set of resource names to sync. If None, all resources are synced.
-    :return: Nothing
+    :return: Summary of project resource sync state needed by org-scoped follow-up cleanup.
     """
     logger.info("Syncing resources for %d GCP projects.", len(projects))
+    policy_bindings_requested = (
+        requested_syncs is None or "policy_bindings" in requested_syncs
+    )
+    policy_bindings_cleanup_safe = policy_bindings_requested and len(projects) > 0
+    policy_bindings_cleanup_skip_reason = (
+        "no_projects" if policy_bindings_requested and not projects else None
+    )
+    inherited_binding_claim_state = policy_bindings.InheritedPolicyBindingClaimState()
 
     # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
     # CAI is used for:
@@ -197,6 +211,10 @@ def _sync_project_resources(
         # Only run IAM cleanup if sync succeeded to avoid deleting valid data
         # when both IAM API is disabled and CAI fallback fails.
         iam_sync_succeeded = False
+        # Reset per-project: key sync only runs in the IAM API path. The flag
+        # is set by iam.sync; default False guards against leaking the flag
+        # across projects when this project takes the CAI fallback.
+        common_job_parameters["_iam_keys_sync_complete"] = False
 
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
@@ -625,9 +643,6 @@ def _sync_project_resources(
         # Policy bindings sync uses CAI gRPC client.
         # Runs after all resource modules so that APPLIES_TO matchlinks can find
         # target nodes (secretsmanager, artifact_registry, cloud_run, etc.).
-        policy_bindings_requested = (
-            requested_syncs is None or "policy_bindings" in requested_syncs
-        )
         if policy_bindings_requested:
             if policy_bindings_permission_ok is False:
                 policy_bindings_status = (
@@ -676,6 +691,7 @@ def _sync_project_resources(
                     common_job_parameters,
                     cai_grpc_client,
                     role_permissions_by_name,
+                    inherited_binding_claim_state,
                 )
                 policy_bindings_status = policy_bindings_result.status
                 permission_context = policy_bindings_result.permission_context
@@ -686,6 +702,12 @@ def _sync_project_resources(
                     == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
                 ):
                     policy_bindings_permission_ok = False
+            if (
+                policy_bindings_status
+                != policy_bindings.PolicyBindingsSyncStatus.SUCCESS
+            ):
+                policy_bindings_cleanup_safe = False
+                policy_bindings_cleanup_skip_reason = "project_sync_incomplete"
 
         permission_relationships_requested = (
             requested_syncs is None or "permission_relationships" in requested_syncs
@@ -724,6 +746,18 @@ def _sync_project_resources(
         # when sync was skipped due to permission issues.
         if iam_sync_succeeded:
             logger.debug(f"Running cleanup for IAM resources in project {project_id}")
+            # Only clean up keys when iam.sync ran and every SA's keys were
+            # enumerated cleanly. The CAI fallback does not sync keys, so it
+            # leaves the flag at False — which correctly preserves any keys
+            # ingested by previous IAM-API-path runs.
+            if common_job_parameters.get("_iam_keys_sync_complete", False):
+                iam.cleanup_service_account_keys(neo4j_session, common_job_parameters)
+            else:
+                logger.warning(
+                    "Skipping GCP service account key cleanup for project %s: "
+                    "key enumeration was incomplete or did not run.",
+                    project_id,
+                )
             iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
             iam.cleanup_project_roles(neo4j_session, common_job_parameters)
         else:
@@ -748,6 +782,11 @@ def _sync_project_resources(
             )
 
         del common_job_parameters["PROJECT_ID"]
+
+    return GCPProjectResourcesSyncResult(
+        policy_bindings_cleanup_safe=policy_bindings_cleanup_safe,
+        policy_bindings_cleanup_skip_reason=policy_bindings_cleanup_skip_reason,
+    )
 
 
 @timeit
@@ -885,7 +924,7 @@ def start_gcp_ingestion(
             org_role_permissions_by_name = {}
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
-        _sync_project_resources(
+        project_resources_result = _sync_project_resources(
             neo4j_session,
             projects,
             config.update_tag,
@@ -894,6 +933,34 @@ def start_gcp_ingestion(
             requested_syncs=requested_syncs,
             org_role_permissions_by_name=org_role_permissions_by_name,
         )
+
+        policy_bindings_requested = (
+            requested_syncs is None or "policy_bindings" in requested_syncs
+        )
+        if project_resources_result.policy_bindings_cleanup_safe:
+            policy_bindings.cleanup_inherited_policy_bindings(
+                neo4j_session,
+                common_job_parameters,
+                [folder["name"] for folder in folders if folder.get("name")],
+            )
+        elif policy_bindings_requested:
+            if (
+                project_resources_result.policy_bindings_cleanup_skip_reason
+                == "no_projects"
+            ):
+                logger.info(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "no GCP projects were discovered. Preserving existing inherited "
+                    "policy bindings.",
+                    org_resource_name,
+                )
+            else:
+                logger.warning(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "not every project policy bindings sync succeeded. Preserving "
+                    "existing inherited policy bindings.",
+                    org_resource_name,
+                )
 
         # Clean up org-level roles for this org (after all project resources have been synced)
         if (

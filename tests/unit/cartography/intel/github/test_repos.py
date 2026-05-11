@@ -317,6 +317,7 @@ def test_build_branch_data_includes_owner_org_id():
     ]
 
 
+@patch.object(cartography.intel.github.repos, "run_analysis_job")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
 @patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
 @patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
@@ -352,6 +353,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_github_dependencies,
     mock_cleanup_github_manifests,
     mock_cleanup_branch_protection_rules,
+    mock_run_analysis_job,
 ):
     cartography.intel.github.repos.sync(
         None,
@@ -371,20 +373,18 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_github_owners.assert_not_called()
     mock_cleanup_github_collaborators.assert_not_called()
     mock_cleanup_python_requirements.assert_not_called()
-    mock_cleanup_github_dependencies.assert_called_once_with(
-        None,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-        [],
-    )
+    # cleanup_github_dependencies runs in cleanup_global_resources (once per
+    # sync cycle), not from per-org sync(); see GitHubDependencySchema.
+    mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
-        [],
+        "https://github.com/example-org",
     )
     mock_cleanup_branch_protection_rules.assert_called_once_with(
         None,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
-        [],
+        "https://github.com/example-org",
     )
 
 
@@ -393,6 +393,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     "get_repo_privileged_details_by_url",
     side_effect=ValueError("privileged fetch failed"),
 )
+@patch.object(cartography.intel.github.repos, "run_analysis_job")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
 @patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
 @patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
@@ -422,6 +423,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_dependencies,
     mock_cleanup_github_manifests,
     mock_cleanup_branch_protection_rules,
+    mock_run_analysis_job,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
@@ -451,6 +453,8 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_owners.assert_not_called()
     mock_cleanup_github_collaborators.assert_not_called()
     mock_cleanup_python_requirements.assert_not_called()
-    mock_cleanup_github_dependencies.assert_called_once()
+    # cleanup_github_dependencies runs in cleanup_global_resources (once per
+    # sync cycle), not from per-org sync(); see GitHubDependencySchema.
+    mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()

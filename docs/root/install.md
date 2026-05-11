@@ -193,7 +193,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
 
-1. **Run Neo4j graph database version 5.x or higher.**
+1. **Run Neo4j graph database version 5.23 or higher.** Cartography emits scoped subqueries (`CALL (var) { ... }`) that earlier 5.x releases do not support.
 
     1. We recommend running Neo4j as a Docker container so that you save time and don't need to install Java. Run `docker run --publish=7474:7474 --publish=7687:7687 -v data:/data --env=NEO4J_AUTH=none neo4j:5-community`.
 
@@ -203,7 +203,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
             ⚠️ Make sure you have the `JAVA_HOME` environment variable set. The following works for Mac OS: `export JAVA_HOME=$(/usr/libexec/java_home)`
 
-        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.\*.
+        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.23 or higher.
 
         1. [Install](https://neo4j.com/docs/operations-manual/current/installation/) Neo4j.
 
@@ -221,9 +221,21 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
 
-1. **Install cartography to the current Python virtual environment with `pip install cartography`.**
+1. **Install cartography with [uv](https://docs.astral.sh/uv/).**
 
-    We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.
+    Cartography uses uv for development and CI. We recommend it for installation as well: it manages an isolated environment for you and is significantly faster than pip.
+
+    ```bash
+    # Install uv if you don't have it (see https://docs.astral.sh/uv/getting-started/installation/ for alternatives).
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Install cartography as an isolated tool exposed on your PATH.
+    uv tool install cartography
+    ```
+
+    Use `uv tool upgrade cartography` to pull in new releases.
+
+    If you prefer pip, `pip install cartography` still works inside a venv. See the [Python packaging guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments) for venv setup with `pyenv` / `pyenv-virtualenv`.
 
 1. **Configure your data sources.**
 

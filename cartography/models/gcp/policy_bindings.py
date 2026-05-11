@@ -21,6 +21,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource: PropertyRef = PropertyRef("resource")
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
+    is_public: PropertyRef = PropertyRef("is_public")
     has_condition: PropertyRef = PropertyRef("has_condition")
     condition_title: PropertyRef = PropertyRef("condition_title")
     condition_expression: PropertyRef = PropertyRef("condition_expression")
@@ -28,7 +29,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPPolicyBindingToProjectRelProperties(CartographyRelProperties):
+class GCPPolicyBindingResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -40,8 +41,34 @@ class GCPPolicyBindingToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPPolicyBindingToProjectRelProperties = (
-        GCPPolicyBindingToProjectRelProperties()
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "GCPOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_RESOURCE_NAME", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToFolderRel(CartographyRelSchema):
+    target_node_label: str = "GCPFolder"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FOLDER_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
     )
 
 
@@ -87,6 +114,36 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
     properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
     sub_resource_relationship: GCPPolicyBindingToProjectRel = (
         GCPPolicyBindingToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToRoleRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
+    label: str = "GCPPolicyBinding"
+    properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
+    sub_resource_relationship: GCPPolicyBindingToOrganizationRel = (
+        GCPPolicyBindingToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToRoleRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
+    label: str = "GCPPolicyBinding"
+    properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
+    sub_resource_relationship: GCPPolicyBindingToFolderRel = (
+        GCPPolicyBindingToFolderRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

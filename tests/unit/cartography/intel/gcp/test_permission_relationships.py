@@ -98,14 +98,14 @@ def test_build_principals_from_policy_bindings_uses_in_memory_role_permissions()
             "binding-3": {
                 "permissions": ["storage\\.objects\\.create"],
                 "denied_permissions": [],
-                "scope": "project/project-abc/resource/bucket-3",
+                "scope": "project/project-abc/resource/buckets/bucket-3",
             },
         },
         "bob@example.com": {
             "binding-2": {
                 "permissions": ["storage\\.objects\\.get"],
                 "denied_permissions": [],
-                "scope": "project/project-abc/resource/bucket-2",
+                "scope": "project/project-abc/resource/buckets/bucket-2",
             },
         },
     }
@@ -161,7 +161,7 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
             "binding-2": {
                 "permissions": ["storage\\.objects\\.get"],
                 "denied_permissions": [],
-                "scope": "project/project-abc/resource/bucket-2",
+                "scope": "project/project-abc/resource/buckets/bucket-2",
             },
         },
     }
@@ -208,7 +208,7 @@ def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_b
         patch.object(
             permission_relationships,
             "resolve_gcp_scope",
-            return_value="project/project-abc/resource/shared-bucket",
+            return_value="project/project-abc/resource/buckets/shared-bucket",
         ),
         patch.object(
             permission_relationships,
@@ -224,7 +224,7 @@ def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_b
 
     mock_compile_permissions.assert_called_once_with(["storage.objects.get"])
     mock_compile_scope.assert_called_once_with(
-        "project/project-abc/resource/shared-bucket"
+        "project/project-abc/resource/buckets/shared-bucket"
     )
     assert (
         principals["alice@example.com"]["binding-1"]["permissions"]
@@ -238,6 +238,40 @@ def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_b
     assert principals["bob@example.com"]["binding-1"]["scope"] is compiled_scope
 
 
+@pytest.mark.parametrize(
+    "target_label,resource_id,expected",
+    [
+        # Default: id is already the path used in IAM scope strings.
+        (
+            "GCPCryptoKey",
+            "projects/p/locations/us/keyRings/kr/cryptoKeys/k",
+            "projects/p/locations/us/keyRings/kr/cryptoKeys/k",
+        ),
+        # GCS buckets: bare name needs a "buckets/" prefix.
+        ("GCPBucket", "my-bucket", "buckets/my-bucket"),
+        # BigQuery dataset: legacy "project:dataset" -> path form.
+        (
+            "GCPBigQueryDataset",
+            "my-project:analytics",
+            "projects/my-project/datasets/analytics",
+        ),
+        # BigQuery table: legacy "project:dataset.table" -> path form.
+        (
+            "GCPBigQueryTable",
+            "my-project:analytics.events",
+            "projects/my-project/datasets/analytics/tables/events",
+        ),
+        # BigQuery dataset with no ":" (defensive: leave as-is).
+        ("GCPBigQueryDataset", "already-fine", "already-fine"),
+    ],
+)
+def test_canonical_resource_path(target_label, resource_id, expected):
+    assert (
+        permission_relationships._canonical_resource_path(target_label, resource_id)
+        == expected
+    )
+
+
 def test_iter_permission_relationship_batches_preserves_matches():
     principals = {
         "alice@example.com": _build_policy_bindings(
@@ -246,13 +280,13 @@ def test_iter_permission_relationship_batches_preserves_matches():
         ),
         "bob@example.com": _build_policy_bindings(
             ["storage.objects.get"],
-            "project/project-abc/resource/bucket-2",
+            "project/project-abc/resource/buckets/bucket-2",
         ),
     }
     resource_dict = {
-        "bucket-1": "project/project-abc/resource/bucket-1",
-        "bucket-2": "project/project-abc/resource/bucket-2",
-        "bucket-3": "project/project-abc/resource/bucket-3",
+        "bucket-1": "project/project-abc/resource/buckets/bucket-1",
+        "bucket-2": "project/project-abc/resource/buckets/bucket-2",
+        "bucket-3": "project/project-abc/resource/buckets/bucket-3",
     }
     permissions = ["storage.objects.get"]
 
@@ -283,9 +317,9 @@ def test_sync_loads_permission_relationships_in_multiple_batches(monkeypatch):
         ),
     }
     resource_dict = {
-        "bucket-1": "project/project-abc/resource/bucket-1",
-        "bucket-2": "project/project-abc/resource/bucket-2",
-        "bucket-3": "project/project-abc/resource/bucket-3",
+        "bucket-1": "project/project-abc/resource/buckets/bucket-1",
+        "bucket-2": "project/project-abc/resource/buckets/bucket-2",
+        "bucket-3": "project/project-abc/resource/buckets/bucket-3",
     }
     relationship_mapping = [
         {
@@ -348,8 +382,8 @@ def test_sync_skips_cleanup_when_batch_load_fails(monkeypatch):
         ),
     }
     resource_dict = {
-        "bucket-1": "project/project-abc/resource/bucket-1",
-        "bucket-2": "project/project-abc/resource/bucket-2",
+        "bucket-1": "project/project-abc/resource/buckets/bucket-1",
+        "bucket-2": "project/project-abc/resource/buckets/bucket-2",
     }
     relationship_mapping = [
         {

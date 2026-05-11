@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -14,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CodeBuildProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     created: PropertyRef = PropertyRef("created")
     environment_variables: PropertyRef = PropertyRef("environmentVariables")
@@ -44,6 +46,7 @@ class CodeBuildProjectToAWSAccountRel(CartographyRelSchema):
 class CodeBuildProjectSchema(CartographyNodeSchema):
     label: str = "CodeBuildProject"
     properties: CodeBuildProjectNodeProperties = CodeBuildProjectNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CICDPipeline"])
     sub_resource_relationship: CodeBuildProjectToAWSAccountRel = (
         CodeBuildProjectToAWSAccountRel()
     )

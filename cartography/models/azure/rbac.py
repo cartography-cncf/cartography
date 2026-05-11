@@ -21,7 +21,7 @@ class AzureRoleAssignmentProperties(CartographyNodeProperties):
     principal_id: PropertyRef = PropertyRef("principalId")
     principal_type: PropertyRef = PropertyRef("principalType")
     role_definition_id: PropertyRef = PropertyRef("roleDefinitionId")
-    scope: PropertyRef = PropertyRef("scope")
+    scope: PropertyRef = PropertyRef("scope", extra_index=True)
     scope_type: PropertyRef = PropertyRef("scopeType")
     created_on: PropertyRef = PropertyRef("createdOn")
     updated_on: PropertyRef = PropertyRef("updatedOn")

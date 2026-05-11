@@ -9,6 +9,8 @@ DESCRIBE_SERVERS = [
         "state": "Ready",
         "tags": {"env": "prod", "service": "sql"},
         "resourceGroup": "TestRG",
+        "public_network_access": "Enabled",
+        "minimal_tls_version": "1.2",
     },
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Sql/servers/testSQL2",
@@ -20,6 +22,8 @@ DESCRIBE_SERVERS = [
         "state": "Ready",
         "tags": {"env": "prod", "dept": "finance"},
         "resourceGroup": "TestRG",
+        "public_network_access": "Disabled",
+        "minimal_tls_version": "1.2",
     },
 ]
 
@@ -303,6 +307,26 @@ DESCRIBE_RESTORE_POINTS = [
         "restore_point_type": "DISCRETE",
         "restore_point_creation_date": "2017-07-18T03:09:27Z",
         "database_id": server2 + "/databases/testdb2",
+    },
+]
+
+
+DESCRIBE_FIREWALL_RULES = [
+    {
+        "id": server1 + "/firewallRules/AllowAllWindowsAzureIps",
+        "name": "AllowAllWindowsAzureIps",
+        "type": "Microsoft.Sql/servers/firewallRules",
+        "start_ip_address": "0.0.0.0",
+        "end_ip_address": "0.0.0.0",
+    },
+    {
+        "id": server1 + "/firewallRules/AllowEverything",
+        "name": "AllowEverything",
+        "type": "Microsoft.Sql/servers/firewallRules",
+        "properties": {
+            "start_ip_address": "0.0.0.0",
+            "end_ip_address": "255.255.255.255",
+        },
     },
 ]
 
