@@ -667,9 +667,6 @@ def load_bindings(
     project_id: str,
     update_tag: int,
 ) -> None:
-    if not bindings:
-        return
-
     load(
         neo4j_session,
         GCPPolicyBindingSchema(),
@@ -697,9 +694,6 @@ def _load_organization_bindings(
     org_resource_name: str,
     update_tag: int,
 ) -> None:
-    if not bindings:
-        return
-
     load(
         neo4j_session,
         GCPOrganizationPolicyBindingSchema(),
@@ -727,9 +721,6 @@ def _load_folder_bindings(
     folder_id: str,
     update_tag: int,
 ) -> None:
-    if not bindings:
-        return
-
     load(
         neo4j_session,
         GCPFolderPolicyBindingSchema(),
