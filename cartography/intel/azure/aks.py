@@ -71,17 +71,19 @@ def get_agent_pools(
 def transform_aks_clusters(clusters: list[dict]) -> list[dict]:
     transformed_clusters: list[dict[str, Any]] = []
     for cluster in clusters:
+        properties = cluster.get("properties", {}) or {}
+        api_server_access_profile = properties.get("api_server_access_profile") or {}
         transformed_cluster = {
             "id": cluster.get("id"),
             "name": cluster.get("name"),
             "location": cluster.get("location"),
-            "provisioning_state": cluster.get("properties", {}).get(
-                "provisioning_state"
+            "provisioning_state": properties.get("provisioning_state"),
+            "kubernetes_version": properties.get("kubernetes_version"),
+            "fqdn": properties.get("fqdn"),
+            # AKS API default: cluster is public unless enable_private_cluster is explicitly true.
+            "api_server_public_access": not api_server_access_profile.get(
+                "enable_private_cluster", False
             ),
-            "kubernetes_version": cluster.get("properties", {}).get(
-                "kubernetes_version"
-            ),
-            "fqdn": cluster.get("properties", {}).get("fqdn"),
         }
         transformed_clusters.append(transformed_cluster)
     return transformed_clusters

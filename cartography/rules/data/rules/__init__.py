@@ -203,6 +203,9 @@ from cartography.rules.data.rules.identity_administration_privileges import (
 from cartography.rules.data.rules.inactive_user_active_accounts import (
     inactive_user_active_accounts,
 )
+from cartography.rules.data.rules.kubernetes_control_plane_exposed import (
+    kubernetes_control_plane_exposed,
+)
 from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
     malicious_npm_dependencies_shai_hulud,
 )
@@ -275,6 +278,7 @@ RULES = {
     eol_software.id: eol_software,
     identity_administration_privileges.id: identity_administration_privileges,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
+    kubernetes_control_plane_exposed.id: kubernetes_control_plane_exposed,
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,

@@ -23,6 +23,9 @@ class AzureKubernetesClusterProperties(CartographyNodeProperties):
     provisioning_state: PropertyRef = PropertyRef("provisioning_state")
     kubernetes_version: PropertyRef = PropertyRef("kubernetes_version")
     fqdn: PropertyRef = PropertyRef("fqdn")
+    api_server_public_access: PropertyRef = PropertyRef(
+        "api_server_public_access", extra_index=True
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

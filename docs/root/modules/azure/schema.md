@@ -1912,6 +1912,7 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
 |provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
 |kubernetes_version| The version of Kubernetes the Cluster is running. |
 |fqdn| The fully qualified domain name of the Cluster's API server. |
+|api_server_public_access| True when the Kubernetes API server is reachable from the public internet (i.e. `apiServerAccessProfile.enablePrivateCluster` is not set or false). |
 
 #### Relationships
 
