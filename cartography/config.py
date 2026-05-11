@@ -486,6 +486,7 @@ class Config:
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
         socketdev_token=None,
+        terraform_state_source=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -680,3 +681,11 @@ class Config:
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.terraform_state_source: str | None = _resolve_report_source_config(
+            module="terraform",
+            source=terraform_state_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )

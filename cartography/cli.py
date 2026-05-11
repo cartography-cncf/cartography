@@ -54,6 +54,7 @@ PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
+PANEL_TERRAFORM = "Terraform Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
@@ -108,6 +109,7 @@ MODULE_PANELS = {
     "airbyte": PANEL_AIRBYTE,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
+    "terraform": PANEL_TERRAFORM,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
     "ubuntu": PANEL_UBUNTU,
@@ -1477,6 +1479,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Terraform Options
+            # =================================================================
+            terraform_state_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--terraform-state-source",
+                    help="Terraform state source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_TERRAFORM,
+                    hidden=PANEL_TERRAFORM not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Syft Options
             # =================================================================
             syft_source: Annotated[
@@ -2576,6 +2590,7 @@ class CLI:
                 trivy_results_dir=trivy_results_dir,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                terraform_state_source=terraform_state_source,
                 syft_source=syft_source,
                 syft_results_dir=syft_results_dir,
                 syft_s3_bucket=syft_s3_bucket,
