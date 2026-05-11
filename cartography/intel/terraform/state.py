@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.models.terraform.matchlinks import RESOURCE_TYPE_ID_ATTR
 from cartography.models.terraform.matchlinks import RESOURCE_TYPE_MATCHLINKS
 from cartography.models.terraform.output import TerraformOutputSchema
 from cartography.models.terraform.resource import TerraformResourceInstanceSchema
@@ -87,7 +88,10 @@ def transform_instances(document: dict, workspace_lineage: str) -> list[dict]:
                         if inst.get("index_key") is not None
                         else None
                     ),
-                    "attributes_id": attrs.get("id") or attrs.get("arn"),
+                    "attributes_id": attrs.get(
+                        RESOURCE_TYPE_ID_ATTR.get(res["type"], "id")
+                    )
+                    or attrs.get("arn"),
                     "resource_type": res["type"],
                     "tags_json": json.dumps(tags) if tags else None,
                 }

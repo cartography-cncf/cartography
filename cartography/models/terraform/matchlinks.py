@@ -61,3 +61,11 @@ RESOURCE_TYPE_MATCHLINKS: dict[str, CartographyRelSchema] = {
     "aws_iam_policy": TerraformInstanceToAWSManagedPolicyMatchLink(),
     "aws_security_group": TerraformInstanceToEC2SecurityGroupMatchLink(),
 }
+
+# Maps Terraform resource types to the attributes key whose value matches
+# the corresponding AWS graph node's `id` property.
+# Defaults to `attrs.get("id") or attrs.get("arn")` when not listed here.
+RESOURCE_TYPE_ID_ATTR: dict[str, str] = {
+    "aws_eks_cluster": "arn",  # EKSCluster.id = ARN; tf attributes.id = cluster name
+    "aws_db_instance": "arn",  # RDSInstance.id = DBInstanceArn; tf attributes.id = DB identifier
+}

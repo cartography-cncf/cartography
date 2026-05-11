@@ -1,5 +1,9 @@
 LINEAGE = "b5be69d6-88bc-b354-fd59-b5971742d6ea"
 TEST_ACCOUNT_ID = "181047820466"
+TEST_EKS_CLUSTER_NAME = "test-eks-cluster"
+TEST_EKS_CLUSTER_ARN = (
+    f"arn:aws:eks:us-east-1:{TEST_ACCOUNT_ID}:cluster/{TEST_EKS_CLUSTER_NAME}"
+)
 
 SAMPLE_STATE_FILE: dict = {
     "version": 4,
@@ -75,6 +79,23 @@ SAMPLE_STATE_FILE: dict = {
                     },
                     "sensitive_attributes": [],
                     "dependencies": ["data.aws_caller_identity.current"],
+                },
+            ],
+        },
+        {
+            "mode": "managed",
+            "type": "aws_eks_cluster",
+            "name": "main",
+            "provider": 'provider["registry.terraform.io/hashicorp/aws"]',
+            "instances": [
+                {
+                    "schema_version": 0,
+                    "attributes": {
+                        "id": TEST_EKS_CLUSTER_NAME,
+                        "arn": TEST_EKS_CLUSTER_ARN,
+                        "name": TEST_EKS_CLUSTER_NAME,
+                    },
+                    "sensitive_attributes": [],
                 },
             ],
         },
