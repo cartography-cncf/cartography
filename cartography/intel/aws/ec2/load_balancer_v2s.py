@@ -226,6 +226,7 @@ def _transform_load_balancer_v2_data(
 
         # Extract listener data
         for listener in lb.get("Listeners", []):
+            mutual_auth = listener.get("MutualAuthentication") or {}
             listener_data.append(
                 {
                     "ListenerArn": listener["ListenerArn"],
@@ -234,6 +235,14 @@ def _transform_load_balancer_v2_data(
                     "SslPolicy": listener.get("SslPolicy"),
                     "TargetGroupArn": listener.get("TargetGroupArn"),
                     "LoadBalancerId": dns_name,
+                    "MutualAuthenticationMode": mutual_auth.get("Mode"),
+                    "TrustStoreArn": mutual_auth.get("TrustStoreArn"),
+                    "IgnoreClientCertificateExpiry": mutual_auth.get(
+                        "IgnoreClientCertificateExpiry"
+                    ),
+                    "AdvertiseTrustStoreCaNames": mutual_auth.get(
+                        "AdvertiseTrustStoreCaNames"
+                    ),
                 }
             )
 
