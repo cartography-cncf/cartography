@@ -174,10 +174,14 @@ def test_manages_edge_to_s3_bucket(mock_list, mock_file, neo4j_session):
 def test_no_manages_edge_when_target_absent(mock_list, mock_file, neo4j_session):
     from cartography.intel.common.object_store import ReportRef
 
+    # Arrange: ensure no S3Bucket nodes exist so MANAGES edge cannot be created
+    neo4j_session.run("MATCH (b:S3Bucket) DETACH DELETE b")
+
     mock_list.return_value = [
         ReportRef(uri="/tmp/states/test.tfstate", name="test.tfstate")
     ]
     config = _make_config()
+    # Act
     start_terraform_ingestion(neo4j_session, config)
 
     result = check_rels(
