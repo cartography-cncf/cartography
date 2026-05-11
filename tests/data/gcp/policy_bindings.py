@@ -301,3 +301,49 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
         },
     ],
 }
+
+MOCK_INHERITED_POLICY_BINDINGS_RESPONSE = {
+    "project_id": "project-abc",
+    "organization": "organizations/1337",
+    "policy_results": [
+        {
+            "full_resource_name": "//cloudresourcemanager.googleapis.com/organizations/1337",
+            "policies": [
+                {
+                    "attached_resource": "//cloudresourcemanager.googleapis.com/organizations/1337",
+                    "policy": {
+                        "bindings": [
+                            {
+                                "role": "roles/viewer",
+                                "members": ["user:alice@example.com"],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+        {
+            "full_resource_name": "//cloudresourcemanager.googleapis.com/folders/1414",
+            "policies": [
+                {
+                    "attached_resource": "//cloudresourcemanager.googleapis.com/folders/1414",
+                    "policy": {
+                        "bindings": [
+                            {
+                                "role": "roles/viewer",
+                                "members": ["user:alice@example.com"],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+    ],
+}
+
+INHERITED_ORG_BINDING_ID = (
+    "//cloudresourcemanager.googleapis.com/organizations/1337_roles/viewer"
+)
+INHERITED_FOLDER_BINDING_ID = (
+    "//cloudresourcemanager.googleapis.com/folders/1414_roles/viewer"
+)
