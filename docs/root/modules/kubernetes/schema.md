@@ -446,12 +446,12 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.
+- `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`. This edge is also reconciled at the ontology stage by `kubernetes_aws_role_irsa_linking.json`, so it exists even when AWS IAM syncs after Kubernetes.
     ```
     (:KubernetesServiceAccount)-[:ASSUMES_ROLE]->(:AWSRole)
     ```
 
-- `KubernetesServiceAccount` impersonates a `GCPServiceAccount` via GKE Workload Identity when annotated with `iam.gke.io/gcp-service-account`.
+- `KubernetesServiceAccount` impersonates a `GCPServiceAccount` via GKE Workload Identity when annotated with `iam.gke.io/gcp-service-account`. This edge is also reconciled at the ontology stage by `kubernetes_gcp_service_account_workload_identity_linking.json`, so it exists even when GCP IAM syncs after Kubernetes.
     ```
     (:KubernetesServiceAccount)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount)
     ```

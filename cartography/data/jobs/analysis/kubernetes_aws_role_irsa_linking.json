@@ -1,0 +1,16 @@
+{
+  "name": "Kubernetes ServiceAccount to AWS Role linking (IRSA)",
+  "statements": [
+    {
+      "__comment": "IAM Roles for Service Accounts (IRSA): when a KubernetesServiceAccount carries the eks.amazonaws.com/role-arn annotation pointing at an AWSRole, reconcile the ASSUMES_ROLE edge. The same edge is created by the K8s ServiceAccount schema matchlink at K8s sync time, but this job ensures the edge also exists when AWS IAM syncs after Kubernetes.",
+      "query": "MATCH (ksa:KubernetesServiceAccount) WHERE ksa.aws_role_arn IS NOT NULL MATCH (role:AWSRole {arn: ksa.aws_role_arn}) MERGE (ksa)-[r:ASSUMES_ROLE]->(role) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Delete stale ASSUMES_ROLE edges that no longer match a current KubernetesServiceAccount.aws_role_arn.",
+      "query": "MATCH (:KubernetesServiceAccount)-[r:ASSUMES_ROLE]->(:AWSRole) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ]
+}

@@ -81,3 +81,20 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
+    # Reconcile IRSA edges: (:KubernetesServiceAccount)-[:ASSUMES_ROLE]->(:AWSRole).
+    # The K8s ServiceAccount schema creates this edge at K8s sync time, but only if the AWSRole
+    # already exists at that moment. Running at the ontology stage guarantees the edge regardless
+    # of which module synced last.
+    run_analysis_job(
+        "kubernetes_aws_role_irsa_linking.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Reconcile GKE Workload Identity edges:
+    # (:KubernetesServiceAccount)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount).
+    # Same rationale as the IRSA job above.
+    run_analysis_job(
+        "kubernetes_gcp_service_account_workload_identity_linking.json",
+        neo4j_session,
+        common_job_parameters,
+    )
