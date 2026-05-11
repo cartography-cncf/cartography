@@ -90,11 +90,13 @@ _azure_aks_control_plane_exposed = Fact(
     name="Internet-Exposed AKS Control Plane",
     description=(
         "AKS clusters whose Kubernetes API server is reachable from the "
-        "public internet. Derived from "
-        "apiServerAccessProfile.enablePrivateCluster: when false (the AKS "
-        "default), the API server is publicly reachable. Note: clusters "
-        "restricted via authorizedIpRanges still match, mirroring the AWS "
-        "EKS convention."
+        "public internet. Derived from two independent knobs that each "
+        "close the public path: apiServerAccessProfile.enablePrivateCluster "
+        "(classic private cluster) and publicNetworkAccess=Disabled (used "
+        "by API Server VNet Integration). The cluster is flagged only when "
+        "neither knob disables public access. Note: clusters restricted "
+        "via authorizedIpRanges still match, mirroring the AWS EKS "
+        "convention."
     ),
     cypher_query="""
     MATCH (c:AzureKubernetesCluster)
