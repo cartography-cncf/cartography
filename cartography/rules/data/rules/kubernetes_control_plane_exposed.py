@@ -1,6 +1,5 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -122,6 +121,14 @@ _azure_aks_control_plane_exposed = Fact(
 )
 
 
+# TODO: wire CIS Framework references once CIS EKS / GKE / AKS benchmarks are
+# adopted repo-wide. The relevant controls are CIS Amazon EKS Benchmark 5.4.2,
+# CIS Google Kubernetes Engine (GKE) Benchmark 5.6.4, and CIS Microsoft Azure
+# Kubernetes Service (AKS) Benchmark 5.4.2. Adding the Framework entries here
+# without the corresponding benchmark coverage elsewhere would introduce
+# orphan scopes ("eks", "gke", "aks") that no other rule maps to.
+
+
 # Rule
 class KubernetesControlPlaneExposed(Finding):
     id: str | None = None
@@ -137,8 +144,9 @@ kubernetes_control_plane_exposed = Rule(
     description=(
         "Managed Kubernetes clusters whose API server is reachable from "
         "the public internet. Covers AWS EKS, GCP GKE, and Azure AKS. "
-        "Closes the CIS EKS Benchmark 5.4.2 gap and extends the same "
-        "control to GKE and AKS."
+        "Aligns with CIS Amazon EKS Benchmark 5.4.2, CIS GKE Benchmark "
+        "5.6.4, and CIS AKS Benchmark 5.4.2; Framework wiring is pending "
+        "until those benchmarks are added repo-wide."
     ),
     output_model=KubernetesControlPlaneExposed,
     facts=(
@@ -154,27 +162,4 @@ kubernetes_control_plane_exposed = Rule(
         "stride:elevation_of_privilege",
     ),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name="CIS Amazon Elastic Kubernetes Service (EKS) Benchmark",
-            short_name="CIS",
-            scope="eks",
-            revision="1.5.0",
-            requirement="5.4.2",
-        ),
-        Framework(
-            name="CIS Google Kubernetes Engine (GKE) Benchmark",
-            short_name="CIS",
-            scope="gke",
-            revision="1.4.0",
-            requirement="5.6.4",
-        ),
-        Framework(
-            name="CIS Microsoft Azure Kubernetes Service (AKS) Benchmark",
-            short_name="CIS",
-            scope="aks",
-            revision="1.0.0",
-            requirement="5.4.2",
-        ),
-    ),
 )
