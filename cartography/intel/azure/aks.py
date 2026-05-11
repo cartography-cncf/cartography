@@ -73,6 +73,14 @@ def transform_aks_clusters(clusters: list[dict]) -> list[dict]:
     for cluster in clusters:
         properties = cluster.get("properties", {}) or {}
         api_server_access_profile = properties.get("api_server_access_profile") or {}
+        # AKS exposes two independent knobs that gate public API server reachability:
+        # apiServerAccessProfile.enablePrivateCluster (classic private cluster) and
+        # publicNetworkAccess=Disabled (API Server VNet Integration). Either one closes
+        # the public network path.
+        is_private_cluster = api_server_access_profile.get(
+            "enable_private_cluster", False
+        )
+        public_network_disabled = properties.get("public_network_access") == "Disabled"
         transformed_cluster = {
             "id": cluster.get("id"),
             "name": cluster.get("name"),
@@ -80,10 +88,8 @@ def transform_aks_clusters(clusters: list[dict]) -> list[dict]:
             "provisioning_state": properties.get("provisioning_state"),
             "kubernetes_version": properties.get("kubernetes_version"),
             "fqdn": properties.get("fqdn"),
-            # AKS API default: cluster is public unless enable_private_cluster is explicitly true.
-            "api_server_public_access": not api_server_access_profile.get(
-                "enable_private_cluster", False
-            ),
+            "api_server_public_access": not is_private_cluster
+            and not public_network_disabled,
         }
         transformed_clusters.append(transformed_cluster)
     return transformed_clusters

@@ -10,12 +10,16 @@ from cartography.rules.spec.model import Module
 
 
 def test_kubernetes_control_plane_exposed_rule_registered() -> None:
-    assert RULES[kubernetes_control_plane_exposed.id] is kubernetes_control_plane_exposed
+    assert (
+        RULES[kubernetes_control_plane_exposed.id] is kubernetes_control_plane_exposed
+    )
 
 
 def test_kubernetes_control_plane_exposed_rule_shape() -> None:
     assert kubernetes_control_plane_exposed.id == "kubernetes_control_plane_exposed"
-    assert kubernetes_control_plane_exposed.output_model is KubernetesControlPlaneExposed
+    assert (
+        kubernetes_control_plane_exposed.output_model is KubernetesControlPlaneExposed
+    )
     assert len(kubernetes_control_plane_exposed.facts) == 3
 
 
