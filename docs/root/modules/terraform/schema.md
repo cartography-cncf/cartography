@@ -1,6 +1,6 @@
 # Terraform Schema
 
-## TerraformWorkspace
+### TerraformWorkspace
 
 Represents a single Terraform state file. One node per state file, keyed on the stable `lineage` UUID.
 
@@ -14,7 +14,7 @@ Represents a single Terraform state file. One node per state file, keyed on the 
 | source_uri | Full URI where the state file was read from |
 | lastupdated | Cartography sync timestamp |
 
-## TerraformResource
+### TerraformResource
 
 Represents a single `resource {}` block in a Terraform configuration (the logical resource, not a specific instance).
 
@@ -28,7 +28,7 @@ Represents a single `resource {}` block in a Terraform configuration (the logica
 | provider | Normalized provider slug, e.g. `hashicorp/aws` |
 | lastupdated | Cartography sync timestamp |
 
-## TerraformResourceInstance
+#### TerraformResourceInstance
 
 Represents a single instance within a `resource {}` block (one entry in `instances[]`). For resources without `count` or `for_each` this is 1:1 with `TerraformResource`.
 
@@ -41,7 +41,7 @@ Represents a single instance within a `resource {}` block (one entry in `instanc
 | tags_json | JSON-serialized tags map; null when empty |
 | lastupdated | Cartography sync timestamp |
 
-## TerraformOutput
+### TerraformOutput
 
 Represents a single `output {}` value exported from the state file.
 
@@ -54,7 +54,7 @@ Represents a single `output {}` value exported from the state file.
 | value_json | JSON-serialized value; **always null when sensitive=true** |
 | lastupdated | Cartography sync timestamp |
 
-## Relationships
+#### Relationships
 
 | Relationship | From | To | Description |
 |---|---|---|---|
@@ -64,7 +64,7 @@ Represents a single `output {}` value exported from the state file.
 | `HAS_OUTPUT` | `TerraformWorkspace` | `TerraformOutput` | All outputs exported by this state file |
 | `MANAGES` | `TerraformResourceInstance` | AWS node | Cross-link to an existing AWS node when `attributes_id` matches |
 
-### Supported MANAGES targets
+#### Supported MANAGES targets
 
 | Terraform resource_type | Target Neo4j label |
 |---|---|
@@ -76,7 +76,7 @@ Represents a single `output {}` value exported from the state file.
 | `aws_iam_policy` | `AWSManagedPolicy` |
 | `aws_security_group` | `EC2SecurityGroup` |
 
-## Example Queries
+### Example Queries
 
 ```cypher
 // Is my S3 bucket managed by Terraform?

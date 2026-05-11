@@ -53,13 +53,13 @@ def transform_workspace(document: dict, source_uri: str) -> dict:
     }
 
 
-def transform_resources(document: dict) -> list[dict]:
+def transform_resources(document: dict, workspace_lineage: str) -> list[dict]:
     rows = []
     for res in document.get("resources", []):
         resource_id = _make_resource_id(res)
         rows.append(
             {
-                "id": resource_id,
+                "id": f"{workspace_lineage}/{resource_id}",
                 "resource_type": res["type"],
                 "resource_name": res["name"],
                 "module_path": res.get("module", ""),
@@ -70,17 +70,18 @@ def transform_resources(document: dict) -> list[dict]:
     return rows
 
 
-def transform_instances(document: dict) -> list[dict]:
+def transform_instances(document: dict, workspace_lineage: str) -> list[dict]:
     rows = []
     for res in document.get("resources", []):
         resource_id = _make_resource_id(res)
+        scoped_resource_id = f"{workspace_lineage}/{resource_id}"
         for inst in res.get("instances", []):
             attrs = inst.get("attributes") or {}
             tags = attrs.get("tags") or attrs.get("tags_all") or {}
             rows.append(
                 {
-                    "id": _make_instance_id(resource_id, inst),
-                    "resource_id": resource_id,
+                    "id": f"{workspace_lineage}/{_make_instance_id(resource_id, inst)}",
+                    "resource_id": scoped_resource_id,
                     "index_key": (
                         str(inst["index_key"])
                         if inst.get("index_key") is not None
@@ -94,13 +95,20 @@ def transform_instances(document: dict) -> list[dict]:
     return rows
 
 
-def transform_depends_on(document: dict) -> list[dict]:
+def transform_depends_on(document: dict, workspace_lineage: str) -> list[dict]:
     rows = []
     for res in document.get("resources", []):
         resource_id = _make_resource_id(res)
+        scoped_source_id = f"{workspace_lineage}/{resource_id}"
         for inst in res.get("instances", []):
             for dep in inst.get("dependencies", []):
-                rows.append({"source_id": resource_id, "target_id": dep})
+                # Target is external - use same scoping if it was a scoped ID
+                rows.append(
+                    {
+                        "source_id": scoped_source_id,
+                        "target_id": f"{workspace_lineage}/{dep}",
+                    }
+                )
     return rows
 
 
@@ -251,39 +259,30 @@ def cleanup(
     GraphJob.from_node_schema(TerraformWorkspaceSchema(), common_job_parameters).run(
         neo4j_session
     )
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (n:TerraformResource)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=10000,
-    )
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (n:TerraformResourceInstance)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=10000,
-    )
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (n:TerraformOutput)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=10000,
-    )
+    update_tag_val = common_job_parameters["UPDATE_TAG"]
+
+    def _cleanup_stale(label: str, max_per_batch: int = 10000) -> None:
+        while True:
+            result = neo4j_session.run(
+                f"""
+                MATCH (n:{label})
+                WHERE n.lastupdated <> $UPDATE_TAG
+                WITH n LIMIT $LIMIT_SIZE
+                DETACH DELETE n
+                RETURN count(n) AS deleted
+                """,
+                UPDATE_TAG=update_tag_val,
+                LIMIT_SIZE=max_per_batch,
+            )
+            deleted = result.single()["deleted"]
+            if deleted == 0:
+                break
+            logger.debug("Cleaned up %d stale %s nodes", deleted, label)
+
+    _cleanup_stale("TerraformResource")
+    _cleanup_stale("TerraformResourceInstance")
+    _cleanup_stale("TerraformOutput")
+
     for schema in RESOURCE_TYPE_MATCHLINKS.values():
         GraphJob.from_matchlink(
             schema, "TerraformWorkspace", workspace_lineage, update_tag
@@ -303,13 +302,13 @@ def sync_state_file(
 
     load_workspace(neo4j_session, workspace_data, source_uri, update_tag)
 
-    resources = transform_resources(document)
+    resources = transform_resources(document, workspace_id)
     load_resources(neo4j_session, resources, workspace_id, update_tag)
 
-    instances = transform_instances(document)
+    instances = transform_instances(document, workspace_id)
     load_instances(neo4j_session, instances, update_tag)
 
-    depends_on = transform_depends_on(document)
+    depends_on = transform_depends_on(document, workspace_id)
     if depends_on:
         load_depends_on(neo4j_session, depends_on, update_tag)
 
