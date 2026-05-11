@@ -40,6 +40,26 @@ def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema
     return models
 
 
+def _get_models_by_extra_node_label(
+    node_label: str,
+) -> list[Type[CartographyNodeSchema]]:
+    models = []
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        model_instance = node_class()
+        if not model_instance.extra_node_labels:
+            continue
+        for label in model_instance.extra_node_labels.labels:
+            if isinstance(label, str):
+                extra_label = label
+            else:
+                extra_label = label.label
+            if extra_label == node_label:
+                models.append(node_class)
+    return models
+
+
 def _get_models_with_properties_for_label(
     node_label: str,
 ) -> list[Type[CartographyNodeSchema]]:
@@ -48,10 +68,12 @@ def _get_models_with_properties_for_label(
     This includes:
     1. Models with the exact label
     2. Models targeting any of the extra_node_labels of the primary models (composite schemas)
+    3. Models that declare the given label as an extra label
     """
     # First get the primary models for this label
     primary_models = _get_model_by_node_label(node_label)
     all_models = list(primary_models)
+    all_models.extend(_get_models_by_extra_node_label(node_label))
 
     # Collect all extra_node_labels from primary models
     # Need to instantiate to get the actual value (property returns None on class if not defined)

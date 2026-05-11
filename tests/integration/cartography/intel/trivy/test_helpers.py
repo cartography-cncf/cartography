@@ -309,7 +309,8 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
         """
         MATCH (p:TrivyPackage)
         WHERE p.purl IS NOT NULL
-        RETURN p.id AS id, p.purl AS purl, p.pkg_id AS pkg_id
+        RETURN p.id AS id, p.purl AS purl, p.package_url AS package_url,
+               p.pkg_id AS pkg_id
         LIMIT 5
         """
     ).data()
@@ -317,6 +318,9 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
     assert len(result) > 0, "Expected at least one package with extended fields"
     for row in result:
         assert row["purl"] is not None, f"purl should be set for {row['id']}"
+        assert (
+            row["package_url"] is not None
+        ), f"package_url should be set for {row['id']}"
         assert row["pkg_id"] is not None, f"pkg_id should be set for {row['id']}"
 
 

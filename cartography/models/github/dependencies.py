@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -23,6 +24,7 @@ class GitHubDependencyNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("version")
     type: PropertyRef = PropertyRef("type")
     purl: PropertyRef = PropertyRef("purl")
+    package_url: PropertyRef = PropertyRef("package_url", extra_index=True)
     normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -78,6 +80,7 @@ class GitHubDependencySchema(CartographyNodeSchema):
     """
 
     label: str = "Dependency"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GitHubDependency"])
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

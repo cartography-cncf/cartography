@@ -19,7 +19,7 @@ class PackageNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     version: PropertyRef = PropertyRef("version")
     type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
+    purl: PropertyRef = PropertyRef("purl", extra_index=True)
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class PackageToNodeRelProperties(CartographyRelProperties):
 class PackageToTrivyPackageRel(CartographyRelSchema):
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -44,7 +44,7 @@ class PackageToTrivyPackageRel(CartographyRelSchema):
 class PackageToSyftPackageRel(CartographyRelSchema):
     target_node_label: str = "SyftPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -57,6 +57,30 @@ class PackageToSocketDevDependencyRel(CartographyRelSchema):
     target_node_label: str = "SocketDevDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
+# (:Package)-[:DETECTED_AS]->(:GitHubDependency)
+@dataclass(frozen=True)
+class PackageToGitHubDependencyRel(CartographyRelSchema):
+    target_node_label: str = "GitHubDependency"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"package_url": PropertyRef("purl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
+# (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
+@dataclass(frozen=True)
+class PackageToSemgrepDependencyRel(CartographyRelSchema):
+    target_node_label: str = "SemgrepDependency"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"package_url": PropertyRef("purl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_AS"
@@ -129,6 +153,8 @@ class PackageSchema(CartographyNodeSchema):
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
             PackageToSocketDevDependencyRel(),
+            PackageToGitHubDependencyRel(),
+            PackageToSemgrepDependencyRel(),
             PackageToOntologyImageRel(),
             PackageToTrivyFixRel(),
             PackageToPackageDependsOnRel(),

@@ -449,8 +449,11 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
 | version | Exact version if pinned (e.g., `"18.2.0"`). `null` for ranges or unpinned dependencies. |
 | type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
-| purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| purl | Source Package URL from GitHub dependency graph (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| package_url | Canonical package identity URL used for ontology matching. `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
+
+> **Ontology Mapping**: Exact-version dependency nodes also have the extra label `GitHubDependency` and can link to the canonical `Package` ontology node by `package_url`.
 
 #### Relationships
 

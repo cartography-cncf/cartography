@@ -12,7 +12,8 @@ Representation of a software package discovered by Syft, created from Syft's `ar
 | name | Package name |
 | version | Package version |
 | type | Package type (e.g., `npm`, `pypi`, `deb`) |
-| purl | Package URL |
+| purl | Source Package URL from Syft, including source qualifiers when Syft reports them. |
+| package_url | Canonical package identity URL used for ontology matching. Indexed. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 | language | Programming language |
 | found_by | Syft cataloger that discovered the package |

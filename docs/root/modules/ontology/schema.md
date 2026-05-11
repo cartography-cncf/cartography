@@ -882,7 +882,7 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
 | name | Name of the package. |
 | version | Version of the package. |
 | type | Package ecosystem type (e.g., npm, pypi, deb). |
-| purl | Package URL (e.g., `pkg:npm/express@4.18.2`). |
+| purl | Canonical package identity URL (e.g., `pkg:npm/express@4.18.2`). Indexed. |
 
 #### Relationships
 
@@ -890,7 +890,10 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:GitHubDependency)
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
     ```
+  These links match `Package.purl` to the source node's `package_url`, preserving raw scanner/source PURLs on the source nodes.
 - `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)

@@ -5,6 +5,7 @@ Tests the package normalization functions used for cross-tool matching
 between Trivy and Syft.
 """
 
+from cartography.intel.trivy.util import make_canonical_purl
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import normalize_package_name
 from cartography.intel.trivy.util import parse_purl
@@ -111,3 +112,53 @@ class TestMakeNormalizedPackageId:
         assert make_normalized_package_id() is None
         assert make_normalized_package_id(name="express") is None
         assert make_normalized_package_id(name="express", version="4.18.2") is None
+
+
+class TestMakeCanonicalPurl:
+    """Tests for make_canonical_purl function."""
+
+    def test_from_npm_components(self):
+        assert (
+            make_canonical_purl(name="Express", version="4.18.2", pkg_type="npm")
+            == "pkg:npm/express@4.18.2"
+        )
+
+    def test_from_scoped_npm_purl(self):
+        assert (
+            make_canonical_purl(purl="pkg:npm/@types/node@18.0.0")
+            == "pkg:npm/%40types/node@18.0.0"
+        )
+
+    def test_from_pypi_purl_normalizes(self):
+        assert (
+            make_canonical_purl(purl="pkg:pypi/PyNaCl@1.5.0") == "pkg:pypi/pynacl@1.5.0"
+        )
+
+    def test_from_source_purl_strips_qualifiers_for_package_identity(self):
+        assert (
+            make_canonical_purl(
+                purl="pkg:deb/debian/bash@5.2.15-2%2Bb10?arch=amd64&distro=debian-12&upstream=bash%405.2.15-2",
+            )
+            == "pkg:deb/debian/bash@5.2.15-2%2Bb10"
+        )
+
+    def test_from_gomod_components_uses_golang_type(self):
+        assert (
+            make_canonical_purl(
+                name="github.com/foo/bar",
+                version="1.2.3",
+                pkg_type="gomod",
+            )
+            == "pkg:golang/github.com/foo/bar@1.2.3"
+        )
+
+    def test_invalid_purl_falls_back_to_components(self):
+        assert (
+            make_canonical_purl(
+                purl="invalid-purl",
+                name="express",
+                version="4.18.2",
+                pkg_type="npm",
+            )
+            == "pkg:npm/express@4.18.2"
+        )

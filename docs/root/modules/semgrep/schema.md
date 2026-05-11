@@ -271,7 +271,13 @@ Represents a dependency of a repository as returned by the Semgrep
 | **id** | Unique id formed by the name and version of the dependency |
 | name | Name of the dependency |
 | version | Version of the dependency |
+| type | Package URL type normalized for cross-tool matching (e.g. `npm`, `golang`) |
+| purl | Canonical Package URL for exact package matching |
+| package_url | Canonical package identity URL used for ontology matching. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 | ecosystem | Ecosystem of the dependency, e.g. "gomod" for dependencies defined in go.mod files. (see [API docs](https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion) for full list of options) |
+
+> **Ontology Mapping**: SemgrepDependency nodes can link to the canonical `Package` ontology node by `package_url`.
 
 
 ### GoLibrary

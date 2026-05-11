@@ -11,6 +11,9 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_canonical_purl
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import normalize_package_type
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.stats import get_stats_client
@@ -151,6 +154,18 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
         name = raw_dep["package"]["name"]
         version = raw_dep["package"]["versionSpecifier"]
         id = f"{name}|{version}"
+        package_url = make_canonical_purl(
+            name=name,
+            version=version,
+            pkg_type=raw_dep["ecosystem"],
+        )
+        package_type = normalize_package_type(raw_dep["ecosystem"])
+        normalized_id = make_normalized_package_id(
+            purl=package_url,
+            name=name,
+            version=version,
+            pkg_type=raw_dep["ecosystem"],
+        )
 
         # As of November 2024, Semgrep does not import dependencies with version specifiers such as >, <, etc.
         # For now, hardcode the specifier to ==<version> to align with GitHub-sourced Python dependencies.
@@ -164,6 +179,10 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "name": name,
                 "specifier": specifier,
                 "version": version,
+                "type": package_type,
+                "purl": package_url,
+                "package_url": package_url,
+                "normalized_id": normalized_id,
                 "repo_url": repo_url,
                 # Semgrep-specific properties:
                 "ecosystem": raw_dep["ecosystem"],

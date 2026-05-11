@@ -18,7 +18,9 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (p:TrivyPackage {id: 'npm|express|4.18.2'})
         SET p.normalized_id = 'npm|express|4.18.2',
             p.name = 'express', p.version = '4.18.2',
-            p.type = 'npm'
+            p.type = 'npm',
+            p.purl = 'pkg:npm/express@4.18.2',
+            p.package_url = 'pkg:npm/express@4.18.2'
         MERGE (img:ECRImage {id: 'sha256:abc123'})
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-abc123'})
@@ -38,7 +40,9 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (p:TrivyPackage {id: 'pypi|requests|2.31.0'})
         SET p.normalized_id = 'pypi|requests|2.31.0',
             p.name = 'requests', p.version = '2.31.0',
-            p.type = 'pypi'
+            p.type = 'pypi',
+            p.purl = 'pkg:pypi/requests@2.31.0',
+            p.package_url = 'pkg:pypi/requests@2.31.0'
         MERGE (img:GitLabContainerImage {id: 'sha256:def456'})
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-def456'})
@@ -55,16 +59,41 @@ def _setup_syft_graph(neo4j_session):
         MERGE (p1:SyftPackage {id: 'npm|express|4.18.2'})
         SET p1.normalized_id = 'npm|express|4.18.2',
             p1.name = 'express', p1.version = '4.18.2',
-            p1.type = 'npm'
+            p1.type = 'npm',
+            p1.purl = 'pkg:npm/express@4.18.2',
+            p1.package_url = 'pkg:npm/express@4.18.2'
         MERGE (p2:SyftPackage {id: 'npm|body-parser|1.20.2'})
         SET p2.normalized_id = 'npm|body-parser|1.20.2',
             p2.name = 'body-parser', p2.version = '1.20.2',
-            p2.type = 'npm'
+            p2.type = 'npm',
+            p2.purl = 'pkg:npm/body-parser@1.20.2',
+            p2.package_url = 'pkg:npm/body-parser@1.20.2'
         MERGE (p1)-[:DEPENDS_ON]->(p2)
         MERGE (ont_img:Image {id: 'ont-img-syft'})
         SET ont_img._ont_digest = 'sha256:syft789'
         MERGE (p1)-[:DEPLOYED]->(ont_img)
         MERGE (p2)-[:DEPLOYED]->(ont_img)
+        """,
+    )
+
+
+def _setup_dependency_graph(neo4j_session):
+    """Create GitHub and Semgrep dependency nodes for package ontology linking."""
+    neo4j_session.run(
+        """
+        MERGE (gh:Dependency:GitHubDependency {id: 'express|4.18.2'})
+        SET gh.normalized_id = 'npm|express|4.18.2',
+            gh.name = 'express', gh.version = '4.18.2',
+            gh.type = 'npm',
+            gh.purl = 'pkg:npm/express@4.18.2',
+            gh.package_url = 'pkg:npm/express@4.18.2'
+        MERGE (sg:Dependency:SemgrepDependency:NpmLibrary {id: 'express|4.18.2'})
+        SET sg.normalized_id = 'npm|express|4.18.2',
+            sg.name = 'express', sg.version = '4.18.2',
+            sg.type = 'npm',
+            sg.ecosystem = 'npm',
+            sg.purl = 'pkg:npm/express@4.18.2',
+            sg.package_url = 'pkg:npm/express@4.18.2'
         """,
     )
 
@@ -102,6 +131,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     # Arrange
     _setup_trivy_graph(neo4j_session)
     _setup_syft_graph(neo4j_session)
+    _setup_dependency_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -160,6 +190,31 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_syft_rels == expected_syft_rels
+
+    # Assert - Check DETECTED_AS relationships to GitHubDependency and SemgrepDependency
+    expected_dependency_rels = {
+        ("npm|express|4.18.2", "pkg:npm/express@4.18.2"),
+    }
+    actual_github_dependency_rels = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "GitHubDependency",
+        "package_url",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_github_dependency_rels == expected_dependency_rels
+    actual_semgrep_dependency_rels = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "SemgrepDependency",
+        "package_url",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_semgrep_dependency_rels == expected_dependency_rels
 
     # Assert - Check DEPLOYED propagated to Package -> ontology Image
     expected_deployed_image = {

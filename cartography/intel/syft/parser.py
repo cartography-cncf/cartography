@@ -32,6 +32,7 @@ Direct vs Transitive Dependencies:
 import logging
 from typing import Any
 
+from cartography.intel.trivy.util import make_canonical_purl
 from cartography.intel.trivy.util import make_normalized_package_id
 
 logger = logging.getLogger(__name__)
@@ -125,8 +126,14 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         if not parent_name or not parent_version:
             continue
 
-        parent_norm_id = make_normalized_package_id(
+        parent_package_url = make_canonical_purl(
             purl=parent.get("purl"),
+            name=parent_name,
+            version=parent_version,
+            pkg_type=parent.get("type"),
+        )
+        parent_norm_id = make_normalized_package_id(
+            purl=parent_package_url,
             name=parent_name,
             version=parent_version,
             pkg_type=parent.get("type"),
@@ -151,8 +158,14 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             logger.debug("Skipping artifact %s: missing name or version", artifact_id)
             continue
 
-        normalized_id = make_normalized_package_id(
+        package_url = make_canonical_purl(
             purl=artifact.get("purl"),
+            name=name,
+            version=version,
+            pkg_type=artifact.get("type"),
+        )
+        normalized_id = make_normalized_package_id(
+            purl=package_url,
             name=name,
             version=version,
             pkg_type=artifact.get("type"),
@@ -164,6 +177,7 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "version": version,
                 "type": artifact.get("type"),
                 "purl": artifact.get("purl"),
+                "package_url": package_url,
                 "normalized_id": normalized_id,
                 "language": artifact.get("language"),
                 "found_by": artifact.get("foundBy"),
