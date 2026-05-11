@@ -1,5 +1,6 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -153,4 +154,27 @@ kubernetes_control_plane_exposed = Rule(
         "stride:elevation_of_privilege",
     ),
     version="0.1.0",
+    frameworks=(
+        Framework(
+            name="CIS Amazon Elastic Kubernetes Service (EKS) Benchmark",
+            short_name="CIS",
+            scope="eks",
+            revision="1.5.0",
+            requirement="5.4.2",
+        ),
+        Framework(
+            name="CIS Google Kubernetes Engine (GKE) Benchmark",
+            short_name="CIS",
+            scope="gke",
+            revision="1.4.0",
+            requirement="5.6.4",
+        ),
+        Framework(
+            name="CIS Microsoft Azure Kubernetes Service (AKS) Benchmark",
+            short_name="CIS",
+            scope="aks",
+            revision="1.0.0",
+            requirement="5.4.2",
+        ),
+    ),
 )

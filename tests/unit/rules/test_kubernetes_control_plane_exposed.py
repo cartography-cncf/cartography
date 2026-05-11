@@ -5,6 +5,7 @@ from cartography.rules.data.rules.kubernetes_control_plane_exposed import (
 from cartography.rules.data.rules.kubernetes_control_plane_exposed import (
     KubernetesControlPlaneExposed,
 )
+from cartography.rules.runners import filter_rules_by_framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -38,3 +39,15 @@ def test_kubernetes_control_plane_exposed_facts_are_experimental() -> None:
 def test_kubernetes_control_plane_exposed_fact_ids_are_unique() -> None:
     fact_ids = [fact.id for fact in kubernetes_control_plane_exposed.facts]
     assert len(fact_ids) == len(set(fact_ids))
+
+
+def test_kubernetes_control_plane_exposed_selected_by_cis_framework_filter() -> None:
+    selected = filter_rules_by_framework([kubernetes_control_plane_exposed.id], "CIS")
+    assert selected == [kubernetes_control_plane_exposed.id]
+    for scope in ("eks", "gke", "aks"):
+        scoped = filter_rules_by_framework(
+            [kubernetes_control_plane_exposed.id], f"CIS:{scope}"
+        )
+        assert scoped == [
+            kubernetes_control_plane_exposed.id
+        ], f"CIS:{scope} should select the rule"
