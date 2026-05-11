@@ -240,6 +240,9 @@ def _transform_load_balancer_v2_data(
                     "IgnoreClientCertificateExpiry": mutual_auth.get(
                         "IgnoreClientCertificateExpiry"
                     ),
+                    "TrustStoreAssociationStatus": mutual_auth.get(
+                        "TrustStoreAssociationStatus"
+                    ),
                     "AdvertiseTrustStoreCaNames": mutual_auth.get(
                         "AdvertiseTrustStoreCaNames"
                     ),

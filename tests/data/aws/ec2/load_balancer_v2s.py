@@ -34,6 +34,7 @@ GET_LOAD_BALANCER_V2_DATA = [
                     "Mode": "verify",
                     "TrustStoreArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:truststore/test-ts/1111222233334444",
                     "IgnoreClientCertificateExpiry": False,
+                    "TrustStoreAssociationStatus": "active",
                     "AdvertiseTrustStoreCaNames": "on",
                 },
             },

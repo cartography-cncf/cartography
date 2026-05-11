@@ -321,6 +321,9 @@ class ELBV2ListenerNodeProperties(CartographyNodeProperties):
     ignore_client_certificate_expiry: PropertyRef = PropertyRef(
         "IgnoreClientCertificateExpiry"
     )
+    trust_store_association_status: PropertyRef = PropertyRef(
+        "TrustStoreAssociationStatus"
+    )
     advertise_trust_store_ca_names: PropertyRef = PropertyRef(
         "AdvertiseTrustStoreCaNames"
     )

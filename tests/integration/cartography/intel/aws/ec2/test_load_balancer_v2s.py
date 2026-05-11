@@ -118,6 +118,7 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
             "mutual_authentication_mode",
             "trust_store_arn",
             "ignore_client_certificate_expiry",
+            "trust_store_association_status",
             "advertise_trust_store_ca_names",
         ],
     ) == {
@@ -128,6 +129,7 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
             "verify",
             "arn:aws:elasticloadbalancing:us-east-1:000000000000:truststore/test-ts/1111222233334444",
             False,
+            "active",
             "on",
         ),
         (
@@ -138,11 +140,13 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
             None,
             None,
             None,
+            None,
         ),
         (
             "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/net/test-nlb/abcdef0123456789/fedcba9876543210",
             443,
             "TLS",
+            None,
             None,
             None,
             None,
