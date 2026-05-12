@@ -303,7 +303,7 @@ def test_http_reader_list_reports_returns_single_ref() -> None:
     refs = reader.list_reports()
     assert len(refs) == 1
     assert refs[0].uri == url
-    assert refs[0].name == "prod"
+    assert refs[0].name == "prod.tfstate"
 
 
 @patch("requests.get")

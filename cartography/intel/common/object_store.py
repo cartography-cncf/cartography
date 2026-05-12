@@ -339,7 +339,10 @@ class HttpReportReader(_BaseReader):
         self._token = token
 
     def list_reports(self) -> list[ReportRef]:
-        name = self._url.rstrip("/").rsplit("/", 1)[-1]
+        # The URL path segment (e.g. "enbuild_eks_dev") carries no file extension.
+        # Use a fixed ".tfstate" sentinel so the extension filter in the caller
+        # accepts this ref — the URL is always a Terraform state endpoint.
+        name = self._url.rstrip("/").rsplit("/", 1)[-1] + ".tfstate"
         return [ReportRef(uri=self._url, name=name)]
 
     def read_bytes(self, ref: ReportRef) -> bytes:
