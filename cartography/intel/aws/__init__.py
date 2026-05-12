@@ -16,6 +16,7 @@ import neo4j
 from cartography.config import Config
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -498,6 +499,7 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
@@ -507,6 +509,7 @@ def _sync_multiple_accounts(
         accounts,
         sync_tag,
         common_job_parameters,
+        organization_account_ids=organization_account_ids,
         use_explicit_profile=use_explicit_profile,
     )
 
@@ -696,6 +699,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         regions = parse_and_validate_aws_regions(config.aws_regions)
     else:
         regions = None
+    if config.aws_organization_account_ids:
+        organization_account_ids = parse_and_validate_aws_account_ids(
+            config.aws_organization_account_ids,
+        )
+    else:
+        organization_account_ids = None
 
     sync_successful = _sync_multiple_accounts(
         neo4j_session,
@@ -705,6 +714,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        organization_account_ids=organization_account_ids,
         # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
         # stays decoupled from the CLI option should the two ever diverge.
         use_explicit_profile=config.aws_sync_all_profiles,

@@ -130,6 +130,7 @@ def test_sync_multiple_accounts(
         TEST_ACCOUNTS,
         TEST_UPDATE_TAG,
         GRAPH_JOB_PARAMETERS,
+        organization_account_ids=None,
         use_explicit_profile=True,
     )
 
@@ -454,6 +455,7 @@ def test_start_aws_ingestion(
 
     # Assert
     assert mock_sync_multiple.call_count == 1
+    assert mock_sync_multiple.call_args.kwargs["organization_account_ids"] is None
     mock_perform_analysis.assert_called_once_with(
         list(RESOURCE_FUNCTIONS.keys()),
         neo4j_session,
@@ -466,6 +468,37 @@ def test_start_aws_ingestion(
             "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
         },
     )
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_passes_organization_account_ids(
+    mock_perform_analysis,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    # Arrange
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_organization_account_ids="000000000000, 000000000001",
+    )
+
+    # Act
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    # Assert
+    assert mock_sync_multiple.call_args.kwargs["organization_account_ids"] == [
+        "000000000000",
+        "000000000001",
+    ]
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
