@@ -211,6 +211,11 @@ def test_transform_providers_marks_disabled_as_not_enabled():
     An ACTIVE-but-disabled provider must report enabled=false so cross-
     provider IdentityProvider queries do not see it as active.
     """
+    pool = {
+        "name": "projects/p/locations/global/workloadIdentityPools/x",
+        "state": "ACTIVE",
+        "disabled": False,
+    }
     raw = [
         {
             "name": "providers/active-enabled",
@@ -232,12 +237,42 @@ def test_transform_providers_marks_disabled_as_not_enabled():
         },
     ]
     transformed = cartography.intel.gcp.workload_identity.transform_providers(
-        raw, "projects/p/locations/global/workloadIdentityPools/x", "p"
+        raw, pool, "p"
     )
     by_id = {p["id"]: p for p in transformed}
     assert by_id["providers/active-enabled"]["enabled"] is True
     assert by_id["providers/active-disabled"]["enabled"] is False
     assert by_id["providers/deleted"]["enabled"] is False
+
+
+def test_transform_providers_disabled_pool_disables_all_providers():
+    """
+    A disabled pool blocks federation entirely. Even an ACTIVE+enabled
+    provider under a disabled pool must report enabled=false.
+    """
+    disabled_pool = {
+        "name": "projects/p/locations/global/workloadIdentityPools/x",
+        "state": "ACTIVE",
+        "disabled": True,
+    }
+    deleted_pool = {
+        "name": "projects/p/locations/global/workloadIdentityPools/y",
+        "state": "DELETED",
+        "disabled": False,
+    }
+    raw = [
+        {
+            "name": "providers/active-enabled",
+            "state": "ACTIVE",
+            "disabled": False,
+            "oidc": {"issuerUri": "https://example"},
+        },
+    ]
+    for pool in (disabled_pool, deleted_pool):
+        transformed = cartography.intel.gcp.workload_identity.transform_providers(
+            raw, pool, "p"
+        )
+        assert transformed[0]["enabled"] is False
 
 
 def test_transform_bindings_extracts_wif_pools():

@@ -119,7 +119,7 @@ def _detect_protocol(provider: Dict[str, Any]) -> str | None:
 
 def transform_providers(
     raw_providers: List[Dict[str, Any]],
-    pool_name: str,
+    pool: Dict[str, Any],
     project_id: str,
 ) -> List[Dict[str, Any]]:
     """
@@ -127,7 +127,16 @@ def transform_providers(
     OIDC, AWS, or SAML; only the populated sub-object is read for protocol
     fields and a ``protocol`` string is set so downstream queries do not need
     to introspect three optional sub-objects.
+
+    The parent ``pool`` is passed in (not just its name) because the
+    effective ``enabled`` flag depends on the pool's own state: per GCP, a
+    disabled pool cannot exchange or use tokens, so providers under it must
+    be reported as not enabled even if the provider itself is ACTIVE.
     """
+    pool_name = pool.get("name", "")
+    pool_state = pool.get("state")
+    pool_disabled = pool.get("disabled", False)
+    pool_active = pool_state == "ACTIVE" and not pool_disabled
     result: List[Dict[str, Any]] = []
     for provider in raw_providers:
         provider_name = provider.get("name")
@@ -143,11 +152,10 @@ def transform_providers(
         state = provider.get("state")
         disabled = provider.get("disabled", False)
         # ``enabled`` is the effective flag used for cross-provider
-        # IdentityProvider queries: GCP can return state=ACTIVE on a pool or
-        # provider that has been explicitly disabled, so an ACTIVE-but-
-        # disabled provider must report enabled=false to match the ontology
-        # contract.
-        enabled = state == "ACTIVE" and not disabled
+        # IdentityProvider queries: a provider is only effectively enabled
+        # when both the provider AND its pool are ACTIVE and not disabled.
+        # A disabled pool blocks federation regardless of provider state.
+        enabled = state == "ACTIVE" and not disabled and pool_active
         result.append(
             {
                 "id": provider_name,
@@ -299,7 +307,7 @@ def sync(
                 project_id,
             )
             continue
-        all_providers.extend(transform_providers(raw_providers, pool_name, project_id))
+        all_providers.extend(transform_providers(raw_providers, pool, project_id))
 
     load_providers(neo4j_session, all_providers, project_id, gcp_update_tag)
     cleanup(

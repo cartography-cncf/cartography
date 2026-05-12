@@ -1052,7 +1052,7 @@ Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.c
 | description            | A description of the provider.                                                             |
 | state                  | Provider state (`ACTIVE`, `DELETED`).                                                      |
 | disabled               | Whether the provider is explicitly disabled.                                               |
-| enabled                | Effective enabled flag: `state == ACTIVE AND NOT disabled`. Used for the `IdentityProvider` ontology mapping. |
+| enabled                | Effective enabled flag: true only when both the provider and its parent pool are `state == ACTIVE` and not disabled. Used for the `IdentityProvider` ontology mapping. |
 | protocol               | One of `OIDC`, `AWS`, `SAML`, depending on which sub-object is populated.                  |
 | attribute_condition    | CEL expression that gates token claims before federation.                                  |
 | oidc_issuer_uri        | OIDC issuer URI (only set when `protocol = OIDC`).                                         |
