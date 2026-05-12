@@ -229,11 +229,11 @@ def _autodiscover_accounts(
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
-) -> None:
+) -> organizations.AWSOrganizationSyncResult:
     logger.info("Trying to autodiscover accounts.")
     try:
         client = create_boto3_client(boto3_session, "organizations")
-        organizations.sync_aws_organization(
+        return organizations.sync_aws_organization(
             neo4j_session,
             client,
             account_id,
@@ -247,7 +247,11 @@ def _autodiscover_accounts(
                 "The current account (%s) is not a member of an AWS Organization.",
                 account_id,
             )
-            return
+            return organizations.AWSOrganizationSyncResult(
+                account_id,
+                organizations.AWSOrganizationSyncStatus.NOT_IN_ORG,
+                error_code=error_code,
+            )
         logger.warning(
             "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
             "AWS Organizations error code: %s.",
@@ -255,6 +259,51 @@ def _autodiscover_accounts(
             error_code,
             exc_info=True,
         )
+        status = (
+            organizations.AWSOrganizationSyncStatus.ACCESS_DENIED
+            if error_code in {"AccessDenied", "AccessDeniedException"}
+            else organizations.AWSOrganizationSyncStatus.INCOMPLETE
+        )
+        return organizations.AWSOrganizationSyncResult(
+            account_id,
+            status,
+            error_code=error_code,
+        )
+
+
+def _sync_aws_organizations_for_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    """
+    Discover AWS Organizations before per-account resource sync.
+
+    This keeps standard Cartography's sequential CLI/library flow compatible while
+    giving external orchestrators a single phase they can call before parallel
+    account fanout.
+    """
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    account_items = list(accounts.items())
+    if not use_explicit_profile:
+        account_items = account_items[:1]
+
+    for profile_name, account_id in account_items:
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        results.append(
+            _autodiscover_accounts(
+                neo4j_session,
+                boto3_session,
+                account_id,
+                sync_tag,
+                common_job_parameters,
+            ),
+        )
+
+    return results
 
 
 def _sync_multiple_accounts(
@@ -269,6 +318,13 @@ def _sync_multiple_accounts(
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    _sync_aws_organizations_for_accounts(
+        neo4j_session,
+        accounts,
+        sync_tag,
+        common_job_parameters,
+        use_explicit_profile=use_explicit_profile,
+    )
 
     failed_account_ids = []
     exception_tracebacks = []
@@ -285,14 +341,6 @@ def _sync_multiple_accounts(
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
         aioboto3_session = aioboto3.Session(**session_kwargs)
-
-        _autodiscover_accounts(
-            neo4j_session,
-            boto3_session,
-            account_id,
-            sync_tag,
-            common_job_parameters,
-        )
 
         try:
             _sync_one_account(

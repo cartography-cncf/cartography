@@ -1,7 +1,11 @@
 from datetime import datetime
 from datetime import timezone
+from unittest import mock
+
+import botocore.exceptions
 
 import cartography.intel.aws.organizations
+from cartography.intel.aws.organizations import AWSOrganizationSyncStatus
 from tests.data.aws.organizations import TEST_ORGANIZATION
 from tests.data.aws.organizations import TEST_ORGANIZATION_ACCOUNTS
 from tests.data.aws.organizations import TEST_ORGANIZATION_ROOTS
@@ -164,3 +168,166 @@ def test_paginate_aws_organizations_flattens_pages():
 
     # Assert
     assert result == [{"Id": "1"}, {"Id": "2"}]
+
+
+def _make_client_error(code: str) -> botocore.exceptions.ClientError:
+    return botocore.exceptions.ClientError(
+        {"Error": {"Code": code, "Message": code}},
+        "OrganizationsOperation",
+    )
+
+
+def test_sync_aws_organization_returns_synced_result():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            return {"Organization": TEST_ORGANIZATION}
+
+    common_job_parameters = {"UPDATE_TAG": 1}
+
+    with (
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "get_aws_organization_hierarchy",
+            return_value=([TEST_ORGANIZATION_ROOTS[0]], [], TEST_ORGANIZATION_ACCOUNTS),
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_account_nodes_from_organization",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "sync_root_principal",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organization",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organization_roots",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organizational_units",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "cleanup_aws_organization_hierarchy",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "cleanup_stale_aws_account_organization_metadata",
+        ),
+    ):
+        # Act
+        result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "111111111111",
+            1,
+            common_job_parameters,
+        )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.SYNCED
+    assert result.organization_id == "o-exampleorgid"
+    assert common_job_parameters["_SYNCED_AWS_ORGANIZATION_IDS"] == [
+        "o-exampleorgid",
+    ]
+
+
+def test_sync_aws_organization_returns_already_synced_result():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            return {"Organization": TEST_ORGANIZATION}
+
+    common_job_parameters = {
+        "UPDATE_TAG": 1,
+        "_SYNCED_AWS_ORGANIZATION_IDS": ["o-exampleorgid"],
+    }
+
+    with mock.patch.object(
+        cartography.intel.aws.organizations,
+        "get_aws_organization_hierarchy",
+    ) as mock_get_hierarchy:
+        # Act
+        result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "111111111111",
+            1,
+            common_job_parameters,
+        )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.ALREADY_SYNCED
+    assert result.organization_id == "o-exampleorgid"
+    mock_get_hierarchy.assert_not_called()
+
+
+def test_sync_aws_organization_returns_not_in_org_result():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            raise _make_client_error("AWSOrganizationsNotInUseException")
+
+    # Act
+    result = cartography.intel.aws.organizations.sync_aws_organization(
+        mock.Mock(),
+        FakeClient(),
+        "111111111111",
+        1,
+        {"UPDATE_TAG": 1},
+    )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.NOT_IN_ORG
+    assert result.error_code == "AWSOrganizationsNotInUseException"
+
+
+def test_sync_aws_organization_returns_access_denied_result():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            raise _make_client_error("AccessDeniedException")
+
+    # Act
+    result = cartography.intel.aws.organizations.sync_aws_organization(
+        mock.Mock(),
+        FakeClient(),
+        "111111111111",
+        1,
+        {"UPDATE_TAG": 1},
+    )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.ACCESS_DENIED
+    assert result.error_code == "AccessDeniedException"
+
+
+def test_sync_aws_organization_returns_incomplete_result_for_hierarchy_error():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            return {"Organization": TEST_ORGANIZATION}
+
+    with mock.patch.object(
+        cartography.intel.aws.organizations,
+        "get_aws_organization_hierarchy",
+        side_effect=_make_client_error("ThrottlingException"),
+    ):
+        # Act
+        result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "111111111111",
+            1,
+            {"UPDATE_TAG": 1},
+        )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.INCOMPLETE
+    assert result.organization_id == "o-exampleorgid"
+    assert result.error_code == "ThrottlingException"

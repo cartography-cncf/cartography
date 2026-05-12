@@ -50,6 +50,17 @@ class AWSOrganizationRootToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSOrganizationRootToOrganizationParentRel(CartographyRelSchema):
+    target_node_label: str = "AWSOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PARENT"
+    properties: AWSOrganizationRelProperties = AWSOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
 class AWSOrganizationRootToChildOURel(CartographyRelSchema):
     target_node_label: str = "AWSOrganizationalUnit"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -101,6 +112,7 @@ class AWSOrganizationRootSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            AWSOrganizationRootToOrganizationParentRel(),
             AWSOrganizationRootToChildOURel(),
             AWSOrganizationRootToChildAWSAccountResourceRel(),
             AWSAccountToOrganizationRootParentRel(),

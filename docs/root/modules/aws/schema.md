@@ -130,6 +130,7 @@ Representation of an AWS Organization.
 
     ```cypher
     (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
     ```
 
 ### AWSOrganizationRoot
@@ -151,6 +152,7 @@ Representation of an AWS Organizations root.
 
     ```cypher
     (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
     ```
 
 - `AWSOrganizationRoot` nodes can contain AWS accounts and organizational units.

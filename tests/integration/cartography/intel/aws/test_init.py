@@ -57,17 +57,27 @@ def make_aws_sync_test_kwargs(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
 def test_sync_multiple_accounts(
     mock_cleanup,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_sync_one,
     mock_boto3_session,
     mock_aioboto3_session,
     mock_sync_orgs,
     neo4j_session,
 ):
+    call_order = []
+    mock_sync_organizations_for_accounts.side_effect = (
+        lambda *args, **kwargs: call_order.append("organizations") or []
+    )
+    mock_sync_one.side_effect = lambda *args, **kwargs: call_order.append("account")
+
     cartography.intel.aws._sync_multiple_accounts(
         neo4j_session,
         TEST_ACCOUNTS,
@@ -76,6 +86,8 @@ def test_sync_multiple_accounts(
         aws_best_effort_mode=False,
         use_explicit_profile=True,
     )
+
+    assert call_order == ["organizations", "account", "account", "account"]
 
     # Ensure we call _sync_one_account on all accounts in our list.
     mock_sync_one.assert_any_call(
@@ -109,23 +121,91 @@ def test_sync_multiple_accounts(
         aioboto3_session=mock_aioboto3_session(profile_name="profile3"),
     )
 
-    # Ensure _sync_one_account and _autodiscover is called once for each account
+    # Ensure _sync_one_account is called once for each account and Organizations
+    # discovery happens once before the per-account resource loop.
     assert mock_sync_one.call_count == len(TEST_ACCOUNTS.keys())
-    assert mock_autodiscover.call_count == len(TEST_ACCOUNTS.keys())
+    mock_sync_organizations_for_accounts.assert_called_once_with(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        use_explicit_profile=True,
+    )
 
     # This is a brittle test, but it is here to ensure that the mock_cleanup path is correct.
     assert mock_cleanup.call_count == 1
+
+
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+def test_sync_aws_organizations_for_accounts_uses_ordered_explicit_profiles(
+    mock_autodiscover_accounts,
+    mock_boto3_session,
+    neo4j_session,
+):
+    # Arrange
+    mock_boto3_session.side_effect = (
+        lambda **kwargs: f"session-{kwargs['profile_name']}"
+    )
+
+    # Act
+    cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    assert [call.args[2] for call in mock_autodiscover_accounts.call_args_list] == [
+        "000000000000",
+        "000000000001",
+        "000000000002",
+    ]
+    mock_boto3_session.assert_has_calls(
+        [
+            mock.call(profile_name="profile1"),
+            mock.call(profile_name="profile2"),
+            mock.call(profile_name="profile3"),
+        ],
+    )
+
+
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+def test_sync_aws_organizations_for_accounts_uses_one_default_session(
+    mock_autodiscover_accounts,
+    mock_boto3_session,
+    neo4j_session,
+):
+    # Act
+    cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        use_explicit_profile=False,
+    )
+
+    # Assert
+    mock_boto3_session.assert_called_once_with()
+    mock_autodiscover_accounts.assert_called_once()
 
 
 @mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
 def test_sync_multiple_accounts_single_profile_uses_profile_name(
     mock_cleanup,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_sync_one,
     mock_boto3_session,
     mock_aioboto3_session,
@@ -162,11 +242,15 @@ def test_sync_multiple_accounts_single_profile_uses_profile_name(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
 def test_sync_multiple_accounts_default_path_uses_default_session(
     mock_cleanup,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_sync_one,
     mock_boto3_session,
     mock_aioboto3_session,
@@ -194,11 +278,15 @@ def test_sync_multiple_accounts_default_path_uses_default_session(
 
 @mock_aws
 @mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
 def test_sync_multiple_accounts_profile_session_is_usable(
     mock_cleanup,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_sync_orgs,
     neo4j_session,
     monkeypatch,
@@ -289,7 +377,11 @@ def test_start_aws_ingestion(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -297,7 +389,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -326,7 +418,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     assert "test_account" in message
     assert "test_account2" in message
     assert mock_sync_one.call_count == 2
-    assert mock_autodiscover.call_count == 2
+    assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
@@ -334,7 +426,11 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -342,7 +438,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -368,7 +464,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     assert "KeyError" in str(e)
     assert str(e.value).count("foo") == 1
     assert mock_sync_one.call_count == 1
-    assert mock_autodiscover.call_count == 1
+    assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
@@ -376,7 +472,11 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
@@ -384,7 +484,7 @@ def test_start_aws_ingestion_does_cleanup(
     mock_run_cleanup_job,
     mock_perform_analysis,
     mock_sync_one,
-    mock_autodiscover,
+    mock_sync_organizations_for_accounts,
     mock_get_aws_account,
     mock_boto3,
     mock_aioboto3,
@@ -407,7 +507,7 @@ def test_start_aws_ingestion_does_cleanup(
     # Assert
     assert mock_perform_analysis.call_count == 1
     assert mock_run_cleanup_job.call_count == 1
-    assert mock_autodiscover.call_count == 2
+    assert mock_sync_organizations_for_accounts.call_count == 1
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

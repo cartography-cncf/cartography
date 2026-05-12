@@ -322,6 +322,15 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         neo4j_session,
         "AWSOrganizationRoot",
         "id",
+        "AWSOrganization",
+        "id",
+        "PARENT",
+        rel_direction_right=True,
+    ) == {("o-exampleorgid/r-exam", "o-exampleorgid")}
+    assert check_rels(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        "id",
         "AWSOrganizationalUnit",
         "id",
         "RESOURCE",
@@ -403,6 +412,20 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
         ("arn:aws:iam::111111111111:root",),
         ("arn:aws:iam::222222222222:root",),
         ("arn:aws:iam::444444444444:root",),
+    }
+    recursive_parent_rels = {
+        (record["account_id"], record["organization_id"])
+        for record in neo4j_session.run(
+            """
+            MATCH (account:AWSAccount)-[:PARENT*]->(organization:AWSOrganization)
+            RETURN account.id AS account_id, organization.id AS organization_id
+            """,
+        )
+    }
+    assert recursive_parent_rels == {
+        ("111111111111", "o-exampleorgid"),
+        ("222222222222", "o-exampleorgid"),
+        ("444444444444", "o-exampleorgid"),
     }
 
 
@@ -514,6 +537,18 @@ def test_sync_aws_organization_scopes_root_and_ou_ids_by_organization(
     ) == {
         ("o-exampleorgid", "o-exampleorgid/r-exam"),
         ("o-otherorgid", "o-otherorgid/r-exam"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        "id",
+        "AWSOrganization",
+        "id",
+        "PARENT",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid/r-exam", "o-exampleorgid"),
+        ("o-otherorgid/r-exam", "o-otherorgid"),
     }
 
 

@@ -1,5 +1,7 @@
 import logging
 from collections import deque
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -21,6 +23,30 @@ from cartography.models.aws.organization import AWSOrganizationSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class AWSOrganizationSyncStatus(str, Enum):
+    SYNCED = "SYNCED"
+    ALREADY_SYNCED = "ALREADY_SYNCED"
+    NOT_IN_ORG = "NOT_IN_ORG"
+    ACCESS_DENIED = "ACCESS_DENIED"
+    INCOMPLETE = "INCOMPLETE"
+
+
+@dataclass(frozen=True)
+class AWSOrganizationSyncResult:
+    account_id: str
+    status: AWSOrganizationSyncStatus
+    organization_id: str | None = None
+    error_code: str | None = None
+
+
+def _get_client_error_code(error: botocore.exceptions.ClientError) -> str | None:
+    return error.response.get("Error", {}).get("Code")
+
+
+def _is_access_denied_error(error: botocore.exceptions.ClientError) -> bool:
+    return _get_client_error_code(error) in {"AccessDenied", "AccessDeniedException"}
 
 
 def get_account_from_arn(arn: str) -> str:
@@ -492,8 +518,47 @@ def sync_aws_organization(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
-) -> None:
-    organization = get_aws_organization(organizations_client)
+) -> AWSOrganizationSyncResult:
+    try:
+        organization = get_aws_organization(organizations_client)
+    except botocore.exceptions.ClientError as e:
+        error_code = _get_client_error_code(e)
+        if error_code == "AWSOrganizationsNotInUseException":
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                current_aws_account_id,
+            )
+            return AWSOrganizationSyncResult(
+                current_aws_account_id,
+                AWSOrganizationSyncStatus.NOT_IN_ORG,
+                error_code=error_code,
+            )
+        if _is_access_denied_error(e):
+            logger.warning(
+                "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
+                "AWS Organizations error code: %s.",
+                current_aws_account_id,
+                error_code,
+                exc_info=True,
+            )
+            return AWSOrganizationSyncResult(
+                current_aws_account_id,
+                AWSOrganizationSyncStatus.ACCESS_DENIED,
+                error_code=error_code,
+            )
+        logger.warning(
+            "Unable to describe AWS Organization for account %s; skipping AWS Organizations sync. "
+            "AWS Organizations error code: %s.",
+            current_aws_account_id,
+            error_code,
+            exc_info=True,
+        )
+        return AWSOrganizationSyncResult(
+            current_aws_account_id,
+            AWSOrganizationSyncStatus.INCOMPLETE,
+            error_code=error_code,
+        )
+
     organization_id = organization["Id"]
     synced_organization_ids = common_job_parameters.setdefault(
         "_SYNCED_AWS_ORGANIZATION_IDS",
@@ -504,19 +569,34 @@ def sync_aws_organization(
             "Skipping AWS Organizations sync for organization %s; it was already synced in this run.",
             organization_id,
         )
-        return
+        return AWSOrganizationSyncResult(
+            current_aws_account_id,
+            AWSOrganizationSyncStatus.ALREADY_SYNCED,
+            organization_id=organization_id,
+        )
 
     try:
         roots, organizational_units, raw_accounts = get_aws_organization_hierarchy(
             organizations_client,
         )
-    except botocore.exceptions.ClientError:
+    except botocore.exceptions.ClientError as e:
+        error_code = _get_client_error_code(e)
+        status = (
+            AWSOrganizationSyncStatus.ACCESS_DENIED
+            if _is_access_denied_error(e)
+            else AWSOrganizationSyncStatus.INCOMPLETE
+        )
         logger.warning(
             "Unable to enumerate AWS Organization hierarchy for organization %s; skipping AWS Organizations sync.",
             organization_id,
             exc_info=True,
         )
-        return
+        return AWSOrganizationSyncResult(
+            current_aws_account_id,
+            status,
+            organization_id=organization_id,
+            error_code=error_code,
+        )
 
     organization_accounts = transform_aws_organization_accounts(
         raw_accounts,
@@ -567,3 +647,8 @@ def sync_aws_organization(
         (account["Id"] for account in raw_accounts),
     )
     synced_organization_ids.append(organization_id)
+    return AWSOrganizationSyncResult(
+        current_aws_account_id,
+        AWSOrganizationSyncStatus.SYNCED,
+        organization_id=organization_id,
+    )
