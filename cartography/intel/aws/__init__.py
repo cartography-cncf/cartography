@@ -1,6 +1,8 @@
+import asyncio
 import datetime
 import logging
 import traceback
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -12,6 +14,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
@@ -29,6 +32,16 @@ from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
+AWS_ORGANIZATION_DISCOVERY_CONCURRENCY = 8
+
+
+@dataclass(frozen=True)
+class AWSOrganizationDiscoveryCandidate:
+    profile_name: str
+    account_id: str
+    organization_id: str | None = None
+    management_account_id: str | None = None
+    result: organizations.AWSOrganizationSyncResult | None = None
 
 
 # DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
@@ -271,6 +284,105 @@ def _autodiscover_accounts(
         )
 
 
+async def _discover_aws_organization_candidate(
+    profile_name: str,
+    account_id: str,
+    use_explicit_profile: bool,
+) -> AWSOrganizationDiscoveryCandidate:
+    session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+    aioboto3_session = aioboto3.Session(**session_kwargs)
+    try:
+        async with create_aioboto3_client(
+            aioboto3_session,
+            "organizations",
+        ) as client:
+            response = await client.describe_organization()
+        organization = response["Organization"]
+    except botocore.exceptions.ClientError as e:
+        result = organizations.get_aws_organization_sync_result_from_client_error(
+            account_id,
+            e,
+        )
+        if result.status == organizations.AWSOrganizationSyncStatus.NOT_IN_ORG:
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+        elif result.status == organizations.AWSOrganizationSyncStatus.ACCESS_DENIED:
+            logger.warning(
+                "The current account (%s) doesn't have enough permissions to describe AWS Organizations. "
+                "AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        else:
+            logger.warning(
+                "Unable to describe AWS Organization for account %s. AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        return AWSOrganizationDiscoveryCandidate(
+            profile_name,
+            account_id,
+            result=result,
+        )
+    return AWSOrganizationDiscoveryCandidate(
+        profile_name,
+        account_id,
+        organization_id=organization["Id"],
+        management_account_id=organization.get("MasterAccountId"),
+    )
+
+
+async def _discover_aws_organization_candidate_with_semaphore(
+    semaphore: asyncio.Semaphore,
+    profile_name: str,
+    account_id: str,
+    use_explicit_profile: bool,
+) -> AWSOrganizationDiscoveryCandidate:
+    async with semaphore:
+        return await _discover_aws_organization_candidate(
+            profile_name,
+            account_id,
+            use_explicit_profile,
+        )
+
+
+async def _discover_aws_organization_candidates_async(
+    accounts: Dict[str, str],
+    use_explicit_profile: bool,
+) -> list[AWSOrganizationDiscoveryCandidate]:
+    account_items = list(accounts.items())
+    if not use_explicit_profile:
+        account_items = account_items[:1]
+    if not account_items:
+        return []
+
+    semaphore = asyncio.Semaphore(AWS_ORGANIZATION_DISCOVERY_CONCURRENCY)
+    return await asyncio.gather(
+        *[
+            _discover_aws_organization_candidate_with_semaphore(
+                semaphore,
+                profile_name,
+                account_id,
+                use_explicit_profile,
+            )
+            for profile_name, account_id in account_items
+        ],
+    )
+
+
+def _discover_aws_organization_candidates(
+    accounts: Dict[str, str],
+    use_explicit_profile: bool,
+) -> list[AWSOrganizationDiscoveryCandidate]:
+    return asyncio.run(
+        _discover_aws_organization_candidates_async(accounts, use_explicit_profile),
+    )
+
+
 def _sync_aws_organizations_for_accounts(
     neo4j_session: neo4j.Session,
     accounts: Dict[str, str],
@@ -286,22 +398,47 @@ def _sync_aws_organizations_for_accounts(
     account fanout.
     """
     results: list[organizations.AWSOrganizationSyncResult] = []
-    account_items = list(accounts.items())
-    if not use_explicit_profile:
-        account_items = account_items[:1]
+    candidates = _discover_aws_organization_candidates(accounts, use_explicit_profile)
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
+    for candidate in candidates:
+        if candidate.result is not None:
+            results.append(candidate.result)
+            continue
+        if candidate.organization_id is None:
+            continue
+        candidates_by_organization.setdefault(candidate.organization_id, []).append(
+            candidate,
+        )
 
-    for profile_name, account_id in account_items:
-        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
-        boto3_session = boto3.Session(**session_kwargs)
-        results.append(
-            _autodiscover_accounts(
-                neo4j_session,
-                boto3_session,
-                account_id,
-                sync_tag,
-                common_job_parameters,
+    for organization_id, organization_candidates in candidates_by_organization.items():
+        organization_candidates.sort(
+            key=lambda candidate: (
+                candidate.account_id != candidate.management_account_id,
             ),
         )
+        for candidate in organization_candidates:
+            session_kwargs = (
+                {"profile_name": candidate.profile_name} if use_explicit_profile else {}
+            )
+            boto3_session = boto3.Session(**session_kwargs)
+            result = _autodiscover_accounts(
+                neo4j_session,
+                boto3_session,
+                candidate.account_id,
+                sync_tag,
+                common_job_parameters,
+            )
+            results.append(result)
+            if result.status in {
+                organizations.AWSOrganizationSyncStatus.SYNCED,
+                organizations.AWSOrganizationSyncStatus.ALREADY_SYNCED,
+            }:
+                break
+        else:
+            logger.warning(
+                "Unable to find an account with access to enumerate AWS Organization %s.",
+                organization_id,
+            )
 
     return results
 

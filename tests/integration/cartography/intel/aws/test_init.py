@@ -6,6 +6,7 @@ from typing import List
 from unittest import mock
 
 import neo4j
+import pytest
 from moto import mock_aws
 from pytest import raises
 
@@ -138,14 +139,34 @@ def test_sync_multiple_accounts(
 
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
-def test_sync_aws_organizations_for_accounts_uses_ordered_explicit_profiles(
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
+def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
+    mock_discover_candidates,
     mock_autodiscover_accounts,
     mock_boto3_session,
     neo4j_session,
 ):
     # Arrange
-    mock_boto3_session.side_effect = (
-        lambda **kwargs: f"session-{kwargs['profile_name']}"
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "member-profile",
+            "000000000001",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "management-profile",
+            "000000000000",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+    ]
+    mock_autodiscover_accounts.return_value = (
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000000",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+            organization_id="o-example",
+        )
     )
 
     # Act
@@ -160,25 +181,33 @@ def test_sync_aws_organizations_for_accounts_uses_ordered_explicit_profiles(
     # Assert
     assert [call.args[2] for call in mock_autodiscover_accounts.call_args_list] == [
         "000000000000",
-        "000000000001",
-        "000000000002",
     ]
-    mock_boto3_session.assert_has_calls(
-        [
-            mock.call(profile_name="profile1"),
-            mock.call(profile_name="profile2"),
-            mock.call(profile_name="profile3"),
-        ],
-    )
 
 
-@mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_uses_one_default_session(
+    mock_discover_candidates,
     mock_autodiscover_accounts,
-    mock_boto3_session,
     neo4j_session,
 ):
+    # Arrange
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "default",
+            "000000000000",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+    ]
+    mock_autodiscover_accounts.return_value = (
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000000",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+            organization_id="o-example",
+        )
+    )
+
     # Act
     cartography.intel.aws._sync_aws_organizations_for_accounts(
         neo4j_session,
@@ -189,8 +218,38 @@ def test_sync_aws_organizations_for_accounts_uses_one_default_session(
     )
 
     # Assert
-    mock_boto3_session.assert_called_once_with()
+    mock_discover_candidates.assert_called_once_with(TEST_ACCOUNTS, False)
     mock_autodiscover_accounts.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_discover_aws_organization_candidates_async_keeps_account_order(mocker):
+    # Arrange
+    async def fake_discover(profile_name, account_id, use_explicit_profile):
+        return cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            profile_name,
+            account_id,
+            organization_id=f"org-{account_id}",
+        )
+
+    mocker.patch.object(
+        cartography.intel.aws,
+        "_discover_aws_organization_candidate",
+        side_effect=fake_discover,
+    )
+
+    # Act
+    candidates = (
+        await cartography.intel.aws._discover_aws_organization_candidates_async(
+            TEST_ACCOUNTS,
+            use_explicit_profile=True,
+        )
+    )
+
+    # Assert
+    assert [(c.profile_name, c.account_id) for c in candidates] == list(
+        TEST_ACCOUNTS.items(),
+    )
 
 
 @mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)

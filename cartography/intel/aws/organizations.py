@@ -49,6 +49,34 @@ def _is_access_denied_error(error: botocore.exceptions.ClientError) -> bool:
     return _get_client_error_code(error) in {"AccessDenied", "AccessDeniedException"}
 
 
+def get_aws_organization_sync_result_from_client_error(
+    account_id: str,
+    error: botocore.exceptions.ClientError,
+    organization_id: str | None = None,
+) -> AWSOrganizationSyncResult:
+    error_code = _get_client_error_code(error)
+    if error_code == "AWSOrganizationsNotInUseException":
+        return AWSOrganizationSyncResult(
+            account_id,
+            AWSOrganizationSyncStatus.NOT_IN_ORG,
+            organization_id=organization_id,
+            error_code=error_code,
+        )
+    if _is_access_denied_error(error):
+        return AWSOrganizationSyncResult(
+            account_id,
+            AWSOrganizationSyncStatus.ACCESS_DENIED,
+            organization_id=organization_id,
+            error_code=error_code,
+        )
+    return AWSOrganizationSyncResult(
+        account_id,
+        AWSOrganizationSyncStatus.INCOMPLETE,
+        organization_id=organization_id,
+        error_code=error_code,
+    )
+
+
 def get_account_from_arn(arn: str) -> str:
     # TODO use policyuniverse to parse ARN?
     return arn.split(":")[4]
@@ -522,42 +550,33 @@ def sync_aws_organization(
     try:
         organization = get_aws_organization(organizations_client)
     except botocore.exceptions.ClientError as e:
-        error_code = _get_client_error_code(e)
-        if error_code == "AWSOrganizationsNotInUseException":
+        result = get_aws_organization_sync_result_from_client_error(
+            current_aws_account_id,
+            e,
+        )
+        if result.status == AWSOrganizationSyncStatus.NOT_IN_ORG:
             logger.info(
                 "The current account (%s) is not a member of an AWS Organization.",
                 current_aws_account_id,
             )
-            return AWSOrganizationSyncResult(
-                current_aws_account_id,
-                AWSOrganizationSyncStatus.NOT_IN_ORG,
-                error_code=error_code,
-            )
-        if _is_access_denied_error(e):
+            return result
+        if result.status == AWSOrganizationSyncStatus.ACCESS_DENIED:
             logger.warning(
                 "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
                 "AWS Organizations error code: %s.",
                 current_aws_account_id,
-                error_code,
+                result.error_code,
                 exc_info=True,
             )
-            return AWSOrganizationSyncResult(
-                current_aws_account_id,
-                AWSOrganizationSyncStatus.ACCESS_DENIED,
-                error_code=error_code,
-            )
+            return result
         logger.warning(
             "Unable to describe AWS Organization for account %s; skipping AWS Organizations sync. "
             "AWS Organizations error code: %s.",
             current_aws_account_id,
-            error_code,
+            result.error_code,
             exc_info=True,
         )
-        return AWSOrganizationSyncResult(
-            current_aws_account_id,
-            AWSOrganizationSyncStatus.INCOMPLETE,
-            error_code=error_code,
-        )
+        return result
 
     organization_id = organization["Id"]
     synced_organization_ids = common_job_parameters.setdefault(
@@ -580,23 +599,17 @@ def sync_aws_organization(
             organizations_client,
         )
     except botocore.exceptions.ClientError as e:
-        error_code = _get_client_error_code(e)
-        status = (
-            AWSOrganizationSyncStatus.ACCESS_DENIED
-            if _is_access_denied_error(e)
-            else AWSOrganizationSyncStatus.INCOMPLETE
+        result = get_aws_organization_sync_result_from_client_error(
+            current_aws_account_id,
+            e,
+            organization_id=organization_id,
         )
         logger.warning(
             "Unable to enumerate AWS Organization hierarchy for organization %s; skipping AWS Organizations sync.",
             organization_id,
             exc_info=True,
         )
-        return AWSOrganizationSyncResult(
-            current_aws_account_id,
-            status,
-            organization_id=organization_id,
-            error_code=error_code,
-        )
+        return result
 
     organization_accounts = transform_aws_organization_accounts(
         raw_accounts,
