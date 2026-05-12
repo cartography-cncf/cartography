@@ -209,7 +209,7 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "'gatekeeper-system'" in fact.cypher_query
         assert "'kyverno'" in fact.cypher_query
 
-    def test_service_account_token_mounts_excludes_implicit_irsa_mounts(self):
+    def test_service_account_token_mounts_excludes_irsa_mounts(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
 
         assert "sa.aws_role_arn IS NOT NULL" in fact.cypher_query
