@@ -37,6 +37,11 @@
       "iterative": false
     },
     {
+      "__comment": "Link Device to User based on User-HAS_ACCOUNT-EntraUser-ENROLLED_TO-IntuneManagedDevice",
+      "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
       "__comment": "Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
       "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false

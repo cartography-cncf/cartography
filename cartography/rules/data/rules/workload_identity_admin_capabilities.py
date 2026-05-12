@@ -48,7 +48,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             ] AS effective_actions
         WHERE size(effective_actions) > 0
         // Step 4: Optional internet exposure context
-        OPTIONAL MATCH (ec2 {exposed_internet: True})
+        OPTIONAL MATCH (ec2 {exposed_internet: true})
             -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
             <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         UNWIND effective_actions AS action

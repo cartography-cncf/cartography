@@ -84,6 +84,169 @@ _aws_trust_relationship_manipulation = Fact(
 )
 
 
+# GCP
+_gcp_trust_relationship_manipulation = Fact(
+    id="gcp_trust_relationship_manipulation",
+    name="GCP Principals with Service Account Impersonation Permissions",
+    description=(
+        "GCP principals bound to a role granting `iam.serviceAccounts.actAs` "
+        "(impersonate any service account in the project), "
+        "`iam.serviceAccounts.implicitDelegation` (chain SA tokens), or "
+        "`iam.serviceAccountKeys.create` (mint long-lived SA keys). All "
+        "three open lateral identity-takeover paths analogous to AWS "
+        "AssumeRolePolicy modification."
+    ),
+    cypher_query="""
+    MATCH (binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
+    WHERE any(label IN labels(scope)
+              WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
+    MATCH (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
+    MATCH (binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WITH scope, principal, role,
+        [
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.implicitDelegation',
+            'iam.serviceAccounts.getAccessToken',
+            'iam.serviceAccounts.signBlob',
+            'iam.serviceAccounts.signJwt',
+            'iam.serviceAccountKeys.create'
+        ] AS patterns
+    WITH scope, principal, role, patterns,
+         [perm IN coalesce(role.permissions, [])
+            WHERE perm IN patterns OR perm = 'iam.*' OR perm = '*'] AS matched
+    WHERE size(matched) > 0
+    RETURN DISTINCT
+        scope.id AS account,
+        scope.id AS account_id,
+        coalesce(principal.email, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        coalesce(
+            head([l IN ['GCPServiceAccount', 'GoogleWorkspaceUser', 'GoogleWorkspaceGroup']
+                  WHERE l IN labels(principal)]),
+            head([l IN ['ServiceAccount', 'UserAccount', 'UserGroup']
+                  WHERE l IN labels(principal)])
+        ) AS principal_type,
+        role.name AS policy_name,
+        matched AS actions,
+        [scope.id] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
+    WHERE any(label IN labels(scope)
+              WHERE label IN ['GCPProject', 'GCPFolder', 'GCPOrganization'])
+    MATCH p2=(binding)-[:GRANTS_ROLE]->(role:GCPRole)
+    WHERE ANY(perm IN coalesce(role.permissions, []) WHERE
+        perm IN [
+            'iam.serviceAccounts.actAs',
+            'iam.serviceAccounts.implicitDelegation',
+            'iam.serviceAccounts.getAccessToken',
+            'iam.serviceAccounts.signBlob',
+            'iam.serviceAccounts.signJwt',
+            'iam.serviceAccountKeys.create'
+        ]
+        OR perm = 'iam.*' OR perm = '*'
+    )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (principal:GCPPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Azure
+_azure_trust_relationship_manipulation = Fact(
+    id="azure_trust_relationship_manipulation",
+    name="Azure Principals with Managed Identity Assignment Permissions",
+    description=(
+        "Entra principals holding a role assignment whose role definition "
+        "grants `Microsoft.ManagedIdentity/userAssignedIdentities/.../"
+        "assign/action` (attach a UAMI to a workload, the closest analog "
+        "to AWS UpdateAssumeRolePolicy) or "
+        "`Microsoft.Authorization/roleAssignments/write` (grant arbitrary "
+        "role assignments to other principals)."
+    ),
+    cypher_query="""
+    MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // Treat each action / not_action as a case-insensitive glob: `.` is
+    // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
+    // anywhere now correctly matches; Contributor (actions=['*'],
+    // not_actions including `Microsoft.Authorization/*/Write`) is
+    // shadowed for the role-assignment write pattern.
+    WITH sub, ra, rd, perm, principal,
+         coalesce(perm.actions, []) AS role_actions,
+         coalesce(perm.not_actions, []) AS role_not_actions,
+        [
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
+            'Microsoft.Authorization/roleAssignments/write'
+        ] AS patterns
+    WITH sub, ra, rd, perm, principal, role_not_actions,
+        [
+            p IN patterns
+            WHERE ANY(a IN role_actions WHERE
+                toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*')
+            )
+        ] AS granted
+    WITH sub, ra, rd, perm, principal,
+        [
+            p IN granted
+            WHERE NOT ANY(na IN role_not_actions WHERE
+                toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*')
+            )
+        ] AS matched
+    WHERE size(matched) > 0
+    RETURN DISTINCT
+        sub.id AS account,
+        sub.id AS account_id,
+        coalesce(principal.user_principal_name,
+                 principal.display_name,
+                 principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        [label IN labels(principal)
+            WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.role_name AS policy_name,
+        matched AS actions,
+        [ra.scope] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
+    MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    WHERE any(label IN labels(principal)
+              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+      // Mirror the finding query: at least one searched pattern is granted
+      // by actions AND not shadowed by not_actions.
+      AND ANY(p IN [
+            'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
+            'Microsoft.Authorization/roleAssignments/write'
+        ]
+        WHERE ANY(a IN coalesce(perm.actions, []) WHERE
+                  toLower(p) =~ replace(replace(toLower(a), '.', '[.]'), '*', '.*'))
+          AND NOT ANY(na IN coalesce(perm.not_actions, []) WHERE
+                  toLower(p) =~ replace(replace(toLower(na), '.', '[.]'), '*', '.*'))
+      )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (ra:AzureRoleAssignment)
+    RETURN COUNT(ra) AS count
+    """,
+    asset_id_field="principal_identifier",
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class DelegationBoundaryModifiable(Finding):
     principal_name: str | None = None
@@ -104,7 +267,11 @@ delegation_boundary_modifiable = Rule(
         "allowing cross-account or lateral impersonation paths."
     ),
     output_model=DelegationBoundaryModifiable,
-    facts=(_aws_trust_relationship_manipulation,),
+    facts=(
+        _aws_trust_relationship_manipulation,
+        _azure_trust_relationship_manipulation,
+        _gcp_trust_relationship_manipulation,
+    ),
     tags=(
         "iam",
         "stride:elevation_of_privilege",

@@ -28,16 +28,24 @@ The token requires the following scopes:
 |-------|---------|
 | `read_user` | Access user profile information for group/project membership |
 | `read_repository` | Access repository metadata, branches, and file contents |
-| `read_api` | Access groups, projects, dependencies, language statistics, and group/project-level CI/CD runners |
+| `read_api` | Access groups, projects, dependency scanning artifacts, language statistics, and group/project-level CI/CD runners |
 
 These scopes provide read-only access to:
 - Organizations (top-level groups) and nested groups
 - Projects and their metadata
 - Branches and default branch information
 - Dependency files (package.json, requirements.txt, etc.)
-- Dependencies extracted from dependency files
+- Dependency files and dependencies extracted from GitLab dependency scanning artifacts
 - Project language statistics
 - Group-level and project-level CI/CD runners
+
+#### Dependency scanning artifact access
+
+Cartography ingests GitLab dependencies from CycloneDX SBOM artifacts produced by GitLab dependency scanning jobs, not from GitLab's dependency list API. The token scopes above are required, and the token's user must also be allowed to download CI job artifacts for each project.
+
+GitLab projects can restrict artifact downloads with [`artifacts:access`](https://docs.gitlab.com/ci/yaml/#artifactsaccess). If a dependency scanning job uses `artifacts:access: developer` or `artifacts:access: maintainer`, a token that belongs to a Reporter-level user can receive `403 Forbidden` when Cartography downloads the job artifacts. Grant the token's user a project role that satisfies the artifact access policy.
+
+Dependency scanning jobs must produce CycloneDX SBOM artifacts, such as `gl-sbom-*.cdx.json`, `gl-sbom.cdx.json`, or gzipped equivalents. GitLab documents these SBOMs as job artifacts of the dependency scanning job. Cartography can only ingest artifacts that GitLab still serves, so expired or deleted job artifacts cannot be recovered during sync.
 
 #### Optional: instance-level runners
 

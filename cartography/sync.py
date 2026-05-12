@@ -66,9 +66,6 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         ),
         "gsuite": _LazyStage("cartography.intel.gsuite", "start_gsuite_ingestion"),
         "cve": _LazyStage("cartography.intel.cve", "start_cve_ingestion"),
-        "cve_metadata": _LazyStage(
-            "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
-        ),
         "oci": _LazyStage("cartography.intel.oci", "start_oci_ingestion"),
         "okta": _LazyStage("cartography.intel.okta", "start_okta_ingestion"),
         "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
@@ -116,6 +113,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
+        ),
+        "cve_metadata": _LazyStage(
+            "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
         "slack": _LazyStage("cartography.intel.slack", "start_slack_ingestion"),
         "spacelift": _LazyStage(

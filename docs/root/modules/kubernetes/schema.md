@@ -139,11 +139,17 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | deletion\_timestamp | Timestamp of the deletion time of the Kubernetes pod |
 | **namespace** | The Kubernetes namespace where this pod is deployed |
 | service\_account\_name | Name of the ServiceAccount used by the pod. Derived from `pod.spec.service_account_name` and defaults to `default` when unset. |
+| automount\_service\_account\_token | Pod-level override for whether a service account token is automatically mounted. Derived from `pod.spec.automount_service_account_token`. |
+| host\_pid | Whether the pod shares the host PID namespace. Derived from `pod.spec.host_pid`. |
+| host\_ipc | Whether the pod shares the host IPC namespace. Derived from `pod.spec.host_ipc`. |
+| host\_network | Whether the pod shares the host network namespace. Derived from `pod.spec.host_network`. |
+| seccomp\_profile\_type | Pod-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `pod.spec.security_context.seccomp_profile.type`. |
+| host\_path\_volume\_paths | List of host filesystem paths mounted via `hostPath` pod volumes. Derived from `pod.spec.volumes[].host_path.path`. |
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
-| exposed\_internet | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
+| **exposed\_internet** | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
@@ -201,6 +207,13 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
 | memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
 | cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
+| allow\_privilege\_escalation | Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`. |
+| run\_as\_non\_root | Whether the container is configured to run as non-root. Derived from `container.security_context.run_as_non_root`. |
+| run\_as\_user | Explicit UID configured for the container. Derived from `container.security_context.run_as_user`. |
+| seccomp\_profile\_type | Container-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `container.security_context.seccomp_profile.type`. |
+| added\_capabilities | Linux capabilities explicitly added to the container. Derived from `container.security_context.capabilities.add`. |
+| dropped\_capabilities | Linux capabilities explicitly dropped by the container. Derived from `container.security_context.capabilities.drop`. |
+| host\_ports | List of host ports exposed by the container. Derived from `container.ports[].host_port`. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
@@ -246,7 +259,7 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 | deletion\_timestamp | Timestamp of the deletion time of the kubernetes service |
 | **namespace** | The Kubernetes namespace where this service is deployed |
 | selector | Labels used by the service to select pods. Fetched from `service.spec.selector`. Stored as a JSON-encoded string. |
-| type | Type of kubernetes service e.g. `ClusterIP` |
+| **type** | Type of kubernetes service e.g. `ClusterIP` |
 | cluster\_ip | The internal IP address assigned to the Kubernetes service within the cluster |
 | load\_balancer\_ip | IP of the load balancer when service type is `LoadBalancer` |
 | load\_balancer\_ingress | The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string. |
@@ -658,6 +671,8 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 
 ### KubernetesOIDCProvider
 Representation of an external OIDC identity provider for a Kubernetes cluster. This node contains the configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Entra). The ingestion of users/groups from the identity provider is handled by the respective identity provider Cartography module. Then the Kubernetes module creates relationships between those identities and KubernetesUsers and KubernetesGroups.
+
+> **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KeycloakIdentityProvider).
 
 | Field | Description |
 |-------|-------------|

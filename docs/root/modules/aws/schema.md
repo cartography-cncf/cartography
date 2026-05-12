@@ -1432,12 +1432,15 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., GitHubWorkflow, GitLabCIConfig, SpaceliftStack).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The ARN of the CodeBuild Project |
 | **arn** | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| name | The CodeBuild Project name |
 | region | The region of the codebuild project |
 | created | The creation time of the CodeBuild Project |
 | environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
@@ -2821,8 +2824,8 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | id | same as `arn` |
 | **name** | Name of the EKS Cluster |
 | endpoint | The endpoint for the Kubernetes API server. |
-| endpoint_public_access | Indicates whether the Amazon EKS public API server endpoint is enabled |
-| exposed_internet | Set to True if the EKS Cluster public API server endpoint is enabled |
+| **endpoint_public_access** | Indicates whether the Amazon EKS public API server endpoint is enabled |
+| **exposed_internet** | Set to True if the EKS Cluster public API server endpoint is enabled |
 | rolearn | The ARN of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API |
 | version | Kubernetes version running |
 | platform_version | Version of EKS |
@@ -4481,6 +4484,8 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
 ### EBSVolume
 
 Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html).
+
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., AzureDisk, ScalewayVolume).
 
 | Field | Description |
 |-------|-------------|

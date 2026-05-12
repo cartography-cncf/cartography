@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -112,6 +113,7 @@ class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
 class GitLabCIConfigSchema(CartographyNodeSchema):
     label: str = "GitLabCIConfig"
     properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CICDPipeline"])
     sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [GitLabCIConfigToCIVariableRel()],
