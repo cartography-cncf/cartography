@@ -336,7 +336,7 @@ _aws_default_sg_allows_traffic = Fact(
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(egress:AWSIpRule)
         WHERE NOT egress:AWSIpPermissionInbound
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(consumer)
-        WHERE NOT consumer:IpRule
+        WHERE NOT consumer:IpRule AND NOT consumer:AWSVpc
     WITH a, sg,
         count(DISTINCT inbound) > 0 AS has_inbound_rules,
         count(DISTINCT egress) > 0 AS has_egress_rules,
