@@ -5,6 +5,7 @@ import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS
+from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE
 from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
@@ -14,6 +15,7 @@ from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "123456789012"
 REMOTE_ACCOUNT_ID = "210987654321"
+UNMATCHED_REMOTE_ACCOUNT_ID = "998877665544"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
@@ -391,5 +393,85 @@ def test_sync_guardduty_aws_api_call_fields(
     ) == {
         ("96d3456789012cdef3456789012cdef01", REMOTE_ACCOUNT_ID),
     }
+
+    mock_get_findings.assert_called()
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    return_value=GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE["Findings"],
+)
+def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
+    """Test that remote account properties persist even when no matching AWSAccount node exists."""
+    boto3_session = MagicMock()
+    api_call_update_tag = 987654322
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, api_call_update_tag)
+
+    neo4j_session.run(
+        """
+        MERGE (bucket:S3Bucket {id: $bucket_name})
+        ON CREATE SET bucket.firstseen = timestamp()
+        SET bucket.lastupdated = $update_tag
+        """,
+        bucket_name="remote-account-test-bucket",
+        update_tag=api_call_update_tag,
+    )
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        api_call_update_tag,
+        {
+            "UPDATE_TAG": api_call_update_tag,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        },
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "GuardDutyFinding",
+        [
+            "id",
+            "api_call_remote_account_id",
+            "api_call_remote_account_affiliated",
+        ],
+    ) == {
+        (
+            "d2f5678901234ef5678901234ef567890",
+            UNMATCHED_REMOTE_ACCOUNT_ID,
+            False,
+        ),
+    }
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "GuardDutyFinding",
+            "id",
+            "AWSAccount",
+            "id",
+            "REMOTE_ACCOUNT",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
     mock_get_findings.assert_called()

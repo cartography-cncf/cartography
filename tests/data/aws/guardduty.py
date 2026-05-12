@@ -401,6 +401,73 @@ GET_AWS_API_CALL_FINDINGS = {
     ]
 }
 
+GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE = {
+    "Findings": [
+        {
+            "Id": "d2f5678901234ef5678901234ef567890",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/d2f5678901234ef5678901234ef567890",
+            "Type": "PrivilegeEscalation:IAMUser/AnomalousAPIActivity",
+            "Title": "IAM user is making anomalous API calls",
+            "Description": "IAM user RemoteAccountOnlyUser is making anomalous API calls from remote AWS account 998877665544.",
+            "Severity": 8.2,
+            "Confidence": 6.5,
+            "CreatedAt": datetime(2023, 1, 20, 7, 45, 0),
+            "UpdatedAt": datetime(2023, 1, 20, 8, 0, 0),
+            "EventFirstSeen": datetime(2023, 1, 20, 7, 45, 0),
+            "EventLastSeen": datetime(2023, 1, 20, 8, 0, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "AccessKey",
+                "AccessKeyDetails": {
+                    "AccessKeyId": "AKIAREMOTEACCTEXAMPLE",
+                    "PrincipalId": "AIDAREMOTEACCOUNTTEST",
+                    "UserName": "RemoteAccountOnlyUser",
+                    "UserType": "IAMUser",
+                },
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "AWS_API_CALL",
+                    "AwsApiCallAction": {
+                        "Api": "CreateAccessKey",
+                        "CallerType": "Remote IP",
+                        "RemoteAccountDetails": {
+                            "AccountId": "998877665544",
+                            "Affiliated": False,
+                        },
+                        "RemoteIpDetails": {
+                            "IpAddressV4": "198.51.100.55",
+                            "Country": {
+                                "CountryCode": "DE",
+                                "CountryName": "Germany",
+                            },
+                            "City": {"CityName": "Berlin"},
+                            "GeoLocation": {"Lat": 52.52, "Lon": 13.405},
+                            "Organization": {
+                                "Asn": "64500",
+                                "AsnOrg": "Example DE ISP",
+                                "Isp": "Example DE ISP",
+                                "Org": "Example DE Organization",
+                            },
+                        },
+                        "ServiceName": "iam.amazonaws.com",
+                    },
+                },
+                "Archived": False,
+                "Count": 2,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 20, 7, 45, 0),
+                "EventLastSeen": datetime(2023, 1, 20, 8, 0, 0),
+                "ResourceRole": "ACTOR",
+                "ServiceName": "guardduty",
+            },
+        },
+    ]
+}
+
 # Mock findings data for testing transformations
 SAMPLE_FINDINGS = [
     {

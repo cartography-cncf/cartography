@@ -169,19 +169,21 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform GuardDuty findings from API response to schema format."""
     transformed: list[dict[str, Any]] = []
     for f in findings:
-        service = f.get("Service", {})
-        action = service.get("Action", {})
+        service = f.get("Service") or {}
+        action = service.get("Action") or {}
         action_type = action.get("ActionType")
 
         # Extract AwsApiCallAction fields when applicable
         api_call: dict[str, Any] = {}
         if action_type == "AWS_API_CALL":
-            api_call = action.get("AwsApiCallAction", {})
+            api_call = action.get("AwsApiCallAction") or {}
 
-        remote_ip_details = api_call.get("RemoteIpDetails", {})
-        remote_account_details = api_call.get("RemoteAccountDetails", {})
-        remote_geo = remote_ip_details.get("GeoLocation", {})
-        remote_org = remote_ip_details.get("Organization", {})
+        remote_ip_details = api_call.get("RemoteIpDetails") or {}
+        remote_account_details = api_call.get("RemoteAccountDetails") or {}
+        remote_country = remote_ip_details.get("Country") or {}
+        remote_city = remote_ip_details.get("City") or {}
+        remote_geo = remote_ip_details.get("GeoLocation") or {}
+        remote_org = remote_ip_details.get("Organization") or {}
 
         item: dict[str, Any] = {
             "id": f["Id"],
@@ -218,12 +220,8 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "IpAddressV4",
                 remote_ip_details.get("IpAddressV6"),
             ),
-            "api_call_remote_country": remote_ip_details.get("Country", {}).get(
-                "CountryName",
-            ),
-            "api_call_remote_city": remote_ip_details.get("City", {}).get(
-                "CityName",
-            ),
+            "api_call_remote_country": remote_country.get("CountryName"),
+            "api_call_remote_city": remote_city.get("CityName"),
             "api_call_remote_org": remote_org.get("Org"),
             "api_call_remote_asn": remote_org.get("Asn"),
             "api_call_remote_asn_org": remote_org.get("AsnOrg"),

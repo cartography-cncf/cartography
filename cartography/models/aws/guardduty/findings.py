@@ -51,6 +51,7 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     api_call_remote_lon: PropertyRef = PropertyRef("api_call_remote_lon")
     api_call_remote_account_id: PropertyRef = PropertyRef(
         "api_call_remote_account_id",
+        extra_index=True,
     )
     api_call_remote_account_affiliated: PropertyRef = PropertyRef(
         "api_call_remote_account_affiliated",
