@@ -608,6 +608,8 @@ These nodes are also shared globally across repositories. Repository-specific ve
 
 Represents a GitHub Actions workflow definition file in a repository.
 
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitLabCIConfig, SpaceliftStack).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |

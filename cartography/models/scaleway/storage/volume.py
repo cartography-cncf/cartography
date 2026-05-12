@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -16,6 +17,7 @@ class ScalewayVolumeNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     export_uri: PropertyRef = PropertyRef("export_uri")
     size: PropertyRef = PropertyRef("size")
+    size_gb: PropertyRef = PropertyRef("size_gb")
     volume_type: PropertyRef = PropertyRef("volume_type")
     creation_date: PropertyRef = PropertyRef("creation_date")
     modification_date: PropertyRef = PropertyRef("modification_date")
@@ -48,4 +50,5 @@ class ScalewayVolumeToProjectRel(CartographyRelSchema):
 class ScalewayVolumeSchema(CartographyNodeSchema):
     label: str = "ScalewayVolume"
     properties: ScalewayVolumeNodeProperties = ScalewayVolumeNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
     sub_resource_relationship: ScalewayVolumeToProjectRel = ScalewayVolumeToProjectRel()

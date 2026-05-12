@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -24,6 +25,7 @@ class AzureDiskProperties(CartographyNodeProperties):
     maxshares: PropertyRef = PropertyRef("max_shares")
     network_access_policy: PropertyRef = PropertyRef("network_access_policy")
     ostype: PropertyRef = PropertyRef("os_type")
+    state: PropertyRef = PropertyRef("disk_state")
     tier: PropertyRef = PropertyRef("tier")
     sku: PropertyRef = PropertyRef("sku.name")
     zones: PropertyRef = PropertyRef("zones")
@@ -52,4 +54,5 @@ class AzureDiskToSubscriptionRel(CartographyRelSchema):
 class AzureDiskSchema(CartographyNodeSchema):
     label: str = "AzureDisk"
     properties: AzureDiskProperties = AzureDiskProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
     sub_resource_relationship: AzureDiskToSubscriptionRel = AzureDiskToSubscriptionRel()

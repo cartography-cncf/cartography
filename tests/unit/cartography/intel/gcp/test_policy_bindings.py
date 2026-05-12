@@ -46,6 +46,16 @@ COMMON_JOB_PARAMS = {
             "//storage.googleapis.com/buckets/test-bucket/objects/foo.txt",
             ("GCPBucket", "test-bucket"),
         ),
+        # BigQuery dataset
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a",
+            ("GCPBigQueryDataset", "project-abc:dataset_a"),
+        ),
+        # BigQuery table
+        (
+            "//bigquery.googleapis.com/projects/project-abc/datasets/dataset_a/tables/events",
+            ("GCPBigQueryTable", "project-abc:dataset_a.events"),
+        ),
         # KMS — cryptoKey wins over keyRing
         (
             "//cloudkms.googleapis.com/projects/p/locations/us/keyRings/r/cryptoKeys/k",
@@ -90,6 +100,16 @@ COMMON_JOB_PARAMS = {
                 "projects/p/locations/us-central1/services/svc",
             ),
         ),
+        # Service Account
+        (
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com",
+            ("GCPServiceAccount", "sa@project-abc.iam.gserviceaccount.com"),
+        ),
+        # Cloud Functions
+        (
+            "//cloudfunctions.googleapis.com/projects/p/locations/us-central1/functions/fn",
+            ("GCPCloudFunction", "projects/p/locations/us-central1/functions/fn"),
+        ),
         # Compute — instance (partial_uri format)
         (
             "//compute.googleapis.com/projects/p/zones/us-central1-a/instances/vm1",
@@ -112,7 +132,7 @@ COMMON_JOB_PARAMS = {
         ),
         # Unknown service
         (
-            "//bigquery.googleapis.com/projects/p/datasets/d",
+            "//pubsub.googleapis.com/projects/p/topics/t",
             (None, None),
         ),
         # Empty suffix
@@ -129,6 +149,33 @@ COMMON_JOB_PARAMS = {
 )
 def test_parse_full_resource_name(full_name, expected):
     assert _parse_full_resource_name(full_name) == expected
+
+
+def test_policy_bindings_search_asset_types_come_from_full_name_mappings():
+    assert policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES == [
+        asset_type
+        for mapping in policy_bindings._FULL_NAME_MAPPINGS
+        for asset_type in (
+            ((mapping.asset_type,) if mapping.asset_type is not None else ())
+            + mapping.additional_asset_types
+        )
+    ]
+    assert (
+        "artifactregistry.googleapis.com/Repository"
+        in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert (
+        "cloudfunctions.googleapis.com/Function"
+        in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert (
+        "cloudfunctions.googleapis.com/CloudFunction"
+        in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert (
+        "artifactregistry.googleapis.com/DockerImage"
+        not in policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
 
 
 def test_wait_for_cai_policy_bindings_slot_reserves_per_operation_slots():
@@ -218,7 +265,79 @@ def test_get_policy_bindings_passes_custom_retry_to_cai_rpcs(
         client.search_all_iam_policies.call_args.kwargs["timeout"]
         == policy_bindings.CAI_POLICY_BINDINGS_SEARCH_TIMEOUT
     )
+    search_request = client.search_all_iam_policies.call_args.kwargs["request"]
+    assert (
+        list(search_request.asset_types)
+        == policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES
+    )
+    assert "artifactregistry.googleapis.com/Repository" in search_request.asset_types
+    assert (
+        "artifactregistry.googleapis.com/DockerImage" not in search_request.asset_types
+    )
     assert mock_wait_for_slot.call_count == 2
+
+
+def test_split_bindings_by_graph_scope_keeps_inherited_separate():
+    direct_project = {
+        "id": "project-binding",
+        "resource": "//cloudresourcemanager.googleapis.com/projects/project-abc",
+        "resource_type": "project",
+    }
+    direct_resource = {
+        "id": "bucket-binding",
+        "resource": "//storage.googleapis.com/buckets/test-bucket",
+        "resource_type": "resource",
+    }
+    inherited_org = {
+        "id": "org-binding",
+        "resource": "//cloudresourcemanager.googleapis.com/organizations/1337",
+        "resource_type": "organization",
+    }
+    inherited_folder = {
+        "id": "folder-binding",
+        "resource": "//cloudresourcemanager.googleapis.com/folders/1414",
+        "resource_type": "folder",
+    }
+
+    direct, inherited = policy_bindings._split_bindings_by_graph_scope(
+        [direct_project, direct_resource, inherited_org, inherited_folder]
+    )
+
+    assert direct == [direct_project, direct_resource]
+    assert inherited == {
+        ("GCPOrganization", "organizations/1337"): [inherited_org],
+        ("GCPFolder", "folders/1414"): [inherited_folder],
+    }
+
+
+def test_claim_inherited_bindings_for_graph_dedupes_per_claim_state():
+    inherited = {
+        ("GCPOrganization", "organizations/1337"): [
+            {
+                "id": "org-binding",
+                "resource": "//cloudresourcemanager.googleapis.com/organizations/1337",
+                "resource_type": "organization",
+            },
+        ],
+    }
+    claim_state = policy_bindings.InheritedPolicyBindingClaimState()
+
+    first_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        claim_state,
+    )
+    second_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        claim_state,
+    )
+    next_run_claim = policy_bindings._claim_inherited_bindings_for_graph(
+        inherited,
+        policy_bindings.InheritedPolicyBindingClaimState(),
+    )
+
+    assert first_claim == inherited
+    assert second_claim == {}
+    assert next_run_claim == inherited
 
 
 @patch.object(policy_bindings, "load_matchlinks")
@@ -245,6 +364,53 @@ def test_load_bindings_uses_policy_binding_batch_size(mock_load, mock_load_match
     assert (
         mock_load_matchlinks.call_args.kwargs["batch_size"]
         == policy_bindings.GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE
+    )
+
+
+@patch.object(policy_bindings, "load_matchlinks")
+@patch.object(policy_bindings, "load")
+def test_load_inherited_bindings_uses_owner_scope(mock_load, mock_load_matchlinks):
+    inherited = {
+        ("GCPOrganization", "organizations/1337"): [
+            {
+                "id": "org-binding",
+                "resource": "//cloudresourcemanager.googleapis.com/organizations/1337",
+                "resource_type": "organization",
+            },
+        ],
+        ("GCPFolder", "folders/1414"): [
+            {
+                "id": "folder-binding",
+                "resource": "//cloudresourcemanager.googleapis.com/folders/1414",
+                "resource_type": "folder",
+            },
+        ],
+    }
+
+    loaded_count = policy_bindings.load_inherited_bindings(
+        MagicMock(),
+        inherited,
+        TEST_UPDATE_TAG,
+    )
+
+    assert loaded_count == 2
+    assert mock_load.call_count == 2
+    assert mock_load.call_args_list[0].kwargs["ORG_RESOURCE_NAME"] == (
+        "organizations/1337"
+    )
+    assert mock_load.call_args_list[1].kwargs["FOLDER_ID"] == "folders/1414"
+    assert mock_load_matchlinks.call_count == 2
+    assert mock_load_matchlinks.call_args_list[0].kwargs["_sub_resource_label"] == (
+        "GCPOrganization"
+    )
+    assert mock_load_matchlinks.call_args_list[0].kwargs["_sub_resource_id"] == (
+        "organizations/1337"
+    )
+    assert mock_load_matchlinks.call_args_list[1].kwargs["_sub_resource_label"] == (
+        "GCPFolder"
+    )
+    assert mock_load_matchlinks.call_args_list[1].kwargs["_sub_resource_id"] == (
+        "folders/1414"
     )
 
 
@@ -278,8 +444,49 @@ def test_cleanup_uses_one_generic_applies_to_cleanup(
     applies_to_cleanup.run.assert_called_once_with(neo4j_session)
 
 
+@patch.object(policy_bindings, "GraphStatement")
+@patch("cartography.intel.gcp.policy_bindings.GraphJob.from_node_schema")
+def test_cleanup_inherited_policy_bindings_cleans_org_and_folders(
+    mock_from_node_schema,
+    mock_graph_statement,
+):
+    neo4j_session = MagicMock()
+    mock_from_node_schema.return_value = MagicMock()
+    mock_graph_statement.return_value = MagicMock()
+
+    policy_bindings.cleanup_inherited_policy_bindings(
+        neo4j_session,
+        COMMON_JOB_PARAMS,
+        ["folders/1414"],
+    )
+
+    assert mock_from_node_schema.call_count == 2
+    assert mock_graph_statement.call_count == 2
+    assert (
+        mock_graph_statement.call_args_list[0].kwargs["parameters"][
+            "_sub_resource_label"
+        ]
+        == "GCPOrganization"
+    )
+    assert (
+        mock_graph_statement.call_args_list[0].kwargs["parameters"]["_sub_resource_id"]
+        == "organizations/1337"
+    )
+    assert (
+        mock_graph_statement.call_args_list[1].kwargs["parameters"][
+            "_sub_resource_label"
+        ]
+        == "GCPFolder"
+    )
+    assert (
+        mock_graph_statement.call_args_list[1].kwargs["parameters"]["_sub_resource_id"]
+        == "folders/1414"
+    )
+
+
 @patch.object(policy_bindings, "cleanup")
 @patch.object(policy_bindings, "load_bindings")
+@patch.object(policy_bindings, "load_inherited_bindings", return_value=1)
 @patch.object(policy_bindings, "build_principals_from_policy_bindings")
 @patch.object(policy_bindings, "transform_bindings")
 @patch.object(policy_bindings, "get_policy_bindings")
@@ -287,6 +494,7 @@ def test_sync_limits_policy_binding_graph_writes(
     mock_get_policy_bindings,
     mock_transform_bindings,
     mock_build_principals,
+    mock_load_inherited_bindings,
     mock_load_bindings,
     mock_cleanup,
 ):
@@ -313,6 +521,7 @@ def test_sync_limits_policy_binding_graph_writes(
     graph_semaphore.__enter__.assert_called_once()
     graph_semaphore.__exit__.assert_called_once()
     mock_load_bindings.assert_called_once()
+    mock_load_inherited_bindings.assert_called_once()
     mock_cleanup.assert_called_once()
 
 
@@ -377,7 +586,7 @@ def test_sync_project_resources_skips_permission_relationships_after_policy_bind
     mock_build_client.return_value = MagicMock()
     mock_build_asset_client.return_value = MagicMock()
 
-    cartography.intel.gcp._sync_project_resources(
+    result = cartography.intel.gcp._sync_project_resources(
         neo4j_session=MagicMock(),
         projects=[{"projectId": TEST_PROJECT_ID}],
         gcp_update_tag=TEST_UPDATE_TAG,
@@ -389,6 +598,99 @@ def test_sync_project_resources_skips_permission_relationships_after_policy_bind
     assert mock_services_enabled.call_count == 2
     mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
+    assert result.policy_bindings_cleanup_safe is False
+
+
+@patch("cartography.intel.gcp.build_asset_client")
+@patch("cartography.intel.gcp.build_client")
+@patch(
+    "cartography.intel.gcp.policy_bindings.sync",
+    side_effect=[
+        policy_bindings.PolicyBindingsSyncResult(
+            policy_bindings.PolicyBindingsSyncStatus.SUCCESS,
+            {},
+        ),
+        policy_bindings.PolicyBindingsSyncResult(
+            policy_bindings.PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+            {},
+        ),
+    ],
+)
+@patch(
+    "cartography.intel.gcp._services_enabled_on_project",
+    side_effect=[
+        set(),
+        {cartography.intel.gcp.service_names.cai},
+        set(),
+    ],
+)
+def test_sync_project_resources_reports_policy_bindings_partial_failure(
+    mock_services_enabled,
+    mock_policy_bindings_sync,
+    mock_build_client,
+    mock_build_asset_client,
+):
+    mock_build_client.return_value = MagicMock()
+    mock_build_asset_client.return_value = MagicMock()
+
+    result = cartography.intel.gcp._sync_project_resources(
+        neo4j_session=MagicMock(),
+        projects=[
+            {"projectId": TEST_PROJECT_ID},
+            {"projectId": "project-def"},
+        ],
+        gcp_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=COMMON_JOB_PARAMS.copy(),
+        credentials=MagicMock(),
+        requested_syncs={"policy_bindings"},
+    )
+
+    assert mock_services_enabled.call_count == 3
+    assert mock_policy_bindings_sync.call_count == 2
+    assert result.policy_bindings_cleanup_safe is False
+
+
+@patch("cartography.intel.gcp.build_asset_client")
+@patch("cartography.intel.gcp.build_client")
+@patch(
+    "cartography.intel.gcp.policy_bindings.sync",
+    return_value=policy_bindings.PolicyBindingsSyncResult(
+        policy_bindings.PolicyBindingsSyncStatus.SUCCESS,
+        {},
+    ),
+)
+@patch(
+    "cartography.intel.gcp._services_enabled_on_project",
+    side_effect=[
+        set(),
+        {cartography.intel.gcp.service_names.cai},
+        set(),
+    ],
+)
+def test_sync_project_resources_reports_policy_bindings_full_success(
+    mock_services_enabled,
+    mock_policy_bindings_sync,
+    mock_build_client,
+    mock_build_asset_client,
+):
+    mock_build_client.return_value = MagicMock()
+    mock_build_asset_client.return_value = MagicMock()
+
+    result = cartography.intel.gcp._sync_project_resources(
+        neo4j_session=MagicMock(),
+        projects=[
+            {"projectId": TEST_PROJECT_ID},
+            {"projectId": "project-def"},
+        ],
+        gcp_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=COMMON_JOB_PARAMS.copy(),
+        credentials=MagicMock(),
+        requested_syncs={"policy_bindings"},
+    )
+
+    assert mock_services_enabled.call_count == 3
+    assert mock_policy_bindings_sync.call_count == 2
+    assert result.policy_bindings_cleanup_safe is True
 
 
 @patch("cartography.intel.gcp.build_asset_client")
@@ -409,7 +711,7 @@ def test_sync_project_resources_skips_permission_relationships_when_cai_api_disa
     mock_build_client.return_value = MagicMock()
     mock_build_asset_client.return_value = MagicMock()
 
-    cartography.intel.gcp._sync_project_resources(
+    result = cartography.intel.gcp._sync_project_resources(
         neo4j_session=MagicMock(),
         projects=[{"projectId": TEST_PROJECT_ID}],
         gcp_update_tag=TEST_UPDATE_TAG,
@@ -421,3 +723,4 @@ def test_sync_project_resources_skips_permission_relationships_when_cai_api_disa
     assert mock_services_enabled.call_count == 2
     mock_policy_bindings_sync.assert_not_called()
     mock_permission_relationships_sync.assert_not_called()
+    assert result.policy_bindings_cleanup_safe is False
