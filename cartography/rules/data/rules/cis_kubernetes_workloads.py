@@ -28,6 +28,29 @@ CIS_REFERENCES = [
 ]
 
 
+# Keep this to namespaces documented by upstream Kubernetes or project install
+# guides as system or default installation namespaces.
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
+    "cert-manager",
+    "gatekeeper-system",
+    "ingress-nginx",
+    "istio-ingress",
+    "istio-system",
+    "kube-node-lease",
+    "kube-public",
+    "kube-system",
+    "kyverno",
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = (
+    "["
+    + ", ".join(
+        f"'{namespace}'" for namespace in K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES
+    )
+    + "]"
+)
+
+
 # =============================================================================
 # CIS K8s 5.4.1: Prefer using secrets as files over env vars
 # Main node: KubernetesPod
@@ -122,25 +145,48 @@ _k8s_service_account_tokens_mounted = Fact(
         "explicitly enabled. This is a heuristic for identifying workloads that may "
         "not need API credentials."
     ),
-    cypher_query="""
+    cypher_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
-    WITH cluster, pod, sa, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
+    WITH
+        cluster,
+        pod,
+        sa,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+      AND NOT (
+        pod.automount_service_account_token IS NULL
+        AND sa.automount_service_account_token IS NULL
+        AND service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+      )
     RETURN
         pod.id AS pod_id,
         pod.name AS pod_name,
         pod.namespace AS namespace,
-        pod.service_account_name AS service_account_name,
+        service_account_name AS service_account_name,
         pod.automount_service_account_token AS pod_automount_service_account_token,
         sa.automount_service_account_token AS service_account_automount_service_account_token,
         cluster.name AS cluster_name
     """,
-    cypher_visual_query="""
+    cypher_visual_query=f"""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH p1=(pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
-    WITH cluster, pod, sa, p, p1, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
+    WITH
+        cluster,
+        pod,
+        sa,
+        p,
+        p1,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+      AND NOT (
+        pod.automount_service_account_token IS NULL
+        AND sa.automount_service_account_token IS NULL
+        AND service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+      )
     RETURN *
     """,
     cypher_count_query="""

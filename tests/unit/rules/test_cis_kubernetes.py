@@ -192,6 +192,40 @@ class TestCisKubernetesFactMetadata:
             assert "AS count" in fact.cypher_count_query
 
 
+class TestCisKubernetesServiceAccountTokenMounts:
+    """Test CIS Kubernetes 5.1.6 service account token mount query behavior."""
+
+    def test_service_account_token_mounts_excludes_implicit_infrastructure_mounts(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "pod.automount_service_account_token IS NULL" in fact.cypher_query
+        assert "sa.automount_service_account_token IS NULL" in fact.cypher_query
+        assert "service_account_namespace IN" in fact.cypher_query
+        assert "'kube-system'" in fact.cypher_query
+        assert "'istio-system'" in fact.cypher_query
+        assert "'cert-manager'" in fact.cypher_query
+        assert "'gatekeeper-system'" in fact.cypher_query
+        assert "'kyverno'" in fact.cypher_query
+
+    def test_service_account_token_mounts_uses_ontology_service_account_name(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert (
+            "coalesce(sa._ont_name, sa.name, pod.service_account_name)"
+            in fact.cypher_query
+        )
+        assert "service_account_name AS service_account_name" in fact.cypher_query
+
+    def test_service_account_token_mounts_visual_query_matches_filter(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "pod.automount_service_account_token IS NULL" in fact.cypher_visual_query
+        assert "sa.automount_service_account_token IS NULL" in fact.cypher_visual_query
+        assert "service_account_namespace IN" in fact.cypher_visual_query
+
+
 class TestCisKubernetesRuleRegistration:
     """Test that all rules are registered in the RULES dict."""
 
