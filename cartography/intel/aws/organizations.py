@@ -555,7 +555,8 @@ def cleanup_stale_aws_account_organization_metadata(
             account.status = null,
             account.joined_method = null,
             account.joined_timestamp = null,
-            account.org_id = null
+            account.org_id = null,
+            account.inscope = false
         """,
         ORG_ID=organization_id,
         CURRENT_ACCOUNT_IDS=list(current_account_ids),
