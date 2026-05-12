@@ -655,3 +655,55 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
         "PARENT",
         rel_direction_right=True,
     ) == {("222222222222", "o-exampleorgid/ou-exam-a1b2c3d4")}
+
+
+def test_sync_aws_organization_cleans_ous_before_stale_roots(neo4j_session):
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    replacement_roots = [
+        {
+            **TEST_ORGANIZATION_ROOTS[0],
+            "Id": "r-repl",
+            "Arn": "arn:aws:organizations::111111111111:root/o-exampleorgid/r-repl",
+        },
+    ]
+    replacement_accounts_for_parent = {
+        "r-repl": [TEST_ORGANIZATION_ACCOUNTS[0]],
+    }
+
+    # Act
+    _sync_organization(
+        neo4j_session,
+        FakeOrganizationsClient(
+            TEST_ORGANIZATION,
+            replacement_roots,
+            organizational_units={},
+            accounts_for_parent=replacement_accounts_for_parent,
+        ),
+        TEST_SECOND_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSOrganizationRoot", ["id"]) == {
+        ("o-exampleorgid/r-repl",),
+    }
+    assert check_nodes(neo4j_session, "AWSOrganizationalUnit", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSAccount", ["id"]) == {
+        ("111111111111",),
+        ("222222222222",),
+        ("333333333333",),
+        ("444444444444",),
+    }
+    assert (
+        neo4j_session.run(
+            """
+            MATCH ()-[r:RESOURCE|PARENT]-()
+            WHERE coalesce(endNode(r).id, '') STARTS WITH 'o-exampleorgid/ou-'
+                OR coalesce(startNode(r).id, '') STARTS WITH 'o-exampleorgid/ou-'
+                OR endNode(r).id = 'o-exampleorgid/r-exam'
+                OR startNode(r).id = 'o-exampleorgid/r-exam'
+            RETURN count(r) AS rel_count
+            """,
+        ).single()["rel_count"]
+        == 0
+    )

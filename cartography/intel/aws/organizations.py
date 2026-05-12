@@ -499,13 +499,36 @@ def load_aws_organizational_units(
     )
 
 
+def get_existing_aws_organization_root_ids(
+    neo4j_session: neo4j.Session,
+    organization_id: str,
+) -> list[str]:
+    return [
+        record["root_id"]
+        for record in neo4j_session.run(
+            """
+            MATCH (:AWSOrganization {id: $ORG_ID})-[:RESOURCE]->(root:AWSOrganizationRoot)
+            RETURN root.id AS root_id
+            """,
+            ORG_ID=organization_id,
+        )
+    ]
+
+
 def cleanup_aws_organization_hierarchy(
     neo4j_session: neo4j.Session,
     update_tag: int,
     organization_id: str,
     root_ids: Iterable[str],
 ) -> None:
-    for root_id in root_ids:
+    root_ids_to_cleanup = set(root_ids)
+    root_ids_to_cleanup.update(
+        get_existing_aws_organization_root_ids(
+            neo4j_session,
+            organization_id,
+        )
+    )
+    for root_id in sorted(root_ids_to_cleanup):
         GraphJob.from_node_schema(
             AWSOrganizationalUnitSchema(),
             {"UPDATE_TAG": update_tag, "ROOT_ID": root_id},
