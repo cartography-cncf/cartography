@@ -42,12 +42,8 @@ K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
     "kyverno",
 )
 
-K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = (
-    "["
-    + ", ".join(
-        f"'{namespace}'" for namespace in K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES
-    )
-    + "]"
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = repr(
+    list(K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES)
 )
 
 
@@ -185,6 +181,7 @@ _k8s_service_account_tokens_mounted = Fact(
         sa,
         p,
         p1,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
         coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
         sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
         coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
@@ -193,7 +190,7 @@ _k8s_service_account_tokens_mounted = Fact(
         pod.automount_service_account_token IS NULL
         AND sa.automount_service_account_token IS NULL
         AND (
-          coalesce(sa._ont_name, sa.name, pod.service_account_name) = 'default'
+          service_account_name = 'default'
           OR
           service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
           OR service_account_assumes_aws_role
