@@ -3016,6 +3016,11 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
 | arn | The ARN of the ELBV2Listener |
+| mutual\_authentication\_mode | Mutual TLS authentication mode on the listener. One of `off`, `verify`, `passthrough`. Null when mTLS is not configured. |
+| trust\_store\_arn | The ARN of the trust store used for mutual TLS, when `mutual_authentication_mode` is `verify`. |
+| ignore\_client\_certificate\_expiry | Whether expired client certificates are accepted (boolean). Only meaningful when `mutual_authentication_mode` is `verify`. |
+| trust\_store\_association\_status | State of the trust store association on the listener. One of `active`, `removed`. |
+| advertise\_trust\_store\_ca\_names | Whether the listener advertises trust store CA names during the TLS handshake. One of `on`, `off`. |
 
 #### Relationships
 
