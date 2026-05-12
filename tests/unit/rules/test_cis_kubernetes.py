@@ -195,19 +195,31 @@ class TestCisKubernetesFactMetadata:
 class TestCisKubernetesServiceAccountTokenMounts:
     """Test CIS Kubernetes 5.1.6 service account token mount query behavior."""
 
-    def test_service_account_token_mounts_excludes_implicit_infrastructure_mounts(
+    def test_service_account_token_mounts_excludes_infrastructure_namespaces(
         self,
     ):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
 
-        assert "pod.automount_service_account_token IS NULL" in fact.cypher_query
-        assert "sa.automount_service_account_token IS NULL" in fact.cypher_query
         assert "service_account_namespace IN" in fact.cypher_query
         assert "'kube-system'" in fact.cypher_query
         assert "'istio-system'" in fact.cypher_query
         assert "'cert-manager'" in fact.cypher_query
+        assert "'calico-system'" in fact.cypher_query
+        assert "'ingress-nginx'" in fact.cypher_query
         assert "'gatekeeper-system'" in fact.cypher_query
         assert "'kyverno'" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_infrastructure_service_accounts(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name IN" in fact.cypher_query
+        assert "'aws-load-balancer-controller'" in fact.cypher_query
+        assert "'cluster-autoscaler'" in fact.cypher_query
+        assert "'karpenter'" in fact.cypher_query
+        assert "'metrics-server'" in fact.cypher_query
+        assert "'vertical-pod-autoscaler-recommender'" in fact.cypher_query
 
     def test_service_account_token_mounts_excludes_irsa_mounts(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
@@ -216,12 +228,20 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "EXISTS { (sa)-[:ASSUMES_ROLE]->(:AWSRole) }" in fact.cypher_query
         assert "service_account_assumes_aws_role" in fact.cypher_query
 
-    def test_service_account_token_mounts_excludes_implicit_default_sa_mounts(self):
+    def test_service_account_token_mounts_excludes_gke_workload_identity_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "sa.gcp_service_account IS NOT NULL" in fact.cypher_query
+        assert (
+            "EXISTS { (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }"
+            in fact.cypher_query
+        )
+        assert "service_account_assumes_gcp_identity" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_default_sa_mounts(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
 
         assert "service_account_name = 'default'" in fact.cypher_query
-        assert "pod.automount_service_account_token IS NULL" in fact.cypher_query
-        assert "sa.automount_service_account_token IS NULL" in fact.cypher_query
 
     def test_service_account_token_mounts_uses_ontology_service_account_name(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
@@ -235,9 +255,11 @@ class TestCisKubernetesServiceAccountTokenMounts:
     def test_service_account_token_mounts_visual_query_matches_filter(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
 
-        assert "pod.automount_service_account_token IS NULL" in fact.cypher_visual_query
-        assert "sa.automount_service_account_token IS NULL" in fact.cypher_visual_query
+        assert "service_account_name = 'default'" in fact.cypher_visual_query
         assert "service_account_namespace IN" in fact.cypher_visual_query
+        assert "service_account_name IN" in fact.cypher_visual_query
+        assert "service_account_assumes_aws_role" in fact.cypher_visual_query
+        assert "service_account_assumes_gcp_identity" in fact.cypher_visual_query
 
 
 class TestCisKubernetesRuleRegistration:

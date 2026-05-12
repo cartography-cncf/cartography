@@ -29,21 +29,39 @@ CIS_REFERENCES = [
 
 
 # Keep this to namespaces documented by upstream Kubernetes or project install
-# guides as system or default installation namespaces.
+# guides as system, controller, or add-on installation namespaces.
 K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
+    "calico-apiserver",
+    "calico-system",
     "cert-manager",
     "gatekeeper-system",
     "ingress-nginx",
     "istio-ingress",
     "istio-system",
+    "karpenter",
     "kube-node-lease",
     "kube-public",
     "kube-system",
     "kyverno",
+    "tigera-operator",
 )
 
 K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = repr(
     list(K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES)
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES = (
+    "aws-load-balancer-controller",
+    "cluster-autoscaler",
+    "karpenter",
+    "metrics-server",
+    "vertical-pod-autoscaler-admission-controller",
+    "vertical-pod-autoscaler-recommender",
+    "vertical-pod-autoscaler-updater",
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = repr(
+    list(K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES)
 )
 
 
@@ -151,19 +169,15 @@ _k8s_service_account_tokens_mounted = Fact(
         coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
         coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
         sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity,
         coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
       AND NOT (
-        service_account_assumes_aws_role
-        OR (
-          pod.automount_service_account_token IS NULL
-          AND sa.automount_service_account_token IS NULL
-          AND (
-            service_account_name = 'default'
-            OR
-            service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
-          )
-        )
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
       )
     RETURN
         pod.id AS pod_id,
@@ -186,19 +200,15 @@ _k8s_service_account_tokens_mounted = Fact(
         coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
         coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
         sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity,
         coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
       AND NOT (
-        service_account_assumes_aws_role
-        OR (
-          pod.automount_service_account_token IS NULL
-          AND sa.automount_service_account_token IS NULL
-          AND (
-            service_account_name = 'default'
-            OR
-            service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
-          )
-        )
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
       )
     RETURN *
     """,
