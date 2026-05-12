@@ -706,7 +706,7 @@ _gcp_subnet_flow_logs_disabled = Fact(
         OR subnet.flow_logs_filter_expr IS NOT NULL
       )
     OPTIONAL MATCH (subnet)-[]-(consumer)
-        WHERE NOT consumer:GCPProject AND NOT consumer:GCPVpc
+        WHERE consumer:GCPNetworkInterface OR consumer:GCPForwardingRule
     WITH project, subnet, count(DISTINCT consumer) > 0 AS in_use
     RETURN
         subnet.id AS subnet_id,

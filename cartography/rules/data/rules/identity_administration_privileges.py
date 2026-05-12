@@ -39,12 +39,14 @@ _aws_account_manipulation_permissions = Fact(
         // If a deny exists, exclude those principals
         WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
         WHERE deny_stmt IS NULL
-        // Aggregate one row per (account, principal, policy)
+        // Aggregate one row per (account, principal, policy). Substitute a single-null
+        // list when stmt.resource is missing so NotResource-only statements still emit
+        // (the principal stays visible; resources just won't include those entries).
         UNWIND matched_allow_actions AS action
-        UNWIND stmt.resource AS resource
+        UNWIND coalesce(stmt.resource, [null]) AS resource
         WITH a, principal, principal_type, policy,
              collect(DISTINCT action) AS actions,
-             collect(DISTINCT resource) AS resources
+             [r IN collect(DISTINCT resource) WHERE r IS NOT NULL] AS resources
         // Drop principals whose only matched action is iam:CreateServiceLinkedRole;
         // it is scoped (included in PowerUserAccess) and not real identity-admin capability.
         WHERE NOT (size(actions) = 1 AND actions[0] = 'iam:CreateServiceLinkedRole')
