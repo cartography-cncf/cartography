@@ -9,6 +9,8 @@ from tests.data.terraform.state import SAMPLE_STATE_FILE
 from tests.data.terraform.state import TEST_DYNAMODB_TABLE_ARN
 from tests.data.terraform.state import TEST_EKS_CLUSTER_ARN
 from tests.data.terraform.state import TEST_EKS_CLUSTER_NAME
+from tests.data.terraform.state import TEST_GITLAB_STATE_ID
+from tests.data.terraform.state import TEST_GITLAB_STATE_URL
 from tests.data.terraform.state import TEST_KMS_KEY_ID
 from tests.data.terraform.state import TEST_LAMBDA_ARN
 from tests.data.terraform.state import TEST_SQS_QUEUE_ARN
@@ -384,3 +386,39 @@ def test_manages_edge_to_kms_key_uses_key_id(mock_list, mock_file, neo4j_session
         rel_direction_right=True,
     )
     assert (f"{LINEAGE}/aws_kms_key.main", TEST_KMS_KEY_ID) in result
+
+
+def test_sourced_from_edge_to_gitlab_terraform_state(neo4j_session):
+    from cartography.intel.terraform.state import sync_state_file
+
+    # Arrange: seed a GitLabTerraformState whose state_url matches the source_uri we will sync
+    neo4j_session.run(
+        """
+        MERGE (s:GitLabTerraformState {id: $state_id})
+        SET s.state_url = $state_url, s.lastupdated = $tag
+        """,
+        state_id=TEST_GITLAB_STATE_ID,
+        state_url=TEST_GITLAB_STATE_URL,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: sync using the GitLab state URL as source_uri so workspace.source_uri == state_url
+    sync_state_file(
+        neo4j_session,
+        SAMPLE_STATE_FILE,
+        TEST_GITLAB_STATE_URL,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert: SOURCED_FROM edge connects workspace (id=lineage) to the GitLabTerraformState
+    result = check_rels(
+        neo4j_session,
+        "TerraformWorkspace",
+        "id",
+        "GitLabTerraformState",
+        "id",
+        "SOURCED_FROM",
+        rel_direction_right=True,
+    )
+    assert (LINEAGE, TEST_GITLAB_STATE_ID) in result

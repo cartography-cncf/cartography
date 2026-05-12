@@ -10,6 +10,9 @@ from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.terraform.matchlinks import RESOURCE_TYPE_ID_ATTR
 from cartography.models.terraform.matchlinks import RESOURCE_TYPE_MATCHLINKS
+from cartography.models.terraform.matchlinks import (
+    TerraformWorkspaceToGitLabStateMatchLink,
+)
 from cartography.models.terraform.output import TerraformOutputSchema
 from cartography.models.terraform.resource import TerraformResourceInstanceSchema
 from cartography.models.terraform.resource import TerraformResourceSchema
@@ -231,6 +234,23 @@ def load_outputs(
 
 
 @timeit
+def load_sourced_from(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    source_uri: str,
+    update_tag: int,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        TerraformWorkspaceToGitLabStateMatchLink(),
+        [{"workspace_id": workspace_id, "source_uri": source_uri}],
+        lastupdated=update_tag,
+        _sub_resource_label="TerraformWorkspace",
+        _sub_resource_id=workspace_id,
+    )
+
+
+@timeit
 def load_cross_links(
     neo4j_session: neo4j.Session,
     instances: list[dict],
@@ -292,6 +312,13 @@ def cleanup(
             schema, "TerraformWorkspace", workspace_lineage, update_tag
         ).run(neo4j_session)
 
+    GraphJob.from_matchlink(
+        TerraformWorkspaceToGitLabStateMatchLink(),
+        "TerraformWorkspace",
+        workspace_lineage,
+        update_tag,
+    ).run(neo4j_session)
+
 
 @timeit
 def sync_state_file(
@@ -320,5 +347,7 @@ def sync_state_file(
     load_outputs(neo4j_session, outputs, workspace_id, update_tag)
 
     load_cross_links(neo4j_session, instances, workspace_id, update_tag)
+
+    load_sourced_from(neo4j_session, workspace_id, source_uri, update_tag)
 
     cleanup(neo4j_session, common_job_parameters, workspace_id, update_tag)

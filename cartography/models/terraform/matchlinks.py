@@ -143,3 +143,27 @@ RESOURCE_TYPE_ID_ATTR: dict[str, str] = {
     # aws_subnet -> EC2Subnet.id = SubnetId = tf attributes.id ✓
     # aws_ebs_volume -> EBSVolume.id = VolumeId = tf attributes.id ✓
 }
+
+
+@dataclass(frozen=True)
+class TerraformSourcedFromRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class TerraformWorkspaceToGitLabStateMatchLink(CartographyRelSchema):
+    source_node_label: str = "TerraformWorkspace"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("workspace_id")},
+    )
+    target_node_label: str = "GitLabTerraformState"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"state_url": PropertyRef("source_uri")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SOURCED_FROM"
+    properties: TerraformSourcedFromRelProperties = TerraformSourcedFromRelProperties()
