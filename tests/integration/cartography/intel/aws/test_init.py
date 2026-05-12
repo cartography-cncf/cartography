@@ -222,6 +222,41 @@ def test_sync_aws_organizations_for_accounts_uses_one_default_session(
     mock_autodiscover_accounts.assert_called_once()
 
 
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
+def test_sync_aws_organizations_for_accounts_uses_explicit_candidates_without_scan(
+    mock_discover_candidates,
+    mock_autodiscover_accounts,
+    mock_boto3_session,
+    neo4j_session,
+):
+    # Arrange
+    mock_autodiscover_accounts.return_value = (
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000001",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+            organization_id="o-example",
+        )
+    )
+
+    # Act
+    cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        organization_account_ids=["000000000001"],
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    mock_discover_candidates.assert_not_called()
+    mock_boto3_session.assert_called_once_with(profile_name="profile2")
+    mock_autodiscover_accounts.assert_called_once()
+    assert mock_autodiscover_accounts.call_args.args[2] == "000000000001"
+
+
 @pytest.mark.asyncio
 async def test_discover_aws_organization_candidates_async_keeps_account_order(mocker):
     # Arrange

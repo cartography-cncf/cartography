@@ -383,11 +383,48 @@ def _discover_aws_organization_candidates(
     )
 
 
+def _sync_explicit_aws_organization_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str],
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    account_ids = set(organization_account_ids)
+    results: list[organizations.AWSOrganizationSyncResult] = []
+
+    for profile_name, account_id in accounts.items():
+        if account_id not in account_ids:
+            continue
+        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+        boto3_session = boto3.Session(**session_kwargs)
+        results.append(
+            _autodiscover_accounts(
+                neo4j_session,
+                boto3_session,
+                account_id,
+                sync_tag,
+                common_job_parameters,
+            ),
+        )
+
+    missing_account_ids = account_ids - set(accounts.values())
+    if missing_account_ids:
+        logger.warning(
+            "AWS Organizations sync candidate account IDs are not in the AWS sync account list: %s.",
+            ", ".join(sorted(missing_account_ids)),
+        )
+
+    return results
+
+
 def _sync_aws_organizations_for_accounts(
     neo4j_session: neo4j.Session,
     accounts: Dict[str, str],
     sync_tag: int,
     common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
 ) -> list[organizations.AWSOrganizationSyncResult]:
     """
@@ -397,6 +434,16 @@ def _sync_aws_organizations_for_accounts(
     giving external orchestrators a single phase they can call before parallel
     account fanout.
     """
+    if organization_account_ids is not None:
+        return _sync_explicit_aws_organization_accounts(
+            neo4j_session,
+            accounts,
+            sync_tag,
+            common_job_parameters,
+            organization_account_ids,
+            use_explicit_profile=use_explicit_profile,
+        )
+
     results: list[organizations.AWSOrganizationSyncResult] = []
     candidates = _discover_aws_organization_candidates(accounts, use_explicit_profile)
     candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
