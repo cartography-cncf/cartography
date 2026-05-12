@@ -127,6 +127,56 @@ def test_build_oss_sast_finding_id_prefers_fingerprint_when_present():
     assert first_id == second_id
 
 
+_GITLAB_MAPPING_YAML = """\
+repositories:
+  - provider: "gitlab"
+    owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://gitlab.com/simpsoncorp/sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/semgrep/oss_sast_report.json"
+"""
+
+_UNSUPPORTED_PROVIDER_MAPPING_YAML = """\
+repositories:
+  - provider: "bitbucket"
+    owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://bitbucket.org/simpsoncorp/sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/semgrep/oss_sast_report.json"
+"""
+
+
+def test_repository_mappings_accepts_gitlab_provider(tmp_path):
+    mapping_path = tmp_path / "mapping.yaml"
+    mapping_path.write_text(_GITLAB_MAPPING_YAML)
+
+    repository_mappings = get_semgrep_oss_repository_mappings(
+        LocalReportReader(str(mapping_path))
+    )
+
+    assert len(repository_mappings) == 1
+    assert repository_mappings[0].provider == "gitlab"
+    assert (
+        repository_mappings[0].repository_context["repositoryUrl"]
+        == "https://gitlab.com/simpsoncorp/sample_repo"
+    )
+
+
+def test_repository_mappings_rejects_unsupported_provider(tmp_path):
+    mapping_path = tmp_path / "mapping.yaml"
+    mapping_path.write_text(_UNSUPPORTED_PROVIDER_MAPPING_YAML)
+
+    with pytest.raises(
+        ValueError,
+        match="Semgrep OSS repository mapping file is invalid",
+    ):
+        get_semgrep_oss_repository_mappings(LocalReportReader(str(mapping_path)))
+
+
 def test_build_oss_sast_finding_id_uses_repository_url_with_fingerprint():
     repo_a_id = _build_oss_sast_finding_id(
         "python.lang.security.audit.sql-injection.fake-1",
