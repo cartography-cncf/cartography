@@ -84,6 +84,25 @@ class SemgrepSCAFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSCAFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSCAFinding)-[:FOUND_IN]->(:GitLabProject)
+class SemgrepSCAFindingToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: SemgrepSCAFindingToGitLabProjectRelProperties = (
+        SemgrepSCAFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -150,6 +169,7 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepSCAFindingToGithubRepoRel(),
+            SemgrepSCAFindingToGitLabProjectRel(),
             SemgrepSCAFindingToDependencyRel(),
             SemgrepSCAFindingToCVERel(),
             SemgrepSCAFindingToAssistantRel(),
