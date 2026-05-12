@@ -29,10 +29,7 @@ def get_workload_identity_pools(
     pools: List[Dict[str, Any]] = []
     parent = f"projects/{project_id}/locations/global"
     request = (
-        iam_client.projects()
-        .locations()
-        .workloadIdentityPools()
-        .list(parent=parent)
+        iam_client.projects().locations().workloadIdentityPools().list(parent=parent)
     )
     while request is not None:
         response = gcp_api_execute_with_retry(request)
@@ -143,14 +140,23 @@ def transform_providers(
         oidc = provider.get("oidc") or {}
         aws = provider.get("aws") or {}
         saml = provider.get("saml") or {}
+        state = provider.get("state")
+        disabled = provider.get("disabled", False)
+        # ``enabled`` is the effective flag used for cross-provider
+        # IdentityProvider queries: GCP can return state=ACTIVE on a pool or
+        # provider that has been explicitly disabled, so an ACTIVE-but-
+        # disabled provider must report enabled=false to match the ontology
+        # contract.
+        enabled = state == "ACTIVE" and not disabled
         result.append(
             {
                 "id": provider_name,
                 "name": provider_name,
                 "displayName": provider.get("displayName"),
                 "description": provider.get("description"),
-                "state": provider.get("state"),
-                "disabled": provider.get("disabled", False),
+                "state": state,
+                "disabled": disabled,
+                "enabled": enabled,
                 "protocol": _detect_protocol(provider),
                 "attributeCondition": provider.get("attributeCondition"),
                 "oidcIssuerUri": oidc.get("issuerUri"),
@@ -192,9 +198,7 @@ def load_providers(
 ) -> None:
     if not providers:
         return
-    logger.debug(
-        f"Loading {len(providers)} WIF providers for project {project_id}"
-    )
+    logger.debug(f"Loading {len(providers)} WIF providers for project {project_id}")
     load(
         neo4j_session,
         GCPWorkloadIdentityProviderSchema(),
@@ -206,19 +210,35 @@ def load_providers(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    providers_sync_complete: bool = True,
 ) -> None:
     """
     Clean up WIF providers first (children) then pools to avoid orphan
     MEMBER_OF edges.
+
+    When ``providers_sync_complete`` is False (because listing providers
+    failed for at least one pool), provider cleanup is skipped: the cleanup
+    job would otherwise delete providers we did not re-ingest this run.
+    Pool cleanup remains safe because the pool list call is gated on success
+    upstream.
     """
     job_params = {
         **common_job_parameters,
         "projectId": common_job_parameters.get("PROJECT_ID"),
     }
-    GraphJob.from_node_schema(
-        GCPWorkloadIdentityProviderSchema(), job_params
-    ).run(neo4j_session)
+    if providers_sync_complete:
+        GraphJob.from_node_schema(GCPWorkloadIdentityProviderSchema(), job_params).run(
+            neo4j_session
+        )
+    else:
+        logger.warning(
+            "Skipping GCPWorkloadIdentityProvider cleanup for project %s: "
+            "at least one pool failed to enumerate providers and stale "
+            "providers cannot be safely identified.",
+            common_job_parameters.get("PROJECT_ID"),
+        )
     GraphJob.from_node_schema(GCPWorkloadIdentityPoolSchema(), job_params).run(
         neo4j_session
     )
@@ -260,6 +280,7 @@ def sync(
     load_pools(neo4j_session, pools, project_id, gcp_update_tag)
 
     all_providers: List[Dict[str, Any]] = []
+    providers_sync_complete = True
     for pool in raw_pools:
         pool_name = pool.get("name")
         if not pool_name:
@@ -267,15 +288,22 @@ def sync(
         try:
             raw_providers = get_workload_identity_providers(iam_client, pool_name)
         except HttpError as e:
+            # Mark the run as partial so cleanup does not delete providers
+            # under this pool. The next successful run will fully reconcile.
+            providers_sync_complete = False
             logger.warning(
-                "Failed to list providers for WIF pool %s: %s. Skipping.",
+                "Failed to list providers for WIF pool %s: %s. Skipping "
+                "and disabling provider cleanup for project %s.",
                 pool_name,
                 e,
+                project_id,
             )
             continue
-        all_providers.extend(
-            transform_providers(raw_providers, pool_name, project_id)
-        )
+        all_providers.extend(transform_providers(raw_providers, pool_name, project_id))
 
     load_providers(neo4j_session, all_providers, project_id, gcp_update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(
+        neo4j_session,
+        common_job_parameters,
+        providers_sync_complete=providers_sync_complete,
+    )

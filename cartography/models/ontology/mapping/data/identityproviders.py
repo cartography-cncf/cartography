@@ -106,12 +106,10 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="issuer", node_field="oidc_issuer_uri"
                 ),
-                OntologyFieldMapping(
-                    ontology_field="enabled",
-                    node_field="state",
-                    special_handling="equal_boolean",
-                    extra={"values": ["ACTIVE"]},
-                ),
+                # `enabled` is precomputed on the node from (state == ACTIVE
+                # AND NOT disabled) so an ACTIVE-but-disabled provider is
+                # reported as not enabled to cross-provider queries.
+                OntologyFieldMapping(ontology_field="enabled", node_field="enabled"),
             ],
         ),
     ],

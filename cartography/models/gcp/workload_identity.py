@@ -62,6 +62,7 @@ class GCPWorkloadIdentityProviderNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     state: PropertyRef = PropertyRef("state")
     disabled: PropertyRef = PropertyRef("disabled")
+    enabled: PropertyRef = PropertyRef("enabled")
     protocol: PropertyRef = PropertyRef("protocol")
     attribute_condition: PropertyRef = PropertyRef("attributeCondition")
     oidc_issuer_uri: PropertyRef = PropertyRef("oidcIssuerUri")

@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from googleapiclient.errors import HttpError
+
 import cartography.intel.gcp.policy_bindings
 import cartography.intel.gcp.workload_identity
 import tests.data.gcp.workload_identity as wif_data
@@ -136,6 +138,106 @@ def test_sync_workload_identity_pools_and_providers(
             "workloadIdentityPools/aws-pool/providers/aws-prod",
         ),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.workload_identity,
+    "get_workload_identity_pools",
+    return_value=wif_data.LIST_WORKLOAD_IDENTITY_POOLS_RESPONSE[
+        "workloadIdentityPools"
+    ],
+)
+def test_sync_skips_provider_cleanup_on_partial_failure(_mock_pools, neo4j_session):
+    """
+    When listing providers fails for at least one pool, the provider cleanup
+    job must be skipped so providers we did not re-ingest are not deleted.
+    Pool cleanup remains safe because the pool list call succeeded.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    stale_provider_id = (
+        f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+        "workloadIdentityPools/aws-pool/providers/stale-aws"
+    )
+    aws_pool_id = (
+        f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+        "workloadIdentityPools/aws-pool"
+    )
+    # Seed a stale provider that would be deleted by a full cleanup pass.
+    neo4j_session.run(
+        """
+        MERGE (p:GCPWorkloadIdentityProvider:IdentityProvider{id:$pid})
+        SET p.lastupdated = $stale_tag, p.name = $pid, p.pool_name = $pool
+        """,
+        pid=stale_provider_id,
+        pool=aws_pool_id,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    def fail_on_aws_pool(_iam_client, pool_name):
+        if pool_name.endswith("/aws-pool"):
+            raise HttpError(
+                resp=MagicMock(status=500, reason="Internal"),
+                content=b"boom",
+            )
+        return wif_data.fake_get_providers(_iam_client, pool_name)
+
+    with patch.object(
+        cartography.intel.gcp.workload_identity,
+        "get_workload_identity_providers",
+        side_effect=fail_on_aws_pool,
+    ):
+        cartography.intel.gcp.workload_identity.sync(
+            neo4j_session,
+            MagicMock(),
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            COMMON_JOB_PARAMS,
+        )
+
+    # Stale provider must still exist because provider cleanup was skipped.
+    assert check_nodes(neo4j_session, "GCPWorkloadIdentityProvider", ["id"]) == {
+        (
+            f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+            "workloadIdentityPools/github-pool/providers/github-oidc",
+        ),
+        (stale_provider_id,),
+    }
+
+
+def test_transform_providers_marks_disabled_as_not_enabled():
+    """
+    An ACTIVE-but-disabled provider must report enabled=false so cross-
+    provider IdentityProvider queries do not see it as active.
+    """
+    raw = [
+        {
+            "name": "providers/active-enabled",
+            "state": "ACTIVE",
+            "disabled": False,
+            "oidc": {"issuerUri": "https://example"},
+        },
+        {
+            "name": "providers/active-disabled",
+            "state": "ACTIVE",
+            "disabled": True,
+            "oidc": {"issuerUri": "https://example"},
+        },
+        {
+            "name": "providers/deleted",
+            "state": "DELETED",
+            "disabled": False,
+            "oidc": {"issuerUri": "https://example"},
+        },
+    ]
+    transformed = cartography.intel.gcp.workload_identity.transform_providers(
+        raw, "projects/p/locations/global/workloadIdentityPools/x", "p"
+    )
+    by_id = {p["id"]: p for p in transformed}
+    assert by_id["providers/active-enabled"]["enabled"] is True
+    assert by_id["providers/active-disabled"]["enabled"] is False
+    assert by_id["providers/deleted"]["enabled"] is False
 
 
 def test_transform_bindings_extracts_wif_pools():
