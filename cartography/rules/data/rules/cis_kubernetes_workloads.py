@@ -154,12 +154,16 @@ _k8s_service_account_tokens_mounted = Fact(
         sa,
         coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
         coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
         coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
       AND NOT (
         pod.automount_service_account_token IS NULL
         AND sa.automount_service_account_token IS NULL
-        AND service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        AND (
+          service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+          OR service_account_assumes_aws_role
+        )
       )
     RETURN
         pod.id AS pod_id,
@@ -180,12 +184,16 @@ _k8s_service_account_tokens_mounted = Fact(
         p,
         p1,
         coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
         coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
       AND NOT (
         pod.automount_service_account_token IS NULL
         AND sa.automount_service_account_token IS NULL
-        AND service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        AND (
+          service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+          OR service_account_assumes_aws_role
+        )
       )
     RETURN *
     """,
