@@ -89,8 +89,37 @@ keycloak_mapping = OntologyMapping(
     ],
 )
 
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPWorkloadIdentityProvider",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="protocol", node_field="protocol"),
+                # WIF providers expose the OIDC issuer URI on `oidc_issuer_uri`.
+                # AWS / SAML variants do not carry a comparable issuer field,
+                # so the mapping is left empty for those (i.e. _ont_issuer is
+                # unset).
+                OntologyFieldMapping(
+                    ontology_field="issuer", node_field="oidc_issuer_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="enabled",
+                    node_field="state",
+                    special_handling="equal_boolean",
+                    extra={"values": ["ACTIVE"]},
+                ),
+            ],
+        ),
+    ],
+)
+
 IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "kubernetes": kubernetes_mapping,
     "keycloak": keycloak_mapping,
+    "gcp": gcp_mapping,
 }
