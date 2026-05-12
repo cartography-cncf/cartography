@@ -497,7 +497,7 @@ def sync_aws_organization(
     organization_id = organization["Id"]
     synced_organization_ids = common_job_parameters.setdefault(
         "_SYNCED_AWS_ORGANIZATION_IDS",
-        set(),
+        [],
     )
     if organization_id in synced_organization_ids:
         logger.debug(
@@ -566,4 +566,4 @@ def sync_aws_organization(
         organization_id,
         (account["Id"] for account in raw_accounts),
     )
-    synced_organization_ids.add(organization_id)
+    synced_organization_ids.append(organization_id)
