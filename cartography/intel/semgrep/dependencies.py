@@ -146,7 +146,13 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
 
         # We could call a different endpoint to get all repo IDs and store a mapping of repo ID to URL,
         # but it's much simpler to just extract the URL from the definedAt field.
-        repo_url = raw_dep["definedAt"]["url"].split("/blob/", 1)[0]
+        # GitLab blob URLs use `/-/blob/` as the delimiter while GitHub uses `/blob/`,
+        # so check for the GitLab form first to avoid leaving a trailing `/-` segment.
+        defined_at_url = raw_dep["definedAt"]["url"]
+        if "/-/blob/" in defined_at_url:
+            repo_url = defined_at_url.split("/-/blob/", 1)[0]
+        else:
+            repo_url = defined_at_url.split("/blob/", 1)[0]
 
         name = raw_dep["package"]["name"]
         version = raw_dep["package"]["versionSpecifier"]

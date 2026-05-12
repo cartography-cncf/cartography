@@ -16,6 +16,7 @@ from cartography.intel.gitlab.dependencies import (
 )
 from cartography.intel.gitlab.dependencies import DEFAULT_DEPENDENCY_SCAN_JOB_NAME
 from cartography.intel.gitlab.dependencies import get_dependencies
+from cartography.intel.gitlab.dependencies import transform_dependencies
 
 
 def _build_artifacts_zip(files: dict[str, dict | bytes]) -> bytes:
@@ -267,6 +268,58 @@ def test_parse_cyclonedx_sbom_extracts_package_manager_from_purl():
     assert result[1]["package_manager"] == "pypi"
     assert result[2]["package_manager"] == "unknown"
 
+    # Assert: raw purl and derived type are preserved for canonical PURL plumbing
+    assert result[0]["purl"] == "pkg:npm/express@4.18.2"
+    assert result[0]["type"] == "npm"
+    assert result[1]["purl"] == "pkg:pypi/requests@2.31.0"
+    assert result[1]["type"] == "pypi"
+    assert result[2]["purl"] is None
+    assert result[2]["type"] is None
+
+
+def test_transform_dependencies_emits_canonical_purl_fields():
+    """
+    transform_dependencies must propagate purl/type from the parser and compute
+    normalized_id via make_normalized_package_id so the ontology Package node
+    can match (:Package)-[:DETECTED_AS]->(:GitLabDependency).
+    """
+    raw = [
+        {
+            "name": "express",
+            "version": "4.18.2",
+            "package_manager": "npm",
+            "purl": "pkg:npm/express@4.18.2",
+            "type": "npm",
+            "manifest_id": "manifest-1",
+        },
+        {
+            # No purl: normalized_id must fall back gracefully on name+version+type.
+            "name": "mystery",
+            "version": "0.0.1",
+            "package_manager": "unknown",
+            "purl": None,
+            "type": None,
+        },
+    ]
+
+    transformed = transform_dependencies(
+        raw_dependencies=raw,
+        project_id=42,
+        project_url="https://gitlab.example.com/g/p",
+        gitlab_url="https://gitlab.example.com",
+    )
+
+    assert transformed[0]["purl"] == "pkg:npm/express@4.18.2"
+    assert transformed[0]["type"] == "npm"
+    assert transformed[0]["normalized_id"] == "npm|express|4.18.2"
+    assert transformed[0]["manifest_id"] == "manifest-1"
+
+    # Missing PURL and missing type: normalized_id falls back to None per
+    # make_normalized_package_id's contract.
+    assert transformed[1]["purl"] is None
+    assert transformed[1]["type"] is None
+    assert transformed[1]["normalized_id"] is None
+
 
 def test_parse_cyclonedx_sbom_skips_components_without_name():
     """
@@ -414,6 +467,8 @@ def test_get_dependencies_uses_selected_job_id_for_artifacts(
             "version": "4.18.2",
             "package_manager": "npm",
             "manifest_path": "package.json",
+            "purl": "pkg:npm/express@4.18.2",
+            "type": "npm",
             "manifest_id": "https://gitlab.example.com/group/project/-/blob/main/package.json",
         },
     ]
@@ -502,6 +557,8 @@ def test_get_dependencies_paginates_jobs_and_prefers_default_branch(mocker) -> N
             "version": "2.31.0",
             "package_manager": "pypi",
             "manifest_path": "requirements.txt",
+            "purl": "pkg:pypi/requests@2.31.0",
+            "type": "pypi",
             "manifest_id": "https://gitlab.example.com/group/project/-/blob/main/requirements.txt",
         },
     ]
@@ -581,6 +638,8 @@ def test_get_dependencies_parses_gzipped_cyclonedx_from_archive(mocker) -> None:
             "version": "2.2.1",
             "package_manager": "pypi",
             "manifest_path": "requirements.txt",
+            "purl": "pkg:pypi/urllib3@2.2.1",
+            "type": "pypi",
             "manifest_id": "https://gitlab.example.com/group/project/-/blob/main/requirements.txt",
         },
     ]
@@ -650,6 +709,8 @@ def test_get_dependencies_parses_direct_gzipped_cyclonedx_response(mocker) -> No
             "version": "2.2.1",
             "package_manager": "pypi",
             "manifest_path": "requirements.txt",
+            "purl": "pkg:pypi/urllib3@2.2.1",
+            "type": "pypi",
             "manifest_id": "https://gitlab.example.com/group/project/-/blob/main/requirements.txt",
         },
     ]
@@ -714,6 +775,8 @@ def test_get_dependencies_downloads_raw_cyclonedx_artifact_when_archive_has_no_s
             "version": "2.2.1",
             "package_manager": "pypi",
             "manifest_path": "",
+            "purl": "pkg:pypi/urllib3@2.2.1",
+            "type": "pypi",
         },
     ]
     assert (

@@ -58,7 +58,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 
 >
-> To create `FOUND_IN` relationships for OSS findings, matching `GitHubRepository` nodes must already exist in the graph with `id` equal to the repository `url` declared in the mapping file. If the repository nodes are absent, Cartography still ingests the `SemgrepSASTFinding` nodes but cannot attach them to GitHub repositories.
+> To create `FOUND_IN` relationships for OSS findings, matching `GitHubRepository` (for `provider: github` entries) or `GitLabProject` (for `provider: gitlab` entries) nodes must already exist in the graph. `GitHubRepository` nodes are matched by `id` equal to the repository `url` declared in the mapping file; `GitLabProject` nodes are matched by `web_url`. If the repository nodes are absent, Cartography still ingests the `SemgrepSASTFinding` nodes but cannot attach them.
 
 > **Cloud-only fields**: `line_of_code_url`, `state`, `fix_status`, `triage_status`, `opened_at`, `risk_severity`, and the `HAS_ASSISTANT` relationship are only populated for Semgrep Cloud findings.
 
@@ -98,6 +98,12 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
     ```
     (SemgrepSASTFinding)-[FOUND_IN]->(GitHubRepository)
+    ```
+
+- A SemgrepSASTFinding connected to a GitLabProject (optional)
+
+    ```
+    (SemgrepSASTFinding)-[FOUND_IN]->(GitLabProject)
     ```
 
 - A SemgrepSASTFinding has a SemgrepFindingAssistant (optional, Cloud only)
@@ -149,6 +155,12 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
     (SemgrepSecretsFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
+- A SemgrepSecretsFinding connected to a GitLabProject (optional)
+
+    ```
+    (SemgrepSecretsFinding)-[FOUND_IN]->(GitLabProject)
+    ```
+
 ### SemgrepSCAFinding
 
 Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain/overview/) finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SupplyChainService.
@@ -189,6 +201,12 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 
     ```
     (SemgrepSCAFinding)-[FOUND_IN]->(GitHubRepository)
+    ```
+
+- An SemgrepSCAFinding connected to a GitLabProject (optional)
+
+    ```
+    (SemgrepSCAFinding)-[FOUND_IN]->(GitLabProject)
     ```
 
 - A SemgrepSCAFinding vulnerable dependency usage at SemgrepSCALocation (optional)
@@ -293,6 +311,12 @@ See [SemgrepDependency](#semgrepdependency) for details.
 
     ```
     (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GitHubRepository)
+    ```
+
+- A SemgrepDependency is required by a GitLabProject (optional)
+
+    ```
+    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GitLabProject)
     ```
 
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")
