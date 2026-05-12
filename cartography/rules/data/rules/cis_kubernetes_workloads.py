@@ -161,6 +161,8 @@ _k8s_service_account_tokens_mounted = Fact(
         pod.automount_service_account_token IS NULL
         AND sa.automount_service_account_token IS NULL
         AND (
+          service_account_name = 'default'
+          OR
           service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
           OR service_account_assumes_aws_role
         )
@@ -191,6 +193,8 @@ _k8s_service_account_tokens_mounted = Fact(
         pod.automount_service_account_token IS NULL
         AND sa.automount_service_account_token IS NULL
         AND (
+          coalesce(sa._ont_name, sa.name, pod.service_account_name) = 'default'
+          OR
           service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
           OR service_account_assumes_aws_role
         )

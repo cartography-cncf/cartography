@@ -216,6 +216,13 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "EXISTS { (sa)-[:ASSUMES_ROLE]->(:AWSRole) }" in fact.cypher_query
         assert "service_account_assumes_aws_role" in fact.cypher_query
 
+    def test_service_account_token_mounts_excludes_implicit_default_sa_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_query
+        assert "pod.automount_service_account_token IS NULL" in fact.cypher_query
+        assert "sa.automount_service_account_token IS NULL" in fact.cypher_query
+
     def test_service_account_token_mounts_uses_ontology_service_account_name(self):
         fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
 
