@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 OSS_DEPLOYMENT_ID = "oss"
 _SEMGREP_OSS_RESULT_REQUIRED_KEYS = {"check_id", "path", "start", "end", "extra"}
 _SEMGREP_OSS_UNUSABLE_FINGERPRINTS = {"requires login"}
+_SEMGREP_OSS_SUPPORTED_PROVIDERS = frozenset({"github", "gitlab"})
 
 
 class SemgrepOSSRepositoryMappingEntry(BaseModel):
@@ -46,7 +47,18 @@ class SemgrepOSSRepositoryMappingEntry(BaseModel):
     branch: str
     reports: list[str] = Field(min_length=1)
 
-    @field_validator("provider", "owner", "repo", "url", "branch")  # type: ignore[misc]
+    @field_validator("provider")  # type: ignore[misc]
+    @classmethod
+    def _validate_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in _SEMGREP_OSS_SUPPORTED_PROVIDERS:
+            raise ValueError(
+                "provider must be one of "
+                f"{sorted(_SEMGREP_OSS_SUPPORTED_PROVIDERS)}, got {value!r}."
+            )
+        return normalized
+
+    @field_validator("owner", "repo", "url", "branch")  # type: ignore[misc]
     @classmethod
     def _validate_required_string(cls, value: str) -> str:
         normalized = value.strip()

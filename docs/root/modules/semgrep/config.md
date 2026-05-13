@@ -22,7 +22,7 @@ The repository mapping file must:
 
 - Be valid UTF-8 YAML.
 - Contain a top-level `repositories` list.
-- Give each repository entry `provider`, `owner`, `repo`, `url`, `branch`, and a non-empty `reports` list.
+- Give each repository entry `provider`, `owner`, `repo`, `url`, `branch`, and a non-empty `reports` list. `provider` must be `github` or `gitlab`.
 - Use `reports` entries that each point to exactly one Semgrep OSS JSON artifact.
 
 - Each `reports` entry must point to exactly one Semgrep OSS JSON artifact for the repository it is nested under. For sharded or monorepo scans, list each generated JSON artifact separately under `reports`; a `reports` entry must not be a directory or object-store prefix containing multiple JSON files. Cartography treats one repository entry as the intended snapshot for that repository in the current run. If all listed reports for a repository are successfully processed, Cartography runs cleanup for stale OSS findings scoped to that repository URL. If any listed report for that repository fails to resolve, fails to parse, or is not Semgrep-shaped, Cartography skips cleanup for that repository to avoid deleting findings from an incomplete snapshot.
@@ -46,6 +46,13 @@ repositories:
     reports:
       - "s3://security-artifacts/semgrep/different-repo/report-1.json"
       - "s3://security-artifacts/semgrep/different-repo/report-2.json"
+  - provider: "gitlab"
+    owner: "simpsoncorp"
+    repo: "gitlab_repo"
+    url: "https://gitlab.com/simpsoncorp/gitlab_repo"
+    branch: "main"
+    reports:
+      - "/path/to/gitlab_repo-semgrep.json"
 ```
 
 Example command:
@@ -57,4 +64,4 @@ cartography \
   --semgrep-oss-source /path/to/repository_mappings.yaml
 ```
 
-To create `FOUND_IN` relationships for OSS findings, matching `GitHubRepository` nodes must already exist in the graph with `id` equal to the repository `url` declared in the mapping file.
+To create `FOUND_IN` relationships for OSS findings, matching `GitHubRepository` (for `provider: github` entries) or `GitLabProject` (for `provider: gitlab` entries) nodes must already exist in the graph. `GitHubRepository` nodes are matched by `id` equal to the repository `url` declared in the mapping file; `GitLabProject` nodes are matched by `web_url`.

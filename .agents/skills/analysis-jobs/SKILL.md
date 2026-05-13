@@ -28,6 +28,9 @@ Use them when you need to:
 2. **Use iterative queries for large datasets.** They must return `COUNT(*) AS TotalCompleted`.
 3. **Document each query** with `__comment__`.
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
+5. **Order statements correctly to avoid read windows.**
+    - **Properties:** clean up first (`REMOVE n.attr`), then SET. Cleanup of attributes can usually run in a single transaction.
+    - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `cartography/data/jobs/analysis/aws_lambda_ecr.json`.
 
 ## Instructions
 
