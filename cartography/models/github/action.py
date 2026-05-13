@@ -24,8 +24,8 @@ class GitHubActionNodeProperties(CartographyNodeProperties):
     owner: PropertyRef = PropertyRef("owner", extra_index=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
     version: PropertyRef = PropertyRef("version")
-    is_pinned: PropertyRef = PropertyRef("is_pinned")
-    is_local: PropertyRef = PropertyRef("is_local")
+    is_pinned: PropertyRef = PropertyRef("is_pinned", extra_index=True)
+    is_local: PropertyRef = PropertyRef("is_local", extra_index=True)
     full_name: PropertyRef = PropertyRef("full_name")
 
 
