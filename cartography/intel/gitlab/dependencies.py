@@ -18,6 +18,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import check_rate_limit_remaining
 from cartography.intel.gitlab.util import make_request_with_retry
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.gitlab.dependencies import GitLabDependencySchema
 from cartography.util import timeit
 
@@ -431,9 +432,10 @@ def _parse_cyclonedx_sbom(
 
         # Extract package manager from purl (Package URL)
         # Example: "pkg:npm/express@4.18.2" -> package_manager = "npm"
-        purl = component.get("purl", "")
+        purl = component.get("purl", "") or None
         package_manager = "unknown"
-        if purl.startswith("pkg:"):
+        pkg_type = None
+        if purl and purl.startswith("pkg:"):
             # purl format: pkg:<type>/<name>@<version>
             parts = purl.split("/")
             if len(parts) >= 1:
@@ -445,6 +447,8 @@ def _parse_cyclonedx_sbom(
             "version": version,
             "package_manager": package_manager,
             "manifest_path": manifest_path,
+            "purl": purl,
+            "type": pkg_type,
         }
 
         # Add manifest_id if we found a matching DependencyFile
@@ -472,10 +476,19 @@ def transform_dependencies(
         version = dep.get("version", "")
         package_manager = dep.get("package_manager", "unknown")
         manifest_id = dep.get("manifest_id")
+        purl = dep.get("purl")
+        pkg_type = dep.get("type")
 
         # Construct unique ID: project_url:package_manager:name@version
         # Example: "https://gitlab.com/group/project:npm:express@4.18.2"
         dep_id = f"{project_url}:{package_manager}:{name}@{version}"
+
+        normalized_id = make_normalized_package_id(
+            purl=purl,
+            name=name,
+            version=version,
+            pkg_type=pkg_type,
+        )
 
         transformed_dep = {
             "id": dep_id,
@@ -485,6 +498,9 @@ def transform_dependencies(
             "project_id": project_id,
             "project_url": project_url,
             "gitlab_url": gitlab_url,
+            "purl": purl,
+            "type": pkg_type,
+            "normalized_id": normalized_id,
         }
 
         if manifest_id:

@@ -31,6 +31,31 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     resource_type: PropertyRef = PropertyRef("resource_type")
     resource_id: PropertyRef = PropertyRef("resource_id")
     archived: PropertyRef = PropertyRef("archived")
+    # Service-level fields (apply to all action types)
+    service_action_type: PropertyRef = PropertyRef("service_action_type")
+    service_count: PropertyRef = PropertyRef("service_count")
+    service_resource_role: PropertyRef = PropertyRef("service_resource_role")
+    # AwsApiCallAction fields (None for non-AWS_API_CALL findings)
+    api_call_name: PropertyRef = PropertyRef("api_call_name")
+    api_call_service_name: PropertyRef = PropertyRef("api_call_service_name")
+    api_call_caller_type: PropertyRef = PropertyRef("api_call_caller_type")
+    api_call_error_code: PropertyRef = PropertyRef("api_call_error_code")
+    api_call_remote_ip: PropertyRef = PropertyRef("api_call_remote_ip")
+    api_call_remote_country: PropertyRef = PropertyRef("api_call_remote_country")
+    api_call_remote_city: PropertyRef = PropertyRef("api_call_remote_city")
+    api_call_remote_org: PropertyRef = PropertyRef("api_call_remote_org")
+    api_call_remote_asn: PropertyRef = PropertyRef("api_call_remote_asn")
+    api_call_remote_asn_org: PropertyRef = PropertyRef("api_call_remote_asn_org")
+    api_call_remote_isp: PropertyRef = PropertyRef("api_call_remote_isp")
+    api_call_remote_lat: PropertyRef = PropertyRef("api_call_remote_lat")
+    api_call_remote_lon: PropertyRef = PropertyRef("api_call_remote_lon")
+    api_call_remote_account_id: PropertyRef = PropertyRef(
+        "api_call_remote_account_id",
+        extra_index=True,
+    )
+    api_call_remote_account_affiliated: PropertyRef = PropertyRef(
+        "api_call_remote_account_affiliated",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -89,6 +114,24 @@ class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingTriggeredByAWSAccountRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingTriggeredByAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("api_call_remote_account_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REMOTE_ACCOUNT"
+    properties: GuardDutyFindingTriggeredByAWSAccountRelRelProperties = (
+        GuardDutyFindingTriggeredByAWSAccountRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -117,6 +160,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GuardDutyFindingToGuardDutyDetectorRel(),
+            GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToS3BucketRel(),
         ],
