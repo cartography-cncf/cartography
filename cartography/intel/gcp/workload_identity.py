@@ -100,11 +100,19 @@ def transform_pools(
                 "description": pool.get("description"),
                 "state": pool.get("state"),
                 "disabled": pool.get("disabled", False),
+                "mode": pool.get("mode"),
                 "sessionDuration": pool.get("sessionDuration"),
                 "projectId": project_id,
             },
         )
     return result
+
+
+# GKE-managed pools (`*.svc.id.goog`) are surfaced by the API with
+# ``mode == "SYSTEM_TRUST_DOMAIN"``. They cannot list user-defined providers,
+# and ``providers.list`` returns a deterministic 400 INVALID_ARGUMENT. We
+# treat them as having no listable providers rather than as a failed sync.
+_SYSTEM_TRUST_DOMAIN_MODE = "SYSTEM_TRUST_DOMAIN"
 
 
 def _detect_protocol(provider: Dict[str, Any]) -> str | None:
@@ -114,6 +122,8 @@ def _detect_protocol(provider: Dict[str, Any]) -> str | None:
         return "AWS"
     if "saml" in provider:
         return "SAML"
+    if "x509" in provider:
+        return "X509"
     return None
 
 
@@ -292,6 +302,16 @@ def sync(
     for pool in raw_pools:
         pool_name = pool.get("name")
         if not pool_name:
+            continue
+        if pool.get("mode") == _SYSTEM_TRUST_DOMAIN_MODE:
+            # GKE-managed pools cannot list providers (the API rejects with
+            # 400 INVALID_ARGUMENT). They have no user-managed providers to
+            # ingest, so skip the call entirely without flipping the
+            # completeness flag.
+            logger.debug(
+                "Skipping provider listing for SYSTEM_TRUST_DOMAIN pool %s",
+                pool_name,
+            )
             continue
         try:
             raw_providers = get_workload_identity_providers(iam_client, pool_name)

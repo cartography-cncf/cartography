@@ -20,6 +20,7 @@ class GCPWorkloadIdentityPoolNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     state: PropertyRef = PropertyRef("state")
     disabled: PropertyRef = PropertyRef("disabled")
+    mode: PropertyRef = PropertyRef("mode")
     session_duration: PropertyRef = PropertyRef("sessionDuration")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef("projectId", set_in_kwargs=True)

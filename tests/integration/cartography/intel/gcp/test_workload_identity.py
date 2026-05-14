@@ -275,6 +275,118 @@ def test_transform_providers_disabled_pool_disables_all_providers():
         assert transformed[0]["enabled"] is False
 
 
+@patch.object(
+    cartography.intel.gcp.workload_identity,
+    "get_workload_identity_pools",
+    return_value=[
+        {
+            "name": (
+                f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+                "workloadIdentityPools/gke-system"
+            ),
+            "displayName": "GKE",
+            "state": "ACTIVE",
+            "disabled": False,
+            "mode": "SYSTEM_TRUST_DOMAIN",
+        },
+    ],
+)
+def test_sync_skips_provider_list_for_system_trust_domain_pools(
+    _mock_pools, neo4j_session
+):
+    """
+    GKE-managed pools have mode=SYSTEM_TRUST_DOMAIN and the providers.list
+    API returns 400 for them. We must skip the call without flipping the
+    completeness flag, otherwise every GKE-using project would permanently
+    disable provider cleanup.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    # Seed a stale provider that should be deleted by a normal cleanup pass
+    # to prove the completeness flag was not flipped.
+    stale_provider_id = (
+        f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+        "workloadIdentityPools/old-pool/providers/old-prov"
+    )
+    neo4j_session.run(
+        """
+        MERGE (p:GCPWorkloadIdentityProvider:IdentityProvider{id:$pid})
+        SET p.lastupdated = $stale_tag, p.name = $pid
+        MERGE (proj:GCPProject{id:$proj}) ON CREATE SET proj.firstseen = timestamp()
+        MERGE (proj)-[r:RESOURCE]->(p)
+        SET r.lastupdated = $stale_tag
+        """,
+        pid=stale_provider_id,
+        proj=TEST_PROJECT_ID,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    def _should_not_be_called(_iam_client, pool_name):
+        raise AssertionError(
+            f"providers.list must not be called for SYSTEM_TRUST_DOMAIN pool {pool_name}"
+        )
+
+    with patch.object(
+        cartography.intel.gcp.workload_identity,
+        "get_workload_identity_providers",
+        side_effect=_should_not_be_called,
+    ):
+        cartography.intel.gcp.workload_identity.sync(
+            neo4j_session,
+            MagicMock(),
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            COMMON_JOB_PARAMS,
+        )
+
+    # Pool is ingested and tagged.
+    assert check_nodes(neo4j_session, "GCPWorkloadIdentityPool", ["mode"]) == {
+        ("SYSTEM_TRUST_DOMAIN",),
+    }
+    # Provider cleanup ran (flag stayed True), so the stale provider is gone.
+    assert check_nodes(neo4j_session, "GCPWorkloadIdentityProvider", ["id"]) == set()
+
+
+def test_detect_protocol_handles_x509():
+    """
+    GCP also supports X509 (mTLS) providers. They must be classified so the
+    ontology mapping carries the right protocol instead of None.
+    """
+    fn = cartography.intel.gcp.workload_identity._detect_protocol
+    assert fn({"oidc": {}}) == "OIDC"
+    assert fn({"aws": {}}) == "AWS"
+    assert fn({"saml": {}}) == "SAML"
+    assert fn({"x509": {"trustStore": {"trustAnchors": []}}}) == "X509"
+    assert fn({}) is None
+
+
+def test_transform_providers_classifies_x509_provider():
+    """
+    An x509 provider should land in the graph with protocol="X509" and
+    inherit the pool-driven enabled flag, even though no issuer URI exists.
+    """
+    pool = {
+        "name": "projects/p/locations/global/workloadIdentityPools/x",
+        "state": "ACTIVE",
+        "disabled": False,
+    }
+    raw = [
+        {
+            "name": "projects/p/locations/global/workloadIdentityPools/x/providers/mtls",
+            "state": "ACTIVE",
+            "disabled": False,
+            "x509": {"trustStore": {"trustAnchors": [{"pemCertificate": "..."}]}},
+        },
+    ]
+    transformed = cartography.intel.gcp.workload_identity.transform_providers(
+        raw, pool, "p"
+    )
+    assert transformed[0]["protocol"] == "X509"
+    assert transformed[0]["enabled"] is True
+    assert transformed[0]["oidcIssuerUri"] is None
+
+
 def test_transform_bindings_extracts_wif_pools():
     """
     The policy binding transformer should extract the pool resource name from

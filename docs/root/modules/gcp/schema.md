@@ -1020,6 +1020,7 @@ Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/do
 | description      | A description of the pool.                                                                           |
 | state            | Pool state (`ACTIVE`, `DELETED`).                                                                    |
 | disabled         | Whether the pool is disabled.                                                                        |
+| mode             | Pool mode. `SYSTEM_TRUST_DOMAIN` indicates a GKE-managed pool (`*.svc.id.goog`) whose providers are managed by Google and not enumerated by Cartography. Otherwise the field is unset or carries a user-managed mode. |
 | session_duration | Default session duration for federated tokens issued via this pool.                                  |
 | firstseen        | Timestamp of when a sync job first discovered this node.                                             |
 | lastupdated      | Timestamp of the last time the node was updated.                                                     |
@@ -1053,7 +1054,7 @@ Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.c
 | state                  | Provider state (`ACTIVE`, `DELETED`).                                                      |
 | disabled               | Whether the provider is explicitly disabled.                                               |
 | enabled                | Effective enabled flag: true only when both the provider and its parent pool are `state == ACTIVE` and not disabled. Used for the `IdentityProvider` ontology mapping. |
-| protocol               | One of `OIDC`, `AWS`, `SAML`, depending on which sub-object is populated.                  |
+| protocol               | One of `OIDC`, `AWS`, `SAML`, `X509`, depending on which sub-object is populated.          |
 | attribute_condition    | CEL expression that gates token claims before federation.                                  |
 | oidc_issuer_uri        | OIDC issuer URI (only set when `protocol = OIDC`).                                         |
 | oidc_allowed_audiences | OIDC allowed audiences (only set when `protocol = OIDC`).                                  |
