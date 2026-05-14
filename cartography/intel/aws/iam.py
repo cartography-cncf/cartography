@@ -348,8 +348,14 @@ def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
     client = create_boto3_client(boto3_session, "iam")
     # list_saml_providers returns a single page
     response = client.list_saml_providers()
-    # Shape into a dict list similar to other getters
-    return {"SAMLProviderList": response.get("SAMLProviderList", [])}
+    providers = response.get("SAMLProviderList", [])
+    # Derive a friendly name from the ARN suffix
+    # (arn:aws:iam::<account>:saml-provider/<name>) since list_saml_providers
+    # does not return a name field directly.
+    for provider in providers:
+        arn = provider.get("Arn", "")
+        provider["Name"] = arn.rsplit("/", 1)[-1] if "/" in arn else arn
+    return {"SAMLProviderList": providers}
 
 
 @timeit

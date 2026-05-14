@@ -49,7 +49,7 @@ class PagerDutyServiceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PagerDutyServiceToTeamProperties(CartographyRelProperties):
+class PagerDutyServiceToTeamRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,7 +62,9 @@ class PagerDutyServiceToTeamRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: PagerDutyServiceToTeamProperties = PagerDutyServiceToTeamProperties()
+    properties: PagerDutyServiceToTeamRelProperties = (
+        PagerDutyServiceToTeamRelProperties()
+    )
 
 
 @dataclass(frozen=True)

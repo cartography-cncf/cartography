@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -48,7 +49,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             ] AS effective_actions
         WHERE size(effective_actions) > 0
         // Step 4: Optional internet exposure context
-        OPTIONAL MATCH (ec2 {exposed_internet: True})
+        OPTIONAL MATCH (ec2 {exposed_internet: true})
             -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
             <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         UNWIND effective_actions AS action
@@ -205,4 +206,8 @@ workload_identity_admin_capabilities = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
+    ),
 )

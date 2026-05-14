@@ -14,7 +14,7 @@ Syft JSON Format Reference:
         ],
         "source": {
             "type": "image",
-            "target": {"digest": "sha256:...", "tags": ["myimage:latest"]}
+            "metadata": {"manifestDigest": "sha256:...", "repoDigests": ["myimage@sha256:..."]}
         },
         "schema": {"version": "16.0.0"}
     }
@@ -48,6 +48,47 @@ def _build_artifact_lookup(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         Dictionary mapping artifact ID -> artifact data dict
     """
     return {artifact["id"]: artifact for artifact in data.get("artifacts", [])}
+
+
+def _append_digest(digests: list[str], digest: Any) -> None:
+    if (
+        isinstance(digest, str)
+        and digest.startswith("sha256:")
+        and digest not in digests
+    ):
+        digests.append(digest)
+
+
+def _append_repo_digests(digests: list[str], repo_digests: Any) -> None:
+    if not isinstance(repo_digests, list):
+        return
+
+    for repo_digest in repo_digests:
+        if not isinstance(repo_digest, str):
+            continue
+        _, separator, digest = repo_digest.rpartition("@")
+        if separator:
+            _append_digest(digests, digest)
+
+
+def _extract_image_digests(data: dict[str, Any]) -> list[str]:
+    """
+    Extract image digest candidates from Syft's current source metadata shape.
+
+    The order is deterministic: manifestDigest first, then repoDigests.
+    """
+    source = data.get("source", {})
+    if not isinstance(source, dict) or source.get("type") != "image":
+        return []
+
+    digests: list[str] = []
+
+    metadata = source.get("metadata", {})
+    if isinstance(metadata, dict):
+        _append_digest(digests, metadata.get("manifestDigest"))
+        _append_repo_digests(digests, metadata.get("repoDigests"))
+
+    return digests
 
 
 def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -94,10 +135,13 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         dep_map.setdefault(child_id, []).append(parent_norm_id)
 
-    # Extract image digest from source metadata when available
+    image_digests = _extract_image_digests(data)
     source = data.get("source", {})
-    target = source.get("target", {}) if source.get("type") == "image" else {}
-    image_digest = target.get("digest")
+    if isinstance(source, dict) and source.get("type") == "image" and not image_digests:
+        logger.warning(
+            "Syft image source did not include image digest candidates; "
+            "SyftPackage DEPLOYED relationships to Image nodes will be skipped.",
+        )
 
     packages: list[dict[str, Any]] = []
     for artifact_id, artifact in artifacts.items():
@@ -124,7 +168,7 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "language": artifact.get("language"),
                 "found_by": artifact.get("foundBy"),
                 "dependency_ids": dep_map.get(artifact_id, []),
-                "ImageDigest": image_digest,
+                "ImageDigestCandidates": image_digests,
             }
         )
 

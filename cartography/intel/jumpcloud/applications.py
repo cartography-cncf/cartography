@@ -69,7 +69,7 @@ def get(session: requests.Session) -> list[dict[str, Any]]:
         app_id = str(app["id"])
         app["users"] = _get_application_users(session, app_id)
         applications.append(app)
-    logger.info("Fetched %d applications total", len(applications))
+    logger.debug("Fetched %d applications total", len(applications))
     return applications
 
 

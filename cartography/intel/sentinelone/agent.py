@@ -39,7 +39,9 @@ def get_agents(
         params=params,
     )
 
-    logger.info(f"Retrieved {len(agents)} agents from SentinelOne account {account_id}")
+    logger.debug(
+        "Retrieved %s agents from SentinelOne account %s", len(agents), account_id
+    )
     return agents
 
 

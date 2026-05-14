@@ -97,6 +97,24 @@ class AzureNetworkInterfaceToPublicIPRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureNetworkInterfaceToNSGRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureNetworkInterfaceToNSGRel(CartographyRelSchema):
+    target_node_label: str = "AzureNetworkSecurityGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("NSG_ID")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: AzureNetworkInterfaceToNSGRelProperties = (
+        AzureNetworkInterfaceToNSGRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureNetworkInterfaceSchema(CartographyNodeSchema):
     label: str = "AzureNetworkInterface"
     properties: AzureNetworkInterfaceProperties = AzureNetworkInterfaceProperties()
@@ -108,5 +126,6 @@ class AzureNetworkInterfaceSchema(CartographyNodeSchema):
             AzureNetworkInterfaceToVirtualMachineRel(),
             AzureNetworkInterfaceToSubnetRel(),
             AzureNetworkInterfaceToPublicIPRel(),
+            AzureNetworkInterfaceToNSGRel(),
         ],
     )

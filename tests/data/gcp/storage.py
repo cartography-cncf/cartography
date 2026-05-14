@@ -18,6 +18,7 @@ STORAGE_RESPONSE = {
                 "uniformBucketLevelAccess": {
                     "enabled": False,
                 },
+                "publicAccessPrevention": "inherited",
             },
             "location": "US",
             "locationType": "multi-region",

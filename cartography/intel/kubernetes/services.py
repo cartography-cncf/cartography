@@ -58,9 +58,9 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
         for port in ports:
             ingress_ports.append(
                 {
-                    "error": port.port,
-                    "port": port.protocol,
-                    "protocol": port.ip,
+                    "error": port.error,
+                    "port": port.port,
+                    "protocol": port.protocol,
                 }
             )
         return ingress_ports

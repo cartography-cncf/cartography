@@ -10,7 +10,6 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
@@ -19,27 +18,89 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
+GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
 
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
     """
-    Resolve GCP scope to follow the standard hierarchy pattern.
+    Resolve a GCP IAM scope string to its canonical project-scoped form.
 
     Process breakdown:
-    - If scope starts with cloudresourcemanager.googleapis.com, return project/{project_id}/* (ORG,FOLDER,PROJECT)
-    - Otherwise, return project/{project_id}/resource/{resource_id} where resource_id is scope.split("/")[-1]
+    - If scope is at the resource manager hierarchy (org / folder / project),
+      return project/{project_id}/* — this matches every project resource.
+    - Otherwise, strip the leading "//{service.host}/" and use the remaining
+      path verbatim. The path uniquely identifies the resource within the
+      project — using the last segment alone collides for nested resources
+      (e.g. two BigQuery tables named "events" in different datasets, or two
+      KMS keys named "default" in different keyrings).
 
-    Typical Scope Examples:
+    Typical Scope Examples (followed by their resolved form):
+
     - ORG: //cloudresourcemanager.googleapis.com/organizations/{id}
+        -> project/{project_id}/*
     - FOLDER: //cloudresourcemanager.googleapis.com/folders/{id}
+        -> project/{project_id}/*
     - PROJECT: //cloudresourcemanager.googleapis.com/projects/{id}
+        -> project/{project_id}/*
     - BUCKET: //storage.googleapis.com/buckets/{bucket_name}
-    - INSTANCE: //compute.googleapis.com/projects/{project_id}/zones/{zone}/instances/{instance_id}
+        -> project/{project_id}/resource/buckets/{bucket_name}
+    - BIGQUERY TABLE: //bigquery.googleapis.com/projects/{p}/datasets/{d}/tables/{t}
+        -> project/{project_id}/resource/projects/{p}/datasets/{d}/tables/{t}
+    - INSTANCE: //compute.googleapis.com/projects/{p}/zones/{z}/instances/{i}
+        -> project/{project_id}/resource/projects/{p}/zones/{z}/instances/{i}
     """
     if "cloudresourcemanager.googleapis.com" in scope:
         return f"project/{project_id}/*"
 
-    return f"project/{project_id}/resource/{scope.split('/')[-1]}"
+    path = scope
+    if path.startswith("//"):
+        # Strip protocol marker and service host, keeping the resource path.
+        without_protocol = path[2:]
+        slash_idx = without_protocol.find("/")
+        if slash_idx > 0:
+            path = without_protocol[slash_idx + 1 :]
+    return f"project/{project_id}/resource/{path}"
+
+
+# Resource id formats that need a service-specific prefix to align with the
+# path encoded in the IAM scope string. Most GCP resource ids already start
+# with "projects/..." which matches their scope path verbatim; the table only
+# needs entries for resources whose id is a bare name.
+_GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX: dict[str, str] = {
+    "GCPBucket": "buckets",
+}
+
+
+def _canonical_resource_path(target_label: str, resource_id: str) -> str:
+    """Return the resource path used in scope strings for this target label.
+
+    Most GCP resource ids ingested by cartography are already in the
+    ``projects/{p}/...`` form that matches what GCP IAM puts in the scope
+    string. Two label families need translation:
+
+    - ``GCPBucket``: the id is the bare bucket name; IAM scope path is
+      ``buckets/{name}``.
+    - BigQuery (``GCPBigQueryDataset``, ``GCPBigQueryTable``): cartography
+      uses the legacy ``{project}:{dataset}[.table]`` id format, while IAM
+      scope path is ``projects/{p}/datasets/{d}[/tables/{t}]``.
+    """
+    if target_label == "GCPBigQueryDataset":
+        # "project:dataset" -> "projects/project/datasets/dataset"
+        if ":" in resource_id:
+            project_id, dataset_id = resource_id.split(":", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}"
+        return resource_id
+    if target_label == "GCPBigQueryTable":
+        # "project:dataset.table" -> "projects/project/datasets/dataset/tables/table"
+        if ":" in resource_id and "." in resource_id:
+            project_id, rest = resource_id.split(":", 1)
+            dataset_id, table_id = rest.split(".", 1)
+            return f"projects/{project_id}/datasets/{dataset_id}/tables/{table_id}"
+        return resource_id
+    prefix = _GCP_TARGET_LABEL_TO_SCOPE_PATH_PREFIX.get(target_label)
+    if prefix is None:
+        return resource_id
+    return f"{prefix}/{resource_id}"
 
 
 def compile_gcp_regex(item: str) -> re.Pattern:
@@ -180,53 +241,59 @@ def iter_permission_relationship_batches(
 
 
 @timeit
-def get_principals_for_project(
-    neo4j_session: neo4j.Session, project_id: str
-) -> dict[str, Any]:
+def build_principals_from_policy_bindings(
+    policy_bindings: list[dict[str, Any]],
+    role_permissions_by_name: dict[str, list[str]],
+    project_id: str,
+) -> GCPPrincipalPermissionContext:
     """
-    Get all principals (users, service accounts, groups) with their policy bindings
-    for a given GCP project.
+    Build the permission evaluation input directly from the current sync's
+    transformed policy bindings and IAM role payloads.
     """
-    get_principals_query = """
-    MATCH
-    (project:GCPProject{id: $ProjectId})-[:RESOURCE]->
-    (binding:GCPPolicyBinding)-[:GRANTS_ROLE]->
-    (role:GCPRole)
-    MATCH
-    (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
-    WHERE binding.has_condition = false
-    RETURN
-    DISTINCT principal.email as principal_email, binding.id as binding_id,
-    binding.resource as binding_resource, role.permissions as role_permissions
-    """
+    principals: GCPPrincipalPermissionContext = {}
+    compiled_assignments: dict[str, dict[str, Any]] = {}
+    skipped_conditional = 0
+    skipped_missing_roles = 0
+    total_member_assignments = 0
 
-    results = neo4j_session.execute_read(
-        read_list_of_dicts_tx,
-        get_principals_query,
-        ProjectId=project_id,
+    for binding in policy_bindings:
+        if binding["has_condition"]:
+            skipped_conditional += 1
+            continue
+
+        role = binding["role"]
+        role_permissions = role_permissions_by_name.get(role)
+        if role_permissions is None:
+            skipped_missing_roles += 1
+            continue
+
+        binding_id = binding["id"]
+        if binding_id not in compiled_assignments:
+            compiled_assignments[binding_id] = {
+                "permissions": compile_permissions_from_role(role_permissions),
+                "scope": compile_gcp_regex(
+                    resolve_gcp_scope(binding["resource"], project_id)
+                ),
+            }
+
+        # Share the compiled assignment across members of the same binding. Treat
+        # it as read-only during relationship evaluation.
+        for principal_email in binding["members"]:
+            principals.setdefault(principal_email, {})[binding_id] = (
+                compiled_assignments[binding_id]
+            )
+            total_member_assignments += 1
+
+    logger.info(
+        "Built GCP permission evaluation context for project '%s': bindings=%d, usable_bindings=%d, member_assignments=%d, principals=%d, skipped_conditional=%d, skipped_missing_roles=%d",
+        project_id,
+        len(policy_bindings),
+        len(compiled_assignments),
+        total_member_assignments,
+        len(principals),
+        skipped_conditional,
+        skipped_missing_roles,
     )
-
-    principals: dict[str, Any] = {}
-    for r in results:
-        principal_email = r["principal_email"]
-        binding_id = r["binding_id"]
-        binding_resource = r["binding_resource"]
-        role_permissions = r["role_permissions"] or []
-
-        if principal_email not in principals:
-            principals[principal_email] = {}
-
-        # Compile permissions from role
-        compiled_permissions = compile_permissions_from_role(role_permissions)
-        compiled_scope = compile_gcp_regex(
-            resolve_gcp_scope(binding_resource, project_id)
-        )
-
-        principals[principal_email][binding_id] = {
-            "permissions": compiled_permissions,
-            "scope": compiled_scope,
-        }
-
     return principals
 
 
@@ -278,10 +345,15 @@ def get_resource_ids(
         get_resource_query_template,
         ProjectId=project_id,
     )
+    # Use the full resource_id (or its target-label-aware canonical form) as
+    # the scope value so nested resources stay distinguishable. Truncating to
+    # the last segment merged sibling resources sharing a leaf name (e.g. two
+    # BigQuery tables named "events" in different datasets).
     resource_dict = {
-        resource_id: f'project/{project_id}/resource/{resource_id.split("/")[-1]}'
-        # Resource scope is project/{project_id}/resource/{last part of resource_id when separated by /}
-        # Resource_id as key for loading and resource scope as value for scope evaluation
+        resource_id: (
+            f"project/{project_id}/resource/"
+            f"{_canonical_resource_path(target_label, resource_id)}"
+        )
         for resource_id in resource_ids
     }
     return resource_dict
@@ -348,7 +420,7 @@ def load_principal_mappings(
 @timeit
 def evaluate_and_load_permission_relationships(
     neo4j_session: neo4j.Session,
-    principals: dict[str, Any],
+    principals: GCPPrincipalPermissionContext,
     resource_dict: dict[str, str],
     permissions: list[str],
     matchlink_schema: GCPPermissionMatchLink,
@@ -442,6 +514,7 @@ def sync(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    principals: GCPPrincipalPermissionContext,
 ) -> None:
     logger.info("Syncing GCP Permission Relationships for project '%s'.", project_id)
 
@@ -453,13 +526,10 @@ def sync(
         )
         return
 
-    # 1. GET - Fetch all GCP principals in suitable dict format
-    principals = get_principals_for_project(neo4j_session, project_id)
-
-    # 2. PARSE - Parse relationship file
+    # 1. PARSE - Parse relationship file
     relationship_mapping = parse_permission_relationships_file(pr_file)
 
-    # 3. EVALUATE - Evaluate each relationship and resource ID
+    # 2. EVALUATE - Evaluate each relationship and resource ID
     for rpr in relationship_mapping:
         if not is_valid_gcp_rpr(rpr):
             logger.error(f"Invalid permission relationship configuration: {rpr}")

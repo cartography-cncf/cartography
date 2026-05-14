@@ -35,7 +35,12 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     master_authorized_networks: PropertyRef = PropertyRef("master_authorized_networks")
     legacy_abac: PropertyRef = PropertyRef("legacy_abac")
     shielded_nodes: PropertyRef = PropertyRef("shielded_nodes")
-    workload_identity_enabled: PropertyRef = PropertyRef("workload_identity_enabled")
+    workload_identity_enabled: PropertyRef = PropertyRef(
+        "workload_identity_enabled", extra_index=True
+    )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by gcp_gke_asset_exposure.json.
     private_nodes: PropertyRef = PropertyRef("private_nodes")
     private_endpoint_enabled: PropertyRef = PropertyRef("private_endpoint_enabled")
     private_endpoint: PropertyRef = PropertyRef("private_endpoint")

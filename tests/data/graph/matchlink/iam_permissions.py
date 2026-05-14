@@ -10,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
@@ -45,3 +46,91 @@ class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_ACCESS"
     properties: IAMAccessRelProps = IAMAccessRelProps()
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketSourceScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with source-side sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketTargetScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with target-side sub-resource scoping."""
+
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with source- and target-side sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketUnequalScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with distinct source and target sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSOrganization",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketTargetScopedOutwardPermissionRel(
+    PrincipalToS3BucketPermissionRel
+):
+    """Test relationship schema with outward target-side sub-resource scoping."""
+
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.OUTWARD,
+        rel_label="RESOURCE",
+    )

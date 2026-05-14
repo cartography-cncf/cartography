@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -45,6 +46,48 @@ _aws_s3_public = Fact(
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
+
+# GCP Facts
+_gcp_bucket_public = Fact(
+    id="gcp_bucket_public",
+    name="Internet-Accessible GCS Bucket Attack Surface",
+    description=(
+        "GCS buckets that grant unconditional access to allUsers or "
+        "allAuthenticatedUsers via an IAM binding without enforced "
+        "publicAccessPrevention. Bindings with an IAM Condition (time-bound, "
+        "request-attribute-bound, etc.) are excluded; the binding's "
+        "is_public / has_condition properties remain available for finer-"
+        "grained queries."
+    ),
+    cypher_query="""
+    MATCH (b:GCPBucket)
+    WHERE coalesce(b.iam_config_public_access_prevention, '') <> 'enforced'
+      AND EXISTS {
+          MATCH (b)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
+          WHERE binding.is_public = true
+            AND coalesce(binding.has_condition, false) = false
+      }
+    RETURN
+        b.id AS id,
+        b.id AS name,
+        b.location AS region,
+        true AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:GCPBucket)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
+    WHERE coalesce(b.iam_config_public_access_prevention, '') <> 'enforced'
+      AND binding.is_public = true
+      AND coalesce(binding.has_condition, false) = false
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:GCPBucket)
+    RETURN COUNT(b) AS count
+    """,
+    module=Module.GCP,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
 
 # Azure Facts
 _azure_storage_public_blob_access = Fact(
@@ -96,12 +139,14 @@ object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     description=(
-        "Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers"
+        "Publicly accessible object storage services such as AWS S3 buckets, "
+        "Azure Storage Blob Containers, and GCS buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
+        _gcp_bucket_public,
     ),
     tags=(
         "infrastructure",
@@ -109,4 +154,5 @@ object_storage_public = Rule(
         "stride:information_disclosure",
     ),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.3"),),
 )

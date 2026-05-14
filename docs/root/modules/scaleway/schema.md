@@ -314,12 +314,15 @@ Represents a Permission Set in Scaleway. Permission sets are predefined collecti
 
 Volumes are storage space used by your Instances. You can attach several volumes to an Instance.
 
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, AzureDisk).
+
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
 | id              | Volume unique ID.                            |
 | name            | Volume name.                                 |
 | export_uri      | Show the volume NBD export URI.              |
 | size            | Volume disk size. (in bytes)                 |
+| size_gb         | Volume disk size derived in gigabytes (rounded from `size`). |
 | volume_type     | Volume type (`l_ssd`, `b_ssd`, `unified`, `scratch`, `sbs_volume`, `sbs_snapshot`) |
 | creation_date   | Volume creation date.                        |
 | modification_date| Volume modification date.                   |

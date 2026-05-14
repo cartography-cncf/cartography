@@ -271,7 +271,7 @@ def transform_commits_to_user_repo_relationships(
     :param organization: The Github organization name.
     :return: List of user-repository relationship records.
     """
-    logger.info("Transforming commit data into user-repository relationships")
+    logger.debug("Transforming commit data into user-repository relationships")
 
     # Group commits by user and repository
     user_repo_commits: dict[tuple[str, str], list[dict[str, Any]]] = {}

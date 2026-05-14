@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
@@ -20,6 +21,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource: PropertyRef = PropertyRef("resource")
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
+    is_public: PropertyRef = PropertyRef("is_public")
     has_condition: PropertyRef = PropertyRef("has_condition")
     condition_title: PropertyRef = PropertyRef("condition_title")
     condition_expression: PropertyRef = PropertyRef("condition_expression")
@@ -27,7 +29,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPPolicyBindingToProjectRelProperties(CartographyRelProperties):
+class GCPPolicyBindingResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,8 +41,34 @@ class GCPPolicyBindingToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPPolicyBindingToProjectRelProperties = (
-        GCPPolicyBindingToProjectRelProperties()
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "GCPOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_RESOURCE_NAME", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToFolderRel(CartographyRelSchema):
+    target_node_label: str = "GCPFolder"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FOLDER_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPPolicyBindingResourceRelProperties = (
+        GCPPolicyBindingResourceRelProperties()
     )
 
 
@@ -96,6 +124,36 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
+class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
+    label: str = "GCPPolicyBinding"
+    properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
+    sub_resource_relationship: GCPPolicyBindingToOrganizationRel = (
+        GCPPolicyBindingToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToRoleRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
+    label: str = "GCPPolicyBinding"
+    properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
+    sub_resource_relationship: GCPPolicyBindingToFolderRel = (
+        GCPPolicyBindingToFolderRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToRoleRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
 class GCPPolicyBindingAppliesToRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
@@ -127,4 +185,12 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
     rel_label: str = "APPLIES_TO"
     properties: GCPPolicyBindingAppliesToRelProperties = (
         GCPPolicyBindingAppliesToRelProperties()
+    )
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="GCPProject",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
     )

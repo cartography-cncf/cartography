@@ -21,6 +21,20 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
     zone_name: PropertyRef = PropertyRef("zone_name")
     project_id: PropertyRef = PropertyRef("project_id")
     status: PropertyRef = PropertyRef("status")
+    machine_type: PropertyRef = PropertyRef("machine_type")
+    service_account_email: PropertyRef = PropertyRef("service_account_email")
+    service_account_scopes: PropertyRef = PropertyRef("service_account_scopes")
+    can_ip_forward: PropertyRef = PropertyRef("can_ip_forward")
+    enable_vtpm: PropertyRef = PropertyRef("enable_vtpm")
+    enable_integrity_monitoring: PropertyRef = PropertyRef(
+        "enable_integrity_monitoring"
+    )
+    enable_confidential_compute: PropertyRef = PropertyRef(
+        "enable_confidential_compute"
+    )
+    enable_oslogin_metadata: PropertyRef = PropertyRef("enable_oslogin_metadata")
+    block_project_ssh_keys: PropertyRef = PropertyRef("block_project_ssh_keys")
+    serial_port_enable: PropertyRef = PropertyRef("serial_port_enable")
 
 
 @dataclass(frozen=True)

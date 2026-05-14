@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -21,6 +22,7 @@ class AWSSAMLProviderNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef("Arn", extra_index=True)
 
     # Business properties
+    name: PropertyRef = PropertyRef("Name", extra_index=True)
     create_date: PropertyRef = PropertyRef("CreateDate")
     valid_until: PropertyRef = PropertyRef("ValidUntil")
 
@@ -50,6 +52,7 @@ class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
 class AWSSAMLProviderSchema(CartographyNodeSchema):
     label: str = "AWSSAMLProvider"
     properties: AWSSAMLProviderNodeProperties = AWSSAMLProviderNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IdentityProvider"])
     sub_resource_relationship: AWSSAMLProviderToAWSAccountRel = (
         AWSSAMLProviderToAWSAccountRel()
     )

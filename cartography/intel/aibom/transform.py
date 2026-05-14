@@ -97,7 +97,7 @@ def _get_component_logical_id(
 
 def transform_aibom_document(
     document: ParsedAIBOMDocument,
-    manifest_digest: str | None,
+    manifest_digests: list[str],
 ) -> TransformedAIBOMDocument:
     source_payloads_by_id: dict[str, dict[str, Any]] = {}
     component_payloads_by_id: dict[str, dict[str, Any]] = {}
@@ -109,7 +109,7 @@ def transform_aibom_document(
         source_id = _stable_hash(
             "|".join(
                 [
-                    manifest_digest or document.image_uri,
+                    document.image_uri,
                     document.scanner_name or "",
                     document.scan_scope or "",
                     source.source_key,
@@ -138,7 +138,7 @@ def transform_aibom_document(
 
         should_load_components = (
             source.source_status or "completed"
-        ).lower() == "completed" and bool(manifest_digest)
+        ).lower() == "completed" and bool(manifest_digests)
         logical_identity_base_counts = Counter(
             _get_component_logical_identity_base(component)
             for component in source.components
@@ -191,7 +191,7 @@ def transform_aibom_document(
                 "model_name": component.model_name,
                 "framework": component.framework,
                 "label": component.label,
-                "manifest_digest": manifest_digest,
+                "manifest_digests": manifest_digests,
                 "workflow_ids": workflow_ids,
                 "uses_tool_component_ids": [],
                 "uses_model_component_ids": [],
@@ -262,8 +262,8 @@ def transform_aibom_document(
         source_payloads_by_id[source_id] = {
             "id": source_id,
             "image_uri": document.image_uri,
-            "manifest_digest": manifest_digest,
-            "image_matched": bool(manifest_digest),
+            "manifest_digests": manifest_digests,
+            "image_matched": bool(manifest_digests),
             "scan_scope": document.scan_scope,
             "report_location": document.report_location,
             "scanner_name": document.scanner_name,

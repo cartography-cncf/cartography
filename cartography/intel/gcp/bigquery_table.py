@@ -138,6 +138,9 @@ def transform_tables(
                 "description": table.get("description"),
                 "friendly_name": table.get("friendlyName"),
                 "connection_id": connection_id,
+                "kms_key_name": table.get("encryptionConfiguration", {}).get(
+                    "kmsKeyName"
+                ),
             },
         )
     return transformed

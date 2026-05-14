@@ -6,6 +6,7 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.data_factory_util import call_data_factory_operation
 from cartography.models.azure.data_factory.data_factory_dataset import (
     AzureDataFactoryDatasetSchema,
 )
@@ -26,7 +27,12 @@ def get_datasets(
     """
     Gets Datasets for a given Data Factory.
     """
-    return [d.as_dict() for d in client.datasets.list_by_factory(rg_name, factory_name)]
+    return call_data_factory_operation(
+        "list data factory datasets",
+        lambda: [
+            d.as_dict() for d in client.datasets.list_by_factory(rg_name, factory_name)
+        ],
+    )
 
 
 def transform_datasets(

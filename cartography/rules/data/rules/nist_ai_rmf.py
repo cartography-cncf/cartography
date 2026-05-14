@@ -6,9 +6,10 @@ categories and are designed as practical security findings rather than
 certification assertions.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -162,12 +163,9 @@ nist_ai_third_party_app_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MAP 1",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MAP 1"),
+        iso27001_annex_a("5.21"),
+        iso27001_annex_a("5.23"),
     ),
 )
 
@@ -268,20 +266,37 @@ nist_ai_third_party_app_sensitive_scopes = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MEASURE 2",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MEASURE 2"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.15"),
+        iso27001_annex_a("8.3"),
     ),
 )
+
+# =============================================================================
+# TODO: NIST AI RMF MAP 1: Partial subcategory coverage
+# Missing datamodel or evidence: MAP 1.2, 1.3, 1.4, 1.5, 1.6 beyond current inventory-oriented coverage of MAP 1.1
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MAP 2: AI system categorization
+# Missing datamodel or evidence: MAP 2.1, 2.2, 2.3 for task classification, knowledge-limit documentation, and TEVV design considerations
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MAP 3: AI capabilities, goals, benefits, and costs
+# Missing datamodel or evidence: MAP 3.1, 3.2, 3.3, 3.4, 3.5 for benefits, costs, use boundaries, operator proficiency, and human oversight
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MAP 4: Component and third-party risk mapping
+# Missing datamodel or evidence: MAP 4.1, 4.2 legal and IP-risk mapping beyond current technical dependency visibility from third-party app inventory and AIBOM component relationships
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MAP 5: Impact characterization
+# Missing datamodel or evidence: MAP 5.1, 5.2 for likelihood and impact assessments and documented feedback integration from affected AI actors
+# =============================================================================
 
 
 # =============================================================================
@@ -311,7 +326,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         app,
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
-    WHERE u.is_admin = true
+    WHERE (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
       AND (
             ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
                 WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
@@ -335,7 +350,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         app,
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
-    WHERE u.is_admin = true
+    WHERE (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
       AND (
             ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
                 WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
@@ -353,7 +368,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE
-        u.is_admin = true
+        (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
         AND (
             ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
                 WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
@@ -381,14 +396,31 @@ nist_ai_admin_ai_app_authorizations = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 5",
-            revision="1.0",
-        ),
+        nist_ai_rmf("GOVERN 5"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 2: Accountability structures
+# Missing datamodel or evidence: GOVERN 2.1, 2.2, 2.3 for role documentation, AI risk training, and executive accountability
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 3: Workforce diversity, equity, inclusion, and accessibility
+# Missing datamodel or evidence: GOVERN 3.1, 3.2 for diverse decision-making teams and defined human-AI oversight responsibilities
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 4: Risk-aware organizational culture
+# Missing datamodel or evidence: GOVERN 4.1, 4.2, 4.3 for safety-first practices, documented impacts, and incident-testing or information-sharing processes
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 5: Partial subcategory coverage
+# Missing datamodel or evidence: GOVERN 5.1, 5.2 for collecting, adjudicating, and integrating feedback from relevant AI actors outside the deployment team beyond current admin-authorization visibility
+# =============================================================================
 
 
 # =============================================================================
@@ -427,7 +459,7 @@ _aibom_nist_ai_agent_inventory = Fact(
         "models, tools, memory stores, prompts, and embeddings each agent uses."
     ),
     cypher_query="""
-    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     WITH DISTINCT source, img, agent
     OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModel)
@@ -465,7 +497,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
-        coalesce(source.manifest_digest, img.digest) AS manifest_digest,
+        img._ont_digest AS manifest_digest,
         source.scanner_name AS scanner_name,
         source.scanner_version AS scanner_version,
         agent.id AS agent_component_id,
@@ -487,7 +519,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     ORDER BY image_uri, agent_name
     """,
     cypher_visual_query="""
-    MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH p1=(source)-[:HAS_COMPONENT]->(agent:AIAgent)
     OPTIONAL MATCH p2=(agent)-[:USES_MODEL]->(:AIModel)
     OPTIONAL MATCH p3=(agent)-[:USES_TOOL]->(:AITool)
@@ -497,7 +529,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:ECRImage)
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     RETURN COUNT(DISTINCT agent) AS count
     """,
@@ -519,20 +551,17 @@ nist_ai_aibom_agent_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MAP 1",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 1",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MAP 1"),
+        nist_ai_rmf("GOVERN 1"),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 1: Partial subcategory coverage
+# Missing datamodel or evidence: GOVERN 1.1, 1.2, 1.3, 1.4, 1.5, 1.7 beyond current inventory-oriented coverage of GOVERN 1.6
+# =============================================================================
 
 
 # =============================================================================
@@ -542,7 +571,7 @@ nist_ai_aibom_agent_inventory = Rule(
 class NistAiAibomCoverageGapOutput(Finding):
     source_id: str | None = None
     image_uri: str | None = None
-    manifest_digest: str | None = None
+    manifest_digests: list[str] | None = None
     report_location: str | None = None
     scanner_name: str | None = None
     scanner_version: str | None = None
@@ -558,7 +587,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     name="AIBOM coverage and provenance gaps",
     description=(
         "Finds AIBOM sources that did not complete successfully or failed to map "
-        "to a canonical ECR image, indicating gaps in deployed AI inventory."
+        "to a canonical image, indicating gaps in deployed AI inventory."
     ),
     cypher_query="""
     MATCH (source:AIBOMSource)
@@ -575,7 +604,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
-        source.manifest_digest AS manifest_digest,
+        source.manifest_digests AS manifest_digests,
         source.report_location AS report_location,
         source.scanner_name AS scanner_name,
         source.scanner_version AS scanner_version,
@@ -595,7 +624,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
             source.analysis_status IS NOT NULL
             AND toLower(source.analysis_status) <> 'completed'
         )
-    OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:ECRImage)
+    OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:Image)
     RETURN source, p
     """,
     cypher_count_query="""
@@ -620,20 +649,47 @@ nist_ai_aibom_coverage_gaps = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MEASURE 2",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MEASURE 2"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
+
+# =============================================================================
+# TODO: NIST AI RMF MEASURE 1: Measurement methods and metrics
+# Missing datamodel or evidence: MEASURE 1.1, 1.2, 1.3 for selected risk metrics, unmeasured-risk documentation, reassessment, and independent review
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MEASURE 2: Partial subcategory coverage
+# Missing datamodel or evidence: MEASURE 2.1, 2.2, 2.3, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13 beyond limited operational coverage in MEASURE 2.4
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MEASURE 3: Tracking AI risks over time
+# Missing datamodel or evidence: MEASURE 3.1, 3.2, 3.3 for continuous risk tracking, emergent-risk handling, and end-user feedback or appeal mechanisms
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MEASURE 4: Feedback on measurement efficacy
+# Missing datamodel or evidence: MEASURE 4.1, 4.2, 4.3 for validating measurement quality with domain experts, users, and affected communities
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MANAGE 1: Risk prioritization and response
+# Missing datamodel or evidence: MANAGE 1.1, 1.2, 1.3, 1.4 for go or no-go decisions, prioritized treatment, response plans, and residual-risk records
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MANAGE 2: Partial subcategory coverage
+# Missing datamodel or evidence: MANAGE 2.1, 2.2, 2.3, 2.4 beyond current operational coverage for AIBOM inventory gaps and provider key ownership or scope hygiene
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MANAGE 4: Monitoring, recovery, and communication
+# Missing datamodel or evidence: MANAGE 4.1, 4.2, 4.3 for post-deployment monitoring, continual improvement, and incident communication
+# =============================================================================
 
 
 # =============================================================================
@@ -814,17 +870,19 @@ nist_ai_provider_api_key_hygiene = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 5",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("GOVERN 5"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.17"),
+        iso27001_annex_a("5.18"),
     ),
 )
+
+# =============================================================================
+# TODO: NIST AI RMF GOVERN 6: Third-party software, data, and supply chain risk
+# Missing datamodel or evidence: GOVERN 6.1, 6.2 policy, IP-rights, and contingency-plan coverage beyond current technical inventory of third-party AI apps, AIBOM dependencies, and provider API key hygiene
+# =============================================================================
+
+# =============================================================================
+# TODO: NIST AI RMF MANAGE 3: Third-party AI risk management
+# Missing datamodel or evidence: MANAGE 3.1, 3.2 governance workflow and review evidence beyond current monitoring of third-party AI apps, provider keys, and deployed AIBOM-tracked components
+# =============================================================================

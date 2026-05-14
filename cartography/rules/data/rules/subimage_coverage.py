@@ -1,17 +1,9 @@
+from cartography.rules.data.frameworks.subimage import subimage_coverage
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-
-# =============================================================================
-# Shared Coverage Framework
-# =============================================================================
-
-COVERAGE_FRAMEWORK_NAME = "SubImage Coverage"
-COVERAGE_FRAMEWORK_SHORT_NAME = "Coverage"
-COVERAGE_FRAMEWORK_SCOPE = "subimage"
 
 # =============================================================================
 # Rule 1: SubImage Module Not Configured
@@ -30,7 +22,7 @@ _subimage_module_not_configured_fact = Fact(
     MATCH (m:SubImageModule)
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
-    WHERE toLower(app._ont_name) CONTAINS m.id
+    WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN m.name AS module_name, app.name AS app_name, app.source AS app_source
     ORDER BY m.name
     """,
@@ -38,14 +30,14 @@ _subimage_module_not_configured_fact = Fact(
     MATCH (m:SubImageModule)
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
-    WHERE toLower(app._ont_name) CONTAINS m.id
+    WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN *
     """,
     cypher_count_query="""
     MATCH (m:SubImageModule)
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
-    WHERE toLower(app._ont_name) CONTAINS m.id
+    WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN count(m) AS count
     """,
     module=Module.SUBIMAGE,
@@ -75,14 +67,7 @@ subimage_module_not_configured = Rule(
     ),
     facts=(_subimage_module_not_configured_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="1.1",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("1.1"),),
 )
 
 # =============================================================================
@@ -145,14 +130,7 @@ subimage_framework_disabled_module_enabled = Rule(
     ),
     facts=(_subimage_framework_disabled_module_enabled_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="1.2",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("1.2"),),
 )
 
 # =============================================================================
@@ -169,7 +147,9 @@ _container_image_not_found_fact = Fact(
     ),
     cypher_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
+      AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
+      AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN c.name AS container_name, c.id AS container_id,
            c.image AS image, cluster.name AS cluster_name
@@ -177,13 +157,17 @@ _container_image_not_found_fact = Fact(
     """,
     cypher_visual_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
+      AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
+      AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN *
     """,
     cypher_count_query="""
     MATCH (c:Container)
-    WHERE NOT (c)-[:HAS_IMAGE]->()
+    WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
+      AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
+      AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     RETURN count(c) AS count
     """,
     module=Module.CROSS_CLOUD,
@@ -214,14 +198,7 @@ container_image_not_found = Rule(
     ),
     facts=(_container_image_not_found_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="2.1",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
-    ),
+    frameworks=(subimage_coverage("2.1"),),
 )
 
 # =============================================================================
@@ -286,12 +263,74 @@ aws_account_not_synced = Rule(
     ),
     facts=(_aws_account_not_synced_fact,),
     version="0.1.0",
-    frameworks=(
-        Framework(
-            name=COVERAGE_FRAMEWORK_NAME,
-            short_name=COVERAGE_FRAMEWORK_SHORT_NAME,
-            requirement="2.2",
-            scope=COVERAGE_FRAMEWORK_SCOPE,
-        ),
+    frameworks=(subimage_coverage("2.2"),),
+)
+
+# =============================================================================
+# Rule 5: Repository Without SLSA Provenance
+# Detects repos that have at least one image linked via PACKAGED_FROM with a
+# match_method other than "provenance", encouraging adoption of SLSA provenance.
+# =============================================================================
+
+_repository_without_slsa_provenance_fact = Fact(
+    id="repository-without-slsa-provenance",
+    name="Repository Without SLSA Provenance",
+    description=(
+        "Detects repositories that have at least one image linked via "
+        "PACKAGED_FROM with a match_method other than 'provenance', "
+        "indicating images were matched by Dockerfile analysis instead of "
+        "SLSA attestation."
     ),
+    cypher_query="""
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
+    WITH repo, collect(DISTINCT r.match_method) AS match_methods,
+         count(DISTINCT i) AS image_count
+    RETURN repo.id AS repo_id, repo.name AS repo_name,
+           head(labels(repo)) AS repo_kind,
+           image_count, match_methods
+    ORDER BY repo.name
+    """,
+    cypher_visual_query="""
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (i:Image)-[r:PACKAGED_FROM]->(repo:CodeRepository)
+    WHERE r.match_method <> 'provenance'
+    RETURN count(DISTINCT repo) AS count
+    """,
+    module=Module.SUBIMAGE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+class RepositoryWithoutSLSAProvenanceOutput(Finding):
+    repo_id: str | None = None
+    repo_name: str | None = None
+    repo_kind: str | None = None
+    image_count: int | None = None
+    match_methods: list[str] | None = None
+
+
+repository_without_slsa_provenance = Rule(
+    id="repository_without_slsa_provenance",
+    name="Repository Without SLSA Provenance",
+    description=(
+        "SLSA provenance attestations are the only source-to-image link "
+        "trusted enough to guarantee build traceability. Repositories "
+        "still relying on Dockerfile analysis lack that guarantee and "
+        "should adopt SLSA-compliant builds."
+    ),
+    output_model=RepositoryWithoutSLSAProvenanceOutput,
+    tags=(
+        "subimage",
+        "coverage",
+        "supply-chain",
+        "slsa",
+    ),
+    facts=(_repository_without_slsa_provenance_fact,),
+    version="0.1.0",
+    frameworks=(subimage_coverage("3.1"),),
 )

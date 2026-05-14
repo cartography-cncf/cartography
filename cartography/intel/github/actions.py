@@ -31,6 +31,7 @@ from cartography.models.github.actions_variable import GitHubOrgActionsVariableS
 from cartography.models.github.actions_variable import GitHubRepoActionsVariableSchema
 from cartography.models.github.environment import GitHubEnvironmentSchema
 from cartography.models.github.workflow import GitHubWorkflowSchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -571,14 +572,14 @@ def load_repo_secrets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
     load(
         neo4j_session,
         GitHubRepoActionsSecretSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -587,14 +588,14 @@ def load_repo_variables(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
     load(
         neo4j_session,
         GitHubRepoActionsVariableSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -697,22 +698,15 @@ def cleanup_org_level(
     ).run(
         neo4j_session,
     )
-
-
-@timeit
-def cleanup_repo_level(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-    repo_url: str,
-) -> None:
-    """
-    Clean up stale repository-level GitHub Actions secrets and variables.
-    """
-    cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-    GraphJob.from_node_schema(GitHubRepoActionsSecretSchema(), cleanup_params).run(
+    # Repo-level secrets and variables
+    GraphJob.from_node_schema(
+        GitHubRepoActionsSecretSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(GitHubRepoActionsVariableSchema(), cleanup_params).run(
+    GraphJob.from_node_schema(
+        GitHubRepoActionsVariableSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
 
@@ -788,8 +782,6 @@ def sync(
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
     for repo_name in repo_names:
-        repo_url = f"https://github.com/{organization}/{repo_name}"
-
         # Sync workflows
         workflows = get_repo_workflows(
             github_api_key, github_url, organization, repo_name
@@ -865,7 +857,7 @@ def sync(
                 repo_secrets, organization, repo_name
             )
             load_repo_secrets(
-                neo4j_session, transformed_repo_secrets, update_tag, repo_url
+                neo4j_session, transformed_repo_secrets, update_tag, org_url
             )
 
         # Sync repo-level variables
@@ -877,7 +869,7 @@ def sync(
                 repo_variables, organization, repo_name
             )
             load_repo_variables(
-                neo4j_session, transformed_repo_variables, update_tag, repo_url
+                neo4j_session, transformed_repo_variables, update_tag, org_url
             )
 
         # 3. Sync environment-level secrets and variables
@@ -915,11 +907,18 @@ def sync(
                     neo4j_session, transformed_env_variables, update_tag, org_url
                 )
 
-        # Cleanup repo-level resources for this repo
-        cleanup_repo_level(neo4j_session, common_job_parameters, repo_url)
-
-    # 4. Cleanup org-level stale nodes
+    # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
+    # and variables are now scoped to the org as well, so cleanup_org_level
+    # picks them up here.
     org_cleanup_params = {**common_job_parameters, "org_url": org_url}
+    # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
+    # GitHubOrganization to repo-level GitHubActionsSecret and
+    # GitHubActionsVariable. Remove in v1.0.0.
+    run_analysis_job(
+        "github_repo_actions_secret_resource_edge_migration.json",
+        neo4j_session,
+        org_cleanup_params,
+    )
     cleanup_org_level(neo4j_session, org_cleanup_params)
 
     return all_workflows

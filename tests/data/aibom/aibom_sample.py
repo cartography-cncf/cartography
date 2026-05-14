@@ -1,3 +1,53 @@
+import tests.data.aws.ecr
+
+# Digest-based URI pointing at the single-platform ECR image created by _seed_single_platform_graph
+TEST_DIGEST_BASED_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository"
+    f"@{tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST}"
+)
+
+TEST_CLUSTER_ID = "arn:aws:eks:us-east-1:000000000000:cluster/test-cluster"
+TEST_CLUSTER_NAME = "test-cluster"
+
+# Container whose status_image_sha matches the manifest list digest.
+CONTAINER_ON_MANIFEST_LIST = {
+    "uid": "container-on-ml",
+    "name": "ml-container",
+    "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0",
+    "namespace": "default",
+    "pod_id": "pod-ml",
+    "image_pull_policy": "Always",
+    "status_image_id": "ml-image-id",
+    "status_image_sha": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+    "architecture_normalized": "amd64",
+    "status_ready": True,
+    "status_started": True,
+    "status_state": "running",
+    "memory_request": None,
+    "cpu_request": None,
+    "memory_limit": None,
+    "cpu_limit": None,
+}
+
+# Container whose status_image_sha matches the single-platform digest.
+CONTAINER_ON_SINGLE_PLATFORM = {
+    "uid": "container-on-sp",
+    "name": "sp-container",
+    "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest",
+    "namespace": "default",
+    "pod_id": "pod-sp",
+    "image_pull_policy": "Always",
+    "status_image_id": "sp-image-id",
+    "status_image_sha": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
+    "status_ready": True,
+    "status_started": True,
+    "status_state": "running",
+    "memory_request": None,
+    "cpu_request": None,
+    "memory_limit": None,
+    "cpu_limit": None,
+}
+
 TEST_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
 )
@@ -6,6 +56,14 @@ TEST_SINGLE_PLATFORM_IMAGE_URI = (
 )
 TEST_UNMATCHED_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/unmatched-repository:v1.0"
+)
+TEST_GAR_PROJECT_ID = "test-aibom-gar-project"
+TEST_GAR_REPOSITORY_ID = (
+    f"projects/{TEST_GAR_PROJECT_ID}/locations/us-central1/repositories/docker-repo"
+)
+TEST_GAR_IMAGE_DIGEST = "sha256:gar123"
+TEST_GAR_IMAGE_URI = (
+    f"us-central1-docker.pkg.dev/{TEST_GAR_PROJECT_ID}/docker-repo/my-app:latest"
 )
 TEST_SOURCE_KEY = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@sha256:fake"
@@ -240,6 +298,81 @@ AIBOM_REPORT = {
     },
 }
 
+AIBOM_DIGEST_BASED_REPORT = {
+    "image_uri": TEST_DIGEST_BASED_IMAGE_URI,
+    "scan_scope": "/srv/app",
+    "scanner": {
+        "name": "cisco-aibom",
+        "version": "0.4.0",
+    },
+    "report": {
+        "aibom_analysis": {
+            "metadata": {
+                "analyzer_version": "0.4.0",
+                "status": "completed",
+            },
+            "summary": {
+                "total_sources": 1,
+                "status": "completed",
+                "categories": {
+                    "agent": 1,
+                    "model": 1,
+                },
+            },
+            "sources": {
+                TEST_DIGEST_BASED_IMAGE_URI: {
+                    "summary": {
+                        "status": "completed",
+                        "source_kind": "container_image",
+                    },
+                    "workflows": [],
+                    "relationships": [
+                        {
+                            "relationship_type": "USES_LLM",
+                            "source": {
+                                "instance_id": "ont_agent_main",
+                                "name": "pydantic_ai.Agent",
+                                "category": "agent",
+                            },
+                            "target": {
+                                "instance_id": "ont_model_primary",
+                                "name": "openai:gpt-4.1-mini",
+                                "category": "model",
+                            },
+                        },
+                    ],
+                    "components": {
+                        "agent": [
+                            {
+                                "name": "pydantic_ai.Agent",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 34,
+                                "category": "agent",
+                                "instance_id": "ont_agent_main",
+                                "assigned_target": "assistant",
+                                "framework": "pydantic_ai",
+                                "label": "customer_assistant",
+                            },
+                        ],
+                        "model": [
+                            {
+                                "name": "openai:gpt-4.1-mini",
+                                "file_path": "/srv/app/chat/assistant.py",
+                                "line_number": 35,
+                                "category": "model",
+                                "instance_id": "ont_model_primary",
+                                "model_name": "gpt-4.1-mini",
+                                "framework": "openai",
+                                "label": "primary_llm",
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
 AIBOM_INCOMPLETE_REPORT = {
     "image_uri": TEST_IMAGE_URI,
     "scan_scope": "/srv/app",
@@ -346,4 +479,9 @@ AIBOM_SINGLE_PLATFORM_REPORT = {
             },
         },
     },
+}
+
+AIBOM_GAR_REPORT = {
+    **AIBOM_SINGLE_PLATFORM_REPORT,
+    "image_uri": TEST_GAR_IMAGE_URI,
 }

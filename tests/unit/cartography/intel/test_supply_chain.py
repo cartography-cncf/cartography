@@ -1,9 +1,45 @@
+import base64
+import json
+
 from cartography.intel.supply_chain import ContainerImage
+from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import get_slsa_dependency_list
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import unwrap_attestation_predicate
+
+
+def test_decode_attestation_blob_dsse_envelope():
+    statement = {
+        "_type": "https://in-toto.io/Statement/v1",
+        "predicate": {
+            "buildDefinition": {
+                "externalParameters": {"source": "https://github.com/foo/bar"},
+            },
+        },
+    }
+    blob = {"payload": base64.b64encode(json.dumps(statement).encode()).decode()}
+
+    predicate = decode_attestation_blob_to_predicate(blob)
+
+    assert predicate == statement["predicate"]
+
+
+def test_decode_attestation_blob_raw_in_toto():
+    blob = {"predicate": {"buildDefinition": {"externalParameters": {"a": "b"}}}}
+
+    assert decode_attestation_blob_to_predicate(blob) == blob["predicate"]
+
+
+def test_decode_attestation_blob_invalid_payload_returns_none():
+    blob = {"payload": "not-valid-base64!!"}
+
+    assert decode_attestation_blob_to_predicate(blob) is None
+
+
+def test_decode_attestation_blob_empty_returns_none():
+    assert decode_attestation_blob_to_predicate({}) is None
 
 
 def test_unwrap_attestation_predicate_supports_dsse_data():

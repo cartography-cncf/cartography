@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.service import TailscaleServiceSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 _TIMEOUT = 30
 
@@ -49,6 +52,13 @@ def get(
         f"{base_url}/tailnet/{org}/services",
         timeout=_TIMEOUT,
     )
+    if req.status_code == 404:
+        logger.warning(
+            "Tailscale Services endpoint returned 404 for tailnet %s; "
+            "skipping (Services may not be enabled for this tailnet).",
+            org,
+        )
+        return []
     req.raise_for_status()
     return req.json()["vipServices"]
 

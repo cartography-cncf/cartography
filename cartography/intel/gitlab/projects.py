@@ -102,14 +102,14 @@ def get_projects(gitlab_url: str, token: str, group_id: int) -> list[dict[str, A
     """
     Fetch all projects for a specific group from GitLab.
     """
-    logger.info(f"Fetching projects for group ID {group_id}")
+    logger.debug("Fetching projects for group ID %s", group_id)
     projects = get_paginated(
         gitlab_url,
         token,
         f"/api/v4/groups/{group_id}/projects",
         extra_params={"include_subgroups": True},
     )
-    logger.info(f"Fetched {len(projects)} projects for group ID {group_id}")
+    logger.debug("Fetched %s projects for group ID %s", len(projects), group_id)
     return projects
 
 
@@ -261,7 +261,7 @@ def sync_gitlab_projects(
         return []
 
     # Fetch languages for all projects concurrently
-    logger.info(f"Fetching languages for {len(raw_projects)} projects")
+    logger.debug("Fetching languages for %s projects", len(raw_projects))
     languages_by_project = asyncio.run(
         _fetch_all_languages(gitlab_url, token, raw_projects)
     )

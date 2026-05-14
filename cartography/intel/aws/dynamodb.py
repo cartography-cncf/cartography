@@ -208,9 +208,6 @@ def load_dynamodb_tables(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB tables ({len(tables_data)}) for region '{region}' into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBTableSchema(),
@@ -229,9 +226,6 @@ def load_dynamodb_gsi(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB GSIs ({len(gsi_data)}) for region '{region}' into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBGSISchema(),
@@ -249,9 +243,6 @@ def load_dynamodb_billing(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB billing summaries ({len(billing_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBBillingModeSummarySchema(),
@@ -268,9 +259,6 @@ def load_dynamodb_streams(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB streams ({len(stream_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBStreamSchema(),
@@ -287,9 +275,6 @@ def load_dynamodb_sse(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB SSE descriptions ({len(sse_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBSSEDescriptionSchema(),
@@ -306,9 +291,6 @@ def load_dynamodb_archival(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB archival summaries ({len(archival_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBArchivalSummarySchema(),
@@ -325,9 +307,6 @@ def load_dynamodb_restore(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB restore summaries ({len(restore_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBRestoreSummarySchema(),
@@ -344,9 +323,6 @@ def load_dynamodb_backups(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB backup stubs ({len(backup_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBBackupSchema(),

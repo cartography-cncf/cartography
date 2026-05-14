@@ -42,7 +42,27 @@ from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_13_sa_token_creation,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_1_6_sa_token_mounts,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_3_host_pid
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_4_host_ipc
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_5_host_network,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_6_allow_privilege_escalation,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_11_host_path_volumes,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_12_host_ports,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_4_1_secrets_in_env_vars,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_6_2_runtime_default_seccomp,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_6_4_default_namespace,
@@ -63,7 +83,15 @@ ALL_CIS_K8S_RULES = [
     cis_k8s_5_1_11_csr_approval_access,
     cis_k8s_5_1_12_webhook_config_access,
     cis_k8s_5_1_13_sa_token_creation,
+    cis_k8s_5_1_6_sa_token_mounts,
+    cis_k8s_5_2_3_host_pid,
+    cis_k8s_5_2_4_host_ipc,
+    cis_k8s_5_2_5_host_network,
+    cis_k8s_5_2_6_allow_privilege_escalation,
+    cis_k8s_5_2_11_host_path_volumes,
+    cis_k8s_5_2_12_host_ports,
     cis_k8s_5_4_1_secrets_in_env_vars,
+    cis_k8s_5_6_2_runtime_default_seccomp,
     cis_k8s_5_6_4_default_namespace,
 ]
 
@@ -106,15 +134,22 @@ class TestCisKubernetesFrameworkMetadata:
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_has_cis_framework(self, rule):
-        assert len(rule.frameworks) == 1
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.short_name == "cis"
         assert fw.scope == "kubernetes"
         assert fw.revision == "1.12"
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_has_valid_requirement(self, rule):
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.requirement is not None
         assert fw.requirement.startswith("5.")
 
@@ -178,7 +213,7 @@ class TestCisKubernetesRuleRegistration:
         from cartography.rules.data.rules import RULES
 
         k8s_rules = {k: v for k, v in RULES.items() if k.startswith("cis_k8s_")}
-        assert len(k8s_rules) == 14
+        assert len(k8s_rules) == 22
 
 
 class TestCisKubernetesRuleIds:
@@ -197,7 +232,15 @@ class TestCisKubernetesRuleIds:
         "cis_k8s_5_1_11_csr_approval_access": "5.1.11",
         "cis_k8s_5_1_12_webhook_config_access": "5.1.12",
         "cis_k8s_5_1_13_sa_token_creation": "5.1.13",
+        "cis_k8s_5_1_6_sa_token_mounts": "5.1.6",
+        "cis_k8s_5_2_3_host_pid": "5.2.3",
+        "cis_k8s_5_2_4_host_ipc": "5.2.4",
+        "cis_k8s_5_2_5_host_network": "5.2.5",
+        "cis_k8s_5_2_6_allow_privilege_escalation": "5.2.6",
+        "cis_k8s_5_2_11_host_path_volumes": "5.2.11",
+        "cis_k8s_5_2_12_host_ports": "5.2.12",
         "cis_k8s_5_4_1_secrets_in_env_vars": "5.4.1",
+        "cis_k8s_5_6_2_runtime_default_seccomp": "5.6.2",
         "cis_k8s_5_6_4_default_namespace": "5.6.4",
     }
 
@@ -210,5 +253,9 @@ class TestCisKubernetesRuleIds:
     def test_rule_id_matches_framework_requirement(self, rule):
         expected_requirement = self.EXPECTED_RULES.get(rule.id)
         assert expected_requirement is not None, f"Unknown rule {rule.id}"
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.requirement == expected_requirement
