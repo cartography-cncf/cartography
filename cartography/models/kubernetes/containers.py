@@ -199,6 +199,28 @@ class KubernetesContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
+    """
+    Matches containers to GitHub Container Registry images by runtime digest (status_image_sha).
+    """
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGitHubContainerImageRelProperties = (
+        KubernetesContainerToGitHubContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -214,5 +236,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
             KubernetesContainerToGCPArtifactRegistryImageRel(),
+            KubernetesContainerToGitHubContainerImageRel(),
         ]
     )
