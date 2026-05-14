@@ -12,11 +12,6 @@
             "iterative": false
         },
         {
-            "__comment__": "Delete stale relationships between EC2KeyPairs",
-            "query": "MATCH (k1:EC2KeyPair)-[r:MATCHING_FINGERPRINT]->(k2:EC2KeyPair) WHERE r.lastupdated <> $UPDATE_TAG DELETE (r) return COUNT(*) as TotalCompleted",
-            "iterative": false
-        },
-        {
             "__comment__": "Set EC2KeyPairs with MD5 hash keyfingerprints (47 characters, instead of 59 characters) as user_uploaded = True",
             "query": "MATCH (k:EC2KeyPair) WHERE size(k.keyfingerprint) = 47 SET k.user_uploaded = True",
             "iterative": false
@@ -24,6 +19,11 @@
         {
             "__comment__": "Attach EC2KeyPairs with matching fingerprints to each other and set duplicate_keyfingerprint = True. Use id(k1) < id(k2) to avoid Cartesian product warning and ensure O(1) comparison.",
             "query": "MATCH (k1:EC2KeyPair) MATCH (k2:EC2KeyPair) WHERE id(k1) < id(k2) AND k1.keyfingerprint = k2.keyfingerprint SET k1.duplicate_keyfingerprint = True, k2.duplicate_keyfingerprint = True MERGE (k1)-[r:MATCHING_FINGERPRINT]-(k2) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG RETURN COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "Delete stale MATCHING_FINGERPRINT relationships from previous runs. Runs after the MERGE so concurrent readers never observe a missing edge.",
+            "query": "MATCH (k1:EC2KeyPair)-[r:MATCHING_FINGERPRINT]->(k2:EC2KeyPair) WHERE r.lastupdated <> $UPDATE_TAG DELETE (r) return COUNT(*) as TotalCompleted",
             "iterative": false
         }
     ]

@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_gcp
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -91,13 +92,9 @@ cis_gcp_3_1_default_network = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.1",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.1"),
+        iso27001_annex_a("8.20"),
+        iso27001_annex_a("8.22"),
     ),
 )
 
@@ -185,13 +182,8 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.6",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.6"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -279,13 +271,8 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.7",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.7"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -358,13 +345,8 @@ cis_gcp_4_9_public_ip = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.9",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.9"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -449,13 +431,8 @@ cis_gcp_4_11_confidential_compute = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.11",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.11"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -513,13 +490,8 @@ cis_gcp_3_3_dnssec_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.3",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.3"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -588,13 +560,8 @@ cis_gcp_3_4_dnssec_no_rsasha1_ksk = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.4",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.4"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -657,13 +624,8 @@ cis_gcp_3_5_dnssec_no_rsasha1_zsk = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.5",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.5"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -743,13 +705,9 @@ cis_gcp_3_8_vpc_flow_logs = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="3.8",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("3.8"),
+        iso27001_annex_a("8.15"),
+        iso27001_annex_a("8.16"),
     ),
 )
 
@@ -804,13 +762,8 @@ cis_gcp_6_6_cloudsql_public_ip = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="6.6",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("6.6"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -865,13 +818,8 @@ cis_gcp_6_7_cloudsql_backups = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="6.7",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("6.7"),
+        iso27001_annex_a("8.13"),
     ),
 )
 
@@ -926,13 +874,8 @@ cis_gcp_7_1_bigquery_dataset_public = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="7.1",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("7.1"),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -987,13 +930,8 @@ cis_gcp_7_2_bigquery_table_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="7.2",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("7.2"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -1046,13 +984,8 @@ cis_gcp_7_3_bigquery_dataset_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="7.3",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("7.3"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -1111,13 +1044,8 @@ cis_gcp_6_4_cloudsql_ssl_required = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="6.4",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("6.4"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -1172,13 +1100,8 @@ cis_gcp_6_5_cloudsql_authorized_networks = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="6.5",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("6.5"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -1249,13 +1172,8 @@ def _make_cloudsql_flag_rule(
         version="1.0.0",
         references=CIS_REFERENCES,
         frameworks=(
-            Framework(
-                name="CIS GCP Foundations Benchmark",
-                short_name="CIS",
-                requirement=requirement,
-                scope="gcp",
-                revision="4.0",
-            ),
+            cis_gcp(requirement),
+            iso27001_annex_a("8.9"),
         ),
     )
 
@@ -1573,13 +1491,8 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="5.2",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("5.2"),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -1820,13 +1733,8 @@ cis_gcp_4_1_default_service_account = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.1",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.1"),
+        iso27001_annex_a("5.16"),
     ),
 )
 
@@ -1891,13 +1799,9 @@ cis_gcp_4_2_default_service_account_full_api = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.2",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.2"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -1976,13 +1880,8 @@ cis_gcp_4_3_block_project_wide_ssh_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.3",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.3"),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -2048,13 +1947,8 @@ cis_gcp_4_4_oslogin_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.4",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.4"),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -2118,13 +2012,8 @@ cis_gcp_4_6_ip_forwarding = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.6",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.6"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -2198,13 +2087,8 @@ cis_gcp_4_8_shielded_vm = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.8",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.8"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -2259,13 +2143,8 @@ cis_gcp_4_5_serial_ports_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS GCP Foundations Benchmark",
-            short_name="CIS",
-            requirement="4.5",
-            scope="gcp",
-            revision="4.0",
-        ),
+        cis_gcp("4.5"),
+        iso27001_annex_a("8.3"),
     ),
 )
 
