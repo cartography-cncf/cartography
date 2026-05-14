@@ -6,13 +6,18 @@
       "iterative": false
     },
     {
-      "__comment": "This sets the exposed_internet attribute",
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE cluster.private_nodes = false OR cluster.private_endpoint_enabled = false OR cluster.master_authorized_networks = false SET cluster.exposed_internet = true",
+      "__comment": "This sets the exposed_internet attribute using coalesce to handle null values",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE coalesce(cluster.private_nodes, false) = false OR coalesce(cluster.private_endpoint_enabled, false) = false OR coalesce(cluster.master_authorized_networks, false) = false SET cluster.exposed_internet = true",
+      "iterative": false
+    },
+    {
+      "__comment": "This sets the exposed_internet_type for exposed GKE clusters",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE cluster.exposed_internet = true WITH cluster, CASE WHEN coalesce(cluster.private_nodes, false) = false THEN ['public_nodes'] ELSE [] END + CASE WHEN coalesce(cluster.private_endpoint_enabled, false) = false THEN ['public_endpoint'] ELSE [] END + CASE WHEN coalesce(cluster.master_authorized_networks, false) = false THEN ['no_master_authorized_networks'] ELSE [] END as exposureTypes SET cluster.exposed_internet_type = exposureTypes",
       "iterative": false
     },
     {
       "__comment": "This generates the publicContext for exposed GKE clusters",
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE cluster.exposed_internet = true WITH cluster, CASE WHEN cluster.private_nodes = false THEN ['public_nodes'] ELSE [] END + CASE WHEN cluster.private_endpoint_enabled = false THEN ['public_endpoint'] ELSE [] END + CASE WHEN cluster.master_authorized_networks = false THEN ['no_master_authorized_networks'] ELSE [] END as exposureTypes SET cluster.publicContext = apoc.convert.toJson([{resource: cluster.id, resourceType: 'gcp-compute-gke-cluster', context: [{clusterId: cluster.id, clusterName: cluster.name, endpoint: cluster.endpoint, location: cluster.location, privateNodes: cluster.private_nodes, privateEndpointEnabled: cluster.private_endpoint_enabled, masterAuthorizedNetworks: cluster.master_authorized_networks, exposureTypes: exposureTypes, status: cluster.status, currentMasterVersion: cluster.current_master_version}]}])",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE cluster.exposed_internet = true WITH cluster, CASE WHEN coalesce(cluster.private_nodes, false) = false THEN ['public_nodes'] ELSE [] END + CASE WHEN coalesce(cluster.private_endpoint_enabled, false) = false THEN ['public_endpoint'] ELSE [] END + CASE WHEN coalesce(cluster.master_authorized_networks, false) = false THEN ['no_master_authorized_networks'] ELSE [] END as exposureTypes SET cluster.publicContext = apoc.convert.toJson([{resource: cluster.id, resourceType: 'gcp-compute-gke-cluster', context: [{clusterId: cluster.id, clusterName: cluster.name, endpoint: cluster.endpoint, location: cluster.location, privateNodes: cluster.private_nodes, privateEndpointEnabled: cluster.private_endpoint_enabled, masterAuthorizedNetworks: cluster.master_authorized_networks, exposureTypes: exposureTypes, status: cluster.status, currentMasterVersion: cluster.current_master_version}]}])",
       "iterative": false
     }
   ],
