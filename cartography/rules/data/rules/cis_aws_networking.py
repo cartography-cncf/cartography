@@ -446,6 +446,8 @@ _aws_default_sg_allows_traffic = Fact(
     """,
     cypher_count_query="""
     MATCH (sg:EC2SecurityGroup)
+    WHERE sg.name = 'default'
+    AND EXISTS { (:NetworkInterface)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg) }
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
