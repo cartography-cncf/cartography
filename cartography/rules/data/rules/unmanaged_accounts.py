@@ -35,6 +35,8 @@ _unmanaged_accounts_ontology = Fact(
     WHERE COALESCE(a._ont_active, true)
     AND NOT COALESCE(a._ont_inactive, false)
     AND COALESCE(a.active, true)
+    AND NOT (a:KubernetesUser AND (a.name STARTS WITH 'eks:' OR a.name STARTS WITH 'system:'))
+    AND NOT (a:SlackUser AND a.id = 'USLACKBOT')
     RETURN COUNT(a) AS count
     """,
     module=Module.CROSS_CLOUD,

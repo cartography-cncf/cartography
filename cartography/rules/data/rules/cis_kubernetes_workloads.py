@@ -143,6 +143,7 @@ _k8s_service_account_tokens_mounted = Fact(
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
+    WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
