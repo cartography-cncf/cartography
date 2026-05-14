@@ -1183,7 +1183,7 @@ _gcp_cloudsql_mysql_skip_show_database = _make_cloudsql_flag_fact(
     "GCP Cloud SQL MySQL instances without skip_show_database=on",
     "Detects MySQL Cloud SQL instances where skip_show_database is not set to on.",
     "MYSQL",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"skip_show_database\\", \\"value\\": \\"on\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"skip_show_database\\", \\"value\\": \\"on\\".*\')',
 )
 cis_gcp_6_1_2_cloudsql_mysql_skip_show_database = _make_cloudsql_flag_rule(
     "cis_gcp_6_1_2_cloudsql_mysql_skip_show_database",
@@ -1198,7 +1198,7 @@ _gcp_cloudsql_mysql_local_infile = _make_cloudsql_flag_fact(
     "GCP Cloud SQL MySQL instances without local_infile=off",
     "Detects MySQL Cloud SQL instances where local_infile is not set to off.",
     "MYSQL",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"local_infile\\", \\"value\\": \\"off\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"local_infile\\", \\"value\\": \\"off\\".*\')',
 )
 cis_gcp_6_1_3_cloudsql_mysql_local_infile = _make_cloudsql_flag_rule(
     "cis_gcp_6_1_3_cloudsql_mysql_local_infile",
@@ -1228,7 +1228,7 @@ _gcp_cloudsql_postgres_log_connections = _make_cloudsql_flag_fact(
     "GCP Cloud SQL PostgreSQL instances without log_connections=on",
     "Detects PostgreSQL Cloud SQL instances where log_connections is not set to on.",
     "POSTGRES",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"log_connections\\", \\"value\\": \\"on\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"log_connections\\", \\"value\\": \\"on\\".*\')',
 )
 cis_gcp_6_2_2_cloudsql_postgres_log_connections = _make_cloudsql_flag_rule(
     "cis_gcp_6_2_2_cloudsql_postgres_log_connections",
@@ -1243,7 +1243,7 @@ _gcp_cloudsql_postgres_log_disconnections = _make_cloudsql_flag_fact(
     "GCP Cloud SQL PostgreSQL instances without log_disconnections=on",
     "Detects PostgreSQL Cloud SQL instances where log_disconnections is not set to on.",
     "POSTGRES",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"log_disconnections\\", \\"value\\": \\"on\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"log_disconnections\\", \\"value\\": \\"on\\".*\')',
 )
 cis_gcp_6_2_3_cloudsql_postgres_log_disconnections = _make_cloudsql_flag_rule(
     "cis_gcp_6_2_3_cloudsql_postgres_log_disconnections",
@@ -1303,7 +1303,7 @@ _gcp_cloudsql_postgres_enable_pgaudit = _make_cloudsql_flag_fact(
     "GCP Cloud SQL PostgreSQL instances without cloudsql.enable_pgaudit=on",
     "Detects PostgreSQL Cloud SQL instances where cloudsql.enable_pgaudit is not set to on.",
     "POSTGRES",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"cloudsql.enable_pgaudit\\", \\"value\\": \\"on\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"cloudsql.enable_pgaudit\\", \\"value\\": \\"on\\".*\')',
 )
 cis_gcp_6_2_8_cloudsql_postgres_enable_pgaudit = _make_cloudsql_flag_rule(
     "cis_gcp_6_2_8_cloudsql_postgres_enable_pgaudit",
@@ -1378,7 +1378,7 @@ _gcp_cloudsql_sqlserver_remote_access = _make_cloudsql_flag_fact(
     "GCP Cloud SQL SQL Server instances without remote access=off",
     "Detects SQL Server Cloud SQL instances where remote access is not set to off.",
     "SQLSERVER",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"remote access\\", \\"value\\": \\"off\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"remote access\\", \\"value\\": \\"off\\".*\')',
 )
 cis_gcp_6_3_5_cloudsql_sqlserver_remote_access = _make_cloudsql_flag_rule(
     "cis_gcp_6_3_5_cloudsql_sqlserver_remote_access",
@@ -1393,7 +1393,7 @@ _gcp_cloudsql_sqlserver_trace_3625 = _make_cloudsql_flag_fact(
     "GCP Cloud SQL SQL Server instances without trace flag 3625=on",
     "Detects SQL Server Cloud SQL instances where trace flag 3625 is not set to on.",
     "SQLSERVER",
-    'coalesce(instance.database_flags, \'\') !~ \'.*\\"name\\": \\"3625\\", \\"value\\": \\"on\\".*\'',
+    'NOT (coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"3625\\", \\"value\\": \\"on\\".*\')',
 )
 cis_gcp_6_3_6_cloudsql_sqlserver_trace_3625 = _make_cloudsql_flag_rule(
     "cis_gcp_6_3_6_cloudsql_sqlserver_trace_3625",
@@ -1835,7 +1835,7 @@ _gcp_instance_project_wide_ssh_keys = Fact(
           AND toLower(coalesce(project.compute_project_enable_oslogin, '')) = 'true'
         )
       )
-      AND toLower(coalesce(instance.block_project_ssh_keys, 'false')) NOT IN ['true', '1']
+      AND NOT toLower(coalesce(instance.block_project_ssh_keys, 'false')) IN ['true', '1']
     RETURN
         instance.instancename AS instance_name,
         instance.id AS instance_id,
@@ -1856,7 +1856,7 @@ _gcp_instance_project_wide_ssh_keys = Fact(
           AND toLower(coalesce(project.compute_project_enable_oslogin, '')) = 'true'
         )
       )
-      AND toLower(coalesce(instance.block_project_ssh_keys, 'false')) NOT IN ['true', '1']
+      AND NOT toLower(coalesce(instance.block_project_ssh_keys, 'false')) IN ['true', '1']
     RETURN *
     """,
     cypher_count_query="""
