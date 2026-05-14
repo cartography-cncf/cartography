@@ -260,6 +260,214 @@ GET_FINDINGS = {
     ]
 }
 
+GET_AWS_API_CALL_FINDINGS = {
+    "Findings": [
+        {
+            "Id": "85c2345678901bcdef2345678901bcdef0",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/85c2345678901bcdef2345678901bcdef0",
+            "Type": "Discovery:S3/BucketEnumeration.Unusual",
+            "Title": "S3 bucket is being enumerated from an unusual location",
+            "Description": "S3 bucket test-bucket is being enumerated from an unusual location.",
+            "Severity": 5.0,
+            "Confidence": 8.0,
+            "CreatedAt": datetime(2023, 1, 16, 14, 20, 0),
+            "UpdatedAt": datetime(2023, 1, 16, 14, 35, 0),
+            "EventFirstSeen": datetime(2023, 1, 16, 14, 20, 0),
+            "EventLastSeen": datetime(2023, 1, 16, 14, 35, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "S3Bucket",
+                "S3BucketDetails": [
+                    {
+                        "Arn": "arn:aws:s3:::test-bucket",
+                        "Name": "test-bucket",
+                        "Type": "Destination",
+                        "CreatedAt": datetime(2023, 1, 1, 0, 0, 0),
+                        "Owner": {"Id": "abcdef1234567890abcdef1234567890abcdef12"},
+                        "Tags": [{"Key": "Environment", "Value": "production"}],
+                        "DefaultServerSideEncryption": {"EncryptionType": "SSE-S3"},
+                        "PublicAccess": {
+                            "PermissionConfiguration": {
+                                "BucketLevelPermissions": {
+                                    "AccessControlList": {
+                                        "AllowsPublicReadAccess": False,
+                                        "AllowsPublicWriteAccess": False,
+                                    },
+                                    "BucketPolicy": {
+                                        "AllowsPublicReadAccess": False,
+                                        "AllowsPublicWriteAccess": False,
+                                    },
+                                }
+                            }
+                        },
+                    }
+                ],
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "AWS_API_CALL",
+                    "AwsApiCallAction": {
+                        "Api": "ListObjects",
+                        "CallerType": "Remote IP",
+                        "RemoteIpDetails": {
+                            "IpAddressV4": "203.0.113.5",
+                            "Country": {"CountryCode": "CA", "CountryName": "Canada"},
+                            "City": {"CityName": "Toronto"},
+                            "GeoLocation": {"Lat": 43.6532, "Lon": -79.3832},
+                            "Organization": {
+                                "Asn": "54321",
+                                "AsnOrg": "Example Canadian ISP",
+                                "Isp": "Example Canadian ISP",
+                                "Org": "Example Canadian Organization",
+                            },
+                        },
+                        "ServiceName": "s3.amazonaws.com",
+                    },
+                },
+                "Archived": False,
+                "Count": 12,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 16, 14, 20, 0),
+                "EventLastSeen": datetime(2023, 1, 16, 14, 35, 0),
+                "ResourceRole": "TARGET",
+                "ServiceName": "guardduty",
+            },
+        },
+        {
+            "Id": "96d3456789012cdef3456789012cdef01",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/96d3456789012cdef3456789012cdef01",
+            "Type": "PrivilegeEscalation:IAMUser/AnomalousAPIActivity",
+            "Title": "IAM user is making anomalous API calls",
+            "Description": "IAM user GeneratedFindingUserName is making anomalous API calls from remote AWS account 210987654321.",
+            "Severity": 7.5,
+            "Confidence": 6.0,
+            "CreatedAt": datetime(2023, 1, 17, 9, 15, 0),
+            "UpdatedAt": datetime(2023, 1, 17, 9, 30, 0),
+            "EventFirstSeen": datetime(2023, 1, 17, 9, 15, 0),
+            "EventLastSeen": datetime(2023, 1, 17, 9, 30, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "AccessKey",
+                "AccessKeyDetails": {
+                    "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+                    "PrincipalId": "AIDACKCEVSQ6C2EXAMPLE",
+                    "UserName": "GeneratedFindingUserName",
+                    "UserType": "IAMUser",
+                },
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "AWS_API_CALL",
+                    "AwsApiCallAction": {
+                        "Api": "CreateUser",
+                        "CallerType": "Remote IP",
+                        "RemoteAccountDetails": {
+                            "AccountId": "210987654321",
+                            "Affiliated": True,
+                        },
+                        "RemoteIpDetails": {
+                            "IpAddressV4": "192.0.2.1",
+                            "Country": {
+                                "CountryCode": "US",
+                                "CountryName": "United States",
+                            },
+                            "City": {"CityName": "Seattle"},
+                            "GeoLocation": {"Lat": 47.6062, "Lon": -122.3321},
+                            "Organization": {
+                                "Asn": "16509",
+                                "AsnOrg": "AMAZON-02",
+                                "Isp": "Amazon.com Inc.",
+                                "Org": "Amazon.com Inc.",
+                            },
+                        },
+                        "ServiceName": "iam.amazonaws.com",
+                    },
+                },
+                "Archived": False,
+                "Count": 3,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 17, 9, 15, 0),
+                "EventLastSeen": datetime(2023, 1, 17, 9, 30, 0),
+                "ResourceRole": "ACTOR",
+                "ServiceName": "guardduty",
+            },
+        },
+    ]
+}
+
+GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE = {
+    "Findings": [
+        {
+            "Id": "d2f5678901234ef5678901234ef567890",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/d2f5678901234ef5678901234ef567890",
+            "Type": "PrivilegeEscalation:IAMUser/AnomalousAPIActivity",
+            "Title": "IAM user is making anomalous API calls",
+            "Description": "IAM user RemoteAccountOnlyUser is making anomalous API calls from remote AWS account 998877665544.",
+            "Severity": 8.2,
+            "Confidence": 6.5,
+            "CreatedAt": datetime(2023, 1, 20, 7, 45, 0),
+            "UpdatedAt": datetime(2023, 1, 20, 8, 0, 0),
+            "EventFirstSeen": datetime(2023, 1, 20, 7, 45, 0),
+            "EventLastSeen": datetime(2023, 1, 20, 8, 0, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "AccessKey",
+                "AccessKeyDetails": {
+                    "AccessKeyId": "AKIAREMOTEACCTEXAMPLE",
+                    "PrincipalId": "AIDAREMOTEACCOUNTTEST",
+                    "UserName": "RemoteAccountOnlyUser",
+                    "UserType": "IAMUser",
+                },
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "AWS_API_CALL",
+                    "AwsApiCallAction": {
+                        "Api": "CreateAccessKey",
+                        "CallerType": "Remote IP",
+                        "RemoteAccountDetails": {
+                            "AccountId": "998877665544",
+                            "Affiliated": False,
+                        },
+                        "RemoteIpDetails": {
+                            "IpAddressV4": "198.51.100.55",
+                            "Country": {
+                                "CountryCode": "DE",
+                                "CountryName": "Germany",
+                            },
+                            "City": {"CityName": "Berlin"},
+                            "GeoLocation": {"Lat": 52.52, "Lon": 13.405},
+                            "Organization": {
+                                "Asn": "64500",
+                                "AsnOrg": "Example DE ISP",
+                                "Isp": "Example DE ISP",
+                                "Org": "Example DE Organization",
+                            },
+                        },
+                        "ServiceName": "iam.amazonaws.com",
+                    },
+                },
+                "Archived": False,
+                "Count": 2,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 20, 7, 45, 0),
+                "EventLastSeen": datetime(2023, 1, 20, 8, 0, 0),
+                "ResourceRole": "ACTOR",
+                "ServiceName": "guardduty",
+            },
+        },
+    ]
+}
+
 # Mock findings data for testing transformations
 SAMPLE_FINDINGS = [
     {
@@ -326,6 +534,24 @@ EXPECTED_TRANSFORM_RESULTS = [
         "archived": False,
         "resource_type": "Instance",
         "resource_id": "i-99999999",
+        "service_action_type": "NETWORK_CONNECTION",
+        "service_count": 5,
+        "service_resource_role": "TARGET",
+        "api_call_name": None,
+        "api_call_service_name": None,
+        "api_call_caller_type": None,
+        "api_call_error_code": None,
+        "api_call_remote_ip": None,
+        "api_call_remote_country": None,
+        "api_call_remote_city": None,
+        "api_call_remote_org": None,
+        "api_call_remote_asn": None,
+        "api_call_remote_asn_org": None,
+        "api_call_remote_isp": None,
+        "api_call_remote_lat": None,
+        "api_call_remote_lon": None,
+        "api_call_remote_account_id": None,
+        "api_call_remote_account_affiliated": None,
     },
     # Expected S3 Bucket finding
     {
@@ -346,6 +572,24 @@ EXPECTED_TRANSFORM_RESULTS = [
         "archived": False,
         "resource_type": "S3Bucket",
         "resource_id": "test-bucket",
+        "service_action_type": "AWS_API_CALL",
+        "service_count": 12,
+        "service_resource_role": "TARGET",
+        "api_call_name": "ListObjects",
+        "api_call_service_name": "s3.amazonaws.com",
+        "api_call_caller_type": "Remote IP",
+        "api_call_error_code": None,
+        "api_call_remote_ip": "203.0.113.5",
+        "api_call_remote_country": "Canada",
+        "api_call_remote_city": "Toronto",
+        "api_call_remote_org": "Example Canadian Organization",
+        "api_call_remote_asn": "54321",
+        "api_call_remote_asn_org": "Example Canadian ISP",
+        "api_call_remote_isp": "Example Canadian ISP",
+        "api_call_remote_lat": 43.6532,
+        "api_call_remote_lon": -79.3832,
+        "api_call_remote_account_id": None,
+        "api_call_remote_account_affiliated": None,
     },
     # Expected IAM AccessKey finding
     {
@@ -366,5 +610,23 @@ EXPECTED_TRANSFORM_RESULTS = [
         "archived": False,
         "resource_type": "AccessKey",
         "resource_id": None,  # AccessKey doesn't have resource_id
+        "service_action_type": "AWS_API_CALL",
+        "service_count": 3,
+        "service_resource_role": "ACTOR",
+        "api_call_name": "CreateUser",
+        "api_call_service_name": "iam.amazonaws.com",
+        "api_call_caller_type": "Remote IP",
+        "api_call_error_code": None,
+        "api_call_remote_ip": "192.0.2.1",
+        "api_call_remote_country": "United States",
+        "api_call_remote_city": "Seattle",
+        "api_call_remote_org": "Amazon.com Inc.",
+        "api_call_remote_asn": "16509",
+        "api_call_remote_asn_org": "AMAZON-02",
+        "api_call_remote_isp": "Amazon.com Inc.",
+        "api_call_remote_lat": 47.6062,
+        "api_call_remote_lon": -122.3321,
+        "api_call_remote_account_id": None,
+        "api_call_remote_account_affiliated": None,
     },
 ]
