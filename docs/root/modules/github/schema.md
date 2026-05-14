@@ -9,6 +9,7 @@ O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
+O -- RESOURCE --> GR(GitHubRunner)
 O -- RESOURCE --> DA(GitHubDependabotAlert)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
@@ -26,6 +27,8 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+R -- RESOURCE --> GR
+R -- AVAILABLE_TO --> GR
 DA -- FOUND_IN --> R
 DA -- DISMISSED_BY --> U
 DA -- ASSIGNED_TO --> U
@@ -694,6 +697,48 @@ Represents a third-party GitHub Action used in workflows, parsed from workflow Y
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubAction)
     ```
+
+
+### GitHubRunner
+
+Represents a GitHub Actions self-hosted runner. Cartography syncs both organization-level runners and repository-visible runners. A repository can see runners inherited from its organization, so Cartography stores a single `GitHubRunner` node per runner ID and attaches scope-specific relationships.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The numeric GitHub runner ID |
+| **name** | The runner name |
+| **os** | Runner operating system, e.g. `linux`, `macos`, or `windows` |
+| **status** | Runner status, typically `online` or `offline` |
+| **busy** | Whether the runner is currently executing a job |
+| **ephemeral** | Whether the runner is ephemeral |
+| **labels** | List of runner labels such as `self-hosted`, `linux`, `x64`, or custom labels |
+| **label_types** | List of label types aligned by position with `labels`, e.g. `read-only` or `custom` |
+
+#### Relationships
+
+- GitHubOrganizations own organization-scoped self-hosted runners.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRunner)
+    ```
+
+- GitHubRepositories can use repository-visible self-hosted runners, including runners inherited from the organization.
+
+    ```
+    (GitHubRepository)-[:AVAILABLE_TO]->(GitHubRunner)
+    ```
+
+- GitHubRepositories are sub-resources for repository-visible GitHubRunners (for cleanup scoping).
+
+    ```
+    (GitHubRepository)-[:RESOURCE]->(GitHubRunner)
+    ```
+
+Notes:
+- `:RESOURCE` on `GitHubRunner` scopes cleanup to the organization or repository that returned the runner.
+- `:AVAILABLE_TO` means the runner was visible from the repository endpoint; this may include org-owned runners as well as repo-specific runners.
 
 
 ### GitHubEnvironment

@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.actions
 from tests.data.github.actions import GET_ENV_SECRETS_PRODUCTION
 from tests.data.github.actions import GET_ENV_SECRETS_STAGING
@@ -11,6 +13,8 @@ from tests.data.github.actions import GET_REPO_ENVIRONMENTS
 from tests.data.github.actions import GET_REPO_SECRETS
 from tests.data.github.actions import GET_REPO_VARIABLES
 from tests.data.github.actions import GET_REPO_WORKFLOWS
+from tests.data.github.runners import GET_ORG_RUNNERS
+from tests.data.github.runners import GET_REPO_RUNNERS
 from tests.data.github.workflow_content import WORKFLOW_CI_CONTENT
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -20,6 +24,20 @@ TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 TEST_ORGANIZATION = "simpsoncorp"
 FAKE_API_KEY = "asdf"
+
+
+@pytest.fixture(autouse=True)
+def mock_runner_fetches(monkeypatch):
+    monkeypatch.setattr(
+        cartography.intel.github.actions,
+        "get_org_runners",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        cartography.intel.github.actions,
+        "get_repo_runners",
+        lambda *args, **kwargs: [],
+    )
 
 
 def _ensure_repo_exists(neo4j_session):
@@ -177,6 +195,180 @@ def test_sync_github_actions_org_secrets(
             "https://github.com/simpsoncorp",
         ),
     }.issubset(org_secret_rels)
+
+
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_runners",
+    return_value=GET_ORG_RUNNERS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_runners",
+    return_value=GET_REPO_RUNNERS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_secrets",
+    return_value=GET_ORG_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_variables",
+    return_value=GET_ORG_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_workflows",
+    return_value=GET_REPO_WORKFLOWS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_environments",
+    return_value=GET_REPO_ENVIRONMENTS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_secrets",
+    return_value=GET_REPO_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_variables",
+    return_value=GET_REPO_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_secrets",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_SECRETS_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_SECRETS_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_variables",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_VARIABLES_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_VARIABLES_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
+def test_sync_github_actions_runners(
+    mock_workflow_content,
+    mock_env_variables,
+    mock_env_secrets,
+    mock_repo_variables,
+    mock_repo_secrets,
+    mock_repo_environments,
+    mock_repo_workflows,
+    mock_org_variables,
+    mock_org_secrets,
+    mock_repo_runners,
+    mock_org_runners,
+    neo4j_session,
+):
+    _ensure_repo_exists(neo4j_session)
+
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+
+    runner_rows = neo4j_session.run(
+        """
+        MATCH (n:GitHubRunner)
+        RETURN n.id, n.name, n.os, n.status, n.busy, n.ephemeral, n.labels
+        """,
+    )
+    assert {
+        (
+            row["n.id"],
+            row["n.name"],
+            row["n.os"],
+            row["n.status"],
+            row["n.busy"],
+            row["n.ephemeral"],
+            tuple(row["n.labels"]),
+        )
+        for row in runner_rows
+    } == {
+        (
+            23,
+            "linux-runner",
+            "linux",
+            "online",
+            True,
+            False,
+            ("self-hosted", "X64", "Linux"),
+        ),
+        (
+            24,
+            "mac-runner",
+            "macos",
+            "offline",
+            False,
+            False,
+            ("self-hosted", "X64", "macOS", "no-gpu"),
+        ),
+        (
+            25,
+            "repo-only-runner",
+            "linux",
+            "online",
+            False,
+            True,
+            ("self-hosted", "Linux", "deploy"),
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GitHubRunner",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (23, "https://github.com/simpsoncorp"),
+        (24, "https://github.com/simpsoncorp"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GitHubRunner",
+        "id",
+        "GitHubRepository",
+        "id",
+        "AVAILABLE_TO",
+        rel_direction_right=False,
+    ) == {
+        (23, "https://github.com/simpsoncorp/sample_repo"),
+        (25, "https://github.com/simpsoncorp/sample_repo"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GitHubRunner",
+        "id",
+        "GitHubRepository",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (23, "https://github.com/simpsoncorp/sample_repo"),
+        (25, "https://github.com/simpsoncorp/sample_repo"),
+    }
 
 
 @patch.object(

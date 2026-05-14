@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import quote
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -30,6 +31,8 @@ from cartography.models.github.actions_variable import GitHubEnvActionsVariableS
 from cartography.models.github.actions_variable import GitHubOrgActionsVariableSchema
 from cartography.models.github.actions_variable import GitHubRepoActionsVariableSchema
 from cartography.models.github.environment import GitHubEnvironmentSchema
+from cartography.models.github.runner import GitHubOrgRunnerSchema
+from cartography.models.github.runner import GitHubRepoRunnerSchema
 from cartography.models.github.workflow import GitHubWorkflowSchema
 from cartography.util import run_analysis_job
 from cartography.util import timeit
@@ -72,6 +75,52 @@ def get_org_variables(
     return fetch_all_rest_api_pages(token, base_url, endpoint, "variables")
 
 
+def _list_runners_tolerant(
+    token: str,
+    base_url: str,
+    endpoint: str,
+    scope_description: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Fetch GitHub self-hosted runners and preserve a 403 sentinel for cleanup safety.
+    """
+    try:
+        return fetch_all_rest_api_pages(
+            token,
+            base_url,
+            endpoint,
+            "runners",
+            raise_on_status=(403,),
+        )
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 403:
+            logger.warning(
+                "Token lacks permission to read %s. Skipping runner sync for that scope.",
+                scope_description,
+            )
+            return None
+        raise
+
+
+@timeit
+def get_org_runners(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Fetch organization-level self-hosted runners.
+    """
+    base_url = _get_rest_api_base_url(api_url)
+    endpoint = f"/orgs/{organization}/actions/runners"
+    return _list_runners_tolerant(
+        token,
+        base_url,
+        endpoint,
+        f"organization runners for {organization}",
+    )
+
+
 @timeit
 def get_repo_workflows(
     token: str,
@@ -86,6 +135,26 @@ def get_repo_workflows(
     base_url = _get_rest_api_base_url(api_url)
     endpoint = f"/repos/{organization}/{repo_name}/actions/workflows"
     return fetch_all_rest_api_pages(token, base_url, endpoint, "workflows")
+
+
+@timeit
+def get_repo_runners(
+    token: str,
+    api_url: str,
+    organization: str,
+    repo_name: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Fetch repository-visible self-hosted runners.
+    """
+    base_url = _get_rest_api_base_url(api_url)
+    endpoint = f"/repos/{organization}/{repo_name}/actions/runners"
+    return _list_runners_tolerant(
+        token,
+        base_url,
+        endpoint,
+        f"repository runners for {organization}/{repo_name}",
+    )
 
 
 @timeit
@@ -216,6 +285,32 @@ def transform_org_variables(
                 "id": f"https://github.com/{organization}/actions/variables/{var['name']}",
                 "level": "organization",
                 "org_url": org_url,
+            }
+        )
+    return result
+
+
+def transform_runners(
+    runners: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform self-hosted runners into intrinsic runner properties.
+    """
+    result = []
+    for runner in runners:
+        labels = runner.get("labels") or []
+        result.append(
+            {
+                "id": runner.get("id"),
+                "name": runner.get("name"),
+                "os": runner.get("os"),
+                "status": runner.get("status"),
+                "busy": runner.get("busy"),
+                "ephemeral": runner.get("ephemeral"),
+                "labels": [label.get("name") for label in labels if label.get("name")],
+                "label_types": [
+                    label.get("type") for label in labels if label.get("type")
+                ],
             }
         )
     return result
@@ -552,6 +647,38 @@ def load_workflows(
 
 
 @timeit
+def load_org_runners(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+    org_url: str,
+) -> None:
+    load(
+        neo4j_session,
+        GitHubOrgRunnerSchema(),
+        data,
+        lastupdated=update_tag,
+        org_url=org_url,
+    )
+
+
+@timeit
+def load_repo_runners(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+    repo_url: str,
+) -> None:
+    load(
+        neo4j_session,
+        GitHubRepoRunnerSchema(),
+        data,
+        lastupdated=update_tag,
+        repo_url=repo_url,
+    )
+
+
+@timeit
 def load_environments(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -711,6 +838,26 @@ def cleanup_org_level(
     )
 
 
+@timeit
+def cleanup_org_runners(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(GitHubOrgRunnerSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+@timeit
+def cleanup_repo_runners(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(GitHubRepoRunnerSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -777,11 +924,40 @@ def sync(
             neo4j_session, transformed_org_variables, update_tag, org_url
         )
 
+    org_runners = get_org_runners(github_api_key, github_url, organization)
+    if org_runners is not None:
+        transformed_org_runners = transform_runners(org_runners)
+        if transformed_org_runners:
+            load_org_runners(
+                neo4j_session,
+                transformed_org_runners,
+                update_tag,
+                org_url,
+            )
+
     # 2. Get repos from graph and sync repo-level resources
     repo_names = _get_repos_from_graph(neo4j_session, organization)
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
     for repo_name in repo_names:
+        repo_url = f"https://github.com/{organization}/{repo_name}"
+
+        repo_runners = get_repo_runners(
+            github_api_key,
+            github_url,
+            organization,
+            repo_name,
+        )
+        if repo_runners is not None:
+            transformed_repo_runners = transform_runners(repo_runners)
+            if transformed_repo_runners:
+                load_repo_runners(
+                    neo4j_session,
+                    transformed_repo_runners,
+                    update_tag,
+                    repo_url,
+                )
+
         # Sync workflows
         workflows = get_repo_workflows(
             github_api_key, github_url, organization, repo_name
@@ -907,6 +1083,12 @@ def sync(
                     neo4j_session, transformed_env_variables, update_tag, org_url
                 )
 
+        if repo_runners is not None:
+            cleanup_repo_runners(
+                neo4j_session,
+                {**common_job_parameters, "repo_url": repo_url},
+            )
+
     # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
     # and variables are now scoped to the org as well, so cleanup_org_level
     # picks them up here.
@@ -919,6 +1101,8 @@ def sync(
         neo4j_session,
         org_cleanup_params,
     )
+    if org_runners is not None:
+        cleanup_org_runners(neo4j_session, org_cleanup_params)
     cleanup_org_level(neo4j_session, org_cleanup_params)
 
     return all_workflows
