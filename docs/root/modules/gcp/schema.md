@@ -1041,7 +1041,7 @@ Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/do
 
 ### GCPWorkloadIdentityProvider
 
-Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers). A provider connects a pool to an external identity source (OIDC, AWS, or SAML).
+Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers). A provider connects a pool to an external identity source (OIDC, AWS, SAML, or X509).
 
 > **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KeycloakIdentityProvider, KubernetesOIDCProvider).
 
