@@ -410,6 +410,7 @@ _aws_default_sg_allows_traffic = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     WHERE sg.name = 'default'
+    AND EXISTS { (:EC2NetworkInterface)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg) }
     RETURN DISTINCT
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
@@ -424,6 +425,7 @@ _aws_default_sg_allows_traffic = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionEgress)
     WHERE sg.name = 'default'
+    AND EXISTS { (:EC2NetworkInterface)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg) }
     RETURN DISTINCT
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
@@ -439,6 +441,7 @@ _aws_default_sg_allows_traffic = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpRule)
     WHERE sg.name = 'default'
+    AND EXISTS { (:EC2NetworkInterface)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg) }
     RETURN *
     """,
     cypher_count_query="""
