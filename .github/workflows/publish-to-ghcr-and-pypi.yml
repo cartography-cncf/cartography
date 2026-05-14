@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
@@ -50,12 +50,12 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install uv
+        # No cache on the release publish job: rebuild deps from scratch so the
+        # uploaded artifact is reproducible from a clean state and not derived
+        # from a previously saved cache entry.
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
       - name: Build a binary wheel and a source tarball
-        run: uv build
+        run: uv build --frozen
       - name: Publish distribution 📦 to PyPI
         if: github.event_name == 'release'
         # --check-url checks if files already exist on PyPI before uploading.
