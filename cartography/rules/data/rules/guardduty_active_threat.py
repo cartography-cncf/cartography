@@ -57,11 +57,12 @@ aws_guardduty_active_threat = Fact(
       AND ({_ACTIVE_THREAT_WHERE})
     RETURN *
     """,
-    cypher_count_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
-    WHERE f.severity >= 7
-      AND coalesce(f.archived, false) = false
-      AND ({_ACTIVE_THREAT_WHERE})
+    # Denominator: all live GuardDutyFinding nodes (unarchived). The runner
+    # computes `passing = total - failing`, so this must count the full
+    # evaluated population, not the failing subset.
+    cypher_count_query="""
+    MATCH (:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
+    WHERE coalesce(f.archived, false) = false
     RETURN COUNT(f) AS count
     """,
     module=Module.AWS,
