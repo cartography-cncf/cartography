@@ -1,13 +1,13 @@
 {
     "statements": [
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})<-[r:HAS_ACCESS_TO]-(GCPRole) WHERE exists(r.unused_permissions) REMOVE r.unused_permissions return COUNT(*) as TotalCompleted",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})<-[r:HAS_ACCESS_TO]-(GCPRole) WHERE r.unused_permissions IS NOT NULL REMOVE r.unused_permissions return COUNT(*) as TotalCompleted",
             "iterative": true,
             "iterationsize": 100,
             "__comment__": "Delete GCP unused permisions for role"
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})<-[r:HAS_ACCESS_TO]-(GCPRole) WHERE exists(r.used_permissions) REMOVE r.used_permissions return COUNT(*) as TotalCompleted",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})<-[r:HAS_ACCESS_TO]-(GCPRole) WHERE r.used_permissions IS NOT NULL REMOVE r.used_permissions return COUNT(*) as TotalCompleted",
             "iterative": true,
             "iterationsize": 100,
             "__comment__": "Delete GCP used permisions for role"

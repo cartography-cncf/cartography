@@ -58,7 +58,7 @@ def transform_distribution(dists: List[Dict]) -> List[Dict]:
 
 
 def load_cloudfront_distributions(session: neo4j.Session, distributions: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_cloudfront_distributions_tx, distributions, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_cloudfront_distributions_tx, distributions, current_aws_account_id, aws_update_tag)
 
 
 @timeit

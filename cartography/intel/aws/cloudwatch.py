@@ -59,7 +59,7 @@ def load_event_buses(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_event_buses_tx, event_buses, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_event_buses_tx, event_buses, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -134,7 +134,7 @@ def load_event_rules(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_event_rules_tx, event_buses, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_event_rules_tx, event_buses, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -237,7 +237,7 @@ def load_log_groups(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_log_groups_tx, log_groups, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_log_groups_tx, log_groups, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -329,7 +329,7 @@ def load_metrics(session: neo4j.Session, metrics: List[Dict], current_aws_accoun
         logger.info(
             f"Loading metrics {page_no * batch_size} - {page_no * batch_size + batch_size} out of {len(metrics)}",
         )
-        session.write_transaction(_load_metrics_tx, paginated_metrics, current_aws_account_id, aws_update_tag)
+        session.execute_write(_load_metrics_tx, paginated_metrics, current_aws_account_id, aws_update_tag)
         page_no += 1
 
 
@@ -407,7 +407,7 @@ def load_cloudwatch_alarm(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_cloudwatch_alarm_tx, alarms, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_cloudwatch_alarm_tx, alarms, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -489,7 +489,7 @@ def load_cloudwatch_flowlogs(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_cloudwatch_flowlogs_tx, flowlogs, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_cloudwatch_flowlogs_tx, flowlogs, current_aws_account_id, aws_update_tag)
 
 
 @timeit

@@ -240,7 +240,7 @@ def load_gke_node_pools(
         return
 
     logger.info("Loading %d GKE node pools for project %s.", len(pool_records), project_id)
-    neo4j_session.write_transaction(_load_gke_node_pools_tx, pool_records, gcp_update_tag)
+    neo4j_session.execute_write(_load_gke_node_pools_tx, pool_records, gcp_update_tag)
 
 
 def _load_gke_node_pools_tx(tx: neo4j.Transaction, pool_records: List[Dict], gcp_update_tag: int) -> None:

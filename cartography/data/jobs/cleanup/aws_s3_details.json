@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) WHERE EXISTS(s.anonymous_access)\n WITH s LIMIT $LIMIT_SIZE\nREMOVE s.anonymous_access, s.anonymous_actions return COUNT(*) as TotalCompleted",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) WHERE s.anonymous_access IS NOT NULL\n WITH s LIMIT $LIMIT_SIZE\nREMOVE s.anonymous_access, s.anonymous_actions return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     }

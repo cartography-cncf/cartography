@@ -18,7 +18,7 @@ def run(neo4j_session, config):
 
 
 def load_cloudanix_workspace(neo4j_session, update_tag, common_job_parameters):
-    neo4j_session.write_transaction(load_cloudanix_workspace_tx, update_tag, common_job_parameters)
+    neo4j_session.execute_write(load_cloudanix_workspace_tx, update_tag, common_job_parameters)
 
 
 def load_cloudanix_workspace_tx(tx, update_tag, common_job_parameters):

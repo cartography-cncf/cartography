@@ -50,39 +50,39 @@ def load_tenant_users(session: neo4j.Session, tenant_id: str, data_list: List[Di
             end = start + iteration_size
             paged_users = data_list[start:end]
 
-        session.write_transaction(_load_tenant_users_tx, tenant_id, paged_users, update_tag)
+        session.execute_write(_load_tenant_users_tx, tenant_id, paged_users, update_tag)
 
         logger.info(f"Iteration {counter + 1} of {total_iterations}. {start} - {end} - {len(paged_users)}")
 
 
 def load_roles(session: neo4j.Session, tenant_id: str, data_list: List[Dict], role_assignments_list: List[Dict], update_tag: int, SUBSCRIPTION_ID: str) -> None:
-    session.write_transaction(_load_roles_tx, tenant_id, data_list, role_assignments_list, update_tag, SUBSCRIPTION_ID)
+    session.execute_write(_load_roles_tx, tenant_id, data_list, role_assignments_list, update_tag, SUBSCRIPTION_ID)
 
 
 def load_managed_identities(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_managed_identities_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_managed_identities_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_groups(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_groups_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_groups_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_applications(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_applications_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_applications_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_service_accounts(
     session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int,
 ) -> None:
-    session.write_transaction(_load_tenant_service_accounts_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_service_accounts_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_domains(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_domains_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_domains_tx, tenant_id, data_list, update_tag)
 
 
 def set_used_state(session: neo4j.Session, tenant_id: str, common_job_parameters: Dict, update_tag: int) -> None:
-    session.write_transaction(_set_used_state_tx, tenant_id, common_job_parameters, update_tag)
+    session.execute_write(_set_used_state_tx, tenant_id, common_job_parameters, update_tag)
 
 
 @timeit
@@ -461,7 +461,7 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
 
 @timeit
 def load_group_memberships(neo4j_session: neo4j.Session, memberships: List[Dict], update_tag: int) -> None:
-    neo4j_session.write_transaction(_load_group_memberships_tx, memberships, update_tag)
+    neo4j_session.execute_write(_load_group_memberships_tx, memberships, update_tag)
 
 
 @timeit
@@ -1086,7 +1086,7 @@ def _set_used_state_tx(
     ingest_entity_unused = """
     MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->
     (:AzureTenant{id: $AZURE_TENANT_ID})-[r:RESOURCE]->(n)
-    WHERE NOT EXISTS(n.isUsed) AND n.lastupdated = $update_tag
+    WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
     AND labels(n) IN [['AzureUser'], ['AzureGroup'], ['AzureServiceAccount'], ['AzureRole']]
     SET n.isUsed = $isUsed
     """

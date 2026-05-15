@@ -49,7 +49,7 @@ def transform_stack(sts: List[Dict], region: str) -> List[Dict]:
 
 
 def load_cloudformation_stack(session: neo4j.Session, stacks: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_cloudformation_stack_tx, stacks, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_cloudformation_stack_tx, stacks, current_aws_account_id, aws_update_tag)
 
 
 @timeit

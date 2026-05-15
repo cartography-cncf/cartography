@@ -132,7 +132,7 @@ def transform_waf_classic_web_acls(boto3_session: boto3.session.Session, web_acl
 
 
 def load_waf_classic_web_acls(session: neo4j.Session, web_acls: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_waf_classic_web_acls_tx, web_acls, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_waf_classic_web_acls_tx, web_acls, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -285,7 +285,7 @@ def transform_waf_v2_web_acls(web_acls: List[Dict]) -> List[Dict]:
 
 
 def load_waf_v2_web_acls(session: neo4j.Session, web_acls: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_waf_v2_web_acls_tx, web_acls, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_waf_v2_web_acls_tx, web_acls, current_aws_account_id, aws_update_tag)
 
 
 @timeit

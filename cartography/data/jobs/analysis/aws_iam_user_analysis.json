@@ -2,7 +2,7 @@
     "name": "IAM User Analysis Jobs",
     "statements": [
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:AWSUser) where EXISTS(n.lastactivity) WITH n LIMIT $LIMIT_SIZE REMOVE n.lastactivity, n.accesskeys, n.accesskeysage return COUNT(*) as TotalCompleted",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:AWSUser) where n.lastactivity IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.lastactivity, n.accesskeys, n.accesskeysage return COUNT(*) as TotalCompleted",
             "iterative": true,
             "iterationsize": 100
         },

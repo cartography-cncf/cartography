@@ -343,7 +343,7 @@ def get_api_gateway_policy_entities(apigateway: Resource, gateway: Dict, project
 
 @timeit
 def load_apigateway_locations(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_apigateway_locations_tx, data_list, project_id, update_tag)
+    session.execute_write(load_apigateway_locations_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -418,7 +418,7 @@ def cleanup_apigateway_locations(neo4j_session: neo4j.Session, common_job_parame
 
 @timeit
 def load_apis(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_apis_tx, data_list, project_id, update_tag)
+    session.execute_write(load_apis_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -491,7 +491,7 @@ def cleanup_apis(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> N
 
 @timeit
 def load_apis_entity_relation(session: neo4j.Session, api: Dict, update_tag: int) -> None:
-    session.write_transaction(load_apis_entity_relation_tx, api, update_tag)
+    session.execute_write(load_apis_entity_relation_tx, api, update_tag)
 
 
 @timeit
@@ -530,7 +530,7 @@ def load_apis_entity_relation_tx(tx: neo4j.Transaction, api: Dict, gcp_update_ta
 
 @timeit
 def load_gateway_entity_relation(session: neo4j.Session, gateway: Dict, update_tag: int) -> None:
-    session.write_transaction(load_gateway_entity_relation_tx, gateway, update_tag)
+    session.execute_write(load_gateway_entity_relation_tx, gateway, update_tag)
 
 
 @timeit
@@ -569,7 +569,7 @@ def load_gateway_entity_relation_tx(tx: neo4j.Transaction, gateway: Dict, gcp_up
 
 @timeit
 def load_api_configs(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_api_configs_tx, data_list, project_id, update_tag)
+    session.execute_write(load_api_configs_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -643,7 +643,7 @@ def cleanup_api_configs(neo4j_session: neo4j.Session, common_job_parameters: Dic
 
 @timeit
 def load_gateways(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_gateways_tx, data_list, project_id, update_tag)
+    session.execute_write(load_gateways_tx, data_list, project_id, update_tag)
 
 
 @timeit

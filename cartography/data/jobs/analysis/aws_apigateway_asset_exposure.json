@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (rest_api:APIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(rest_api.exposed_internet) WITH rest_api LIMIT $LIMIT_SIZE REMOVE rest_api.exposed_internet, rest_api.exposed_internet_type, rest_api.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (rest_api:APIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE rest_api.exposed_internet IS NOT NULL WITH rest_api LIMIT $LIMIT_SIZE REMOVE rest_api.exposed_internet, rest_api.exposed_internet_type, rest_api.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
@@ -11,7 +11,7 @@
       "iterationsize": 100
     },
     {
-      "query": "MATCH (rest_api_resource:APIGatewayResource)<-[:RESOURCE]-(:APIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(rest_api_resource.exposed_internet) WITH rest_api_resource LIMIT $LIMIT_SIZE REMOVE rest_api_resource.exposed_internet, rest_api_resource.exposed_internet_type, rest_api_resource.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (rest_api_resource:APIGatewayResource)<-[:RESOURCE]-(:APIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE rest_api_resource.exposed_internet IS NOT NULL WITH rest_api_resource LIMIT $LIMIT_SIZE REMOVE rest_api_resource.exposed_internet, rest_api_resource.exposed_internet_type, rest_api_resource.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

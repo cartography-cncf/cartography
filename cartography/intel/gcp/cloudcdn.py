@@ -52,7 +52,7 @@ def get_backend_buckets(compute: Resource, project_id: str) -> List[Dict]:
 
 @timeit
 def load_backend_buckets(session: neo4j.Session, buckets: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_backend_buckets_tx, buckets, project_id, update_tag)
+    session.execute_write(load_backend_buckets_tx, buckets, project_id, update_tag)
 
 
 @timeit
@@ -238,7 +238,7 @@ def is_user_created_backend_service(service):
 
 @timeit
 def load_backend_services(session: neo4j.Session, backend_services: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_backend_services_tx, backend_services, project_id, update_tag)
+    session.execute_write(load_backend_services_tx, backend_services, project_id, update_tag)
 
 
 @timeit
@@ -387,7 +387,7 @@ def transform_global_url_maps(url_maps: List[Dict], project_id: str) -> List[Dic
 
 @timeit
 def load_url_maps(session: neo4j.Session, url_maps: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_url_maps_tx, url_maps, project_id, update_tag)
+    session.execute_write(load_url_maps_tx, url_maps, project_id, update_tag)
 
 
 @timeit

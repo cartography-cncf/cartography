@@ -52,7 +52,7 @@ def transform_workspaces(workspaces: List[Dict]) -> List[Dict]:
 
 
 def load_workspace_data(session: neo4j.Session, workspace_data: List[Dict], common_job_parameters: Dict) -> None:
-    session.write_transaction(_load_workspace_data, workspace_data, common_job_parameters)
+    session.execute_write(_load_workspace_data, workspace_data, common_job_parameters)
 
 
 def _load_workspace_data(tx: neo4j.Transaction, workspace_data: List[Dict], common_job_parameters: Dict) -> None:

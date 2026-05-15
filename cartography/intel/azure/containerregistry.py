@@ -259,11 +259,11 @@ def _load_images_tx(
 
 
 def load_registries(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_registries_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_registries_tx, subscription_id, data_list, update_tag)
 
 
 def load_repositories(session: neo4j.Session, registry_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_repositories_tx, registry_id, data_list, update_tag)
+    session.execute_write(_load_repositories_tx, registry_id, data_list, update_tag)
 
 
 def load_images(
@@ -273,7 +273,7 @@ def load_images(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_images_tx, repository_name, registry_name, data_list, update_tag)
+    session.execute_write(_load_images_tx, repository_name, registry_name, data_list, update_tag)
 
 
 def cleanup_container_registries(session: neo4j.Session, common_job_parameters: Dict) -> None:

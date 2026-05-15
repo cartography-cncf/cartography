@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (service:ECSService)<-[:HAS_SERVICE]-(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(service.exposed_internet) WITH service LIMIT $LIMIT_SIZE REMOVE service.exposed_internet, service.exposed_internet_type, service.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (service:ECSService)<-[:HAS_SERVICE]-(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE service.exposed_internet IS NOT NULL WITH service LIMIT $LIMIT_SIZE REMOVE service.exposed_internet, service.exposed_internet_type, service.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

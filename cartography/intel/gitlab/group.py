@@ -59,7 +59,7 @@ def load_group_data(
     group_data: List[Dict],
     common_job_parameters: Dict,
 ) -> None:
-    session.write_transaction(_load_group_data, group_data, common_job_parameters)
+    session.execute_write(_load_group_data, group_data, common_job_parameters)
 
 
 def _load_group_data(

@@ -82,7 +82,7 @@ def transform_jobs(jobs: List[Dict], project_id: str) -> List[Dict]:
 
 @timeit
 def load_dataflow_jobs(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_dataflow_jobs_tx, data_list, project_id, update_tag)
+    session.execute_write(load_dataflow_jobs_tx, data_list, project_id, update_tag)
 
 
 @timeit

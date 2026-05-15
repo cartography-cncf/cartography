@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (lf:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) where EXISTS(lf.exposed_internet) WITH lf LIMIT $LIMIT_SIZE REMOVE lf.exposed_internet, lf.exposed_internet_type, lf.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (lf:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) where lf.exposed_internet IS NOT NULL WITH lf LIMIT $LIMIT_SIZE REMOVE lf.exposed_internet, lf.exposed_internet_type, lf.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
@@ -15,7 +15,7 @@
       "iterative": false
     },
     {
-      "query": "MATCH (lf:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WITH lf WHERE ((NOT EXISTS(lf.vpc_id) OR lf.vpc_id = '') AND EXISTS(lf.functionurl)) SET lf.exposed_internet = true, (CASE WHEN NOT 'vpc_none' IN coalesce(lf.exposed_internet_type , []) THEN lf END).exposed_internet_type = coalesce(lf.exposed_internet_type , []) + 'vpc_none';",
+      "query": "MATCH (lf:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WITH lf WHERE ((NOT lf.vpc_id IS NOT NULL OR lf.vpc_id = '') AND lf.functionurl IS NOT NULL) SET lf.exposed_internet = true, (CASE WHEN NOT 'vpc_none' IN coalesce(lf.exposed_internet_type , []) THEN lf END).exposed_internet_type = coalesce(lf.exposed_internet_type , []) + 'vpc_none';",
       "iterative": false
     },
     {

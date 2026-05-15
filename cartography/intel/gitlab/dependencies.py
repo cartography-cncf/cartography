@@ -30,7 +30,7 @@ def load_dependencies_data(
     project_id: str,
     common_job_parameters: Dict,
 ) -> None:
-    session.write_transaction(_load_dependencies_data, dependencies_data, project_id, common_job_parameters)
+    session.execute_write(_load_dependencies_data, dependencies_data, project_id, common_job_parameters)
 
 
 def _load_dependencies_data(

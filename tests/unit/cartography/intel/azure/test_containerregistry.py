@@ -112,7 +112,7 @@ class TestContainerRegistrySync:
 
         load_registries(session, subscription_id, data_list, update_tag)
 
-        session.write_transaction.assert_called_once()
+        session.execute_write.assert_called_once()
 
     def test_load_repositories(self):
         session = Mock()
@@ -128,7 +128,7 @@ class TestContainerRegistrySync:
 
         load_repositories(session, registry_id, data_list, update_tag)
 
-        session.write_transaction.assert_called_once()
+        session.execute_write.assert_called_once()
 
     def test_load_images(self):
         session = Mock()
@@ -145,7 +145,7 @@ class TestContainerRegistrySync:
 
         load_images(session, repository_name, registry_name, data_list, update_tag)
 
-        session.write_transaction.assert_called_once()
+        session.execute_write.assert_called_once()
 
     @patch('cartography.intel.azure.containerregistry.cleanup_container_images')
     @patch('cartography.intel.azure.containerregistry.cleanup_container_repositories')

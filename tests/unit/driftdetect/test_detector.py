@@ -27,13 +27,13 @@ def test_state_no_drift():
 
     mock_result.__getitem__.side_effect = results.__getitem__
     mock_result.__iter__.side_effect = results.__iter__
-    mock_session.read_transaction.return_value = mock_result
+    mock_session.execute_read.return_value = mock_result
     data = FileSystem.load("tests/data/detectors/test_expectations.json")
     state_old = StateSchema().load(data)
     state_new = State(state_old.name, state_old.validation_query, state_old.properties, [])
     get_state(mock_session, state_new)
     drifts = compare_states(state_old, state_new)
-    mock_session.read_transaction.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
+    mock_session.execute_read.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
     assert not drifts
 
 
@@ -58,7 +58,7 @@ def test_state_picks_up_drift():
     # Arrange
     mock_result.__getitem__.side_effect = results.__getitem__
     mock_result.__iter__.side_effect = results.__iter__
-    mock_session.read_transaction.return_value = mock_result
+    mock_session.execute_read.return_value = mock_result
     data = FileSystem.load("tests/data/detectors/test_expectations.json")
     state_old = StateSchema().load(data)
     state_new = State(state_old.name, state_old.validation_query, state_old.properties, [])
@@ -69,7 +69,7 @@ def test_state_picks_up_drift():
     drifts = compare_states(state_old, state_new)
 
     # Assert
-    mock_session.read_transaction.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
+    mock_session.execute_read.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
     assert drifts
     assert ["7"] in drifts
 
@@ -94,7 +94,7 @@ def test_state_order_does_not_matter():
     # Arrange
     mock_result.__getitem__.side_effect = results.__getitem__
     mock_result.__iter__.side_effect = results.__iter__
-    mock_session.read_transaction.return_value = mock_result
+    mock_session.execute_read.return_value = mock_result
     data = FileSystem.load("tests/data/detectors/test_expectations.json")
     state_old = StateSchema().load(data)
     state_new = State(state_old.name, state_old.validation_query, state_old.properties, [])
@@ -105,7 +105,7 @@ def test_state_order_does_not_matter():
     drifts = compare_states(state_old, state_new)
 
     # Assert
-    mock_session.read_transaction.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
+    mock_session.execute_read.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
     assert not drifts
 
 
@@ -130,14 +130,14 @@ def test_state_multiple_expectations():
 
     mock_result.__getitem__.side_effect = results.__getitem__
     mock_result.__iter__.side_effect = results.__iter__
-    mock_session.read_transaction.return_value = mock_result
+    mock_session.execute_read.return_value = mock_result
     data = FileSystem.load("tests/data/detectors/test_multiple_expectations.json")
     state_old = StateSchema().load(data)
     state_new = State(state_old.name, state_old.validation_query, state_old.properties, [])
     get_state(mock_session, state_new)
     state_new.properties = state_old.properties
     drifts = compare_states(state_old, state_new)
-    mock_session.read_transaction.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
+    mock_session.execute_read.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
     assert ["7", "14"] in drifts
 
 
@@ -162,14 +162,14 @@ def test_drift_from_multiple_properties():
     ]
     mock_result.__getitem__.side_effect = results.__getitem__
     mock_result.__iter__.side_effect = results.__iter__
-    mock_session.read_transaction.return_value = mock_result
+    mock_session.execute_read.return_value = mock_result
     data = FileSystem.load("tests/data/detectors/test_multiple_properties.json")
     state_old = StateSchema().load(data)
     state_new = State(state_old.name, state_old.validation_query, state_old.properties, [])
     get_state(mock_session, state_new)
     state_new.properties = state_old.properties
     drifts = compare_states(state_old, state_new)
-    mock_session.read_transaction.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
+    mock_session.execute_read.assert_called_with(read_list_of_dicts_tx, state_new.validation_query)
     assert ["7", "14", ["21", "28", "35"]] in drifts
     assert ["3", "10", ["17", "24", "31"]] not in drifts
 

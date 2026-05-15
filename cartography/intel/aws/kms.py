@@ -201,7 +201,7 @@ def _load_kms_key_policies(neo4j_session: neo4j.Session, policies: List[Dict], u
 
 def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
     set_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(kmskey:KMSKey) where NOT EXISTS(kmskey.anonymous_actions)
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(kmskey:KMSKey) where kmskey.anonymous_actions IS NULL
     SET kmskey.anonymous_access = false, kmskey.anonymous_actions = []
     """
 

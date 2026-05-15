@@ -88,9 +88,9 @@ def load_route_tables(
             route['RouteTableId'] = route_table['RouteTableId']
             route['id'] = f"route_table/{route_table['RouteTableId']}/destination_cidr/{route.get('DestinationCidrBlock', route.get('DestinationIpv6CidrBlock'))}"
             routes.append(route)
-    neo4j_session.write_transaction(load_route_tables_tx, data, aws_account_id, aws_update_tag)
-    neo4j_session.write_transaction(load_routes_tx, routes, aws_update_tag)
-    neo4j_session.write_transaction(load_associations_tx, associations, aws_update_tag)
+    neo4j_session.execute_write(load_route_tables_tx, data, aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(load_routes_tx, routes, aws_update_tag)
+    neo4j_session.execute_write(load_associations_tx, associations, aws_update_tag)
 
 
 @timeit

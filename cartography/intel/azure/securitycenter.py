@@ -17,7 +17,7 @@ azure_console_link = AzureLinker()
 
 
 def load_security_contacts(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_security_contacts_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_security_contacts_tx, subscription_id, data_list, update_tag)
 
 
 def get_security_center_client(credentials: Credentials, subscription_id: str) -> SecurityCenter:

@@ -46,7 +46,7 @@ def transform_projects(workspace_projects: List[Dict], workspace: str) -> List[D
 
 
 def load_projects_data(session: neo4j.Session, project_data: List[Dict], common_job_parameters: Dict) -> None:
-    session.write_transaction(_load_projects_data, project_data, common_job_parameters)
+    session.execute_write(_load_projects_data, project_data, common_job_parameters)
 
 
 def _load_projects_data(tx: neo4j.Transaction, project_data: List[Dict], common_job_parameters: Dict) -> None:

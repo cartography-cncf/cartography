@@ -1,12 +1,12 @@
 {
   "statements": [
     {
-      "query": "MATCH ((n:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n limit $LIMIT_SIZE REMOVE n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n limit $LIMIT_SIZE REMOVE n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH ((n:AzureSQLDatabase)<-[:RESOURCE]-(:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n limit $LIMIT_SIZE REMOVE n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureSQLDatabase)<-[:RESOURCE]-(:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n limit $LIMIT_SIZE REMOVE n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
@@ -27,7 +27,7 @@
       "iterative": false
     },
     {
-      "query": "MATCH (sql:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE sql.exposed_internet = true WITH sql OPTIONAL MATCH (fw:AzureFirewallRule)<-[:HAS]-(sql) WHERE fw.start_ip_address = '0.0.0.0' OR EXISTS((fw)<-[:MEMBER_PUBLIC_IP_ADDRESS]-(:AzurePublicIPAddress)) WITH sql, collect(DISTINCT {firewallRuleId: fw.id, startIp: fw.start_ip_address, endIp: fw.end_ip_address}) as firewallRules SET sql.publicContext = apoc.convert.toJson([{resource: sql.id, resourceType: 'azure-database-sqlserver', context: [{serverId: sql.id, serverName: sql.name, fullyQualifiedDomainName: sql.fully_qualified_domain_name, version: sql.version, exposureTypes: sql.exposed_internet_type, firewallRules: firewallRules, location: sql.location}]}])",
+      "query": "MATCH (sql:AzureSQLServer)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE sql.exposed_internet = true WITH sql OPTIONAL MATCH (fw:AzureFirewallRule)<-[:HAS]-(sql) WHERE fw.start_ip_address = '0.0.0.0' OR EXISTS { MATCH (fw)<-[:MEMBER_PUBLIC_IP_ADDRESS]-(:AzurePublicIPAddress) } WITH sql, collect(DISTINCT {firewallRuleId: fw.id, startIp: fw.start_ip_address, endIp: fw.end_ip_address}) as firewallRules SET sql.publicContext = apoc.convert.toJson([{resource: sql.id, resourceType: 'azure-database-sqlserver', context: [{serverId: sql.id, serverName: sql.name, fullyQualifiedDomainName: sql.fully_qualified_domain_name, version: sql.version, exposureTypes: sql.exposed_internet_type, firewallRules: firewallRules, location: sql.location}]}])",
       "iterative": false
     },
     {

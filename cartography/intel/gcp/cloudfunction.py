@@ -148,7 +148,7 @@ def transform_function_policy_bindings(response_objects: List[Dict], function_id
 
 @timeit
 def load_functions(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(_load_functions_tx, data_list, project_id, update_tag)
+    session.execute_write(_load_functions_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -213,7 +213,7 @@ def _load_functions_tx(tx: neo4j.Transaction, functions: List[Resource], project
 
 @timeit
 def load_function_entity_relation(session: neo4j.Session, function: Dict, update_tag: int) -> None:
-    session.write_transaction(load_function_entity_relation_tx, function, update_tag)
+    session.execute_write(load_function_entity_relation_tx, function, update_tag)
 
 
 @timeit
@@ -252,7 +252,7 @@ def load_function_entity_relation_tx(tx: neo4j.Transaction, function: Dict, gcp_
 
 @timeit
 def attach_function_to_binding(session: neo4j.Session, function_id: str, bindings: List[Dict], gcp_update_tag: int) -> None:
-    session.write_transaction(attach_function_to_bindings_tx, bindings, function_id, gcp_update_tag)
+    session.execute_write(attach_function_to_bindings_tx, bindings, function_id, gcp_update_tag)
 
 
 @timeit

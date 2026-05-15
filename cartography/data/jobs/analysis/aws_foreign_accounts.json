@@ -2,12 +2,12 @@
 	"statements": [
 		{
 			"__comment": "This analyze AWS accounts we created and tag the ones that are foreign. Foreign accounts are ones that were not in the sync scope",
-			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(foreign:AWSAccount{id: $AWS_ID}) where NOT EXISTS(foreign.inscope) SET foreign.foreign = true",
+			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(foreign:AWSAccount{id: $AWS_ID}) where foreign.inscope IS NULL SET foreign.foreign = true",
 			"iterative": false
 		},
 		{
 			"__comment": "Remove accounts that were set with foreign and inscope. This can happen as we finish the list of sync accounts through assume role mapping and vpc peering",
-			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(a:AWSAccount{id: $AWS_ID}) where EXISTS(a.inscope) AND EXISTS(a.foreign) REMOVE a.foreign",
+			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(a:AWSAccount{id: $AWS_ID}) where a.inscope IS NOT NULL AND a.foreign IS NOT NULL REMOVE a.foreign",
 			"iterative": false
 		}
 	],

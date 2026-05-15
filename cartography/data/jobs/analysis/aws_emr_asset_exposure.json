@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (emr:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(emr.exposed_internet) WITH emr LIMIT $LIMIT_SIZE REMOVE emr.exposed_internet, emr.exposed_internet_type, emr.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (emr:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE emr.exposed_internet IS NOT NULL WITH emr LIMIT $LIMIT_SIZE REMOVE emr.exposed_internet, emr.exposed_internet_type, emr.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

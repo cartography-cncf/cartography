@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (distribution:AWSCloudfrontDistribution)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(distribution.exposed_internet) WITH distribution LIMIT $LIMIT_SIZE REMOVE distribution.exposed_internet, distribution.exposed_internet_type, distribution.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (distribution:AWSCloudfrontDistribution)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE distribution.exposed_internet IS NOT NULL WITH distribution LIMIT $LIMIT_SIZE REMOVE distribution.exposed_internet, distribution.exposed_internet_type, distribution.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

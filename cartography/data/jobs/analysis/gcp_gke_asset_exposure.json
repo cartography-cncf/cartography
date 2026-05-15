@@ -2,7 +2,7 @@
   "statements": [
     {
       "__comment": "This is a clean-up statement to remove custom attributes",
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE EXISTS(cluster.exposed_internet) REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:GCPOrganization{id:$GCP_ORGANIZATION_ID})-[:OWNER]->(:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(cluster:GKECluster) WHERE cluster.exposed_internet IS NOT NULL REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
       "iterative": false
     },
     {

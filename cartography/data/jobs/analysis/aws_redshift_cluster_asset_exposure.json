@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (cluster:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) where EXISTS(cluster.exposed_internet) WITH cluster LIMIT $LIMIT_SIZE REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (cluster:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) where cluster.exposed_internet IS NOT NULL WITH cluster LIMIT $LIMIT_SIZE REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

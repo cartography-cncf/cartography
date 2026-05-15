@@ -18,19 +18,19 @@ azure_console_link = AzureLinker()
 
 
 def load_key_vaults(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vaults_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vaults_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_keys(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vaults_keys_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vaults_keys_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_secrets(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vault_secrets_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vault_secrets_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_certificates(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vault_certificates_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vault_certificates_tx, subscription_id, data_list, update_tag)
 
 
 @timeit

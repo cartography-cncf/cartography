@@ -119,7 +119,7 @@ def _load_managed_instance_groups(
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_managed_instance_groups_tx, migs, project_id, gcp_update_tag)
+    session.execute_write(_load_managed_instance_groups_tx, migs, project_id, gcp_update_tag)
 
 
 def _load_managed_instance_groups_tx(
@@ -206,7 +206,7 @@ def _load_vm_to_mig_part_of_relationships(
     relationships: List[Dict],
     gcp_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_vm_to_mig_part_of_relationships_tx, relationships, gcp_update_tag)
+    session.execute_write(_load_vm_to_mig_part_of_relationships_tx, relationships, gcp_update_tag)
 
 
 def _load_vm_to_mig_part_of_relationships_tx(

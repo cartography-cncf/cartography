@@ -57,7 +57,7 @@ def transform_client_certificates(certs: List[Dict], region: str, account_id: st
 
 
 def load_client_certificates(session: neo4j.Session, certificates: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_client_certificates_tx, certificates, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_client_certificates_tx, certificates, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -303,7 +303,7 @@ def _load_apigateway_policies(
 def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
     set_defaults = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(restApi:APIGatewayRestAPI)
-    where NOT EXISTS(restApi.anonymous_actions)
+    where restApi.anonymous_actions IS NULL
     SET restApi.anonymous_access = false, restApi.anonymous_actions = []
     """
 

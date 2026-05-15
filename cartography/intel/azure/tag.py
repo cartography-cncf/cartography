@@ -23,13 +23,13 @@ azure_console_link = AzureLinker()
 
 
 def load_resource_groups(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_resource_groups_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_resource_groups_tx, subscription_id, data_list, update_tag)
 
 
 def load_tags(session: neo4j.Session, data_list: List[Dict], update_tag: int, common_job_parameters: Dict) -> None:
     logger.info(f"Loading instances  {len(data_list)}")
     for paginated_tags in batch(data_list, size=500):
-        session.write_transaction(_load_tags_tx, paginated_tags, update_tag, common_job_parameters)
+        session.execute_write(_load_tags_tx, paginated_tags, update_tag, common_job_parameters)
 
 
 @timeit

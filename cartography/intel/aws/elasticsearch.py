@@ -243,7 +243,7 @@ def get_elasticsearch_reserved_instances(client: botocore.client.BaseClient, reg
 
 
 def load_elasticsearch_reserved_instances(session: neo4j.Session, reserved_instances: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(
+    session.execute_write(
         _load_elasticsearch_reserved_instances_tx,
         reserved_instances, current_aws_account_id, aws_update_tag,
     )

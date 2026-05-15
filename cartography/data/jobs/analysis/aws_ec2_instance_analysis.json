@@ -2,7 +2,7 @@
     "name": "EC2 Instance Analysis Jobs",
     "statements": [
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:EC2Instance) where EXISTS(n.iamroles) WITH n LIMIT $LIMIT_SIZE REMOVE n.iamroles return COUNT(*) as TotalCompleted",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:EC2Instance) where n.iamroles IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.iamroles return COUNT(*) as TotalCompleted",
             "iterative": true,
             "iterationsize": 100
         },

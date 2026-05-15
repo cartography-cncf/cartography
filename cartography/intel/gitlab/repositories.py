@@ -31,7 +31,7 @@ def load_repositories_data(
     project_id: str,
     common_job_parameters: Dict,
 ) -> None:
-    session.write_transaction(_load_repositories_data, repos_data, project_id, common_job_parameters)
+    session.execute_write(_load_repositories_data, repos_data, project_id, common_job_parameters)
 
 
 def _load_repositories_data(

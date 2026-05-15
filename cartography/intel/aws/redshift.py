@@ -50,7 +50,7 @@ def transform_reserved_nodes(nds: List[Dict], region: str, current_aws_account_i
 def load_redshift_reserved_node(
     session: neo4j.Session, reserved_nodes: List[Dict], current_aws_account_id: str, aws_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_redshift_reserved_node_tx, reserved_nodes, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_redshift_reserved_node_tx, reserved_nodes, current_aws_account_id, aws_update_tag)
 
 
 @timeit

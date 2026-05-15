@@ -486,7 +486,7 @@ def load_policies_for_account(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_policies_for_account_tx, policies_list, current_aws_account_id, update_tag)
+    neo4j_session.execute_write(_load_policies_for_account_tx, policies_list, current_aws_account_id, update_tag)
 
 
 @timeit
@@ -964,7 +964,7 @@ def load_policy(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(
+    neo4j_session.execute_write(
         _load_policy_tx,
         policy_id,
         policy_name,
@@ -1274,7 +1274,7 @@ def sync_user_access_keys(
 
 
 def set_used_state(session: neo4j.Session, project_id: str, common_job_parameters: Dict, update_tag: int) -> None:
-    session.write_transaction(_set_used_state_tx, project_id, common_job_parameters, update_tag)
+    session.execute_write(_set_used_state_tx, project_id, common_job_parameters, update_tag)
 
 
 def _set_used_state_tx(
@@ -1314,7 +1314,7 @@ def _set_used_state_tx(
 
     ingest_entity_unused = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n)
-    WHERE NOT EXISTS(n.isUsed) AND n.lastupdated = $update_tag
+    WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
     AND labels(n) IN [['AWSUser'], ['AWSGroup'], ['AWSRole']]
     SET n.isUsed = $isUsed
     """
