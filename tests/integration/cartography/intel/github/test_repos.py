@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.github.repos
@@ -582,6 +583,152 @@ def test_sync_github_branch_protection_rules(
     assert expected_repo_branch_protection_rule_relationships.issubset(
         actual_repo_branch_protection_rule_relationships
     )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "get",
+    return_value=GET_REPOS,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_rulesets(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    """
+    Test that GitHub repository rulesets and rules are correctly synced.
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        else:
+            return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    ruleset_id = "RRS_lACkVXNlcs4AXenizgBRqVA"
+
+    expected_ruleset_nodes = {
+        (ruleset_id, "production-ruleset", "BRANCH", "ACTIVE"),
+    }
+    actual_ruleset_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRuleset",
+        ["id", "name", "target", "enforcement"],
+    )
+    assert actual_ruleset_nodes == expected_ruleset_nodes
+
+    assert (repo_url, ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "HAS_RULESET",
+    )
+
+    assert ("https://github.com/simpsoncorp", ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubOrganization",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "RESOURCE",
+    )
+
+    actual_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetRule",
+        [
+            "id",
+            "type",
+            "parameters_required_approving_review_count",
+            "parameters_require_code_owner_review",
+        ],
+    )
+    expected_rule_nodes = {
+        ("RRU_kwDORule001", "DELETION", None, None),
+        ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
+        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
+    }
+    assert actual_rule_nodes == expected_rule_nodes
+
+    assert (ruleset_id, "RRU_kwDORule002") in check_rels(
+        neo4j_session,
+        "GitHubRuleset",
+        "id",
+        "GitHubRulesetRule",
+        "id",
+        "CONTAINS_RULE",
+    )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_rulesets_cleanup(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    """
+    Test that ruleset cleanup is org-scoped.
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        else:
+            return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    mock_get_repos.return_value = GET_REPOS
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    repos_without_rulesets = deepcopy(GET_REPOS)
+    repos_without_rulesets[2]["rulesets"] = {"nodes": []}
+    mock_get_repos.return_value = repos_without_rulesets
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
 
 
 @patch.object(

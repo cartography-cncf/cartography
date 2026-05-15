@@ -954,6 +954,7 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | resource             | The full resource name where the policy binding is attached.                     |
 | resource_type        | The type of resource.                                                            |
 | members              | A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. |
+| wif_pools            | A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding. |
 | is_public            | True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
@@ -981,6 +982,14 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
     (GCPPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
     ```
 
+- Workload Identity Federation pools have allow policies that grant federated
+  principals access. The edge is created when a binding member is a `principal://`
+  or `principalSet://` URI referencing the pool.
+
+    ```
+    (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
 - GCPPolicyBindings grant roles to principals.
 
     ```
@@ -997,6 +1006,76 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
     ```
     (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
+### GCPWorkloadIdentityPool
+
+Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools). A pool groups external identities that can impersonate GCP service accounts via federation.
+
+| Field            | Description                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| id               | The full resource name, e.g. `projects/{number}/locations/global/workloadIdentityPools/{pool_id}`.   |
+| name             | Same as `id`.                                                                                        |
+| display_name     | The friendly name of the pool.                                                                       |
+| description      | A description of the pool.                                                                           |
+| state            | Pool state (`ACTIVE`, `DELETED`).                                                                    |
+| disabled         | Whether the pool is disabled.                                                                        |
+| mode             | Pool mode. `SYSTEM_TRUST_DOMAIN` indicates a GKE-managed pool (`*.svc.id.goog`) whose providers are managed by Google and not enumerated by Cartography. Otherwise the field is unset or carries a user-managed mode. |
+| session_duration | Default session duration for federated tokens issued via this pool.                                  |
+| firstseen        | Timestamp of when a sync job first discovered this node.                                             |
+| lastupdated      | Timestamp of the last time the node was updated.                                                     |
+
+#### Relationships
+
+- GCPWorkloadIdentityPools are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPWorkloadIdentityPool)
+    ```
+
+- GCPWorkloadIdentityPools have allow policies granting their federated identities access.
+
+    ```
+    (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
+### GCPWorkloadIdentityProvider
+
+Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers). A provider connects a pool to an external identity source (OIDC, AWS, SAML, or X509).
+
+> **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KeycloakIdentityProvider, KubernetesOIDCProvider).
+
+| Field                  | Description                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| id                     | The full provider resource name.                                                           |
+| name                   | Same as `id`.                                                                              |
+| display_name           | The friendly name of the provider.                                                         |
+| description            | A description of the provider.                                                             |
+| state                  | Provider state (`ACTIVE`, `DELETED`).                                                      |
+| disabled               | Whether the provider is explicitly disabled.                                               |
+| enabled                | Effective enabled flag: true only when both the provider and its parent pool are `state == ACTIVE` and not disabled. Used for the `IdentityProvider` ontology mapping. |
+| protocol               | One of `OIDC`, `AWS`, `SAML`, `X509`, depending on which sub-object is populated.          |
+| attribute_condition    | CEL expression that gates token claims before federation.                                  |
+| oidc_issuer_uri        | OIDC issuer URI (only set when `protocol = OIDC`).                                         |
+| oidc_allowed_audiences | OIDC allowed audiences (only set when `protocol = OIDC`).                                  |
+| aws_account_id         | AWS account ID this provider trusts (only set when `protocol = AWS`).                      |
+| saml_idp_metadata_xml  | SAML IdP metadata XML (only set when `protocol = SAML`).                                   |
+| pool_name              | The resource name of the parent GCPWorkloadIdentityPool.                                   |
+| firstseen              | Timestamp of when a sync job first discovered this node.                                   |
+| lastupdated            | Timestamp of the last time the node was updated.                                           |
+
+#### Relationships
+
+- GCPWorkloadIdentityProviders are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPWorkloadIdentityProvider)
+    ```
+
+- GCPWorkloadIdentityProviders belong to a GCPWorkloadIdentityPool.
+
+    ```
+    (GCPWorkloadIdentityProvider)-[:MEMBER_OF]->(GCPWorkloadIdentityPool)
     ```
 
 ### GCPBigtableInstance

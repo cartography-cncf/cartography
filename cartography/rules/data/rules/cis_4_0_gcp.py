@@ -645,12 +645,18 @@ class SubnetFlowLogsDisabledOutput(Finding):
     flow_logs_aggregation_interval: str | None = None
     flow_logs_sampling: float | None = None
     flow_logs_metadata: str | None = None
+    in_use: bool | None = None
 
 
 _gcp_subnet_flow_logs_disabled = Fact(
     id="gcp_subnet_flow_logs_disabled",
     name="GCP subnets without compliant VPC Flow Logs",
-    description="Detects GCP subnets where VPC Flow Logs are disabled or not configured to CIS-recommended settings.",
+    description=(
+        "Detects GCP subnets where VPC Flow Logs are disabled or not configured "
+        "to CIS-recommended settings. The `in_use` flag indicates whether any "
+        "resource (GCP instance via NIC, forwarding rule, etc.) is attached, so "
+        "empty default subnets can be filtered without breaking compliance reporting."
+    ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(subnet:GCPSubnet)
     WHERE coalesce(subnet.purpose, 'PRIVATE') = 'PRIVATE'
@@ -661,6 +667,9 @@ _gcp_subnet_flow_logs_disabled = Fact(
         OR subnet.flow_logs_metadata <> 'INCLUDE_ALL_METADATA'
         OR subnet.flow_logs_filter_expr IS NOT NULL
       )
+    OPTIONAL MATCH (subnet)-[]-(consumer)
+        WHERE consumer:GCPNetworkInterface OR consumer:GCPForwardingRule
+    WITH project, subnet, count(DISTINCT consumer) > 0 AS in_use
     RETURN
         subnet.id AS subnet_id,
         subnet.name AS subnet_name,
@@ -671,7 +680,8 @@ _gcp_subnet_flow_logs_disabled = Fact(
         subnet.flow_logs_enabled AS flow_logs_enabled,
         subnet.flow_logs_aggregation_interval AS flow_logs_aggregation_interval,
         subnet.flow_logs_sampling AS flow_logs_sampling,
-        subnet.flow_logs_metadata AS flow_logs_metadata
+        subnet.flow_logs_metadata AS flow_logs_metadata,
+        in_use
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(subnet:GCPSubnet)
