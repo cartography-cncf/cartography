@@ -200,6 +200,7 @@ def _transform_fine_grained_token(
         "token_id": raw_token.get("token_id"),
         "token_name": raw_token.get("token_name"),
         "owner_login": owner.get("login") if owner else None,
+        "owner_url": _owner_user_id(owner, org_url),
         "owner_user_id": _owner_user_id(owner, org_url),
         "repository_selection": raw_token.get("repository_selection"),
         "permissions": (
@@ -237,6 +238,7 @@ def _transform_saml_credential_authorization(
         "token_id": None,
         "token_name": None,
         "owner_login": owner_login,
+        "owner_url": _owner_url_from_login(org_url, owner_login),
         "owner_user_id": _owner_url_from_login(org_url, owner_login),
         "repository_selection": None,
         "permissions": None,

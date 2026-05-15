@@ -27,6 +27,7 @@ def test_transform_fine_grained_pat_serializes_metadata_without_token_values():
         "token_id": 98716,
         "token_name": "cartography-readonly",
         "owner_login": "hjsimpson",
+        "owner_url": "https://github.com/hjsimpson",
         "owner_user_id": "https://github.com/hjsimpson",
         "repository_selection": "selected",
         "permissions": json.dumps(
@@ -61,6 +62,7 @@ def test_transform_classic_pat_drops_token_fragment():
         "token_id": None,
         "token_name": None,
         "owner_login": "hjsimpson",
+        "owner_url": "https://github.com/hjsimpson",
         "owner_user_id": "https://github.com/hjsimpson",
         "repository_selection": None,
         "permissions": None,
@@ -101,5 +103,6 @@ def test_transform_pat_without_owner_or_id_handles_optional_data():
 
     assert result is not None
     assert result["owner_login"] is None
+    assert result["owner_url"] is None
     assert result["owner_user_id"] is None
     assert result["scopes"] == []

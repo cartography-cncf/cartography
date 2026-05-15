@@ -23,7 +23,7 @@ class GitHubPersonalAccessTokenNodeProperties(CartographyNodeProperties):
     token_id: PropertyRef = PropertyRef("token_id", extra_index=True)
     token_name: PropertyRef = PropertyRef("token_name", extra_index=True)
     owner_login: PropertyRef = PropertyRef("owner_login", extra_index=True)
-    owner_url: PropertyRef = PropertyRef("owner_user_id")
+    owner_url: PropertyRef = PropertyRef("owner_url")
     repository_selection: PropertyRef = PropertyRef("repository_selection")
     permissions: PropertyRef = PropertyRef("permissions")
     scopes: PropertyRef = PropertyRef("scopes")

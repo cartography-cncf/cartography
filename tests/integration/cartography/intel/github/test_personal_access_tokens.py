@@ -130,13 +130,14 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "GitHubPersonalAccessToken",
-        ["id", "token_kind", "token_name", "owner_login", "source"],
+        ["id", "token_kind", "token_name", "owner_login", "owner_url", "source"],
     ) == {
         (
             f"{ORG_URL}/personal-access-tokens/25381",
             "fine_grained",
             "cartography-readonly",
             "hjsimpson",
+            "https://github.com/hjsimpson",
             "fine_grained_personal_access_tokens",
         ),
         (
@@ -144,6 +145,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
             "fine_grained",
             "all-repos-readonly",
             "mbsimpson",
+            "https://github.com/mbsimpson",
             "fine_grained_personal_access_tokens",
         ),
         (
@@ -151,6 +153,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
             "classic",
             None,
             "hjsimpson",
+            "https://github.com/hjsimpson",
             "saml_credential_authorizations",
         ),
     }
