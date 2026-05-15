@@ -22,7 +22,6 @@ R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
 R -- HAS_RULESET --> GRS(GitHubRuleset)
 GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
-GRS -- ALLOWS_BYPASS --> RBA(GitHubRulesetBypassActor)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 R -- HAS_WORKFLOW --> W(GitHubWorkflow)
@@ -426,12 +425,6 @@ Representation of a single GitHubRuleset [RepositoryRuleset object](https://docs
     (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
     ```
 
-- GitHubRulesets allow GitHubRulesetBypassActors.
-
-    ```
-    (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
-    ```
-
 ### GitHubRulesetRule
 
 Representation of a single GitHubRulesetRule [RepositoryRule object](https://docs.github.com/en/graphql/reference/objects#repositoryrule). This node contains a single rule from a GitHub repository ruleset.
@@ -461,37 +454,6 @@ Representation of a single GitHubRulesetRule [RepositoryRule object](https://doc
 
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
-    ```
-
-### GitHubRulesetBypassActor
-
-Representation of a single GitHubRulesetBypassActor [RepositoryRulesetBypassActor object](https://docs.github.com/en/graphql/reference/objects#repositoryrulesetbypassactor). This node contains a ruleset bypass actor.
-
-| Field | Description |
-|-------|--------------|
-| firstseen| Timestamp of when a sync job first created this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| id | The GitHub ruleset bypass actor node ID |
-| bypass_mode | Bypass mode |
-| actor_type | Actor type, such as Team, App, OrganizationAdmin, EnterpriseOwner, DeployKey, or RepositoryRole |
-| actor_id | GitHub actor node ID, if available |
-| actor_database_id | GitHub actor database ID, if available |
-| actor_name | Actor name, if available |
-| actor_slug | Actor slug, if available |
-
-
-#### Relationships
-
-- GitHubRulesetBypassActors belong to a GitHubRuleset.
-
-    ```
-    (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
-    ```
-
-- GitHubRulesetBypassActors belong to a GitHubOrganization.
-
-    ```
-    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetBypassActor)
     ```
 
 ### ProgrammingLanguage

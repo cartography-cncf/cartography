@@ -37,9 +37,6 @@ from cartography.models.github.repos import GitHubPythonLibrarySchema
 from cartography.models.github.repos import GitHubRepositorySchema
 from cartography.models.github.repos import make_github_collaborator_schema
 from cartography.models.github.repos import ProgrammingLanguageSchema
-from cartography.models.github.ruleset_bypass_actors import (
-    GitHubRulesetBypassActorSchema,
-)
 from cartography.models.github.ruleset_rules import GitHubRulesetRuleSchema
 from cartography.models.github.rulesets import GitHubRulesetSchema
 from cartography.util import retries_with_backoff
@@ -212,33 +209,6 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                                     id
                                     type
                                     parameters
-                                }
-                            }
-                            bypassActors(first: 100) {
-                                totalCount
-                                nodes {
-                                    id
-                                    bypassMode
-                                    organizationAdmin
-                                    enterpriseOwner
-                                    deployKey
-                                    repositoryRoleName
-                                    repositoryRoleDatabaseId
-                                    actor {
-                                        ... on Team {
-                                            __typename
-                                            id
-                                            databaseId
-                                            name
-                                        }
-                                        ... on App {
-                                            __typename
-                                            id
-                                            databaseId
-                                            name
-                                            slug
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -881,7 +851,6 @@ def transform(
     transformed_branch_protection_rules: List[Dict] = []
     transformed_rulesets: List[Dict] = []
     transformed_ruleset_rules: List[Dict] = []
-    transformed_ruleset_bypass_actors: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -953,7 +922,6 @@ def transform(
             repo_url,
             transformed_rulesets,
             transformed_ruleset_rules,
-            transformed_ruleset_bypass_actors,
         )
     results = {
         "repos": transformed_repo_list,
@@ -967,7 +935,6 @@ def transform(
         "branch_protection_rules": transformed_branch_protection_rules,
         "rulesets": transformed_rulesets,
         "ruleset_rules": transformed_ruleset_rules,
-        "ruleset_bypass_actors": transformed_ruleset_bypass_actors,
     }
 
     return results
@@ -1444,7 +1411,6 @@ def _transform_rulesets(
     repo_url: str,
     out_rulesets: List[Dict],
     out_rules: List[Dict],
-    out_bypass_actors: List[Dict],
 ) -> None:
     """
     Transforms GitHub repository ruleset data from API format to Cartography format.
@@ -1525,59 +1491,6 @@ def _transform_rulesets(
                         for check in parameters_dict.get("requiredStatusChecks", [])
                         if isinstance(check, dict) and check.get("context")
                     ],
-                    "ruleset_id": ruleset_id,
-                }
-            )
-
-        bypass_actors = ruleset.get("bypassActors") or {}
-        _warn_if_github_connection_truncated(
-            bypass_actors, "ruleset bypass actors", ruleset_id
-        )
-        for actor_data in bypass_actors.get("nodes", []):
-            if actor_data is None:
-                continue
-
-            actor = actor_data.get("actor")
-            actor_type = None
-            actor_id = None
-            actor_database_id = None
-            actor_name = None
-            actor_slug = None
-
-            if actor_data.get("organizationAdmin"):
-                actor_type = "OrganizationAdmin"
-            elif actor_data.get("enterpriseOwner"):
-                actor_type = "EnterpriseOwner"
-            elif actor_data.get("deployKey"):
-                actor_type = "DeployKey"
-            elif actor_data.get("repositoryRoleName"):
-                actor_type = "RepositoryRole"
-                actor_name = actor_data.get("repositoryRoleName")
-                actor_database_id = actor_data.get("repositoryRoleDatabaseId")
-            elif actor:
-                actor_type = actor.get("__typename")
-                actor_id = actor.get("id")
-                actor_database_id = actor.get("databaseId")
-                actor_name = actor.get("name")
-                actor_slug = actor.get("slug")
-
-            if not actor_type:
-                actor_type = "Unknown"
-                logger.warning(
-                    "GitHub ruleset bypass actor %s in ruleset %s has an unrecognized actor shape.",
-                    actor_data.get("id"),
-                    ruleset_id,
-                )
-
-            out_bypass_actors.append(
-                {
-                    "id": actor_data["id"],
-                    "bypass_mode": actor_data.get("bypassMode"),
-                    "actor_type": actor_type,
-                    "actor_id": actor_id,
-                    "actor_database_id": actor_database_id,
-                    "actor_name": actor_name,
-                    "actor_slug": actor_slug,
                     "ruleset_id": ruleset_id,
                 }
             )
@@ -1909,11 +1822,10 @@ def load_rulesets(
     update_tag: int,
     rulesets: List[Dict],
     ruleset_rules: List[Dict],
-    ruleset_bypass_actors: List[Dict],
     owner_org_id: str,
 ) -> None:
     """
-    Ingest GitHub repository rulesets and their associated rules and bypass actors into Neo4j.
+    Ingest GitHub repository rulesets and their associated rules into Neo4j.
     """
     if rulesets:
         load_data(
@@ -1931,14 +1843,6 @@ def load_rulesets(
             lastupdated=update_tag,
             owner_org_id=owner_org_id,
         )
-    if ruleset_bypass_actors:
-        load_data(
-            neo4j_session,
-            GitHubRulesetBypassActorSchema(),
-            ruleset_bypass_actors,
-            lastupdated=update_tag,
-            owner_org_id=owner_org_id,
-        )
 
 
 @timeit
@@ -1948,12 +1852,9 @@ def cleanup_rulesets(
     owner_org_id: str,
 ) -> None:
     """
-    Delete GitHub rulesets and their child resources from the graph if they were not updated in the last sync.
+    Delete GitHub rulesets and their child rules from the graph if they were not updated in the last sync.
     """
     cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
-    GraphJob.from_node_schema(GitHubRulesetBypassActorSchema(), cleanup_params).run(
-        neo4j_session
-    )
     GraphJob.from_node_schema(GitHubRulesetRuleSchema(), cleanup_params).run(
         neo4j_session
     )
@@ -2142,7 +2043,6 @@ def load(
             common_job_parameters["UPDATE_TAG"],
             repo_data["rulesets"],
             repo_data["ruleset_rules"],
-            repo_data["ruleset_bypass_actors"],
             owner_org_id,
         )
 

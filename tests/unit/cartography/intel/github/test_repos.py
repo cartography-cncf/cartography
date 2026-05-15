@@ -225,11 +225,9 @@ def test_transform_includes_rulesets():
 
     assert "rulesets" in result
     assert "ruleset_rules" in result
-    assert "ruleset_bypass_actors" in result
 
     assert len(result["rulesets"]) == 1
     assert len(result["ruleset_rules"]) == 3
-    assert len(result["ruleset_bypass_actors"]) == 2
 
     ruleset = result["rulesets"][0]
     assert ruleset["id"] == "RRS_lACkVXNlcs4AXenizgBRqVA"

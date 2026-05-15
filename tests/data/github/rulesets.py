@@ -79,60 +79,6 @@ RULESET_PRODUCTION = {
             },
         ],
     },
-    "bypassActors": {
-        "nodes": [
-            {
-                "id": "RBA_kwDOBypass001",
-                "bypassMode": "ALWAYS",
-                "actor": {
-                    "__typename": "Team",
-                    "id": "T_kwDOAbc123",
-                    "databaseId": 456,
-                    "name": "maintainers",
-                },
-            },
-            {
-                "id": "RBA_kwDOBypass002",
-                "bypassMode": "PULL_REQUEST",
-                "actor": {
-                    "__typename": "App",
-                    "id": "A_kwDOAbc789",
-                    "databaseId": 789,
-                    "name": "Dependabot",
-                    "slug": "dependabot",
-                },
-            },
-        ],
-    },
-}
-
-RULESET_UNKNOWN_ACTOR = {
-    "id": "RRS_kwDOUnknownActor001",
-    "databaseId": 8888888,
-    "name": "Unknown Actor Ruleset",
-    "target": "BRANCH",
-    "source": {},
-    "enforcement": "ACTIVE",
-    "createdAt": "2025-01-20T10:00:00Z",
-    "updatedAt": "2025-01-20T10:00:00Z",
-    "conditions": {
-        "refName": {
-            "include": ["~DEFAULT_BRANCH"],
-            "exclude": [],
-        },
-    },
-    "rules": {
-        "nodes": [],
-    },
-    "bypassActors": {
-        "nodes": [
-            {
-                "id": "RBA_kwDOBypassUnknown",
-                "bypassMode": "ALWAYS",
-                "actor": None,
-            },
-        ],
-    },
 }
 
 RULESET_EVALUATE = {
@@ -159,9 +105,6 @@ RULESET_EVALUATE = {
             },
         ],
     },
-    "bypassActors": {
-        "nodes": [],
-    },
 }
 
 RULESET_TAGS = {
@@ -185,64 +128,6 @@ RULESET_TAGS = {
                 "id": "RRU_kwDORule201",
                 "type": "DELETION",
                 "parameters": None,
-            },
-        ],
-    },
-    "bypassActors": {
-        "nodes": [],
-    },
-}
-
-RULESET_BOOLEAN_ACTORS = {
-    "id": "RRS_kwDOBoolActors001",
-    "databaseId": 9999999,
-    "name": "Boolean Actors Ruleset",
-    "target": "BRANCH",
-    "source": {},
-    "enforcement": "ACTIVE",
-    "createdAt": "2025-01-20T10:00:00Z",
-    "updatedAt": "2025-01-20T10:00:00Z",
-    "conditions": {
-        "refName": {
-            "include": ["~DEFAULT_BRANCH"],
-            "exclude": [],
-        },
-    },
-    "rules": {
-        "nodes": [
-            {
-                "id": "RRU_kwDORule301",
-                "type": "DELETION",
-                "parameters": None,
-            },
-        ],
-    },
-    "bypassActors": {
-        "nodes": [
-            {
-                "id": "RBA_kwDOBypassOrgAdmin",
-                "bypassMode": "ALWAYS",
-                "organizationAdmin": True,
-                "actor": None,
-            },
-            {
-                "id": "RBA_kwDOBypassEntOwner",
-                "bypassMode": "ALWAYS",
-                "enterpriseOwner": True,
-                "actor": None,
-            },
-            {
-                "id": "RBA_kwDOBypassDeployKey",
-                "bypassMode": "PULL_REQUEST",
-                "deployKey": True,
-                "actor": None,
-            },
-            {
-                "id": "RBA_kwDOBypassRepoRole",
-                "bypassMode": "ALWAYS",
-                "repositoryRoleName": "maintain",
-                "repositoryRoleDatabaseId": 12345,
-                "actor": None,
             },
         ],
     },
