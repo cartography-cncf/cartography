@@ -206,7 +206,9 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "accountid": f.get("AccountId"),
             "region": f.get("Region"),
             "detectorid": f.get("DetectorId"),
-            "archived": f.get("Archived"),
+            # `Archived` lives under the `Service` object per the AWS Finding
+            # schema; fall back to a top-level `Archived` for safety.
+            "archived": service.get("Archived", f.get("Archived")),
             # Service-level fields
             "service_action_type": action_type,
             "service_count": service.get("Count"),

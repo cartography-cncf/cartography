@@ -35,7 +35,7 @@ aws_guardduty_active_threat = Fact(
     cypher_query=f"""
     MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
     WHERE f.severity >= 7
-      AND f.archived = false
+      AND coalesce(f.archived, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
     RETURN
         f.id AS finding_id,
@@ -53,14 +53,14 @@ aws_guardduty_active_threat = Fact(
     cypher_visual_query=f"""
     MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
     WHERE f.severity >= 7
-      AND f.archived = false
+      AND coalesce(f.archived, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
     RETURN *
     """,
     cypher_count_query=f"""
     MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
     WHERE f.severity >= 7
-      AND f.archived = false
+      AND coalesce(f.archived, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
     RETURN COUNT(f) AS count
     """,
