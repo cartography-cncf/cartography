@@ -74,8 +74,6 @@ class Session:
             logger.warning(f"Failed execute_read for neo4j. Error - {e}", exc_info=True, stack_info=True)
         return None
 
-
-
     # ------------------------------------------------------------------
     # Lifecycle helpers
     # ------------------------------------------------------------------
