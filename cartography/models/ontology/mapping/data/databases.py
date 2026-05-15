@@ -37,6 +37,30 @@ aws_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
+            node_label="ESDomain",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "opensearch"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="version", node_field="elasticsearch_version"
+                ),
+                OntologyFieldMapping(ontology_field="endpoint", node_field="endpoint"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="encryption_at_rest_options_enabled",
+                ),
+                # _ont_db_port: Not applicable (HTTPS API)
+                # _ont_db_location: Region is not currently stored on the ESDomain node.
+            ],
+        ),
+        OntologyNodeMapping(
             node_label="DynamoDBTable",
             fields=[
                 OntologyFieldMapping(
