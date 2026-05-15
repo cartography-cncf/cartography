@@ -39,6 +39,7 @@ from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
+from cartography.intel.gcp import workload_identity
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
@@ -290,6 +291,14 @@ def _sync_project_resources(
                 iam.build_role_permissions_by_name(project_roles)
             )
             iam_sync_succeeded = True
+
+            workload_identity.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
             kms_cred = build_client("cloudkms", "v1", credentials=credentials)

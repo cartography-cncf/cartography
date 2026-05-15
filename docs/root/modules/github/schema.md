@@ -20,6 +20,8 @@ U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
+R -- HAS_RULESET --> GRS(GitHubRuleset)
+GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 R -- HAS_WORKFLOW --> W(GitHubWorkflow)
@@ -105,6 +107,10 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubRepositories have GitHubBranchProtectionRules.
     ```
    (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
+- GitHubRepositories have GitHubRulesets.
+    ```
+   (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
     ```
 - GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
 
@@ -370,6 +376,86 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
+### GitHubRuleset
+
+Representation of a single GitHubRuleset from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains GitHub ruleset configuration for repositories.
+
+Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypass actors as permission-limited to callers with write access to the ruleset, and Cartography is expected to run with read-only GitHub permissions. Treat bypass actor data as intentionally unavailable in this schema rather than as an empty bypass list. See GitHub's [REST API docs for repository rulesets](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub ruleset node ID |
+| database_id | GitHub database ID for the ruleset |
+| name | Ruleset name |
+| target | Ruleset target, such as BRANCH or TAG |
+| enforcement | Ruleset enforcement mode |
+| created_at | GitHub timestamp from when the ruleset was created |
+| updated_at | GitHub timestamp for last time the ruleset was modified |
+| conditions_ref_name_include | Ref name include conditions |
+| conditions_ref_name_exclude | Ref name exclude conditions |
+| conditions_repository_name_include | Repository name include conditions |
+| conditions_repository_name_exclude | Repository name exclude conditions |
+| conditions_repository_name_protected | Whether repository name conditions target protected repositories |
+| conditions_repository_ids | Repository IDs matched by repository ID conditions |
+| conditions_repository_property_include | JSON-encoded repository property include conditions |
+| conditions_repository_property_exclude | JSON-encoded repository property exclude conditions |
+| conditions_organization_property_include | JSON-encoded organization property include conditions |
+| conditions_organization_property_exclude | JSON-encoded organization property exclude conditions |
+
+
+#### Relationships
+
+- GitHubRepositories have GitHubRulesets.
+
+    ```
+    (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
+    ```
+
+- GitHubRulesets belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
+    ```
+
+- GitHubRulesets contain GitHubRulesetRules.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+### GitHubRulesetRule
+
+Representation of a single rule from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains a single rule from a GitHub repository ruleset.
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | A deterministic Cartography ID derived from the GitHub ruleset node ID and REST rule payload |
+| type | Rule type |
+| parameters | JSON-encoded rule parameters |
+| parameters_required_approving_review_count | Required approving review count for pull request rules |
+| parameters_dismiss_stale_reviews_on_push | Whether pull request rules dismiss stale reviews on push |
+| parameters_require_code_owner_review | Whether pull request rules require code owner review |
+| parameters_required_status_checks | Required status check contexts for required status check rules |
+
+
+#### Relationships
+
+- GitHubRulesetRules belong to a GitHubRuleset.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+- GitHubRulesetRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
     ```
 
 ### ProgrammingLanguage
