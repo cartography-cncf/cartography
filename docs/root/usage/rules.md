@@ -305,7 +305,7 @@ Output shows all rules with their IDs, names, and fact counts:
 Available rules:
   - compute_instance_exposed (3 facts)
   - database_instance_exposed (4 facts)
-  - mfa-missing (1 facts)
+  - mfa-missing (1 fact)
   - object_storage_public (2 facts)
   ...
 ```
