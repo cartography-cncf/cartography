@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.github.repos
@@ -7,6 +8,7 @@ from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
+from tests.data.github.rulesets import RULESET_BOOLEAN_ACTORS
 from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -652,17 +654,21 @@ def test_sync_github_rulesets(
         "RESOURCE",
     )
 
-    expected_rule_nodes = {
-        ("RRU_kwDORule001", "DELETION"),
-        ("RRU_kwDORule002", "PULL_REQUEST"),
-        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS"),
-    }
     actual_rule_nodes = check_nodes(
         neo4j_session,
         "GitHubRulesetRule",
-        ["id", "type"],
+        [
+            "id",
+            "type",
+            "parameters_required_approving_review_count",
+            "parameters_require_code_owner_review",
+        ],
     )
-    assert expected_rule_nodes.issubset(actual_rule_nodes)
+    assert {
+        ("RRU_kwDORule001", "DELETION", None, None),
+        ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
+        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
+    }.issubset(actual_rule_nodes)
 
     assert (ruleset_id, "RRU_kwDORule002") in check_rels(
         neo4j_session,
@@ -692,6 +698,75 @@ def test_sync_github_rulesets(
         "id",
         "ALLOWS_BYPASS",
     )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=DEP_MANIFESTS_BY_URL,
+)
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_rulesets_cleanup_and_boolean_bypass_actors(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    """
+    Test that ruleset cleanup is org-scoped and boolean bypass actors load end-to-end.
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        else:
+            return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    repos_with_boolean_actor_ruleset = deepcopy(GET_REPOS)
+    repos_with_boolean_actor_ruleset[2]["rulesets"]["nodes"].append(
+        RULESET_BOOLEAN_ACTORS
+    )
+    mock_get_repos.return_value = repos_with_boolean_actor_ruleset
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    expected_boolean_actor_nodes = {
+        ("RBA_kwDOBypassOrgAdmin", "OrganizationAdmin"),
+        ("RBA_kwDOBypassEntOwner", "EnterpriseOwner"),
+        ("RBA_kwDOBypassDeployKey", "DeployKey"),
+        ("RBA_kwDOBypassRepoRole", "RepositoryRole"),
+    }
+    actual_boolean_actor_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetBypassActor",
+        ["id", "actor_type"],
+    )
+    assert expected_boolean_actor_nodes.issubset(actual_boolean_actor_nodes)
+
+    repos_without_rulesets = deepcopy(GET_REPOS)
+    repos_without_rulesets[2]["rulesets"] = {"nodes": []}
+    mock_get_repos.return_value = repos_without_rulesets
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GitHubRulesetBypassActor", ["id"]) == set()
 
 
 @patch.object(

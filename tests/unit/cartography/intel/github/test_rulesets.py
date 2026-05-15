@@ -10,6 +10,7 @@ from tests.data.github.rulesets import RULESET_BOOLEAN_ACTORS
 from tests.data.github.rulesets import RULESET_EVALUATE
 from tests.data.github.rulesets import RULESET_PRODUCTION
 from tests.data.github.rulesets import RULESET_TAGS
+from tests.data.github.rulesets import RULESET_UNKNOWN_ACTOR
 from tests.data.github.rulesets import RULESETS_DATA
 from tests.data.github.rulesets import SINGLE_RULESET
 
@@ -73,6 +74,20 @@ def test_transform_rulesets_field_mapping():
     assert ruleset["updated_at"] == RULESET_PRODUCTION["updatedAt"]
     assert ruleset["conditions_ref_name_include"] == ["~DEFAULT_BRANCH"]
     assert ruleset["conditions_ref_name_exclude"] == []
+    assert ruleset["conditions_repository_name_include"] == ["important-*"]
+    assert ruleset["conditions_repository_name_exclude"] == ["important-archive"]
+    assert ruleset["conditions_repository_name_protected"] is False
+    assert ruleset["conditions_repository_ids"] == [123456789]
+    assert json.loads(ruleset["conditions_repository_property_include"]) == [
+        {"name": "visibility", "propertyValues": ["private"], "source": "custom"}
+    ]
+    assert json.loads(ruleset["conditions_repository_property_exclude"]) == []
+    assert json.loads(ruleset["conditions_organization_property_include"]) == [
+        {"name": "environment", "propertyValues": ["prod"]}
+    ]
+    assert json.loads(ruleset["conditions_organization_property_exclude"]) == [
+        {"name": "lifecycle", "propertyValues": ["deprecated"]}
+    ]
     assert ruleset["repo_url"] == TEST_REPO_URL
 
 
@@ -109,6 +124,12 @@ def test_transform_rulesets_rules():
     params = json.loads(pr_rule["parameters"])
     assert params["requiredApprovingReviewCount"] == 2
     assert params["dismissStaleReviewsOnPush"] is True
+    assert pr_rule["parameters_required_approving_review_count"] == 2
+    assert pr_rule["parameters_dismiss_stale_reviews_on_push"] is True
+    assert pr_rule["parameters_require_code_owner_review"] is True
+
+    status_rule = next(r for r in output_rules if r["type"] == "REQUIRED_STATUS_CHECKS")
+    assert status_rule["parameters_required_status_checks"] == ["ci/tests"]
 
 
 def test_transform_rulesets_bypass_actors():
@@ -279,3 +300,27 @@ def test_transform_rulesets_boolean_bypass_actors():
     assert repo_role["actor_name"] == "maintain"
     assert repo_role["actor_database_id"] == 12345
     assert repo_role["actor_id"] is None
+
+
+def test_transform_rulesets_preserves_unknown_bypass_actors(caplog):
+    """
+    Test that unknown bypass actor shapes are preserved instead of silently dropped.
+    """
+    output_rulesets = []
+    output_rules = []
+    output_bypass_actors = []
+
+    _transform_rulesets(
+        [RULESET_UNKNOWN_ACTOR],
+        TEST_REPO_URL,
+        output_rulesets,
+        output_rules,
+        output_bypass_actors,
+    )
+
+    assert len(output_bypass_actors) == 1
+    unknown_actor = output_bypass_actors[0]
+    assert unknown_actor["id"] == "RBA_kwDOBypassUnknown"
+    assert unknown_actor["actor_type"] == "Unknown"
+    assert unknown_actor["ruleset_id"] == RULESET_UNKNOWN_ACTOR["id"]
+    assert "unrecognized actor shape" in caplog.text

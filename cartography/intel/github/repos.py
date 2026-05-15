@@ -160,7 +160,8 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                             restrictsReviewDismissals
                         }
                     }
-                    rulesets(first: 20) {
+                    rulesets(first: 100) {
+                        totalCount
                         nodes {
                             id
                             databaseId
@@ -174,15 +175,47 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                                     include
                                     exclude
                                 }
+                                repositoryName {
+                                    include
+                                    exclude
+                                    protected
+                                }
+                                repositoryId {
+                                    repositoryIds
+                                }
+                                repositoryProperty {
+                                    include {
+                                        name
+                                        propertyValues
+                                        source
+                                    }
+                                    exclude {
+                                        name
+                                        propertyValues
+                                        source
+                                    }
+                                }
+                                organizationProperty {
+                                    include {
+                                        name
+                                        propertyValues
+                                    }
+                                    exclude {
+                                        name
+                                        propertyValues
+                                    }
+                                }
                             }
-                            rules(first: 20) {
+                            rules(first: 100) {
+                                totalCount
                                 nodes {
                                     id
                                     type
                                     parameters
                                 }
                             }
-                            bypassActors(first: 20) {
+                            bypassActors(first: 100) {
+                                totalCount
                                 nodes {
                                     id
                                     bypassMode
@@ -913,8 +946,10 @@ def transform(
             repo_url,
             transformed_branch_protection_rules,
         )
+        rulesets = repo_object.get("rulesets") or {}
+        _warn_if_github_connection_truncated(rulesets, "rulesets", repo_url)
         _transform_rulesets(
-            (repo_object.get("rulesets") or {}).get("nodes", []),
+            rulesets.get("nodes", []),
             repo_url,
             transformed_rulesets,
             transformed_ruleset_rules,
@@ -1421,6 +1456,10 @@ def _transform_rulesets(
 
         conditions = ruleset.get("conditions", {}) or {}
         ref_name = conditions.get("refName", {}) or {}
+        repository_name = conditions.get("repositoryName", {}) or {}
+        repository_id = conditions.get("repositoryId", {}) or {}
+        repository_property = conditions.get("repositoryProperty", {}) or {}
+        organization_property = conditions.get("organizationProperty", {}) or {}
 
         out_rulesets.append(
             {
@@ -1433,26 +1472,67 @@ def _transform_rulesets(
                 "updated_at": ruleset.get("updatedAt"),
                 "conditions_ref_name_include": ref_name.get("include", []),
                 "conditions_ref_name_exclude": ref_name.get("exclude", []),
+                "conditions_repository_name_include": repository_name.get(
+                    "include", []
+                ),
+                "conditions_repository_name_exclude": repository_name.get(
+                    "exclude", []
+                ),
+                "conditions_repository_name_protected": repository_name.get(
+                    "protected"
+                ),
+                "conditions_repository_ids": repository_id.get("repositoryIds", []),
+                "conditions_repository_property_include": _json_dumps_or_none(
+                    repository_property.get("include")
+                ),
+                "conditions_repository_property_exclude": _json_dumps_or_none(
+                    repository_property.get("exclude")
+                ),
+                "conditions_organization_property_include": _json_dumps_or_none(
+                    organization_property.get("include")
+                ),
+                "conditions_organization_property_exclude": _json_dumps_or_none(
+                    organization_property.get("exclude")
+                ),
                 "repo_url": repo_url,
             }
         )
 
         rules = ruleset.get("rules") or {}
+        _warn_if_github_connection_truncated(rules, "ruleset rules", ruleset_id)
         for rule in rules.get("nodes", []):
             if rule is None:
                 continue
             parameters = rule.get("parameters")
             parameters_json = json.dumps(parameters) if parameters is not None else None
+            parameters_dict = parameters if isinstance(parameters, dict) else {}
             out_rules.append(
                 {
                     "id": rule["id"],
                     "type": rule.get("type"),
                     "parameters": parameters_json,
+                    "parameters_required_approving_review_count": parameters_dict.get(
+                        "requiredApprovingReviewCount"
+                    ),
+                    "parameters_dismiss_stale_reviews_on_push": parameters_dict.get(
+                        "dismissStaleReviewsOnPush"
+                    ),
+                    "parameters_require_code_owner_review": parameters_dict.get(
+                        "requireCodeOwnerReview"
+                    ),
+                    "parameters_required_status_checks": [
+                        check.get("context")
+                        for check in parameters_dict.get("requiredStatusChecks", [])
+                        if isinstance(check, dict) and check.get("context")
+                    ],
                     "ruleset_id": ruleset_id,
                 }
             )
 
         bypass_actors = ruleset.get("bypassActors") or {}
+        _warn_if_github_connection_truncated(
+            bypass_actors, "ruleset bypass actors", ruleset_id
+        )
         for actor_data in bypass_actors.get("nodes", []):
             if actor_data is None:
                 continue
@@ -1481,19 +1561,49 @@ def _transform_rulesets(
                 actor_name = actor.get("name")
                 actor_slug = actor.get("slug")
 
-            if actor_type:
-                out_bypass_actors.append(
-                    {
-                        "id": actor_data["id"],
-                        "bypass_mode": actor_data.get("bypassMode"),
-                        "actor_type": actor_type,
-                        "actor_id": actor_id,
-                        "actor_database_id": actor_database_id,
-                        "actor_name": actor_name,
-                        "actor_slug": actor_slug,
-                        "ruleset_id": ruleset_id,
-                    }
+            if not actor_type:
+                actor_type = "Unknown"
+                logger.warning(
+                    "GitHub ruleset bypass actor %s in ruleset %s has an unrecognized actor shape.",
+                    actor_data.get("id"),
+                    ruleset_id,
                 )
+
+            out_bypass_actors.append(
+                {
+                    "id": actor_data["id"],
+                    "bypass_mode": actor_data.get("bypassMode"),
+                    "actor_type": actor_type,
+                    "actor_id": actor_id,
+                    "actor_database_id": actor_database_id,
+                    "actor_name": actor_name,
+                    "actor_slug": actor_slug,
+                    "ruleset_id": ruleset_id,
+                }
+            )
+
+
+def _warn_if_github_connection_truncated(
+    connection: Dict[str, Any],
+    connection_name: str,
+    parent_id: str,
+) -> None:
+    total_count = connection.get("totalCount")
+    nodes = connection.get("nodes", [])
+    if isinstance(total_count, int) and total_count > len(nodes):
+        logger.warning(
+            "GitHub %s response for %s was truncated: received %d of %d.",
+            connection_name,
+            parent_id,
+            len(nodes),
+            total_count,
+        )
+
+
+def _json_dumps_or_none(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    return json.dumps(value)
 
 
 def parse_setup_cfg(config: configparser.ConfigParser) -> List[str]:

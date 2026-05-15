@@ -396,6 +396,14 @@ Representation of a single GitHubRuleset [RepositoryRuleset object](https://docs
 | updated_at | GitHub timestamp for last time the ruleset was modified |
 | conditions_ref_name_include | Ref name include conditions |
 | conditions_ref_name_exclude | Ref name exclude conditions |
+| conditions_repository_name_include | Repository name include conditions |
+| conditions_repository_name_exclude | Repository name exclude conditions |
+| conditions_repository_name_protected | Whether repository name conditions target protected repositories |
+| conditions_repository_ids | Repository IDs matched by repository ID conditions |
+| conditions_repository_property_include | JSON-encoded repository property include conditions |
+| conditions_repository_property_exclude | JSON-encoded repository property exclude conditions |
+| conditions_organization_property_include | JSON-encoded organization property include conditions |
+| conditions_organization_property_exclude | JSON-encoded organization property exclude conditions |
 
 
 #### Relationships
@@ -435,6 +443,10 @@ Representation of a single GitHubRulesetRule [RepositoryRule object](https://doc
 | id | The GitHub ruleset rule node ID |
 | type | Rule type |
 | parameters | JSON-encoded rule parameters |
+| parameters_required_approving_review_count | Required approving review count for pull request rules |
+| parameters_dismiss_stale_reviews_on_push | Whether pull request rules dismiss stale reviews on push |
+| parameters_require_code_owner_review | Whether pull request rules require code owner review |
+| parameters_required_status_checks | Required status check contexts for required status check rules |
 
 
 #### Relationships

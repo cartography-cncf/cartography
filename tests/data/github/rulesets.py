@@ -19,6 +19,38 @@ RULESET_PRODUCTION = {
             "include": ["~DEFAULT_BRANCH"],
             "exclude": [],
         },
+        "repositoryName": {
+            "include": ["important-*"],
+            "exclude": ["important-archive"],
+            "protected": False,
+        },
+        "repositoryId": {
+            "repositoryIds": [123456789],
+        },
+        "repositoryProperty": {
+            "include": [
+                {
+                    "name": "visibility",
+                    "propertyValues": ["private"],
+                    "source": "custom",
+                },
+            ],
+            "exclude": [],
+        },
+        "organizationProperty": {
+            "include": [
+                {
+                    "name": "environment",
+                    "propertyValues": ["prod"],
+                },
+            ],
+            "exclude": [
+                {
+                    "name": "lifecycle",
+                    "propertyValues": ["deprecated"],
+                },
+            ],
+        },
     },
     "rules": {
         "nodes": [
@@ -69,6 +101,35 @@ RULESET_PRODUCTION = {
                     "name": "Dependabot",
                     "slug": "dependabot",
                 },
+            },
+        ],
+    },
+}
+
+RULESET_UNKNOWN_ACTOR = {
+    "id": "RRS_kwDOUnknownActor001",
+    "databaseId": 8888888,
+    "name": "Unknown Actor Ruleset",
+    "target": "BRANCH",
+    "source": {},
+    "enforcement": "ACTIVE",
+    "createdAt": "2025-01-20T10:00:00Z",
+    "updatedAt": "2025-01-20T10:00:00Z",
+    "conditions": {
+        "refName": {
+            "include": ["~DEFAULT_BRANCH"],
+            "exclude": [],
+        },
+    },
+    "rules": {
+        "nodes": [],
+    },
+    "bypassActors": {
+        "nodes": [
+            {
+                "id": "RBA_kwDOBypassUnknown",
+                "bypassMode": "ALWAYS",
+                "actor": None,
             },
         ],
     },

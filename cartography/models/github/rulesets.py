@@ -38,6 +38,28 @@ class GitHubRulesetNodeProperties(CartographyNodeProperties):
     conditions_ref_name_exclude: PropertyRef = PropertyRef(
         "conditions_ref_name_exclude"
     )
+    conditions_repository_name_include: PropertyRef = PropertyRef(
+        "conditions_repository_name_include"
+    )
+    conditions_repository_name_exclude: PropertyRef = PropertyRef(
+        "conditions_repository_name_exclude"
+    )
+    conditions_repository_name_protected: PropertyRef = PropertyRef(
+        "conditions_repository_name_protected"
+    )
+    conditions_repository_ids: PropertyRef = PropertyRef("conditions_repository_ids")
+    conditions_repository_property_include: PropertyRef = PropertyRef(
+        "conditions_repository_property_include"
+    )
+    conditions_repository_property_exclude: PropertyRef = PropertyRef(
+        "conditions_repository_property_exclude"
+    )
+    conditions_organization_property_include: PropertyRef = PropertyRef(
+        "conditions_organization_property_include"
+    )
+    conditions_organization_property_exclude: PropertyRef = PropertyRef(
+        "conditions_organization_property_exclude"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

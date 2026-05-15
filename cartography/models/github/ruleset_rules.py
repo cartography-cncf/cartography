@@ -28,6 +28,18 @@ class GitHubRulesetRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     type: PropertyRef = PropertyRef("type")
     parameters: PropertyRef = PropertyRef("parameters")
+    parameters_required_approving_review_count: PropertyRef = PropertyRef(
+        "parameters_required_approving_review_count"
+    )
+    parameters_dismiss_stale_reviews_on_push: PropertyRef = PropertyRef(
+        "parameters_dismiss_stale_reviews_on_push"
+    )
+    parameters_require_code_owner_review: PropertyRef = PropertyRef(
+        "parameters_require_code_owner_review"
+    )
+    parameters_required_status_checks: PropertyRef = PropertyRef(
+        "parameters_required_status_checks"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
