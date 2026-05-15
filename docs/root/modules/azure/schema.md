@@ -1568,6 +1568,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -2024,6 +2025,7 @@ Representation of an individual container within an [Azure Container Group](http
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 ### AzureLoadBalancer

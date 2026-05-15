@@ -696,6 +696,252 @@ not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
 are cleaned up globally once per sync cycle, alongside other shared GitHub
 nodes such as `PythonLibrary`.
 
+### GitHubPackage
+
+Representation of a container package hosted on GitHub Container Registry (`ghcr.io`). Each package is the registry-side container for one or more image tags and their underlying image digests.
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries across registry repositories (e.g., `ECRRepository`, `GitLabContainerRepository`).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The package `html_url` |
+| **name** | Package name |
+| **package_type** | Package type as reported by GitHub (typically `container`) |
+| visibility | Visibility of the package (`public` or `private`) |
+| **uri** | Pullable package URI (without tag or digest) |
+| **html_url** | Web URL of the package |
+| created_at | Creation timestamp from GitHub |
+| updated_at | Last-update timestamp from GitHub |
+
+#### Relationships
+
+- GitHubPackages belong to GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubPackage)
+    ```
+
+- GitHubRepositories own GitHubPackages (best-effort; only set when the package payload exposes a repository).
+
+    ```
+    (GitHubRepository)-[:HAS_PACKAGE]->(GitHubPackage)
+    ```
+
+- GitHubPackages expose container image tags.
+
+    ```
+    (GitHubPackage)-[:REPO_IMAGE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubPackages expose container images by digest.
+
+    ```
+    (GitHubPackage)-[:HAS_IMAGE]->(GitHubContainerImage)
+    ```
+
+### GitHubContainerImage
+
+Representation of a container image stored in GitHub Container Registry (`ghcr.io`), identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
+
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., `ECRImage`, `GCPArtifactRegistryImage`, `GitLabContainerImage`).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The image digest (e.g., `sha256:abc123...`) |
+| **digest** | Same as id, the image digest |
+| **uri** | Digest-qualified pullable image reference (e.g., `ghcr.io/org/pkg@sha256:abc123...`) |
+| media_type | OCI/Docker media type of the manifest |
+| schema_version | Manifest schema version |
+| **type** | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`); null for manifest lists |
+| os | Operating system (e.g., `linux`); null for manifest lists |
+| variant | Architecture variant (e.g., `v8`); null for manifest lists |
+| **source_uri** | Normalized VCS URL extracted from the SLSA attestation (when present) |
+| source_revision | Commit SHA extracted from the SLSA attestation |
+| source_file | Source definition file extracted from the attestation (for example `Dockerfile`) |
+| parent_image_uri | URI of the parent/base image when derivable from attestation or history |
+| parent_image_digest | Digest of the parent/base image when derivable from attestation or history |
+| child_image_digests | List of child image digests (only for manifest lists) |
+| layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
+| head_layer_diff_id | Diff_id of the first (base) layer in this image |
+| tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
+
+#### Relationships
+
+- GitHubContainerImages belong to GitHubOrganizations (for cleanup and cross-package deduplication).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImage)
+    ```
+
+- GitHubPackages expose GitHubContainerImages by digest.
+
+    ```
+    (GitHubPackage)-[:HAS_IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImageTags reference GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageTag)-[:IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImages (manifest lists) contain child GitHubContainerImages.
+
+    ```
+    (GitHubContainerImage)-[:CONTAINS_IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImages are composed of GitHubContainerImageLayers, with `HEAD`/`TAIL` shortcuts to the base and topmost layers.
+
+    ```
+    (GitHubContainerImage)-[:HAS_LAYER]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:HEAD]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:TAIL]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImages can point at a parent/base image when SLSA attestation or image history identifies one. The edge carries provenance metadata.
+
+    ```
+    (GitHubContainerImage)-[:BUILT_FROM]->(GitHubContainerImage)
+    ```
+
+    Relationship properties:
+    - **from_attestation**: `true` when the link was derived from a SLSA attestation, `false` for history-based matching
+    - **parent_image_uri**: URI of the parent image (when known)
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+
+- GitHubContainerImageAttestations attest to GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageAttestation)-[:ATTESTS]->(GitHubContainerImage)
+    ```
+
+- Workload containers across providers reference GitHubContainerImages by digest via `HAS_IMAGE`. See the corresponding workload sections for matching semantics.
+
+    ```
+    (:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:GCPCloudRunJobContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    ```
+
+### GitHubContainerImageTag
+
+Representation of a tag inside a GitHub container package. Tags are mutable pointers to a specific image digest. Multiple tags can resolve to the same `GitHubContainerImage` (e.g., `latest` and `v1.0.0`).
+
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The fully-qualified tag URI (e.g., `ghcr.io/org/pkg:v1.0.0`) |
+| **name** | Tag name (e.g., `v1.0.0`) |
+| **uri** | Same as id, the fully-qualified tag URI |
+| **digest** | Digest of the image this tag currently resolves to |
+| image_pushed_at | Push timestamp reported by GitHub |
+| package_id | `id` of the owning `GitHubPackage` |
+
+#### Relationships
+
+- GitHubContainerImageTags belong to GitHubOrganizations (for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubPackages expose GitHubContainerImageTags.
+
+    ```
+    (GitHubPackage)-[:REPO_IMAGE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubContainerImageTags resolve to GitHubContainerImages by digest.
+
+    ```
+    (GitHubContainerImageTag)-[:IMAGE]->(GitHubContainerImage)
+    ```
+
+### GitHubContainerImageLayer
+
+Representation of a container image layer stored in GitHub Container Registry. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers (e.g., `ECRImageLayer`, `GCPArtifactRegistryImageLayer`, `GitLabContainerImageLayer`).
+
+**Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication: the same layer content may have different compressed digests in different registries but will always share the same `diff_id`.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The uncompressed layer diff_id (e.g., `sha256:abc123...`) |
+| diff_id | Same as id |
+| digest | Compressed layer digest from the manifest (may differ between registries for the same content) |
+| media_type | OCI/Docker media type (e.g., `application/vnd.docker.image.rootfs.diff.tar.gzip`) |
+| size | Size of the layer in bytes (compressed) |
+| is_empty | Whether the layer is empty (no on-disk effect) |
+| history | History entry for this layer extracted from the image config |
+
+#### Relationships
+
+- GitHubContainerImageLayers belong to GitHubOrganizations (for cleanup and cross-image deduplication).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImages are composed of GitHubContainerImageLayers, with `HEAD`/`TAIL` shortcuts to the base and topmost layers.
+
+    ```
+    (GitHubContainerImage)-[:HAS_LAYER]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:HEAD]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:TAIL]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImageLayers form a linked list using `NEXT` relationships, allowing traversal of the layer stack from base to topmost. A layer may have multiple `NEXT` pointers when different images branch from it.
+
+    ```
+    (GitHubContainerImageLayer)-[:NEXT]->(GitHubContainerImageLayer)
+    ```
+
+### GitHubContainerImageAttestation
+
+Representation of a SLSA attestation (build provenance) returned by the GitHub Attestations API for an image pushed to GHCR.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Attestation ID from the GitHub Attestations API |
+| bundle_id | Bundle identifier of the attestation |
+| **predicate_type** | In-toto predicate type (e.g., `https://slsa.dev/provenance/v1`) |
+| **attests_digest** | Digest of the image this attestation attests to |
+| source_uri | Normalized VCS URL extracted from the attestation predicate |
+| source_revision | Commit SHA extracted from the attestation predicate |
+| source_file | Source definition file extracted from the attestation predicate (e.g., `Dockerfile`) |
+
+#### Relationships
+
+- GitHubContainerImageAttestations belong to GitHubOrganizations (for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageAttestation)
+    ```
+
+- GitHubContainerImageAttestations attest to GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageAttestation)-[:ATTESTS]->(GitHubContainerImage)
+    ```
+
 ### Image to GitHubRepository (Cross-module relationship)
 
 Container images (`Image` nodes from any registry: ECR, GitLab, GCP Artifact Registry, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created from provenance metadata or by analyzing Dockerfile content and matching layer commands against image history.
