@@ -211,6 +211,12 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                                     parameters
                                 }
                             }
+                            # Do not query bypassActors here. GitHub documents
+                            # REST ruleset bypass actors as permission-limited to
+                            # callers with write access to the ruleset; Cartography
+                            # runs with read-only GitHub permissions, so ingesting
+                            # this field would usually be incomplete or misleading.
+                            # See https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
                         }
                     }
                 }

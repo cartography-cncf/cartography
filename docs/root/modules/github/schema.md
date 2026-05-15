@@ -382,6 +382,8 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
 Representation of a single GitHubRuleset [RepositoryRuleset object](https://docs.github.com/en/graphql/reference/objects#repositoryruleset). This node contains GitHub ruleset configuration for repositories.
 
+Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypass actors as permission-limited to callers with write access to the ruleset, and Cartography is expected to run with read-only GitHub permissions. Treat bypass actor data as intentionally unavailable in this schema rather than as an empty bypass list. See GitHub's [REST API docs for repository rulesets](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |
