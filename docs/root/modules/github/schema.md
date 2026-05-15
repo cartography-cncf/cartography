@@ -10,10 +10,12 @@ O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
 O -- RESOURCE --> DA(GitHubDependabotAlert)
+O -- RESOURCE --> PAT(GitHubPersonalAccessToken)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
 U -- OWNER --> R
+U -- OWNS --> PAT
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 U -- COMMITTED_TO --> R
@@ -31,6 +33,7 @@ R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
 DA -- FOUND_IN --> R
 DA -- DISMISSED_BY --> U
 DA -- ASSIGNED_TO --> U
+PAT -- CAN_ACCESS --> R
 W -- USES_ACTION --> A(GitHubAction)
 W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
@@ -163,6 +166,12 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
     ```
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
+    ```
+
+- GitHubPersonalAccessTokens are resources under GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[RESOURCE]->(GitHubPersonalAccessToken)
     ```
 
 - GitHubUsers relate to GitHubOrganizations in a few ways:
@@ -308,6 +317,55 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     - **commit_count**: Number of commits made by the user to the repository in the last 30 days
     - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
     - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
+
+### GitHubPersonalAccessToken
+
+Representation of GitHub personal access token metadata exposed to organization administrators. Fine-grained PATs are retrieved from the [organization personal access tokens API](https://docs.github.com/en/rest/orgs/personal-access-tokens). Classic PAT metadata is retrieved only when GitHub exposes it through the [SAML SSO credential authorizations API](https://docs.github.com/en/enterprise-cloud@latest/rest/orgs/orgs#list-saml-sso-authorizations-for-an-organization).
+
+Cartography never stores raw PAT values, token prefixes, or token fragments such as `token_last_eight`.
+
+Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrainedPersonalAccessToken` and `GitHubClassicPersonalAccessToken`, to support queries that target one kind.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Stable Cartography ID derived from the GitHub organization URL and the fine-grained PAT access grant ID or SAML credential authorization ID |
+| token_kind | `fine_grained` or `classic` |
+| token_id | GitHub fine-grained PAT token ID, when returned |
+| token_name | Fine-grained PAT name, when returned |
+| owner_login | Login of the GitHub user who owns the token |
+| repository_selection | Fine-grained PAT repository selection, such as `all` or `selected` |
+| permissions | Fine-grained PAT permissions as a JSON string |
+| scopes | Classic PAT OAuth scopes exposed by SAML credential authorizations |
+| access_granted_at | Native datetime — when fine-grained PAT access was granted to organization resources |
+| credential_authorized_at | Native datetime — when a classic PAT was authorized for SAML SSO organization access |
+| credential_accessed_at | Native datetime — when the SAML-authorized credential was last accessed (auth events) |
+| expires_at | Native datetime — token or credential authorization expiry |
+| last_used_at | Native datetime — when the fine-grained PAT was last used to call the GitHub API. Unset for classic PATs, whose SAML endpoint reports auth events under `credential_accessed_at` and not API calls |
+
+#### Relationships
+
+- GitHubPersonalAccessTokens are resources under GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubPersonalAccessToken)
+    ```
+
+- GitHubUsers own GitHubPersonalAccessTokens when the owner can be resolved.
+
+    ```
+    (GitHubUser)-[:OWNS]->(GitHubPersonalAccessToken)
+    ```
+
+- Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub's token repository access endpoint.
+
+    ```
+    (GitHubPersonalAccessToken)-[:CAN_ACCESS]->(GitHubRepository)
+    ```
 
 
 ### GitHubBranch
