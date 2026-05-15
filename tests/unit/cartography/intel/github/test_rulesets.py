@@ -3,8 +3,11 @@ Unit tests for GitHub repository rulesets transformation logic.
 """
 
 import json
+import logging
+from copy import deepcopy
 
 from cartography.intel.github.repos import _transform_rulesets
+from cartography.intel.github.repos import _warn_if_github_connection_truncated
 from tests.data.github.rulesets import NO_RULESETS
 from tests.data.github.rulesets import RULESET_EVALUATE
 from tests.data.github.rulesets import RULESET_PRODUCTION
@@ -121,6 +124,71 @@ def test_transform_rulesets_rules():
 
     status_rule = next(r for r in output_rules if r["type"] == "REQUIRED_STATUS_CHECKS")
     assert status_rule["parameters_required_status_checks"] == ["ci/tests"]
+
+
+def test_transform_rulesets_skips_nodes_without_ids(caplog):
+    """
+    Test that malformed ruleset and rule nodes are skipped instead of crashing.
+    """
+    caplog.set_level(logging.WARNING)
+    ruleset_without_id = deepcopy(RULESET_PRODUCTION)
+    ruleset_without_id.pop("id")
+
+    ruleset_with_rule_without_id = deepcopy(RULESET_PRODUCTION)
+    ruleset_with_rule_without_id["rules"]["nodes"].append(
+        {
+            "type": "DELETION",
+            "parameters": None,
+        }
+    )
+    output_rulesets = []
+    output_rules = []
+
+    _transform_rulesets(
+        [ruleset_without_id, ruleset_with_rule_without_id],
+        TEST_REPO_URL,
+        output_rulesets,
+        output_rules,
+    )
+
+    assert len(output_rulesets) == 1
+    assert len(output_rules) == 3
+    assert "without an id" in caplog.text
+
+
+def test_warn_if_github_connection_truncated_handles_null_nodes(caplog):
+    """
+    Test that explicit null connection nodes do not crash truncation warnings.
+    """
+    caplog.set_level(logging.WARNING)
+
+    _warn_if_github_connection_truncated(
+        {"totalCount": 2, "nodes": None},
+        "ruleset rules",
+        "ruleset-id",
+    )
+
+    assert "received 0 of 2" in caplog.text
+
+
+def test_warn_if_github_connection_truncated_only_warns_on_truncated(caplog):
+    """
+    Test that complete and count-less connections do not emit warnings.
+    """
+    caplog.set_level(logging.WARNING)
+
+    _warn_if_github_connection_truncated(
+        {"totalCount": 1, "nodes": [{"id": "node-id"}]},
+        "ruleset rules",
+        "ruleset-id",
+    )
+    _warn_if_github_connection_truncated(
+        {"nodes": []},
+        "ruleset rules",
+        "ruleset-id",
+    )
+
+    assert "truncated" not in caplog.text
 
 
 def test_transform_rulesets_empty_list():

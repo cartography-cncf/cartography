@@ -633,7 +633,7 @@ def test_sync_github_rulesets(
         "GitHubRuleset",
         ["id", "name", "target", "enforcement"],
     )
-    assert expected_ruleset_nodes.issubset(actual_ruleset_nodes)
+    assert actual_ruleset_nodes == expected_ruleset_nodes
 
     assert (repo_url, ruleset_id) in check_rels(
         neo4j_session,
@@ -663,11 +663,12 @@ def test_sync_github_rulesets(
             "parameters_require_code_owner_review",
         ],
     )
-    assert {
+    expected_rule_nodes = {
         ("RRU_kwDORule001", "DELETION", None, None),
         ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
         ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
-    }.issubset(actual_rule_nodes)
+    }
+    assert actual_rule_nodes == expected_rule_nodes
 
     assert (ruleset_id, "RRU_kwDORule002") in check_rels(
         neo4j_session,

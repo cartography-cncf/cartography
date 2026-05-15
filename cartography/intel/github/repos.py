@@ -157,6 +157,8 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                             restrictsReviewDismissals
                         }
                     }
+                    # TODO: Add nested cursor pagination for rulesets and rules.
+                    # Until then, transform logs when totalCount exceeds nodes.
                     rulesets(first: 100) {
                         totalCount
                         nodes {
@@ -1424,7 +1426,10 @@ def _transform_rulesets(
     for ruleset in rulesets_data:
         if ruleset is None:
             continue
-        ruleset_id = ruleset["id"]
+        ruleset_id = ruleset.get("id")
+        if not ruleset_id:
+            logger.warning("Skipping GitHub ruleset in %s without an id.", repo_url)
+            continue
 
         conditions = ruleset.get("conditions", {}) or {}
         ref_name = conditions.get("refName", {}) or {}
@@ -1472,15 +1477,22 @@ def _transform_rulesets(
 
         rules = ruleset.get("rules") or {}
         _warn_if_github_connection_truncated(rules, "ruleset rules", ruleset_id)
-        for rule in rules.get("nodes", []):
+        for rule in rules.get("nodes") or []:
             if rule is None:
+                continue
+            rule_id = rule.get("id")
+            if not rule_id:
+                logger.warning(
+                    "Skipping GitHub ruleset rule in ruleset %s without an id.",
+                    ruleset_id,
+                )
                 continue
             parameters = rule.get("parameters")
             parameters_json = json.dumps(parameters) if parameters is not None else None
             parameters_dict = parameters if isinstance(parameters, dict) else {}
             out_rules.append(
                 {
-                    "id": rule["id"],
+                    "id": rule_id,
                     "type": rule.get("type"),
                     "parameters": parameters_json,
                     "parameters_required_approving_review_count": parameters_dict.get(
@@ -1508,7 +1520,7 @@ def _warn_if_github_connection_truncated(
     parent_id: str,
 ) -> None:
     total_count = connection.get("totalCount")
-    nodes = connection.get("nodes", [])
+    nodes = connection.get("nodes") or []
     if isinstance(total_count, int) and total_count > len(nodes):
         logger.warning(
             "GitHub %s response for %s was truncated: received %d of %d.",
