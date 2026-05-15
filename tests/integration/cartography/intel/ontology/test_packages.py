@@ -48,6 +48,18 @@ def _setup_trivy_graph(neo4j_session):
     )
 
 
+def _setup_gitlab_graph(neo4j_session):
+    """Create a GitLabDependency node so the Package ontology link can resolve."""
+    neo4j_session.run(
+        """
+        MERGE (d:GitLabDependency {id: 'gitlab-dep-1'})
+        SET d.normalized_id = 'npm|body-parser|1.20.2',
+            d.name = 'body-parser', d.version = '1.20.2',
+            d.type = 'npm', d.purl = 'pkg:npm/body-parser@1.20.2'
+        """,
+    )
+
+
 def _setup_syft_graph(neo4j_session):
     """Create SyftPackage nodes with DEPENDS_ON relationships for testing."""
     neo4j_session.run(
@@ -102,6 +114,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     # Arrange
     _setup_trivy_graph(neo4j_session)
     _setup_syft_graph(neo4j_session)
+    _setup_gitlab_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -160,6 +173,21 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_syft_rels == expected_syft_rels
+
+    # Assert - Check DETECTED_AS relationships to GitLabDependency
+    expected_gitlab_rels = {
+        ("npm|body-parser|1.20.2", "npm|body-parser|1.20.2"),
+    }
+    actual_gitlab_rels = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "GitLabDependency",
+        "normalized_id",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_gitlab_rels == expected_gitlab_rels
 
     # Assert - Check DEPLOYED propagated to Package -> ontology Image
     expected_deployed_image = {

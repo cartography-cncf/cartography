@@ -95,6 +95,9 @@ from cartography.rules.data.rules.cis_aws_logging import (
 )
 from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_1_1_ebs_encryption
 from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_6_1_2_cifs_restricted,
+)
+from cartography.rules.data.rules.cis_aws_networking import (
     cis_aws_6_3_remote_admin_ipv4,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
@@ -196,10 +199,14 @@ from cartography.rules.data.rules.database_instance_exposed import (
 from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
+from cartography.rules.data.rules.device_security_posture_gaps import (
+    device_security_posture_gaps,
+)
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
+from cartography.rules.data.rules.identity_mfa_gaps import identity_mfa_gaps
 from cartography.rules.data.rules.inactive_user_active_accounts import (
     inactive_user_active_accounts,
 )
@@ -233,6 +240,18 @@ from cartography.rules.data.rules.subimage_coverage import (
 from cartography.rules.data.rules.subimage_coverage import (
     subimage_module_not_configured,
 )
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_device_auto_updates_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_device_key_expiry_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_network_flow_logging_disabled,
+)
+from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
+    tailscale_tailnet_approval_disabled,
+)
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
@@ -258,6 +277,7 @@ RULES = {
     cis_aws_4_5_cloudtrail_encryption.id: cis_aws_4_5_cloudtrail_encryption,
     # CIS AWS Networking Rules (Section 6)
     cis_aws_6_1_1_ebs_encryption.id: cis_aws_6_1_1_ebs_encryption,
+    cis_aws_6_1_2_cifs_restricted.id: cis_aws_6_1_2_cifs_restricted,
     cis_aws_6_3_remote_admin_ipv4.id: cis_aws_6_3_remote_admin_ipv4,
     cis_aws_6_4_remote_admin_ipv6.id: cis_aws_6_4_remote_admin_ipv6,
     cis_aws_6_5_default_sg_traffic.id: cis_aws_6_5_default_sg_traffic,
@@ -272,12 +292,18 @@ RULES = {
     compute_instance_exposed.id: compute_instance_exposed,
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
+    device_security_posture_gaps.id: device_security_posture_gaps,
     eol_software.id: eol_software,
     identity_administration_privileges.id: identity_administration_privileges,
+    identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
+    tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
+    tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
+    tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,
+    tailscale_device_key_expiry_disabled.id: tailscale_device_key_expiry_disabled,
     serverless_workload_exposed.id: serverless_workload_exposed,
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,

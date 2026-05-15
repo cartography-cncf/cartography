@@ -2,16 +2,6 @@
   "name": "Kubernetes LoadBalancer to compute EXPOSE relationships",
   "statements": [
     {
-      "__comment": "Cleanup: Remove stale EXPOSE relationships between LBs and KubernetesPods for this cluster",
-      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod)<-[r:EXPOSE]-(:AWSLoadBalancerV2) WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
-      "iterative": true
-    },
-    {
-      "__comment": "Cleanup: Remove stale EXPOSE relationships between LBs and KubernetesContainers for this cluster",
-      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer)<-[r:EXPOSE]-(:AWSLoadBalancerV2) WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
-      "iterative": true
-    },
-    {
       "__comment": "Create: EXPOSE from internet-facing LB to Pod via Service type=LoadBalancer. Includes NLB fallback when aws_ec2_asset_exposure has not run.",
       "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod) MERGE (lb)-[r:EXPOSE]->(pod) SET r.lastupdated = $UPDATE_TAG, r.exposure_type = 'via_lb_only'",
       "iterative": false
@@ -30,6 +20,16 @@
       "__comment": "Create: EXPOSE from internet-facing LB to Container via Ingress",
       "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer) MERGE (lb)-[r:EXPOSE]->(c) SET r.lastupdated = $UPDATE_TAG, r.exposure_type = 'via_lb_only'",
       "iterative": false
+    },
+    {
+      "__comment": "Cleanup: Remove stale EXPOSE relationships between LBs and KubernetesPods for this cluster. Runs after the MERGE statements so concurrent readers never observe a missing edge.",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod)<-[r:EXPOSE]-(:AWSLoadBalancerV2) WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
+      "iterative": true
+    },
+    {
+      "__comment": "Cleanup: Remove stale EXPOSE relationships between LBs and KubernetesContainers for this cluster. Runs after the MERGE statements so concurrent readers never observe a missing edge.",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer)<-[r:EXPOSE]-(:AWSLoadBalancerV2) WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
+      "iterative": true
     }
   ]
 }

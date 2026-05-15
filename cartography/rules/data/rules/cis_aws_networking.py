@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_aws
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -91,13 +92,100 @@ cis_aws_6_1_1_ebs_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="6.1.1",
-        ),
+        cis_aws("6.1.1"),
+        iso27001_annex_a("8.24"),
+    ),
+)
+
+
+# =============================================================================
+# CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks
+# Main node: EC2SecurityGroup
+# =============================================================================
+class CifsInternetAccessOutput(Finding):
+    """Output model for CIFS internet exposure check."""
+
+    security_group_id: str | None = None
+    security_group_name: str | None = None
+    region: str | None = None
+    from_port: int | None = None
+    to_port: int | None = None
+    protocol: str | None = None
+    cidr_range: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_cifs_internet_access = Fact(
+    id="aws_cifs_internet_access",
+    name="AWS security groups allow internet access to CIFS",
+    description=(
+        "Detects security groups that allow ingress from the internet to CIFS/SMB "
+        "port 445. CIFS access should be restricted to trusted networks."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
+    WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
+      AND coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND (
+          rule.fromport IS NULL
+          OR (rule.fromport <= 445 AND rule.toport >= 445)
+      )
+    RETURN DISTINCT
+        sg.groupid AS security_group_id,
+        sg.name AS security_group_name,
+        sg.region AS region,
+        rule.fromport AS from_port,
+        rule.toport AS to_port,
+        rule.protocol AS protocol,
+        coalesce(range.range, range.id) AS cidr_range,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
+    WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
+      AND coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND (
+          rule.fromport IS NULL
+          OR (rule.fromport <= 445 AND rule.toport >= 445)
+      )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (sg:EC2SecurityGroup)
+    RETURN COUNT(sg) AS count
+    """,
+    asset_id_field="security_group_id",
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_aws_6_1_2_cifs_restricted = Rule(
+    id="cis_aws_6_1_2_cifs_restricted",
+    name="CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks",
+    description=(
+        "Security groups should not allow ingress from public internet ranges to "
+        "CIFS/SMB port 445."
+    ),
+    output_model=CifsInternetAccessOutput,
+    facts=(_aws_cifs_internet_access,),
+    tags=(
+        "networking",
+        "security-groups",
+        "cifs",
+        "stride:information_disclosure",
+        "stride:elevation_of_privilege",
+    ),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("6.1.2"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -191,13 +279,8 @@ cis_aws_6_3_remote_admin_ipv4 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="6.3",
-        ),
+        cis_aws("6.3"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -291,13 +374,8 @@ cis_aws_6_4_remote_admin_ipv6 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="6.4",
-        ),
+        cis_aws("6.4"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -390,13 +468,9 @@ cis_aws_6_5_default_sg_traffic = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="6.5",
-        ),
+        cis_aws("6.5"),
+        iso27001_annex_a("8.20"),
+        iso27001_annex_a("8.22"),
     ),
 )
 
@@ -468,13 +542,8 @@ cis_aws_6_7_ec2_imdsv2 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="6.7",
-        ),
+        cis_aws("6.7"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -487,11 +556,6 @@ cis_aws_6_7_ec2_imdsv2 = Rule(
 # =============================================================================
 
 # =============================================================================
-# TODO: CIS AWS 6.1.2: CIFS access is restricted to trusted networks
-# Missing datamodel or evidence: none; current security group datamodel appears sufficient, but the corresponding rule for port 445 is not implemented yet
-# =============================================================================
-
-# =============================================================================
 # TODO: CIS AWS 6.2: No Network ACLs allow ingress from 0.0.0.0/0 to remote administration ports
 # Missing datamodel or evidence: Network ACL inventory, rule entries, and subnet associations
 # =============================================================================
@@ -499,4 +563,11 @@ cis_aws_6_7_ec2_imdsv2 = Rule(
 # =============================================================================
 # TODO: CIS AWS 6.6: Routing tables for VPC peering are least access
 # Missing datamodel or evidence: route table entries, peering connection targets, and organization-defined least-access routing baseline
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 8.21: Network services security
+# Missing datamodel or evidence: service-level requirements and monitoring state
+# for managed network services. Existing security group facts cover network
+# exposure, but not agreed service levels or operational monitoring.
 # =============================================================================
