@@ -1,7 +1,13 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.github.users
+from cartography.intel.github.app_auth import PatCredential
 from cartography.models.github.users import GitHubOrganizationUserSchema
+from tests.data.github.auth import GENERIC_PAT_FIXTURE
+from tests.data.github.auth import GITHUB_ENTERPRISE_OWNERS_GRAPHQL_RESPONSE
+from tests.data.github.auth import GITHUB_RATE_LIMIT_OK
+from tests.data.github.auth import GITHUB_USERS_GRAPHQL_RESPONSE
 from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
 from tests.data.github.users import GITHUB_USER_DATA
@@ -141,6 +147,56 @@ def test_sync(mock_owners, mock_users, neo4j_session):
     assert actual_emails == expected_emails
 
 
+@patch("cartography.intel.github.util.requests.post")
+@patch("cartography.intel.github.util.requests.get")
+def test_sync_accepts_pat_credential_through_real_fetch_path(
+    mock_get,
+    mock_post,
+    neo4j_session,
+):
+    # Arrange
+    mock_get.return_value.json.return_value = GITHUB_RATE_LIMIT_OK
+    mock_post.side_effect = [
+        _mock_response(GITHUB_USERS_GRAPHQL_RESPONSE),
+        _mock_response(GITHUB_ENTERPRISE_OWNERS_GRAPHQL_RESPONSE),
+    ]
+
+    # Act
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        PatCredential(GENERIC_PAT_FIXTURE),
+        "https://api.github.com/graphql",
+        TEST_GITHUB_ORG,
+    )
+
+    # Assert
+    assert mock_post.call_count == 2
+    assert all(
+        call.kwargs["headers"]["Authorization"] == f"Bearer {GENERIC_PAT_FIXTURE}"
+        for call in mock_post.call_args_list
+    )
+    assert check_nodes(neo4j_session, "GitHubUser", ["id"]) == {
+        ("https://github.com/hjsimpson",),
+        ("https://github.com/lmsimpson",),
+        ("https://github.com/mbsimpson",),
+        ("https://github.com/kbroflovski",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/hjsimpson", "https://github.com/simpsoncorp"),
+        ("https://github.com/lmsimpson", "https://github.com/simpsoncorp"),
+        ("https://github.com/mbsimpson", "https://github.com/simpsoncorp"),
+    }
+
+
 @patch.object(
     cartography.intel.github.users,
     "get_users",
@@ -194,3 +250,9 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
     ) == {
         ("https://github.com/hjsimpson", "https://github.com/simpsoncorp"),
     }
+
+
+def _mock_response(payload):
+    response = MagicMock()
+    response.json.return_value = payload
+    return response

@@ -21,7 +21,10 @@ logger = logging.getLogger(__name__)
 # Installation tokens are valid for 1 hour; refresh 5 minutes before expiry
 _TOKEN_REFRESH_BUFFER_SECONDS = 300
 _JWT_EXPIRATION_SECONDS = 600  # 10 minutes (GitHub max)
+_JWT_IAT_CLOCK_DRIFT_SECONDS = 60
 _TIMEOUT = (60, 60)
+_PAT_FIELDS = ("token", "classic_pat", "fine_grained_pat")
+_APP_REQUIRED_FIELDS = ("client_id", "private_key", "installation_id")
 
 
 class GitHubCredential:
@@ -75,9 +78,10 @@ class AppCredential(GitHubCredential):
 
     def _create_jwt(self) -> str:
         now = int(time.time())
+        issued_at = now - _JWT_IAT_CLOCK_DRIFT_SECONDS
         payload = {
-            "iat": now,
-            "exp": now + _JWT_EXPIRATION_SECONDS,
+            "iat": issued_at,
+            "exp": issued_at + _JWT_EXPIRATION_SECONDS,
             "iss": self._client_id,
         }
         encoded: str = jwt.encode(payload, self._private_key, algorithm="RS256")
@@ -107,16 +111,43 @@ def make_credential(auth_data: dict[str, Any]) -> GitHubCredential:
     """
     Create the appropriate credential from a GitHub config entry.
 
-    PAT config: {"token": "ghp_xxx", "url": "...", "name": "..."}
+    PAT config (classic or fine-grained):
+    - {"token": "ghp_xxx", "url": "...", "name": "..."}
+    - {"classic_pat": "ghp_xxx", "url": "...", "name": "..."}
+    - {"fine_grained_pat": "github_pat_xxx", "url": "...", "name": "..."}
     App config: {"client_id": "...", "private_key": "...", "installation_id": "...", "url": "...", "name": "..."}
     """
-    if "token" in auth_data:
-        return PatCredential(auth_data["token"])
-    if "client_id" in auth_data:
-        missing = [k for k in ("private_key", "installation_id") if k not in auth_data]
+    present_pat_fields = [field for field in _PAT_FIELDS if field in auth_data]
+    present_app_fields = [field for field in _APP_REQUIRED_FIELDS if field in auth_data]
+
+    if len(present_pat_fields) > 1:
+        raise ValueError(
+            "GitHub config entry must contain only one PAT key; found: "
+            f"{', '.join(sorted(present_pat_fields))}",
+        )
+
+    if present_pat_fields and present_app_fields:
+        raise ValueError(
+            "GitHub config entry must use either PAT auth or GitHub App auth, "
+            "not both; found PAT key "
+            f"'{present_pat_fields[0]}' and GitHub App keys: "
+            f"{', '.join(sorted(present_app_fields))}",
+        )
+
+    if present_pat_fields:
+        field = present_pat_fields[0]
+        token = auth_data.get(field)
+        if not token:
+            raise ValueError(
+                f"GitHub PAT config key '{field}' must contain a non-empty token value",
+            )
+        return PatCredential(token)
+
+    if present_app_fields:
+        missing = [k for k in _APP_REQUIRED_FIELDS if k not in auth_data]
         if missing:
             raise ValueError(
-                f"GitHub App config with 'client_id' is missing required keys: {', '.join(missing)}",
+                f"GitHub App config is missing required keys: {', '.join(missing)}",
             )
         api_base_url = _get_rest_api_base_url(auth_data["url"])
         return AppCredential(
@@ -126,6 +157,7 @@ def make_credential(auth_data: dict[str, Any]) -> GitHubCredential:
             api_base_url=api_base_url,
         )
     raise ValueError(
-        "GitHub config entry must contain either 'token' (PAT) or "
+        "GitHub config entry must contain either one of "
+        "'token' / 'classic_pat' / 'fine_grained_pat' (PAT) or "
         "'client_id' + 'private_key' + 'installation_id' (GitHub App)",
     )

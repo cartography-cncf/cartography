@@ -6,6 +6,7 @@ import pytest
 from cartography.intel.github.app_auth import AppCredential
 from cartography.intel.github.app_auth import make_credential
 from cartography.intel.github.app_auth import PatCredential
+from tests.data.github.auth import PAT_CONFIG_BY_KEY
 
 
 def test_pat_get_token_returns_static_token() -> None:
@@ -128,7 +129,9 @@ def test_app_github_enterprise_url(
 
 
 @patch("cartography.intel.github.app_auth.jwt.encode")
-def test_app_jwt_payload(mock_jwt_encode: MagicMock) -> None:
+@patch("cartography.intel.github.app_auth.time.time")
+def test_app_jwt_payload(mock_time: MagicMock, mock_jwt_encode: MagicMock) -> None:
+    mock_time.return_value = 1000
     mock_jwt_encode.return_value = "fake-jwt"
 
     cred = AppCredential(
@@ -147,21 +150,73 @@ def test_app_jwt_payload(mock_jwt_encode: MagicMock) -> None:
     call_args = mock_jwt_encode.call_args
     payload = call_args[0][0]
     assert payload["iss"] == "Iv1.myclientid"
-    assert "iat" in payload
-    assert "exp" in payload
+    assert payload["iat"] == 940
+    assert payload["exp"] <= 1600
     assert payload["exp"] - payload["iat"] == 600  # 10 minute expiry
     assert call_args[1]["algorithm"] == "RS256"
 
 
 def test_make_credential_pat_config() -> None:
+    for pat_key, pat_value in PAT_CONFIG_BY_KEY.items():
+        auth_data = {
+            pat_key: pat_value,
+            "url": "https://api.github.com/graphql",
+            "name": "my-org",
+        }
+        cred = make_credential(auth_data)
+        assert isinstance(cred, PatCredential)
+        assert cred.get_token() == pat_value
+
+
+def test_make_credential_blank_pat_raises() -> None:
+    for pat_key in PAT_CONFIG_BY_KEY:
+        auth_data = {
+            pat_key: "",
+            "url": "https://api.github.com/graphql",
+            "name": "my-org",
+        }
+        with pytest.raises(ValueError, match=f"'{pat_key}'.*non-empty"):
+            make_credential(auth_data)
+
+
+def test_make_credential_multiple_pat_fields_raises_without_leaking_values() -> None:
     auth_data = {
-        "token": "ghp_abc123",
+        "token": "placeholder-token-value",
+        "classic_pat": "placeholder-classic-value",
         "url": "https://api.github.com/graphql",
         "name": "my-org",
     }
-    cred = make_credential(auth_data)
-    assert isinstance(cred, PatCredential)
-    assert cred.get_token() == "ghp_abc123"
+    with pytest.raises(ValueError, match="only one PAT key") as exc:
+        make_credential(auth_data)
+
+    message = str(exc.value)
+    assert "token" in message
+    assert "classic_pat" in message
+    assert "placeholder-token-value" not in message
+    assert "placeholder-classic-value" not in message
+
+
+def test_make_credential_mixed_pat_and_app_fields_raises_without_leaking_values() -> (
+    None
+):
+    auth_data = {
+        "fine_grained_pat": "placeholder-fine-grained-value",
+        "client_id": "Iv1.abc",
+        "private_key": "placeholder-private-key-value",
+        "installation_id": "12345",
+        "url": "https://api.github.com/graphql",
+        "name": "my-org",
+    }
+    with pytest.raises(ValueError, match="not both") as exc:
+        make_credential(auth_data)
+
+    message = str(exc.value)
+    assert "fine_grained_pat" in message
+    assert "client_id" in message
+    assert "private_key" in message
+    assert "installation_id" in message
+    assert "placeholder-fine-grained-value" not in message
+    assert "placeholder-private-key-value" not in message
 
 
 def test_make_credential_app_config() -> None:
@@ -191,7 +246,7 @@ def test_make_credential_app_config_enterprise() -> None:
 
 def test_make_credential_app_missing_keys_raises() -> None:
     auth_data = {
-        "client_id": "Iv1.abc",
+        "private_key": "fake-key",
         "url": "https://api.github.com/graphql",
         "name": "my-org",
     }

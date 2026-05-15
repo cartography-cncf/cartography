@@ -109,13 +109,13 @@ Cartography accepts GitHub credentials as a base64-encoded JSON configuration. T
     config = {
         "organization": [
             {
-                "token": "ghp_your_token_here",
+                "fine_grained_pat": "github_pat_your_token_here",
                 "url": "https://api.github.com/graphql",
                 "name": "your-org-name",
             },
             # Optional: Add additional orgs or GitHub Enterprise instances
             # {
-            #     "token": "ghp_enterprise_token",
+            #     "classic_pat": "ghp_enterprise_token",
             #     "url": "https://github.example.com/api/graphql",
             #     "name": "enterprise-org-name",
             # },
@@ -126,6 +126,8 @@ Cartography accepts GitHub credentials as a base64-encoded JSON configuration. T
     encoded = base64.b64encode(json.dumps(config).encode()).decode()
     print(encoded)
     ```
+
+Use `fine_grained_pat` for fine-grained PATs and `classic_pat` for classic PATs. The generic `token` key remains supported for backward compatibility.
 
 For **GitHub App authentication**, use this format instead:
 
@@ -170,7 +172,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 
 ```python
 {
-    "token": "your_enterprise_token",
+    "classic_pat": "your_enterprise_token",
     "url": "https://github.your-company.com/api/graphql",
     "name": "your-enterprise-org",
 }
