@@ -40,17 +40,27 @@ _aws_account_manipulation_permissions = Fact(
         // If a deny exists, exclude those principals
         WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
         WHERE deny_stmt IS NULL
+        // Aggregate one row per (account, principal, policy). Substitute a single-null
+        // list when stmt.resource is missing so NotResource-only statements still emit
+        // (the principal stays visible; resources just won't include those entries).
         UNWIND matched_allow_actions AS action
-        RETURN DISTINCT
+        UNWIND coalesce(stmt.resource, [null]) AS resource
+        WITH a, principal, principal_type, policy,
+             collect(DISTINCT action) AS actions,
+             [r IN collect(DISTINCT resource) WHERE r IS NOT NULL] AS resources
+        // Drop principals whose only matched action is iam:CreateServiceLinkedRole;
+        // it is scoped (included in PowerUserAccess) and not real identity-admin capability.
+        WHERE NOT (size(actions) = 1 AND actions[0] = 'iam:CreateServiceLinkedRole')
+        RETURN
             a.name AS account,
             a.id AS account_id,
             principal.name AS principal_name,
             principal.arn AS principal_identifier,
             principal_type,
             policy.name AS policy_name,
-            collect(DISTINCT action) AS actions,
-            stmt.resource AS resources
-        ORDER BY account, principal_name
+            actions,
+            resources
+        ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -224,7 +234,15 @@ _azure_account_manipulation_permissions = Fact(
             )
         ] AS matched
     WHERE size(matched) > 0
-    RETURN DISTINCT
+    // Aggregate across multiple AzurePermissions blocks on the same role definition
+    // (and across multiple role assignments of the same role) so we emit one row per
+    // (principal, role definition).
+    UNWIND matched AS action
+    WITH sub, principal, rd, action, ra
+    WITH sub, principal, rd,
+         collect(DISTINCT action) AS actions,
+         collect(DISTINCT ra.scope) AS resources
+    RETURN
         sub.id AS account_id,
         sub.id AS account,
         coalesce(principal.user_principal_name,
@@ -234,9 +252,9 @@ _azure_account_manipulation_permissions = Fact(
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
         rd.role_name AS policy_name,
-        matched AS actions,
-        [ra.scope] AS resources
-    ORDER BY account, principal_name
+        actions,
+        resources
+    ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)

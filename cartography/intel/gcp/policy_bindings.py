@@ -476,6 +476,42 @@ def get_policy_bindings(
     }
 
 
+_WIF_PRINCIPAL_PREFIXES = (
+    "principal://iam.googleapis.com/",
+    "principalSet://iam.googleapis.com/",
+)
+
+
+def _extract_wif_pool_resource(member: str) -> str | None:
+    """
+    Extract the Workload Identity pool resource name from a binding member
+    URI. WIF members look like:
+
+        principal://iam.googleapis.com/projects/{N}/locations/global/workloadIdentityPools/{POOL}/subject/{SUB}
+        principalSet://iam.googleapis.com/projects/{N}/locations/global/workloadIdentityPools/{POOL}/*
+
+    Returns ``projects/{N}/locations/global/workloadIdentityPools/{POOL}`` so
+    the value matches ``GCPWorkloadIdentityPool.id`` (which is set from the
+    pool's API ``name`` field).
+    """
+    for prefix in _WIF_PRINCIPAL_PREFIXES:
+        if not member.startswith(prefix):
+            continue
+        path = member[len(prefix) :]
+        parts = path.split("/")
+        # Expect at least: projects, {N}, locations, global, workloadIdentityPools, {POOL}, ...
+        if (
+            len(parts) >= 6
+            and parts[0] == "projects"
+            and parts[2] == "locations"
+            and parts[3] == "global"
+            and parts[4] == "workloadIdentityPools"
+        ):
+            return "/".join(parts[:6])
+        return None
+    return None
+
+
 def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
     project_id = data["project_id"]
     bindings: dict[tuple[str, str, str | None], dict[str, Any]] = {}
@@ -507,6 +543,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Filter members to only user:, serviceAccount:, and group: types
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
+                wif_pools: set[str] = set()
                 is_public = False
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
@@ -515,6 +552,14 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     # to keep the binding so callers can detect public exposure.
                     if member in ("allUsers", "allAuthenticatedUsers"):
                         is_public = True
+                        continue
+                    # Workload Identity Federation principals come as URI
+                    # schemes (principal:// or principalSet://) and split on
+                    # ":" the same way "type:identifier" does, so handle them
+                    # first so they don't fall through to the email parser.
+                    wif_pool = _extract_wif_pool_resource(member)
+                    if wif_pool:
+                        wif_pools.add(wif_pool)
                         continue
                     if ":" not in member:
                         continue
@@ -525,7 +570,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
 
                 # Skip bindings that have no resolvable principals AND no public
                 # exposure, e.g. unsupported principal types like domain:.
-                if not filtered_members and not is_public:
+                if not filtered_members and not is_public and not wif_pools:
                     continue
 
                 # Extract condition expression for deduplication key
@@ -541,7 +586,10 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 if key in bindings:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
-                    bindings[key]["members"] = list(existing_members)
+                    bindings[key]["members"] = sorted(existing_members)
+                    existing_pools = set(bindings[key].get("wif_pools", []))
+                    existing_pools.update(wif_pools)
+                    bindings[key]["wif_pools"] = sorted(existing_pools)
                     bindings[key]["is_public"] = (
                         bindings[key].get("is_public", False) or is_public
                     )
@@ -565,6 +613,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource": resource,
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
+                        "wif_pools": sorted(wif_pools),
                         "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
