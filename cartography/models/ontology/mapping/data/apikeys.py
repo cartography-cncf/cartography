@@ -143,6 +143,26 @@ aws_mapping = OntologyMapping(
     ],
 )
 
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPServiceAccountKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="valid_after_time"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="valid_before_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
     "openai": openai_mapping,
@@ -150,4 +170,5 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "workos": workos_apikeys_mapping,
     "subimage": subimage_mapping,
     "aws": aws_mapping,
+    "gcp": gcp_mapping,
 }
