@@ -1,20 +1,97 @@
 from copy import deepcopy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _get_repo_rulesets_by_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _normalize_rest_ruleset
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
+from cartography.intel.github.repos import _transform_rulesets
 from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
+from tests.data.github.rulesets import RULESET_PRODUCTION
 
 TEST_UPDATE_TAG = 123456789
+
+REST_RULESET_PRODUCTION = {
+    "id": 5351760,
+    "node_id": "RRS_lACkVXNlcs4AXenizgBRqVA",
+    "name": "production-ruleset",
+    "target": "branch",
+    "source_type": "Organization",
+    "source": "simpsoncorp",
+    "enforcement": "active",
+    "created_at": "2025-05-07T21:04:33Z",
+    "updated_at": "2025-05-07T21:04:33Z",
+    "conditions": {
+        "ref_name": {
+            "include": ["~DEFAULT_BRANCH"],
+            "exclude": [],
+        },
+        "repository_name": {
+            "include": ["important-*"],
+            "exclude": ["important-archive"],
+            "protected": False,
+        },
+        "repository_id": {
+            "repository_ids": [123456789],
+        },
+        "repository_property": {
+            "include": [
+                {
+                    "name": "visibility",
+                    "property_values": ["private"],
+                    "source": "custom",
+                },
+            ],
+            "exclude": [],
+        },
+        "organization_property": {
+            "include": [
+                {
+                    "name": "environment",
+                    "property_values": ["prod"],
+                },
+            ],
+            "exclude": [
+                {
+                    "name": "lifecycle",
+                    "property_values": ["deprecated"],
+                },
+            ],
+        },
+    },
+    "rules": [
+        {
+            "type": "deletion",
+        },
+        {
+            "type": "pull_request",
+            "parameters": {
+                "required_approving_review_count": 2,
+                "dismiss_stale_reviews_on_push": True,
+                "require_code_owner_review": True,
+            },
+        },
+        {
+            "type": "required_status_checks",
+            "parameters": {
+                "required_status_checks": [
+                    {"context": "ci/tests"},
+                ],
+            },
+        },
+    ],
+}
 
 
 def test_transform_dependency_manifests_converts_to_expected_format():
@@ -211,6 +288,178 @@ def test_transform_includes_branch_protection_rules():
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
 
 
+def test_transform_includes_rulesets():
+    """
+    Test that the transform function includes rulesets in the output.
+    """
+    repo_with_rulesets = GET_REPOS[2]
+
+    result = transform(
+        [repo_with_rulesets],
+        {repo_with_rulesets["url"]: []},
+        {repo_with_rulesets["url"]: []},
+    )
+
+    assert "rulesets" in result
+    assert "ruleset_rules" in result
+
+    assert len(result["rulesets"]) == 1
+    assert len(result["ruleset_rules"]) == 3
+
+    ruleset = result["rulesets"][0]
+    assert ruleset["id"] == "RRS_lACkVXNlcs4AXenizgBRqVA"
+    assert ruleset["name"] == "production-ruleset"
+    assert ruleset["target"] == "BRANCH"
+    assert ruleset["enforcement"] == "ACTIVE"
+    assert ruleset["repo_url"] == repo_with_rulesets["url"]
+
+
+def test_normalize_rest_ruleset_converts_to_transform_shape():
+    normalized = _normalize_rest_ruleset(REST_RULESET_PRODUCTION)
+
+    assert normalized["id"] == "RRS_lACkVXNlcs4AXenizgBRqVA"
+    assert normalized["databaseId"] == 5351760
+    assert normalized["target"] == "BRANCH"
+    assert normalized["enforcement"] == "ACTIVE"
+    assert normalized["conditions"]["repositoryId"]["repositoryIds"] == [123456789]
+    assert normalized["conditions"]["repositoryProperty"]["include"] == [
+        {
+            "name": "visibility",
+            "propertyValues": ["private"],
+            "source": "custom",
+        },
+    ]
+
+    rule_ids = [rule["id"] for rule in normalized["rules"]["nodes"]]
+    assert rule_ids[0].startswith("RRS_lACkVXNlcs4AXenizgBRqVA:rule:0:")
+    assert rule_ids == [
+        rule["id"]
+        for rule in _normalize_rest_ruleset(REST_RULESET_PRODUCTION)["rules"]["nodes"]
+    ]
+    assert normalized["rules"]["nodes"][1]["type"] == "PULL_REQUEST"
+    assert normalized["rules"]["nodes"][1]["parameters"] == {
+        "requiredApprovingReviewCount": 2,
+        "dismissStaleReviewsOnPush": True,
+        "requireCodeOwnerReview": True,
+    }
+
+
+@patch.object(cartography.intel.github.repos, "call_github_rest_api")
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
+    mock_fetch_all_rest_api_pages,
+    mock_call_github_rest_api,
+):
+    repos = [
+        {
+            "name": "repo-one",
+            "url": "https://github.com/simpsoncorp/repo-one",
+        },
+        {
+            "name": "repo-two",
+            "url": "https://github.com/simpsoncorp/repo-two",
+        },
+    ]
+    ruleset_summary = {
+        "id": 5351760,
+        "node_id": "RRS_lACkVXNlcs4AXenizgBRqVA",
+        "source_type": "Organization",
+        "source": "simpsoncorp",
+    }
+    mock_fetch_all_rest_api_pages.side_effect = [
+        [ruleset_summary],
+        [ruleset_summary],
+    ]
+    mock_call_github_rest_api.return_value = REST_RULESET_PRODUCTION
+
+    result = _get_repo_rulesets_by_url(
+        "token",
+        "https://api.github.com/graphql",
+        "simpsoncorp",
+        repos,
+    )
+
+    assert set(result) == {
+        "https://github.com/simpsoncorp/repo-one",
+        "https://github.com/simpsoncorp/repo-two",
+    }
+    assert result["https://github.com/simpsoncorp/repo-one"]["totalCount"] == 1
+    assert result["https://github.com/simpsoncorp/repo-two"]["nodes"][0]["id"] == (
+        "RRS_lACkVXNlcs4AXenizgBRqVA"
+    )
+    assert mock_fetch_all_rest_api_pages.call_count == 2
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].args == (
+        "token",
+        "https://api.github.com",
+        "/repos/simpsoncorp/repo-one/rulesets",
+    )
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs["result_key"] == (
+        "rulesets"
+    )
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs["params"] == {
+        "per_page": 100,
+        "includes_parents": "true",
+    }
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs[
+        "raise_on_status"
+    ] == (403, 404)
+    mock_call_github_rest_api.assert_called_once_with(
+        "/repos/simpsoncorp/repo-one/rulesets/5351760",
+        "token",
+        "https://api.github.com",
+        params={"includes_parents": "true"},
+    )
+
+
+def test_transform_rulesets_requires_ruleset_id():
+    out_rulesets = []
+    out_rules = []
+
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [
+                {
+                    "rules": {"nodes": []},
+                }
+            ],
+            "https://github.com/simpsoncorp/repo",
+            out_rulesets,
+            out_rules,
+        )
+
+
+def test_transform_rulesets_requires_rule_id():
+    ruleset = deepcopy(RULESET_PRODUCTION)
+    del ruleset["rules"]["nodes"][0]["id"]
+    out_rulesets = []
+    out_rules = []
+
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [ruleset],
+            "https://github.com/simpsoncorp/repo",
+            out_rulesets,
+            out_rules,
+        )
+
+
+def test_transform_rulesets_skips_null_rulesets_and_rules():
+    ruleset = deepcopy(RULESET_PRODUCTION)
+    ruleset["rules"]["nodes"] = [None]
+    out_rulesets = []
+    out_rules = []
+
+    _transform_rulesets(
+        [None, ruleset],
+        "https://github.com/simpsoncorp/repo",
+        out_rulesets,
+        out_rules,
+    )
+
+    assert [ruleset["id"] for ruleset in out_rulesets] == [RULESET_PRODUCTION["id"]]
+    assert out_rules == []
+
+
 def test_transform_prefers_dependency_graph_over_requirements_txt():
     repo = dict(GET_REPOS[2])
     repo_url = repo["url"]
@@ -256,17 +505,20 @@ def test_merge_repos_with_privileged_details_merges_by_url():
         repo.pop("directCollaborators", None)
         repo.pop("outsideCollaborators", None)
         repo.pop("branchProtectionRules", None)
+        repo.pop("rulesets", None)
 
     privileged_repo_data = {
         base_repos[0]["url"]: {
             "directCollaborators": {"totalCount": 0},
             "outsideCollaborators": {"totalCount": 0},
             "branchProtectionRules": {"nodes": []},
+            "rulesets": {"nodes": []},
         },
         "https://github.com/simpsoncorp/non_matching_repo": {
             "directCollaborators": {"totalCount": 99},
             "outsideCollaborators": {"totalCount": 99},
             "branchProtectionRules": {"nodes": []},
+            "rulesets": {"nodes": []},
         },
     }
 
@@ -279,9 +531,11 @@ def test_merge_repos_with_privileged_details_merges_by_url():
     assert merged_repos[0]["directCollaborators"] == {"totalCount": 0}
     assert merged_repos[0]["outsideCollaborators"] == {"totalCount": 0}
     assert merged_repos[0]["branchProtectionRules"] == {"nodes": []}
+    assert merged_repos[0]["rulesets"] == {"nodes": []}
     assert "directCollaborators" not in merged_repos[1]
     assert "outsideCollaborators" not in merged_repos[1]
     assert "branchProtectionRules" not in merged_repos[1]
+    assert "rulesets" not in merged_repos[1]
     # Ensure input repos are not mutated by merge.
     assert "directCollaborators" not in base_repos[0]
 
@@ -291,6 +545,7 @@ def test_repos_need_privileged_details_when_fields_missing():
     repo.pop("directCollaborators", None)
     repo.pop("outsideCollaborators", None)
     repo.pop("branchProtectionRules", None)
+    repo.pop("rulesets", None)
 
     assert _repos_need_privileged_details([repo]) is True
 
@@ -318,6 +573,7 @@ def test_build_branch_data_includes_owner_org_id():
 
 
 @patch.object(cartography.intel.github.repos, "run_analysis_job")
+@patch.object(cartography.intel.github.repos, "cleanup_rulesets")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
 @patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
 @patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
@@ -353,6 +609,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_github_dependencies,
     mock_cleanup_github_manifests,
     mock_cleanup_branch_protection_rules,
+    mock_cleanup_rulesets,
     mock_run_analysis_job,
 ):
     cartography.intel.github.repos.sync(
@@ -386,6 +643,11 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
         "https://github.com/example-org",
     )
+    mock_cleanup_rulesets.assert_called_once_with(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "https://github.com/example-org",
+    )
 
 
 @patch.object(
@@ -394,6 +656,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     side_effect=ValueError("privileged fetch failed"),
 )
 @patch.object(cartography.intel.github.repos, "run_analysis_job")
+@patch.object(cartography.intel.github.repos, "cleanup_rulesets")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
 @patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
 @patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
@@ -409,9 +672,15 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     "_get_repo_collaborators_for_multiple_repos",
     return_value={},
 )
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value={},
+)
 @patch.object(cartography.intel.github.repos, "get")
 def test_sync_continues_when_privileged_fetch_fails(
     mock_get,
+    mock_get_dep_manifests,
     mock_get_repo_collaborators,
     mock_load,
     mock_cleanup_github_repos,
@@ -423,6 +692,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_dependencies,
     mock_cleanup_github_manifests,
     mock_cleanup_branch_protection_rules,
+    mock_cleanup_rulesets,
     mock_run_analysis_job,
     mock_get_privileged,
 ):
@@ -430,6 +700,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     repo.pop("directCollaborators", None)
     repo.pop("outsideCollaborators", None)
     repo.pop("branchProtectionRules", None)
+    repo.pop("rulesets", None)
     mock_get.return_value = [repo]
 
     cartography.intel.github.repos.sync(
@@ -458,3 +729,4 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()
+    mock_cleanup_rulesets.assert_not_called()

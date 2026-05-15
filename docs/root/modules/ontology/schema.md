@@ -374,6 +374,7 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
 | _ont_endpoint | The API endpoint or FQDN for the cluster. |
 | _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
+| _ont_control_plane_public_access | True when the cluster's control plane API server is reachable from the public internet. Populated for EKS, GKE, and AKS; left unset for self-managed Kubernetes clusters and for cluster types without a control-plane concept (ECS, EMR). |
 
 #### Relationships
 

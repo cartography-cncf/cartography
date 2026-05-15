@@ -60,8 +60,27 @@ gitlab_mapping = OntologyMapping(
     ],
 )
 
+github_mapping = OntologyMapping(
+    module_name="github",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GitHubContainerImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture"
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
+    "github": github_mapping,
     "gitlab": gitlab_mapping,
 }
