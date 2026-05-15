@@ -48,9 +48,13 @@ def test_sync_aks(mock_get_clusters, mock_get_pools, neo4j_session):
     # Assert Clusters
     public_cluster_id = MOCK_CLUSTERS[0]["id"]
     private_cluster_id = MOCK_CLUSTERS[1]["id"]
+    vnet_cluster_id = MOCK_CLUSTERS[2]["id"]
     expected_nodes = {
         (public_cluster_id, "my-test-aks-cluster", True),
         (private_cluster_id, "my-private-aks-cluster", False),
+        # publicNetworkAccess=Disabled closes the public path even when
+        # enable_private_cluster is false (API Server VNet Integration).
+        (vnet_cluster_id, "my-vnet-aks-cluster", False),
     }
     actual_nodes = check_nodes(
         neo4j_session,
@@ -62,6 +66,7 @@ def test_sync_aks(mock_get_clusters, mock_get_pools, neo4j_session):
     expected_rels = {
         (TEST_SUBSCRIPTION_ID, public_cluster_id),
         (TEST_SUBSCRIPTION_ID, private_cluster_id),
+        (TEST_SUBSCRIPTION_ID, vnet_cluster_id),
     }
     actual_rels = check_rels(
         neo4j_session,
@@ -73,7 +78,7 @@ def test_sync_aks(mock_get_clusters, mock_get_pools, neo4j_session):
     )
     assert actual_rels == expected_rels
 
-    # Assert Agent Pools (the same mocked pool is attached to both clusters in this fixture).
+    # Assert Agent Pools (the same mocked pool is attached to every cluster in this fixture).
     pool_id = MOCK_AGENT_POOLS[0]["id"]
 
     expected_pool_nodes = {(pool_id, "agentpool")}
@@ -85,6 +90,7 @@ def test_sync_aks(mock_get_clusters, mock_get_pools, neo4j_session):
     expected_pool_rels = {
         (public_cluster_id, pool_id),
         (private_cluster_id, pool_id),
+        (vnet_cluster_id, pool_id),
     }
     actual_pool_rels = check_rels(
         neo4j_session,
@@ -135,12 +141,11 @@ def test_load_aks_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # Assert: Check the relationships (both fixture clusters carry the same tags).
+    # Assert: Check the relationships (every fixture cluster carries the same tags).
     expected_rels = {
-        (MOCK_CLUSTERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
-        (MOCK_CLUSTERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:aks"),
-        (MOCK_CLUSTERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
-        (MOCK_CLUSTERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|service:aks"),
+        (cluster["id"], f"{TEST_SUBSCRIPTION_ID}|{key}:{value}")
+        for cluster in MOCK_CLUSTERS
+        for key, value in cluster["tags"].items()
     }
     actual_rels = check_rels(
         neo4j_session,

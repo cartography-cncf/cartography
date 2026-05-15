@@ -23,6 +23,22 @@ MOCK_CLUSTERS = [
         },
         "tags": {"env": "prod", "service": "aks"},
     },
+    # API Server VNet Integration: not a classic private cluster, but public
+    # network access is disabled. The transform must still mark it as not
+    # publicly reachable via the second gate.
+    {
+        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerService/managedClusters/my-vnet-aks-cluster",
+        "name": "my-vnet-aks-cluster",
+        "location": "eastus",
+        "properties": {
+            "provisioning_state": "Succeeded",
+            "kubernetes_version": "1.28.5",
+            "fqdn": "my-vnet-aks-cluster-dns-abcdef.hcp.eastus.azmk8s.io",
+            "api_server_access_profile": {"enable_private_cluster": False},
+            "public_network_access": "Disabled",
+        },
+        "tags": {"env": "prod", "service": "aks"},
+    },
 ]
 
 MOCK_AGENT_POOLS = [
