@@ -44,18 +44,16 @@ _aws_policy_manipulation_capabilities = Fact(
             allow_action IN all_deny_actions OR
             ANY(d IN all_deny_actions WHERE d ENDS WITH('*') AND allow_action STARTS WITH split(d,'*')[0])
         )
-        // Step 4 - Aggregate matched actions and resources per (account, principal)
-        UNWIND allow_resources AS resource
-        WITH a, principal, principal_type, policy, allow_action, resource
-        RETURN
+        // Step 4 - Aggregate matched actions per (account, principal, policy, resources)
+        RETURN DISTINCT
             a.name AS account,
             a.id   AS account_id,
             principal.name AS principal_name,
             principal.arn  AS principal_identifier,
             principal_type,
-            collect(DISTINCT policy.name) AS policy_names,
+            policy.name    AS policy_name,
             collect(DISTINCT allow_action) AS actions,
-            collect(DISTINCT resource) AS resources
+            allow_resources AS resources
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -116,9 +114,7 @@ _gcp_policy_manipulation_capabilities = Fact(
          [perm IN coalesce(role.permissions, [])
             WHERE perm IN patterns OR perm = 'iam.*' OR perm = 'resourcemanager.*' OR perm = '*'] AS matched
     WHERE size(matched) > 0
-    UNWIND matched AS action
-    WITH scope, principal, role, action
-    RETURN
+    RETURN DISTINCT
         scope.id AS account,
         scope.id AS account_id,
         coalesce(principal.email, principal.id) AS principal_name,
@@ -129,9 +125,9 @@ _gcp_policy_manipulation_capabilities = Fact(
             head([l IN ['ServiceAccount', 'UserAccount', 'UserGroup']
                   WHERE l IN labels(principal)])
         ) AS principal_type,
-        collect(DISTINCT role.name) AS policy_names,
-        collect(DISTINCT action) AS actions,
-        collect(DISTINCT scope.id) AS resources
+        role.name AS policy_name,
+        matched AS actions,
+        [scope.id] AS resources
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -207,9 +203,7 @@ _azure_policy_manipulation_capabilities = Fact(
             )
         ] AS matched
     WHERE size(matched) > 0
-    UNWIND matched AS action
-    WITH sub, ra, rd, principal, action
-    RETURN
+    RETURN DISTINCT
         sub.id AS account,
         sub.id AS account_id,
         coalesce(principal.user_principal_name,
@@ -218,9 +212,9 @@ _azure_policy_manipulation_capabilities = Fact(
         principal.id AS principal_identifier,
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
-        collect(DISTINCT rd.role_name) AS policy_names,
-        collect(DISTINCT action) AS actions,
-        collect(DISTINCT ra.scope) AS resources
+        rd.role_name AS policy_name,
+        matched AS actions,
+        [ra.scope] AS resources
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -261,7 +255,7 @@ class PolicyAdministrationPrivileges(Finding):
     account: str | None = None
     account_id: str | None = None
     principal_type: str | None = None
-    policy_names: list[str] = []
+    policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
 
@@ -285,7 +279,7 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
