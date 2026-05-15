@@ -92,7 +92,7 @@ This says "what are the possible labels for all nodes connected to all DNSRecord
 ```
 ["AWSDNSRecord", "DNSRecord"]
 ["AWSDNSZone", "DNSZone"]
-["LoadBalancerV2"]
+["AWSLoadBalancerV2"]
 ["NameServer"]
 ["ESDomain"]
 ["LoadBalancer"]

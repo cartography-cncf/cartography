@@ -8,8 +8,10 @@ from azure.mgmt.containerservice import ContainerServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.aks_cluster import AzureKubernetesClusterSchema
 from cartography.models.azure.aks_nodepool import AzureKubernetesNodePoolSchema
+from cartography.models.azure.tags.aks_tag import AKSTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -136,10 +138,35 @@ def load_agent_pools(
 
 
 @timeit
+def load_aks_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    clusters: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Sync tags for AKS clusters.
+    """
+    tags = transform_tags(clusters, subscription_id)
+    load(
+        neo4j_session,
+        AKSTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_clusters(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     GraphJob.from_node_schema(
         AzureKubernetesClusterSchema(), common_job_parameters
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_aks_tags(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
+    GraphJob.from_node_schema(AKSTagsSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -156,6 +183,7 @@ def sync(
     clusters = get_aks_clusters(client, subscription_id)
     transformed_clusters = transform_aks_clusters(clusters)
     load_aks_clusters(neo4j_session, transformed_clusters, subscription_id, update_tag)
+    load_aks_tags(neo4j_session, subscription_id, clusters, update_tag)
 
     for cluster in clusters:
         cluster_id = cluster.get("id")
@@ -181,3 +209,4 @@ def sync(
             ).run(neo4j_session)
 
     cleanup_clusters(neo4j_session, common_job_parameters)
+    cleanup_aks_tags(neo4j_session, common_job_parameters)

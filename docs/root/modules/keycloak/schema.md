@@ -44,6 +44,8 @@ Regular links shows relationships pulled from Keycloak API, think links are infe
 
 Represents a Keycloak realm, which is a security domain where users, groups, roles, and other entities are managed.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -157,6 +159,8 @@ Represents a Keycloak realm, which is a security domain where users, groups, rol
 
 Represents a Keycloak client application that can request authentication and authorization services from the realm.
 
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for client applications across different systems (e.g., OktaApplication, EntraApplication).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -218,6 +222,8 @@ Represents a Keycloak client application that can request authentication and aut
 
 Represents a group of users in Keycloak that can be used for organizing users and assigning roles.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -253,6 +259,8 @@ Represents a group of users in Keycloak that can be used for organizing users an
 ### KeycloakUser
 
 Represents a user in the Keycloak realm with authentication and profile information.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|
@@ -312,6 +320,8 @@ Represents a user in the Keycloak realm with authentication and profile informat
 
 Represents a role in Keycloak that defines permissions and can be assigned to users or groups.
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -345,6 +355,10 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
 - `KeycloakRole` can includes an other Role (composite roles)
     ```
     (:KeycloakRole)-[:INCLUDES]->(:KeycloakRole)
+    ```
+- `KeycloakRole` can indirectly grant scopes through composite role relationships (computed by `cartography.intel.keycloak.inheritance`)
+    ```
+    (:KeycloakRole)-[:INDIRECT_GRANTS]->(:KeycloakScope)
     ```
 - `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
     ```
@@ -391,6 +405,8 @@ Represents a client scope in Keycloak that defines what access is requested or g
 ### KeycloakIdentityProvider
 
 Represents an external identity provider configured in Keycloak for federated authentication.
+
+> **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KubernetesOIDCProvider).
 
 | Field | Description |
 |-------|-------------|

@@ -7,13 +7,25 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import execute_write_with_retry
+from cartography.helpers import batch
 from cartography.intel.aws.iam import get_role_tags
+from cartography.intel.aws.iam import get_user_tags
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
-from cartography.util import batch
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
+
+DEFAULT_CLEANUP_BATCH_SIZE = 1000
+
+# IAM is a global service, so its tags are not regional. We use a "global"
+# marker on the AWSTag.region property and fetch IAM tags once per sync rather
+# than once per region.
+GLOBAL_REGION = "global"
+IAM_TAG_RESOURCE_TYPES = frozenset({"iam:role", "iam:user"})
 
 
 def get_short_id_from_ec2_arn(arn: str) -> str:
@@ -156,19 +168,18 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_elb_arn,
     },
     "elasticloadbalancing:loadbalancer/app": {
-        "label": "LoadBalancerV2",
+        "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
     },
     "elasticloadbalancing:loadbalancer/net": {
-        "label": "LoadBalancerV2",
+        "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
     },
     "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
     "es:domain": {"label": "ESDomain", "property": "arn"},
     "kms:key": {"label": "KMSKey", "property": "arn"},
-    "iam:group": {"label": "AWSGroup", "property": "arn"},
     "iam:role": {"label": "AWSRole", "property": "arn"},
     "iam:user": {"label": "AWSUser", "property": "arn"},
     "lambda:function": {"label": "AWSLambda", "property": "id"},
@@ -194,14 +205,12 @@ def get_tags(
     """Retrieve tag data for the provided resource types."""
     resources: list[dict[str, Any]] = []
 
-    if "iam:role" in resource_types:
-        resources.extend(get_role_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:role"]
-
     if not resource_types:
         return resources
 
-    client = boto3_session.client("resourcegroupstaggingapi", region_name=region)
+    client = create_boto3_client(
+        boto3_session, "resourcegroupstaggingapi", region_name=region
+    )
     paginator = client.get_paginator("get_resources")
 
     # Batch resource types into groups of 100
@@ -269,7 +278,7 @@ def load_tags(
         # If there is no data to load, save some time.
         return
     for tag_data_batch in batch(tag_data, size=100):
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             _load_tags_tx,
             tag_data=tag_data_batch,
             resource_type=resource_type,
@@ -315,13 +324,168 @@ def _group_tag_data_by_resource_type(
     return grouped
 
 
+# Mapping of resource labels to their path to AWSAccount for cleanup
+# Most resources have a direct RESOURCE relationship, but some require traversal
+_RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
+    "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "NetworkInterface": (
+        "(:NetworkInterface)-[:PART_OF_SUBNET]->"
+        "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "EC2SecurityGroup": "(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EC2Subnet": "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ESDomain": "(:ESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RedshiftCluster": "(:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSCluster": "(:RDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSInstance": "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSSnapshot": "(:RDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "DBSubnetGroup": "(:DBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "S3Bucket": "(:S3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "KMSKey": "(:KMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "DynamoDBTable": "(:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSTransitGatewayAttachment": (
+        "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSCluster": "(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSContainer": "(:ECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSContainerInstance": (
+        "(:ECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "ECSTask": "(:ECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSTaskDefinition": "(:ECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ElasticacheCluster": "(:ElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "LoadBalancer": "(:LoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "SecretsManagerSecret": (
+        "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "SQSQueue": "(:SQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSInternetGateway": (
+        "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+}
+
+
+def _run_cleanup_until_empty(
+    neo4j_session: neo4j.Session,
+    query: str,
+    batch_size: int = DEFAULT_CLEANUP_BATCH_SIZE,
+    **kwargs: Any,
+) -> int:
+    """Run a cleanup query in batches until no more items are deleted.
+
+    Returns the total number of items deleted.
+    """
+
+    def _cleanup_batch_tx(tx: neo4j.Transaction, query: str, **params: Any) -> int:
+        """Transaction function that runs a cleanup query and returns deletion count."""
+        result = tx.run(query, **params)
+        summary = result.consume()
+        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+        stat_handler.incr(
+            "relationships_deleted", summary.counters.relationships_deleted
+        )
+        return summary.counters.nodes_deleted + summary.counters.relationships_deleted
+
+    total_deleted = 0
+    while True:
+        deleted = execute_write_with_retry(
+            neo4j_session,
+            _cleanup_batch_tx,
+            query,
+            LIMIT_SIZE=batch_size,
+            **kwargs,
+        )
+        total_deleted += deleted
+        if deleted == 0:
+            break
+    return total_deleted
+
+
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        "aws_import_tags_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    """Clean up stale AWSTag nodes and TAGGED relationships."""
+    cleanup_batch_size = common_job_parameters.get(
+        "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
     )
+    # Clean up tags and relationships for each resource type
+    for label, path in _RESOURCE_CLEANUP_PATHS.items():
+        # Delete stale tag nodes
+        _run_cleanup_until_empty(
+            neo4j_session,
+            f"""
+            MATCH (n:AWSTag)<-[:TAGGED]-{path}
+            WHERE n.lastupdated <> $UPDATE_TAG
+            WITH n LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            """,
+            batch_size=cleanup_batch_size,
+            AWS_ID=common_job_parameters["AWS_ID"],
+            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        )
+        # Delete stale TAGGED relationships
+        _run_cleanup_until_empty(
+            neo4j_session,
+            f"""
+            MATCH (:AWSTag)<-[r:TAGGED]-{path}
+            WHERE r.lastupdated <> $UPDATE_TAG
+            WITH r LIMIT $LIMIT_SIZE
+            DELETE r
+            """,
+            batch_size=cleanup_batch_size,
+            AWS_ID=common_job_parameters["AWS_ID"],
+            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        )
+
+    # Clean up orphaned tags (tags with no relationships)
+    _run_cleanup_until_empty(
+        neo4j_session,
+        """
+        MATCH (n:AWSTag)
+        WHERE NOT (n)--() AND n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        batch_size=cleanup_batch_size,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+    )
+
+
+def _load_resource_type_tags(
+    neo4j_session: neo4j.Session,
+    grouped_tag_data: Dict[str, List[Dict]],
+    resource_types: List[str],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    for resource_type in resource_types:
+        tag_data = grouped_tag_data.get(resource_type, [])
+        transform_tags(tag_data, resource_type)  # type: ignore[arg-type]
+        logger.info(
+            f"Loading {len(tag_data)} tags for resource type {resource_type} (region={region})",
+        )
+        load_tags(
+            neo4j_session=neo4j_session,
+            tag_data=tag_data,  # type: ignore[arg-type]
+            resource_type=resource_type,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            aws_update_tag=update_tag,
+        )
 
 
 @timeit
@@ -334,28 +498,51 @@ def sync(
     common_job_parameters: Dict,
     tag_resource_type_mappings: Dict = TAG_RESOURCE_TYPE_MAPPINGS,
 ) -> None:
+    iam_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt in IAM_TAG_RESOURCE_TYPES
+    ]
+    regional_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt not in IAM_TAG_RESOURCE_TYPES
+    ]
+
+    if iam_resource_types:
+        logger.info(
+            f"Syncing AWS IAM tags (global) for account {current_aws_account_id}",
+        )
+        iam_tag_data: List[Dict] = []
+        if "iam:role" in iam_resource_types:
+            iam_tag_data.extend(get_role_tags(boto3_session))
+        if "iam:user" in iam_resource_types:
+            iam_tag_data.extend(get_user_tags(boto3_session))
+        iam_grouped = _group_tag_data_by_resource_type(
+            iam_tag_data, tag_resource_type_mappings
+        )
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=iam_grouped,
+            resource_types=iam_resource_types,
+            region=GLOBAL_REGION,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
+
     for region in regions:
         logger.info(
             f"Syncing AWS tags for account {current_aws_account_id} and region {region}",
         )
-        all_tag_data = get_tags(
-            boto3_session, list(tag_resource_type_mappings.keys()), region
-        )
+        all_tag_data = get_tags(boto3_session, regional_resource_types, region)
         grouped = _group_tag_data_by_resource_type(
             all_tag_data, tag_resource_type_mappings
         )
-        for resource_type in tag_resource_type_mappings.keys():
-            tag_data = grouped.get(resource_type, [])
-            transform_tags(tag_data, resource_type)  # type: ignore
-            logger.info(
-                f"Loading {len(tag_data)} tags for resource type {resource_type}",
-            )
-            load_tags(
-                neo4j_session=neo4j_session,
-                tag_data=tag_data,  # type: ignore
-                resource_type=resource_type,
-                region=region,
-                current_aws_account_id=current_aws_account_id,
-                aws_update_tag=update_tag,
-            )
-    cleanup(neo4j_session, common_job_parameters)
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=grouped,
+            resource_types=regional_resource_types,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
+    cleanup(
+        neo4j_session,
+        common_job_parameters,
+    )

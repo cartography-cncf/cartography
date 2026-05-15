@@ -27,6 +27,7 @@ class AWSGroupNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")
+    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
 
 
 @dataclass(frozen=True)
@@ -57,4 +58,4 @@ class AWSGroupSchema(CartographyNodeSchema):
             AWSGroupToAWSUserRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal", "UserGroup"])

@@ -7,6 +7,9 @@ ORG -- RESOURCE --> APP(Application)
 ORG -- RESOURCE --> USR(User)
 ORG -- RESOURCE --> GRP(ScalewayGroup)
 ORG -- RESOURCE --> APIKEY(ScalewayApiKey)
+ORG -- RESOURCE --> POL(Policy)
+ORG -- RESOURCE --> RULE(Rule)
+ORG -- RESOURCE --> PS(PermissionSet)
 PRJ -- RESOURCE --> INS(Instance)
 PRJ -- RESOURCE --> FIP(FlexibleIp)
 PRJ -- RESOURCE --> VOL(Volume)
@@ -18,11 +21,18 @@ USR -- MEMBER_OF --> GRP(ScalewayGroup)
 USR -- HAS --> APIKEY(ScalewayApiKey)
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
 APP -- HAS --> APIKEY(ScalewayApiKey)
+POL -- APPLIES_TO --> USR
+POL -- APPLIES_TO --> GRP
+POL -- APPLIES_TO --> APP
+POL -- HAS --> RULE(Rule)
+RULE -- SCOPED_TO --> PRJ
 ```
 
 ### ScalewayOrganization
 
 Represents an Organization in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -30,13 +40,16 @@ Represents an Organization in Scaleway.
 | lastupdated| Timestamp of the last update                 |
 
 #### Relationships
-- `Project`, `Application`, `User`, `ApiKey` belong to a `ScalewayOrganization`.
+- `Project`, `Application`, `User`, `ApiKey`, `Policy`, `Rule`, `PermissionSet` belong to a `ScalewayOrganization`.
     ```
     (:ScalewayOrganization)-[:RESOURCE]->(
         :ScalewayProject,
         :ScalewayApplication,
         :ScalewayUser,
-        :ScalewayApiKey
+        :ScalewayApiKey,
+        :ScalewayPolicy,
+        :ScalewayRule,
+        :ScalewayPermissionSet
     )
     ```
 
@@ -44,6 +57,8 @@ Represents an Organization in Scaleway.
 ### ScalewayProject
 
 Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
@@ -73,6 +88,8 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
 ### ScalewayUser
 
 Represents a User in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field              | Description                                  |
 |--------------------|----------------------------------------------|
@@ -115,6 +132,8 @@ Represents a User in Scaleway.
 
 Represents a Group in Scaleway.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
 | id          | ID of the Group                              |
@@ -143,6 +162,8 @@ Represents a Group in Scaleway.
 ### ScalewayApplication
 
 Represents an Application (Service Account) in Scaleway
+
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
 
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
@@ -176,6 +197,8 @@ Represents an Application (Service Account) in Scaleway
 
 Represents an ApiKey in Scaleway.
 
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., OpenAIApiKey, AnthropicApiKey).
+
 | Field            | Description                                  |
 |------------------|----------------------------------------------|
 | id               | Access key of the API key.                   |
@@ -202,9 +225,96 @@ Represents an ApiKey in Scaleway.
     ```
 
 
+### ScalewayPolicy
+
+Represents an IAM Policy in Scaleway. Policies define permissions for users, groups, or applications.
+
+| Field             | Description                                  |
+|-------------------|----------------------------------------------|
+| id                | ID of the policy.                            |
+| name              | Name of the policy.                          |
+| description       | Description of the policy.                   |
+| created_at        | Date and time of policy creation.            |
+| updated_at        | Date and time of last policy update.         |
+| editable          | Defines whether or not the policy is editable. |
+| deletable         | Defines whether or not the policy is deletable. |
+| managed           | Defines whether or not the policy is managed. |
+| tags              | Tags associated with the policy.             |
+| nb_rules          | Number of rules in the policy.               |
+| nb_scopes         | Number of scopes in the policy.              |
+| nb_permission_sets| Number of permission sets in the policy.     |
+| no_principal      | True if the policy has no principal attached. |
+| lastupdated       | Timestamp of the last update                 |
+
+#### Relationships
+- `Policy` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPolicy)
+    ```
+- `Policy` applies to a `User`, `Group`, or `Application`.
+    ```
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayUser)
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayGroup)
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayApplication)
+    ```
+- `Policy` has `Rule`s.
+    ```
+    (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
+    ```
+
+
+### ScalewayRule
+
+Represents an IAM Rule within a Policy. Rules define which permission sets apply and to which projects.
+
+| Field                    | Description                                  |
+|--------------------------|----------------------------------------------|
+| id                       | ID of the rule.                              |
+| permission_sets_scope_type | Scope type of the permission sets.         |
+| condition                | Condition for the rule.                      |
+| permission_set_names     | Names of the permission sets granted by this rule. |
+| lastupdated              | Timestamp of the last update                 |
+
+#### Relationships
+- `Rule` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRule)
+    ```
+- `Rule` belongs to a `Policy`.
+    ```
+    (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
+    ```
+- `Rule` is scoped to `Project`s.
+    ```
+    (:ScalewayRule)-[:SCOPED_TO]->(:ScalewayProject)
+    ```
+
+
+### ScalewayPermissionSet
+
+Represents a Permission Set in Scaleway. Permission sets are predefined collections of permissions.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the permission set.                    |
+| name        | Name of the permission set.                  |
+| scope_type  | Scope type of the permission set.            |
+| description | Description of the permission set.           |
+| categories  | Categories of the permission set.            |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- `PermissionSet` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPermissionSet)
+    ```
+
+
 ### ScalewayVolume
 
 Volumes are storage space used by your Instances. You can attach several volumes to an Instance.
+
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, AzureDisk).
 
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
@@ -212,6 +322,7 @@ Volumes are storage space used by your Instances. You can attach several volumes
 | name            | Volume name.                                 |
 | export_uri      | Show the volume NBD export URI.              |
 | size            | Volume disk size. (in bytes)                 |
+| size_gb         | Volume disk size derived in gigabytes (rounded from `size`). |
 | volume_type     | Volume type (`l_ssd`, `b_ssd`, `unified`, `scratch`, `sbs_volume`, `sbs_snapshot`) |
 | creation_date   | Volume creation date.                        |
 | modification_date| Volume modification date.                   |
@@ -291,6 +402,8 @@ Flexible IP addresses are public IP addresses that you can hold independently of
 ### ScalewayInstance
 
 An Instance is a virtual computing unit that provides resources, such as processing power, memory, and network connectivity, to run your applications.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, DigitalOceanDroplet).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

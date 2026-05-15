@@ -110,6 +110,15 @@ MOCK_AWS_ROLES = [
         "MaxSessionDuration": 3600,
         "AssumeRolePolicyDocument": {"Statement": []},
     },
+    {
+        "Arn": "arn:aws:iam::123456789012:role/EKSAccessRole",
+        "RoleName": "EKSAccessRole",
+        "Path": "/",
+        "RoleId": "AROABC123DEF456GHI794",
+        "CreateDate": "2023-01-01T00:00:00Z",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {"Statement": []},
+    },
 ]
 
 # Mock AWS User data that should exist in the graph before EKS sync
@@ -161,6 +170,58 @@ MOCK_OIDC_PROVIDER = [
         "groupsPrefix": "okta:",
         "status": "ACTIVE",
         "identityProviderConfigArn": "arn:aws:eks:us-west-2:123456789012:identityproviderconfig/test-cluster/oidc/okta-provider/67890",
+    },
+]
+
+# Mock Access Entries data (raw AWS API responses from describe_access_entry)
+MOCK_ACCESS_ENTRIES = [
+    # IAM User with username and groups
+    {
+        "clusterName": TEST_CLUSTER_NAME,
+        "principalArn": "arn:aws:iam::123456789012:user/alice",
+        "kubernetesGroups": ["access-entry-devs", "access-entry-team"],
+        "accessEntryArn": f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:access-entry/{TEST_CLUSTER_NAME}/user/{TEST_ACCOUNT_ID}/alice/ae-12345",
+        "createdAt": "2024-01-15T10:30:00Z",
+        "modifiedAt": "2024-01-15T10:30:00Z",
+        "tags": {},
+        "username": "alice-access-entry",
+        "type": "STANDARD",
+    },
+    # IAM Role with username and groups
+    {
+        "clusterName": TEST_CLUSTER_NAME,
+        "principalArn": "arn:aws:iam::123456789012:role/EKSAccessRole",
+        "kubernetesGroups": ["access-entry-admins", "platform-team"],
+        "accessEntryArn": f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:access-entry/{TEST_CLUSTER_NAME}/role/{TEST_ACCOUNT_ID}/EKSAccessRole/ae-67890",
+        "createdAt": "2024-01-15T11:00:00Z",
+        "modifiedAt": "2024-01-15T11:00:00Z",
+        "tags": {"Environment": "production"},
+        "username": "access-role-user",
+        "type": "STANDARD",
+    },
+    # IAM User with username but no groups
+    {
+        "clusterName": TEST_CLUSTER_NAME,
+        "principalArn": "arn:aws:iam::123456789012:user/bob",
+        "kubernetesGroups": [],
+        "accessEntryArn": f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:access-entry/{TEST_CLUSTER_NAME}/user/{TEST_ACCOUNT_ID}/bob/ae-11111",
+        "createdAt": "2024-01-16T09:00:00Z",
+        "modifiedAt": "2024-01-16T09:00:00Z",
+        "tags": {},
+        "username": "bob-access-entry",
+        "type": "STANDARD",
+    },
+    # IAM Role with groups but no explicit username (will use principalArn as username)
+    {
+        "clusterName": TEST_CLUSTER_NAME,
+        "principalArn": "arn:aws:iam::123456789012:role/EKSViewerRole",
+        "kubernetesGroups": ["viewers", "readonly-access"],
+        "accessEntryArn": f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:access-entry/{TEST_CLUSTER_NAME}/role/{TEST_ACCOUNT_ID}/EKSViewerRole/ae-22222",
+        "createdAt": "2024-01-16T10:00:00Z",
+        "modifiedAt": "2024-01-16T10:00:00Z",
+        "tags": {},
+        "username": "arn:aws:iam::123456789012:role/EKSViewerRole",
+        "type": "STANDARD",
     },
 ]
 

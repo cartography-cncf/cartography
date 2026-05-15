@@ -14,12 +14,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class DynamoDBTableNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
     name: PropertyRef = PropertyRef("TableName")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+    # Basic table properties
     rows: PropertyRef = PropertyRef("Rows")
     size: PropertyRef = PropertyRef("Size")
+    table_status: PropertyRef = PropertyRef("TableStatus")
+    creation_date_time: PropertyRef = PropertyRef("CreationDateTime")
+
+    # Provisioned throughput
     provisioned_throughput_read_capacity_units: PropertyRef = PropertyRef(
         "ProvisionedThroughputReadCapacityUnits",
     )

@@ -6,6 +6,7 @@ MOCK_RESOURCE_GROUPS = [
         "properties": {
             "provisioning_state": "Succeeded",
         },
+        "tags": {"env": "prod", "service": "resource-group"},
     },
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG2",
@@ -14,5 +15,6 @@ MOCK_RESOURCE_GROUPS = [
         "properties": {
             "provisioning_state": "Succeeded",
         },
+        "tags": {"env": "prod", "service": "resource-group"},
     },
 ]

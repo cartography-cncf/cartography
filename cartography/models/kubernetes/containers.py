@@ -21,6 +21,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
+    region: PropertyRef = PropertyRef("REGION", set_in_kwargs=True)
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
@@ -31,6 +32,14 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_limit: PropertyRef = PropertyRef("memory_limit")
     cpu_limit: PropertyRef = PropertyRef("cpu_limit")
+    allow_privilege_escalation: PropertyRef = PropertyRef("allow_privilege_escalation")
+    run_as_non_root: PropertyRef = PropertyRef("run_as_non_root")
+    run_as_user: PropertyRef = PropertyRef("run_as_user")
+    seccomp_profile_type: PropertyRef = PropertyRef("seccomp_profile_type")
+    added_capabilities: PropertyRef = PropertyRef("added_capabilities")
+    dropped_capabilities: PropertyRef = PropertyRef("dropped_capabilities")
+    host_ports: PropertyRef = PropertyRef("host_ports")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,6 +71,7 @@ class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesPod)
 class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     target_node_label: str = "KubernetesPod"
@@ -76,6 +86,31 @@ class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: KubernetesContainerToKubernetesPodRelProperties = (
         KubernetesContainerToKubernetesPodRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToKubernetesPodWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
+class KubernetesContainerToKubernetesPodWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesPod"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("namespace"),
+            "id": PropertyRef("pod_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesContainerToKubernetesPodWorkloadParentRelProperties = (
+        KubernetesContainerToKubernetesPodWorkloadParentRelProperties()
     )
 
 
@@ -117,6 +152,53 @@ class KubernetesContainerToECRImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
+    """
+    Relationship from KubernetesContainer to GitLabContainerImage.
+    Matches containers to GitLab registry images by digest (status_image_sha).
+    """
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGitLabContainerImageRelProperties = (
+        KubernetesContainerToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """
+    Matches containers to GAR image artifacts by runtime digest (status_image_sha).
+    """
+
+    target_node_label: str = "GCPArtifactRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGCPArtifactRegistryImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -128,6 +210,9 @@ class KubernetesContainerSchema(CartographyNodeSchema):
         [
             KubernetesContainerToKubernetesNamespaceRel(),
             KubernetesContainerToKubernetesPodRel(),
+            KubernetesContainerToKubernetesPodWorkloadParentRel(),
             KubernetesContainerToECRImageRel(),
+            KubernetesContainerToGitLabContainerImageRel(),
+            KubernetesContainerToGCPArtifactRegistryImageRel(),
         ]
     )

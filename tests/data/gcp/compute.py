@@ -857,3 +857,24 @@ LIST_FORWARDING_RULES_RESPONSE = {
     "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/europe-west4/forwardingRules",
     "kind": "compute#forwardingRuleList",
 }
+
+LIST_GLOBAL_FORWARDING_RULES_RESPONSE = {
+    "id": "projects/project-abc/global/forwardingRules",
+    "items": [
+        {
+            "id": "99999999",
+            "creationTimestamp": "2019-11-22T06:05:37.254-08:00",
+            "name": "global-rule-1",
+            "description": "global forwarding rule",
+            "IPAddress": "35.235.1.2",
+            "IPProtocol": "TCP",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/forwardingRules/global-rule-1",
+            "loadBalancingScheme": "EXTERNAL",
+            "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/default",
+            "target": "https://www.googleapis.com/compute/v1/projects/project-abc/global/targetHttpsProxies/proxy-1",
+            "kind": "compute#forwardingRule",
+        },
+    ],
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/forwardingRules",
+    "kind": "compute#forwardingRuleList",
+}

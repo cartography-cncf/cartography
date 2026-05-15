@@ -26,5 +26,7 @@ class AWSServicePrincipalSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSServicePrincipal"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["AWSPrincipal", "ServiceAccount"]
+    )
     properties: AWSServicePrincipalNodeProperties = AWSServicePrincipalNodeProperties()

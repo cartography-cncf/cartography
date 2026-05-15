@@ -1,6 +1,7 @@
 # Usage
 
 ```{toctree}
+cli
 rules
 tutorial
 drift-detect

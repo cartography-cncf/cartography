@@ -198,7 +198,12 @@ def _load_okta_groups(
     new_group.dn = group_data.dn,
     new_group.windows_domain_qualified_name = group_data.windows_domain_qualified_name,
     new_group.external_id = group_data.external_id,
-    new_group.lastupdated = $okta_update_tag
+    new_group.lastupdated = $okta_update_tag,
+    new_group:UserGroup,
+    new_group._module_name = "cartography:okta",
+    new_group._ont_name = group_data.name,
+    new_group._ont_description = group_data.description,
+    new_group._ont_source = "okta"
     WITH new_group, org
     MERGE (org)-[org_r:RESOURCE]->(new_group)
     ON CREATE SET org_r.firstseen = timestamp()
@@ -299,6 +304,7 @@ def sync_okta_groups(
     okta_update_tag: int,
     okta_api_key: str,
     sync_state: OktaSyncState,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Synchronize okta groups
@@ -307,10 +313,13 @@ def sync_okta_groups(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
     :param sync_state: Okta sync state
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Nothing
     """
     logger.info("Syncing Okta groups")
-    api_client = create_api_client(okta_org_id, "/api/v1/groups", okta_api_key)
+    api_client = create_api_client(
+        okta_org_id, "/api/v1/groups", okta_api_key, okta_base_domain
+    )
 
     okta_group_data = _get_okta_groups(api_client)
     group_list_info, group_ids = transform_okta_group_list(okta_group_data)

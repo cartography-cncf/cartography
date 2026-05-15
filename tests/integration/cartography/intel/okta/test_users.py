@@ -50,7 +50,7 @@ def test_sync_okta_users(mock_get_users, mock_user_client, neo4j_session):
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -165,7 +165,7 @@ def test_sync_okta_users_with_optional_fields(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -209,7 +209,7 @@ def test_sync_okta_users_updates_existing(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-existing'})
         SET u.first_name = 'OldFirstName',
             u.last_name = 'OldLastName',
@@ -280,7 +280,7 @@ def test_sync_okta_users_stores_state(mock_get_users, mock_user_client, neo4j_se
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,

@@ -7,6 +7,7 @@ from kubernetes.client.models import VersionInfo
 
 from cartography.client.core.tx import load
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_kubeconfig_tls_diagnostics
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.clusters import KubernetesClusterSchema
 from cartography.util import timeit
@@ -24,10 +25,16 @@ def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
     return client.version.get_code()
 
 
+@timeit
+def get_kubernetes_cluster_tls_diagnostics(client: K8sClient) -> dict[str, Any]:
+    return get_kubeconfig_tls_diagnostics(client.name, client.config_file)
+
+
 def transform_kubernetes_cluster(
     client: K8sClient,
     namespace: V1Namespace,
     version: VersionInfo,
+    tls_diagnostics: dict[str, Any],
 ) -> list[dict[str, Any]]:
     cluster = {
         "id": namespace.metadata.uid,
@@ -41,6 +48,7 @@ def transform_kubernetes_cluster(
         "compiler": version.compiler,
         "platform": version.platform,
     }
+    cluster.update(tls_diagnostics)
 
     return [cluster]
 
@@ -80,7 +88,13 @@ def sync_kubernetes_cluster(
 ) -> dict[str, Any]:
     namespace = get_kubernetes_cluster_namespace(client)
     version = get_kubernetes_cluster_version(client)
-    cluster_info = transform_kubernetes_cluster(client, namespace, version)
+    tls_diagnostics = get_kubernetes_cluster_tls_diagnostics(client)
+    cluster_info = transform_kubernetes_cluster(
+        client,
+        namespace,
+        version,
+        tls_diagnostics,
+    )
 
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
     return cluster_info[0]

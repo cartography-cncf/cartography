@@ -7,7 +7,11 @@ from azure.mgmt.monitor import MonitorManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.monitor import AzureMonitorMetricAlertSchema
+from cartography.models.azure.tags.monitor_metric_alert_tag import (
+    AzureMonitorMetricAlertTagsSchema,
+)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -48,6 +52,7 @@ def transform_metric_alerts(metric_alerts: list[dict]) -> list[dict]:
             "window_size": str(alert.get("window_size")),
             "evaluation_frequency": str(alert.get("evaluation_frequency")),
             "last_updated_time": alert.get("properties", {}).get("last_updated_time"),
+            "tags": alert.get("tags"),
         }
         transformed_alerts.append(transformed_alert)
     return transformed_alerts
@@ -73,6 +78,26 @@ def load_metric_alerts(
 
 
 @timeit
+def load_metric_alert_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    alerts: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Monitor Metric Alerts.
+    """
+    tags = transform_tags(alerts, subscription_id)
+    load(
+        neo4j_session,
+        AzureMonitorMetricAlertTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_metric_alerts(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
@@ -81,6 +106,18 @@ def cleanup_metric_alerts(
     """
     GraphJob.from_node_schema(
         AzureMonitorMetricAlertSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_metric_alert_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Monitor Metric Alert tags.
+    """
+    GraphJob.from_node_schema(
+        AzureMonitorMetricAlertTagsSchema(), common_job_parameters
     ).run(neo4j_session)
 
 
@@ -102,4 +139,8 @@ def sync(
     raw_alerts = get_metric_alerts(client)
     transformed_alerts = transform_metric_alerts(raw_alerts)
     load_metric_alerts(neo4j_session, transformed_alerts, subscription_id, update_tag)
+    load_metric_alert_tags(
+        neo4j_session, subscription_id, transformed_alerts, update_tag
+    )
     cleanup_metric_alerts(neo4j_session, common_job_parameters)
+    cleanup_metric_alert_tags(neo4j_session, common_job_parameters)

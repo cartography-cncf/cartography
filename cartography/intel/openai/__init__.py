@@ -2,6 +2,8 @@ import logging
 
 import neo4j
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 import cartography.intel.openai.adminapikeys
 import cartography.intel.openai.apikeys
@@ -32,6 +34,13 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Create requests sessions
     api_session = requests.session()
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     api_session.headers.update(
         {
             "Authorization": f"Bearer {config.openai_apikey}",
@@ -53,6 +62,7 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         ORG_ID=config.openai_org_id,
     )
 
+    known_project_key_ids: set[str] = set()
     for project in cartography.intel.openai.projects.sync(
         neo4j_session,
         api_session,
@@ -71,7 +81,7 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             project_job_parameters,
             project_id=project["id"],
         )
-        cartography.intel.openai.apikeys.sync(
+        known_project_key_ids |= cartography.intel.openai.apikeys.sync(
             neo4j_session,
             api_session,
             project_job_parameters,
@@ -83,4 +93,5 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         api_session,
         common_job_parameters,
         ORG_ID=config.openai_org_id,
+        known_project_key_ids=known_project_key_ids,
     )

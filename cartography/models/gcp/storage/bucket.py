@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -27,6 +28,9 @@ class GCPBucketNodeProperties(CartographyNodeProperties):
     retention_period: PropertyRef = PropertyRef("retention_period")
     iam_config_bucket_policy_only: PropertyRef = PropertyRef(
         "iam_config_bucket_policy_only"
+    )
+    iam_config_public_access_prevention: PropertyRef = PropertyRef(
+        "iam_config_public_access_prevention"
     )
     owner_entity: PropertyRef = PropertyRef("owner_entity")
     owner_entity_id: PropertyRef = PropertyRef("owner_entity_id")
@@ -58,6 +62,7 @@ class GCPBucketToProjectRel(CartographyRelSchema):
 class GCPBucketSchema(CartographyNodeSchema):
     label: str = "GCPBucket"
     properties: GCPBucketNodeProperties = GCPBucketNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ObjectStorage"])
     sub_resource_relationship: GCPBucketToProjectRel = GCPBucketToProjectRel()
 
 

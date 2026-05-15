@@ -26,6 +26,20 @@ TEST_UPDATE_TAG = 123456789
 
 @patch.object(
     cartography.intel.aws.iam,
+    "get_server_certificates",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_saml_providers",
+    return_value={"SAMLProviderList": []},
+)
+@patch.object(
+    cartography.intel.aws.iam,
+    "sync_service_last_accessed_details",
+)
+@patch.object(
+    cartography.intel.aws.iam,
     "get_group_memberships",
     return_value=GET_GROUP_MEMBERSHIPS_DATA,
 )
@@ -85,6 +99,9 @@ def test_sync_iam(
     mock_get_role_policy_data,
     mock_get_role_managed_policy_data,
     mock_get_group_memberships,
+    mock_sync_service_last_accessed_details,
+    mock_get_saml_providers,
+    mock_get_server_certificates,
     neo4j_session,
 ):
     """Test IAM sync end-to-end"""

@@ -15,7 +15,7 @@ The rules system uses a simple two-level hierarchy:
 
 ```
 Rule (e.g., mfa-missing, object_storage_public)
-  └─ Fact (e.g., aws_s3_public, missing-mfa-cloudflare)
+  └─ Fact (e.g., aws_s3_public, missing-mfa-ontology)
 ```
 
 **Rules** represent security issues or attack surfaces you want to detect (e.g., "Public Object Storage exposed on internet").
@@ -45,20 +45,6 @@ Security isn't one-size-fits-all. For example:
 
 Our goal is to surface facts in context so you can decide what matters for your environment.
 
-
-## Available Rules
-
-Current rules include:
-
-- **mfa-missing** - User accounts missing multi-factor authentication
-- **object_storage_public** - Publicly accessible object storage (S3, Azure Storage)
-- **compute_instance_exposed** - Internet-exposed compute instances
-- **database_instance_exposed** - Publicly accessible databases
-- **delegation_boundary_modifiable** - Identity delegation surface
-- **identity_administration_privileges** - IAM administration privileges
-- **policy_administration_privileges** - Policy administration capabilities
-- **unmanaged_accounts** - Unmanaged cloud accounts
-- **workload_identity_admin_capabilities** - Workload identity escalation surface
 
 You can list all available rules and their details from the CLI, see [below](#list).
 
@@ -109,6 +95,7 @@ _new_attack_surface = Fact(
     description="Recently discovered attack pattern",
     cypher_query="...",
     cypher_visual_query="...",
+    cypher_count_query="...",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
 )
@@ -132,6 +119,7 @@ _proven_check = Fact(
     description="AWS S3 buckets accessible from the internet",
     cypher_query="...",
     cypher_visual_query="...",
+    cypher_count_query="...",
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
 )
@@ -294,6 +282,18 @@ set -o history # turn shell history back on
 
 ## Usage
 
+### Framework filtering
+
+You can filter rules by compliance framework short name, optional scope, and optional revision:
+
+```bash
+# List all NIST AI RMF-mapped rules
+cartography-rules list --framework NIST-AI-RMF
+
+# Run all NIST AI RMF-mapped rules
+cartography-rules run all --framework NIST-AI-RMF
+```
+
 ### `list`
 #### See all available rules
 ```bash
@@ -304,8 +304,8 @@ Output shows all rules with their IDs, names, and fact counts:
 ```
 Available rules:
   - compute_instance_exposed (3 facts)
-  - database_instance_exposed (2 facts)
-  - mfa-missing (1 fact)
+  - database_instance_exposed (4 facts)
+  - mfa-missing (2 facts)
   - object_storage_public (2 facts)
   ...
 ```
@@ -320,18 +320,21 @@ Output shows rule metadata and all associated facts:
 Rule: mfa-missing
 Name: User accounts missing MFA
 Description: Detects user accounts without multi-factor authentication
-Facts: 1
-Version: 0.1.0
+Facts: 2
+Version: 0.2.0
 
 Facts:
-  1. missing-mfa-cloudflare (Cloudflare)
-     Finds Cloudflare member accounts that have MFA disabled
-     Maturity: STABLE
+  1. missing-mfa-aws (AWS)
+     AWS IAM users that are not associated with any MFA device
+     Maturity: EXPERIMENTAL
+  2. missing-mfa-ontology (Cross-cloud)
+     Active UserAccount nodes whose `_ont_has_mfa` is explicitly false
+     Maturity: EXPERIMENTAL
 ```
 
 #### See details of a specific fact
 ```bash
-cartography-rules list mfa-missing missing-mfa-cloudflare
+cartography-rules list mfa-missing missing-mfa-ontology
 ```
 
 ### `run`
@@ -368,7 +371,6 @@ cartography-rules run object_storage_public aws_s3_public
 cartography-rules run object_storage_public --no-experimental
 ```
 
-
 ### Authentication Options
 
 #### Use a custom environment variable for the password:
@@ -403,9 +405,9 @@ This will show you all available rules and facts.
 
 Want to add your own security rules? Here's how:
 
-### Query Structure: cypher_query vs cypher_visual_query
+### Query Structure: cypher_query, cypher_visual_query, and cypher_count_query
 
-Each Fact requires two distinct Cypher queries:
+Each Fact requires three distinct Cypher queries:
 
 #### `cypher_query` - Data Query
 Returns specific fields used to populate the output model. This query should:
@@ -441,6 +443,26 @@ WITH b
 OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
 RETURN *
 ```
+
+#### `cypher_count_query` - Total Asset Count Query
+Returns the total count of assets of the type being evaluated by the Fact. This query should:
+- Count **all** assets of the relevant type, regardless of whether they match the Fact criteria
+- Return a single value with `RETURN COUNT(...) AS count`
+- Enable calculation of compliance ratios (e.g., "10 public buckets out of 100 total")
+
+**Example:**
+```cypher
+MATCH (m:CloudflareMember)
+RETURN COUNT(m) AS count
+```
+
+Or for S3 buckets:
+```cypher
+MATCH (b:S3Bucket)
+RETURN COUNT(b) AS count
+```
+
+This count query allows users to understand the scope of their environment and calculate what percentage of assets are affected by a security finding.
 
 ### General Query Guidelines
 
@@ -509,7 +531,7 @@ object_storage_public = Rule(
    ```python
    from cartography.rules.spec.model import Fact, Rule, Finding, Maturity, Module
 
-   # Define facts with both data and visualization queries
+   # Define facts with data, visualization, and count queries
    _my_aws_check = Fact(
        id="my_aws_security_check",
        name="My AWS Security Check",
@@ -523,6 +545,10 @@ object_storage_public = Rule(
        MATCH (n:SomeNode)
        WHERE <condition>
        RETURN n
+       """,
+       cypher_count_query="""
+       MATCH (n:SomeNode)
+       RETURN COUNT(n) AS count
        """,
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
@@ -541,6 +567,10 @@ object_storage_public = Rule(
        MATCH (n:SomeAzureNode)
        WHERE <condition>
        RETURN n
+       """,
+       cypher_count_query="""
+       MATCH (n:SomeAzureNode)
+       RETURN COUNT(n) AS count
        """,
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,

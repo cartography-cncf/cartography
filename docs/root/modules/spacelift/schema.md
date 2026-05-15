@@ -31,6 +31,8 @@ GH(GitHubUser) -- PUSHED --> C
 
 Representation of a single Spacelift Account (organization). This node represents the root organizational unit that contains all other Spacelift resources.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
@@ -95,6 +97,8 @@ Representation of an organizational container within Spacelift. Spaces can conta
 
 Representation of a human or machine identity that interacts with Spacelift. Users can have roles in different spaces and can trigger runs, approve changes, and manage resources.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., GitHubUser, DuoUser, SlackUser).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
@@ -130,6 +134,8 @@ Representation of a human or machine identity that interacts with Spacelift. Use
 ### SpaceliftStack
 
 Representation of the fundamental building block of Spacelift infrastructure management. A stack combines source code (from VCS), current state (e.g., Terraform state), and configuration (environment variables, mounted files) into an isolated, independent entity.
+
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, GitLabCIConfig).
 
 | Field | Description |
 |-------|-------------|

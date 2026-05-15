@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+
+# cubic.yaml
+# This file configures AI review behavior, ignore patterns, PR descriptions, and custom rules.
+# Place this file in your repository root to version-control your AI review settings.
+# Settings defined here take precedence over UI-configured settings.
+# See https://docs.cubic.dev/configure/cubic-yaml for documentation.
+
+version: 1
+reviews:
+  enabled: true
+  sensitivity: medium
+  incremental_commits: true
+  check_drafts: false
+  architecture_diagrams: false
+  show_ai_feedback_buttons: false
+  resolve_threads_when_addressed: true
+  custom_rules:
+    - name: Avoid Logging Sensitive Information
+      description: Ensure code changes do not log personally identifiable information (PII) or sensitive data such as emails, authentication tokens, passwords, or API keys.
+      exclude:
+        - tests/**/*
+    - name: Data model follows project structure
+      description: |-
+        Mandatory properties on nodes:
+        Every CartographyNodeProperties must contain id: PropertyRef = PropertyRef("<something>") and lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True).
+
+        Dataclass frozen=True mandatory:
+        All schemas (CartographyNodeSchema, CartographyRelSchema, their properties) must use @dataclass(frozen=True).
+
+        sub_resource_relationship to tenant-like:
+        The sub_resource_relationship must always point to a tenant-like object (AWSAccount, AzureSubscription, GCPProject, etc.), never to a non-tenant hierarchical parent. The relationship label must be RESOURCE and the direction INWARD.
+
+        MatchLinks sparingly:
+        MatchLinks should only be used for: (1) connecting two existing node types from different sources, or (2) relationships with rich metadata. Prefer other_relationships in the schema.
+
+        MatchLink properties mandatory:
+        Every MatchLink must include in its properties: lastupdated, _sub_resource_label, and _sub_resource_id with set_in_kwargs=True.
+
+        scoped_cleanup by default:
+        Never set scoped_cleanup=False except for global data (CVE vulnerabilities, threat intel). Tenant-scoped resources keep the default True.
+    - name: General coding rules
+      description: |-
+        Fail loudly, no silent catches:
+        Patterns like except Exception: pass or except: logger.error(); continue are forbidden. Let errors bubble up rather than masking them.
+
+        Required vs Optional fields:
+        In transform(), required fields must use data["field"] (raises KeyError if missing). Optional fields must use data.get("field") (returns None).
+
+        No manufactured default values:
+        Never return {} or [] as a fallback on error. Let the exception propagate.
+
+        Python 3.9+ style:
+        Use dict[str, Any], list[dict], str | None instead of Dict, List, Optional from the typing module.
+
+        Appropriate log levels:
+        Follow this hierarchy: CRITICAL for framework failures causing cascading errors. ERROR for explicit module-level errors. WARNING for transient errors or non-blocking config issues. INFO only for high-level milestones (module start/end, significant statistics). DEBUG for everything else (job details, empty results, raw data). Messages like "Loaded 0 results" or "Graph job executed" should be DEBUG, not INFO.
+
+        Logging format without f-strings:
+        Use the lazy format from the logging module with %s instead of f-strings. Write logger.info("Processing %s users", count) not logger.info(f"Processing {count} users"). This avoids string evaluation if the log level isn't active.
+
+        Avoid premature optimization:
+        Functions should avoid defensive checks for conditions that are unlikely to ever occur in practice, as these create unnecessary code complexity and can mask real design issues. When a parameter is typed as a required type like str but the code defensively checks for None/empty values, it suggests either the type annotation is wrong or the check is unnecessary defensive programming. These "just in case" guards with silent failures often indicate a lack of confidence in the calling code and should be replaced with proper error handling or removed entirely if the condition truly cannot occur.
+
+        Only include uv.lock if pyproject.toml was updated:
+        as a general guideline, uv.lock should only be updated in PRs that intentionally change or refresh dependencies, typically alongside pyproject.toml updates — to avoid unnecessary diffs and uv sync issues for others
+    - name: Modules follow project requirements
+      description: |-
+        Mandatory sync pattern:
+        Every sync() function must follow this order: get() → transform() → load() → cleanup(). Verify that all 4 steps are present and in this order.
+        Cleanup is not needed for tenant-like object (AWSAccountm, AzureSubscription etc ...)
+
+        @timeit decorator required:
+        The sync() and get() functions must be decorated with @timeit for performance monitoring.
+
+        Cleanup mandatory:
+        Every cleanup() function must call GraphJob.from_node_schema() for each loaded schema, and GraphJob.from_matchlink() for each MatchLink.
+
+        No manual date parsing:
+        Do not use dt_parse.parse() or convert to epoch. Pass dates directly—Neo4j 4+ handles datetime and ISO 8601 natively.
+
+        Use None, not empty strings:
+        For missing optional values, use None instead of "" or "N/A".
+
+        Validation at module start: The start_*_ingestion() function must validate configuration and return gracefully (with logger.info) if the configuration is missing.
+
+        Require @aws_handle_regions Decorator on AWS Client Methods:
+        Pattern: Check that all AWS client interaction methods have the @aws_handle_regions decorator applied
+        Impact: Missing this decorator means AWS API errors won't be properly caught and handled, potentially causing uncaught exceptions and service disruptions
+        Detection: Scan for methods that make AWS API calls (containing 'client.' or similar patterns) and verify they have the @aws_handle_regions decorator
+        Exception can exists for resources not linked to a specific region.
+    - name: Tests and documentation quality
+      description: |-
+        Test outcomes, not implementation:
+        Tests should verify data in the graph (via check_nodes, check_rels), not parameters passed to mocks or number of calls.
+
+        Mock only external APIs:
+        Only get() functions that call external APIs should be mocked. Do not mock Cartography's internal functions.
+
+        Integration tests via sync:
+        Integration tests should call the complete sync() or sync_*() function, not individual load() functions.
+
+        Exhaustive documentation:
+        All nodes, properties, and relationships must be documented in docs/root/modules/*/schema.md.
+
+        Document ontology mappings:
+        Nodes with ExtraNodeLabels (semantic labels) must be documented in schema.md with a note: > **Ontology Mapping**: ...
+
+        Schema documentation format:
+        In docs/root/modules/*/schema.md files: use ### (h3) for node names and #### (h4) for the "Relationships" subsection. Indexed fields (primary key id and fields with extra_index=True) must be bold in the table (e.g., |**id**| The unique identifier|). Each node must document all its fields with a description.
+pr_descriptions:
+  generate: false
+  cubic_review_link: false
+issues:
+  fix_with_cubic_buttons: true
+  fix_commits_to_pr: false

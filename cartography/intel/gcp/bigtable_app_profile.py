@@ -2,9 +2,12 @@ import logging
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigtable.app_profile import GCPBigtableAppProfileSchema
 from cartography.util import timeit
 
@@ -12,22 +15,42 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_bigtable_app_profiles(client: Resource, instance_id: str) -> list[dict]:
-    app_profiles: list[dict] = []
-    request = client.projects().instances().appProfiles().list(parent=instance_id)
-    while request is not None:
-        response = request.execute()
-        app_profiles.extend(response.get("appProfiles", []))
-        request = (
-            client.projects()
-            .instances()
-            .appProfiles()
-            .list_next(
-                previous_request=request,
-                previous_response=response,
+def get_bigtable_app_profiles(client: Resource, instance_id: str) -> list[dict] | None:
+    """
+    Gets Bigtable app profiles for an instance.
+
+    Returns:
+        list[dict]: List of Bigtable app profiles (empty list if instance has no app profiles)
+        None: If the Bigtable Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
+    """
+    try:
+        app_profiles: list[dict] = []
+        request = client.projects().instances().appProfiles().list(parent=instance_id)
+        while request is not None:
+            response = gcp_api_execute_with_retry(request)
+            app_profiles.extend(response.get("appProfiles", []))
+            request = (
+                client.projects()
+                .instances()
+                .appProfiles()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
             )
-        )
-    return app_profiles
+        return app_profiles
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Bigtable app profiles for instance %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                instance_id,
+            )
+            return None
+        raise
 
 
 def transform_app_profiles(
@@ -88,9 +111,11 @@ def sync_bigtable_app_profiles(
     for inst in instances:
         instance_id = inst["name"]
         app_profiles_raw = get_bigtable_app_profiles(client, instance_id)
-        all_app_profiles_transformed.extend(
-            transform_app_profiles(app_profiles_raw, instance_id),
-        )
+        # Skip this instance if API is not enabled or access denied
+        if app_profiles_raw is not None:
+            all_app_profiles_transformed.extend(
+                transform_app_profiles(app_profiles_raw, instance_id),
+            )
 
     load_bigtable_app_profiles(
         neo4j_session, all_app_profiles_transformed, project_id, update_tag

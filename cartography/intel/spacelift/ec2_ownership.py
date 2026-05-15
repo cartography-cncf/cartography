@@ -230,8 +230,6 @@ def load_cloudtrail_events(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Successfully loaded {len(events)} CloudTrailSpaceliftEvent nodes")
-
 
 @timeit
 def cleanup_cloudtrail_events(

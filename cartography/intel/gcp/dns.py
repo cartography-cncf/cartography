@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Dict
 from typing import List
@@ -9,6 +8,10 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.dns import GCPDNSZoneSchema
 from cartography.models.gcp.dns import GCPRecordSetSchema
 from cartography.util import timeit
@@ -23,7 +26,7 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Dict]:
         zones: List[Dict] = []
         request = dns.managedZones().list(project=project_id)
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             for managed_zone in response["managedZones"]:
                 zones.append(managed_zone)
             request = dns.managedZones().list_next(
@@ -32,20 +35,15 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Dict]:
             )
         return zones
     except HttpError as e:
-        err = json.loads(e.content.decode("utf-8"))["error"]
-        if (
-            err.get("status", "") == "PERMISSION_DENIED"
-            or err.get("message", "") == "Forbidden"
-        ):
+        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
             logger.warning(
-                (
-                    "Could not retrieve DNS zones on project %s due to permissions issues. "
-                    "Code: %s, Message: %s"
-                ),
+                "Could not retrieve DNS zones on project %s due to permissions issues. %s",
                 project_id,
-                err["code"],
-                err["message"],
+                summarize_gcp_http_error(e),
             )
+            # Returning empty results on permission/API-disabled errors is intentional:
+            # it allows the cleanup step to remove previously ingested data when access
+            # to this project is lost, so the graph reflects only the current visible state.
             return []
         raise
 
@@ -61,7 +59,7 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[D
                 managedZone=zone["id"],
             )
             while request is not None:
-                response = request.execute()
+                response = gcp_api_execute_with_retry(request)
                 for resource_record_set in response["rrsets"]:
                     resource_record_set["zone"] = zone["id"]
                     rrs.append(resource_record_set)
@@ -71,20 +69,15 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[D
                 )
         return rrs
     except HttpError as e:
-        err = json.loads(e.content.decode("utf-8"))["error"]
-        if (
-            err.get("status", "") == "PERMISSION_DENIED"
-            or err.get("message", "") == "Forbidden"
-        ):
+        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
             logger.warning(
-                (
-                    "Could not retrieve DNS RRS on project %s due to permissions issues. "
-                    "Code: %s, Message: %s"
-                ),
+                "Could not retrieve DNS RRS on project %s due to permissions issues. %s",
                 project_id,
-                err["code"],
-                err["message"],
+                summarize_gcp_http_error(e),
             )
+            # Returning empty results on permission/API-disabled errors is intentional:
+            # it allows the cleanup step to remove previously ingested data when access
+            # to this project is lost, so the graph reflects only the current visible state.
             return []
         raise
 
@@ -94,6 +87,15 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
     """Transform raw DNS zone responses into Neo4j-ready dicts."""
     zones: List[Dict] = []
     for z in dns_zones:
+        dnssec_specs = z.get("dnssecConfig", {}).get("defaultKeySpecs", [])
+        key_signing_spec: Dict = next(
+            (spec for spec in dnssec_specs if spec.get("keyType") == "keySigning"),
+            {},
+        )
+        zone_signing_spec: Dict = next(
+            (spec for spec in dnssec_specs if spec.get("keyType") == "zoneSigning"),
+            {},
+        )
         zones.append(
             {
                 "id": z["id"],
@@ -101,9 +103,13 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
                 "dns_name": z.get("dnsName"),
                 "description": z.get("description"),
                 "visibility": z.get("visibility"),
+                "dnssec_state": z.get("dnssecConfig", {}).get("state"),
+                "dnssec_key_signing_algorithm": key_signing_spec.get("algorithm"),
+                "dnssec_zone_signing_algorithm": zone_signing_spec.get("algorithm"),
                 "kind": z.get("kind"),
                 "nameservers": z.get("nameServers"),
                 "created_at": z.get("creationTime"),
+                "labels": z.get("labels", {}),
             }
         )
     return zones
@@ -190,6 +196,14 @@ def sync(
     dns_zones_resp = get_dns_zones(dns, project_id)
     dns_zones = transform_dns_zones(dns_zones_resp)
     load_dns_zones(neo4j_session, dns_zones, project_id, gcp_update_tag)
+    sync_labels(
+        neo4j_session,
+        dns_zones,
+        "dns_zone",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     dns_rrs_resp = get_dns_rrs(dns, dns_zones_resp, project_id)
     dns_rrs = transform_dns_rrs(dns_rrs_resp)
     load_rrs(neo4j_session, dns_rrs, project_id, gcp_update_tag)

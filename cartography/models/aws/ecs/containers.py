@@ -20,6 +20,9 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("imageDigest")
+    architecture: PropertyRef = PropertyRef("architecture")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    architecture_source: PropertyRef = PropertyRef("architecture_source")
     runtime_id: PropertyRef = PropertyRef("runtimeId")
     last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)
     exit_code: PropertyRef = PropertyRef("exitCode")
@@ -56,6 +59,7 @@ class ECSContainerToTaskRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSContainerToTaskRel(CartographyRelSchema):
     target_node_label: str = "ECSTask"
@@ -65,6 +69,25 @@ class ECSContainerToTaskRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CONTAINER"
     properties: ECSContainerToTaskRelProperties = ECSContainerToTaskRelProperties()
+
+
+@dataclass(frozen=True)
+class ECSContainerToECSTaskWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
+class ECSContainerToECSTaskWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "ECSTask"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("taskArn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: ECSContainerToECSTaskWorkloadParentRelProperties = (
+        ECSContainerToECSTaskWorkloadParentRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -86,6 +109,51 @@ class ECSContainerToECRImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSContainerToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGitLabContainerImageRel(CartographyRelSchema):
+    """
+    Relationship from ECSContainer to GitLabContainerImage.
+    Matches containers to GitLab registry images by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGitLabContainerImageRelProperties = (
+        ECSContainerToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """
+    Matches containers to GAR image artifacts by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GCPArtifactRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGCPArtifactRegistryImageRelProperties = (
+        ECSContainerToGCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -96,6 +164,9 @@ class ECSContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSContainerToTaskRel(),
+            ECSContainerToECSTaskWorkloadParentRel(),
             ECSContainerToECRImageRel(),
+            ECSContainerToGitLabContainerImageRel(),
+            ECSContainerToGCPArtifactRegistryImageRel(),
         ]
     )

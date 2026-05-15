@@ -7,13 +7,13 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclEgressRuleSchema
 from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclInboundRuleSchema
 from cartography.models.aws.ec2.network_acls import EC2NetworkAclSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,8 @@ def get_network_acl_data(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -141,7 +142,6 @@ def load_network_acls(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acls in {region}.")
     load(
         neo4j_session,
         EC2NetworkAclSchema(),
@@ -160,7 +160,6 @@ def load_network_acl_inbound_rules(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acl inbound rules in {region}.")
     load(
         neo4j_session,
         EC2NetworkAclInboundRuleSchema(),
@@ -179,7 +178,6 @@ def load_network_acl_egress_rules(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acl egress rules in {region}.")
     load(
         neo4j_session,
         EC2NetworkAclEgressRuleSchema(),

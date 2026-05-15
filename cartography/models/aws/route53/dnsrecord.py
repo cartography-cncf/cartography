@@ -102,7 +102,7 @@ class AWSDNSRecordToLoadBalancerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToLoadBalancerRel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancer"
+    target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "dnsname": PropertyRef("value"),
@@ -122,7 +122,7 @@ class AWSDNSRecordToLoadBalancerV2RelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToLoadBalancerV2Rel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancerV2"
+    target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "dnsname": PropertyRef("value"),

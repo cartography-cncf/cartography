@@ -8,6 +8,11 @@ from neo4j import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import read_text_report
+from cartography.intel.common.object_store import ReportRef
+from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
 from cartography.models.trivy.package import TrivyPackageSchema
@@ -54,6 +59,20 @@ def transform_scan_results(
         # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
         if "Vulnerabilities" in scan_class and scan_class["Vulnerabilities"]:
             for result in scan_class["Vulnerabilities"]:
+                # Extract layer info if available
+                layer_digest = None
+                layer_diff_id = None
+                if "Layer" in result:
+                    layer_digest = result["Layer"].get("Digest")
+                    layer_diff_id = result["Layer"].get("DiffID")
+
+                # Extract data source info if available
+                data_source_id = None
+                data_source_name = None
+                if "DataSource" in result:
+                    data_source_id = result["DataSource"].get("ID")
+                    data_source_name = result["DataSource"].get("Name")
+
                 # Transform finding data
                 finding = {
                     "id": f'TIF|{result["VulnerabilityID"]}',
@@ -77,6 +96,14 @@ def transform_scan_results(
                     "Class": scan_class["Class"],
                     "Type": scan_class["Type"],
                     "ImageDigest": image_digest,  # For AFFECTS relationship
+                    # Additional fields
+                    "CweIDs": result.get("CweIDs"),
+                    "Status": result.get("Status"),
+                    "References": result.get("References"),
+                    "DataSourceID": data_source_id,
+                    "DataSourceName": data_source_name,
+                    "LayerDigest": layer_digest,
+                    "LayerDiffID": layer_diff_id,
                 }
 
                 # Add CVSS scores if available
@@ -98,8 +125,23 @@ def transform_scan_results(
 
                 findings_list.append(finding)
 
+                # Extract PURL if available
+                purl = None
+                if "PkgIdentifier" in result:
+                    purl = result["PkgIdentifier"].get("PURL")
+
                 # Transform package data
                 package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
+
+                # Compute normalized ID for cross-tool matching
+                # This enables Syft to match packages despite naming differences
+                normalized_id = make_normalized_package_id(
+                    purl=purl,
+                    name=result["PkgName"],
+                    version=result["InstalledVersion"],
+                    pkg_type=scan_class["Type"],
+                )
+
                 packages_list.append(
                     {
                         "id": package_id,
@@ -109,6 +151,10 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FindingId": finding["id"],  # For AFFECTS relationship
+                        # Additional fields
+                        "PURL": purl,
+                        "PkgID": result.get("PkgID"),
+                        "normalized_id": normalized_id,
                     }
                 )
 
@@ -128,6 +174,75 @@ def transform_scan_results(
     return findings_list, packages_list, fixes_list
 
 
+def transform_all_packages(
+    results: list[dict],
+    image_digest: str,
+    seen_ids: set[str],
+) -> list[dict]:
+    """
+    Transform Trivy Packages arrays into package dicts for loading.
+
+    With --list-all-pkgs, Trivy includes a Packages array per result class
+    containing ALL installed packages, not just vulnerable ones. This function
+    extracts those packages, skipping any already loaded from the Vulnerabilities
+    array (to avoid overwriting their FindingId).
+
+    Args:
+        results: Raw Trivy scan Results array
+        image_digest: Image digest for DEPLOYED relationship
+        seen_ids: Set of package IDs already loaded (from transform_scan_results)
+
+    Returns:
+        List of package dicts ready for load_scan_packages()
+    """
+    packages_list: list[dict] = []
+    for scan_class in results:
+        if "Packages" not in scan_class or not scan_class["Packages"]:
+            continue
+
+        class_name = scan_class.get("Class", "")
+        pkg_type = scan_class.get("Type", "")
+
+        for pkg in scan_class["Packages"]:
+            name = pkg.get("Name")
+            version = pkg.get("Version")
+            if not name or not version:
+                continue
+
+            package_id = f"{version}|{name}"
+            if package_id in seen_ids:
+                continue
+            seen_ids.add(package_id)
+
+            purl = None
+            if "Identifier" in pkg and pkg["Identifier"]:
+                purl = pkg["Identifier"].get("PURL")
+
+            normalized_id = make_normalized_package_id(
+                purl=purl,
+                name=name,
+                version=version,
+                pkg_type=pkg_type,
+            )
+
+            packages_list.append(
+                {
+                    "id": package_id,
+                    "InstalledVersion": version,
+                    "PkgName": name,
+                    "Class": class_name,
+                    "Type": pkg_type,
+                    "ImageDigest": image_digest,
+                    "FindingId": None,
+                    "PURL": purl,
+                    "PkgID": pkg.get("ID"),
+                    "normalized_id": normalized_id,
+                },
+            )
+
+    return _validate_packages(packages_list)
+
+
 def _parse_trivy_data(
     trivy_data: dict, source: str
 ) -> tuple[str | None, list[dict], str]:
@@ -144,13 +259,7 @@ def _parse_trivy_data(
     # Extract artifact name if present (only for file-based)
     artifact_name = trivy_data.get("ArtifactName")
 
-    if "Results" not in trivy_data:
-        logger.error(
-            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
-        )
-        raise ValueError(f"Missing 'Results' key in scan data for {source}")
-
-    results = trivy_data["Results"]
+    results = trivy_data.get("Results", [])
     if not results:
         stat_handler.incr("image_scan_no_results_count")
         logger.info(f"No vulnerabilities found for {source}")
@@ -205,6 +314,16 @@ def sync_single_image(
         load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
         load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
         load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+
+        # Load non-vulnerable packages from the Packages arrays (requires --list-all-pkgs)
+        seen_ids = {pkg["id"] for pkg in packages_list}
+        all_packages = transform_all_packages(results, image_digest, seen_ids)
+        if all_packages:
+            logger.info(
+                f"Loading {len(all_packages)} additional non-vulnerable packages for {source}",
+            )
+            load_scan_packages(neo4j_session, all_packages, update_tag=update_tag)
+
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
@@ -227,30 +346,20 @@ def get_json_files_in_s3(
     Returns:
         Set of S3 object keys for JSON files in the S3 prefix
     """
-    s3_client = boto3_session.client("s3")
-
+    # DEPRECATED: get_json_files_in_s3() will be removed in v1.0.0.
     try:
-        # List objects in the S3 prefix
-        paginator = s3_client.get_paginator("list_objects_v2")
-        page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-        results = set()
-
-        for page in page_iterator:
-            if "Contents" not in page:
-                continue
-
-            for obj in page["Contents"]:
-                object_key = obj["Key"]
-
-                # Skip non-JSON files
-                if not object_key.endswith(".json"):
-                    continue
-
-                # Skip files that don't start with our prefix
-                if not object_key.startswith(s3_prefix):
-                    continue
-
-                results.add(object_key)
+        with S3BucketReader(
+            boto3_session,
+            s3_bucket,
+            s3_prefix,
+        ) as reader:
+            results = {
+                ref.name
+                for ref in filter_report_refs(
+                    reader.list_reports(),
+                    suffix=".json",
+                )
+            }
 
     except Exception as e:
         logger.error(
@@ -279,6 +388,8 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
+    _migrate_legacy_package_labels(neo4j_session)
+
     logger.info("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
@@ -288,6 +399,38 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
+    )
+
+
+# DEPRECATED: Remove this migration function when releasing v1
+def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
+    """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
+    # Package is reserved as the canonical ontology primary label.
+    # Non-ontology nodes should never use :Package going forward
+    # (enforced by tests/unit/cartography/intel/ontology/test_ontology_mapping.py).
+    check_query = """
+    MATCH (n:Package)
+    WHERE NOT n:Ontology
+    RETURN count(n) as legacy_count
+    """
+    result = neo4j_session.run(check_query)
+    legacy_count = result.single()["legacy_count"]
+
+    if legacy_count == 0:
+        return
+
+    logger.info("Migrating %d legacy Package nodes to TrivyPackage...", legacy_count)
+    migration_query = """
+    MATCH (n:Package)
+    WHERE NOT n:Ontology
+    SET n:TrivyPackage
+    REMOVE n:Package
+    RETURN count(n) as migrated
+    """
+    result = neo4j_session.run(migration_query)
+    logger.info(
+        "Migrated %d Package nodes to TrivyPackage",
+        result.single()["migrated"],
     )
 
 
@@ -362,11 +505,15 @@ def sync_single_image_from_s3(
         s3_object_key: S3 object key for this image's scan results
         boto3_session: boto3 session for S3 operations
     """
-    s3_client = boto3_session.client("s3")
-
+    # DEPRECATED: sync_single_image_from_s3() will be removed in v1.0.0.
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
-    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
-    scan_data_json = response["Body"].read().decode("utf-8")
+    # Empty prefix is intentional: this compatibility wrapper reads exactly one
+    # caller-provided key through the shared reader API.
+    with S3BucketReader(boto3_session, s3_bucket, "") as reader:
+        scan_data_json = read_text_report(
+            reader,
+            ReportRef(uri=f"s3://{s3_bucket}/{s3_object_key}", name=s3_object_key),
+        )
 
     trivy_data = json.loads(scan_data_json)
     sync_single_image(neo4j_session, trivy_data, image_uri, update_tag)

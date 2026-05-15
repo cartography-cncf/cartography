@@ -21,6 +21,8 @@ class OntologyFieldMapping:
         - "nor_boolean": Combines multiple boolean fields (provided in extra['fields']) using a logical NOR operation .
         - "equal_boolean": Compares the field value to a specified boolean value (True/False) provided in extra['value'].
         - "static_value": Sets a static value for the ontology field (provided in extra['value']), ignoring node_field.
+        - "mapping": Maps provider-specific values to normalized ontology values using extra['map'] dict
+          (e.g., {"BASIC": "builtin", "PREDEFINED": "builtin", "CUSTOM": "custom"}). Unmapped values become NULL.
 
     Example:
         OntologyFieldMapping(ontology_field="email", node_field="email_address", required=True)
@@ -56,30 +58,13 @@ class OntologyNodeMapping:
 
 
 @dataclass(frozen=True)
-class OntologyRelMapping:
-    """Mapping for a relationship in the ontology.
-
-    Attributes:
-        query: The query used to retrieve this relationship.
-        iterative: Whether this relationship requires batch processing (iterative) or can be created in a single query.
-        __comment__: An optional comment about this relationship.
-    """
-
-    query: str
-    iterative: bool = False
-    __comment__: str | None = None
-
-
-@dataclass(frozen=True)
 class OntologyMapping:
     """Ontology mapping for a specific module.
 
     Attributes:
         module_name: The name of the module.
         nodes: A list of OntologyNodeMapping defining the nodes for this module.
-        rels: A list of OntologyRelMapping defining the relationships for this module.
     """
 
     module_name: str
     nodes: list[OntologyNodeMapping]
-    rels: list[OntologyRelMapping] = field(default_factory=list)

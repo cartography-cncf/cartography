@@ -4,7 +4,12 @@
 graph LR
 
 O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> B(GitHubBranch)
 O -- RESOURCE --> T(GitHubTeam)
+O -- RESOURCE --> OS(GitHubActionsSecret)
+O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> A(GitHubAction)
+O -- RESOURCE --> DA(GitHubDependabotAlert)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -15,25 +20,36 @@ U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
-R -- HAS_RULESET --> RS(GitHubRuleset)
-O -- RESOURCE --> RS
-RS -- CONTAINS_RULE --> RR(GitHubRulesetRule)
-O -- RESOURCE --> RR
-RS -- ALLOWS_BYPASS --> BA(GitHubRulesetBypassActor)
-O -- RESOURCE --> BA
+R -- HAS_RULESET --> GRS(GitHubRuleset)
+GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
+GRS -- ALLOWS_BYPASS --> RBA(GitHubRulesetBypassActor)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
+R -- HAS_WORKFLOW --> W(GitHubWorkflow)
+R -- HAS_SECRET --> RS(GitHubActionsSecret)
+R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
+R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+DA -- FOUND_IN --> R
+DA -- DISMISSED_BY --> U
+DA -- ASSIGNED_TO --> U
+W -- USES_ACTION --> A(GitHubAction)
+W -- REFERENCES_SECRET --> RS
+E -- HAS_SECRET --> ES(GitHubActionsSecret)
+E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
+I(Image) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_BY --> W
 ```
 
 ### GitHubRepository
 
 Representation of a single GitHubRepository (repo) [repository object](https://developer.github.com/v4/object/repository/). This node contains all data unique to the repo.
 
+> **Ontology Mapping**: This node has the extra label `CodeRepository` to enable cross-platform queries for source code repositories across different systems (e.g., GitLabProject).
 
 | Field | Description |
 |-------|--------------|
@@ -114,10 +130,19 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
   - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
+- GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).
+
+    ```
+    (SemgrepSASTFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSCAFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSecretsFinding)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 |-------|--------------|
@@ -163,6 +188,7 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -204,6 +230,7 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
 
 Representation of a single GitHubUser [user object](https://developer.github.com/v4/object/user/). This node contains minimal data for the GitHub User.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|
@@ -288,6 +315,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
 Representation of a single GitHubBranch [ref object](https://developer.github.com/v4/object/ref). This node contains minimal data for a repository branch.
 
+GitHub branches are modeled as resources scoped to the parent GitHub organization and also linked to their repository via the `BRANCH` relationship.
 
 | Field | Description |
 |-------|--------------|
@@ -298,6 +326,12 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
 
 #### Relationships
+
+- GitHubOrganizations scope GitHubBranches as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranch)
+    ```
 
 - GitHubRepositories have GitHubBranches.
 
@@ -339,33 +373,32 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
+- GitHubBranchProtectionRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
 ### GitHubRuleset
 
-Representation of a GitHub Repository Ruleset [RepositoryRuleset object](https://docs.github.com/en/graphql/reference/objects#repositoryruleset). This node contains ruleset configuration that enforces rules on branches or tags in a repository.
-
+Representation of a single GitHubRuleset [RepositoryRuleset object](https://docs.github.com/en/graphql/reference/objects#repositoryruleset). This node contains GitHub ruleset configuration for repositories.
 
 | Field | Description |
 |-------|--------------|
-| firstseen | Timestamp of when a sync job first created this node  |
-| lastupdated | Timestamp of the last time the node was updated |
-| id | The GitHub ruleset id |
-| database_id | The GitHub database id for this ruleset |
-| name | Name of the ruleset |
-| target | Target type: BRANCH or TAG |
-| enforcement | Enforcement level: ACTIVE, EVALUATE, or DISABLED |
-| created_at | When the ruleset was created |
-| updated_at | When the ruleset was last updated |
-| conditions_ref_name_include | Array of branch/tag patterns to include (e.g., ["~DEFAULT_BRANCH", "refs/heads/release/*"]) |
-| conditions_ref_name_exclude | Array of branch/tag patterns to exclude (e.g., ["refs/heads/dependabot/**/*"]) |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub ruleset node ID |
+| database_id | GitHub database ID for the ruleset |
+| name | Ruleset name |
+| target | Ruleset target, such as BRANCH or TAG |
+| enforcement | Ruleset enforcement mode |
+| created_at | GitHub timestamp from when the ruleset was created |
+| updated_at | GitHub timestamp for last time the ruleset was modified |
+| conditions_ref_name_include | Ref name include conditions |
+| conditions_ref_name_exclude | Ref name exclude conditions |
 
 
 #### Relationships
-
-- GitHubOrganizations own GitHubRulesets (used for cleanup).
-
-    ```
-    (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
-    ```
 
 - GitHubRepositories have GitHubRulesets.
 
@@ -373,13 +406,19 @@ Representation of a GitHub Repository Ruleset [RepositoryRuleset object](https:/
     (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
     ```
 
+- GitHubRulesets belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
+    ```
+
 - GitHubRulesets contain GitHubRulesetRules.
 
     ```
     (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
     ```
 
-- GitHubRulesets allow bypass by GitHubRulesetBypassActors.
+- GitHubRulesets allow GitHubRulesetBypassActors.
 
     ```
     (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
@@ -387,68 +426,67 @@ Representation of a GitHub Repository Ruleset [RepositoryRuleset object](https:/
 
 ### GitHubRulesetRule
 
-Representation of a rule within a GitHub Repository Ruleset [RepositoryRule union](https://docs.github.com/en/graphql/reference/unions#repositoryrule). This node contains individual rule configuration.
-
+Representation of a single GitHubRulesetRule [RepositoryRule object](https://docs.github.com/en/graphql/reference/objects#repositoryrule). This node contains a single rule from a GitHub repository ruleset.
 
 | Field | Description |
 |-------|--------------|
-| firstseen | Timestamp of when a sync job first created this node  |
-| lastupdated | Timestamp of the last time the node was updated |
-| id | The GitHub rule id |
-| type | Rule type (e.g., DELETION, PULL_REQUEST, REQUIRED_STATUS_CHECKS) |
-| parameters | JSON string of rule parameters (e.g., {"requiredApprovingReviewCount": 2}) or null if no parameters |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub ruleset rule node ID |
+| type | Rule type |
+| parameters | JSON-encoded rule parameters |
 
 
 #### Relationships
 
-- GitHubOrganizations own GitHubRulesetRules (used for cleanup).
-
-    ```
-    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
-    ```
-
-- GitHubRulesets contain GitHubRulesetRules.
+- GitHubRulesetRules belong to a GitHubRuleset.
 
     ```
     (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
     ```
 
+- GitHubRulesetRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
+    ```
+
 ### GitHubRulesetBypassActor
 
-Representation of a bypass actor for a GitHub Repository Ruleset [RepositoryRulesetBypassActor object](https://docs.github.com/en/graphql/reference/objects#repositoryrulesetbypassactor). This node represents an actor (team, app, role, etc.) that can bypass ruleset enforcement.
-
+Representation of a single GitHubRulesetBypassActor [RepositoryRulesetBypassActor object](https://docs.github.com/en/graphql/reference/objects#repositoryrulesetbypassactor). This node contains a ruleset bypass actor.
 
 | Field | Description |
 |-------|--------------|
-| firstseen | Timestamp of when a sync job first created this node  |
-| lastupdated | Timestamp of the last time the node was updated |
-| id | The GitHub bypass actor id |
-| bypass_mode | When the actor can bypass: ALWAYS or PULL_REQUEST |
-| actor_type | Type of actor: Team, App, OrganizationAdmin, EnterpriseOwner, DeployKey, or RepositoryRole |
-| actor_id | GitHub id of the actor (for Team/App types) |
-| actor_database_id | GitHub database id of the actor |
-| actor_name | Name of the actor (e.g., "maintainers", "Dependabot") |
-| actor_slug | Slug of the actor (for App type only) |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub ruleset bypass actor node ID |
+| bypass_mode | Bypass mode |
+| actor_type | Actor type, such as Team, App, OrganizationAdmin, EnterpriseOwner, DeployKey, or RepositoryRole |
+| actor_id | GitHub actor node ID, if available |
+| actor_database_id | GitHub actor database ID, if available |
+| actor_name | Actor name, if available |
+| actor_slug | Actor slug, if available |
 
 
 #### Relationships
 
-- GitHubOrganizations own GitHubRulesetBypassActors (used for cleanup).
-
-    ```
-    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetBypassActor)
-    ```
-
-- GitHubRulesets allow bypass by GitHubRulesetBypassActors.
+- GitHubRulesetBypassActors belong to a GitHubRuleset.
 
     ```
     (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
+    ```
+
+- GitHubRulesetBypassActors belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetBypassActor)
     ```
 
 ### ProgrammingLanguage
 
 Representation of a single Programming Language [language object](https://developer.github.com/v4/object/language). This node contains programming language information.
 
+ProgrammingLanguage nodes are shared globally across repositories and are linked from each repository with `:LANGUAGE`.
 
 | Field | Description |
 |-------|--------------|
@@ -497,6 +535,13 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+- **GitHubOrganization** via **RESOURCE** relationship
+  - Manifests are scoped to the owning organization for cleanup
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    ```
+
 ### Dependency
 https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
 Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
@@ -512,6 +557,10 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+| version | Exact version if pinned (e.g., `"18.2.0"`). `null` for ranges or unpinned dependencies. |
+| type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
+| purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
 #### Relationships
 
@@ -523,6 +572,83 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (GitHubRepository)-[:REQUIRES]->(Dependency)
     ```
 
+### GitHubDependabotAlert
+
+Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alerts) for a dependency vulnerability in a GitHub repository. Alerts are scoped to the owning GitHub organization for cleanup and include triage state, advisory metadata, affected package details, and actor metadata.
+
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-scanner queries for security issues. Alerts with a CVE identifier also receive the `CVE` label and standard `cve_id` property so the `cve_metadata` module can enrich them with NVD and EPSS metadata.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Alert URL, preferring the GitHub web URL |
+| **number** | Repository-local Dependabot alert number |
+| **state** | Alert state: `open`, `fixed`, `dismissed`, or `auto_dismissed` |
+| html_url | GitHub web URL for the alert |
+| url | GitHub REST API URL for the alert |
+| created_at | Timestamp when the alert was created |
+| updated_at | Timestamp when the alert was last updated |
+| dismissed_at | Timestamp when the alert was dismissed, if applicable |
+| dismissed_reason | GitHub dismissal reason, if applicable |
+| dismissed_comment | Dismissal comment, if applicable |
+| fixed_at | Timestamp when the alert was fixed, if applicable |
+| dependency_package_ecosystem | Package ecosystem, such as `npm`, `pip`, or `maven` |
+| dependency_package_name | Vulnerable package name |
+| dependency_manifest_path | Manifest path where GitHub found the dependency |
+| dependency_scope | Dependency scope returned by GitHub |
+| vulnerable_version_range | Vulnerable version range returned by GitHub |
+| first_patched_version | First patched package version, if known |
+| severity | Vulnerability severity |
+| advisory_ghsa_id | GitHub Security Advisory ID |
+| advisory_cve_id | CVE ID, if GitHub maps the advisory to a CVE |
+| cve_id | Standard CVE ID field used by `cve_metadata`; mirrors `advisory_cve_id` |
+| has_cve | `true` when a CVE ID is present; used to apply the conditional `CVE` label |
+| advisory_summary | Advisory summary |
+| advisory_description | Advisory description |
+| cvss_score | CVSS score from the advisory |
+| cvss_vector_string | CVSS vector from the advisory |
+| cvss_v3_score | CVSS v3 score, if returned |
+| cvss_v3_vector_string | CVSS v3 vector, if returned |
+| cvss_v4_score | CVSS v4 score, if returned |
+| cvss_v4_vector_string | CVSS v4 vector, if returned |
+| epss_percentage | EPSS probability, if returned |
+| epss_percentile | EPSS percentile, if returned |
+| cwe_ids | List of CWE IDs from the advisory |
+| identifiers | List of advisory identifier values, such as GHSA and CVE IDs |
+| references | List of advisory reference URLs |
+| repository_url | GitHub repository URL |
+| repository_name | GitHub repository name |
+| repository_full_name | GitHub owner/name repository string |
+
+#### Relationships
+
+- GitHubDependabotAlerts belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubDependabotAlert)
+    ```
+
+- GitHubDependabotAlerts are found in GitHubRepositories.
+
+    ```
+    (GitHubDependabotAlert)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
+- GitHubDependabotAlerts may be dismissed by a GitHubUser.
+
+    ```
+    (GitHubDependabotAlert)-[:DISMISSED_BY]->(GitHubUser)
+    ```
+
+- GitHubDependabotAlerts may be assigned to one or more GitHubUsers.
+
+    ```
+    (GitHubDependabotAlert)-[:ASSIGNED_TO]->(GitHubUser)
+    ```
+
+Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled `CVE` for compatibility with CVE metadata enrichment.
+
 - **DependencyGraphManifest** via **HAS_DEP** relationship
   - Dependencies are linked to their specific manifest files
 
@@ -530,11 +656,40 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+Dependency nodes are deliberately shared across organizations and repositories
+(the same `name|requirements` id is reused everywhere it appears), so they are
+not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
+are cleaned up globally once per sync cycle, alongside other shared GitHub
+nodes such as `PythonLibrary`.
+
+### Image to GitHubRepository (Cross-module relationship)
+
+Container images (`Image` nodes from any registry: ECR, GitLab, GCP Artifact Registry, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created from provenance metadata or by analyzing Dockerfile content and matching layer commands against image history.
+
+#### Relationships
+
+- Image nodes may be packaged from a GitHubRepository
+    ```
+    (:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **match_method**: How the match was determined: `"provenance"` (from SLSA attestation) or `"dockerfile_analysis"` (from command matching)
+    - **dockerfile_path**: Path to the Dockerfile in the repository (only for `dockerfile_analysis` method)
+    - **confidence**: Confidence score of the match (0.0 to 1.0, only for `dockerfile_analysis` method)
+    - **matched_commands**: Number of commands that matched between Dockerfile and image history (only for `dockerfile_analysis` method)
+    - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
+    - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
+
+    Note: This relationship uses the generic `Image` semantic label, enabling cross-registry querying across image registries. Registry-specific pullable references can be reached from `ImageTag` nodes through `(:ImageTag)-[:IMAGE]->(:Image)`.
+
 ### Dependency::PythonLibrary
 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
 or [setup.cfg](https://setuptools.pypa.io/en/latest/userguide/declarative_config.html) file.
 Within a setup.cfg file, cartography will load everything from `install_requires`, `setup_requires`, and `extras_require`.
+
+These nodes are also shared globally across repositories. Repository-specific version constraints stay on the `:REQUIRES` relationship via the `specifier` property.
 
 | Field | Description |
 |-------|-------------|
@@ -556,4 +711,222 @@ Within a setup.cfg file, cartography will load everything from `install_requires
 
     ```
     (:SemgrepSCAFinding)-[:AFFECTS]->(:PythonLibrary)
+    ```
+
+
+### GitHubWorkflow
+
+Represents a GitHub Actions workflow definition file in a repository.
+
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitLabCIConfig, SpaceliftStack).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub workflow ID |
+| **name** | Name of the workflow |
+| **path** | Path to the workflow file (e.g., `.github/workflows/ci.yml`) |
+| **state** | Workflow state: `active`, `disabled_manually`, `disabled_inactivity`, `disabled_fork`, or `deleted` |
+| **created_at** | Timestamp when the workflow was created |
+| **updated_at** | Timestamp when the workflow was last updated |
+| **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
+| **trigger_events** | List of events that trigger the workflow (e.g., `push`, `pull_request`, `schedule`) |
+| **permissions_actions** | Permission level for the `actions` scope |
+| **permissions_contents** | Permission level for the `contents` scope |
+| **permissions_packages** | Permission level for the `packages` scope |
+| **permissions_pull_requests** | Permission level for the `pull-requests` scope |
+| **permissions_issues** | Permission level for the `issues` scope |
+| **permissions_deployments** | Permission level for the `deployments` scope |
+| **permissions_statuses** | Permission level for the `statuses` scope |
+| **permissions_checks** | Permission level for the `checks` scope |
+| **permissions_id_token** | Permission level for the `id-token` scope |
+| **permissions_security_events** | Permission level for the `security-events` scope |
+| **env_vars** | List of top-level environment variable names defined in the workflow |
+| **job_count** | Number of jobs defined in the workflow |
+| **has_reusable_workflow_calls** | Whether the workflow calls reusable workflows |
+
+#### Relationships
+
+- GitHubRepositories have GitHubWorkflows.
+
+    ```
+    (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
+    ```
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubWorkflows reference GitHubActionsSecrets (detected via `${{ secrets.NAME }}` patterns in the YAML).
+
+    ```
+    (GitHubWorkflow)-[:REFERENCES_SECRET]->(GitHubActionsSecret)
+    ```
+
+- Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
+
+    ```
+    (:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    ```
+
+    Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
+
+
+### GitHubAction
+
+Represents a third-party GitHub Action used in workflows, parsed from workflow YAML `uses` references.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format `{org}:{raw_uses}` (e.g., `my-org:actions/checkout@v4`) |
+| **owner** | Owner of the action repository (e.g., `actions`, `docker`), or `None` for local actions |
+| **name** | Name of the action (e.g., `checkout`, `setup-node`, `./.github/actions/my-action`) |
+| **version** | Version reference (tag, branch, or SHA), or `None` for docker/local actions |
+| **is_pinned** | Whether the action is pinned to a full 40-character SHA commit hash |
+| **is_local** | Whether the action is a local action (path starting with `./`) |
+| **full_name** | Full name of the action (e.g., `actions/checkout`) |
+
+#### Relationships
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubOrganizations are sub-resources for GitHubActions (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubAction)
+    ```
+
+
+### GitHubEnvironment
+
+Represents a GitHub deployment environment for a repository.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub environment ID |
+| **name** | Name of the environment (e.g., `production`, `staging`) |
+| **html_url** | Web URL for viewing the environment settings |
+| **created_at** | Timestamp when the environment was created |
+| **updated_at** | Timestamp when the environment was last updated |
+
+#### Relationships
+
+- GitHubRepositories have GitHubEnvironments.
+
+    ```
+    (GitHubRepository)-[:HAS_ENVIRONMENT]->(GitHubEnvironment)
+    ```
+
+- GitHubEnvironments can have GitHubActionsSecrets.
+
+    ```
+    (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret)
+    ```
+
+- GitHubEnvironments can have GitHubActionsVariables.
+
+    ```
+    (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable)
+    ```
+
+
+### GitHubActionsSecret
+
+Represents a GitHub Actions secret. Secrets can exist at three levels: organization, repository, or environment.
+Note that secret **values are never exposed** by the GitHub API - only metadata is stored.
+
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (composite URL based on level) |
+| **name** | Name of the secret |
+| **level** | Level of the secret: `organization`, `repository`, or `environment` |
+| **visibility** | Visibility setting (organization-level only): `all`, `private`, or `selected` |
+| **created_at** | Timestamp when the secret was created |
+| **updated_at** | Timestamp when the secret was last updated |
+
+#### Relationships
+
+- GitHubOrganizations have organization-level GitHubActionsSecrets.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "organization"})
+    ```
+
+- GitHubRepositories have repository-level GitHubActionsSecrets.
+
+    ```
+    (GitHubRepository)-[:HAS_SECRET]->(GitHubActionsSecret {level: "repository"})
+    ```
+
+- GitHubEnvironments have environment-level GitHubActionsSecrets.
+
+    ```
+    (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret {level: "environment"})
+    ```
+
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsSecrets (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "repository"})
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "environment"})
+    ```
+
+
+### GitHubActionsVariable
+
+Represents a GitHub Actions variable. Variables can exist at three levels: organization, repository, or environment.
+Unlike secrets, variable **values are stored in plaintext**.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (composite URL based on level) |
+| **name** | Name of the variable |
+| **value** | Value of the variable (plaintext) |
+| **level** | Level of the variable: `organization`, `repository`, or `environment` |
+| **visibility** | Visibility setting (organization-level only): `all`, `private`, or `selected` |
+| **created_at** | Timestamp when the variable was created |
+| **updated_at** | Timestamp when the variable was last updated |
+
+#### Relationships
+
+- GitHubOrganizations have organization-level GitHubActionsVariables.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "organization"})
+    ```
+
+- GitHubRepositories have repository-level GitHubActionsVariables.
+
+    ```
+    (GitHubRepository)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "repository"})
+    ```
+
+- GitHubEnvironments have environment-level GitHubActionsVariables.
+
+    ```
+    (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "environment"})
+    ```
+
+- GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsVariables (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "repository"})
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```

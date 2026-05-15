@@ -2,9 +2,12 @@ import logging
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigtable.backup import GCPBigtableBackupSchema
 from cartography.util import timeit
 
@@ -12,23 +15,45 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_bigtable_backups(client: Resource, cluster_id: str) -> list[dict]:
-    backups: list[dict] = []
-    request = client.projects().instances().clusters().backups().list(parent=cluster_id)
-    while request is not None:
-        response = request.execute()
-        backups.extend(response.get("backups", []))
+def get_bigtable_backups(client: Resource, cluster_id: str) -> list[dict] | None:
+    """
+    Gets Bigtable backups for a cluster.
+
+    Returns:
+        list[dict]: List of Bigtable backups (empty list if cluster has no backups)
+        None: If the Bigtable Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
+    """
+    try:
+        backups: list[dict] = []
         request = (
-            client.projects()
-            .instances()
-            .clusters()
-            .backups()
-            .list_next(
-                previous_request=request,
-                previous_response=response,
-            )
+            client.projects().instances().clusters().backups().list(parent=cluster_id)
         )
-    return backups
+        while request is not None:
+            response = gcp_api_execute_with_retry(request)
+            backups.extend(response.get("backups", []))
+            request = (
+                client.projects()
+                .instances()
+                .clusters()
+                .backups()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
+            )
+        return backups
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Bigtable backups for cluster %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                cluster_id,
+            )
+            return None
+        raise
 
 
 def transform_backups(backups_data: list[dict], cluster_id: str) -> list[dict]:
@@ -80,7 +105,9 @@ def sync_bigtable_backups(
     for cluster in clusters:
         cluster_id = cluster["name"]
         backups_raw = get_bigtable_backups(client, cluster_id)
-        all_backups_transformed.extend(transform_backups(backups_raw, cluster_id))
+        # Skip this cluster if API is not enabled or access denied
+        if backups_raw is not None:
+            all_backups_transformed.extend(transform_backups(backups_raw, cluster_id))
 
     load_bigtable_backups(
         neo4j_session, all_backups_transformed, project_id, update_tag

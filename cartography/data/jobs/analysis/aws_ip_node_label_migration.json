@@ -1,0 +1,35 @@
+{
+  "statements": [
+  {
+    "__comment__": "Drop legacy AWSAccount->RESOURCE edges to pre-migration shared IpRange nodes.",
+    "query": "MATCH (:AWSAccount)-[r:RESOURCE]->(n:IpRange) WHERE NOT n:AWSIpRange AND NOT n:Ontology AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DELETE r",
+    "iterative": false
+  },
+  {
+    "__comment__": "Drop legacy AWSAccount->RESOURCE edges to pre-migration shared IpRule nodes.",
+    "query": "MATCH (:AWSAccount)-[r:RESOURCE]->(n:IpRule) WHERE NOT n:AWSIpRule AND NOT n:Ontology AND n.ruleid IS NOT NULL AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DELETE r",
+    "iterative": false
+  },
+  {
+    "__comment__": "Drop legacy AWSAccount->RESOURCE edges to pre-migration shared SG-style inbound rule nodes only.",
+    "query": "MATCH (:AWSAccount)-[r:RESOURCE]->(n:IpPermissionInbound) WHERE NOT n:AWSIpPermissionInbound AND NOT n:Ontology AND n.ruleid IS NOT NULL AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DELETE r",
+    "iterative": false
+  },
+  {
+    "__comment__": "Delete legacy IpRange nodes that were never re-created with provider-scoped labels.",
+    "query": "MATCH (n:IpRange) WHERE NOT (n:AWSIpRange OR n:GCPIpRange) AND NOT n:Ontology AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DETACH DELETE n",
+    "iterative": false
+  },
+  {
+    "__comment__": "Delete legacy IpRule nodes that were never re-created with provider-scoped labels.",
+    "query": "MATCH (n:IpRule) WHERE NOT (n:AWSIpRule OR n:GCPIpRule) AND NOT n:Ontology AND n.ruleid IS NOT NULL AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DETACH DELETE n",
+    "iterative": false
+  },
+  {
+    "__comment__": "Delete legacy SG-style IpPermissionInbound nodes that were never re-created with provider-scoped labels.",
+    "query": "MATCH (n:IpPermissionInbound) WHERE NOT (n:AWSIpPermissionInbound OR n:GCPIpRule) AND NOT n:Ontology AND n.ruleid IS NOT NULL AND n._module_name IN ['cartography:aws', 'cartography:gcp'] DETACH DELETE n",
+    "iterative": false
+  }
+  ],
+  "name": "AWS IP node label migration"
+}

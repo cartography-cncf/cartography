@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -18,7 +19,7 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
     dnsname: PropertyRef = PropertyRef("dnsname", extra_index=True)
     canonicalhostedzonename: PropertyRef = PropertyRef("canonicalhostedzonename")
     canonicalhostedzonenameid: PropertyRef = PropertyRef("canonicalhostedzonenameid")
-    scheme: PropertyRef = PropertyRef("scheme")
+    scheme: PropertyRef = PropertyRef("scheme", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     createdtime: PropertyRef = PropertyRef("createdtime")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -98,7 +99,8 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
-    label: str = "LoadBalancer"
+    label: str = "AWSLoadBalancer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()
     sub_resource_relationship: LoadBalancerToAWSAccountRel = (
         LoadBalancerToAWSAccountRel()

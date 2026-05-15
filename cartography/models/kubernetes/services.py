@@ -15,11 +15,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid")
     name: PropertyRef = PropertyRef("name", extra_index=True)
+    qualified_name: PropertyRef = PropertyRef("qualified_name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
     namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
     selector: PropertyRef = PropertyRef("selector")
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef("type", extra_index=True)
     cluster_ip: PropertyRef = PropertyRef("cluster_ip")
     load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
     load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
@@ -27,6 +28,32 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
+class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
+    """
+    Relationship linking a KubernetesService of type LoadBalancer to the AWS
+    LoadBalancerV2 (NLB/ALB) that backs it. Matching is done by the DNS hostname
+    from the Kubernetes service's status.loadBalancer.ingress[].hostname field
+    to the LoadBalancerV2.dnsname property.
+    """
+
+    target_node_label: str = "AWSLoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"dnsname": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToLoadBalancerV2RelProperties = (
+        KubernetesServiceToLoadBalancerV2RelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -104,5 +131,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
         [
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
+            KubernetesServiceToLoadBalancerV2Rel(),
         ]
     )

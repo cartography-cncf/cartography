@@ -1,11 +1,38 @@
 class PropertyRef:
     """
-    PropertyRefs represent properties on cartography nodes and relationships.
+    Represents properties on cartography nodes and relationships.
 
-    cartography takes lists of Python dicts and loads them to Neo4j. PropertyRefs allow our dynamically generated Neo4j
-    ingestion queries to set values for a given node or relationship property from (A) a field on the dict being
-    processed (PropertyRef.set_in_kwargs=False; default), or (B) from a single variable provided by a keyword argument
-    (PropertyRef.set_in_kwargs=True).
+    PropertyRefs allow dynamically generated Neo4j ingestion queries to set values for node or
+    relationship properties from either:
+
+    A) A field on the dict being processed (``set_in_kwargs=False``; default)
+    B) A single variable provided by a keyword argument (``set_in_kwargs=True``)
+
+    Cartography takes lists of Python dicts and loads them to Neo4j using these property references
+    to map data appropriately.
+
+    Examples:
+        >>> # Basic property reference from data dict
+        >>> prop_ref = PropertyRef('name')
+        >>> str(prop_ref)  # Returns: 'item.name'
+
+        >>> # Property reference from kwargs
+        >>> prop_ref = PropertyRef('lastupdated', set_in_kwargs=True)
+        >>> str(prop_ref)  # Returns: '$lastupdated'
+
+        >>> # Property with extra index for frequent queries
+        >>> prop_ref = PropertyRef('arn', extra_index=True)
+
+        >>> # Case-insensitive matching
+        >>> prop_ref = PropertyRef('username', ignore_case=True)
+
+        >>> # One-to-many relationship
+        >>> prop_ref = PropertyRef('role_arns', one_to_many=True)
+
+    Note:
+        PropertyRef instances are typically used within CartographyNodeSchema and
+        CartographyRelSchema definitions to specify how data should be mapped
+        from source dictionaries to Neo4j graph properties.
     """
 
     def __init__(
@@ -18,52 +45,63 @@ class PropertyRef:
         one_to_many=False,
     ):
         """
-        :param name: The name of the property
-        :param set_in_kwargs: Optional. If True, the property is not defined on the data dict, and we expect to find the
-        property in the kwargs.
-        If False, looks for the property in the data dict.
-        Defaults to False.
-        :param extra_index: If True, make sure that we create an index for this property name.
-          Notes:
-          - extra_index is available for the case where you anticipate a property will be queried frequently.
-          - The `id` and `lastupdated` properties will always have indexes created for them automatically by
-            `ensure_indexes()`.
-          - All properties included in target node matchers will always have indexes created for them.
-            Defaults to False.
-        :param ignore_case: If True, performs a case-insensitive match when comparing the value of this property during
-        relationship creation. Defaults to False. This only has effect as part of a TargetNodeMatcher, and this is not
-        supported for the sub resource relationship.
-            Example on why you would set this to True:
-            GitHub usernames can have both uppercase and lowercase characters, but GitHub itself treats usernames as
-            case-insensitive. Suppose your company's internal personnel database stores GitHub usernames all as
-            lowercase. If you wanted to map your company's employees to their GitHub identities, you would need to
-            perform a case-insensitive match between your company's record of a user's GitHub username and your
-            cartography catalog of GitHubUser nodes. Therefore, you would need `ignore_case=True` in the PropertyRef
-            that points to the GitHubUser node's name field, otherwise if one of your employees' GitHub usernames
-            contains capital letters, you would not be able to map them properly to a GitHubUser node in your graph.
-        :param fuzzy_and_ignore_case: If True, performs a fuzzy + case-insensitive match when comparing the value of
-        this property using the `CONTAINS` operator.
-        query. Defaults to False. This only has effect as part of a TargetNodeMatcher and is not supported for the
-        sub resource relationship.
-        :param one_to_many: Indicates that this property is meant to create one-to-many associations. If set to True,
-        this property ref points to a list stored on the data dict where each item is an ID. Only has effect as
-        part of a TargetNodeMatcher and is not supported for the sub resource relationship. Defaults to False.
-            Example on why you would set this to True:
-            AWS IAM instance profiles can be associated with one or more roles. This is reflected in their API object:
-            when we call describe-iam-instance-profiles, the `Roles` field contains a list of all the roles that the
-            profile is associated with. So, to create AWSInstanceProfile nodes while attaching them to multiple roles,
-            we can create a CartographyRelSchema with
-            ```
-            class InstanceProfileSchema(Schema):
-                target_node_label: str = 'AWSRole'
-                target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-                    'arn': PropertyRef('Roles', one_to_many=True),
-                )
-                ...
-            ```
-            This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
-            this by checking if each role's `arn` field is in the `Roles` list of the data dict.
-        Note that one_to_many has no effect on matchlinks.
+        Initialize a PropertyRef instance.
+
+        Args:
+            name (str): The name of the property.
+            set_in_kwargs (bool, optional): If True, the property is not defined on the data dict,
+                and we expect to find the property in the kwargs. If False, looks for the property
+                in the data dict. Defaults to False.
+            extra_index (bool, optional): If True, creates an index for this property name.
+                Available for properties that are queried frequently. Defaults to False.
+            ignore_case (bool, optional): If True, performs a case-insensitive match when comparing
+                the value of this property during relationship creation. Only has effect as part of
+                a TargetNodeMatcher, and is not supported for sub resource relationships.
+                Defaults to False.
+            fuzzy_and_ignore_case (bool, optional): If True, performs a fuzzy + case-insensitive
+                match when comparing the value of this property using the ``CONTAINS`` operator.
+                Only has effect as part of a TargetNodeMatcher and is not supported for sub
+                resource relationships. Defaults to False.
+            one_to_many (bool, optional): Indicates that this property creates one-to-many
+                associations. If True, this property ref points to a list stored on the data dict
+                where each item is an ID. Only has effect as part of a TargetNodeMatcher and is
+                not supported for sub resource relationships. Defaults to False.
+
+        Examples:
+            Case-insensitive matching for GitHub usernames:
+                GitHub usernames can have both uppercase and lowercase characters, but GitHub
+                treats usernames as case-insensitive. If your company's internal personnel
+                database stores GitHub usernames all as lowercase, you would need to perform
+                a case-insensitive match between your company's record and your cartography
+                catalog of GitHubUser nodes::
+
+                    PropertyRef('username', ignore_case=True)
+
+            One-to-many associations for AWS IAM instance profiles:
+                AWS IAM instance profiles can be associated with one or more roles. When calling
+                describe-iam-instance-profiles, the ``Roles`` field contains a list of all roles
+                that the profile is associated with::
+
+                    class InstanceProfileSchema(Schema):
+                        target_node_label: str = 'AWSRole'
+                        target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+                            'arn': PropertyRef('Roles', one_to_many=True),
+                        })
+
+                This searches for AWSRoles to attach by checking if each role's ``arn`` field
+                is in the ``Roles`` list of the data dict.
+
+        Note:
+            - ``one_to_many`` has no effect on matchlinks.
+            - ``extra_index`` is available for properties that will be queried frequently.
+            - The ``id`` and ``lastupdated`` properties automatically have indexes created by
+              ``ensure_indexes()``.
+            - All properties included in target node matchers automatically have indexes created.
+
+        Raises:
+            ValueError: If ``ignore_case`` is used together with ``fuzzy_and_ignore_case``.
+            ValueError: If ``one_to_many`` is used together with ``ignore_case`` or
+                ``fuzzy_and_ignore_case``.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
@@ -86,23 +124,43 @@ class PropertyRef:
 
     def _parameterize_name(self) -> str:
         """
-        Prefixes the name of the property ref with a '$' so that we can receive keyword args. See docs on __repr__ for
-        PropertyRef.
+        Prefix the property name with a '$' for keyword arguments.
+
+        This method creates a parameterized version of the property name that can be
+        used in Neo4j queries when the property value comes from keyword arguments
+        rather than the data dictionary.
+
+        Returns:
+            str: The property name prefixed with '$'.
+
+        See Also:
+            :meth:`__repr__`: For details on how this is used in query building.
         """
         return f"${self.name}"
 
     def __repr__(self) -> str:
         """
-        `querybuilder.build_ingestion_query()`, generates a Neo4j batched ingestion query of the form
-        `UNWIND $DictList AS item [...]`.
+        Return the string representation used in Neo4j query building.
 
-        If set_in_kwargs is False (default), we instruct the querybuilder to get the value for this given property from
-        the dict being processed. To do this, this function returns "item.<key on the dict>". This is used for loading
-        in lists of nodes.
+        The ``querybuilder.build_ingestion_query()`` generates a Neo4j batched ingestion query
+        of the form ``UNWIND $DictList AS item [...]``. This method provides the appropriate
+        property reference format based on whether the property value comes from the data
+        dictionary or from keyword arguments.
 
-        On the other hand if set_in_kwargs is True, then the value will instead come from kwargs passed to
-        querybuilder.build_ingestion_query(). This is used for things like applying the same update tag to all nodes of
-        a given run.
+        Returns:
+            str: Either ``item.<property_name>`` if ``set_in_kwargs`` is False, or
+                ``$<property_name>`` if ``set_in_kwargs`` is True.
+
+        Examples:
+            >>> # Property from data dictionary
+            >>> prop_ref = PropertyRef('name')
+            >>> str(prop_ref)
+            'item.name'
+
+            >>> # Property from keyword arguments
+            >>> prop_ref = PropertyRef('lastupdated', set_in_kwargs=True)
+            >>> str(prop_ref)
+            '$lastupdated'
         """
         return (
             f"item.{self.name}" if not self.set_in_kwargs else self._parameterize_name()

@@ -1,53 +1,187 @@
-## Github Configuration
+## GitHub Configuration
 
 Follow these steps to analyze GitHub repos and other objects with Cartography.
 
-1. Prepare your GitHub credentials.
+### Step 1: Create a Personal Access Token
 
-    1. Create a Personal Access Token (classic) on an org member account. Required scopes: `repo`, `read:org`, `read:user`, `user:email`.
+GitHub supports two types of Personal Access Tokens (PATs). **We recommend using Fine-grained PATs** as they provide more granular control and can be scoped to specific organizations.
 
-    1. Permissions and visibility
+#### Option A: Fine-grained PAT (Recommended)
 
-       - Collaborators: Returned only if the token’s user is an Organization Owner or has Admin access on the repos. Scopes don’t grant privileges; the user must already have the rights. If not, Cartography continues ingest and logs `FORBIDDEN` warnings while skipping collaborator details.
-       - GitHub Enterprise: Use the same scopes; set `url` to your enterprise GraphQL endpoint (e.g., `https://github.example.com/api/graphql`).
-       - Fine‑grained PATs: Ensure “Organization members: Read” and repository-level “Metadata: Read”, plus admin rights where collaborator enumeration is needed.
+Fine-grained PATs offer better security through minimal permissions and organization-level scoping.
 
-    1. GitHub ingest supports multiple endpoints, such as a public instance and an enterprise instance by taking a base64-encoded config object structured as
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens**
+2. Click **Generate new token**
+3. Configure the token:
 
-        ```python
-        data = {
-          "organization": [
+   | Setting | Value |
+   |---------|-------|
+   | **Token name** | `cartography-ingest` (or your preference) |
+   | **Expiration** | Per your security policy (90 days recommended) |
+   | **Resource owner** | Select your **organization** (recommended) |
+   | **Repository access** | **All repositories** |
+
+4. Set the following permissions:
+
+   **Repository permissions:**
+
+   | Permission | Access | Required | Why |
+   |------------|--------|----------|-----|
+   | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
+   | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
+   | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Dependabot alerts** | Read | Optional | Dependabot vulnerability alert metadata, triage state, assignees, and dismissal actors. |
+   | **Environments** | Read | Optional | Deployment environments configuration. |
+   | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
+   | **Secrets** | Read | Optional | Repository secrets metadata (names, creation dates). |
+   | **Variables** | Read | Optional | Repository variables for Actions workflows. |
+
+   **Organization permissions:**
+
+   | Permission | Access | Required | Why |
+   |------------|--------|----------|-----|
+   | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
+   | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
+   | **Variables** | Read | Optional | Organization variables for Actions workflows. |
+
+   > **Note:** Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). To enable GHCR (GitHub Container Registry) ingestion — packages, image manifests, layers, tags, and SLSA attestations — use a classic PAT (Option B) with the `read:packages` scope or a GitHub App.
+
+   > **Note:** The Secrets permission only provides access to secret **metadata** (name, creation date, update date). GitHub never exposes the actual secret values through its API—they are encrypted and cannot be retrieved.
+
+5. Click **Generate token** and copy it immediately.
+
+> **Note:** When the token's resource owner is an organization, user emails and profiles are retrieved from organization membership data. No account-level permissions are required.
+
+> **Note:** For collaborator and branch protection data, the token owner must also be an **Organization Owner** or have **Admin access** on repositories. The `Administration: Read` permission alone is not sufficient—the user must already have these rights.
+
+#### Option B: Classic PAT
+
+Classic PATs use broader OAuth scopes. Use this option if fine-grained PATs are not available (e.g., some GitHub Enterprise configurations).
+
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**
+2. Click **Generate new token**
+3. Select the following scopes:
+
+   | Scope | Why |
+   |-------|-----|
+   | `repo` | Repository access (use `public_repo` for public repos only) |
+   | `read:org` | Organization membership and team data |
+   | `read:user` | User profile information |
+   | `user:email` | User email addresses |
+   | `security_events` | Optional. Dependabot alerts for private repositories. |
+   | `read:packages` | Optional. GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography skips GHCR ingestion. |
+
+4. Click **Generate token** and copy it immediately.
+
+### Optional: Additional Permissions for Full Data Access
+
+Some data requires elevated permissions. Without these, Cartography will log warnings and continue ingestion, skipping the unavailable data.
+
+| Data | Requirement |
+|------|-------------|
+| **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
+| **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
+| **Dependabot alerts** | Fine-grained PATs and GitHub Apps require `Repository -> Dependabot alerts: Read`. Classic PATs require `security_events` for private repositories; `public_repo` is sufficient for public repositories. |
+| **Two-factor authentication status** | Visible only to Organization Owners. |
+| **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
+
+### Alternative: GitHub App Authentication
+
+GitHub App authentication provides better security through short-lived tokens and granular, installation-scoped permissions. Use this instead of PATs when you need app-level (not user-level) access.
+
+1. [Create a GitHub App](https://docs.github.com/en/apps/creating-github-apps) with the same repository and organization permissions listed above.
+2. Install the App on your target organization(s).
+3. Note the **Client ID** (from the App's settings page) and the **Installation ID** (from the URL when viewing the installation: `https://github.com/organizations/{org}/settings/installations/{installation_id}`).
+4. Generate and download a **private key** from the App's settings page.
+
+Then configure Cartography with the App credentials instead of a PAT (see Step 2 below).
+
+### Step 2: Configure Cartography
+
+Cartography accepts GitHub credentials as a base64-encoded JSON configuration. This format supports multiple GitHub instances (e.g., public GitHub and GitHub Enterprise).
+
+1. Create your configuration object:
+
+    ```python
+    import json
+    import base64
+
+    config = {
+        "organization": [
             {
-              "token": "faketoken",
-              "url": "https://api.github.com/graphql",
-              "name": "fakeorg",
+                "token": "ghp_your_token_here",
+                "url": "https://api.github.com/graphql",
+                "name": "your-org-name",
             },
+            # Optional: Add additional orgs or GitHub Enterprise instances
+            # {
+            #     "token": "ghp_enterprise_token",
+            #     "url": "https://github.example.com/api/graphql",
+            #     "name": "enterprise-org-name",
+            # },
+        ]
+    }
+
+    # Encode the configuration
+    encoded = base64.b64encode(json.dumps(config).encode()).decode()
+    print(encoded)
+    ```
+
+For **GitHub App authentication**, use this format instead:
+
+    ```python
+    config = {
+        "organization": [
             {
-              "token": "stillfake",
-              "url": "https://github.example.com/api/graphql",
-              "name": "fakeorg",
-            }
-          ]
-        }
-        ```
+                "client_id": "Iv1.abc123def456",
+                "private_key": open("your-app.private-key.pem").read(),
+                "installation_id": "12345678",
+                "url": "https://api.github.com/graphql",
+                "name": "your-org-name",
+            },
+        ]
+    }
+    ```
 
-    1. For each GitHub instance you want to ingest, generate an API token as documented in the [API reference](https://developer.github.com/v3/auth/)
+You can mix PAT and App authentication across organizations in the same config.
 
-    1. Create your auth config as shown above using the token obtained in the previous step. If you are configuring only the public GitHub instance, you can just use the first config block and delete the second. The name field is for the organization name you want to ingest.
+2. Set the encoded value as an environment variable:
 
-    1. Base64 encode the auth object. You can encode the above sample in Python using
+    ```bash
+    export GITHUB_CONFIG="eyJvcmdhbml6YXRpb24iOi..."
+    ```
 
-       ```python
-       import json
-       import base64
-       auth_json = json.dumps(data)
-       base64.b64encode(auth_json.encode())
-       ```
+3. Run Cartography with the GitHub module:
 
-       and the resulting environment variable would be ```eyJvcmdhbml6YXRpb24iOiBbeyJ0b2tlbiI6ICJmYWtldG9rZW4iLCAidXJsIjogImh0dHBzOi8vYXBpLmdpdGh1Yi5jb20vZ3JhcGhxbCIsICJuYW1lIjogImZha2VvcmcifSwgeyJ0b2tlbiI6ICJzdGlsbGZha2UiLCAidXJsIjogImh0dHBzOi8vZ2l0aHViLmV4YW1wbGUuY29tL2FwaS9ncmFwaHFsIiwgIm5hbWUiOiAiZmFrZW9yZyJ9XX0=```
+    ```bash
+    cartography --github-config-env-var GITHUB_CONFIG
+    ```
 
-1. Populate an environment variable of your choice with the contents of the base64 output from the previous step.
+### Configuration Options
 
-1. Call the `cartography` CLI with `--github-config-env-var YOUR_ENV_VAR_HERE`.
+| CLI Flag | Description |
+|----------|-------------|
+| `--github-config-env-var` | Environment variable containing the base64-encoded config |
+| `--github-commit-lookback-days` | Number of days of commit history to ingest (default: 30) |
 
-1. `cartography` will then load your graph with data from all the organizations you specified.
+### GitHub Enterprise
+
+For GitHub Enterprise, use the same token scopes/permissions as above. Set the `url` field in your configuration to your enterprise GraphQL endpoint:
+
+```python
+{
+    "token": "your_enterprise_token",
+    "url": "https://github.your-company.com/api/graphql",
+    "name": "your-enterprise-org",
+}
+```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
+| `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires the `read:packages` scope on a classic PAT (or a GitHub App). Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). |
+| Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
+| Missing 2FA status | Only visible to Organization Owners. |
+| Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |

@@ -1,0 +1,10 @@
+{
+  "name": "GCP role resource edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility cleanup; remove in v1.0.0 once legacy project->role edges are no longer expected.",
+      "query": "MATCH (:GCPProject)-[r:RESOURCE]->(role:GCPRole) WHERE role.scope IN ['GLOBAL', 'ORGANIZATION'] OR (role.name IS NOT NULL AND (role.name STARTS WITH 'roles/' OR role.name STARTS WITH 'organizations/')) DELETE r",
+      "iterative": false
+    }
+  ]
+}

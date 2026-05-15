@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -42,6 +43,7 @@ class OpenAIServiceAccountToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class OpenAIServiceAccountSchema(CartographyNodeSchema):
     label: str = "OpenAIServiceAccount"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
     properties: OpenAIServiceAccountNodeProperties = (
         OpenAIServiceAccountNodeProperties()
     )

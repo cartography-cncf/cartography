@@ -6,7 +6,7 @@ STORAGE_RESPONSE = {
             "kind": "storage#bucket",
             "id": "bucket_name",
             "selfLink": "https://www.googleapis.com/storage/v1/b/bucket_name",
-            "projectNumber": 9999,
+            "projectNumber": 123456789012,
             "name": "bucket_name",
             "timeCreated": "some_time",
             "updated": "some_time",
@@ -18,6 +18,7 @@ STORAGE_RESPONSE = {
                 "uniformBucketLevelAccess": {
                     "enabled": False,
                 },
+                "publicAccessPrevention": "inherited",
             },
             "location": "US",
             "locationType": "multi-region",

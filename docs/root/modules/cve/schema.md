@@ -8,7 +8,8 @@ Representation of a [CVE](https://github.com/CVEProject/automation-working-group
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| id | The CVE ID |
+| **id** | The CVE ID |
+| **cve\_id** | The CVE ID. Indexed for consistency with other nodes that use CVE as an extra label. |
 | assigner | The assigner of the CVE (email address) |
 | description\_en | The english description of the issue. |
 | references | This is reference data in the form of URLs |

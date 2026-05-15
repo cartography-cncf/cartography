@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -6,11 +5,9 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.keycloak.util import get_paginated
 from cartography.models.keycloak.scope import KeycloakScopeSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -44,7 +41,9 @@ def get(
     realm: str,
 ) -> list[dict[str, Any]]:
     url = f"{base_url}/admin/realms/{realm}/client-scopes"
-    return list(get_paginated(api_session, url, params={"briefRepresentation": False}))
+    req = api_session.get(url, timeout=_TIMEOUT)
+    req.raise_for_status()
+    return req.json()
 
 
 @timeit
@@ -54,7 +53,6 @@ def load_scopes(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Scopes (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakScopeSchema(),

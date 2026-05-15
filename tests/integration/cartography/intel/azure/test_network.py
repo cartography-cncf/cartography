@@ -46,9 +46,10 @@ def test_sync_network(
     )
 
     # Create prerequisite AzureVirtualMachine nodes for the NIC-VM relationships
+    # Use lowercased IDs to match the transform which lowercases VIRTUAL_MACHINE_ID
     for nic in MOCK_NETWORK_INTERFACES:
         if nic.get("virtual_machine"):
-            vm_id = nic["virtual_machine"]["id"]
+            vm_id = nic["virtual_machine"]["id"].lower()
             neo4j_session.run(
                 "MERGE (vm:AzureVirtualMachine{id: $vm_id}) SET vm.lastupdated = $tag",
                 vm_id=vm_id,
@@ -134,8 +135,6 @@ def test_sync_network(
     )
     assert actual_parent_rels == expected_parent_rels
 
-    # Test association relationship (:ASSOCIATED_WITH)
-    # Only one subnet should have this relationship
     expected_assoc_rels = {(subnet_with_nsg_id, nsg_id)}
     actual_assoc_rels = check_rels(
         neo4j_session,
@@ -146,6 +145,50 @@ def test_sync_network(
         "ASSOCIATED_WITH",
     )
     assert actual_assoc_rels == expected_assoc_rels
+
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:vnet",
+        f"{TEST_SUBSCRIPTION_ID}|service:nsg",
+    }
+    tag_nodes = neo4j_session.run(
+        "MATCH (t:AzureTag) WHERE t.id STARTS WITH $sub_id RETURN t.id",
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # Check Tag Relationships for VNet
+    expected_vnet_tag_rels = {
+        (MOCK_VNETS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (MOCK_VNETS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:vnet"),
+    }
+    result_vnet = neo4j_session.run(
+        """
+        MATCH (v:AzureVirtualNetwork)-[:TAGGED]->(t:AzureTag)
+        WHERE v.id STARTS WITH '/subscriptions/' + $sub_id
+        RETURN v.id, t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_vnet_tag_rels = {(r["v.id"], r["t.id"]) for r in result_vnet}
+    assert actual_vnet_tag_rels == expected_vnet_tag_rels
+
+    # Check Tag Relationships for NSG
+    expected_nsg_tag_rels = {
+        (MOCK_NSGS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (MOCK_NSGS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:nsg"),
+    }
+    result_nsg = neo4j_session.run(
+        """
+        MATCH (n:AzureNetworkSecurityGroup)-[:TAGGED]->(t:AzureTag)
+        WHERE n.id STARTS WITH '/subscriptions/' + $sub_id
+        RETURN n.id, t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_nsg_tag_rels = {(r["n.id"], r["t.id"]) for r in result_nsg}
+    assert actual_nsg_tag_rels == expected_nsg_tag_rels
 
     # Assert Public IP Address nodes
     expected_public_ips = set()
@@ -206,7 +249,7 @@ def test_sync_network(
     expected_nic_vm_rels = set()
     for nic in MOCK_NETWORK_INTERFACES:
         if nic.get("virtual_machine"):
-            expected_nic_vm_rels.add((nic["id"], nic["virtual_machine"]["id"]))
+            expected_nic_vm_rels.add((nic["id"], nic["virtual_machine"]["id"].lower()))
 
     actual_nic_vm_rels = check_rels(
         neo4j_session,
@@ -255,3 +298,87 @@ def test_sync_network(
         "ASSOCIATED_WITH",
     )
     assert actual_nic_pip_rels == expected_nic_pip_rels
+
+    # Assert AzureNetworkSecurityRule nodes were created from NSG security_rules
+    # and default_security_rules.
+    expected_rule_ids = {
+        (rule["id"],)
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+    }
+    assert (
+        check_nodes(neo4j_session, "AzureNetworkSecurityRule", ["id"])
+        == expected_rule_ids
+    )
+
+    # Assert rule -[:MEMBER_OF_AZURE_NSG]-> NSG for every rule (rule -> NSG).
+    expected_rule_nsg_rels = {
+        (rule["id"], nsg["id"])
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+    }
+    actual_rule_nsg_rels = check_rels(
+        neo4j_session,
+        "AzureNetworkSecurityRule",
+        "id",
+        "AzureNetworkSecurityGroup",
+        "id",
+        "MEMBER_OF_AZURE_NSG",
+        rel_direction_right=True,
+    )
+    assert actual_rule_nsg_rels == expected_rule_nsg_rels
+
+    # Assert ontology labels: every inbound rule carries IpPermissionInbound +
+    # IpRule, every outbound rule carries IpPermissionEgress + IpRule.
+    inbound_query = neo4j_session.run(
+        """
+        MATCH (r:AzureNetworkSecurityRule:IpPermissionInbound:IpRule)
+        WHERE r.direction = 'Inbound'
+        RETURN count(r) AS c
+        """
+    ).single()
+    expected_inbound_count = sum(
+        1
+        for nsg in MOCK_NSGS
+        for rule in (
+            nsg.get("security_rules", []) + nsg.get("default_security_rules", [])
+        )
+        if (rule.get("direction") or rule.get("properties", {}).get("direction"))
+        == "Inbound"
+    )
+    assert inbound_query["c"] == expected_inbound_count
+
+    # Assert that an Allow / Inbound / port 22 / source '*' rule is queryable
+    # via the cross-cloud IpRule label.
+    inbound_ssh = neo4j_session.run(
+        """
+        MATCH (r:IpRule:IpPermissionInbound)
+        WHERE r.direction = 'Inbound'
+          AND r.access = 'Allow'
+          AND r.source_address_prefix IN ['*', 'Internet', '0.0.0.0/0']
+          AND r.destination_port_range = '22'
+        RETURN r.id AS id, r.is_default AS is_default
+        """,
+    ).single()
+    assert inbound_ssh is not None
+    assert inbound_ssh["is_default"] is False
+
+    # Assert NIC -[:ASSOCIATED_WITH]-> NSG only for NICs that declared an NSG ref.
+    expected_nic_nsg_rels = set()
+    for nic in MOCK_NETWORK_INTERFACES:
+        nsg_ref = nic.get("network_security_group")
+        if nsg_ref and nsg_ref.get("id"):
+            expected_nic_nsg_rels.add((nic["id"], nsg_ref["id"]))
+    actual_nic_nsg_rels = check_rels(
+        neo4j_session,
+        "AzureNetworkInterface",
+        "id",
+        "AzureNetworkSecurityGroup",
+        "id",
+        "ASSOCIATED_WITH",
+    )
+    assert actual_nic_nsg_rels == expected_nic_nsg_rels

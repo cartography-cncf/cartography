@@ -40,6 +40,29 @@ def test_sync_eks_clusters(mock_describe_clusters, mock_get_clusters, neo4j_sess
         ("arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1", "eks.9"),
         ("arn:aws:eks:eu-west-2:222222222222:cluster/cluster_2", "eks.9"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "EKSCluster",
+        [
+            "id",
+            "certificate_authority_data_present",
+            "certificate_authority_parse_status",
+            "certificate_authority_sha256_fingerprint",
+        ],
+    ) == {
+        (
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1",
+            True,
+            "parsed",
+            "4680a4733878c73936ce9ee5330845253d0514370efbecaaa322068aa4538260",
+        ),
+        (
+            "arn:aws:eks:eu-west-2:222222222222:cluster/cluster_2",
+            True,
+            "invalid_base64",
+            None,
+        ),
+    }
 
     assert check_rels(
         neo4j_session,

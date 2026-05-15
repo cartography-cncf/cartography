@@ -74,24 +74,24 @@ ORDER by elb.dnsname, listener.port
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0ARETURN%20elb.dnsname%2C%20listener.port%0AORDER%20by%20elb.dnsname%2C%20listener.port)
 
-### Which [ELBv2](https://aws.amazon.com/elasticloadbalancing/) LoadBalancerV2s (Application Load Balancers) are internet accessible?
+### Which [ELBv2](https://aws.amazon.com/elasticloadbalancing/) AWSLoadBalancerV2s (Application Load Balancers) are internet accessible?
 ```cypher
-MATCH (elbv2:LoadBalancerV2{exposed_internet: true})—->(listener:ELBV2Listener)
+MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:ELBV2Listener)
 RETURN elbv2.dnsname, listener.port
 ORDER by elbv2.dnsname, listener.port
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elbv2%3ALoadBalancerV2%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBV2Listener%29%0ARETURN%20elbv2.dnsname%2C%20listener.port%0AORDER%20by%20elbv2.dnsname%2C%20listener.port)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elbv2%3AAWSLoadBalancerV2%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBV2Listener%29%0ARETURN%20elbv2.dnsname%2C%20listener.port%0AORDER%20by%20elbv2.dnsname%2C%20listener.port)
 
 ### Which open ports are internet accesible from ELB or ELBv2?
 ```cypher
     MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
     RETURN DISTINCT elb.dnsname as dnsname, listener.port as port
     UNION
-    MATCH (lb:LoadBalancerV2)-[:ELBV2_LISTENER]->(l:ELBV2Listener)
+    MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(l:ELBV2Listener)
     WHERE lb.scheme = "internet-facing"
     RETURN DISTINCT lb.dnsname as dnsname, l.port as port
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0A%20%20%20%20RETURN%20DISTINCT%20elb.dnsname%20as%20dnsname%2C%20listener.port%20as%20port%20%0A%20%20%20%20UNION%0A%20%20%20%20MATCH%20%28lb%3ALoadBalancerV2%29-%5B%3AELBV2_LISTENER%5D-%3E%28l%3AELBV2Listener%29%0A%20%20%20%20WHERE%20lb.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20lb.dnsname%20as%20dnsname%2C%20l.port%20as%20port)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0A%20%20%20%20RETURN%20DISTINCT%20elb.dnsname%20as%20dnsname%2C%20listener.port%20as%20port%20%0A%20%20%20%20UNION%0A%20%20%20%20MATCH%20%28lb%3AAWSLoadBalancerV2%29-%5B%3AELBV2_LISTENER%5D-%3E%28l%3AELBV2Listener%29%0A%20%20%20%20WHERE%20lb.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20lb.dnsname%20as%20dnsname%2C%20l.port%20as%20port)
 
 ### Find everything about an IP Address
 ```cypher

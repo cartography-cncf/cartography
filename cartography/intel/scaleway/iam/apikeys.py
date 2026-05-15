@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -11,8 +10,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeySchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -52,7 +49,6 @@ def load_apikeys(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Scaleway ApiKeys into Neo4j.", len(data))
     load(
         neo4j_session,
         ScalewayApiKeySchema(),

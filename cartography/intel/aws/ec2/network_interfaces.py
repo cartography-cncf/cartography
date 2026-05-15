@@ -10,6 +10,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.networkinterfaces import EC2NetworkInterfaceSchema
 from cartography.models.aws.ec2.privateip_networkinterface import (
     EC2PrivateIpNetworkInterfaceSchema,
@@ -22,8 +24,6 @@ from cartography.models.aws.ec2.subnet_networkinterface import (
 )
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,8 @@ def get_network_interface_data(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -159,7 +160,6 @@ def load_network_interfaces(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network interfaces in {region}.")
     load(
         neo4j_session,
         EC2NetworkInterfaceSchema(),
@@ -181,7 +181,6 @@ def load_private_ip_network_interface(
     """
     Private IPs as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} private IPs in {region}.")
     load(
         neo4j_session,
         EC2PrivateIpNetworkInterfaceSchema(),
@@ -203,7 +202,6 @@ def load_security_group_network_interface(
     """
     Security groups as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} security groups in {region}.")
     load(
         neo4j_session,
         EC2SecurityGroupNetworkInterfaceSchema(),
@@ -225,7 +223,6 @@ def load_subnet_network_interface(
     """
     Subnets as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} subnets in {region}.")
     load(
         neo4j_session,
         EC2SubnetNetworkInterfaceSchema(),

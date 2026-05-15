@@ -21,6 +21,8 @@ class CloudTrailTrailNodeProperties(CartographyNodeProperties):
         "CloudWatchLogsLogGroupArn"
     )
     cloudwatch_logs_role_arn: PropertyRef = PropertyRef("CloudWatchLogsRoleArn")
+    event_selectors: PropertyRef = PropertyRef("EventSelectors")
+    advanced_event_selectors: PropertyRef = PropertyRef("AdvancedEventSelectors")
     has_custom_event_selectors: PropertyRef = PropertyRef("HasCustomEventSelectors")
     has_insight_selectors: PropertyRef = PropertyRef("HasInsightSelectors")
     home_region: PropertyRef = PropertyRef("HomeRegion")

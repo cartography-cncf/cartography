@@ -1,14 +1,15 @@
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 
 from cartography.config import Config
+from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 from . import aks
 from . import app_service
+from . import application_gateways
 from . import compute
 from . import container_instances
 from . import cosmosdb
@@ -18,7 +19,12 @@ from . import data_factory_linked_service
 from . import data_factory_pipeline
 from . import data_lake
 from . import event_grid
+from . import event_hub
+from . import event_hub_namespace
+from . import firewall
 from . import functions
+from . import group_containers
+from . import key_vaults
 from . import load_balancers
 from . import logic_apps
 from . import monitor
@@ -30,11 +36,66 @@ from . import security_center
 from . import sql
 from . import storage
 from . import subscription
+from . import synapse
 from . import tenant
+from .data_factory_util import AzureDataFactoryTransientError
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+
+def _sync_data_factory(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    try:
+        factories_raw = data_factory.sync_data_factories(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        linked_services_by_factory = (
+            data_factory_linked_service.sync_data_factory_linked_services(
+                neo4j_session,
+                credentials,
+                factories_raw,
+                subscription_id,
+                update_tag,
+                common_job_parameters,
+            )
+        )
+        datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            linked_services_by_factory,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        data_factory_pipeline.sync_data_factory_pipelines(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            datasets_by_factory,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    except AzureDataFactoryTransientError as error:
+        logger.warning(
+            "Skipping Azure Data Factory sync after transient API failures "
+            "for subscription %s (operation=%s, status_code=%s).",
+            subscription_id,
+            error.operation,
+            error.status_code,
+        )
 
 
 def _sync_one_subscription(
@@ -42,15 +103,8 @@ def _sync_one_subscription(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
-    container_instances.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
     compute.sync(
         neo4j_session,
         credentials.credential,
@@ -121,6 +175,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    key_vaults.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     aks.sync(
         neo4j_session,
         credentials,
@@ -128,37 +189,24 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    factories_raw = data_factory.sync_data_factories(
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
         neo4j_session,
         credentials,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
-    linked_services_by_factory = (
-        data_factory_linked_service.sync_data_factory_linked_services(
-            neo4j_session,
-            credentials,
-            factories_raw,
-            subscription_id,
-            update_tag,
-            common_job_parameters,
-        )
-    )
-    datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+    event_hub.sync_event_hubs(
         neo4j_session,
         credentials,
-        factories_raw,
-        linked_services_by_factory,
+        namespaces,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
-    data_factory_pipeline.sync_data_factory_pipelines(
+    _sync_data_factory(
         neo4j_session,
         credentials,
-        factories_raw,
-        datasets_by_factory,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -177,7 +225,42 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    group_containers.sync_group_containers(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    container_instances.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    firewall.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    application_gateways.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    synapse.sync(
         neo4j_session,
         credentials,
         subscription_id,
@@ -210,19 +293,25 @@ def _sync_tenant(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Azure Tenant: %s", credentials.tenant_id)
-    tenant.sync(neo4j_session, credentials.tenant_id, None, update_tag, common_job_parameters)  # type: ignore
+    tenant.sync(
+        neo4j_session,
+        credentials.tenant_id or "",
+        None,
+        update_tag,
+        common_job_parameters,
+    )
 
 
 def _sync_multiple_subscriptions(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     tenant_id: str,
-    subscriptions: List[Dict],
+    subscriptions: list[dict],
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Azure subscriptions")
 
@@ -234,19 +323,22 @@ def _sync_multiple_subscriptions(
         common_job_parameters,
     )
 
-    for sub in subscriptions:
-        logger.info("Syncing Azure Subscription with ID '%s'", sub["subscriptionId"])
-        common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
+    try:
+        for sub in subscriptions:
+            logger.info(
+                "Syncing Azure Subscription with ID '%s'", sub["subscriptionId"]
+            )
+            common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
 
-        _sync_one_subscription(
-            neo4j_session,
-            credentials,
-            sub["subscriptionId"],
-            update_tag,
-            common_job_parameters,
-        )
-
-    del common_job_parameters["AZURE_SUBSCRIPTION_ID"]
+            _sync_one_subscription(
+                neo4j_session,
+                credentials,
+                sub["subscriptionId"],
+                update_tag,
+                common_job_parameters,
+            )
+    finally:
+        common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)
 
 
 @timeit
@@ -313,3 +405,35 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+
+        run_analysis_job(
+            "azure_compute_asset_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        # DEPRECATED: compatibility migration that swaps the AzureContainerInstance
+        # and AzureGroupContainer labels so AzureContainerInstance now labels the
+        # individual container and AzureGroupContainer labels the group. Remove in
+        # v1.0.0.
+        run_analysis_job(
+            "azure_container_label_swap_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        try:
+            for sub in subscriptions:
+                common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
+                run_scoped_analysis_job(
+                    "azure_lb_exposure.json",
+                    neo4j_session,
+                    common_job_parameters,
+                )
+                run_scoped_analysis_job(
+                    "azure_firewall_lb_protection.json",
+                    neo4j_session,
+                    common_job_parameters,
+                )
+        finally:
+            common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)

@@ -15,11 +15,13 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "react",
+                        "packageUrl": "pkg:npm/react@18.2.0",
                         "requirements": "18.2.0",
                         "packageManager": "NPM",
                     },
                     {
                         "packageName": "lodash",
+                        "packageUrl": "",
                         "requirements": "",
                         "packageManager": "NPM",
                     },
@@ -32,6 +34,7 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "Django",
+                        "packageUrl": "pkg:pypi/django@4.2.0",
                         "requirements": "= 4.2.0",
                         "packageManager": "PIP",
                     },
@@ -44,6 +47,7 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "org.springframework:spring-core",
+                        "packageUrl": "pkg:maven/org.springframework/spring-core@5.3.21",
                         "requirements": "5.3.21",
                         "packageManager": "MAVEN",
                     },
@@ -181,7 +185,6 @@ GET_REPOS: List[dict[str, Any]] = [
             """,
             ),
         },
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
         "branchProtectionRules": {
             "nodes": [PROTECTED_BRANCH_STRONG],
         },
@@ -190,6 +193,42 @@ GET_REPOS: List[dict[str, Any]] = [
         },
     },
 ]
+
+GET_REPOS_CIRCLECI_PROVENANCE: list[dict[str, Any]] = [
+    {
+        "name": "service",
+        "nameWithOwner": "exampleorg/service",
+        "primaryLanguage": {"name": "Python"},
+        "url": "https://github.com/exampleorg/service",
+        "sshUrl": "git@github.com:exampleorg/service.git",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "description": "Example service",
+        "updatedAt": "2025-01-02T00:00:00Z",
+        "homepageUrl": "",
+        "languages": {"totalCount": 1, "nodes": [{"name": "Python"}]},
+        "defaultBranchRef": {"name": "main", "id": "branch_ref_id=="},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/exampleorg",
+            "login": "exampleorg",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "branchProtectionRules": {"nodes": []},
+        "requirements": None,
+        "setupCfg": None,
+    },
+]
+
+# Dependency graph manifests returned by the per-repo fetch function, keyed by repo URL.
+# Only repos with dependency manifests have entries here.
+DEP_MANIFESTS_BY_URL: dict[str, dict[str, Any]] = {
+    GET_REPOS[2]["url"]: DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+}
 
 
 # - This list is not a raw API response, but the lightly processed collected results of all the API calls, for all

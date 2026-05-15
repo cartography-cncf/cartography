@@ -24,6 +24,8 @@ graph LR
 ### GoogleWorkspaceTenant
 Represents a Google Workspace tenant (customer account).
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | The unique ID for the Google Workspace customer account. A customer id can be used
@@ -58,6 +60,8 @@ Represents a Google Workspace tenant (customer account).
 
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., GitHubUser, DuoUser, SlackUser).
 
 | Field | Description |
 |-------|--------------|
@@ -147,6 +151,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -166,6 +171,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
 - `GoogleWorkspaceGroup`
 - `GCPPrincipal`
+- `UserGroup`
 
 #### Relationships
 - GoogleTenant has groups:
@@ -212,9 +218,11 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
     ```
 
 
-## GoogleWorkspaceDevice
+### GoogleWorkspaceDevice
 
 Represents a device managed by Google Workspace.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 | Field | Description |
 |-------|-------------|
@@ -252,7 +260,7 @@ Represents a device managed by Google Workspace.
 | endpoint_verification_specific_attributes | Endpoint verification attributes |
 | customer_id | The Google Workspace customer ID |
 
-### Relationships
+#### Relationships
 
 - Device belongs to tenant:
 
@@ -267,12 +275,14 @@ Represents a device managed by Google Workspace.
     ```
 
 
-## GoogleWorkspaceOAuthApp
+### GoogleWorkspaceOAuthApp
 
 Represents third-party OAuth applications that have been authorized by users in the Google Workspace organization.
 
 Reference:
 https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
+
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for OAuth applications across different systems (e.g., OktaApplication, EntraApplication).
 
 | Field | Description |
 |-------|-------------|
@@ -285,11 +295,7 @@ https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
 | lastupdated | Timestamp of when a sync job last updated this node |
 | firstseen | Timestamp of when a sync job first discovered this node |
 
-#### Node Labels
-
-- `GoogleWorkspaceOAuthApp`
-
-### Relationships
+#### Relationships
 
 - App belongs to tenant:
 

@@ -59,7 +59,7 @@ class GitHubRulesetToRepositoryRel(CartographyRelSchema):
 
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
+        {"id": PropertyRef("repo_url")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_RULESET"
@@ -82,7 +82,7 @@ class GitHubRulesetToOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)}
+        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

@@ -10,5 +10,6 @@ MOCK_LOGIC_APPS = [
             "version": "0x8D4B62DDE4A694D",
             "access_endpoint": "https://prod-01.eastus.logic.azure.com/workflows/guid",
         },
+        "tags": {"env": "prod", "service": "logic-app"},
     },
 ]

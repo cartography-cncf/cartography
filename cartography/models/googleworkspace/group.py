@@ -139,7 +139,7 @@ class GoogleWorkspaceGroupSchema(CartographyNodeSchema):
     sub_resource_relationship: GoogleWorkspaceGroupToTenantRel = (
         GoogleWorkspaceGroupToTenantRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal", "UserGroup"])
     other_relationships = OtherRelationships(
         [
             GoogleWorkspaceGroupToMemberRel(),

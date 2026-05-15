@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1OwnerReference
 from kubernetes.client.models import V1Secret
 
@@ -19,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_secrets(client: K8sClient) -> list[V1Secret]:
-    items = k8s_paginate(client.core.list_secret_for_all_namespaces)
+    items = k8s_paginate(
+        client.core.list_secret_for_all_namespaces,
+        raise_on_forbidden=True,
+    )
     return items
 
 
@@ -42,11 +46,14 @@ def _get_owner_references(
     return None
 
 
-def transform_secrets(secrets: list[V1Secret]) -> list[dict[str, Any]]:
+def transform_secrets(
+    secrets: list[V1Secret], cluster_name: str
+) -> list[dict[str, Any]]:
     secrets_list = []
     for secret in secrets:
         secrets_list.append(
             {
+                "composite_id": f"{cluster_name}/{secret.metadata.namespace}/{secret.metadata.name}",
                 "uid": secret.metadata.uid,
                 "name": secret.metadata.name,
                 "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),
@@ -70,7 +77,6 @@ def load_secrets(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(secrets)} KubernetesSecrets")
     load(
         session,
         KubernetesSecretSchema(),
@@ -98,8 +104,24 @@ def sync_secrets(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    secrets = get_secrets(client)
-    transformed_secrets = transform_secrets(secrets)
+    try:
+        secrets = get_secrets(client)
+    except ApiException as e:
+        if e.status in (401, 403):
+            # Skipping load + cleanup is intentional: if the operator previously granted
+            # `list secrets` and later revoked it, running cleanup would wipe the existing
+            # KubernetesSecret subgraph for this cluster.
+            logger.warning(
+                "Cartography lacks permission to list secrets on cluster %s (status %s). "
+                "Skipping secret sync and preserving previously synced secrets. "
+                "If this is intentional (granting `list secrets` also exposes the base64 "
+                "`data` field and you prefer not to grant it), you can ignore this warning.",
+                client.name,
+                e.status,
+            )
+            return
+        raise
+    transformed_secrets = transform_secrets(secrets, client.name)
     load_secrets(
         session=session,
         secrets=transformed_secrets,

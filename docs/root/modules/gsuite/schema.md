@@ -4,10 +4,40 @@
 This module has been deprecated and replaced by the [Google Workspace](../googleworkspace/) module. Please refer to the Google Workspace module for the latest features and updates.
 :::
 
-### GSuiteUser
+### GSuiteTenant
+
+Represents a GSuite tenant (customer account).
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
+| Field | Description |
+|-------|-------------|
+| id | The unique ID for the GSuite customer account |
+| customer_id | The customer ID (same as id) |
+| lastupdated | Timestamp of when a sync job last updated this node |
+| firstseen | Timestamp of when a sync job first discovered this node |
+
+#### Node Labels
+- `GSuiteTenant`
+- `Tenant`
+
+#### Relationships
+- Tenant has users:
+    ```
+    (:GSuiteTenant)-[:RESOURCE]->(:GSuiteUser)
+    ```
+- Tenant has groups:
+    ```
+    (:GSuiteTenant)-[:RESOURCE]->(:GSuiteGroup)
+    ```
+
+
+### GSuiteUser:GCPPrincipal
 
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|
@@ -38,22 +68,18 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 | lastupdated | Timestamp of when a sync job last updated this node
 | firstseen | Timestamp of when a sync job first discovered this node
 
-#### Node Labels
-
-- `GSuiteUser`
-- `GCPPrincipal`
-
 #### Relationships
 - GSuiteUser is an identity for a Human
     ```
     (Human)-[IDENTITY_GSUITE]->(GSuiteUser)
     ```
 
-### GSuiteGroup
+### GSuiteGroup:GCPPrincipal
 
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -67,11 +93,6 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 | name | The group's display name.
 | lastupdated | Timestamp of when a sync job last updated this node
 | firstseen | Timestamp of when a sync job first discovered this node
-
-#### Node Labels
-
-- `GSuiteGroup`
-- `GCPPrincipal`
 
 #### Relationships
 

@@ -3,12 +3,18 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
 class CrowdstrikeHostNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("device_id")
     cid: PropertyRef = PropertyRef("cid")
+    email: PropertyRef = PropertyRef("email", extra_index=True)
     instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
     status: PropertyRef = PropertyRef("status")
@@ -46,6 +52,27 @@ class CrowdstrikeHostNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class CrowdstrikeHostToCrowdstrikeTenantRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CrowdstrikeHostToCrowdstrikeTenantRel(CartographyRelSchema):
+    target_node_label: str = "CrowdstrikeTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: CrowdstrikeHostToCrowdstrikeTenantRelProperties = (
+        CrowdstrikeHostToCrowdstrikeTenantRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CrowdstrikeHostSchema(CartographyNodeSchema):
     label: str = "CrowdstrikeHost"
     properties: CrowdstrikeHostNodeProperties = CrowdstrikeHostNodeProperties()
+    sub_resource_relationship: CrowdstrikeHostToCrowdstrikeTenantRel = (
+        CrowdstrikeHostToCrowdstrikeTenantRel()
+    )

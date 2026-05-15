@@ -113,6 +113,10 @@ def start_googleworkspace_ingestion(
             str(base64.b64decode(config.googleworkspace_config).decode())
         )
         logger.info("Attempting to authenticate to Google Workspace using OAuth")
+        # Allow scopes to be specified in the auth payload, falling back to defaults.
+        # This enables callers to use a subset of scopes (e.g., without devices.readonly
+        # if they don't have Cloud Identity Premium).
+        oauth_scopes = auth_tokens.get("scopes", OAUTH_SCOPES)
         try:
             creds = credentials.Credentials(
                 token=None,
@@ -121,7 +125,7 @@ def start_googleworkspace_ingestion(
                 refresh_token=auth_tokens["refresh_token"],
                 expiry=None,
                 token_uri=auth_tokens["token_uri"],
-                scopes=OAUTH_SCOPES,
+                scopes=oauth_scopes,
             )
             creds.refresh(Request())
         except DefaultCredentialsError as e:
@@ -185,9 +189,17 @@ def start_googleworkspace_ingestion(
         config.update_tag,
         common_job_parameters,
     )
-    devices.sync_googleworkspace_devices(
-        neo4j_session,
-        resources.cloudidentity,
-        config.update_tag,
-        common_job_parameters,
-    )
+
+    # Only sync devices if the devices scope was authorized (requires Cloud Identity Premium)
+    devices_scope = "https://www.googleapis.com/auth/cloud-identity.devices.readonly"
+    if hasattr(creds, "scopes") and creds.scopes and devices_scope in creds.scopes:
+        devices.sync_googleworkspace_devices(
+            neo4j_session,
+            resources.cloudidentity,
+            config.update_tag,
+            common_job_parameters,
+        )
+    else:
+        logger.info(
+            "Skipping device sync - cloud-identity.devices.readonly scope not authorized",
+        )

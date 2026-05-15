@@ -12,6 +12,13 @@ S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
 S -- RESOURCE --> NIC(NetworkInterface)
 S -- RESOURCE --> PIP(PublicIPAddress)
+S -- RESOURCE --> FW(Firewall)
+S -- RESOURCE --> FWP(FirewallPolicy)
+S -- RESOURCE --> FWIP(FirewallIPConfig)
+FW -- HAS_IP_CONFIGURATION --> FWIP
+FW -- USES_POLICY --> FWP
+FWIP -- IN_SUBNET --> Subnet
+FWIP -- USES_PUBLIC_IP --> PIP
 S -- RESOURCE --> RA(RoleAssignment)
 S -- RESOURCE --> RD(RoleDefinition)
 S -- RESOURCE --> Permissions
@@ -67,6 +74,8 @@ All entities are linked to an AzureSubscription, these relationships are not rep
 
 Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/resources/Tenants/List).
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, GCPOrganization).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -100,6 +109,8 @@ Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/ap
 ### AzureSubscription
 
 Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/api/resources/subscriptions)..
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, GCPOrganization).
 
 | Field | Description |
 |-------|-------------|
@@ -172,6 +183,8 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 ### AzureRoleDefinition
 
 Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/azure/role-based-access-control/role-definitions). Role definitions describe the permissions that can be granted, including allowed actions, not actions, data actions, and not data actions.
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
@@ -256,6 +269,8 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 
 Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines).
 
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, GCPInstance, DODroplet).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -274,12 +289,19 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 |ultra\_ssd\_enabled | Enables or disables a capability on the virtual machine or virtual machine scale set.|
 |priority | Specifies the priority for the virtual machine|
 |eviction\_policy | Specifies the eviction policy for the Virtual Machine|
+|exposed\_internet | Whether the VM is exposed to the internet (direct or via LB). Set by an analysis job. |
+|exposed\_internet\_type | List of exposure types (e.g., `['direct']`, `['lb']`, `['direct', 'lb']`). Set by an analysis job. |
 
 #### Relationships
 
 - Azure Subscription contains one or more Virtual Machines.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(VirtualMachine)
+    ```
+
+- An Azure Virtual Machine can be tagged with Azure Tags.
+    ```cypher
+    (AzureVirtualMachine)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureDataDisk
@@ -317,6 +339,8 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/compute/disks).
 
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, ScalewayVolume).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -331,6 +355,7 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 |encryption | Specifies whether the disk has encryption enabled |
 |maxshares | Specifies how many machines can share the disk|
 |ostype | The operating system type of the disk|
+|state | The disk lifecycle state (e.g., `Unattached`, `Attached`, `Reserved`)|
 |tier | Performance Tier associated with the disk|
 |sku | The disk sku name|
 |zones | The logical zone list for disk|
@@ -387,6 +412,8 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 |kind | Specifies the kind of SQL server|
 |state | The state of the server|
 |version | The version of the server |
+|public_network_access | Whether public network access is enabled (`Enabled` or `Disabled`).|
+|minimal_tls_version | The minimum TLS version enforced for client connections.|
 
 #### Relationships
 
@@ -421,6 +448,30 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 - Azure SQL Server contains one or more Azure SQL Database.
     ```
     (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+    ```
+- Azure SQL Server has one or more firewall rules whose `IpRule` label makes them queryable alongside the equivalents on AWS / GCP.
+    ```cypher
+    (AzureSQLServerFirewallRule)-[MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
+    ```
+
+- Azure SQL Servers can be tagged with Azure Tags.
+    ```cypher
+    (AzureSQLServer)-[:TAGGED]->(AzureTag)
+    ```
+
+- Entra principals with appropriate permissions can manage Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_MANAGE]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can read Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_READ]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can write to Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_WRITE]->(AzureSQLServer)
     ```
 
 ### AzureServerDNSAlias
@@ -585,9 +636,42 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
         (AzureSubscription)-[RESOURCE]->(AzureElasticPool)
     ```
 
+### AzureSQLServerFirewallRule :: IpPermissionInbound :: IpRule
+
+Representation of an [AzureSQLServerFirewallRule](https://learn.microsoft.com/en-us/rest/api/sql/firewall-rules).
+
+Two distinct cases are worth calling out and should NOT be conflated by downstream rules:
+
+- **Public-internet exposure**: a rule whose range covers public IP space (for example `start_ip_address = 0.0.0.0` / `end_ip_address = 255.255.255.255`, or any rule whose range overlaps the public internet) lets arbitrary clients on the public internet reach the server.
+- **Allow Azure services**: the special `start_ip_address = 0.0.0.0` / `end_ip_address = 0.0.0.0` row (also exposed via the SQL Server's `public_network_access` + the "Allow Azure services and resources to access this server" toggle) allows traffic from Azure-hosted services / resources only, not arbitrary public IPs. It is a different exposure class and should be flagged separately.
+
+> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID|
+|name | The name of the firewall rule|
+|start_ip_address | The lowest IP address allowed to connect (inclusive). |
+|end_ip_address | The highest IP address allowed to connect (inclusive). |
+
+#### Relationships
+
+- A firewall rule is a member of an Azure SQL Server.
+    ```cypher
+    (AzureSQLServerFirewallRule)-[:MEMBER_OF_AZURE_SQL_SERVER]->(AzureSQLServer)
+    ```
+- Firewall rules belong to a Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSQLServerFirewallRule)
+    ```
+
 ### AzureSQLDatabase
 
 Representation of an [AzureSQLDatabase](https://docs.microsoft.com/en-us/rest/api/sql/databases).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -672,7 +756,7 @@ Representation of an [AzureReplicationLink](https://docs.microsoft.com/en-us/res
 
 ### AzureDatabaseThreatDetectionPolicy
 
-Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft.com/en-us/rest/api/sql/databasethreatdetectionpolicies).
+Representation of an [AzureDatabaseThreatDetectionPolicy](https://learn.microsoft.com/en-us/rest/api/sql/database-security-alert-policies).
 
 | Field | Description |
 |-------|-------------|
@@ -680,15 +764,13 @@ Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The resource ID|
 |name | The name of the resource.|
-|location | The geo-location where the resource lives.|
-|kind | The kind of the resource.|
 |emailadmins | Specifies that the alert is sent to the account administrators.|
-|emailaddresses | Specifies the semicolon-separated list of e-mail addresses to which the alert is sent.|
+|emailaddresses | List of e-mail addresses to which the alert is sent.|
 |retentiondays | Specifies the number of days to keep in the Threat Detection audit logs.|
 |state | Specifies the state of the policy.|
 |storageendpoint | Specifies the blob storage endpoint.|
-|useserverdefault | Specifies whether to use the default server policy.|
-|disabledalerts | Specifies the semicolon-separated list of alerts that are disabled, or empty string to disable no alerts.|
+|disabledalerts | List of alerts that are disabled.|
+|creationtime | Specifies the UTC creation time of the policy.|
 
 #### Relationships
 
@@ -996,6 +1078,8 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 
 Representation of an [AzureStorageBlobContainer](https://docs.microsoft.com/en-us/rest/api/storagerp/blobcontainers).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1103,6 +1187,10 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
 - Azure Database Account contains one or more table resource.
     ```cypher
     (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
+    ```
+- Azure Cosmos DB Accounts can be tagged with Azure Tags.
+    ```cypher
+    (AzureCosmosDBAccount)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureCosmosDBLocation
@@ -1233,6 +1321,8 @@ Representation of an Azure Cosmos DB [Virtual Network Rule](https://docs.microso
 
 Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1263,6 +1353,8 @@ Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us
 
 Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1292,6 +1384,8 @@ Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com
 ### AzureCosmosDBMongoDBDatabase
 
 Representation of an [AzureCosmosDBMongoDBDatabase](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -1438,6 +1532,8 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
 
 Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1449,12 +1545,34 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 |state| The operational state of the Function App (e.g., Running, Stopped). |
 |default_host_name| The default hostname of the Function App. |
 |https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
+|is_container| `true` when the Function App is deployed from a container image (linuxFxVersion prefixed with `DOCKER|`); `false` for code-based runtimes. |
+|deployment_type| `"container"` when the Function App runs a container image, `"code"` otherwise. Derived from `is_container`. |
+|image_uri| Container image reference parsed from `linuxFxVersion` (without the `DOCKER|` prefix). Populated only when `is_container=true`. |
+|image_digest| Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
+|architecture_normalized| Canonical architecture for container-based Function Apps. Function Apps do not expose host architecture; Linux container plans are assumed to run on `amd64`. |
 
 #### Relationships
 
 - An Azure Function App is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureFunctionApp)
+    ```
+
+- Azure Function Apps can be tagged with Azure Tags.
+    ```cypher
+    (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
+- Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
+    ```cypher
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    ```
+
+- Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```cypher
+    (AzureFunctionApp)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AzureAppService
@@ -1480,6 +1598,11 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
+- An Azure App Service can be tagged with Azure Tags.
+    ```cypher
+    (AzureAppService)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureEventGridTopic
 
 Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
@@ -1499,6 +1622,11 @@ Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/
 - An Azure Event Grid Topic is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+- Azure Event Grid Topics can be tagged with Azure Tags.
+    ```cypher
+    (AzureEventGridTopic)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureLogicApp
@@ -1521,6 +1649,11 @@ Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/ap
     (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
     ```
 
+- Azure Logic Apps can be tagged with Azure Tags.
+    ```cypher
+    (AzureLogicApp)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureResourceGroup
 
 Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/get).
@@ -1539,6 +1672,11 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
 - An Azure Resource Group is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
+    ```
+
+- Azure Resource Groups can be tagged with Azure Tags.
+    ```cypher
+    (AzureResourceGroup)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureDataFactory
@@ -1645,9 +1783,124 @@ Representation of a [Linked Service within an Azure Data Factory](https://www.go
 
 *(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
 
+### AzureKeyVault
+
+Representation of an [Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/controlplane-stable/vaults/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Key Vault. |
+|name| The name of the Key Vault. |
+|location| The Azure region where the Key Vault is deployed. |
+|tenant_id| The ID of the Azure Tenant that owns the vault. |
+|sku_name| The pricing tier of the Key Vault (e.g., standard or premium). |
+
+#### Relationships
+
+- An Azure Key Vault is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVault)
+    ```
+
+- An Azure Key Vault contains Secrets, Keys, and Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
+### AzureKeyVaultSecret
+
+Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secrets/get-secrets).
+
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the secret. |
+|name| The name of the secret. |
+|enabled| A boolean indicating if the secret is active. |
+|created_on| The timestamp of when the secret was created. |
+|updated_on| The timestamp of when the secret was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Secret is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultSecret)
+    ```
+
+- An Azure Key Vault contains one or more Secrets.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    ```
+
+### AzureKeyVaultKey
+
+Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the key. |
+|name| The name of the key. |
+|enabled| A boolean indicating if the key is active. |
+|created_on| The timestamp of when the key was created. |
+|updated_on| The timestamp of when the key was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Key is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultKey)
+    ```
+
+- An Azure Key Vault contains one or more Keys.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    ```
+
+### AzureKeyVaultCertificate
+
+Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
+
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AWSServerCertificate).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the certificate. |
+|name| The name of the certificate. |
+|enabled| A boolean indicating if the certificate is active. |
+|created_on| The timestamp of when the certificate was created. |
+|updated_on| The timestamp of when the certificate was last updated. |
+|x5t| The thumbprint of the certificate. |
+
+#### Relationships
+
+- An Azure Key Vault Certificate is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultCertificate)
+    ```
+
+- An Azure Key Vault contains one or more Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
 ### AzureKubernetesCluster
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
+
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |---|---|
@@ -1665,6 +1918,11 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
 - An Azure Kubernetes Cluster is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+- An Azure Kubernetes Cluster can be tagged with Azure Tags.
+    ```cypher
+    (AzureKubernetesCluster)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureKubernetesAgentPool
@@ -1689,28 +1947,90 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
     (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
     ```
 
-### AzureContainerInstance
+### AzureGroupContainer
 
-Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureContainerInstance](#azurecontainerinstance)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
-|**id**| The full resource ID of the Container Instance. |
-|name| The name of the Container Instance. |
-|location| The Azure region where the Container Instance is deployed. |
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `ECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
+
+|**id**| The full resource ID of the Container Group. |
+|name| The name of the Container Group. |
+|location| The Azure region where the Container Group is deployed. |
 |type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
-|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
-|ip_address| The public IP address of the Container Instance, if one is assigned. |
-|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+|provisioning_state| The deployment status of the Container Group (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Group, if one is assigned. |
+|ip_address_type| The IP type of the Container Group (`Public` or `Private`) when available. |
+|os_type| The operating system type of the Container Group (e.g., Linux or Windows). |
 
 #### Relationships
 
-- An Azure Container Instance is a resource within an Azure Subscription.
+- An Azure Container Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureGroupContainer)
+    ```
+- Azure Container Groups can be tagged with Azure Tags.
+    ```cypher
+    (AzureGroupContainer)-[:TAGGED]->(AzureTag)
+    ```
+- VNet-integrated Container Groups are attached to a Subnet.
+    ```cypher
+    (AzureGroupContainer)-[:ATTACHED_TO]->(:AzureSubnet)
+    ```
+- An Azure Container Group contains one or more AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
+    ```cypher
+    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
+    ```
+
+### AzureContainerInstance
+
+Representation of an individual container within an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). A container group may run one or more containers — this node models each container separately to enable per-container image tracking.
+
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, ECSContainer).
+> **Note**: ACI does not expose host architecture via its API; all workloads are assumed to run on `amd64`. `HAS_IMAGE` resolves only when the image is referenced by digest (`image@sha256:...`); tag-based references produce no relationship.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | `{container_group_id}/{container_name}` |
+| name | The name of the container |
+| group_id | The full resource ID of the parent container group |
+| image | The container image reference as specified in the container group definition |
+| image_digest | The digest portion of the image reference (e.g., `sha256:abc...`), if the image was pinned by digest. `None` for tag-based references |
+| architecture | CPU architecture. Hardcoded to `amd64` — ACI does not expose host architecture and ARM64 support is not yet GA |
+| architecture_normalized | Canonical CPU architecture. Hardcoded to `amd64` |
+| state | Per-container runtime state from `instanceView.currentState.state` (e.g., `Running`, `Waiting`, `Terminated`). Distinct from the parent container group's `provisioning_state` |
+| cpu_request | CPU units requested by the container |
+| memory_request_gb | Memory (in GB) requested by the container |
+| cpu_limit | CPU limit for the container, if set |
+| memory_limit_gb | Memory limit (in GB) for the container, if set |
+
+#### Relationships
+
+- An AzureContainerInstance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+- An Azure Container Group contains its AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
+    ```cypher
+    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
+    ```
+- An AzureContainerInstance points at its parent AzureGroupContainer via the unified workload chain.
+    ```cypher
+    (:AzureContainerInstance)-[:WORKLOAD_PARENT]->(:AzureGroupContainer)
+    ```
+- AzureContainerInstances are linked to the image they run when the image is pinned by digest.
+    ```cypher
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     ```
 
 ### AzureLoadBalancer
 
 Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, LoadBalancer, GCPForwardingRule).
 
 | Field      | Description                                                 |
 | ---------- | ----------------------------------------------------------- |
@@ -1720,6 +2040,7 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
 | name       | The name of the Load Balancer.                              |
 | location   | The Azure region where the Load Balancer is deployed.       |
 | sku_name   | The SKU of the Load Balancer (e.g., `Standard`, `Basic`).   |
+| exposed\_internet | Whether the Load Balancer has a public frontend IP. Set by an analysis job. |
 
 #### Relationships
 
@@ -1740,6 +2061,19 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
     (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerInboundNatRule)
     ```
 
+- Azure Load Balancers can be tagged with Azure Tags.
+    ```cypher
+    (AzureLoadBalancer)-[:TAGGED]->(AzureTag)
+    ```
+- Internet-facing Load Balancers can expose private VMs. Set by an analysis job.
+    ```cypher
+    (AzureLoadBalancer)-[:EXPOSE]->(:AzureVirtualMachine)
+    ```
+- Azure Firewalls can protect Load Balancers via VNet traversal. Set by an analysis job. This is a topology-based approximation and does not validate effective route path or firewall rule evaluation.
+    ```cypher
+    (AzureFirewall)-[:PROTECTS]->(:AzureLoadBalancer)
+    ```
+
 ### AzureLoadBalancerFrontendIPConfiguration
 
 Representation of a Frontend IP Configuration for an Azure Load Balancer.
@@ -1753,6 +2087,13 @@ Representation of a Frontend IP Configuration for an Azure Load Balancer.
 | private\_ip\_address   | The private IP address of the configuration, if applicable.              |
 | public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
 
+#### Relationships
+
+- A Frontend IP Configuration can be associated with a Public IP Address.
+    ```cypher
+    (AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
 ### AzureLoadBalancerBackendPool
 
 Representation of a Backend Pool for an Azure Load Balancer.
@@ -1763,6 +2104,13 @@ Representation of a Backend Pool for an Azure Load Balancer.
 | lastupdated | Timestamp of the last time the node was updated   |
 | **id** | The full resource ID of the Backend Pool.         |
 | name        | The name of the Backend Pool.                     |
+
+#### Relationships
+
+- A Backend Pool routes traffic to Network Interfaces.
+    ```cypher
+    (AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    ```
 
 ### AzureLoadBalancerRule
 
@@ -1806,6 +2154,139 @@ Representation of an Inbound NAT Rule for an Azure Load Balancer.
 #### Relationships
 
 *(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
+
+### AzureApplicationGateway
+
+Representation of an [Azure Application Gateway](https://learn.microsoft.com/en-us/azure/application-gateway/overview). The data model mirrors `AzureLoadBalancer`: the parent gateway plus three sub-resource node types (frontend IP, backend pool, rule). HTTP listener and backend HTTP settings configuration is folded onto each `AzureApplicationGatewayRule`, parallel to how `AzureLoadBalancerRule` carries `protocol` / `frontend_port` / `backend_port` directly.
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, AzureLoadBalancer, GCPForwardingRule).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Application Gateway.            |
+| name       | The name of the Application Gateway.                        |
+| location   | The Azure region where the Application Gateway is deployed. |
+| sku\_name   | The SKU name (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_tier   | The SKU tier (e.g., `Standard_v2`, `WAF_v2`).               |
+| sku\_capacity | The SKU capacity (instance count).                        |
+| operational\_state | The operational state (e.g., `Running`, `Stopped`). |
+| provisioning\_state | The provisioning state.                            |
+| enable\_http2 | Whether HTTP/2 is enabled.                              |
+| firewall\_policy\_id | Resource ID of the associated WAF policy, if any. |
+| subnet\_id | Resource ID of the subnet the gateway is deployed into.    |
+
+#### Relationships
+
+- An Azure Application Gateway is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGateway)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway contains its component parts.
+    ```cypher
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayBackendPool)
+    (AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayRule)
+    ```
+
+- An Azure Application Gateway is deployed in a subnet.
+    ```cypher
+    (AzureApplicationGateway)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+- Azure Application Gateways can be tagged with Azure Tags.
+    ```cypher
+    (AzureApplicationGateway)-[:TAGGED]->(AzureTag)
+    ```
+
+### AzureApplicationGatewayFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Application Gateway.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| private\_ip\_allocation\_method | The private IP allocation method (e.g., `Dynamic`, `Static`).  |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+| subnet\_id            | The resource ID of the associated subnet, if applicable (private frontend). |
+
+#### Relationships
+
+- A Frontend IP Configuration can be associated with a Public IP Address.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+- A private Frontend IP Configuration is bound to a Subnet.
+    ```cypher
+    (AzureApplicationGatewayFrontendIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+### AzureApplicationGatewayBackendPool
+
+Representation of a Backend Address Pool for an Azure Application Gateway.
+
+| Field        | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| firstseen    | Timestamp of when a sync job discovered this node                        |
+| lastupdated  | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Backend Pool.                                |
+| name         | The name of the Backend Pool.                                            |
+| fqdns        | List of backend FQDNs.                                                   |
+| ip\_addresses | List of backend IP addresses.                                           |
+
+#### Relationships
+
+- A Backend Pool routes traffic to Network Interfaces, Public IPs (matched by `ip_address`), and any node carrying the cross-provider `DNSRecord` ontology label whose `name` matches an FQDN backend (e.g. `AWSDNSRecord`, `GCPRecordSet`, `CloudflareDNSRecord`, `VercelDNSRecord`).
+    ```cypher
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:AzurePublicIPAddress)
+    (AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:DNSRecord)
+    ```
+
+### AzureApplicationGatewayRule
+
+Representation of a Request Routing Rule for an Azure Application Gateway. Properties of the rule's HTTP listener and backend HTTP settings are folded onto this node, so a single Rule node is the complete description of one routing entry (parallel to `AzureLoadBalancerRule`).
+
+| Field      | Description                                                                  |
+| ---------- | ---------------------------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node                            |
+| lastupdated| Timestamp of the last time the node was updated                              |
+| **id** | The full resource ID of the Routing Rule.                                    |
+| name       | The name of the Routing Rule.                                                |
+| rule\_type | The rule type (e.g., `Basic`, `PathBasedRouting`).                           |
+| priority   | The rule priority.                                                           |
+| url\_path\_map\_id | Resource ID of the referenced URL path map for `PathBasedRouting` rules; null for `Basic` rules. |
+| listener\_id | Resource ID of the underlying HTTP listener (kept for traceability).       |
+| listener\_protocol | The listener protocol (e.g., `Http`, `Https`).                       |
+| listener\_port | The listener port (resolved from the referenced `frontendPorts` entry).  |
+| listener\_host\_name | The host name the listener matches, if any.                        |
+| listener\_host\_names | List of host names the listener matches (multi-site listeners).   |
+| listener\_require\_server\_name\_indication | Whether SNI is required.                  |
+| listener\_ssl\_certificate\_id | Resource ID of the associated SSL certificate, if any. |
+| backend\_http\_settings\_id | Resource ID of the underlying backend HTTP settings (kept for traceability). |
+| backend\_protocol | The backend protocol (e.g., `Http`, `Https`).                         |
+| backend\_port | The backend port.                                                         |
+| backend\_cookie\_based\_affinity | Whether cookie-based affinity is enabled.              |
+| backend\_request\_timeout | The backend request timeout in seconds.                       |
+| backend\_host\_name | The host name to send to the backend, if pinned.                    |
+| backend\_pick\_host\_name\_from\_backend\_address | Whether to pick the host name from the backend address. |
+
+#### Relationships
+
+- A Rule uses a Frontend IP Configuration and routes to a Backend Pool. `PathBasedRouting` rules expose only `url_path_map_id` as a pointer; their `ROUTES_TO` edge and `backend_*` properties are not populated, since individual path rules can target different backends and are not yet modeled.
+    ```cypher
+    (AzureApplicationGatewayRule)-[:USES_FRONTEND_IP]->(:AzureApplicationGatewayFrontendIPConfiguration)
+    (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
+    ```
 
 ### AzureTag
 
@@ -1852,6 +2333,11 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
     (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
     ```
 
+- Azure Virtual Networks can be tagged with Azure Tags.
+    ```cypher
+    (AzureVirtualNetwork)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureSubnet
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
@@ -1875,6 +2361,8 @@ Representation of a [Subnet within an Azure Virtual Network](https://learn.micro
 
 Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
 
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
 | firstseen   | Timestamp of when a sync job discovered this node     |
@@ -1888,6 +2376,243 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
   - An Azure Network Security Group is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+  - Azure Network Security Groups can be tagged with Azure Tags.
+    ```cypher
+    (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
+    ```
+
+  - An Azure Network Security Group has one or more Security Rules whose direction is encoded in the `IpPermissionInbound` / `IpPermissionEgress` extra label.
+    ```cypher
+    (:AzureNetworkSecurityRule:IpPermissionInbound)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
+    (:AzureNetworkSecurityRule:IpPermissionEgress)-[:MEMBER_OF_AZURE_NSG]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityRule :: IpPermissionInbound / IpPermissionEgress :: IpRule
+
+Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
+
+> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `EC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The resource ID of the security rule|
+|name | The name of the rule |
+|description | Free-text rule description |
+|protocol | `Tcp`, `Udp`, `Icmp`, `Esp`, `Ah`, or `*` |
+|direction | `Inbound` or `Outbound` |
+|access | `Allow` or `Deny` |
+|priority | Numeric priority; lower values are evaluated first |
+|source_port_range | Single source port or range (e.g. `*`, `80`, `1024-65535`) |
+|source_port_ranges | List of source port ranges (when more than one is set) |
+|destination_port_range | Single destination port or range |
+|destination_port_ranges | List of destination port ranges |
+|source_address_prefix | Single source CIDR / service tag (e.g. `*`, `Internet`, `10.0.0.0/8`) |
+|source_address_prefixes | List of source CIDRs / service tags |
+|destination_address_prefix | Single destination CIDR / service tag |
+|destination_address_prefixes | List of destination CIDRs / service tags |
+|is_default | `true` if this is a platform default rule, `false` if user-defined |
+
+#### Relationships
+
+- An Azure Network Security Rule belongs to a Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityRule)
+    ```
+- An Azure Network Security Rule is a member of a Network Security Group.
+    ```cypher
+    (AzureNetworkSecurityRule)-[:MEMBER_OF_AZURE_NSG]->(AzureNetworkSecurityGroup)
+    ```
+
+### AzureFirewall
+
+Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
+
+Azure Firewall is a cloud-native network security service that provides threat protection for cloud workloads running in Azure. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Azure Firewall.   |
+| name        | The name of the Azure Firewall.               |
+| location    | The Azure region where the Firewall is deployed.           |
+| type    | The resource type (Microsoft.Network/azureFirewalls).           |
+| provisioning_state    | The provisioning state of the Firewall (e.g., Succeeded).           |
+| threat_intel_mode    | Threat intelligence mode: Off, Alert, or Deny.           |
+| sku_name    | The SKU name: AZFW_VNet (VNet) or AZFW_Hub (Virtual WAN).           |
+| sku_tier    | The SKU tier: Standard, Premium, or Basic.           |
+| firewall_policy_id    | Resource ID of the associated Firewall Policy.           |
+| virtual_hub_id    | Resource ID of the Virtual Hub (for AZFW_Hub deployments).           |
+| zones    | Availability zones for the Firewall (JSON string).           |
+| tags    | Resource tags (JSON string).           |
+| hub_private_ip_address    | Private IP address when deployed in a Virtual Hub.           |
+| hub_public_ip_count    | Number of public IPs when deployed in a Virtual Hub.           |
+| ip_groups_count    | Number of IP Groups associated with the Firewall.           |
+| autoscale_min_capacity    | Minimum number of firewall instances for autoscaling.           |
+| autoscale_max_capacity    | Maximum number of firewall instances for autoscaling.           |
+| has_management_ip    | Boolean indicating if a dedicated management IP is configured.           |
+| ip_configuration_count    | Number of IP configurations on the Firewall.           |
+| application_rule_collection_count    | Number of application rule collections (deprecated, use policy).           |
+| nat_rule_collection_count    | Number of NAT rule collections (deprecated, use policy).           |
+| network_rule_collection_count    | Number of network rule collections (deprecated, use policy).           |
+| ip_configurations    | Detailed IP configurations (JSON string).           |
+| application_rule_collections    | Application rule collections with ports and FQDNs (JSON string).           |
+| nat_rule_collections    | NAT rule collections with destination/translated addresses and ports (JSON string).           |
+| network_rule_collections    | Network rule collections with ports, protocols, and addresses (JSON string).           |
+| ip_groups_detail    | Detailed information about associated IP Groups (JSON string).           |
+
+#### Security Properties
+
+The following fields capture critical security configuration:
+
+- **threat_intel_mode**: Controls Microsoft threat intelligence filtering (Off/Alert/Deny)
+- **application_rule_collections**: L7 filtering rules with target FQDNs and ports
+- **network_rule_collections**: L4 filtering rules with ports, protocols, and IP addresses
+- **nat_rule_collections**: DNAT rules exposing internal services to the internet
+- **ip_groups_detail**: Reusable IP address collections for rule definitions
+
+#### Relationships
+
+  - An Azure Firewall is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewall)
+    ```
+
+  - An Azure Firewall uses a Firewall Policy for rule management.
+    ```cypher
+    (AzureFirewall)-[:USES_POLICY]->(:AzureFirewallPolicy)
+    ```
+
+  - An Azure Firewall has one or more IP Configurations.
+    ```cypher
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall is a member of a Virtual Network (for AZFW_VNet deployments).
+    ```cypher
+    (AzureFirewall)-[:MEMBER_OF]->(:AzureVirtualNetwork)
+    ```
+
+  - An Azure Firewall is deployed to a Virtual Hub (for AZFW_Hub deployments).
+    ```cypher
+    (AzureFirewall)-[:DEPLOYED_TO]->(:AzureVirtualHub)
+    ```
+
+### AzureFirewallPolicy
+
+Representation of an [Azure Firewall Policy](https://learn.microsoft.com/en-us/rest/api/firewall/firewall-policies/get).
+
+Azure Firewall Policy is a top-level resource that contains security and operational settings for Azure Firewall. It allows you to define rule collections and hierarchies, and can be shared across multiple firewalls.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Firewall Policy.   |
+| name        | The name of the Firewall Policy.               |
+| location    | The Azure region where the Policy is deployed.           |
+| type    | The resource type (Microsoft.Network/firewallPolicies).           |
+| provisioning_state    | The provisioning state (e.g., Succeeded).           |
+| threat_intel_mode    | Threat intelligence mode: Off, Alert, or Deny.           |
+| size    | The size of the policy in bytes.           |
+| sku_tier    | The SKU tier: Standard, Premium, or Basic.           |
+| base_policy_id    | Resource ID of the parent policy (for policy hierarchies).           |
+| dns_servers    | Custom DNS servers (JSON string).           |
+| dns_enable_proxy    | Boolean indicating if DNS proxy is enabled.           |
+| sql_allow_sql_redirect    | Boolean allowing SQL redirect traffic.           |
+| snat_private_ranges    | Private IP ranges to exclude from SNAT (JSON string).           |
+| explicit_proxy_enable    | Boolean indicating if explicit proxy is enabled.           |
+| explicit_proxy_http_port    | HTTP port for explicit proxy.           |
+| explicit_proxy_https_port    | HTTPS port for explicit proxy.           |
+| intrusion_detection_mode    | IDPS mode: Off, Alert, or Deny.           |
+| intrusion_detection_profile    | IDPS profile: Basic, Standard, Advanced, or Extended.           |
+| tls_certificate_authority_name    | Name of the TLS inspection certificate authority.           |
+| threat_intel_whitelist_ip_addresses    | Whitelisted IP addresses for threat intelligence (JSON string).           |
+| threat_intel_whitelist_fqdns    | Whitelisted FQDNs for threat intelligence (JSON string).           |
+| rule_groups    | List of rule collection group IDs (JSON string).           |
+| rule_groups_detail    | Detailed security rules with ports, protocols, and addresses (JSON string).           |
+
+#### Security Properties
+
+The following fields capture critical security configuration:
+
+- **threat_intel_mode**: Controls Microsoft threat intelligence filtering
+- **intrusion_detection_mode**: Controls IDPS (Intrusion Detection and Prevention System)
+- **rule_groups_detail**: Contains all security rules including:
+  - Network rules: destination_ports (22, 80, 443, etc.), ip_protocols (TCP, UDP, ICMP), source/destination addresses
+  - Application rules: target_fqdns, protocols, ports
+  - NAT rules: destination/translated addresses and ports
+- **dns_servers**: Custom DNS configuration for name resolution
+- **snat_private_ranges**: Controls which traffic bypasses SNAT
+- **tls_certificate_authority_name**: TLS inspection for encrypted traffic
+
+#### Relationships
+
+  - An Azure Firewall Policy is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewallPolicy)
+    ```
+
+  - An Azure Firewall Policy can inherit from a parent policy.
+    ```cypher
+    (AzureFirewallPolicy)-[:INHERITS_FROM]->(:AzureFirewallPolicy)
+    ```
+
+### AzureFirewallIPConfiguration
+
+Representation of an [Azure Firewall IP Configuration](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
+
+Azure Firewall IP Configurations define the network connectivity settings for an Azure Firewall instance. Each IP configuration associates the firewall with a subnet and a public IP address. Firewalls can have multiple IP configurations for load balancing and high availability. Management IP configurations provide dedicated connectivity for control plane operations.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the IP Configuration.   |
+| name        | The name of the IP Configuration.               |
+| private_ip_address    | The private IP address assigned to the Firewall in the subnet.           |
+| private_ip_allocation_method    | IP allocation method: Dynamic or Static.           |
+| provisioning_state    | The provisioning state (e.g., Succeeded).           |
+| type    | The resource type (Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations).           |
+| etag    | A unique read-only string that changes when the resource is updated.           |
+| subnet_id    | Resource ID of the subnet this IP configuration connects to.           |
+| public_ip_address_id    | Resource ID of the public IP address used by this configuration.           |
+| firewall_id    | Resource ID of the parent Azure Firewall.           |
+
+#### Security Properties
+
+The following fields capture critical network configuration:
+
+- **subnet_id**: Identifies which Azure subnet the firewall protects (typically AzureFirewallSubnet or AzureFirewallManagementSubnet)
+- **public_ip_address_id**: Public IP used for outbound traffic and management
+- **private_ip_address**: Internal IP for routing protected subnet traffic through the firewall
+
+#### Relationships
+
+  - An Azure Firewall IP Configuration is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall has one or more IP Configurations.
+    ```cypher
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall IP Configuration connects to a Subnet.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+  - An Azure Firewall IP Configuration uses a Public IP Address.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:USES_PUBLIC_IP]->(:AzurePublicIPAddress)
     ```
 
 ### AzureNetworkInterface
@@ -1926,6 +2651,11 @@ Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us
     (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
     ```
 
+  - An Azure Network Interface can be associated with a Network Security Group at the NIC level.
+    ```cypher
+    (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
 ### AzurePublicIPAddress
 
 Representation of an [Azure Public IP Address](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/public-ip-addresses/get).
@@ -1947,9 +2677,145 @@ Representation of an [Azure Public IP Address](https://learn.microsoft.com/en-us
     (AzureSubscription)-[:RESOURCE]->(:AzurePublicIPAddress)
     ```
 
-### AzureSecurityAssessment
+### AzureSynapseWorkspace
+
+Representation of an Azure Synapse [Workspace](https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Synapse Workspace. |
+| name | The name of the Synapse Workspace. |
+| location | The Azure region where the Workspace is deployed. |
+| connectivity\_endpoints | A string representation of the connectivity endpoints for the workspace. |
+
+#### Relationships
+
+  - An Azure Synapse Workspace is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureSynapseWorkspace)
+    ```
+
+### AzureSynapseDedicatedSqlPool
+
+Representation of an Azure Synapse [Dedicated SQL Pool](https://learn.microsoft.com/en-us/rest/api/synapse/sql-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Dedicated SQL Pool. |
+| name | The name of the Dedicated SQL Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Dedicated SQL Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseDedicatedSqlPool)
+    ```
+  - A Dedicated SQL Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseDedicatedSqlPool)
+    ```
+
+### AzureSynapseSparkPool
+
+Representation of an Azure Synapse [Spark Pool](https://learn.microsoft.com/en-us/rest/api/synapse/big-data-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Spark Pool. |
+| name | The name of the Spark Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Spark Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseSparkPool)
+    ```
+  - A Spark Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseSparkPool)
+    ```
+
+### AzureSynapsePipeline
+
+Representation of an Azure Synapse [Pipeline](https://learn.microsoft.com/en-us/azure/data-factory/concepts-pipelines-activities?tabs=data-factory).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Pipeline. |
+| name | The name of the Pipeline. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Pipelines.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapsePipeline)
+    ```
+  - A Pipeline is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapsePipeline)
+    ```
+
+### AzureSynapseLinkedService
+
+Representation of an Azure Synapse [Linked Service](https://learn.microsoft.com/en-us/azure/data-factory/concepts-linked-services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Linked Service. |
+| name | The name of the Linked Service. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Linked Services.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseLinkedService)
+    ```
+  - A Linked Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseLinkedService)
+    ```
+
+### AzureSynapseManagedPrivateEndpoint
+
+Representation of an Azure Synapse [Managed Private Endpoint](https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-managed-private-endpoints).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Managed Private Endpoint. |
+| name | The name of the Managed Private Endpoint. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Managed Private Endpoints.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseManagedPrivateEndpoint)
+    ```
+  - A Managed Private Endpoint is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
+    ```
+
+### AzureSecurityAssessment::SecurityIssue
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
 
 | Field | Description |
 |---|---|
@@ -1966,6 +2832,11 @@ Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-
   - An Azure Security Assessment is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+  - Azure Security Assessments can be tagged with Azure Tags.
+    ```cypher
+    (AzureSecurityAssessment)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureMonitorMetricAlert
@@ -1988,9 +2859,14 @@ Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en
 
 #### Relationships
 
-  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+- An Azure Monitor Metric Alert is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
+- Azure Monitor Metric Alerts can be tagged with Azure Tags.
+    ```cypher
+    (AzureMonitorMetricAlert)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureDataLakeFileSystem

@@ -10,6 +10,7 @@ from kubernetes.client.models import V1Service
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -28,6 +29,23 @@ def _format_service_selector(selector: dict[str, str]) -> str:
     return json.dumps(selector)
 
 
+def _extract_load_balancer_dns_names(
+    ingress: list[V1LoadBalancerIngress] | None,
+) -> list[str]:
+    """
+    Extract DNS hostnames from load balancer ingress entries.
+    These can be used to match Kubernetes Services to AWS LoadBalancerV2 nodes.
+    """
+    if ingress is None:
+        return []
+
+    dns_names = []
+    for item in ingress:
+        if item.hostname:
+            dns_names.append(item.hostname)
+    return dns_names
+
+
 def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -> str:
 
     def _format_ingress_ports(
@@ -40,9 +58,9 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
         for port in ports:
             ingress_ports.append(
                 {
-                    "error": port.port,
-                    "port": port.protocol,
-                    "protocol": port.ip,
+                    "error": port.error,
+                    "port": port.port,
+                    "protocol": port.protocol,
                 }
             )
         return ingress_ports
@@ -74,6 +92,9 @@ def transform_services(
             "creation_timestamp": get_epoch(service.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(service.metadata.deletion_timestamp),
             "namespace": service.metadata.namespace,
+            "qualified_name": get_qualified_resource_name(
+                service.metadata.namespace, service.metadata.name
+            ),
             "type": service.spec.type,
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,
@@ -84,6 +105,10 @@ def transform_services(
         if service.spec.type == "LoadBalancer":
             if service.status.load_balancer:
                 item["load_balancer_ingress"] = _format_load_balancer_ingress(
+                    service.status.load_balancer.ingress
+                )
+                # Extract DNS names for relationship matching with AWS LoadBalancerV2
+                item["load_balancer_dns_names"] = _extract_load_balancer_dns_names(
                     service.status.load_balancer.ingress
                 )
 
@@ -115,7 +140,6 @@ def load_services(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(services)} KubernetesServices")
     load(
         session,
         KubernetesServiceSchema(),

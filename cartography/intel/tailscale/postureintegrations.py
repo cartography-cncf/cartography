@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,7 +12,6 @@ from cartography.models.tailscale.postureintegration import (
 )
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -62,7 +60,6 @@ def load_postureintegrations(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale PostureIntegrations to the graph")
     load(
         neo4j_session,
         TailscalePostureIntegrationSchema(),

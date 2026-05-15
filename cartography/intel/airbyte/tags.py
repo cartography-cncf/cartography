@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -10,8 +9,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.airbyte.util import AirbyteClient
 from cartography.models.airbyte.tag import AirbyteTagSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -45,7 +42,6 @@ def load_tags(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Airbyte Tags into Neo4j.", len(data))
     load(
         neo4j_session,
         AirbyteTagSchema(),

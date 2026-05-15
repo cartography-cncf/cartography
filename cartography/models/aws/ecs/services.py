@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -55,6 +56,7 @@ class ECSServiceToECSClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSServiceToECSClusterRel(CartographyRelSchema):
     target_node_label: str = "ECSCluster"
@@ -65,6 +67,25 @@ class ECSServiceToECSClusterRel(CartographyRelSchema):
     rel_label: str = "HAS_SERVICE"
     properties: ECSServiceToECSClusterRelProperties = (
         ECSServiceToECSClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSServiceToECSClusterWorkloadParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
+class ECSServiceToECSClusterWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "ECSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: ECSServiceToECSClusterWorkloadParentRelProperties = (
+        ECSServiceToECSClusterWorkloadParentRelProperties()
     )
 
 
@@ -109,11 +130,15 @@ class ECSServiceToECSTaskRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSServiceToECSTaskRel(CartographyRelSchema):
     target_node_label: str = "ECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"service_name": PropertyRef("serviceName")}
+        {
+            "service_name": PropertyRef("serviceName"),
+            "cluster_arn": PropertyRef("clusterArn"),
+        }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_TASK"
@@ -123,11 +148,13 @@ class ECSServiceToECSTaskRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSServiceSchema(CartographyNodeSchema):
     label: str = "ECSService"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
     properties: ECSServiceNodeProperties = ECSServiceNodeProperties()
     sub_resource_relationship: ECSServiceToAWSAccountRel = ECSServiceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSServiceToECSClusterRel(),
+            ECSServiceToECSClusterWorkloadParentRel(),
             ECSServiceToTaskDefinitionRel(),
             ECSServiceToECSTaskRel(),
         ]

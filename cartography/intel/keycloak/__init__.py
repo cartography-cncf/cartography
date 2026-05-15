@@ -8,6 +8,7 @@ import cartography.intel.keycloak.authenticationflows
 import cartography.intel.keycloak.clients
 import cartography.intel.keycloak.groups
 import cartography.intel.keycloak.identityproviders
+import cartography.intel.keycloak.inheritance
 import cartography.intel.keycloak.organizations
 import cartography.intel.keycloak.realms
 import cartography.intel.keycloak.roles
@@ -61,9 +62,13 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             "UPDATE_TAG": config.update_tag,
         }
 
-        for realm in cartography.intel.keycloak.realms.sync(
-            neo4j_session, api_session, config.keycloak_url, common_job_parameters
-        ):
+        realms = cartography.intel.keycloak.realms.sync(
+            neo4j_session,
+            api_session,
+            config.keycloak_url,
+            common_job_parameters,
+        )
+        for realm in realms:
             realm_scopped_job_parameters = {
                 "UPDATE_TAG": config.update_tag,
                 "REALM": realm["realm"],
@@ -151,3 +156,9 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     config.keycloak_url,
                     realm_scopped_job_parameters,
                 )
+
+        cartography.intel.keycloak.inheritance.sync(
+            neo4j_session,
+            realms,
+            common_job_parameters,
+        )

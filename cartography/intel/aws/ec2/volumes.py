@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.arns import build_arn
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ec2.volumes import EBSVolumeSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -22,7 +23,7 @@ def get_volumes(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ec2", region_name=region)
+    client = create_boto3_client(boto3_session, "ec2", region_name=region)
     paginator = client.get_paginator("describe_volumes")
     volumes: List[Dict] = []
     for page in paginator.paginate():

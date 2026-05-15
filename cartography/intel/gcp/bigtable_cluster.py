@@ -2,9 +2,12 @@ import logging
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigtable.cluster import GCPBigtableClusterSchema
 from cartography.util import timeit
 
@@ -12,22 +15,42 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_bigtable_clusters(client: Resource, instance_id: str) -> list[dict]:
-    clusters: list[dict] = []
-    request = client.projects().instances().clusters().list(parent=instance_id)
-    while request is not None:
-        response = request.execute()
-        clusters.extend(response.get("clusters", []))
-        request = (
-            client.projects()
-            .instances()
-            .clusters()
-            .list_next(
-                previous_request=request,
-                previous_response=response,
+def get_bigtable_clusters(client: Resource, instance_id: str) -> list[dict] | None:
+    """
+    Gets Bigtable clusters for an instance.
+
+    Returns:
+        list[dict]: List of Bigtable clusters (empty list if instance has no clusters)
+        None: If the Bigtable Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
+    """
+    try:
+        clusters: list[dict] = []
+        request = client.projects().instances().clusters().list(parent=instance_id)
+        while request is not None:
+            response = gcp_api_execute_with_retry(request)
+            clusters.extend(response.get("clusters", []))
+            request = (
+                client.projects()
+                .instances()
+                .clusters()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
             )
-        )
-    return clusters
+        return clusters
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Bigtable clusters for instance %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                instance_id,
+            )
+            return None
+        raise
 
 
 def transform_clusters(clusters_data: list[dict], instance_id: str) -> list[dict]:
@@ -79,8 +102,12 @@ def sync_bigtable_clusters(
     for inst in instances:
         instance_id = inst["name"]
         clusters_raw = get_bigtable_clusters(client, instance_id)
-        all_clusters_raw.extend(clusters_raw)
-        all_clusters_transformed.extend(transform_clusters(clusters_raw, instance_id))
+        # Skip this instance if API is not enabled or access denied
+        if clusters_raw is not None:
+            all_clusters_raw.extend(clusters_raw)
+            all_clusters_transformed.extend(
+                transform_clusters(clusters_raw, instance_id)
+            )
 
     load_bigtable_clusters(
         neo4j_session, all_clusters_transformed, project_id, update_tag

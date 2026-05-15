@@ -1,9 +1,0 @@
-{
-  "statements": [{
-    "query": "MATCH (:OCITenancy{ocid: $OCI_TENANCY_ID})-[:RESOURCE]->(n:OCICompartment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-    "iterative": true,
-    "iterationsize": 100
-  }],
-  "name": "cleanup OCICompartment",
-  "comment":"Copyright (c) 2020, Oracle and/or its affiliates."
-}

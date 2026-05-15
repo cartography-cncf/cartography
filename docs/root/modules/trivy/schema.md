@@ -1,6 +1,6 @@
 ## Trivy Schema
 
-### TrivyImageFinding
+### TrivyImageFinding::Risk::CVE
 Representation of a vulnerability finding in a container image.
 
 | Field | Description |
@@ -30,14 +30,14 @@ Representation of a vulnerability finding in a container image.
 
 #### Relationships
 
-- A TrivyImageFinding affects an ECRImage.
+- A TrivyImageFinding affects an ontology Image (matched via `_ont_digest`).
 
     ```
-    (TrivyImageFinding)-[AFFECTS]->(ECRImage)
+    (TrivyImageFinding)-[AFFECTS]->(Image)
     ```
 
-### Package
-Representation of a package installed in a container image.
+### TrivyPackage
+Representation of a package installed in a container image, as detected by Trivy.
 
 | Field | Description |
 |-------|-------------|
@@ -49,19 +49,28 @@ Representation of a package installed in a container image.
 | version | Version of the package (same as installed_version) |
 | class_name | Class of the package (e.g. os, library) |
 | type | Type of the package |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`) |
+| pkg_id | Package identifier from Trivy |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
 
-- A Package is deployed in an ECRImage.
+- A TrivyPackage is deployed on an ontology Image (matched via `_ont_digest`).
 
     ```
-    (Package)-[DEPLOYED]->(ECRImage)
+    (TrivyPackage)-[DEPLOYED]->(Image)
     ```
 
-- A Package is affected by a TrivyImageFinding.
+- A TrivyPackage is affected by a TrivyImageFinding.
 
     ```
-    (Package)<-[AFFECTS]-(TrivyImageFinding)
+    (TrivyPackage)<-[AFFECTS]-(TrivyImageFinding)
+    ```
+
+- A canonical Package (ontology) is detected as a TrivyPackage.
+
+    ```
+    (Package)-[DETECTED_AS]->(TrivyPackage)
     ```
 
 ### TrivyFix
@@ -78,10 +87,10 @@ Representation of a fix for a vulnerability.
 
 #### Relationships
 
-- A Package should update to a TrivyFix.
+- A TrivyPackage should update to a TrivyFix.
 
     ```
-    (Package)-[SHOULD_UPDATE_TO]->(TrivyFix)
+    (TrivyPackage)-[SHOULD_UPDATE_TO]->(TrivyFix)
     ```
 
 - A TrivyFix applies to a TrivyImageFinding.

@@ -6,7 +6,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.route_table_associations import (
     RouteTableAssociationSchema,
 )
@@ -75,8 +76,8 @@ def _get_route_id_and_target(
 def get_route_tables(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_route_tables")
     route_tables: list[dict[str, Any]] = []
@@ -145,12 +146,20 @@ def _transform_route_table_routes(
     for route in routes:
         route_id, target = _get_route_id_and_target(route_table_id, route)
 
+        # Gateway VPC endpoints appear in GatewayId field (e.g. vpce-xxxxx)
+        # Extract to vpc_endpoint_id for proper relationship matching
+        gateway_id = route.get("GatewayId")
+        vpc_endpoint_id = (
+            gateway_id if gateway_id and gateway_id.startswith("vpce-") else None
+        )
+
         transformed_route = {
             "id": route_id,
             "route_table_id": route_table_id,
             "destination_cidr_block": route.get("DestinationCidrBlock"),
             "destination_ipv6_cidr_block": route.get("DestinationIpv6CidrBlock"),
-            "gateway_id": route.get("GatewayId"),
+            "gateway_id": gateway_id,
+            "vpc_endpoint_id": vpc_endpoint_id,
             "instance_id": route.get("InstanceId"),
             "instance_owner_id": route.get("InstanceOwnerId"),
             "nat_gateway_id": route.get("NatGatewayId"),

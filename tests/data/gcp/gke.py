@@ -63,6 +63,9 @@ GKE_RESPONSE = {
             },
             "legacyAbac": {},
             "shieldedNodes": {},
+            "workloadIdentityConfig": {
+                "workloadPool": "test-cluster.svc.id.goog",
+            },
             "ipAllocationPolicy": {
                 "useIpAliases": True,
                 "clusterIpv4Cidr": "0.0.0.0/14",
@@ -79,6 +82,10 @@ GKE_RESPONSE = {
                 "privateEndpoint": "0.0.0.0",
                 "publicEndpoint": "0.0.0.0",
                 "peeringName": "gke-111111-1111-1111-peer",
+            },
+            "resourceLabels": {
+                "env": "dev",
+                "team": "platform",
             },
             "masterAuth": {
                 "clusterCaCertificate": "11111",

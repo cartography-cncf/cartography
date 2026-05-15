@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -11,7 +12,7 @@ from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = "000000000000"
+TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
@@ -47,6 +48,11 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
     _ensure_local_neo4j_has_test_buckets(neo4j_session)
     _ensure_local_neo4j_has_test_cloudwatch_log_groups(neo4j_session)
 
+    # Compute expected value BEFORE sync, since transform mutates the data
+    expected_selectors = json.dumps(
+        DESCRIBE_CLOUDTRAIL_TRAILS[0]["EventSelectors"],
+    )
+
     # Act
     sync(
         neo4j_session,
@@ -58,11 +64,17 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "CloudTrailTrail", ["arn"]) == {
-        ("arn:aws:cloudtrail:us-east-1:123456789012:trail/test-trail",),
+    assert check_nodes(
+        neo4j_session,
+        "CloudTrailTrail",
+        ["arn", "event_selectors"],
+    ) == {
+        (
+            "arn:aws:cloudtrail:us-east-1:123456789012:trail/test-trail",
+            expected_selectors,
+        ),
     }
 
-    # Assert
     assert check_rels(
         neo4j_session,
         "AWSAccount",

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from urllib.parse import quote
 
@@ -11,7 +10,6 @@ from cartography.intel.keycloak.util import get_paginated
 from cartography.models.keycloak.role import KeycloakRoleSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -144,7 +142,6 @@ def load_roles(
     realm: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Roles (%s) into Neo4j.", len(data), realm)
     load(
         neo4j_session,
         KeycloakRoleSchema(),

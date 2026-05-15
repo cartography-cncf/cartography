@@ -45,6 +45,35 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ("i-04", "i-04"),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "EC2Instance",
+        [
+            "id",
+            "metadatahttptokens",
+            "imdsaccessmode",
+            "imdsv1enabled",
+            "imdsv2required",
+            "metadatahttpendpoint",
+            "metadatahttpprotocolipv6",
+            "metadatainstancetags",
+        ],
+    ) == {
+        (
+            "i-01",
+            "optional",
+            "v1_or_v2",
+            True,
+            False,
+            "enabled",
+            "disabled",
+            "disabled",
+        ),
+        ("i-02", None, None, None, None, None, None, None),
+        ("i-03", None, None, None, None, None, None, None),
+        ("i-04", "required", "v2_only", False, True, "enabled", "enabled", "enabled"),
+    }
+
     # Assert that instances are connected to their expected reservations
     assert check_rels(
         neo4j_session,

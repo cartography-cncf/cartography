@@ -1,14 +1,14 @@
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
+from cartography.version import get_cartography_version
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
 )
 
 
 def test_build_ingestion_query_onetomany():
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(InstanceProfileSchema())
 
     # Act
@@ -28,8 +28,7 @@ def test_build_ingestion_query_onetomany():
             i.instance_profile_name = item.InstanceProfileName,
             i.path = item.Path
         WITH i, item
-        CALL {{
-            WITH i, item
+        CALL (i, item) {{
             OPTIONAL MATCH (j:AWSAccount{{id: $AWS_ID}})
             WITH i, item, j WHERE j IS NOT NULL
             MERGE (i)<-[r:RESOURCE]-(j)
@@ -40,7 +39,6 @@ def test_build_ingestion_query_onetomany():
                 r.lastupdated = $lastupdated
 
             UNION
-            WITH i, item
             OPTIONAL MATCH (n0:AWSRole)
             WHERE
                 n0.arn IN item.Roles

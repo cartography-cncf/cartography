@@ -14,6 +14,7 @@ from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.cosmosdb.account import AzureCosmosDBAccountSchema
 from cartography.models.azure.cosmosdb.accountfailoverpolicy import (
     AzureCosmosDBAccountFailoverPolicySchema,
@@ -45,6 +46,7 @@ from cartography.models.azure.cosmosdb.tableresource import (
 from cartography.models.azure.cosmosdb.virtualnetworkrule import (
     AzureCosmosDBVirtualNetworkRuleSchema,
 )
+from cartography.models.azure.tags.cosmosdb_tag import AzureCosmosDBAccountTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -1137,6 +1139,39 @@ def _load_collections(
 
 
 @timeit
+def load_database_account_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    accounts: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Cosmos DB Accounts.
+    """
+    tags = transform_tags(accounts, subscription_id)
+    load(
+        neo4j_session,
+        AzureCosmosDBAccountTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_database_account_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Runs cleanup job for Azure Cosmos DB Account tags.
+    """
+    GraphJob.from_node_schema(
+        AzureCosmosDBAccountTagsSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
 def cleanup_azure_database_accounts(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -1244,6 +1279,9 @@ def sync(
         database_account_list,
         sync_tag,
     )
+    load_database_account_tags(
+        neo4j_session, subscription_id, database_account_list, sync_tag
+    )
     sync_database_account_data_resources(
         neo4j_session,
         subscription_id,
@@ -1259,3 +1297,4 @@ def sync(
         common_job_parameters,
     )
     cleanup_azure_database_accounts(neo4j_session, common_job_parameters)
+    cleanup_database_account_tags(neo4j_session, common_job_parameters)

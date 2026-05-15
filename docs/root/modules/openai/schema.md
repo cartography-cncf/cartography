@@ -16,9 +16,33 @@ O -- RESOURCE --> AK(AdminApiKey)
 ```
 
 
+### OpenAIOrganization
+
+Represents an OpenAI Organization.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
+| Field | Description |
+|-------|-------------|
+| id | The identifier, which can be referenced in API endpoints |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+
+#### Relationships
+- Other resources belong to an `Organization`
+    ```
+    (OpenAIOrganization)-[:RESOURCE]->(
+        :OpenAIAdminApiKey,
+        :OpenAIUser,
+        :OpenAIProject)
+    ```
+
+
 ### OpenAIAdminApiKey
 
 Represents an individual Admin API key in an org.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., ScalewayAPIKey, AnthropicApiKey).
 
 | Field | Description |
 |-------|-------------|
@@ -45,6 +69,8 @@ Represents an individual Admin API key in an org.
 ### OpenAIUser
 
 Represents an individual `user` within an organization.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|
@@ -83,6 +109,8 @@ Represents an individual `user` within an organization.
 
 Represents an individual project.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | The identifier, which can be referenced in API endpoints |
@@ -119,6 +147,8 @@ Represents an individual project.
 
 Represents an individual service account in a project.
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, ScalewayApplication).
+
 | Field | Description |
 |-------|-------------|
 | id | The identifier, which can be referenced in API endpoints |
@@ -147,6 +177,8 @@ Represents an individual service account in a project.
 ### OpenAIApiKey
 
 Represents an individual API key in a project.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., ScalewayAPIKey, AnthropicApiKey).
 
 | Field | Description |
 |-------|-------------|

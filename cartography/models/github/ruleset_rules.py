@@ -49,7 +49,7 @@ class GitHubRulesetRuleToRulesetRel(CartographyRelSchema):
 
     target_node_label: str = "GitHubRuleset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ruleset_id", set_in_kwargs=True)}
+        {"id": PropertyRef("ruleset_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS_RULE"
@@ -72,7 +72,7 @@ class GitHubRulesetRuleToOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)}
+        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

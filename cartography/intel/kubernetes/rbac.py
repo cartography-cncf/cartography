@@ -30,6 +30,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+IRSA_ROLE_ARN_ANNOTATION = "eks.amazonaws.com/role-arn"
+GKE_WORKLOAD_IDENTITY_ANNOTATION = "iam.gke.io/gcp-service-account"
+
+
 @timeit
 def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
 
@@ -69,11 +73,19 @@ def transform_service_accounts(
     """
     result = []
     for sa in service_accounts:
+        annotations = getattr(sa.metadata, "annotations", None) or {}
         result.append(
             {
                 "id": f"{cluster_name}/{sa.metadata.namespace}/{sa.metadata.name}",
                 "name": sa.metadata.name,
                 "namespace": sa.metadata.namespace,
+                "automount_service_account_token": getattr(
+                    sa, "automount_service_account_token", None
+                ),
+                "aws_role_arn": annotations.get(IRSA_ROLE_ARN_ANNOTATION),
+                "gcp_service_account": annotations.get(
+                    GKE_WORKLOAD_IDENTITY_ANNOTATION
+                ),
                 "uid": sa.metadata.uid,
                 "creation_timestamp": get_epoch(sa.metadata.creation_timestamp),
                 "resource_version": sa.metadata.resource_version,
@@ -330,7 +342,6 @@ def load_service_accounts(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(service_accounts)} KubernetesServiceAccounts")
     load(
         session,
         KubernetesServiceAccountSchema(),
@@ -349,7 +360,6 @@ def load_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(roles)} KubernetesRoles")
     load(
         session,
         KubernetesRoleSchema(),
@@ -368,7 +378,6 @@ def load_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(role_bindings)} KubernetesRoleBindings")
     load(
         session,
         KubernetesRoleBindingSchema(),
@@ -387,7 +396,6 @@ def load_cluster_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_roles)} KubernetesClusterRoles")
     load(
         session,
         KubernetesClusterRoleSchema(),
@@ -406,7 +414,6 @@ def load_cluster_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_role_bindings)} KubernetesClusterRoleBindings")
     load(
         session,
         KubernetesClusterRoleBindingSchema(),
@@ -425,7 +432,6 @@ def load_users(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(users)} KubernetesUsers")
     load(
         session,
         KubernetesUserSchema(),
@@ -444,7 +450,6 @@ def load_groups(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} KubernetesGroups")
     load(
         session,
         KubernetesGroupSchema(),

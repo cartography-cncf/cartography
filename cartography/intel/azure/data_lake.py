@@ -8,7 +8,9 @@ from azure.mgmt.storage import StorageManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.data_lake_filesystem import AzureDataLakeFileSystemSchema
+from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -94,6 +96,26 @@ def load_datalake_filesystems(
 
 
 @timeit
+def load_datalake_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    accounts: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Data Lake (Storage) Accounts.
+    """
+    tags = transform_tags(accounts, subscription_id)
+    load(
+        neo4j_session,
+        AzureStorageTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -107,6 +129,7 @@ def sync(
     client = StorageManagementClient(credentials.credential, subscription_id)
 
     datalake_accounts = get_datalake_accounts(credentials, subscription_id)
+    load_datalake_tags(neo4j_session, subscription_id, datalake_accounts, update_tag)
     for account in datalake_accounts:
         account_id = account["id"]
         raw_filesystems = get_filesystems_for_account(client, account)

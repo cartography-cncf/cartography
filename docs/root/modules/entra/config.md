@@ -33,3 +33,11 @@ To set up the Entra client,
     - `User.Read.All`
         - Read all users' full profiles
         - Type: Application
+    - `DeviceManagementManagedDevices.Read.All`
+        - Read Microsoft Intune managed devices and detected apps
+        - Type: Application
+        - Required for: Intune managed devices and detected apps
+    - `DeviceManagementConfiguration.Read.All`
+        - Read Microsoft Intune device configuration and compliance policies
+        - Type: Application
+        - Required for: Intune compliance policies

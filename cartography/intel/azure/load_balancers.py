@@ -6,6 +6,7 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.load_balancer.load_balancer import AzureLoadBalancerSchema
 from cartography.models.azure.load_balancer.load_balancer_backend_pool import (
     AzureLoadBalancerBackendPoolSchema,
@@ -19,6 +20,7 @@ from cartography.models.azure.load_balancer.load_balancer_inbound_nat_rule impor
 from cartography.models.azure.load_balancer.load_balancer_rule import (
     AzureLoadBalancerRuleSchema,
 )
+from cartography.models.azure.tags.load_balancer_tag import AzureLoadBalancerTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -49,6 +51,7 @@ def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
                 "name": lb.get("name"),
                 "location": lb.get("location"),
                 "sku_name": lb.get("sku", {}).get("name"),
+                "tags": lb.get("tags"),
             }
         )
     return transformed
@@ -57,16 +60,18 @@ def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
 def transform_frontend_ips(load_balancer: dict) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for config in load_balancer.get("frontend_ip_configurations", []):
+        public_ip_ref = config.get("public_ip_address") or config.get(
+            "properties", {}
+        ).get("public_ip_address", {})
         transformed.append(
             {
                 "id": config.get("id"),
                 "name": config.get("name"),
-                "private_ip_address": config.get("properties", {}).get(
-                    "private_ip_address"
+                "private_ip_address": config.get(
+                    "private_ip_address",
+                    config.get("properties", {}).get("private_ip_address"),
                 ),
-                "public_ip_address_id": config.get("properties", {})
-                .get("public_ip_address", {})
-                .get("id"),
+                "public_ip_address_id": public_ip_ref.get("id"),
             }
         )
     return transformed
@@ -75,10 +80,22 @@ def transform_frontend_ips(load_balancer: dict) -> list[dict]:
 def transform_backend_pools(load_balancer: dict) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for pool in load_balancer.get("backend_address_pools", []):
+        nic_ids: list[str] = []
+        for ip_config in pool.get(
+            "backend_ip_configurations",
+            pool.get("properties", {}).get("backend_ip_configurations", []),
+        ):
+            ip_config_id = ip_config.get("id")
+            # NIC ID is the parent of the ipConfiguration
+            # Format: .../networkInterfaces/{nic-name}/ipConfigurations/{config-name}
+            if ip_config_id and "/ipConfigurations/" in ip_config_id:
+                nic_id = ip_config_id.split("/ipConfigurations/")[0]
+                nic_ids.append(nic_id)
         transformed.append(
             {
                 "id": pool.get("id"),
                 "name": pool.get("name"),
+                "NIC_IDS": nic_ids,
             }
         )
     return transformed
@@ -91,9 +108,15 @@ def transform_rules(load_balancer: dict) -> list[dict]:
             {
                 "id": rule.get("id"),
                 "name": rule.get("name"),
-                "protocol": rule.get("properties", {}).get("protocol"),
-                "frontend_port": rule.get("properties", {}).get("frontend_port"),
-                "backend_port": rule.get("properties", {}).get("backend_port"),
+                "protocol": rule.get(
+                    "protocol", rule.get("properties", {}).get("protocol")
+                ),
+                "frontend_port": rule.get(
+                    "frontend_port", rule.get("properties", {}).get("frontend_port")
+                ),
+                "backend_port": rule.get(
+                    "backend_port", rule.get("properties", {}).get("backend_port")
+                ),
                 "FRONTEND_IP_ID": rule.get("frontend_ip_configuration", {}).get("id"),
                 "BACKEND_POOL_ID": rule.get("backend_address_pool", {}).get("id"),
             }
@@ -108,9 +131,15 @@ def transform_inbound_nat_rules(load_balancer: dict) -> list[dict]:
             {
                 "id": rule.get("id"),
                 "name": rule.get("name"),
-                "protocol": rule.get("properties", {}).get("protocol"),
-                "frontend_port": rule.get("properties", {}).get("frontend_port"),
-                "backend_port": rule.get("properties", {}).get("backend_port"),
+                "protocol": rule.get(
+                    "protocol", rule.get("properties", {}).get("protocol")
+                ),
+                "frontend_port": rule.get(
+                    "frontend_port", rule.get("properties", {}).get("frontend_port")
+                ),
+                "backend_port": rule.get(
+                    "backend_port", rule.get("properties", {}).get("backend_port")
+                ),
             }
         )
     return transformed
@@ -205,6 +234,38 @@ def load_inbound_nat_rules(
 
 
 @timeit
+def load_load_balancer_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    load_balancers: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Load Balancers.
+    """
+    tags = transform_tags(load_balancers, subscription_id)
+    load(
+        neo4j_session,
+        AzureLoadBalancerTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_load_balancer_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Load Balancer tags.
+    """
+    GraphJob.from_node_schema(AzureLoadBalancerTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -218,6 +279,7 @@ def sync(
     load_balancers = get_load_balancers(client)
     transformed_lbs = transform_load_balancers(load_balancers)
     load_load_balancers(neo4j_session, transformed_lbs, subscription_id, update_tag)
+    load_load_balancer_tags(neo4j_session, subscription_id, transformed_lbs, update_tag)
 
     for lb in load_balancers:
         lb_id = lb["id"]
@@ -240,7 +302,7 @@ def sync(
             neo4j_session, inbound_nat_rules, lb_id, subscription_id, update_tag
         )
 
-        # TODO: Implement relationships from Backend Pools and Inbound NAT Rules to Network Interfaces (NICs).
+        # TODO: Implement relationships from Inbound NAT Rules to Network Interfaces (NICs).
 
         # Scoped cleanup for child components
         cleanup_params = common_job_parameters.copy()
@@ -261,3 +323,4 @@ def sync(
     GraphJob.from_node_schema(AzureLoadBalancerSchema(), common_job_parameters).run(
         neo4j_session
     )
+    cleanup_load_balancer_tags(neo4j_session, common_job_parameters)

@@ -182,7 +182,6 @@ def load_computers(
         lastupdated=update_tag,
     )
 
-    logger.info(f"Loading {len(data)} BigFix computers to the graph")
     load(
         neo4j_session,
         BigfixComputerSchema(),

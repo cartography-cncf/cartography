@@ -359,3 +359,51 @@ def test_sync_cosmosdb_accounts(
         )
         == expected_table_rels
     )
+
+
+def test_load_database_account_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded and linked to Cosmos DB accounts.
+    """
+    # 1. Arrange: Load the database accounts first
+    cartography.intel.azure.cosmosdb.load_database_account_data(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_DATABASE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 2. Act: Load the tags
+    cartography.intel.azure.cosmosdb.load_database_account_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_DATABASE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check that the AzureTag nodes exist
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:cosmosdb",
+        f"{TEST_SUBSCRIPTION_ID}|dept:finance",
+    }
+    nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationships
+    expected_rels = {
+        (da1, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (da1, f"{TEST_SUBSCRIPTION_ID}|service:cosmosdb"),
+        (da2, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (da2, f"{TEST_SUBSCRIPTION_ID}|dept:finance"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (d:AzureCosmosDBAccount)-[:TAGGED]->(t:AzureTag)
+        RETURN d.id, t.id
+        """
+    )
+    actual_rels = {(r["d.id"], r["t.id"]) for r in result}
+    assert actual_rels == expected_rels

@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -26,6 +27,11 @@ aws_guard_duty_detector_disabled = Fact(
     }
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]-(r:EC2Instance|EKSCluster|AWSLambda|ECSCluster|RDSInstance|RDSCluster)
+    WITH DISTINCT a, r.region AS region
+    RETURN COUNT(*) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -51,4 +57,5 @@ cloud_security_product_deactivated = Rule(
     ),
     facts=(aws_guard_duty_detector_disabled,),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.16"),),
 )

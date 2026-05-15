@@ -4,13 +4,10 @@ from unittest.mock import MagicMock
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
-from cartography.cli import CLI
 from cartography.client.core.tx import load
-from cartography.config import Config
 from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
-from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -23,6 +20,8 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
+    from cartography.config import Config
+
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
     config = Config(
@@ -31,18 +30,40 @@ def test_permission_relationships_file_arguments():
     )
     assert config.permission_relationships_file == fname
 
-    # Test the correct field is set in the Cartography CLI object
-    argv = ["--permission-relationships-file", "/some/test/file.yaml"]
-    cli_object = CLI(build_default_sync(), prog="cartography")
-    cli_parsed_output = cli_object.parser.parse_args(argv)
-    assert cli_parsed_output.permission_relationships_file == "/some/test/file.yaml"
+    # Test the default value
+    config_default = Config(neo4j_uri="bolt://thisdoesnotmatter:1234")
+    assert config_default.permission_relationships_file is None
 
-    # Test that the default RPR file is set if --permission-relationships-file is not set in the CLI
-    argv = []
-    cli_object = CLI(build_default_sync(), prog="cartography")
-    cli_parsed_output = cli_object.parser.parse_args(argv)
+
+def test_permission_relationships_file_cli():
+    """
+    Test that CLI correctly passes --permission-relationships-file to Config
+    """
+    from cartography.cli import CLI
+
+    captured_config = None
+
+    def capture_run_with_config(sync, config):
+        nonlocal captured_config
+        captured_config = config
+
+    # Test custom file path
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main(["--permission-relationships-file", "/some/test/file.yaml"])
+    assert captured_config.permission_relationships_file == "/some/test/file.yaml"
+
+    # Test default value
+    captured_config = None
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main([])
     assert (
-        cli_parsed_output.permission_relationships_file
+        captured_config.permission_relationships_file
         == "cartography/data/permission_relationships.yaml"
     )
 
@@ -91,6 +112,75 @@ def test_load_groups(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+
+
+@mock.patch.object(
+    cartography.intel.aws.iam,
+    "get_service_last_accessed_details",
+    return_value=tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
+)
+def test_sync_service_last_accessed_details(mock_get, neo4j_session):
+    """
+    Test that sync_service_last_accessed_details correctly fetches and loads
+    service last accessed data for principals.
+    """
+    _create_base_account(neo4j_session)
+
+    # Create a test principal that the sync function will find
+    test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
+    neo4j_session.run(
+        "MERGE (u:AWSUser:AWSPrincipal{id: $arn}) "
+        "SET u.arn = $arn "
+        "WITH u "
+        "MATCH (aa:AWSAccount{id: $account_id}) "
+        "MERGE (aa)-[r:RESOURCE]->(u)",
+        arn=test_principal_arn,
+        account_id=TEST_ACCOUNT_ID,
+    )
+
+    # Call the sync function (which queries for principals and calls the API)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+    }
+    cartography.intel.aws.iam.sync_service_last_accessed_details(
+        neo4j_session,
+        MagicMock(),  # boto3_session - mocked via patch
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Verify the service last accessed data was loaded onto the principal
+    nodes = check_nodes(
+        neo4j_session,
+        "AWSPrincipal",
+        [
+            "arn",
+            "last_accessed_service_name",
+            "last_accessed_service_namespace",
+            "last_authenticated",
+            "last_authenticated_entity",
+            "last_authenticated_region",
+        ],
+    )
+
+    test_principal_data = {
+        node for node in nodes if node[0] == test_principal_arn and node[1] is not None
+    }
+
+    expected_data = {
+        (
+            test_principal_arn,
+            "Amazon EC2",
+            "ec2",
+            "2019-01-02 00:00:01",
+            "role/example-role-0",
+            "us-west-2",
+        ),
+    }
+
+    assert test_principal_data == expected_data
 
 
 def _get_principal_role_nodes(neo4j_session):
@@ -144,6 +234,24 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     )
 
     assert actual == expected
+
+
+def test_sync_saml_providers(neo4j_session):
+    _create_base_account(neo4j_session)
+
+    cartography.intel.aws.iam.load_saml_providers(
+        neo4j_session,
+        tests.data.aws.iam.LIST_SAML_PROVIDERS["SAMLProviderList"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])
+    expected = {
+        ("arn:aws:iam::000000000000:saml-provider/ADFS",),
+        ("arn:aws:iam::000000000000:saml-provider/Okta",),
+    }
+    assert nodes == expected
 
 
 def test_load_inline_policy(neo4j_session):

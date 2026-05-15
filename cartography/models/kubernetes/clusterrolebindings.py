@@ -18,7 +18,7 @@ class KubernetesClusterRoleBindingNodeProperties(CartographyNodeProperties):
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
-    role_name: PropertyRef = PropertyRef("role_name")
+    role_name: PropertyRef = PropertyRef("role_name", extra_index=True)
     role_kind: PropertyRef = PropertyRef("role_kind")
     service_account_ids: PropertyRef = PropertyRef("service_account_ids")
     user_ids: PropertyRef = PropertyRef("user_ids")

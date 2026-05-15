@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,8 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.slack.utils import slack_paginate
 from cartography.models.slack.channels import SlackChannelSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -36,10 +33,9 @@ def get(
         "conversations_list",
         "channels",
         team_id=team_id,
+        exclude_archived=True,
     ):
-        if channel["is_archived"]:
-            channels.append(channel)
-        elif get_memberships:
+        if get_memberships:
             for member in slack_paginate(
                 slack_client,
                 "conversations_members",
@@ -61,7 +57,6 @@ def load_channels(
     team_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %s Slack channels into Neo4j", len(data))
     load(
         neo4j_session,
         SlackChannelSchema(),

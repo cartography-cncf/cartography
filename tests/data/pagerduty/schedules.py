@@ -19,11 +19,11 @@ LIST_SCHEDULES_DATA = [
         ],
         "users": [
             {
-                "id": "PEYSGVF",
+                "id": "PXPGF42",
                 "type": "user_reference",
-                "summary": "PagerDuty Admin",
-                "self": "https://api.pagerduty.com/users/PEYSGVF",
-                "html_url": "https://subdomain.pagerduty.com/users/PEYSGVF",
+                "summary": "Earline Greenholt",
+                "self": "https://api.pagerduty.com/users/PXPGF42",
+                "html_url": "https://subdomain.pagerduty.com/users/PXPGF42",
             },
         ],
         "schedule_layers": [
@@ -36,11 +36,11 @@ LIST_SCHEDULES_DATA = [
                 "users": [
                     {
                         "user": {
-                            "id": "PEYSGVF",
+                            "id": "PXPGF42",
                             "type": "user_reference",
-                            "summary": "PagerDuty Admin",
-                            "self": "https://api.pagerduty.com/users/PEYSGVF",
-                            "html_url": "https://subdomain.pagerduty.com/users/PEYSGVF",
+                            "summary": "Earline Greenholt",
+                            "self": "https://api.pagerduty.com/users/PXPGF42",
+                            "html_url": "https://subdomain.pagerduty.com/users/PXPGF42",
                         },
                     },
                 ],

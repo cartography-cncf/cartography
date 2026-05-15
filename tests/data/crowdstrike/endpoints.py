@@ -2,6 +2,7 @@ GET_HOSTS = [
     {
         "device_id": "00000000000000000000000000000000",
         "cid": "11111111111111111111111111111111",
+        "email": "alice@example.com",
         "agent_load_flags": "0",
         "agent_local_time": "2021-12-08T15:16:24.360Z",
         "agent_version": "6.30.14406.0",

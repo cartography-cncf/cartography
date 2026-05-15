@@ -1,6 +1,7 @@
 import enum
 import json
 import logging
+import time
 from collections import namedtuple
 from typing import Any
 from typing import Dict
@@ -16,15 +17,24 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import create_boto3_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
+from cartography.models.aws.iam.account_summary import AWSAccountSummarySchema
 from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
+from cartography.models.aws.iam.mfa_device import AWSMfaDeviceSchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
+from cartography.models.aws.iam.principal_service_access import (
+    AWSPrincipalServiceAccessSchema,
+)
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
+from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
+from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
@@ -71,7 +81,7 @@ def get_policy_name_from_arn(arn: str) -> str:
 
 @timeit
 def get_group_policies(boto3_session: boto3.Session, group_name: str) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_group_policies")
     policy_names: List[Dict] = []
     for page in paginator.paginate(GroupName=group_name):
@@ -85,7 +95,7 @@ def get_group_policy_info(
     group_name: str,
     policy_name: str,
 ) -> Any:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     return client.get_group_policy(GroupName=group_name, PolicyName=policy_name)
 
 
@@ -94,7 +104,7 @@ def get_group_membership_data(
     boto3_session: boto3.Session,
     group_name: str,
 ) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     try:
         memberships = client.get_group(GroupName=group_name)
         return memberships
@@ -113,7 +123,7 @@ def get_group_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for group in group_list:
         name = group["GroupName"]
@@ -132,7 +142,7 @@ def get_group_managed_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for group in group_list:
         name = group["GroupName"]
@@ -151,7 +161,7 @@ def get_user_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for user in user_list:
         name = user["UserName"]
@@ -175,7 +185,7 @@ def get_user_managed_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for user in user_list:
         name = user["UserName"]
@@ -199,7 +209,7 @@ def get_role_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for role in role_list:
         name = role["RoleName"]
@@ -223,7 +233,7 @@ def get_role_managed_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for role in role_list:
         name = role["RoleName"]
@@ -245,19 +255,26 @@ def get_role_managed_policy_data(
 @aws_handle_regions
 def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     role_list = get_role_list_data(boto3_session)["Roles"]
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     role_tag_data: List[Dict] = []
     for role in role_list:
         name = role["RoleName"]
         role_arn = role["Arn"]
-        resource_role = resource_client.Role(name)
-        role_tags = resource_role.tags
+        try:
+            resource_role = resource_client.Role(name)
+            role_tags = resource_role.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.Role('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not role_tags:
             continue
 
         tag_data = {
             "ResourceARN": role_arn,
-            "Tags": resource_role.tags,
+            "Tags": role_tags,
         }
         role_tag_data.append(tag_data)
 
@@ -265,8 +282,38 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
 
 
 @timeit
+@aws_handle_regions
+def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
+    user_list = get_user_list_data(boto3_session)["Users"]
+    resource_client = create_boto3_resource(boto3_session, "iam")
+    user_tag_data: List[Dict] = []
+    for user in user_list:
+        name = user["UserName"]
+        user_arn = user["Arn"]
+        try:
+            resource_user = resource_client.User(name)
+            user_tags = resource_user.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.User('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
+        if not user_tags:
+            continue
+
+        tag_data = {
+            "ResourceARN": user_arn,
+            "Tags": user_tags,
+        }
+        user_tag_data.append(tag_data)
+
+    return user_tag_data
+
+
+@timeit
 def get_user_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
 
     paginator = client.get_paginator("list_users")
     users: List[Dict] = []
@@ -277,7 +324,7 @@ def get_user_list_data(boto3_session: boto3.Session) -> Dict:
 
 @timeit
 def get_group_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_groups")
     groups: List[Dict] = []
     for page in paginator.paginate():
@@ -287,12 +334,57 @@ def get_group_list_data(boto3_session: boto3.Session) -> Dict:
 
 @timeit
 def get_role_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_roles")
     roles: List[Dict] = []
     for page in paginator.paginate():
         roles.extend(page["Roles"])
     return {"Roles": roles}
+
+
+@timeit
+@aws_handle_regions
+def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
+    client = create_boto3_client(boto3_session, "iam")
+    # list_saml_providers returns a single page
+    response = client.list_saml_providers()
+    providers = response.get("SAMLProviderList", [])
+    # Derive a friendly name from the ARN suffix
+    # (arn:aws:iam::<account>:saml-provider/<name>) since list_saml_providers
+    # does not return a name field directly.
+    for provider in providers:
+        arn = provider.get("Arn", "")
+        provider["Name"] = arn.rsplit("/", 1)[-1] if "/" in arn else arn
+    return {"SAMLProviderList": providers}
+
+
+@timeit
+def load_saml_providers(
+    neo4j_session: neo4j.Session,
+    saml_providers: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    if not saml_providers:
+        return
+    load(
+        neo4j_session,
+        AWSSAMLProviderSchema(),
+        saml_providers,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_server_certificates(boto3_session: boto3.Session) -> list[dict[str, Any]]:
+    client = create_boto3_client(boto3_session, "iam")
+    paginator = client.get_paginator("list_server_certificates")
+    certificates: list[dict[str, Any]] = []
+    for page in paginator.paginate():
+        certificates.extend(page["ServerCertificateMetadataList"])
+    return certificates
 
 
 @timeit
@@ -324,7 +416,7 @@ def get_account_access_key_data(
     boto3_session: boto3.Session,
     username: str,
 ) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     # NOTE we can get away without using a paginator here because users are limited to two access keys
     access_keys: Dict = {}
     try:
@@ -409,7 +501,9 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "name": user["UserName"],
             "path": user["Path"],
             "createdate": str(user["CreateDate"]),
+            "createdate_dt": user["CreateDate"],
             "passwordlastused": str(user.get("PasswordLastUsed", "")),
+            "passwordlastused_dt": user.get("PasswordLastUsed"),
         }
         user_data.append(user_record)
 
@@ -427,6 +521,7 @@ def transform_groups(
             "name": group["GroupName"],
             "path": group["Path"],
             "createdate": str(group["CreateDate"]),
+            "createdate_dt": group["CreateDate"],
             "user_arns": group_memberships.get(group["Arn"], []),
         }
         group_data.append(group_record)
@@ -444,8 +539,10 @@ def transform_access_keys(
                 access_key_record = {
                     "accesskeyid": access_key["AccessKeyId"],
                     "createdate": str(access_key["CreateDate"]),
+                    "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
                     "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),
                     "user_arn": user_arn,  # For the sub-resource relationship
@@ -524,6 +621,7 @@ def transform_role_trust_policies(
             "name": role["RoleName"],
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
+            "createdate_dt": role["CreateDate"],
             "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }
@@ -873,6 +971,10 @@ def sync_users(
         boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
     )
 
+    sync_user_mfa_devices(
+        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+    )
+
 
 @timeit
 def sync_user_access_keys(
@@ -942,6 +1044,80 @@ def sync_user_inline_policies(
     load_policy_data(
         neo4j_session,
         transformed_policy_data,
+        aws_update_tag,
+        current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_mfa_devices(
+    boto3_session: boto3.Session,
+    user_list: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    client = create_boto3_client(boto3_session, "iam")
+    mfa_devices: list[dict[str, Any]] = []
+    for user in user_list:
+        name = user["UserName"]
+        user_arn = user["Arn"]
+        try:
+            paginator = client.get_paginator("list_mfa_devices")
+            for page in paginator.paginate(UserName=name):
+                for device in page["MFADevices"]:
+                    device["UserArn"] = user_arn
+                    mfa_devices.append(device)
+        except client.exceptions.NoSuchEntityException:
+            logger.warning(
+                f"Could not get MFA devices for user {name} due to NoSuchEntityException; skipping.",
+            )
+    return mfa_devices
+
+
+def transform_mfa_devices(mfa_devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    transformed_mfa_devices = []
+    for device in mfa_devices:
+        transformed_mfa_devices.append(
+            {
+                "serialnumber": device["SerialNumber"],
+                "username": device["UserName"],
+                "user_arn": device["UserArn"],
+                "enabledate": str(device["EnableDate"]),
+                "enabledate_dt": device["EnableDate"],
+            }
+        )
+    return transformed_mfa_devices
+
+
+@timeit
+def load_mfa_devices(
+    neo4j_session: neo4j.Session,
+    mfa_devices: List[Dict],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSMfaDeviceSchema(),
+        mfa_devices,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def sync_user_mfa_devices(
+    boto3_session: boto3.Session,
+    data: Dict,
+    neo4j_session: neo4j.Session,
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    logger.info("Syncing IAM MFA Devices for account '%s'.", current_aws_account_id)
+    mfa_devices = get_mfa_devices(boto3_session, data["Users"])
+    transformed_mfa_devices = transform_mfa_devices(mfa_devices)
+    load_mfa_devices(
+        neo4j_session,
+        transformed_mfa_devices,
         aws_update_tag,
         current_aws_account_id,
     )
@@ -1106,6 +1282,106 @@ def sync_role_assumptions(
 
 
 @timeit
+def transform_server_certificates(certificates: List[Dict]) -> List[Dict]:
+    transformed_certs = []
+    for cert in certificates:
+        transformed_certs.append(
+            {
+                "ServerCertificateName": cert["ServerCertificateName"],
+                "ServerCertificateId": cert["ServerCertificateId"],
+                "Arn": cert["Arn"],
+                "Path": cert["Path"],
+                "Expiration": cert["Expiration"],
+                "UploadDate": cert["UploadDate"],
+            }
+        )
+    return transformed_certs
+
+
+@timeit
+def load_server_certificates(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSServerCertificateSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def get_account_summary(boto3_session: boto3.Session) -> Dict[str, int]:
+    client = create_boto3_client(boto3_session, "iam")
+    response = client.get_account_summary()
+    return response["SummaryMap"]
+
+
+def transform_account_summary(
+    summary_map: Dict[str, int],
+    current_aws_account_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": current_aws_account_id,
+            **summary_map,
+        },
+    ]
+
+
+@timeit
+def load_account_summary(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSAccountSummarySchema(),
+        data,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def sync_account_summary(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        "Syncing IAM Account Summary for account '%s'.",
+        current_aws_account_id,
+    )
+    summary_map = get_account_summary(boto3_session)
+    transformed = transform_account_summary(summary_map, current_aws_account_id)
+    load_account_summary(neo4j_session, transformed, aws_update_tag)
+
+
+@timeit
+def sync_server_certificates(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    logger.info(
+        "Syncing IAM Server Certificates for account '%s'.", current_aws_account_id
+    )
+    raw_data = get_server_certificates(boto3_session)
+    data = transform_server_certificates(raw_data)
+    load_server_certificates(
+        neo4j_session, data, current_aws_account_id, aws_update_tag
+    )
+
+
+@timeit
 def sync_roles(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1255,8 +1531,17 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSServicePrincipalSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(AWSMfaDeviceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_node_schema(AWSUserSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(AWSGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSServerCertificateSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSSAMLProviderSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -1278,6 +1563,173 @@ def sync_root_principal(
         [{"arn": f"arn:aws:iam::{current_aws_account_id}:root"}],
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_service_last_accessed_details(
+    boto3_session: boto3.session.Session, arn: str
+) -> Dict:
+    """
+    Get service last accessed details for a given principal.
+    This is a two-step process: generate job, then get results.
+    Handles pagination to retrieve all services accessed.
+    """
+    client = create_boto3_client(boto3_session, "iam")
+
+    try:
+        response = client.generate_service_last_accessed_details(Arn=arn)
+        job_id = response["JobId"]
+
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            job_response = client.get_service_last_accessed_details(JobId=job_id)
+
+            if job_response["JobStatus"] == "COMPLETED":
+                # Handle pagination - collect all services
+                all_services = job_response.get("ServicesLastAccessed", [])
+
+                while job_response.get("IsTruncated", False):
+                    marker = job_response.get("Marker")
+                    if not marker:
+                        break
+                    job_response = client.get_service_last_accessed_details(
+                        JobId=job_id, Marker=marker
+                    )
+                    all_services.extend(job_response.get("ServicesLastAccessed", []))
+
+                # Return complete response with all services
+                job_response["ServicesLastAccessed"] = all_services
+                return job_response
+            elif job_response["JobStatus"] == "FAILED":
+                logger.warning(
+                    f"Service last accessed job failed for ARN {arn}: {job_response.get('JobCompletionDate', 'Unknown error')}"
+                )
+                return {}
+
+            time.sleep(2)
+
+        logger.warning(f"Service last accessed job timed out for ARN {arn}")
+        return {}
+
+    except client.exceptions.NoSuchEntityException:
+        logger.warning(
+            f"Principal {arn} not found for service last accessed details",
+            exc_info=True,
+        )
+        return {}
+    except Exception:
+        logger.warning(
+            f"Error getting service last accessed details for {arn}", exc_info=True
+        )
+        raise
+
+
+@timeit
+def load_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    service_details: Dict,
+    principal_arn: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load only the most recently accessed service details into Neo4j.
+    Updates the principal with last accessed service information.
+    """
+    if not service_details or not service_details.get("ServicesLastAccessed"):
+        return
+
+    services = service_details.get("ServicesLastAccessed", [])
+    accessed_services = [s for s in services if s.get("LastAuthenticated")]
+
+    if not accessed_services:
+        return
+
+    most_recent_service = max(
+        accessed_services, key=lambda s: s.get("LastAuthenticated")
+    )
+
+    # Transform the data for the data model
+    principal_data = [
+        {
+            "arn": principal_arn,
+            "last_accessed_service_name": most_recent_service.get("ServiceName"),
+            "last_accessed_service_namespace": most_recent_service.get(
+                "ServiceNamespace"
+            ),
+            "last_authenticated": str(most_recent_service.get("LastAuthenticated", "")),
+            "last_authenticated_entity": most_recent_service.get(
+                "LastAuthenticatedEntity", ""
+            ),
+            "last_authenticated_region": most_recent_service.get(
+                "LastAuthenticatedRegion", ""
+            ),
+        }
+    ]
+
+    # Use the data model to load the service access information
+    load(
+        neo4j_session,
+        AWSPrincipalServiceAccessSchema(),
+        principal_data,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def sync_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Sync service last accessed details for all principals in the account.
+    """
+    logger.info(
+        "Syncing service last accessed details for account '%s'.",
+        current_aws_account_id,
+    )
+
+    principals_query = """
+    MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
+    WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
+    RETURN principal.arn as arn
+    """
+
+    results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
+    principal_arns = [record["arn"] for record in results]
+
+    logger.info(
+        f"Found {len(principal_arns)} principals to process for service last accessed details"
+    )
+
+    for principal_arn in principal_arns:
+        logger.debug(
+            f"Getting service last accessed details for principal: {principal_arn}"
+        )
+        service_details = get_service_last_accessed_details(
+            boto3_session, principal_arn
+        )
+
+        if service_details:
+            load_service_last_accessed_details(
+                neo4j_session,
+                service_details,
+                principal_arn,
+                current_aws_account_id,
+                aws_update_tag,
+            )
+
+    # Cleanup: Remove service access data from principals that weren't updated in this sync
+    GraphJob.from_node_schema(
+        AWSPrincipalServiceAccessSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
     )
 
 
@@ -1319,6 +1771,14 @@ def sync(
         update_tag,
         common_job_parameters,
     )
+    # Sync service last accessed details after all principals (users, groups, roles) are synced
+    sync_service_last_accessed_details(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
     sync_assumerole_relationships(
         neo4j_session,
         current_aws_account_id,
@@ -1331,6 +1791,27 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+    )
+    # SAML providers are global (not region-scoped) for the account
+    saml = get_saml_providers(boto3_session)
+    load_saml_providers(
+        neo4j_session,
+        saml.get("SAMLProviderList", []),
+        current_aws_account_id,
+        update_tag,
+    )
+    sync_server_certificates(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
+    sync_account_summary(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
     )
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(

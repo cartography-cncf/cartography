@@ -8,11 +8,16 @@ TEST_REPO_FULL_NAME = "simpsoncorp/sample_repo"
 TEST_REPO_NAME = "sample_repo"
 TEST_UPDATE_TAG = 123456789
 
+TEST_GITLAB_PROJECT_ID = 9876
+TEST_GITLAB_PROJECT_WEB_URL = "https://gitlab.com/simpsoncorp/sample_repo"
+TEST_GITLAB_PROJECT_PATH_WITH_NAMESPACE = "simpsoncorp/sample_repo"
+
 
 def check_nodes_as_list(
     neo4j_session: neo4j.Session,
     node_label: str,
     attrs: List[str],
+    order_by: str | None = None,
 ):
     """
     Like tests.integration.util.check_nodes()` but returns a list instead of a set.
@@ -22,10 +27,13 @@ def check_nodes_as_list(
             "`attrs` passed to check_nodes() must have at least one element.",
         )
 
-    attrs = ", ".join(f"n.{attr}" for attr in attrs)
-    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs")
+    attrs_str = ", ".join(f"n.{attr}" for attr in attrs)
+    order_clause = f" ORDER BY n.{order_by}" if order_by else ""
+    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs$OrderClause")
     result = neo4j_session.run(
-        query_template.safe_substitute(NodeLabel=node_label, Attrs=attrs),
+        query_template.safe_substitute(
+            NodeLabel=node_label, Attrs=attrs_str, OrderClause=order_clause
+        ),
     )
     return sum([row.values() for row in result], [])
 
@@ -43,6 +51,23 @@ def create_github_repos(neo4j_session):
         repo_fullname=TEST_REPO_FULL_NAME,
         update_tag=TEST_UPDATE_TAG,
         repo_name=TEST_REPO_NAME,
+    )
+
+
+def create_gitlab_projects(neo4j_session):
+    # Creates a GitLab project that matches Semgrep findings via web_url.
+    neo4j_session.run(
+        """
+        MERGE (p:GitLabProject{id: $project_id})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.web_url = $web_url,
+            p.path_with_namespace = $path_with_namespace,
+            p.lastupdated = $update_tag
+        """,
+        project_id=TEST_GITLAB_PROJECT_ID,
+        web_url=TEST_GITLAB_PROJECT_WEB_URL,
+        path_with_namespace=TEST_GITLAB_PROJECT_PATH_WITH_NAMESPACE,
+        update_tag=TEST_UPDATE_TAG,
     )
 
 

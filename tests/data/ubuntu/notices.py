@@ -1,0 +1,50 @@
+UBUNTU_NOTICES_RESPONSE = [
+    {
+        "id": "USN-6600-1",
+        "title": "libfoo vulnerability",
+        "summary": "libfoo could be made to crash or run programs if it received specially crafted input.",
+        "description": "It was discovered that libfoo incorrectly handled certain inputs.",
+        "published": "2024-01-28T12:00:00",
+        "type": "USN",
+        "instructions": "After a standard system update you need to restart applications using libfoo.",
+        "is_hidden": False,
+        "cves_ids": ["CVE-2024-1234", "CVE-2024-5678"],
+        "references": [],
+        "release_packages": {
+            "jammy": [
+                {
+                    "name": "libfoo",
+                    "version": "2.0.1-1ubuntu0.1",
+                    "is_source": True,
+                    "is_visible": True,
+                    "pocket": "security",
+                    "description": "libfoo library",
+                    "package_type": "deb",
+                },
+            ],
+        },
+        "releases": [
+            {
+                "codename": "jammy",
+                "version": "22.04",
+                "support_tag": "LTS",
+            },
+        ],
+        "related_notices": [],
+    },
+    {
+        "id": "USN-6700-1",
+        "title": "libbar vulnerability",
+        "summary": "libbar could be made to expose sensitive information.",
+        "description": "It was discovered that libbar had an information disclosure issue.",
+        "published": "2024-03-28T08:00:00",
+        "type": "USN",
+        "instructions": "After a standard system update you need to restart applications using libbar.",
+        "is_hidden": False,
+        "cves_ids": ["CVE-2024-5678"],
+        "references": ["https://ubuntu.com/security/notices/USN-6700-1"],
+        "release_packages": {},
+        "releases": [],
+        "related_notices": [],
+    },
+]
