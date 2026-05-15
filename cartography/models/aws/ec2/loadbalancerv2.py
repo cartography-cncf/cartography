@@ -316,6 +316,17 @@ class ELBV2ListenerNodeProperties(CartographyNodeProperties):
     protocol: PropertyRef = PropertyRef("Protocol")
     ssl_policy: PropertyRef = PropertyRef("SslPolicy")
     targetgrouparn: PropertyRef = PropertyRef("TargetGroupArn")
+    mutual_authentication_mode: PropertyRef = PropertyRef("MutualAuthenticationMode")
+    trust_store_arn: PropertyRef = PropertyRef("TrustStoreArn")
+    ignore_client_certificate_expiry: PropertyRef = PropertyRef(
+        "IgnoreClientCertificateExpiry"
+    )
+    trust_store_association_status: PropertyRef = PropertyRef(
+        "TrustStoreAssociationStatus"
+    )
+    advertise_trust_store_ca_names: PropertyRef = PropertyRef(
+        "AdvertiseTrustStoreCaNames"
+    )
 
 
 @dataclass(frozen=True)

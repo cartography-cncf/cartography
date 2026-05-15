@@ -77,8 +77,11 @@ Kinda neat, right?
 ### The skeleton of an Analysis Job
 Now that we know what we want to do on a sync, how should we structure the Analysis Job?  Here is the basic skeleton that we recommend.
 
-#### Clean up first, then update
-In general, the first statement(s) should be a "clean-up phase" that removes custom attributes or relationships that you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.
+#### Clean up first, then update (properties)
+For analysis jobs that **set custom attributes on nodes**, the first statement(s) should be a "clean-up phase" that removes the custom attributes you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.
+
+#### MERGE first, then clean up (relationships)
+For analysis jobs that **create or update relationships**, invert the order: run the `MERGE` statements first, then `DELETE` any edge whose `r.lastupdated <> $UPDATE_TAG` at the end. Iterative `DELETE` statements commit per batch, so a leading `DELETE` of relationships creates a visible window during which concurrent readers observe the graph with those edges missing or partially deleted. `MERGE` is idempotent and bumps `r.lastupdated` on every still-valid edge, so the trailing `DELETE` only removes edges that genuinely no longer have a current basis. See `cartography/data/jobs/analysis/aws_lambda_ecr.json` for the canonical ordering.
 
 **Here's our final result:**
 

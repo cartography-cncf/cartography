@@ -21,6 +21,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource: PropertyRef = PropertyRef("resource")
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
+    wif_pools: PropertyRef = PropertyRef("wif_pools")
     is_public: PropertyRef = PropertyRef("is_public")
     has_condition: PropertyRef = PropertyRef("has_condition")
     condition_title: PropertyRef = PropertyRef("condition_title")
@@ -91,6 +92,24 @@ class GCPPolicyBindingToPrincipalRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPPolicyBindingToWifPoolRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToWifPoolRel(CartographyRelSchema):
+    target_node_label: str = "GCPWorkloadIdentityPool"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("wif_pools", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_ALLOW_POLICY"
+    properties: GCPPolicyBindingToWifPoolRelProperties = (
+        GCPPolicyBindingToWifPoolRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPPolicyBindingToRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -118,6 +137,7 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToWifPoolRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )
@@ -133,6 +153,7 @@ class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToWifPoolRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )
@@ -148,6 +169,7 @@ class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPPolicyBindingToPrincipalRel(),
+            GCPPolicyBindingToWifPoolRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )

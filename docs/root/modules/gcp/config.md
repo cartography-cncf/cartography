@@ -12,7 +12,7 @@ Grant the following roles to the identity at the **organization level**. This en
 
 | Role | Purpose | Required |
 |------|---------|----------|
-| `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
+| `roles/iam.securityReviewer` | List/get IAM roles, service accounts, and Workload Identity Federation pools and providers | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
 | `roles/bigquery.dataViewer` | List/get BigQuery datasets, tables, and routines | Optional |
@@ -33,6 +33,8 @@ You can find your organization ID with:
 ```bash
 gcloud organizations list
 ```
+
+If you grant a custom role instead of `roles/iam.securityReviewer`, ensure the role includes `iam.workloadIdentityPools.list` and `iam.workloadIdentityPoolProviders.list` (or grant `roles/iam.workloadIdentityPoolViewer` alongside it). Without these permissions Cartography logs a 403 warning and skips Workload Identity Federation sync silently, leaving `GCPWorkloadIdentityPool` and `GCPWorkloadIdentityProvider` nodes empty even when IAM sync otherwise succeeds.
 
 ### 3. Configure Authentication
 

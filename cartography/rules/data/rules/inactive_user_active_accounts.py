@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -49,4 +50,5 @@ inactive_user_active_accounts = Rule(
     tags=("identity", "iam", "compliance", "access_control"),
     facts=(_inactive_user_active_accounts_ontology,),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("5.18"),),
 )

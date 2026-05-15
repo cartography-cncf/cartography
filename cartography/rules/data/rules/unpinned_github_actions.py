@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -80,4 +81,8 @@ unpinned_github_actions = Rule(
             url="https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised",
         ),
     ],
+    frameworks=(
+        iso27001_annex_a("8.28"),
+        iso27001_annex_a("8.32"),
+    ),
 )

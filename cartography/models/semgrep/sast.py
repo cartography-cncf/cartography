@@ -78,6 +78,25 @@ class SemgrepSASTFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSASTFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSASTFinding)-[:FOUND_IN]->(:GitLabProject)
+class SemgrepSASTFindingToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: SemgrepSASTFindingToGitLabProjectRelProperties = (
+        SemgrepSASTFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSASTFindingToAssistantRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -107,6 +126,7 @@ class SemgrepSASTFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepSASTFindingToGithubRepoRel(),
+            SemgrepSASTFindingToGitLabProjectRel(),
             SemgrepSASTFindingToAssistantRel(),
         ],
     )

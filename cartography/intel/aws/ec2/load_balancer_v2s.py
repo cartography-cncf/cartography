@@ -176,6 +176,26 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
     return elbv2s
 
 
+def _transform_listener(listener: Dict, load_balancer_id: str) -> Dict:
+    """Build the listener dict consumed by ELBV2ListenerSchema."""
+    mutual_auth = listener.get("MutualAuthentication") or {}
+    return {
+        "ListenerArn": listener["ListenerArn"],
+        "Port": listener.get("Port"),
+        "Protocol": listener.get("Protocol"),
+        "SslPolicy": listener.get("SslPolicy"),
+        "TargetGroupArn": listener.get("TargetGroupArn"),
+        "LoadBalancerId": load_balancer_id,
+        "MutualAuthenticationMode": mutual_auth.get("Mode"),
+        "TrustStoreArn": mutual_auth.get("TrustStoreArn"),
+        "IgnoreClientCertificateExpiry": mutual_auth.get(
+            "IgnoreClientCertificateExpiry"
+        ),
+        "TrustStoreAssociationStatus": mutual_auth.get("TrustStoreAssociationStatus"),
+        "AdvertiseTrustStoreCaNames": mutual_auth.get("AdvertiseTrustStoreCaNames"),
+    }
+
+
 def _transform_load_balancer_v2_data(
     data: List[Dict],
 ) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict]]:
@@ -226,16 +246,7 @@ def _transform_load_balancer_v2_data(
 
         # Extract listener data
         for listener in lb.get("Listeners", []):
-            listener_data.append(
-                {
-                    "ListenerArn": listener["ListenerArn"],
-                    "Port": listener.get("Port"),
-                    "Protocol": listener.get("Protocol"),
-                    "SslPolicy": listener.get("SslPolicy"),
-                    "TargetGroupArn": listener.get("TargetGroupArn"),
-                    "LoadBalancerId": dns_name,
-                }
-            )
+            listener_data.append(_transform_listener(listener, dns_name))
 
         # Extract target group nodes and target relationships
         for target_group in lb.get("TargetGroups", []):
@@ -396,17 +407,8 @@ def load_load_balancer_v2_listeners(
     aws_account_id: str,
 ) -> None:
     """Load ELBV2Listener nodes and their relationships to LoadBalancerV2."""
-    # Transform listener data to include the load balancer id
     transformed_data = [
-        {
-            "ListenerArn": listener["ListenerArn"],
-            "Port": listener.get("Port"),
-            "Protocol": listener.get("Protocol"),
-            "SslPolicy": listener.get("SslPolicy"),
-            "TargetGroupArn": listener.get("TargetGroupArn"),
-            "LoadBalancerId": load_balancer_id,
-        }
-        for listener in listener_data
+        _transform_listener(listener, load_balancer_id) for listener in listener_data
     ]
     load(
         neo4j_session,

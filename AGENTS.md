@@ -32,7 +32,7 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 - **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()` -> `analysis` (optional)
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
-- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance)
+- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance). When a job manages relationships, put `MERGE` statements before the stale-edge `DELETE`; iterative deletion exposes a window where concurrent readers see those edges missing. See the `analysis-jobs` skill.
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
