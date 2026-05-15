@@ -2940,9 +2940,11 @@ Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/AP
     ```
 
 
-### ESDomain
+### ESDomain::Database
 
 Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
