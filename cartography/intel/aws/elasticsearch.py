@@ -70,6 +70,7 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         # Flattened data with VPC lists for one-to-many relationships
         transformed = {
             "DomainId": domain_id,
+            "DomainName": domain.get("DomainName"),
             "ARN": domain.get("ARN"),
             "Deleted": domain.get("Deleted"),
             "Created": domain.get("Created"),
