@@ -319,6 +319,8 @@ Representation of GitHub personal access token metadata exposed to organization 
 
 Cartography never stores raw PAT values, token prefixes, or token fragments such as `token_last_eight`.
 
+Fine-grained and classic PATs also receive source-specific labels, `GitHubFineGrainedPersonalAccessToken` and `GitHubClassicPersonalAccessToken`, so each source can be cleaned up independently when only one GitHub API source is available.
+
 > **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems.
 
 | Field | Description |

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -81,7 +82,53 @@ class GitHubPersonalAccessTokenToRepositoryRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubPersonalAccessTokenSchema(CartographyNodeSchema):
     label: str = "GitHubPersonalAccessToken"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "APIKey",
+            ConditionalNodeLabel(
+                label="GitHubFineGrainedPersonalAccessToken",
+                conditions={"source": "fine_grained_personal_access_tokens"},
+            ),
+            ConditionalNodeLabel(
+                label="GitHubClassicPersonalAccessToken",
+                conditions={"source": "saml_credential_authorizations"},
+            ),
+        ]
+    )
+    properties: GitHubPersonalAccessTokenNodeProperties = (
+        GitHubPersonalAccessTokenNodeProperties()
+    )
+    sub_resource_relationship: GitHubPersonalAccessTokenToOrgRel = (
+        GitHubPersonalAccessTokenToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitHubPersonalAccessTokenToOwnerUserRel(),
+            GitHubPersonalAccessTokenToRepositoryRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class GitHubFineGrainedPersonalAccessTokenCleanupSchema(CartographyNodeSchema):
+    label: str = "GitHubFineGrainedPersonalAccessToken"
+    properties: GitHubPersonalAccessTokenNodeProperties = (
+        GitHubPersonalAccessTokenNodeProperties()
+    )
+    sub_resource_relationship: GitHubPersonalAccessTokenToOrgRel = (
+        GitHubPersonalAccessTokenToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitHubPersonalAccessTokenToOwnerUserRel(),
+            GitHubPersonalAccessTokenToRepositoryRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class GitHubClassicPersonalAccessTokenCleanupSchema(CartographyNodeSchema):
+    label: str = "GitHubClassicPersonalAccessToken"
     properties: GitHubPersonalAccessTokenNodeProperties = (
         GitHubPersonalAccessTokenNodeProperties()
     )

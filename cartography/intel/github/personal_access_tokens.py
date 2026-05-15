@@ -8,11 +8,16 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
-from cartography.intel.github.util import is_github_dotcom_api_url
 from cartography.intel.github.util import rest_api_base_url
+from cartography.models.github.personal_access_tokens import (
+    GitHubClassicPersonalAccessTokenCleanupSchema,
+)
+from cartography.models.github.personal_access_tokens import (
+    GitHubFineGrainedPersonalAccessTokenCleanupSchema,
+)
 from cartography.models.github.personal_access_tokens import (
     GitHubPersonalAccessTokenSchema,
 )
@@ -20,7 +25,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-GITHUB_DOTCOM_API_VERSION = "2026-03-10"
 FINE_GRAINED_PAT_SOURCE = "fine_grained_personal_access_tokens"
 CLASSIC_PAT_SOURCE = "saml_credential_authorizations"
 
@@ -29,12 +33,6 @@ CLASSIC_PAT_SOURCE = "saml_credential_authorizations"
 class PersonalAccessTokensFetchResult:
     tokens: list[dict[str, Any]]
     cleanup_safe_sources: set[str]
-
-
-def _api_version(api_url: str) -> str:
-    if is_github_dotcom_api_url(api_url):
-        return GITHUB_DOTCOM_API_VERSION
-    return "2022-11-28"
 
 
 def _owner_url_from_login(org_url: str, login: str | None) -> str | None:
@@ -78,7 +76,6 @@ def get_fine_grained_personal_access_tokens(
                 "",
                 params=params,
                 raise_on_status=(403, 404),
-                api_version=_api_version(api_url),
             ),
             True,
         )
@@ -125,7 +122,6 @@ def get_fine_grained_personal_access_token_repositories(
                 "",
                 params=params,
                 raise_on_status=(403, 404),
-                api_version=_api_version(api_url),
             ),
             True,
         )
@@ -168,7 +164,6 @@ def get_saml_credential_authorizations(
                 "",
                 params=params,
                 raise_on_status=(403, 404),
-                api_version=_api_version(api_url),
             ),
             True,
         )
@@ -341,36 +336,20 @@ def cleanup_personal_access_tokens(
     update_tag: int,
     cleanup_safe_sources: set[str],
 ) -> None:
-    for source in cleanup_safe_sources:
-        run_write_query(
-            neo4j_session,
-            """
-            MATCH (:GitHubOrganization {id: $org_url})
-                -[:RESOURCE]->(n:GitHubPersonalAccessToken {source: $source})
-            OPTIONAL MATCH (n)-[out_rel:CAN_ACCESS]->(:GitHubRepository)
-            WHERE out_rel.lastupdated <> $update_tag
-            DELETE out_rel
-            WITH n
-            OPTIONAL MATCH (:GitHubUser)-[owner_rel:OWNS]->(n)
-            WHERE owner_rel.lastupdated <> $update_tag
-            DELETE owner_rel
-            """,
-            org_url=org_url,
-            source=source,
-            update_tag=update_tag,
-        )
-        run_write_query(
-            neo4j_session,
-            """
-            MATCH (:GitHubOrganization {id: $org_url})
-                -[:RESOURCE]->(n:GitHubPersonalAccessToken {source: $source})
-            WHERE n.lastupdated <> $update_tag
-            DETACH DELETE n
-            """,
-            org_url=org_url,
-            source=source,
-            update_tag=update_tag,
-        )
+    common_job_parameters = {
+        "UPDATE_TAG": update_tag,
+        "org_url": org_url,
+    }
+    if FINE_GRAINED_PAT_SOURCE in cleanup_safe_sources:
+        GraphJob.from_node_schema(
+            GitHubFineGrainedPersonalAccessTokenCleanupSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+    if CLASSIC_PAT_SOURCE in cleanup_safe_sources:
+        GraphJob.from_node_schema(
+            GitHubClassicPersonalAccessTokenCleanupSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
 
 
 @timeit

@@ -54,13 +54,13 @@ def _seed_stale_tokens(neo4j_session):
         MATCH (org:GitHubOrganization {id: $org_url})
         MERGE (repo:GitHubRepository {id: $repo_url})
         MERGE (user:GitHubUser {id: $user_url})
-        MERGE (fine:GitHubPersonalAccessToken {
+        MERGE (fine:GitHubFineGrainedPersonalAccessToken:GitHubPersonalAccessToken {
             id: $org_url + "/personal-access-tokens/stale"
         })
         SET fine.lastupdated = 1,
             fine.source = "fine_grained_personal_access_tokens",
             fine.token_kind = "fine_grained"
-        MERGE (classic:GitHubPersonalAccessToken {
+        MERGE (classic:GitHubClassicPersonalAccessToken:GitHubPersonalAccessToken {
             id: $org_url + "/credential-authorizations/stale"
         })
         SET classic.lastupdated = 1,
@@ -119,6 +119,14 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         "fine_grained_personal_access_tokens",
         "saml_credential_authorizations",
     }
+    called_endpoints = [call.args[2] for call in mock_pages.call_args_list]
+    assert called_endpoints == [
+        "/orgs/simpsoncorp/personal-access-tokens",
+        "/orgs/simpsoncorp/personal-access-tokens/25381/repositories",
+        "/orgs/simpsoncorp/personal-access-tokens/25382/repositories",
+        "/orgs/simpsoncorp/credential-authorizations",
+    ]
+    assert all("api_version" not in call.kwargs for call in mock_pages.call_args_list)
     assert check_nodes(
         neo4j_session,
         "GitHubPersonalAccessToken",
@@ -148,6 +156,15 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     }
     assert check_nodes(neo4j_session, "APIKey", ["id"]) >= {
         (f"{ORG_URL}/personal-access-tokens/25381",),
+        (f"{ORG_URL}/credential-authorizations/161195",),
+    }
+    assert check_nodes(
+        neo4j_session, "GitHubFineGrainedPersonalAccessToken", ["id"]
+    ) == {
+        (f"{ORG_URL}/personal-access-tokens/25381",),
+        (f"{ORG_URL}/personal-access-tokens/25382",),
+    }
+    assert check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == {
         (f"{ORG_URL}/credential-authorizations/161195",),
     }
     assert check_rels(
@@ -213,6 +230,10 @@ def test_sync_github_personal_access_tokens_preserves_stale_on_unsafe_fetch(
 
     # Assert
     assert result.cleanup_safe_sources == set()
+    assert [call.args[2] for call in mock_pages.call_args_list] == [
+        "/orgs/simpsoncorp/personal-access-tokens",
+        "/orgs/simpsoncorp/credential-authorizations",
+    ]
     assert check_nodes(
         neo4j_session,
         "GitHubPersonalAccessToken",
