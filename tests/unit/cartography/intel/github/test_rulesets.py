@@ -6,6 +6,8 @@ import json
 import logging
 from copy import deepcopy
 
+import pytest
+
 from cartography.intel.github.repos import _transform_rulesets
 from cartography.intel.github.repos import _warn_if_github_connection_truncated
 from tests.data.github.rulesets import NO_RULESETS
@@ -126,14 +128,28 @@ def test_transform_rulesets_rules():
     assert status_rule["parameters_required_status_checks"] == ["ci/tests"]
 
 
-def test_transform_rulesets_skips_nodes_without_ids(caplog):
+def test_transform_rulesets_requires_ruleset_id():
     """
-    Test that malformed ruleset and rule nodes are skipped instead of crashing.
+    Test that malformed ruleset nodes fail fast on missing required IDs.
     """
-    caplog.set_level(logging.WARNING)
     ruleset_without_id = deepcopy(RULESET_PRODUCTION)
     ruleset_without_id.pop("id")
+    output_rulesets = []
+    output_rules = []
 
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [ruleset_without_id],
+            TEST_REPO_URL,
+            output_rulesets,
+            output_rules,
+        )
+
+
+def test_transform_rulesets_requires_rule_id():
+    """
+    Test that malformed ruleset rule nodes fail fast on missing required IDs.
+    """
     ruleset_with_rule_without_id = deepcopy(RULESET_PRODUCTION)
     ruleset_with_rule_without_id["rules"]["nodes"].append(
         {
@@ -144,8 +160,26 @@ def test_transform_rulesets_skips_nodes_without_ids(caplog):
     output_rulesets = []
     output_rules = []
 
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [ruleset_with_rule_without_id],
+            TEST_REPO_URL,
+            output_rulesets,
+            output_rules,
+        )
+
+
+def test_transform_rulesets_skips_null_nodes():
+    """
+    Test that null ruleset and rule nodes are skipped.
+    """
+    ruleset_with_null_rule = deepcopy(RULESET_PRODUCTION)
+    ruleset_with_null_rule["rules"]["nodes"].append(None)
+    output_rulesets = []
+    output_rules = []
+
     _transform_rulesets(
-        [ruleset_without_id, ruleset_with_rule_without_id],
+        [None, ruleset_with_null_rule],
         TEST_REPO_URL,
         output_rulesets,
         output_rules,
@@ -153,7 +187,6 @@ def test_transform_rulesets_skips_nodes_without_ids(caplog):
 
     assert len(output_rulesets) == 1
     assert len(output_rules) == 3
-    assert "without an id" in caplog.text
 
 
 def test_warn_if_github_connection_truncated_handles_null_nodes(caplog):
