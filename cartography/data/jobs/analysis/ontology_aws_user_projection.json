@@ -8,7 +8,7 @@
     },
     {
       "__comment": "Project `_ont_active` on AWSUser. A user is considered active if they have used the console at least once (passwordlastused_dt is set) OR own at least one access key whose status is Active.",
-      "query": "MATCH (u:AWSUser) SET u._ont_active = (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)<-[:AWS_ACCESS_KEY]-(:AccountAccessKey {status: 'Active'}))",
+      "query": "MATCH (u:AWSUser) SET u._ont_active = (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AccountAccessKey {status: 'Active'}))",
       "iterative": false
     }
   ]
