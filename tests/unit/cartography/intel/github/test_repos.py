@@ -1,9 +1,11 @@
+import json
 from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _hydrate_paginated_rulesets_for_repo
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
@@ -13,6 +15,8 @@ from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
+from tests.data.github.rulesets import RULESET_EVALUATE
+from tests.data.github.rulesets import RULESET_PRODUCTION
 
 TEST_UPDATE_TAG = 123456789
 
@@ -235,6 +239,110 @@ def test_transform_includes_rulesets():
     assert ruleset["target"] == "BRANCH"
     assert ruleset["enforcement"] == "ACTIVE"
     assert ruleset["repo_url"] == repo_with_rulesets["url"]
+
+
+@patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep")
+@patch.object(cartography.intel.github.repos, "call_github_api")
+def test_hydrate_paginated_rulesets_fetches_nested_pages(
+    mock_call_github_api,
+    mock_handle_rate_limit_sleep,
+):
+    first_ruleset = deepcopy(RULESET_PRODUCTION)
+    first_ruleset["rules"] = {
+        "totalCount": 2,
+        "pageInfo": {
+            "endCursor": "rule-cursor-1",
+            "hasNextPage": True,
+        },
+        "nodes": [
+            {
+                "id": "RRU_first_page",
+                "type": "DELETION",
+                "parameters": None,
+            },
+        ],
+    }
+    second_ruleset = deepcopy(RULESET_EVALUATE)
+    second_ruleset["rules"]["pageInfo"] = {
+        "endCursor": None,
+        "hasNextPage": False,
+    }
+    rulesets = {
+        "totalCount": 2,
+        "pageInfo": {
+            "endCursor": "ruleset-cursor-1",
+            "hasNextPage": True,
+        },
+        "nodes": [first_ruleset],
+    }
+    mock_call_github_api.side_effect = [
+        {
+            "data": {
+                "node": {
+                    "rules": {
+                        "totalCount": 2,
+                        "pageInfo": {
+                            "endCursor": None,
+                            "hasNextPage": False,
+                        },
+                        "nodes": [
+                            {
+                                "id": "RRU_second_page",
+                                "type": "PULL_REQUEST",
+                                "parameters": {},
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+        {
+            "data": {
+                "organization": {
+                    "repository": {
+                        "rulesets": {
+                            "totalCount": 2,
+                            "pageInfo": {
+                                "endCursor": None,
+                                "hasNextPage": False,
+                            },
+                            "nodes": [second_ruleset],
+                        },
+                    },
+                },
+            },
+        },
+    ]
+
+    _hydrate_paginated_rulesets_for_repo(
+        "token",
+        "https://api.github.com/graphql",
+        "simpsoncorp",
+        "cartography",
+        rulesets,
+    )
+
+    assert [ruleset["id"] for ruleset in rulesets["nodes"]] == [
+        RULESET_PRODUCTION["id"],
+        RULESET_EVALUATE["id"],
+    ]
+    assert [rule["id"] for rule in rulesets["nodes"][0]["rules"]["nodes"]] == [
+        "RRU_first_page",
+        "RRU_second_page",
+    ]
+    assert mock_handle_rate_limit_sleep.call_count == 2
+    assert mock_call_github_api.call_count == 2
+    first_variables = json.loads(mock_call_github_api.call_args_list[0].args[1])
+    second_variables = json.loads(mock_call_github_api.call_args_list[1].args[1])
+    assert first_variables == {
+        "ruleset_id": RULESET_PRODUCTION["id"],
+        "cursor": "rule-cursor-1",
+    }
+    assert second_variables == {
+        "login": "simpsoncorp",
+        "repo": "cartography",
+        "cursor": "ruleset-cursor-1",
+    }
 
 
 def test_transform_prefers_dependency_graph_over_requirements_txt():
