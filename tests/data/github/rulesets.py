@@ -1,6 +1,6 @@
 """
 Test data for GitHub repository rulesets.
-https://docs.github.com/en/graphql/reference/objects#repositoryruleset
+Normalized from https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
 """
 
 from typing import Any

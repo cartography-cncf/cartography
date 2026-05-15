@@ -2,7 +2,7 @@
 Data model for GitHub Ruleset Rules.
 
 Schema for GitHubRulesetRule nodes and their relationships to GitHubRuleset.
-Based on GitHub GraphQL API: https://docs.github.com/en/graphql/reference/objects#repositoryrule
+Based on GitHub REST API: https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
 """
 
 from dataclasses import dataclass
@@ -22,7 +22,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GitHubRulesetRuleNodeProperties(CartographyNodeProperties):
     """
     Properties of a GitHubRulesetRule node.
-    Maps to GitHub's RepositoryRule GraphQL type.
+    Maps to a rule in GitHub's repository ruleset REST response.
     """
 
     id: PropertyRef = PropertyRef("id")

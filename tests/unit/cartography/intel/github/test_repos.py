@@ -1,24 +1,97 @@
-import json
 from copy import deepcopy
 from unittest.mock import patch
+
+import pytest
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
-from cartography.intel.github.repos import _hydrate_paginated_rulesets_for_repo
+from cartography.intel.github.repos import _get_repo_rulesets_by_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _normalize_rest_ruleset
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
+from cartography.intel.github.repos import _transform_rulesets
 from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
-from tests.data.github.rulesets import RULESET_EVALUATE
 from tests.data.github.rulesets import RULESET_PRODUCTION
 
 TEST_UPDATE_TAG = 123456789
+
+REST_RULESET_PRODUCTION = {
+    "id": 5351760,
+    "node_id": "RRS_lACkVXNlcs4AXenizgBRqVA",
+    "name": "production-ruleset",
+    "target": "branch",
+    "source_type": "Organization",
+    "source": "simpsoncorp",
+    "enforcement": "active",
+    "created_at": "2025-05-07T21:04:33Z",
+    "updated_at": "2025-05-07T21:04:33Z",
+    "conditions": {
+        "ref_name": {
+            "include": ["~DEFAULT_BRANCH"],
+            "exclude": [],
+        },
+        "repository_name": {
+            "include": ["important-*"],
+            "exclude": ["important-archive"],
+            "protected": False,
+        },
+        "repository_id": {
+            "repository_ids": [123456789],
+        },
+        "repository_property": {
+            "include": [
+                {
+                    "name": "visibility",
+                    "property_values": ["private"],
+                    "source": "custom",
+                },
+            ],
+            "exclude": [],
+        },
+        "organization_property": {
+            "include": [
+                {
+                    "name": "environment",
+                    "property_values": ["prod"],
+                },
+            ],
+            "exclude": [
+                {
+                    "name": "lifecycle",
+                    "property_values": ["deprecated"],
+                },
+            ],
+        },
+    },
+    "rules": [
+        {
+            "type": "deletion",
+        },
+        {
+            "type": "pull_request",
+            "parameters": {
+                "required_approving_review_count": 2,
+                "dismiss_stale_reviews_on_push": True,
+                "require_code_owner_review": True,
+            },
+        },
+        {
+            "type": "required_status_checks",
+            "parameters": {
+                "required_status_checks": [
+                    {"context": "ci/tests"},
+                ],
+            },
+        },
+    ],
+}
 
 
 def test_transform_dependency_manifests_converts_to_expected_format():
@@ -241,108 +314,150 @@ def test_transform_includes_rulesets():
     assert ruleset["repo_url"] == repo_with_rulesets["url"]
 
 
-@patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep")
-@patch.object(cartography.intel.github.repos, "call_github_api")
-def test_hydrate_paginated_rulesets_fetches_nested_pages(
-    mock_call_github_api,
-    mock_handle_rate_limit_sleep,
-):
-    first_ruleset = deepcopy(RULESET_PRODUCTION)
-    first_ruleset["rules"] = {
-        "totalCount": 2,
-        "pageInfo": {
-            "endCursor": "rule-cursor-1",
-            "hasNextPage": True,
-        },
-        "nodes": [
-            {
-                "id": "RRU_first_page",
-                "type": "DELETION",
-                "parameters": None,
-            },
-        ],
-    }
-    second_ruleset = deepcopy(RULESET_EVALUATE)
-    second_ruleset["rules"]["pageInfo"] = {
-        "endCursor": None,
-        "hasNextPage": False,
-    }
-    rulesets = {
-        "totalCount": 2,
-        "pageInfo": {
-            "endCursor": "ruleset-cursor-1",
-            "hasNextPage": True,
-        },
-        "nodes": [first_ruleset],
-    }
-    mock_call_github_api.side_effect = [
+def test_normalize_rest_ruleset_converts_to_transform_shape():
+    normalized = _normalize_rest_ruleset(REST_RULESET_PRODUCTION)
+
+    assert normalized["id"] == "RRS_lACkVXNlcs4AXenizgBRqVA"
+    assert normalized["databaseId"] == 5351760
+    assert normalized["target"] == "BRANCH"
+    assert normalized["enforcement"] == "ACTIVE"
+    assert normalized["conditions"]["repositoryId"]["repositoryIds"] == [123456789]
+    assert normalized["conditions"]["repositoryProperty"]["include"] == [
         {
-            "data": {
-                "node": {
-                    "rules": {
-                        "totalCount": 2,
-                        "pageInfo": {
-                            "endCursor": None,
-                            "hasNextPage": False,
-                        },
-                        "nodes": [
-                            {
-                                "id": "RRU_second_page",
-                                "type": "PULL_REQUEST",
-                                "parameters": {},
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-        {
-            "data": {
-                "organization": {
-                    "repository": {
-                        "rulesets": {
-                            "totalCount": 2,
-                            "pageInfo": {
-                                "endCursor": None,
-                                "hasNextPage": False,
-                            },
-                            "nodes": [second_ruleset],
-                        },
-                    },
-                },
-            },
+            "name": "visibility",
+            "propertyValues": ["private"],
+            "source": "custom",
         },
     ]
 
-    _hydrate_paginated_rulesets_for_repo(
+    rule_ids = [rule["id"] for rule in normalized["rules"]["nodes"]]
+    assert rule_ids[0].startswith("RRS_lACkVXNlcs4AXenizgBRqVA:rule:0:")
+    assert rule_ids == [
+        rule["id"]
+        for rule in _normalize_rest_ruleset(REST_RULESET_PRODUCTION)["rules"]["nodes"]
+    ]
+    assert normalized["rules"]["nodes"][1]["type"] == "PULL_REQUEST"
+    assert normalized["rules"]["nodes"][1]["parameters"] == {
+        "requiredApprovingReviewCount": 2,
+        "dismissStaleReviewsOnPush": True,
+        "requireCodeOwnerReview": True,
+    }
+
+
+@patch.object(cartography.intel.github.repos, "call_github_rest_api")
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
+    mock_fetch_all_rest_api_pages,
+    mock_call_github_rest_api,
+):
+    repos = [
+        {
+            "name": "repo-one",
+            "url": "https://github.com/simpsoncorp/repo-one",
+        },
+        {
+            "name": "repo-two",
+            "url": "https://github.com/simpsoncorp/repo-two",
+        },
+    ]
+    ruleset_summary = {
+        "id": 5351760,
+        "node_id": "RRS_lACkVXNlcs4AXenizgBRqVA",
+        "source_type": "Organization",
+        "source": "simpsoncorp",
+    }
+    mock_fetch_all_rest_api_pages.side_effect = [
+        [ruleset_summary],
+        [ruleset_summary],
+    ]
+    mock_call_github_rest_api.return_value = REST_RULESET_PRODUCTION
+
+    result = _get_repo_rulesets_by_url(
         "token",
         "https://api.github.com/graphql",
         "simpsoncorp",
-        "cartography",
-        rulesets,
+        repos,
     )
 
-    assert [ruleset["id"] for ruleset in rulesets["nodes"]] == [
-        RULESET_PRODUCTION["id"],
-        RULESET_EVALUATE["id"],
-    ]
-    assert [rule["id"] for rule in rulesets["nodes"][0]["rules"]["nodes"]] == [
-        "RRU_first_page",
-        "RRU_second_page",
-    ]
-    assert mock_handle_rate_limit_sleep.call_count == 2
-    assert mock_call_github_api.call_count == 2
-    first_variables = json.loads(mock_call_github_api.call_args_list[0].args[1])
-    second_variables = json.loads(mock_call_github_api.call_args_list[1].args[1])
-    assert first_variables == {
-        "ruleset_id": RULESET_PRODUCTION["id"],
-        "cursor": "rule-cursor-1",
+    assert set(result) == {
+        "https://github.com/simpsoncorp/repo-one",
+        "https://github.com/simpsoncorp/repo-two",
     }
-    assert second_variables == {
-        "login": "simpsoncorp",
-        "repo": "cartography",
-        "cursor": "ruleset-cursor-1",
+    assert result["https://github.com/simpsoncorp/repo-one"]["totalCount"] == 1
+    assert result["https://github.com/simpsoncorp/repo-two"]["nodes"][0]["id"] == (
+        "RRS_lACkVXNlcs4AXenizgBRqVA"
+    )
+    assert mock_fetch_all_rest_api_pages.call_count == 2
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].args == (
+        "token",
+        "https://api.github.com",
+        "/repos/simpsoncorp/repo-one/rulesets",
+    )
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs["result_key"] == (
+        "rulesets"
+    )
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs["params"] == {
+        "per_page": 100,
+        "includes_parents": "true",
     }
+    assert mock_fetch_all_rest_api_pages.call_args_list[0].kwargs[
+        "raise_on_status"
+    ] == (403, 404)
+    mock_call_github_rest_api.assert_called_once_with(
+        "/repos/simpsoncorp/repo-one/rulesets/5351760",
+        "token",
+        "https://api.github.com",
+        params={"includes_parents": "true"},
+    )
+
+
+def test_transform_rulesets_requires_ruleset_id():
+    out_rulesets = []
+    out_rules = []
+
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [
+                {
+                    "rules": {"nodes": []},
+                }
+            ],
+            "https://github.com/simpsoncorp/repo",
+            out_rulesets,
+            out_rules,
+        )
+
+
+def test_transform_rulesets_requires_rule_id():
+    ruleset = deepcopy(RULESET_PRODUCTION)
+    del ruleset["rules"]["nodes"][0]["id"]
+    out_rulesets = []
+    out_rules = []
+
+    with pytest.raises(KeyError):
+        _transform_rulesets(
+            [ruleset],
+            "https://github.com/simpsoncorp/repo",
+            out_rulesets,
+            out_rules,
+        )
+
+
+def test_transform_rulesets_skips_null_rulesets_and_rules():
+    ruleset = deepcopy(RULESET_PRODUCTION)
+    ruleset["rules"]["nodes"] = [None]
+    out_rulesets = []
+    out_rules = []
+
+    _transform_rulesets(
+        [None, ruleset],
+        "https://github.com/simpsoncorp/repo",
+        out_rulesets,
+        out_rules,
+    )
+
+    assert [ruleset["id"] for ruleset in out_rulesets] == [RULESET_PRODUCTION["id"]]
+    assert out_rules == []
 
 
 def test_transform_prefers_dependency_graph_over_requirements_txt():
@@ -614,4 +729,4 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()
-    mock_cleanup_rulesets.assert_called_once()
+    mock_cleanup_rulesets.assert_not_called()

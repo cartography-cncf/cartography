@@ -1,4 +1,5 @@
 import configparser
+import hashlib
 import json
 import logging
 import time
@@ -9,6 +10,7 @@ from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
+from urllib.parse import quote
 
 import neo4j
 import requests
@@ -19,11 +21,13 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
-from cartography.intel.github.util import call_github_api
+from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.intel.github.util import rest_api_base_url
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import parse_purl
 from cartography.models.github.branch_protection_rules import (
@@ -158,176 +162,6 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                             restrictsPushes
                             restrictsReviewDismissals
                         }
-                    }
-                    rulesets(first: 100) {
-                        totalCount
-                        pageInfo {
-                            endCursor
-                            hasNextPage
-                        }
-                        nodes {
-                            id
-                            databaseId
-                            name
-                            target
-                            enforcement
-                            createdAt
-                            updatedAt
-                            conditions {
-                                refName {
-                                    include
-                                    exclude
-                                }
-                                repositoryName {
-                                    include
-                                    exclude
-                                    protected
-                                }
-                                repositoryId {
-                                    repositoryIds
-                                }
-                                repositoryProperty {
-                                    include {
-                                        name
-                                        propertyValues
-                                        source
-                                    }
-                                    exclude {
-                                        name
-                                        propertyValues
-                                        source
-                                    }
-                                }
-                                organizationProperty {
-                                    include {
-                                        name
-                                        propertyValues
-                                    }
-                                    exclude {
-                                        name
-                                        propertyValues
-                                    }
-                                }
-                            }
-                            rules(first: 100) {
-                                totalCount
-                                pageInfo {
-                                    endCursor
-                                    hasNextPage
-                                }
-                                nodes {
-                                    id
-                                    type
-                                    parameters
-                                }
-                            }
-                            # Do not query bypassActors here. GitHub documents
-                            # REST ruleset bypass actors as permission-limited to
-                            # callers with write access to the ruleset; Cartography
-                            # runs with read-only GitHub permissions, so ingesting
-                            # this field would usually be incomplete or misleading.
-                            # See https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
-                        }
-                    }
-                }
-            }
-        }
-    }
-    """
-
-GITHUB_REPO_RULESETS_PAGINATED_GRAPHQL = """
-    query($login: String!, $repo: String!, $cursor: String) {
-        organization(login: $login) {
-            repository(name: $repo) {
-                rulesets(first: 100, after: $cursor) {
-                    totalCount
-                    pageInfo {
-                        endCursor
-                        hasNextPage
-                    }
-                    nodes {
-                        id
-                        databaseId
-                        name
-                        target
-                        enforcement
-                        createdAt
-                        updatedAt
-                        conditions {
-                            refName {
-                                include
-                                exclude
-                            }
-                            repositoryName {
-                                include
-                                exclude
-                                protected
-                            }
-                            repositoryId {
-                                repositoryIds
-                            }
-                            repositoryProperty {
-                                include {
-                                    name
-                                    propertyValues
-                                    source
-                                }
-                                exclude {
-                                    name
-                                    propertyValues
-                                    source
-                                }
-                            }
-                            organizationProperty {
-                                include {
-                                    name
-                                    propertyValues
-                                }
-                                exclude {
-                                    name
-                                    propertyValues
-                                }
-                            }
-                        }
-                        rules(first: 100) {
-                            totalCount
-                            pageInfo {
-                                endCursor
-                                hasNextPage
-                            }
-                            nodes {
-                                id
-                                type
-                                parameters
-                            }
-                        }
-                        # Do not query bypassActors here. GitHub documents
-                        # REST ruleset bypass actors as permission-limited to
-                        # callers with write access to the ruleset; Cartography
-                        # runs with read-only GitHub permissions, so ingesting
-                        # this field would usually be incomplete or misleading.
-                        # See https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
-                    }
-                }
-            }
-        }
-    }
-    """
-
-GITHUB_RULESET_RULES_PAGINATED_GRAPHQL = """
-    query($ruleset_id: ID!, $cursor: String) {
-        node(id: $ruleset_id) {
-            ... on RepositoryRuleset {
-                rules(first: 100, after: $cursor) {
-                    totalCount
-                    pageInfo {
-                        endCursor
-                        hasNextPage
-                    }
-                    nodes {
-                        id
-                        type
-                        parameters
                     }
                 }
             }
@@ -786,163 +620,173 @@ def _get_repo_collaborators(
     return collaborators
 
 
-def _fetch_ruleset_page(
-    token: str,
-    api_url: str,
-    query: str,
-    variables: dict[str, Any],
-    description: str,
-    retries: int = 3,
-) -> dict[str, Any] | None:
-    """
-    Fetch one GitHub GraphQL ruleset page with the same lightweight retry posture as other per-repo detail calls.
-    """
-    for attempt in range(retries):
-        try:
-            handle_rate_limit_sleep(token)
-            return call_github_api(query, json.dumps(variables), token, api_url)
-        except (
-            requests.exceptions.Timeout,
-            requests.exceptions.HTTPError,
-            requests.exceptions.ConnectionError,
-            requests.exceptions.ChunkedEncodingError,
-        ):
-            if attempt + 1 >= retries:
-                logger.warning(
-                    "Failed to fetch GitHub %s after %d retries.",
-                    description,
-                    retries,
-                    exc_info=True,
-                )
-                return None
-            time.sleep(2 ** (attempt + 1))
-    return None
+def _to_github_graphql_enum(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.upper()
+    return value
 
 
-def _hydrate_paginated_ruleset_rules(
-    token: str,
-    api_url: str,
-    ruleset: dict[str, Any],
-) -> None:
-    """
-    Mutate a ruleset in place so its rules connection includes all GraphQL pages.
-    """
-    ruleset_id = ruleset.get("id")
-    rules = ruleset.get("rules") or {}
-    page_info = rules.get("pageInfo") or {}
-    all_rule_nodes = list(rules.get("nodes") or [])
+def _camelize_rest_key(value: str) -> str:
+    parts = value.split("_")
+    return parts[0] + "".join(part.capitalize() for part in parts[1:])
 
-    while page_info.get("hasNextPage", False):
-        cursor = page_info.get("endCursor")
-        if not ruleset_id or not cursor:
-            logger.warning(
-                "Cannot continue paginating GitHub ruleset rules for ruleset %s.",
-                ruleset_id,
-            )
-            break
-        resp = _fetch_ruleset_page(
-            token,
-            api_url,
-            GITHUB_RULESET_RULES_PAGINATED_GRAPHQL,
-            {"ruleset_id": ruleset_id, "cursor": cursor},
-            f"ruleset rules for {ruleset_id}",
+
+def _camelize_rest_dict_keys(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_camelize_rest_dict_keys(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            _camelize_rest_key(key): _camelize_rest_dict_keys(item)
+            for key, item in value.items()
+        }
+    return value
+
+
+def _normalize_rest_property_conditions(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_camelize_rest_dict_keys(item) for item in value]
+    return value
+
+
+def _normalize_rest_ruleset_rule_id(
+    ruleset_id: str,
+    rule_index: int,
+    rule: dict[str, Any],
+) -> str:
+    payload = json.dumps(rule, sort_keys=True, separators=(",", ":"), default=str)
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+    return f"{ruleset_id}:rule:{rule_index}:{digest}"
+
+
+def _normalize_rest_ruleset(rest_ruleset: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalize GitHub REST repository ruleset data to the existing transform shape.
+    """
+    ruleset_id = rest_ruleset["node_id"]
+    conditions = rest_ruleset.get("conditions") or {}
+    repository_id = conditions.get("repository_id") or {}
+    repository_property = conditions.get("repository_property") or {}
+    organization_property = conditions.get("organization_property") or {}
+    rules: list[dict[str, Any] | None] = []
+
+    for index, rule in enumerate(rest_ruleset.get("rules") or []):
+        if rule is None:
+            rules.append(None)
+            continue
+        normalized_rule = {
+            "type": _to_github_graphql_enum(rule.get("type")),
+            "parameters": _camelize_rest_dict_keys(rule.get("parameters")),
+        }
+        normalized_rule["id"] = _normalize_rest_ruleset_rule_id(
+            ruleset_id,
+            index,
+            normalized_rule,
         )
-        node = (resp.get("data") or {}).get("node") if resp else None
-        next_rules = node.get("rules") if node else None
-        if next_rules is None:
-            logger.warning(
-                "GitHub returned no rules page for ruleset %s; keeping %d rules already fetched.",
-                ruleset_id,
-                len(all_rule_nodes),
-            )
-            break
-        all_rule_nodes.extend(next_rules.get("nodes") or [])
-        page_info = next_rules.get("pageInfo") or {}
+        rules.append(normalized_rule)
 
-    if rules:
-        rules["nodes"] = all_rule_nodes
-        rules["pageInfo"] = page_info
-        ruleset["rules"] = rules
-
-
-def _hydrate_paginated_rulesets_for_repo(
-    token: str,
-    api_url: str,
-    organization: str,
-    repo_name: str,
-    rulesets: dict[str, Any],
-) -> None:
-    """
-    Mutate a repo rulesets connection in place so it includes all ruleset and rule pages.
-    """
-    page_info = rulesets.get("pageInfo") or {}
-    all_ruleset_nodes = list(rulesets.get("nodes") or [])
-
-    for ruleset in all_ruleset_nodes:
-        if ruleset is not None:
-            _hydrate_paginated_ruleset_rules(token, api_url, ruleset)
-
-    while page_info.get("hasNextPage", False):
-        cursor = page_info.get("endCursor")
-        if not cursor:
-            logger.warning(
-                "Cannot continue paginating GitHub rulesets for repo %s.",
-                repo_name,
-            )
-            break
-        resp = _fetch_ruleset_page(
-            token,
-            api_url,
-            GITHUB_REPO_RULESETS_PAGINATED_GRAPHQL,
-            {"login": organization, "repo": repo_name, "cursor": cursor},
-            f"rulesets for repo {repo_name}",
-        )
-        organization_data = (
-            (resp.get("data") or {}).get("organization") if resp else None
-        )
-        repository = organization_data.get("repository") if organization_data else None
-        next_rulesets = repository.get("rulesets") if repository else None
-        if next_rulesets is None:
-            logger.warning(
-                "GitHub returned no rulesets page for repo %s; keeping %d rulesets already fetched.",
-                repo_name,
-                len(all_ruleset_nodes),
-            )
-            break
-        next_ruleset_nodes = next_rulesets.get("nodes") or []
-        for ruleset in next_ruleset_nodes:
-            if ruleset is not None:
-                _hydrate_paginated_ruleset_rules(token, api_url, ruleset)
-        all_ruleset_nodes.extend(next_ruleset_nodes)
-        page_info = next_rulesets.get("pageInfo") or {}
-
-    rulesets["nodes"] = all_ruleset_nodes
-    rulesets["pageInfo"] = page_info
+    # Do not map bypass_actors. GitHub only returns it to callers with write
+    # access to the ruleset, and Cartography is expected to run read-only.
+    # See https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
+    return {
+        "id": ruleset_id,
+        "databaseId": rest_ruleset["id"],
+        "name": rest_ruleset.get("name"),
+        "target": _to_github_graphql_enum(rest_ruleset.get("target")),
+        "enforcement": _to_github_graphql_enum(rest_ruleset.get("enforcement")),
+        "createdAt": rest_ruleset.get("created_at"),
+        "updatedAt": rest_ruleset.get("updated_at"),
+        "conditions": {
+            "refName": conditions.get("ref_name") or {},
+            "repositoryName": conditions.get("repository_name") or {},
+            "repositoryId": {
+                "repositoryIds": repository_id.get("repository_ids", []),
+            },
+            "repositoryProperty": {
+                "include": _normalize_rest_property_conditions(
+                    repository_property.get("include")
+                ),
+                "exclude": _normalize_rest_property_conditions(
+                    repository_property.get("exclude")
+                ),
+            },
+            "organizationProperty": {
+                "include": _normalize_rest_property_conditions(
+                    organization_property.get("include")
+                ),
+                "exclude": _normalize_rest_property_conditions(
+                    organization_property.get("exclude")
+                ),
+            },
+        },
+        "rules": {
+            "nodes": rules,
+            "totalCount": len(rules),
+        },
+    }
 
 
-def _hydrate_paginated_rulesets_for_repos(
+def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
+    node_id = ruleset.get("node_id")
+    if node_id:
+        return ("node_id", node_id)
+    return (
+        "source",
+        ruleset.get("source_type"),
+        ruleset.get("source"),
+        ruleset["id"],
+    )
+
+
+def _get_repo_rulesets_by_url(
     token: str,
     api_url: str,
     organization: str,
     repo_raw_data: list[dict[str, Any] | None],
-) -> None:
+) -> dict[str, dict[str, Any]]:
     """
-    Mutate privileged repo data in place so ruleset connections include all nested pages.
+    Retrieve full GitHub repository rulesets through REST for every repo.
     """
+    base_url = rest_api_base_url(api_url)
+    owner = quote(organization, safe="")
+    rulesets_by_url: dict[str, dict[str, Any]] = {}
+    ruleset_detail_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
+
     for repo in repo_raw_data:
         if repo is None:
             continue
         repo_name = repo.get("name")
-        rulesets = repo.get("rulesets")
-        if not repo_name or not rulesets:
+        repo_url = repo.get("url")
+        if not repo_name or not repo_url:
             continue
-        _hydrate_paginated_rulesets_for_repo(
+        encoded_repo_name = quote(repo_name, safe="")
+        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+        ruleset_summaries = fetch_all_rest_api_pages(
             token,
-            api_url,
-            organization,
-            repo_name,
-            rulesets,
+            base_url,
+            endpoint,
+            result_key="rulesets",
+            raise_on_status=(403, 404),
+            params={"per_page": 100, "includes_parents": "true"},
         )
+        normalized_rulesets = []
+        for ruleset_summary in ruleset_summaries:
+            cache_key = _rest_ruleset_cache_key(ruleset_summary)
+            ruleset_detail = ruleset_detail_cache.get(cache_key)
+            if ruleset_detail is None:
+                ruleset_detail = call_github_rest_api(
+                    f"{endpoint}/{ruleset_summary['id']}",
+                    token,
+                    base_url,
+                    params={"includes_parents": "true"},
+                )
+                ruleset_detail_cache[cache_key] = ruleset_detail
+            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+        rulesets_by_url[repo_url] = {
+            "nodes": normalized_rulesets,
+            "totalCount": len(normalized_rulesets),
+        }
+
+    return rulesets_by_url
 
 
 @timeit
@@ -1017,7 +861,7 @@ def get_repo_privileged_details_by_url(
     )
     privileged_repo_data = {}
     privileged_nodes = cast(List[Optional[Dict]], repos.nodes)
-    _hydrate_paginated_rulesets_for_repos(
+    rulesets_by_url = _get_repo_rulesets_by_url(
         token,
         api_url,
         organization,
@@ -1034,7 +878,7 @@ def get_repo_privileged_details_by_url(
             "directCollaborators": repo.get("directCollaborators"),
             "outsideCollaborators": repo.get("outsideCollaborators"),
             "branchProtectionRules": repo.get("branchProtectionRules"),
-            "rulesets": repo.get("rulesets"),
+            "rulesets": rulesets_by_url.get(repo_url),
         }
     return privileged_repo_data
 
@@ -1699,10 +1543,7 @@ def _transform_rulesets(
     for ruleset in rulesets_data:
         if ruleset is None:
             continue
-        ruleset_id = ruleset.get("id")
-        if not ruleset_id:
-            logger.warning("Skipping GitHub ruleset in %s without an id.", repo_url)
-            continue
+        ruleset_id = ruleset["id"]
 
         conditions = ruleset.get("conditions", {}) or {}
         ref_name = conditions.get("refName", {}) or {}
@@ -1753,13 +1594,7 @@ def _transform_rulesets(
         for rule in rules.get("nodes") or []:
             if rule is None:
                 continue
-            rule_id = rule.get("id")
-            if not rule_id:
-                logger.warning(
-                    "Skipping GitHub ruleset rule in ruleset %s without an id.",
-                    ruleset_id,
-                )
-                continue
+            rule_id = rule["id"]
             parameters = rule.get("parameters")
             parameters_json = json.dumps(parameters) if parameters is not None else None
             parameters_dict = parameters if isinstance(parameters, dict) else {}
@@ -2359,6 +2194,7 @@ def sync(
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    rulesets_cleanup_safe = True
     if _repos_need_privileged_details(repos_json):
         try:
             privileged_repo_data_by_url = get_repo_privileged_details_by_url(
@@ -2367,9 +2203,12 @@ def sync(
                 organization,
             )
         except (requests.exceptions.RequestException, ValueError):
+            rulesets_cleanup_safe = False
             logger.warning(
                 "Failed to fetch privileged GitHub repo details for org %s; "
-                "continuing without collaborator-count, branch-protection, and ruleset enrichment.",
+                "continuing without collaborator-count, branch-protection, and "
+                "ruleset enrichment. GitHub ruleset cleanup will be skipped to "
+                "preserve previously synced rulesets.",
                 organization,
                 exc_info=True,
             )
@@ -2451,4 +2290,10 @@ def sync(
     )
     cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
-    cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
+    if rulesets_cleanup_safe:
+        cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
+    else:
+        logger.warning(
+            "Skipping GitHub ruleset cleanup for org %s because ruleset fetch failed.",
+            organization,
+        )

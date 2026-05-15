@@ -380,7 +380,7 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
 ### GitHubRuleset
 
-Representation of a single GitHubRuleset [RepositoryRuleset object](https://docs.github.com/en/graphql/reference/objects#repositoryruleset). This node contains GitHub ruleset configuration for repositories.
+Representation of a single GitHubRuleset from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains GitHub ruleset configuration for repositories.
 
 Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypass actors as permission-limited to callers with write access to the ruleset, and Cartography is expected to run with read-only GitHub permissions. Treat bypass actor data as intentionally unavailable in this schema rather than as an empty bypass list. See GitHub's [REST API docs for repository rulesets](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).
 
@@ -429,13 +429,13 @@ Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypa
 
 ### GitHubRulesetRule
 
-Representation of a single GitHubRulesetRule [RepositoryRule object](https://docs.github.com/en/graphql/reference/objects#repositoryrule). This node contains a single rule from a GitHub repository ruleset.
+Representation of a single rule from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains a single rule from a GitHub repository ruleset.
 
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| id | The GitHub ruleset rule node ID |
+| id | A deterministic Cartography ID derived from the GitHub ruleset node ID and REST rule payload |
 | type | Rule type |
 | parameters | JSON-encoded rule parameters |
 | parameters_required_approving_review_count | Required approving review count for pull request rules |
