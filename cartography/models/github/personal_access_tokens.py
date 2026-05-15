@@ -18,12 +18,9 @@ class GitHubPersonalAccessTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     token_kind: PropertyRef = PropertyRef("token_kind", extra_index=True)
-    source: PropertyRef = PropertyRef("source", extra_index=True)
-    provider_id: PropertyRef = PropertyRef("provider_id", extra_index=True)
     token_id: PropertyRef = PropertyRef("token_id", extra_index=True)
     token_name: PropertyRef = PropertyRef("token_name", extra_index=True)
     owner_login: PropertyRef = PropertyRef("owner_login", extra_index=True)
-    owner_url: PropertyRef = PropertyRef("owner_url")
     repository_selection: PropertyRef = PropertyRef("repository_selection")
     permissions: PropertyRef = PropertyRef("permissions")
     scopes: PropertyRef = PropertyRef("scopes")
@@ -32,7 +29,6 @@ class GitHubPersonalAccessTokenNodeProperties(CartographyNodeProperties):
     credential_accessed_at: PropertyRef = PropertyRef("credential_accessed_at")
     expires_at: PropertyRef = PropertyRef("expires_at")
     last_used_at: PropertyRef = PropertyRef("last_used_at")
-    expired: PropertyRef = PropertyRef("expired")
 
 
 @dataclass(frozen=True)
@@ -87,48 +83,14 @@ class GitHubPersonalAccessTokenSchema(CartographyNodeSchema):
             "APIKey",
             ConditionalNodeLabel(
                 label="GitHubFineGrainedPersonalAccessToken",
-                conditions={"source": "fine_grained_personal_access_tokens"},
+                conditions={"token_kind": "fine_grained"},
             ),
             ConditionalNodeLabel(
                 label="GitHubClassicPersonalAccessToken",
-                conditions={"source": "saml_credential_authorizations"},
+                conditions={"token_kind": "classic"},
             ),
         ]
     )
-    properties: GitHubPersonalAccessTokenNodeProperties = (
-        GitHubPersonalAccessTokenNodeProperties()
-    )
-    sub_resource_relationship: GitHubPersonalAccessTokenToOrgRel = (
-        GitHubPersonalAccessTokenToOrgRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            GitHubPersonalAccessTokenToOwnerUserRel(),
-            GitHubPersonalAccessTokenToRepositoryRel(),
-        ],
-    )
-
-
-@dataclass(frozen=True)
-class GitHubFineGrainedPersonalAccessTokenCleanupSchema(CartographyNodeSchema):
-    label: str = "GitHubFineGrainedPersonalAccessToken"
-    properties: GitHubPersonalAccessTokenNodeProperties = (
-        GitHubPersonalAccessTokenNodeProperties()
-    )
-    sub_resource_relationship: GitHubPersonalAccessTokenToOrgRel = (
-        GitHubPersonalAccessTokenToOrgRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            GitHubPersonalAccessTokenToOwnerUserRel(),
-            GitHubPersonalAccessTokenToRepositoryRel(),
-        ],
-    )
-
-
-@dataclass(frozen=True)
-class GitHubClassicPersonalAccessTokenCleanupSchema(CartographyNodeSchema):
-    label: str = "GitHubClassicPersonalAccessToken"
     properties: GitHubPersonalAccessTokenNodeProperties = (
         GitHubPersonalAccessTokenNodeProperties()
     )

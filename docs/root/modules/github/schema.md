@@ -325,7 +325,7 @@ Representation of GitHub personal access token metadata exposed to organization 
 
 Cartography never stores raw PAT values, token prefixes, or token fragments such as `token_last_eight`.
 
-Fine-grained and classic PATs also receive source-specific labels, `GitHubFineGrainedPersonalAccessToken` and `GitHubClassicPersonalAccessToken`, so each source can be cleaned up independently when only one GitHub API source is available.
+Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrainedPersonalAccessToken` and `GitHubClassicPersonalAccessToken`, to support queries that target one kind.
 
 > **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems.
 
@@ -333,23 +333,19 @@ Fine-grained and classic PATs also receive source-specific labels, `GitHubFineGr
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Stable Cartography ID derived from the GitHub organization URL and provider token or credential ID |
+| id | Stable Cartography ID derived from the GitHub organization URL and the fine-grained PAT access grant ID or SAML credential authorization ID |
 | token_kind | `fine_grained` or `classic` |
-| source | GitHub API source used to collect this metadata |
-| provider_id | GitHub provider ID for the fine-grained PAT access grant or SAML credential authorization |
 | token_id | GitHub fine-grained PAT token ID, when returned |
 | token_name | Fine-grained PAT name, when returned |
 | owner_login | Login of the GitHub user who owns the token |
-| owner_url | URL of the GitHub user who owns the token, when resolvable |
 | repository_selection | Fine-grained PAT repository selection, such as `all` or `selected` |
 | permissions | Fine-grained PAT permissions as a JSON string |
 | scopes | Classic PAT OAuth scopes exposed by SAML credential authorizations |
-| access_granted_at | When fine-grained PAT access was granted to organization resources |
-| credential_authorized_at | When a classic PAT was authorized for SAML SSO organization access |
-| credential_accessed_at | When the SAML-authorized credential was last accessed |
-| expires_at | Token or credential authorization expiry timestamp |
-| last_used_at | Token last-used timestamp, when returned |
-| expired | Whether GitHub reports the fine-grained PAT as expired |
+| access_granted_at | Native datetime — when fine-grained PAT access was granted to organization resources |
+| credential_authorized_at | Native datetime — when a classic PAT was authorized for SAML SSO organization access |
+| credential_accessed_at | Native datetime — when the SAML-authorized credential was last accessed (auth events) |
+| expires_at | Native datetime — token or credential authorization expiry |
+| last_used_at | Native datetime — when the fine-grained PAT was last used to call the GitHub API. Unset for classic PATs, whose SAML endpoint reports auth events under `credential_accessed_at` and not API calls |
 
 #### Relationships
 
