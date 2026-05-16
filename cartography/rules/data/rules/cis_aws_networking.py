@@ -55,7 +55,7 @@ _aws_ebs_encryption_disabled = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted IS NULL OR volume.encrypted = false
+    WHERE volume.encrypted = false
     RETURN
         volume.id AS volume_id,
         volume.region AS region,
@@ -68,7 +68,7 @@ _aws_ebs_encryption_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted IS NULL OR volume.encrypted = false
+    WHERE volume.encrypted = false
     RETURN *
     """,
     cypher_count_query="""
@@ -390,10 +390,9 @@ class DefaultSgAllowsTrafficOutput(Finding):
     security_group_id: str | None = None
     security_group_name: str | None = None
     region: str | None = None
-    rule_direction: str | None = None
-    from_port: int | None = None
-    to_port: int | None = None
-    protocol: str | None = None
+    has_inbound_rules: bool | None = None
+    has_egress_rules: bool | None = None
+    in_use: bool | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -404,34 +403,30 @@ _aws_default_sg_allows_traffic = Fact(
     description=(
         "Detects VPCs where the default security group has inbound or outbound rules "
         "allowing traffic. The default security group should restrict all traffic "
-        "to prevent accidental exposure of resources."
+        "to prevent accidental exposure of resources. The `in_use` flag indicates "
+        "whether any non-rule resource (EC2 instance, ENI, load balancer, RDS, etc.) "
+        "is attached, so unused-VPC defaults can be filtered or downgraded."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     WHERE sg.name = 'default'
-    RETURN DISTINCT
+    OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound:AWSIpPermissionInbound)
+    OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(egress:AWSIpRule)
+        WHERE NOT egress:AWSIpPermissionInbound
+    OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(consumer)
+        WHERE NOT consumer:IpRule AND NOT consumer:AWSVpc
+    WITH a, sg,
+        count(DISTINCT inbound) > 0 AS has_inbound_rules,
+        count(DISTINCT egress) > 0 AS has_egress_rules,
+        count(DISTINCT consumer) > 0 AS in_use
+    WHERE has_inbound_rules OR has_egress_rules
+    RETURN
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
-        'inbound' AS rule_direction,
-        rule.fromport AS from_port,
-        rule.toport AS to_port,
-        rule.protocol AS protocol,
-        a.id AS account_id,
-        a.name AS account
-    UNION
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionEgress)
-    WHERE sg.name = 'default'
-    RETURN DISTINCT
-        sg.groupid AS security_group_id,
-        sg.name AS security_group_name,
-        sg.region AS region,
-        'egress' AS rule_direction,
-        rule.fromport AS from_port,
-        rule.toport AS to_port,
-        rule.protocol AS protocol,
+        has_inbound_rules,
+        has_egress_rules,
+        in_use,
         a.id AS account_id,
         a.name AS account
     """,

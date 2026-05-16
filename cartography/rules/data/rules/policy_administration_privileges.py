@@ -44,18 +44,24 @@ _aws_policy_manipulation_capabilities = Fact(
             allow_action IN all_deny_actions OR
             ANY(d IN all_deny_actions WHERE d ENDS WITH('*') AND allow_action STARTS WITH split(d,'*')[0])
         )
-        // Step 4 - Preserve (action, resource) mapping
-        UNWIND allow_resources AS resource
-        RETURN DISTINCT
+        // Step 4 - Aggregate one row per (account, principal, policy). Substitute a
+        // single-null list when the statement uses NotResource (no `resource`) so the
+        // principal stays visible; the null is stripped from the final resources list.
+        UNWIND coalesce(allow_resources, [null]) AS resource
+        WITH a, principal, principal_type, policy, allow_action, resource
+        WITH a, principal, principal_type, policy,
+             collect(DISTINCT allow_action) AS actions,
+             [r IN collect(DISTINCT resource) WHERE r IS NOT NULL] AS resources
+        RETURN
             a.name AS account,
             a.id   AS account_id,
             principal.name AS principal_name,
             principal.arn  AS principal_identifier,
             principal_type,
             policy.name    AS policy_name,
-            allow_action   AS action,
-            resource
-        ORDER BY account, principal_name, action, resource
+            actions,
+            resources
+        ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
     MATCH p1=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -115,8 +121,7 @@ _gcp_policy_manipulation_capabilities = Fact(
          [perm IN coalesce(role.permissions, [])
             WHERE perm IN patterns OR perm = 'iam.*' OR perm = 'resourcemanager.*' OR perm = '*'] AS matched
     WHERE size(matched) > 0
-    UNWIND matched AS action
-    RETURN DISTINCT
+    RETURN
         scope.id AS account,
         scope.id AS account_id,
         coalesce(principal.email, principal.id) AS principal_name,
@@ -128,9 +133,9 @@ _gcp_policy_manipulation_capabilities = Fact(
                   WHERE l IN labels(principal)])
         ) AS principal_type,
         role.name AS policy_name,
-        action,
-        scope.id AS resource
-    ORDER BY account, principal_name, action
+        matched AS actions,
+        [scope.id] AS resources
+    ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
     MATCH p1=(principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding:GCPPolicyBinding)-[:APPLIES_TO]->(scope)
@@ -205,8 +210,15 @@ _azure_policy_manipulation_capabilities = Fact(
             )
         ] AS matched
     WHERE size(matched) > 0
+    // Aggregate across multiple AzurePermissions blocks on the same role definition
+    // (and across multiple role assignments of the same role) so we emit one row per
+    // (principal, role definition).
     UNWIND matched AS action
-    RETURN DISTINCT
+    WITH sub, principal, rd, action, ra
+    WITH sub, principal, rd,
+         collect(DISTINCT action) AS actions,
+         collect(DISTINCT ra.scope) AS resources
+    RETURN
         sub.id AS account,
         sub.id AS account_id,
         coalesce(principal.user_principal_name,
@@ -216,9 +228,9 @@ _azure_policy_manipulation_capabilities = Fact(
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
         rd.role_name AS policy_name,
-        action,
-        ra.scope AS resource
-    ORDER BY account, principal_name, action
+        actions,
+        resources
+    ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
@@ -259,8 +271,8 @@ class PolicyAdministrationPrivileges(Finding):
     account_id: str | None = None
     principal_type: str | None = None
     policy_name: str | None = None
-    action: str | None = None
-    resource: str | None = None
+    actions: list[str] = []
+    resources: list[str] = []
 
 
 policy_administration_privileges = Rule(
