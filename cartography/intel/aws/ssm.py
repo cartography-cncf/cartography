@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -83,6 +84,7 @@ def get_instance_patches(
         for patch in patches:
             patch["_instance_id"] = instance_id
         instance_patches.extend(patches)
+        time.sleep(0.2)
     return instance_patches
 
 

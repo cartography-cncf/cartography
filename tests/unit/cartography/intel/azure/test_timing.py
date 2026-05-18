@@ -10,9 +10,9 @@ from unittest.mock import patch
 import pytest
 
 from cartography.intel.azure.util.timing import AzureTimingPolicy
-from cartography.intel.azure.util.timing import ServiceTimingContext
 from cartography.intel.azure.util.timing import get_current_context
 from cartography.intel.azure.util.timing import get_timing_policy
+from cartography.intel.azure.util.timing import ServiceTimingContext
 
 
 # ---------------------------------------------------------------------------
