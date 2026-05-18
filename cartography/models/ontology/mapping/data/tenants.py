@@ -36,7 +36,7 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                # status: inscope/foreign fields exist but not a standard status
+                OntologyFieldMapping(ontology_field="status", node_field="state"),
                 # domain: Not available
             ],
         ),
@@ -46,7 +46,7 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="id", required=True
                 ),
-                # status: Not available
+                # status: Not available; feature_set is not lifecycle state.
                 # domain: Not available
             ],
         ),
