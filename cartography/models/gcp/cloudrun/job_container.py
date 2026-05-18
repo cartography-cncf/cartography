@@ -139,6 +139,24 @@ class CloudRunJobContainerToArtifactRegistryImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudRunJobContainerToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudRunJobContainerToGitHubContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: CloudRunJobContainerToGitHubContainerImageRelProperties = (
+        CloudRunJobContainerToGitHubContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJobContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -153,5 +171,6 @@ class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
             CloudRunJobContainerToECRImageRel(),
             CloudRunJobContainerToGitLabContainerImageRel(),
             CloudRunJobContainerToArtifactRegistryImageRel(),
+            CloudRunJobContainerToGitHubContainerImageRel(),
         ],
     )
