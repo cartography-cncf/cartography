@@ -7,8 +7,8 @@
       "iterative": false
     },
     {
-      "__comment": "Project `_ont_active` on AWSUser. A user is considered active if they have used the console at least once (passwordlastused_dt is set) OR own at least one access key whose status is Active.",
-      "query": "MATCH (u:AWSUser) SET u._ont_active = (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AccountAccessKey {status: 'Active'}))",
+      "__comment": "Project `_ont_active = true` on AWSUser when there is positive activity evidence: the user has used the console at least once (passwordlastused_dt is set) OR owns at least one access key with status = 'Active'. Absence of evidence is left as NULL (unknown) rather than `false`, because this sync does not ingest login profiles or credential reports and a NULL passwordlastused does not imply inactivity. Rules that gate on `_ont_active` use `COALESCE(_ont_active, true)`, so NULL keeps unknown-activity users in scope.",
+      "query": "MATCH (u:AWSUser) WHERE (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AccountAccessKey {status: 'Active'})) SET u._ont_active = true",
       "iterative": false
     }
   ]

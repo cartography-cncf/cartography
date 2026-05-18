@@ -305,7 +305,7 @@ Output shows all rules with their IDs, names, and fact counts:
 Available rules:
   - compute_instance_exposed (3 facts)
   - database_instance_exposed (4 facts)
-  - mfa-missing (1 fact)
+  - mfa-missing (2 facts)
   - object_storage_public (2 facts)
   ...
 ```
@@ -320,11 +320,14 @@ Output shows rule metadata and all associated facts:
 Rule: mfa-missing
 Name: User accounts missing MFA
 Description: Detects user accounts without multi-factor authentication
-Facts: 1
-Version: 0.3.0
+Facts: 2
+Version: 0.3.1
 
 Facts:
-  1. missing-mfa-ontology (Cross-cloud)
+  1. missing-mfa-aws (AWS)
+     AWS IAM users that are not associated with any MFA device
+     Maturity: EXPERIMENTAL
+  2. missing-mfa-ontology (Cross-cloud)
      Active UserAccount nodes whose `_ont_has_mfa` is explicitly false
      Maturity: EXPERIMENTAL
 ```
