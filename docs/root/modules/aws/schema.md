@@ -133,6 +133,8 @@ Representation of an AWS Organization.
     (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
     ```
 
+Cartography only cleans up AWS Organizations hierarchy data after it successfully enumerates the complete organization hierarchy. If the Organizations API is unavailable, access is denied, or hierarchy enumeration is incomplete, Cartography skips Organizations cleanup to preserve the prior hierarchy. `AWSAccount` nodes and their account-scoped resources are preserved when accounts move, leave the organization, or become inactive; Organizations cleanup only updates stale placement metadata, roots, OUs, and hierarchy relationships.
+
 ### AWSOrganizationRoot
 
 Representation of an AWS Organizations root.

@@ -591,7 +591,7 @@ def sync_aws_organization(
             return result
         if result.status == AWSOrganizationSyncStatus.ACCESS_DENIED:
             logger.warning(
-                "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
+                "The current account (%s) doesn't have enough permissions to sync AWS Organizations hierarchy. "
                 "AWS Organizations error code: %s.",
                 current_aws_account_id,
                 result.error_code,

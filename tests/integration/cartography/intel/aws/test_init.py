@@ -139,11 +139,11 @@ def test_sync_multiple_accounts(
 
 
 @mock.patch("cartography.intel.aws.boto3.Session")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
     mock_discover_candidates,
-    mock_autodiscover_accounts,
+    mock_sync_aws_organization_for_account,
     mock_boto3_session,
     neo4j_session,
 ):
@@ -162,7 +162,7 @@ def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
             management_account_id="000000000000",
         ),
     ]
-    mock_autodiscover_accounts.return_value = (
+    mock_sync_aws_organization_for_account.return_value = (
         cartography.intel.aws.organizations.AWSOrganizationSyncResult(
             "000000000000",
             cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
@@ -180,17 +180,17 @@ def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
     )
 
     # Assert
-    assert [call.args[2] for call in mock_autodiscover_accounts.call_args_list] == [
-        "000000000000",
-    ]
+    assert [
+        call.args[2] for call in mock_sync_aws_organization_for_account.call_args_list
+    ] == ["000000000000"]
 
 
 @mock.patch("cartography.intel.aws.boto3.Session")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
     mock_discover_candidates,
-    mock_autodiscover_accounts,
+    mock_sync_aws_organization_for_account,
     mock_boto3_session,
     neo4j_session,
 ):
@@ -209,7 +209,7 @@ def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
             management_account_id="000000000000",
         ),
     ]
-    mock_autodiscover_accounts.side_effect = [
+    mock_sync_aws_organization_for_account.side_effect = [
         cartography.intel.aws.organizations.AWSOrganizationSyncResult(
             "000000000000",
             cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
@@ -233,7 +233,9 @@ def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
     )
 
     # Assert
-    assert [call.args[2] for call in mock_autodiscover_accounts.call_args_list] == [
+    assert [
+        call.args[2] for call in mock_sync_aws_organization_for_account.call_args_list
+    ] == [
         "000000000000",
         "000000000001",
     ]
@@ -243,11 +245,11 @@ def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
     ]
 
 
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_uses_one_default_session(
     mock_discover_candidates,
-    mock_autodiscover_accounts,
+    mock_sync_aws_organization_for_account,
     neo4j_session,
 ):
     # Arrange
@@ -259,7 +261,7 @@ def test_sync_aws_organizations_for_accounts_uses_one_default_session(
             management_account_id="000000000000",
         ),
     ]
-    mock_autodiscover_accounts.return_value = (
+    mock_sync_aws_organization_for_account.return_value = (
         cartography.intel.aws.organizations.AWSOrganizationSyncResult(
             "000000000000",
             cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
@@ -278,20 +280,20 @@ def test_sync_aws_organizations_for_accounts_uses_one_default_session(
 
     # Assert
     mock_discover_candidates.assert_called_once_with(TEST_ACCOUNTS, False)
-    mock_autodiscover_accounts.assert_called_once()
+    mock_sync_aws_organization_for_account.assert_called_once()
 
 
 @mock.patch("cartography.intel.aws.boto3.Session")
-@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_uses_explicit_candidates_without_scan(
     mock_discover_candidates,
-    mock_autodiscover_accounts,
+    mock_sync_aws_organization_for_account,
     mock_boto3_session,
     neo4j_session,
 ):
     # Arrange
-    mock_autodiscover_accounts.return_value = (
+    mock_sync_aws_organization_for_account.return_value = (
         cartography.intel.aws.organizations.AWSOrganizationSyncResult(
             "000000000001",
             cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
@@ -312,8 +314,8 @@ def test_sync_aws_organizations_for_accounts_uses_explicit_candidates_without_sc
     # Assert
     mock_discover_candidates.assert_not_called()
     mock_boto3_session.assert_called_once_with(profile_name="profile2")
-    mock_autodiscover_accounts.assert_called_once()
-    assert mock_autodiscover_accounts.call_args.args[2] == "000000000001"
+    mock_sync_aws_organization_for_account.assert_called_once()
+    assert mock_sync_aws_organization_for_account.call_args.args[2] == "000000000001"
 
 
 @pytest.mark.asyncio

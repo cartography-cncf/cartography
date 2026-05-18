@@ -237,14 +237,14 @@ def _autodiscover_account_regions(
     return regions
 
 
-def _autodiscover_accounts(
+def _sync_aws_organization_for_account(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
 ) -> organizations.AWSOrganizationSyncResult:
-    logger.info("Trying to autodiscover accounts.")
+    logger.info("Trying to sync AWS Organizations hierarchy.")
     try:
         client = create_boto3_client(boto3_session, "organizations")
         return organizations.sync_aws_organization(
@@ -267,7 +267,7 @@ def _autodiscover_accounts(
                 error_code=error_code,
             )
         logger.warning(
-            "The current account (%s) doesn't have enough permissions to perform AWS Organizations autodiscovery. "
+            "The current account (%s) doesn't have enough permissions to sync AWS Organizations hierarchy. "
             "AWS Organizations error code: %s.",
             account_id,
             error_code,
@@ -401,7 +401,7 @@ def _sync_explicit_aws_organization_accounts(
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
         results.append(
-            _autodiscover_accounts(
+            _sync_aws_organization_for_account(
                 neo4j_session,
                 boto3_session,
                 account_id,
@@ -469,7 +469,7 @@ def _sync_aws_organizations_for_accounts(
                 {"profile_name": candidate.profile_name} if use_explicit_profile else {}
             )
             boto3_session = boto3.Session(**session_kwargs)
-            result = _autodiscover_accounts(
+            result = _sync_aws_organization_for_account(
                 neo4j_session,
                 boto3_session,
                 candidate.account_id,
