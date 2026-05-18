@@ -8,9 +8,10 @@ Section 5.4: Secrets Management
 Section 5.6: General Policies
 """
 
+from cartography.rules.data.frameworks.cis import cis_kubernetes
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -89,13 +90,8 @@ cis_k8s_5_4_1_secrets_in_env_vars = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.4.1",
-        ),
+        cis_kubernetes("5.4.1"),
+        iso27001_annex_a("8.12"),
     ),
 )
 
@@ -127,6 +123,7 @@ _k8s_service_account_tokens_mounted = Fact(
     OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WITH cluster, pod, sa, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+    AND NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN
         pod.id AS pod_id,
         pod.name AS pod_name,
@@ -141,10 +138,12 @@ _k8s_service_account_tokens_mounted = Fact(
     OPTIONAL MATCH p1=(pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WITH cluster, pod, sa, p, p1, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+    AND NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
+    WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
@@ -165,13 +164,8 @@ cis_k8s_5_1_6_sa_token_mounts = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.6",
-        ),
+        cis_kubernetes("5.1.6"),
+        iso27001_annex_a("5.17"),
     ),
 )
 
@@ -226,13 +220,8 @@ cis_k8s_5_2_3_host_pid = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.3",
-        ),
+        cis_kubernetes("5.2.3"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -281,13 +270,8 @@ cis_k8s_5_2_4_host_ipc = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.4",
-        ),
+        cis_kubernetes("5.2.4"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -336,13 +320,9 @@ cis_k8s_5_2_5_host_network = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.5",
-        ),
+        cis_kubernetes("5.2.5"),
+        iso27001_annex_a("8.9"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -396,13 +376,8 @@ cis_k8s_5_2_6_allow_privilege_escalation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.6",
-        ),
+        cis_kubernetes("5.2.6"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -462,13 +437,8 @@ cis_k8s_5_2_11_host_path_volumes = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.11",
-        ),
+        cis_kubernetes("5.2.11"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -518,13 +488,9 @@ cis_k8s_5_2_12_host_ports = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.12",
-        ),
+        cis_kubernetes("5.2.12"),
+        iso27001_annex_a("8.9"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -600,13 +566,8 @@ cis_k8s_5_6_2_runtime_default_seccomp = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.6.2",
-        ),
+        cis_kubernetes("5.6.2"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -673,15 +634,7 @@ cis_k8s_5_6_4_default_namespace = Rule(
     tags=("namespaces", "general-policies", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.6.4",
-        ),
-    ),
+    frameworks=(cis_kubernetes("5.6.4"),),
 )
 
 # =============================================================================

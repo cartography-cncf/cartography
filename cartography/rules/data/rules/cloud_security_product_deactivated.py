@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -56,4 +57,5 @@ cloud_security_product_deactivated = Rule(
     ),
     facts=(aws_guard_duty_detector_disabled,),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.16"),),
 )

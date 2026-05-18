@@ -64,6 +64,9 @@ class Module(str, Enum):
     JAMF = "Jamf"
     """Jamf endpoint security"""
 
+    JUMPCLOUD = "JumpCloud"
+    """JumpCloud identity and device management"""
+
     KANDJI = "Kandji"
     """Kandji endpoint security"""
 
@@ -143,6 +146,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
+    Module.JUMPCLOUD: "jumpcloud",
     Module.KANDJI: "kandji",
     Module.KEYCLOAK: "keycloak",
     Module.KUBERNETES: "kubernetes",

@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -153,4 +154,5 @@ object_storage_public = Rule(
         "stride:information_disclosure",
     ),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.3"),),
 )

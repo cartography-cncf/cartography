@@ -154,6 +154,28 @@ class ECSContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSContainerToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToGitHubContainerImageRel(CartographyRelSchema):
+    """
+    Matches containers to GitHub Container Registry images by runtime digest (imageDigest).
+    """
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToGitHubContainerImageRelProperties = (
+        ECSContainerToGitHubContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -168,5 +190,6 @@ class ECSContainerSchema(CartographyNodeSchema):
             ECSContainerToECRImageRel(),
             ECSContainerToGitLabContainerImageRel(),
             ECSContainerToGCPArtifactRegistryImageRel(),
+            ECSContainerToGitHubContainerImageRel(),
         ]
     )
