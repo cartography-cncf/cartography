@@ -1,8 +1,19 @@
+import inspect
 import logging
 
 import pytest
 
 from cartography.config import Config
+
+
+def test_aws_organization_account_ids_preserves_config_positional_compatibility() -> (
+    None
+):
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    assert parameters.index("aws_organization_account_ids") > parameters.index(
+        "_warn_on_legacy_report_source",
+    )
 
 
 def test_config_legacy_s3_source_shim_matches_cli_normalization(caplog) -> None:

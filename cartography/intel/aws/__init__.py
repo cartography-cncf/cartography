@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import logging
 import traceback
@@ -14,7 +13,6 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -33,7 +31,6 @@ from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
-AWS_ORGANIZATION_DISCOVERY_CONCURRENCY = 8
 
 
 @dataclass(frozen=True)
@@ -285,19 +282,16 @@ def _sync_aws_organization_for_account(
         )
 
 
-async def _discover_aws_organization_candidate(
+def _discover_aws_organization_candidate(
     profile_name: str,
     account_id: str,
     use_explicit_profile: bool,
 ) -> AWSOrganizationDiscoveryCandidate:
     session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
-    aioboto3_session = aioboto3.Session(**session_kwargs)
+    boto3_session = boto3.Session(**session_kwargs)
     try:
-        async with create_aioboto3_client(
-            aioboto3_session,
-            "organizations",
-        ) as client:
-            response = await client.describe_organization()
+        client = create_boto3_client(boto3_session, "organizations")
+        response = client.describe_organization()
         organization = response["Organization"]
     except botocore.exceptions.ClientError as e:
         result = organizations.get_aws_organization_sync_result_from_client_error(
@@ -337,21 +331,7 @@ async def _discover_aws_organization_candidate(
     )
 
 
-async def _discover_aws_organization_candidate_with_semaphore(
-    semaphore: asyncio.Semaphore,
-    profile_name: str,
-    account_id: str,
-    use_explicit_profile: bool,
-) -> AWSOrganizationDiscoveryCandidate:
-    async with semaphore:
-        return await _discover_aws_organization_candidate(
-            profile_name,
-            account_id,
-            use_explicit_profile,
-        )
-
-
-async def _discover_aws_organization_candidates_async(
+def _discover_aws_organization_candidates(
     accounts: Dict[str, str],
     use_explicit_profile: bool,
 ) -> list[AWSOrganizationDiscoveryCandidate]:
@@ -361,27 +341,14 @@ async def _discover_aws_organization_candidates_async(
     if not account_items:
         return []
 
-    semaphore = asyncio.Semaphore(AWS_ORGANIZATION_DISCOVERY_CONCURRENCY)
-    return await asyncio.gather(
-        *[
-            _discover_aws_organization_candidate_with_semaphore(
-                semaphore,
-                profile_name,
-                account_id,
-                use_explicit_profile,
-            )
-            for profile_name, account_id in account_items
-        ],
-    )
-
-
-def _discover_aws_organization_candidates(
-    accounts: Dict[str, str],
-    use_explicit_profile: bool,
-) -> list[AWSOrganizationDiscoveryCandidate]:
-    return asyncio.run(
-        _discover_aws_organization_candidates_async(accounts, use_explicit_profile),
-    )
+    return [
+        _discover_aws_organization_candidate(
+            profile_name,
+            account_id,
+            use_explicit_profile,
+        )
+        for profile_name, account_id in account_items
+    ]
 
 
 def _group_aws_organization_candidates(

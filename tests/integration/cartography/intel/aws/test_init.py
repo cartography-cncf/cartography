@@ -6,7 +6,6 @@ from typing import List
 from unittest import mock
 
 import neo4j
-import pytest
 from moto import mock_aws
 from pytest import raises
 
@@ -444,10 +443,9 @@ def test_sync_aws_organizations_for_accounts_preserves_graph_when_all_candidates
     )
 
 
-@pytest.mark.asyncio
-async def test_discover_aws_organization_candidates_async_keeps_account_order(mocker):
+def test_discover_aws_organization_candidates_keeps_account_order(mocker):
     # Arrange
-    async def fake_discover(profile_name, account_id, use_explicit_profile):
+    def fake_discover(profile_name, account_id, use_explicit_profile):
         return cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
             profile_name,
             account_id,
@@ -461,11 +459,9 @@ async def test_discover_aws_organization_candidates_async_keeps_account_order(mo
     )
 
     # Act
-    candidates = (
-        await cartography.intel.aws._discover_aws_organization_candidates_async(
-            TEST_ACCOUNTS,
-            use_explicit_profile=True,
-        )
+    candidates = cartography.intel.aws._discover_aws_organization_candidates(
+        TEST_ACCOUNTS,
+        use_explicit_profile=True,
     )
 
     # Assert

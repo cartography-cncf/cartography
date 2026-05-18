@@ -348,7 +348,6 @@ class Config:
         update_tag=None,
         aws_sync_all_profiles=False,
         aws_regions=None,
-        aws_organization_account_ids=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
         experimental_aws_inspector_batch=1000,
@@ -496,6 +495,7 @@ class Config:
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
         _warn_on_legacy_report_source=True,
+        aws_organization_account_ids=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
