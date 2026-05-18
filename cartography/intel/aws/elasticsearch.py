@@ -72,11 +72,16 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         # distinction in `ElasticsearchVersion` (e.g. "OpenSearch_2.5" vs
         # "7.10"). Derive the engine here so downstream consumers (notably the
         # databases ontology mapping) can label the node correctly without
-        # parsing the version string themselves.
-        es_version = domain.get("ElasticsearchVersion") or ""
-        engine = (
-            "opensearch" if es_version.startswith("OpenSearch") else "elasticsearch"
-        )
+        # parsing the version string themselves. Leave engine unset when the
+        # version is missing rather than guessing — a missing version is rare
+        # but a wrong label downstream is harder to debug.
+        es_version = domain.get("ElasticsearchVersion")
+        if not es_version:
+            engine = None
+        elif es_version.startswith("OpenSearch"):
+            engine = "opensearch"
+        else:
+            engine = "elasticsearch"
 
         # Flattened data with VPC lists for one-to-many relationships
         transformed = {
