@@ -42,8 +42,8 @@ def load_vm_network_interfaces_relationship(session: neo4j.Session, vm_id: str, 
 
 
 def get_client(credentials: Credentials, subscription_id: str) -> ComputeManagementClient:
-    client = ComputeManagementClient(credentials, subscription_id)
-    return client
+    from cartography.intel.azure.util.timing import get_timing_policy
+    return ComputeManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
 
 
 def _extract_aks_tags(tags_dict) -> Dict:
