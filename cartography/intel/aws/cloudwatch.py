@@ -218,15 +218,29 @@ def transform_log_groups(boto3_session: boto3.session.Session, groups: List, reg
             log_group["consolelink"] = aws_console_link.get_console_link(arn=log_group["arn"])
             log_group["region"] = region
             if log_group.get("kmsKeyId"):
-                log_group["kms"] = kms_client.describe_key(
-                    KeyId=log_group.get(
-                        "kmsKeyId",
-                        None,
-                    ).split("/")[1],
-                ).get("KeyMetadata", {})
+                try:
+                    log_group["kms"] = kms_client.describe_key(
+                        KeyId=log_group.get(
+                            "kmsKeyId",
+                            None,
+                        ).split("/")[1],
+                    ).get("KeyMetadata", {})
+                except ClientError as e:
+                    if e.response["Error"]["Code"] in ["NotFoundException", "AccessDeniedException"]:
+                        logger.debug(
+                            f"KMS key {log_group.get('kmsKeyId')} for log group "
+                            f"{log_group.get('logGroupName')} in {region} not accessible: {e}",
+                        )
+                        log_group["kms"] = {}
+                    else:
+                        logger.error(
+                            f"Failed to describe KMS key for log group "
+                            f"{log_group.get('logGroupName')} in {region}: {e}",
+                        )
+                        log_group["kms"] = {}
             log_groups.append(log_group)
     except ClientError as e:
-        logger.error(f"Failed to call CloudWatch Logs describe_log_groups: {region} - {e}")
+        logger.error(f"Failed to call CloudWatch Logs transform_log_groups: {region} - {e}")
 
     return log_groups
 
