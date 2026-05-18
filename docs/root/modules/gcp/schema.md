@@ -2207,6 +2207,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
   - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
@@ -2252,6 +2253,7 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
   - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```

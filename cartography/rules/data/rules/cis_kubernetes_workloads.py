@@ -123,6 +123,7 @@ _k8s_service_account_tokens_mounted = Fact(
     OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WITH cluster, pod, sa, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+    AND NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN
         pod.id AS pod_id,
         pod.name AS pod_name,
@@ -137,10 +138,12 @@ _k8s_service_account_tokens_mounted = Fact(
     OPTIONAL MATCH p1=(pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WITH cluster, pod, sa, p, p1, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+    AND NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (pod:KubernetesPod)
+    WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
