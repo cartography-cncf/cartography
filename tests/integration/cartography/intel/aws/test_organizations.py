@@ -220,6 +220,36 @@ def test_sync_aws_accounts(neo4j_session):
     }
 
 
+def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
+    """
+    Ensure configured AWS accounts are removed from foreign account classification.
+    """
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (account:AWSAccount {id: "111111111111"})
+        SET account.foreign = true
+        """,
+    )
+
+    # Act
+    cartography.intel.aws.organizations.sync(
+        neo4j_session,
+        {"test-account-1": "111111111111"},
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSAccount",
+        ["id", "name", "inscope", "foreign"],
+    ) == {
+        ("111111111111", "test-account-1", True, None),
+    }
+
+
 def test_sync_aws_organization_hierarchy(neo4j_session):
     """
     Ensure that sync_aws_organization() creates the organization hierarchy and

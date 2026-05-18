@@ -12,6 +12,7 @@ class AWSAccountNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     inscope: PropertyRef = PropertyRef("inscope", set_in_kwargs=True)
+    foreign: PropertyRef = PropertyRef("foreign")
 
 
 @dataclass(frozen=True)

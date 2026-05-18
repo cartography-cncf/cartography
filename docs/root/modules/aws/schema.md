@@ -36,6 +36,8 @@ Representation of an AWS Account.
 |joined\_timestamp| The date the account joined the organization.|
 |org\_id| The AWS Organization ID that contains this account, when available.|
 
+Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only through AWS Organizations are not marked `inscope`; use `org_id` and the root/OU placement relationships to query organization membership.
+
 #### Relationships
 - Many node types belong to an `AWSAccount`.
 

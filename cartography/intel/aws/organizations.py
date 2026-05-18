@@ -429,6 +429,7 @@ def load_aws_accounts(
         {
             "id": account_id,
             "name": account_name,
+            "foreign": None,
         }
         for account_name, account_id in aws_accounts.items()
     ]
