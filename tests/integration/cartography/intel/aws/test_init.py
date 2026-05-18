@@ -185,6 +185,64 @@ def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
     ]
 
 
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
+def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
+    mock_discover_candidates,
+    mock_autodiscover_accounts,
+    mock_boto3_session,
+    neo4j_session,
+):
+    # Arrange
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "member-profile",
+            "000000000001",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "management-profile",
+            "000000000000",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+    ]
+    mock_autodiscover_accounts.side_effect = [
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000000",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+            organization_id="o-example",
+            error_code="AccessDeniedException",
+        ),
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000001",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+            organization_id="o-example",
+        ),
+    ]
+
+    # Act
+    results = cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    assert [call.args[2] for call in mock_autodiscover_accounts.call_args_list] == [
+        "000000000000",
+        "000000000001",
+    ]
+    assert [result.status for result in results] == [
+        cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+        cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+    ]
+
+
 @mock.patch.object(cartography.intel.aws, "_autodiscover_accounts")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
 def test_sync_aws_organizations_for_accounts_uses_one_default_session(

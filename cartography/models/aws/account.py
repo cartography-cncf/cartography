@@ -34,7 +34,6 @@ class AWSOrganizationAccountNodeProperties(CartographyNodeProperties):
     joined_method: PropertyRef = PropertyRef("joined_method")
     joined_timestamp: PropertyRef = PropertyRef("joined_timestamp")
     org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
-    inscope: PropertyRef = PropertyRef("inscope")
 
 
 @dataclass(frozen=True)

@@ -48,7 +48,6 @@ def test_transform_aws_organization_accounts_preserves_boto3_account_fields():
             "joined_method": "CREATED",
             "joined_timestamp": datetime(2020, 1, 1, tzinfo=timezone.utc),
             "org_id": "o-exampleorgid",
-            "inscope": True,
         },
     ]
 
@@ -70,10 +69,9 @@ def test_transform_aws_organization_accounts_falls_back_to_legacy_status():
     # Assert
     assert result[0]["state"] == "ACTIVE"
     assert result[0]["status"] == "ACTIVE"
-    assert result[0]["inscope"] is True
 
 
-def test_transform_aws_organization_accounts_marks_suspended_out_of_scope():
+def test_transform_aws_organization_accounts_preserves_suspended_state():
     # Act
     result = cartography.intel.aws.organizations.transform_aws_organization_accounts(
         TEST_ORGANIZATION_ACCOUNTS[2:3],
@@ -82,7 +80,6 @@ def test_transform_aws_organization_accounts_marks_suspended_out_of_scope():
 
     # Assert
     assert result[0]["state"] == "SUSPENDED"
-    assert result[0]["inscope"] is False
 
 
 def test_transform_aws_organization_roots_preserves_root_fields_and_child_ids():

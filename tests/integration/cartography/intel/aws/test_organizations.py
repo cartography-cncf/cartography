@@ -282,7 +282,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "management@example.com",
             "ACTIVE",
             "o-exampleorgid",
-            True,
+            None,
         ),
         (
             "222222222222",
@@ -290,7 +290,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "security@example.com",
             "ACTIVE",
             "o-exampleorgid",
-            True,
+            None,
         ),
         (
             "333333333333",
@@ -298,7 +298,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "suspended@example.com",
             "SUSPENDED",
             "o-exampleorgid",
-            False,
+            None,
         ),
         (
             "444444444444",
@@ -306,7 +306,7 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             "logging@example.com",
             "ACTIVE",
             "o-exampleorgid",
-            True,
+            None,
         ),
     }
     assert check_rels(
@@ -645,10 +645,10 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
         "AWSAccount",
         ["id", "org_id", "state", "inscope"],
     ) == {
-        ("111111111111", "o-exampleorgid", "ACTIVE", True),
-        ("222222222222", "o-exampleorgid", "ACTIVE", True),
-        ("333333333333", "o-exampleorgid", "SUSPENDED", False),
-        ("444444444444", None, None, False),
+        ("111111111111", "o-exampleorgid", "ACTIVE", None),
+        ("222222222222", "o-exampleorgid", "ACTIVE", None),
+        ("333333333333", "o-exampleorgid", "SUSPENDED", None),
+        ("444444444444", None, None, None),
     }
     assert check_rels(
         neo4j_session,
@@ -659,6 +659,49 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
         "PARENT",
         rel_direction_right=True,
     ) == {("222222222222", "o-exampleorgid/ou-exam-a1b2c3d4")}
+
+
+def test_sync_aws_organization_cleanup_preserves_configured_account_scope(
+    neo4j_session,
+):
+    # Arrange
+    cartography.intel.aws.organizations.sync(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    _sync_organization(neo4j_session, _make_organizations_client())
+    organizational_units_without_nested_ou = {
+        "r-exam": TEST_ORGANIZATIONAL_UNITS["r-exam"],
+        "ou-exam-a1b2c3d4": [],
+    }
+    accounts_without_logging_account = {
+        "r-exam": TEST_ACCOUNTS_FOR_PARENT["r-exam"],
+        "ou-exam-a1b2c3d4": TEST_ACCOUNTS_FOR_PARENT["ou-exam-a1b2c3d4"],
+    }
+
+    # Act
+    _sync_organization(
+        neo4j_session,
+        _make_organizations_client(
+            organizational_units=organizational_units_without_nested_ou,
+            accounts_for_parent=accounts_without_logging_account,
+        ),
+        TEST_SECOND_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSAccount",
+        ["id", "org_id", "state", "inscope"],
+    ) == {
+        ("111111111111", "o-exampleorgid", "ACTIVE", True),
+        ("222222222222", "o-exampleorgid", "ACTIVE", True),
+        ("333333333333", "o-exampleorgid", "SUSPENDED", None),
+        ("444444444444", None, None, True),
+    }
 
 
 def test_sync_aws_organization_cleans_ous_before_stale_roots(neo4j_session):

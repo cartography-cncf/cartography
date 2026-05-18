@@ -181,7 +181,6 @@ def transform_aws_organization_accounts(
                 "joined_method": account.get("JoinedMethod"),
                 "joined_timestamp": account.get("JoinedTimestamp"),
                 "org_id": organization_id,
-                "inscope": _is_active_account(account),
             }
         )
     return transformed
@@ -555,8 +554,7 @@ def cleanup_stale_aws_account_organization_metadata(
             account.status = null,
             account.joined_method = null,
             account.joined_timestamp = null,
-            account.org_id = null,
-            account.inscope = false
+            account.org_id = null
         """,
         ORG_ID=organization_id,
         CURRENT_ACCOUNT_IDS=list(current_account_ids),
