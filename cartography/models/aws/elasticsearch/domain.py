@@ -23,6 +23,7 @@ class ESDomainNodeProperties(CartographyNodeProperties):
     endpoint: PropertyRef = PropertyRef("Endpoint")
     name: PropertyRef = PropertyRef("DomainName", extra_index=True)
     elasticsearch_version: PropertyRef = PropertyRef("ElasticsearchVersion")
+    engine: PropertyRef = PropertyRef("Engine")
     # Cluster config properties (flattened)
     elasticsearch_cluster_config_instancetype: PropertyRef = PropertyRef(
         "ElasticsearchClusterConfigInstanceType"

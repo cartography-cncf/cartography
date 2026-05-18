@@ -42,12 +42,11 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "opensearch"},
-                ),
+                # `engine` is derived in the elasticsearch transform from
+                # ElasticsearchVersion so we label OpenSearch-backed domains
+                # as "opensearch" and the legacy Elasticsearch-backed ones as
+                # "elasticsearch".
+                OntologyFieldMapping(ontology_field="type", node_field="engine"),
                 OntologyFieldMapping(
                     ontology_field="version", node_field="elasticsearch_version"
                 ),
