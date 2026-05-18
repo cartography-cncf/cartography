@@ -78,5 +78,11 @@ def test_parse_and_validate_aws_account_ids():
     with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
         parse_and_validate_aws_account_ids("000000000000,not-an-account")
 
+    with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
+        parse_and_validate_aws_account_ids("12345678901")
+
+    with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
+        parse_and_validate_aws_account_ids("1234567890123")
+
     with pytest.raises(ValueError, match="no account IDs were specified"):
         parse_and_validate_aws_account_ids(",,")

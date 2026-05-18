@@ -264,6 +264,72 @@ def test_sync_aws_organization_returns_already_synced_result():
     mock_get_hierarchy.assert_not_called()
 
 
+def test_sync_aws_organization_second_call_returns_already_synced_result():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            return {"Organization": TEST_ORGANIZATION}
+
+    common_job_parameters = {"UPDATE_TAG": 1}
+
+    with (
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "get_aws_organization_hierarchy",
+            return_value=([TEST_ORGANIZATION_ROOTS[0]], [], TEST_ORGANIZATION_ACCOUNTS),
+        ) as mock_get_hierarchy,
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_account_nodes_from_organization",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "sync_root_principal",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organization",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organization_roots",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_organizational_units",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "cleanup_aws_organization_hierarchy",
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "cleanup_stale_aws_account_organization_metadata",
+        ),
+    ):
+        # Act
+        first_result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "111111111111",
+            1,
+            common_job_parameters,
+        )
+        second_result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "222222222222",
+            1,
+            common_job_parameters,
+        )
+
+    # Assert
+    assert first_result.status == AWSOrganizationSyncStatus.SYNCED
+    assert second_result.status == AWSOrganizationSyncStatus.ALREADY_SYNCED
+    assert second_result.organization_id == "o-exampleorgid"
+    assert mock_get_hierarchy.call_count == 1
+
+
 def test_sync_aws_organization_returns_not_in_org_result():
     # Arrange
     class FakeClient:

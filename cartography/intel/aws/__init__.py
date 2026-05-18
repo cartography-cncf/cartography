@@ -384,6 +384,66 @@ def _discover_aws_organization_candidates(
     )
 
 
+def _group_aws_organization_candidates(
+    candidates: Iterable[AWSOrganizationDiscoveryCandidate],
+) -> tuple[
+    list[organizations.AWSOrganizationSyncResult],
+    dict[str, list[AWSOrganizationDiscoveryCandidate]],
+]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
+    for candidate in candidates:
+        if candidate.result is not None:
+            results.append(candidate.result)
+            continue
+        if candidate.organization_id is None:
+            continue
+        candidates_by_organization.setdefault(candidate.organization_id, []).append(
+            candidate,
+        )
+    return results, candidates_by_organization
+
+
+def _sync_aws_organization_candidate_groups(
+    neo4j_session: neo4j.Session,
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    use_explicit_profile: bool,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    for organization_id, organization_candidates in candidates_by_organization.items():
+        organization_candidates.sort(
+            key=lambda candidate: (
+                candidate.account_id != candidate.management_account_id,
+            ),
+        )
+        for candidate in organization_candidates:
+            session_kwargs = (
+                {"profile_name": candidate.profile_name} if use_explicit_profile else {}
+            )
+            boto3_session = boto3.Session(**session_kwargs)
+            result = _sync_aws_organization_for_account(
+                neo4j_session,
+                boto3_session,
+                candidate.account_id,
+                sync_tag,
+                common_job_parameters,
+            )
+            results.append(result)
+            if result.status in {
+                organizations.AWSOrganizationSyncStatus.SYNCED,
+                organizations.AWSOrganizationSyncStatus.ALREADY_SYNCED,
+            }:
+                break
+        else:
+            logger.warning(
+                "Unable to find an account with access to enumerate AWS Organization %s.",
+                organization_id,
+            )
+    return results
+
+
 def _sync_explicit_aws_organization_accounts(
     neo4j_session: neo4j.Session,
     accounts: Dict[str, str],
@@ -393,22 +453,27 @@ def _sync_explicit_aws_organization_accounts(
     use_explicit_profile: bool = False,
 ) -> list[organizations.AWSOrganizationSyncResult]:
     account_ids = set(organization_account_ids)
-    results: list[organizations.AWSOrganizationSyncResult] = []
-
-    for profile_name, account_id in accounts.items():
-        if account_id not in account_ids:
-            continue
-        session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
-        boto3_session = boto3.Session(**session_kwargs)
-        results.append(
-            _sync_aws_organization_for_account(
-                neo4j_session,
-                boto3_session,
-                account_id,
-                sync_tag,
-                common_job_parameters,
-            ),
+    candidate_accounts = {
+        profile_name: account_id
+        for profile_name, account_id in accounts.items()
+        if account_id in account_ids
+    }
+    candidates = _discover_aws_organization_candidates(
+        candidate_accounts,
+        use_explicit_profile,
+    )
+    results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
         )
+    )
 
     missing_account_ids = account_ids - set(accounts.values())
     if missing_account_ids:
@@ -447,46 +512,19 @@ def _sync_aws_organizations_for_accounts(
 
     results: list[organizations.AWSOrganizationSyncResult] = []
     candidates = _discover_aws_organization_candidates(accounts, use_explicit_profile)
-    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
-    for candidate in candidates:
-        if candidate.result is not None:
-            results.append(candidate.result)
-            continue
-        if candidate.organization_id is None:
-            continue
-        candidates_by_organization.setdefault(candidate.organization_id, []).append(
-            candidate,
+    discovery_results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(discovery_results)
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
         )
-
-    for organization_id, organization_candidates in candidates_by_organization.items():
-        organization_candidates.sort(
-            key=lambda candidate: (
-                candidate.account_id != candidate.management_account_id,
-            ),
-        )
-        for candidate in organization_candidates:
-            session_kwargs = (
-                {"profile_name": candidate.profile_name} if use_explicit_profile else {}
-            )
-            boto3_session = boto3.Session(**session_kwargs)
-            result = _sync_aws_organization_for_account(
-                neo4j_session,
-                boto3_session,
-                candidate.account_id,
-                sync_tag,
-                common_job_parameters,
-            )
-            results.append(result)
-            if result.status in {
-                organizations.AWSOrganizationSyncStatus.SYNCED,
-                organizations.AWSOrganizationSyncStatus.ALREADY_SYNCED,
-            }:
-                break
-        else:
-            logger.warning(
-                "Unable to find an account with access to enumerate AWS Organization %s.",
-                organization_id,
-            )
+    )
 
     return results
 

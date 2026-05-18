@@ -108,6 +108,8 @@ Representation of an AWS Account.
     (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
     ```
 
+Only active AWS Organization accounts receive organization placement relationships and synced AWS account root principals. Suspended or closed organization accounts are still loaded as `AWSAccount` nodes with organization metadata, but they are not attached under the root/OU hierarchy.
+
 ### AWSOrganization
 
 Representation of an AWS Organization.

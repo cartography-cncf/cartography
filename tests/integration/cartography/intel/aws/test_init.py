@@ -150,13 +150,13 @@ def test_sync_aws_organizations_for_accounts_uses_management_candidate_first(
     # Arrange
     mock_discover_candidates.return_value = [
         cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
-            "member-profile",
+            "profile2",
             "000000000001",
             organization_id="o-example",
             management_account_id="000000000000",
         ),
         cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
-            "management-profile",
+            "profile1",
             "000000000000",
             organization_id="o-example",
             management_account_id="000000000000",
@@ -197,13 +197,13 @@ def test_sync_aws_organizations_for_accounts_tries_next_candidate_after_denial(
     # Arrange
     mock_discover_candidates.return_value = [
         cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
-            "member-profile",
+            "profile2",
             "000000000001",
             organization_id="o-example",
             management_account_id="000000000000",
         ),
         cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
-            "management-profile",
+            "profile1",
             "000000000000",
             organization_id="o-example",
             management_account_id="000000000000",
@@ -286,13 +286,21 @@ def test_sync_aws_organizations_for_accounts_uses_one_default_session(
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
 @mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
-def test_sync_aws_organizations_for_accounts_uses_explicit_candidates_without_scan(
+def test_sync_aws_organizations_for_accounts_discovers_only_explicit_candidates(
     mock_discover_candidates,
     mock_sync_aws_organization_for_account,
     mock_boto3_session,
     neo4j_session,
 ):
     # Arrange
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "profile2",
+            "000000000001",
+            organization_id="o-example",
+            management_account_id="000000000001",
+        ),
+    ]
     mock_sync_aws_organization_for_account.return_value = (
         cartography.intel.aws.organizations.AWSOrganizationSyncResult(
             "000000000001",
@@ -312,10 +320,128 @@ def test_sync_aws_organizations_for_accounts_uses_explicit_candidates_without_sc
     )
 
     # Assert
-    mock_discover_candidates.assert_not_called()
+    mock_discover_candidates.assert_called_once_with({"profile2": "000000000001"}, True)
     mock_boto3_session.assert_called_once_with(profile_name="profile2")
     mock_sync_aws_organization_for_account.assert_called_once()
     assert mock_sync_aws_organization_for_account.call_args.args[2] == "000000000001"
+
+
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
+def test_sync_aws_organizations_for_accounts_explicit_candidates_prefer_management(
+    mock_discover_candidates,
+    mock_sync_aws_organization_for_account,
+    mock_boto3_session,
+    neo4j_session,
+):
+    # Arrange
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "member-profile",
+            "000000000001",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "management-profile",
+            "000000000000",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+    ]
+    mock_sync_aws_organization_for_account.return_value = (
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000000",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED,
+            organization_id="o-example",
+        )
+    )
+
+    # Act
+    cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        organization_account_ids=["000000000001", "000000000000"],
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    mock_discover_candidates.assert_called_once_with(
+        {
+            "profile1": "000000000000",
+            "profile2": "000000000001",
+        },
+        True,
+    )
+    assert [
+        call.args[2] for call in mock_sync_aws_organization_for_account.call_args_list
+    ] == ["000000000000"]
+
+
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.object(cartography.intel.aws, "_sync_aws_organization_for_account")
+@mock.patch.object(cartography.intel.aws, "_discover_aws_organization_candidates")
+def test_sync_aws_organizations_for_accounts_preserves_graph_when_all_candidates_fail(
+    mock_discover_candidates,
+    mock_sync_aws_organization_for_account,
+    mock_boto3_session,
+    neo4j_session,
+    caplog,
+):
+    # Arrange
+    mock_discover_candidates.return_value = [
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "member-profile",
+            "000000000001",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+        cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            "management-profile",
+            "000000000000",
+            organization_id="o-example",
+            management_account_id="000000000000",
+        ),
+    ]
+    mock_sync_aws_organization_for_account.side_effect = [
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000000",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+            organization_id="o-example",
+            error_code="AccessDeniedException",
+        ),
+        cartography.intel.aws.organizations.AWSOrganizationSyncResult(
+            "000000000001",
+            cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+            organization_id="o-example",
+            error_code="AccessDeniedException",
+        ),
+    ]
+
+    # Act
+    results = cartography.intel.aws._sync_aws_organizations_for_accounts(
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    assert [
+        call.args[2] for call in mock_sync_aws_organization_for_account.call_args_list
+    ] == ["000000000000", "000000000001"]
+    assert [result.status for result in results] == [
+        cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+        cartography.intel.aws.organizations.AWSOrganizationSyncStatus.ACCESS_DENIED,
+    ]
+    assert (
+        "Unable to find an account with access to enumerate AWS Organization o-example."
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio

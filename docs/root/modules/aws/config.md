@@ -131,7 +131,7 @@ AWS Organizations sync is separate from per-account resource sync. It models the
 | Configuration | Organizations behavior | Account resource sync |
 |---------------|------------------------|-----------------------|
 | Single-account credentials | Attempts Organizations sync with the current credentials. If the account cannot enumerate the hierarchy, Organizations cleanup is skipped. | Syncs the current account. |
-| `--aws-sync-all-profiles --aws-organization-account-ids <account-id>` | Uses the specified management or delegated administrator account ID as the Organizations sync candidate. | Syncs each configured profile/account. |
+| `--aws-sync-all-profiles --aws-organization-account-ids <account-id>` | Probes only the specified Organizations sync candidate IDs, groups them by organization, prefers the management account when present, and tries candidates until one syncs each organization. | Syncs each configured profile/account. |
 | `--aws-sync-all-profiles` without organization account IDs | Probes configured profiles with `DescribeOrganization`, groups candidates by organization, prefers the management account when present, and tries candidates until one syncs each organization. | Syncs each configured profile/account. |
 | No usable Organizations-enumerating account | Skips Organizations hierarchy writes and cleanup to preserve prior hierarchy data. | Continues account resource sync. |
 
