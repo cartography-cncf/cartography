@@ -17,14 +17,16 @@ _missing_mfa_ontology = Fact(
         "GitHub, GSuite / Google Workspace, JumpCloud, Keycloak, "
         "LastPass, OCI, Scaleway, Sentry. Providers that do not "
         "expose an MFA flag are intentionally skipped (NULL means "
-        "unknown, not missing). AWS uses a separate fact since it "
-        "models MFA via the `:MFA_DEVICE` edge instead of an ontology "
-        "boolean."
+        "unknown, not missing). AWS is handled by `missing-mfa-aws` "
+        "instead, which queries the `:MFA_DEVICE` edge directly so "
+        "the finding is available even when the ontology stage has "
+        "not run."
     ),
     module=Module.CROSS_CLOUD,
     cypher_query="""
     MATCH (a:UserAccount)
     WHERE a._ont_has_mfa = false
+      AND a._ont_source <> 'aws'
       AND COALESCE(a._ont_active, true)
       AND NOT COALESCE(a._ont_inactive, false)
     RETURN
@@ -38,6 +40,7 @@ _missing_mfa_ontology = Fact(
     cypher_visual_query="""
     MATCH (a:UserAccount)
     WHERE a._ont_has_mfa = false
+      AND a._ont_source <> 'aws'
       AND COALESCE(a._ont_active, true)
       AND NOT COALESCE(a._ont_inactive, false)
     RETURN a
@@ -45,6 +48,7 @@ _missing_mfa_ontology = Fact(
     cypher_count_query="""
     MATCH (a:UserAccount)
     WHERE a._ont_has_mfa IS NOT NULL
+      AND a._ont_source <> 'aws'
       AND COALESCE(a._ont_active, true)
       AND NOT COALESCE(a._ont_inactive, false)
     RETURN COUNT(a) AS count
@@ -59,14 +63,16 @@ _missing_mfa_aws = Fact(
     name="AWS IAM users without an MFA device",
     description=(
         "AWS IAM users that are not associated with any MFA device. The "
-        "check looks for the absence of a `:MFA_DEVICE` relationship from "
+        "check looks for the absence of a `:MFA_DEVICE` relationship to "
         "an AWSMfaDevice. Console access (passwordlastused_dt IS NOT NULL) "
         "is surfaced via the `firstname` field so callers can prioritise "
         "users who have actually signed in via the console. The string "
         "`passwordlastused` is left empty rather than NULL by the AWS "
         "intel transform, so the typed `_dt` field is the reliable signal. "
-        "AWS is handled outside the cross-cloud ontology fact because the "
-        "AWSUser ontology mapping does not carry an MFA boolean."
+        "AWS is kept on this dedicated fact so the finding is available "
+        "even when the ontology stage has not run; the cross-cloud "
+        "`missing-mfa-ontology` fact intentionally skips AWS to avoid "
+        "double-reporting."
     ),
     module=Module.AWS,
     cypher_query="""
@@ -110,9 +116,11 @@ missing_mfa_rule = Rule(
     name="User accounts missing MFA",
     description=(
         "Detects user accounts that do not have Multi-Factor Authentication "
-        "enabled. The cross-cloud ontology fact covers any provider that "
+        "enabled. The cross-cloud ontology fact covers every provider that "
         "exposes the `has_mfa` UserAccount ontology field; AWS is handled "
-        "separately via the `:MFA_DEVICE` edge."
+        "by a dedicated fact that queries the `:MFA_DEVICE` edge directly, "
+        "so the finding is available even when the ontology stage has not "
+        "run."
     ),
     output_model=MFARuleOutput,
     tags=("identity",),
@@ -120,6 +128,6 @@ missing_mfa_rule = Rule(
         _missing_mfa_aws,
         _missing_mfa_ontology,
     ),
-    version="0.2.0",
+    version="0.3.1",
     frameworks=(iso27001_annex_a("8.5"),),
 )
