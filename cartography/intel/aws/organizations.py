@@ -26,10 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 class AWSOrganizationSyncStatus(str, Enum):
+    """Structured outcome for one AWS Organizations sync attempt."""
+
+    # A complete hierarchy was enumerated, loaded, and cleaned up for this org.
     SYNCED = "SYNCED"
+    # This org was already successfully synced earlier in the current run.
     ALREADY_SYNCED = "ALREADY_SYNCED"
+    # The account is not a member of an AWS Organization.
     NOT_IN_ORG = "NOT_IN_ORG"
+    # The account cannot describe or enumerate AWS Organizations data.
     ACCESS_DENIED = "ACCESS_DENIED"
+    # Some non-permission error prevented complete hierarchy enumeration.
     INCOMPLETE = "INCOMPLETE"
 
 
