@@ -26,9 +26,10 @@ _aws_account_manipulation_permissions = Fact(
         // Match only Allow statements whose actions fit the patterns
         WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
-                WHERE ANY(prefix IN patterns WHERE action STARTS WITH prefix)
-                OR action = 'iam:*'
-                OR action = '*'
+                WHERE (ANY(prefix IN patterns WHERE action STARTS WITH prefix)
+                    OR action = 'iam:*'
+                    OR action = '*')
+                AND NOT action IN ['iam:CreateServiceLinkedRole', 'iam:DeleteServiceLinkedRole']
             ] AS matched_allow_actions
         WHERE size(matched_allow_actions) > 0
         // Find explicit Deny statements for the same principal that overlap
@@ -70,13 +71,14 @@ _aws_account_manipulation_permissions = Fact(
         AND NOT principal.name = 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
         AND ANY(action IN stmt.action WHERE
-            action STARTS WITH 'iam:Create'
-            OR action STARTS WITH 'iam:Attach'
-            OR action STARTS WITH 'iam:Put'
-            OR action STARTS WITH 'iam:Update'
-            OR action STARTS WITH 'iam:Add'
-            OR action = 'iam:*'
-            OR action = '*'
+            (action STARTS WITH 'iam:Create'
+                OR action STARTS WITH 'iam:Attach'
+                OR action STARTS WITH 'iam:Put'
+                OR action STARTS WITH 'iam:Update'
+                OR action STARTS WITH 'iam:Add'
+                OR action = 'iam:*'
+                OR action = '*')
+            AND NOT action IN ['iam:CreateServiceLinkedRole', 'iam:DeleteServiceLinkedRole']
         )
         RETURN *
     """,

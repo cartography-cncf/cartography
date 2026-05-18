@@ -16,6 +16,8 @@ _unmanaged_accounts_ontology = Fact(
     AND COALESCE(a._ont_active, true)
     AND NOT COALESCE(a._ont_inactive, false)
     AND COALESCE(a.active, true)
+    AND NOT (a:KubernetesUser AND (a.name STARTS WITH 'eks:' OR a.name STARTS WITH 'system:'))
+    AND NOT (a:SlackUser AND a.id = 'USLACKBOT')
     return a.id as id, a._ont_email AS email, a._ont_source AS source
     """,
     cypher_visual_query="""
@@ -24,6 +26,8 @@ _unmanaged_accounts_ontology = Fact(
     AND COALESCE(a._ont_active, true)
     AND NOT COALESCE(a._ont_inactive, false)
     AND COALESCE(a.active, true)
+    AND NOT (a:KubernetesUser AND (a.name STARTS WITH 'eks:' OR a.name STARTS WITH 'system:'))
+    AND NOT (a:SlackUser AND a.id = 'USLACKBOT')
     return a
     """,
     cypher_count_query="""
@@ -31,6 +35,8 @@ _unmanaged_accounts_ontology = Fact(
     WHERE COALESCE(a._ont_active, true)
     AND NOT COALESCE(a._ont_inactive, false)
     AND COALESCE(a.active, true)
+    AND NOT (a:KubernetesUser AND (a.name STARTS WITH 'eks:' OR a.name STARTS WITH 'system:'))
+    AND NOT (a:SlackUser AND a.id = 'USLACKBOT')
     RETURN COUNT(a) AS count
     """,
     module=Module.CROSS_CLOUD,
