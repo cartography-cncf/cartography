@@ -8,6 +8,8 @@ Section 5.4: Secrets Management
 Section 5.6: General Policies
 """
 
+import json
+
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
@@ -29,6 +31,10 @@ CIS_REFERENCES = [
 ]
 
 
+def _cypher_string_list(values: tuple[str, ...]) -> str:
+    return "[" + ", ".join(json.dumps(value) for value in values) + "]"
+
+
 # Keep this to namespaces documented by upstream Kubernetes or project install
 # guides as system, controller, or add-on installation namespaces.
 K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
@@ -47,8 +53,8 @@ K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
     "tigera-operator",
 )
 
-K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = repr(
-    list(K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES)
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = _cypher_string_list(
+    K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES
 )
 
 K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES = (
@@ -61,8 +67,8 @@ K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES = (
     "vertical-pod-autoscaler-updater",
 )
 
-K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = repr(
-    list(K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES)
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = _cypher_string_list(
+    K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES
 )
 
 
@@ -208,9 +214,23 @@ _k8s_service_account_tokens_mounted = Fact(
       )
     RETURN *
     """,
-    cypher_count_query="""
+    cypher_count_query=f"""
     MATCH (pod:KubernetesPod)
-    WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
+    OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WITH
+        pod,
+        sa,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity
+    WHERE NOT (
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
+      )
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
