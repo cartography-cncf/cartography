@@ -844,8 +844,10 @@ nist_ai_provider_api_key_hygiene = Rule(
     id="nist_ai_provider_api_key_hygiene",
     name="NIST AI RMF: AI Provider API Key Hygiene",
     description=(
-        "Detects stale/unused AI-provider API keys and ownership/scope gaps across "
-        "OpenAI and Anthropic."
+        "Detects ownership and scope gaps on AI-provider API keys across OpenAI "
+        "and Anthropic, and stale/unused keys (90+ days) for OpenAI. Anthropic "
+        "staleness is not evaluated because the Anthropic Admin API does not "
+        "return last-used metadata for API keys."
     ),
     output_model=NistAiProviderApiKeyHygieneOutput,
     facts=(

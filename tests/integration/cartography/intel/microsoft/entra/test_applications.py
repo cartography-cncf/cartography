@@ -422,3 +422,36 @@ async def test_sync_entra_applications(
         ("Finance Tracker", True),
         ("HR Portal", None),
     }
+
+    # Simulate a multi-tenant Entra graph: a second tenant has its own
+    # service principal for the same app_id (a foreign tenant consuming a
+    # multi-tenant application). The SERVICE_PRINCIPAL relationship matcher
+    # is keyed on `app_id` only, so without tenant scoping that foreign SP
+    # would race the home-tenant SP for `_ont_enabled`. The projection must
+    # only read the service principal that shares a tenant with the app.
+    neo4j_session.run(
+        """
+        MATCH (app:EntraApplication {display_name: 'Finance Tracker'})
+        WITH app
+        CREATE (t2:EntraTenant {id: 'other-tenant-id'})
+        CREATE (sp2:EntraServicePrincipal {
+            id: 'sp-foreign-finance',
+            app_id: app.app_id,
+            display_name: 'Foreign Finance SP',
+            account_enabled: false
+        })
+        CREATE (t2)-[:RESOURCE]->(sp2)
+        CREATE (app)-[:SERVICE_PRINCIPAL]->(sp2)
+        """,
+    )
+    cartography.util.run_analysis_job(
+        "ontology_entra_application_projection.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", None),
+    }
