@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Dict
@@ -65,7 +66,7 @@ def get_registry_list(
                 ),
                 "subscription_id": subscription_id,
                 "type": registry.type,
-                "tags": registry.tags or {},
+                "tags": json.dumps(registry.tags) if registry.tags else None,
             }
             registries.append(registry_dict)
 
