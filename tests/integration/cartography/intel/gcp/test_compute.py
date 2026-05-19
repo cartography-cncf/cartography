@@ -207,7 +207,7 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
     ) == {
         (
             "projects/project-abc/zones/europe-west2-b/instances/instance-1",
-            "2018-05-10T17:33:24.446-07:00",
+            "2018-02-16T10:42:04.362-08:00",
             "10.0.0.2",
             "1.2.3.4",
         ),
