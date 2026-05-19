@@ -1,295 +1,324 @@
 import hashlib
+import json
 import logging
-from collections import Counter
-from dataclasses import dataclass
 from typing import Any
 
-from cartography.intel.aibom.parser import ParsedAIBOMDocument
-
 logger = logging.getLogger(__name__)
-
-_RELATIONSHIP_TARGET_FIELD_BY_TYPE = {
-    "USES_TOOL": "uses_tool_component_ids",
-    "USES_LLM": "uses_model_component_ids",
-    "USES_MODEL": "uses_model_component_ids",
-    "USES_MEMORY": "uses_memory_component_ids",
-    "USES_RETRIEVER": "uses_retriever_component_ids",
-    "USES_EMBEDDING": "uses_embedding_component_ids",
-    "USES_PROMPT": "uses_prompt_component_ids",
-}
-
-_NORMALIZED_RELATIONSHIP_TYPE_BY_SOURCE_TYPE = {
-    "USES_LLM": "USES_MODEL",
-}
-
-
-@dataclass(frozen=True)
-class TransformedAIBOMDocument:
-    source_payloads: list[dict[str, Any]]
-    component_payloads: list[dict[str, Any]]
-    workflow_payloads: list[dict[str, Any]]
-    component_category_counts: Counter[str]
-    relationship_type_counts: Counter[str]
 
 
 def _stable_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _resolve_component_id(
-    relationship_endpoint_instance_id: str | None,
-    relationship_endpoint_name: str | None,
-    relationship_endpoint_category: str | None,
-    component_ids_by_instance_id: dict[str, str],
-    component_ids_by_name_and_category: dict[tuple[str, str], str],
-) -> str | None:
-    if relationship_endpoint_instance_id:
-        component_id = component_ids_by_instance_id.get(
-            relationship_endpoint_instance_id,
-        )
-        if component_id:
-            return component_id
-    if relationship_endpoint_name and relationship_endpoint_category:
-        return component_ids_by_name_and_category.get(
-            (relationship_endpoint_name, relationship_endpoint_category),
-        )
+def _as_str(value: Any) -> str | None:
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if cleaned:
+            return cleaned
     return None
 
 
-def _get_component_logical_identity_base(component: Any) -> str:
-    return "|".join(
-        [
-            component.category,
-            component.name,
-            component.file_path or "",
-            component.assigned_target or "",
-            component.framework or "",
-        ],
+def _json_dumps(value: Any) -> str | None:
+    if value is None:
+        return None
+    return json.dumps(value, sort_keys=True)
+
+
+def _flatten_count_map(
+    value: Any,
+) -> tuple[list[str], list[int]]:
+    if value is None:
+        return [], []
+
+    keys: list[str] = []
+    counts: list[int] = []
+    for key in sorted(value):
+        count = value.get(key)
+        keys.append(key)
+        counts.append(count)
+    return keys, counts
+
+
+def _build_component_id(source_key: str, component: dict[str, Any]) -> str:
+    return _stable_hash(
+        "|".join(
+            [
+                source_key,
+                _as_str(component.get("component_type")) or "unknown",
+                _as_str(component.get("name")) or "",
+                _as_str(component.get("file_path")) or "",
+                str(component.get("line_number") or ""),
+                _as_str(component.get("instance_id")) or "",
+            ],
+        ),
     )
 
 
-def _get_component_logical_id(
-    component: Any,
-    duplicate_logical_identity_bases: set[str],
-) -> str:
-    logical_identity_parts = [
-        component.category,
-        component.name,
-        component.file_path or "",
-        component.assigned_target or "",
-        component.framework or "",
-    ]
-    logical_identity_base = "|".join(logical_identity_parts)
-
-    # When multiple components share the same stable callsite fields within a
-    # single source, add a deterministic fallback to avoid collapsing distinct
-    # detections that happen to look identical at the higher-level fingerprint.
-    if logical_identity_base in duplicate_logical_identity_bases:
-        logical_identity_parts.extend(
+def _build_component_logical_id(component: dict[str, Any]) -> str:
+    return _stable_hash(
+        "|".join(
             [
-                component.instance_id or "",
-                str(component.line_number) if component.line_number is not None else "",
+                _as_str(component.get("component_type")) or "unknown",
+                _as_str(component.get("name")) or "",
+                _as_str(component.get("file_path")) or "",
+                _as_str(component.get("framework")) or "",
+                _as_str(component.get("model_name")) or "",
+                _as_str(component.get("storage_uri")) or "",
+                _as_str(component.get("skill_format")) or "",
             ],
-        )
+        ),
+    )
 
-    return _stable_hash("|".join(logical_identity_parts))
+
+def _build_component_payload(
+    source_key: str,
+    component_type: str,
+    component: dict[str, Any],
+) -> dict[str, Any]:
+
+    digest = source_key.partition("@")[2]
+    manifest_digests = [digest] if digest else []
+    normalized_component_type = (
+        _as_str(component.get("component_type")) or component_type
+    )
+    decision_annotation = component.get("decision_annotation") or {}
+    component_metadata = component.get("metadata") or {}
+    evidence_locations = decision_annotation.get("evidence_locations") or []
+    component_primary_evidence = None
+    component_primary_evidence_start_line = None
+    component_primary_evidence_end_line = None
+    for evidence_location in evidence_locations:
+        component_primary_evidence = _as_str(evidence_location.get("file_path"))
+        component_primary_evidence_start_line = evidence_location.get("start_line")
+        component_primary_evidence_end_line = evidence_location.get("end_line")
+        # Take the first location of evidence as the primary evidence for the component.
+        if component_primary_evidence:
+            break
+
+    return {
+        "id": _build_component_id(source_key, component),
+        "logical_id": _build_component_logical_id(component),
+        "name": _as_str(component.get("name")),
+        "category": normalized_component_type,
+        "component_type": normalized_component_type,
+        "instance_id": _as_str(component.get("instance_id")),
+        "file_path": _as_str(component.get("file_path")),
+        "line_number": component.get("line_number"),
+        "model_name": _as_str(component.get("model_name")),
+        "embedding_model": _as_str(component.get("embedding_model")),
+        "framework": _as_str(component.get("framework")),
+        "detection_source": _as_str(component.get("detection_source")),
+        "confidence": component.get("confidence"),
+        "heuristic_confidence": component.get("heuristic_confidence"),
+        "agentic_confidence": component.get("agentic_confidence"),
+        "needs_agentic": component.get("needs_agentic"),
+        "agentic_hint": _as_str(component.get("agentic_hint")),
+        "description": _as_str(component.get("description")),
+        "text": _as_str(component.get("text")),
+        "transport": _as_str(component.get("transport")),
+        "config_source": _as_str(component.get("config_source")),
+        "storage_uri": _as_str(component.get("storage_uri")),
+        "dataset_source": _as_str(component.get("dataset_source")),
+        "skill_format": _as_str(component.get("skill_format")),
+        "sdk_version": _as_str(component.get("sdk_version")),
+        "kb_concept": _as_str(component.get("kb_concept")),
+        "kb_label": _as_str(component.get("kb_label")),
+        "component_primary_evidence": component_primary_evidence,
+        "component_primary_evidence_start_line": component_primary_evidence_start_line,
+        "component_primary_evidence_end_line": component_primary_evidence_end_line,
+        "decision": _as_str(decision_annotation.get("decision")),
+        "decision_justification": _as_str(decision_annotation.get("justification")),
+        "metadata_json": _json_dumps(component_metadata),
+        "manifest_digests": manifest_digests,
+    }
 
 
-def transform_aibom_document(
-    document: ParsedAIBOMDocument,
-    manifest_digests: list[str],
-) -> TransformedAIBOMDocument:
-    source_payloads_by_id: dict[str, dict[str, Any]] = {}
-    component_payloads_by_id: dict[str, dict[str, Any]] = {}
-    workflow_payloads_by_id: dict[str, dict[str, Any]] = {}
-    component_category_counts: Counter[str] = Counter()
-    relationship_type_counts: Counter[str] = Counter()
+def _build_source_component_ids(
+    source_key: str,
+    source_components: Any,
+) -> list[str]:
+    component_ids: list[str] = []
+    for items in source_components.values():
+        for component in items:
+            if not _as_str(component.get("name")):
+                continue
+            component_ids.append(_build_component_id(source_key, component))
 
-    for source in document.sources:
-        source_id = _stable_hash(
-            "|".join(
-                [
-                    document.image_uri,
-                    document.scanner_name or "",
-                    document.scan_scope or "",
-                    source.source_key,
-                ],
+    return component_ids
+
+
+def _build_source_payload(
+    source_key: str,
+    source_data: dict[str, Any],
+    analysis: dict[str, Any],
+    report_location: str | None,
+) -> dict[str, Any]:
+    report_metadata = analysis.get("metadata", {})
+    report_summary = analysis.get("summary", {})
+    report_risk = analysis.get("risk")
+
+    source_summary = source_data.get("summary", {})
+    source_metadata = source_data.get("metadata", {})
+    source_components = source_data.get("components", {})
+    source_relationships = source_data.get("relationships", [])
+    component_ids = _build_source_component_ids(source_key, source_components)
+
+    report_component_types = report_summary.get("component_types")
+    source_component_counts = {
+        category: len(items) for category, items in source_components.items()
+    }
+
+    total_components = source_summary.get("assets_discovered")
+    if total_components is None:
+        total_components = sum(source_component_counts.values())
+
+    total_relationships = len(source_relationships)
+
+    digest = source_key.partition("@")[2]
+    manifest_digests = [digest] if digest else []
+    image_uri = _as_str(source_data.get("source_name")) or source_key
+    report_component_type_names, report_component_type_counts = _flatten_count_map(
+        report_component_types,
+    )
+    source_component_type_names, source_component_type_counts = _flatten_count_map(
+        source_component_counts,
+    )
+
+    return {
+        "id": _stable_hash(source_key),
+        "image_uri": image_uri,
+        "manifest_digests": manifest_digests,
+        "image_matched": bool(manifest_digests),
+        "report_location": report_location,
+        "run_id": _as_str(report_metadata.get("run_id")),
+        "analyzer_version": _as_str(report_metadata.get("analyzer_version")),
+        "analysis_status": _as_str(report_metadata.get("status")),
+        "report_schema_version": _as_str(report_metadata.get("report_schema_version")),
+        "report_started_at": _as_str(report_metadata.get("started_at")),
+        "report_completed_at": _as_str(report_metadata.get("completed_at")),
+        "report_output_format": _as_str(report_metadata.get("output_format")),
+        "llm_model": _as_str(report_metadata.get("llm_model")),
+        "sources_requested": report_metadata.get("sources_requested"),
+        "sources_analyzed": report_metadata.get("sources_analyzed"),
+        "sources_with_errors": report_metadata.get("sources_with_errors"),
+        "error_count": report_metadata.get("error_count"),
+        "prompt_tokens": report_metadata.get("prompt_tokens"),
+        "completion_tokens": report_metadata.get("completion_tokens"),
+        "total_tokens": report_metadata.get("total_tokens"),
+        "report_total_sources": report_summary.get("total_sources"),
+        "report_total_components": report_summary.get("total_components"),
+        "report_total_relationships": report_summary.get("total_relationships"),
+        "pending_agent_review": report_summary.get("pending_agent_review"),
+        "test_only_components": report_summary.get("test_only_components"),
+        "report_component_types": report_component_type_names,
+        "report_component_type_counts": report_component_type_counts,
+        "risk_score": report_summary.get("risk_score")
+        or (report_risk or {}).get("score"),
+        "risk_severity": _as_str(report_summary.get("risk_severity"))
+        or _as_str((report_risk or {}).get("severity")),
+        "source_key": source_key,
+        "source_name": _as_str(source_data.get("source_name")) or source_key,
+        "source_path": _as_str(source_data.get("source_path")),
+        "source_status": _as_str(source_summary.get("status")),
+        "source_kind": _as_str(source_summary.get("source_kind")),
+        "total_components": total_components,
+        "total_relationships": total_relationships,
+        "assets_discovered": source_summary.get("assets_discovered"),
+        "last_generated_at": _as_str(source_summary.get("last_generated_at")),
+        "source_elapsed_s": source_metadata.get("elapsed_s"),
+        "source_prompt_tokens": source_metadata.get("prompt_tokens"),
+        "source_completion_tokens": source_metadata.get("completion_tokens"),
+        "source_total_tokens": source_metadata.get("total_tokens"),
+        "source_component_types": source_component_type_names,
+        "source_component_type_counts": source_component_type_counts,
+        "component_ids": component_ids,
+    }
+
+
+def transform_aibom_source_payloads(
+    document: dict[str, Any],
+    report_location: str | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Transform raw AIBOM rc3 source data into AIBOMSource payloads.
+
+    This is the first transform step: consume the raw report dict
+    directly and emit schema-ready source payloads without introducing parser
+    dataclasses or other compatibility shims.
+    """
+    analysis = document["aibom_analysis"]
+    sources = analysis.get("sources")
+
+    payloads: list[dict[str, Any]] = []
+    for source_key, source_data in sources.items():
+        payloads.append(
+            _build_source_payload(
+                source_key,
+                source_data,
+                analysis,
+                report_location,
             ),
         )
-        source_component_ids: list[str] = []
-        source_workflow_ids: list[str] = []
-        workflow_id_map: dict[str, str] = {}
-        component_ids_by_instance_id: dict[str, str] = {}
-        component_ids_by_name_and_category: dict[tuple[str, str], str] = {}
 
-        for workflow in source.workflows:
-            workflow_hash = _stable_hash(f"{source_id}|{workflow.workflow_id}")
-            workflow_id_map[workflow.workflow_id] = workflow_hash
-            workflow_payloads_by_id[workflow_hash] = {
-                "id": workflow_hash,
-                "source_id": source_id,
-                "workflow_id": workflow.workflow_id,
-                "function": workflow.function,
-                "file_path": workflow.file_path,
-                "line": workflow.line,
-                "distance": workflow.distance,
-            }
-            source_workflow_ids.append(workflow_hash)
+    return payloads
 
-        should_load_components = (
-            source.source_status or "completed"
-        ).lower() == "completed" and bool(manifest_digests)
-        logical_identity_base_counts = Counter(
-            _get_component_logical_identity_base(component)
-            for component in source.components
+
+def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Extract raw component records from the AIBOM rc3 report.
+
+    This is the component-specific traversal step that finds component nodes in
+    the report and preserves the source context needed for downstream transforms.
+    """
+    analysis = document["aibom_analysis"]
+    sources = analysis.get("sources")
+
+    component_records: list[dict[str, Any]] = []
+    for source_key, source_data in sources.items():
+        components = source_data.get("components")
+
+        for component_type, items in components.items():
+            for component in items:
+                if not _as_str(component.get("name")):
+                    logger.warning(
+                        "Skipping unnamed AIBOM component in bucket %s on source %s",
+                        component_type,
+                        source_key,
+                    )
+                    continue
+
+                component_records.append(
+                    {
+                        "source_key": source_key,
+                        "component_type": component_type,
+                        "component": component,
+                    },
+                )
+
+    return component_records
+
+
+def transform_aibom_component_payloads(
+    document: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Transform raw AIBOM rc3 component data into AIBOMComponent payloads.
+
+    This consumes the raw AIBOM report, extracts component records, and emits
+    schema-ready component payloads.
+    """
+    component_records = _parse_aibom_component_records(document)
+    payloads: list[dict[str, Any]] = []
+    for component_record in component_records:
+        source_key = component_record["source_key"]
+        component_type = component_record["component_type"]
+        component = component_record["component"]
+        payloads.append(
+            _build_component_payload(
+                source_key,
+                component_type,
+                component,
+            ),
         )
-        duplicate_logical_identity_bases = {
-            logical_identity_base
-            for logical_identity_base, count in logical_identity_base_counts.items()
-            if count > 1
-        }
-        for component in source.components:
-            if not should_load_components:
-                continue
 
-            component_hash_input = "|".join(
-                [
-                    source_id,
-                    component.category,
-                    component.name,
-                    component.file_path or "",
-                    (
-                        str(component.line_number)
-                        if component.line_number is not None
-                        else ""
-                    ),
-                    component.instance_id or "",
-                ],
-            )
-            component_id = _stable_hash(component_hash_input)
-            workflow_ids = [
-                workflow_id_map[workflow_id]
-                for workflow_id in component.workflow_ids
-                if workflow_id in workflow_id_map
-            ]
-
-            if component_id not in component_payloads_by_id:
-                component_category_counts[component.category] += 1
-
-            component_payloads_by_id[component_id] = {
-                "id": component_id,
-                "logical_id": _get_component_logical_id(
-                    component,
-                    duplicate_logical_identity_bases,
-                ),
-                "name": component.name,
-                "category": component.category,
-                "instance_id": component.instance_id,
-                "assigned_target": component.assigned_target,
-                "file_path": component.file_path,
-                "line_number": component.line_number,
-                "model_name": component.model_name,
-                "framework": component.framework,
-                "label": component.label,
-                "manifest_digests": manifest_digests,
-                "workflow_ids": workflow_ids,
-                "uses_tool_component_ids": [],
-                "uses_model_component_ids": [],
-                "uses_memory_component_ids": [],
-                "uses_retriever_component_ids": [],
-                "uses_embedding_component_ids": [],
-                "uses_prompt_component_ids": [],
-            }
-            source_component_ids.append(component_id)
-
-            if component.instance_id:
-                component_ids_by_instance_id[component.instance_id] = component_id
-            component_ids_by_name_and_category[(component.name, component.category)] = (
-                component_id
-            )
-
-        for relationship in source.relationships:
-            if not should_load_components:
-                continue
-
-            source_component_id = _resolve_component_id(
-                relationship.source_instance_id,
-                relationship.source_name,
-                relationship.source_category,
-                component_ids_by_instance_id,
-                component_ids_by_name_and_category,
-            )
-            target_component_id = _resolve_component_id(
-                relationship.target_instance_id,
-                relationship.target_name,
-                relationship.target_category,
-                component_ids_by_instance_id,
-                component_ids_by_name_and_category,
-            )
-
-            if not source_component_id or not target_component_id:
-                logger.warning(
-                    "Skipping unresolved AIBOM relationship %s between %s and %s",
-                    relationship.relationship_type,
-                    relationship.source_instance_id or relationship.source_name,
-                    relationship.target_instance_id or relationship.target_name,
-                )
-                continue
-
-            relationship_field = _RELATIONSHIP_TARGET_FIELD_BY_TYPE.get(
-                relationship.relationship_type,
-            )
-            if relationship_field is None:
-                logger.info(
-                    "Skipping unsupported AIBOM relationship type %s",
-                    relationship.relationship_type,
-                )
-                continue
-
-            source_component_payload = component_payloads_by_id[source_component_id]
-            target_component_ids = source_component_payload[relationship_field]
-            if target_component_id not in target_component_ids:
-                target_component_ids.append(target_component_id)
-
-            normalized_relationship_type = (
-                _NORMALIZED_RELATIONSHIP_TYPE_BY_SOURCE_TYPE.get(
-                    relationship.relationship_type,
-                    relationship.relationship_type,
-                )
-            )
-            relationship_type_counts[normalized_relationship_type] += 1
-
-        source_payloads_by_id[source_id] = {
-            "id": source_id,
-            "image_uri": document.image_uri,
-            "manifest_digests": manifest_digests,
-            "image_matched": bool(manifest_digests),
-            "scan_scope": document.scan_scope,
-            "report_location": document.report_location,
-            "scanner_name": document.scanner_name,
-            "scanner_version": document.scanner_version,
-            "analyzer_version": document.analyzer_version,
-            "analysis_status": document.analysis_status,
-            "report_total_sources": document.total_sources,
-            "report_total_components": document.total_components,
-            "report_total_workflows": document.total_workflows,
-            "report_total_relationships": document.total_relationships,
-            "report_category_summary_json": document.category_summary_json,
-            "source_key": source.source_key,
-            "source_status": source.source_status,
-            "source_kind": source.source_kind,
-            "total_components": source.total_components,
-            "total_workflows": source.total_workflows,
-            "total_relationships": source.total_relationships,
-            "category_summary_json": source.category_summary_json,
-            "component_ids": sorted(set(source_component_ids)),
-            "workflow_ids": sorted(set(source_workflow_ids)),
-        }
-
-    return TransformedAIBOMDocument(
-        source_payloads=list(source_payloads_by_id.values()),
-        component_payloads=list(component_payloads_by_id.values()),
-        workflow_payloads=list(workflow_payloads_by_id.values()),
-        component_category_counts=component_category_counts,
-        relationship_type_counts=relationship_type_counts,
-    )
+    return payloads
