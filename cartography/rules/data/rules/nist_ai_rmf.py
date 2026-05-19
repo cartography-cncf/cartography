@@ -786,8 +786,12 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
 )
 
 
-_anthropic_nist_ai_unowned_or_unscoped_api_keys = Fact(
-    id="anthropic_nist_ai_unowned_or_unscoped_api_keys",
+_anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
+    # Note: the id keeps the historical "stale_or_unscoped" suffix even
+    # though staleness is no longer evaluated. Renaming would break users
+    # and CI that pin the id with `cartography-rules run ... <fact-id>`;
+    # the actual scope is communicated via `name` and `description`.
+    id="anthropic_nist_ai_stale_or_unscoped_api_keys",
     name="Anthropic API keys lacking ownership/scope",
     description=(
         "Finds Anthropic API keys that lack owner attribution or are not "
@@ -852,7 +856,7 @@ nist_ai_provider_api_key_hygiene = Rule(
     output_model=NistAiProviderApiKeyHygieneOutput,
     facts=(
         _openai_nist_ai_stale_or_unowned_api_keys,
-        _anthropic_nist_ai_unowned_or_unscoped_api_keys,
+        _anthropic_nist_ai_stale_or_unscoped_api_keys,
     ),
     tags=("ai", "credentials", "governance", "compliance"),
     version="0.1.0",
