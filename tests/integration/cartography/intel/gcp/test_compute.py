@@ -199,6 +199,26 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
         ),
     }
 
+    # Assert - Ontology projection fields populated from raw API payload
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "creation_timestamp", "private_ip", "public_ip"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "2018-05-10T17:33:24.446-07:00",
+            "10.0.0.2",
+            "1.2.3.4",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "2018-04-19T05:24:54.903-07:00",
+            "10.0.0.3",
+            "1.3.4.5",
+        ),
+    }
+
     # Assert - Project to Instance relationship created
     assert check_rels(
         neo4j_session,

@@ -312,8 +312,23 @@ def transform_gcp_instances(response_objects: list[dict]) -> list[dict]:
             )
             instance["enable_oslogin_metadata"] = metadata_items.get("enable-oslogin")
             instance["serial_port_enable"] = metadata_items.get("serial-port-enable")
+            instance["creation_timestamp"] = instance.get("creationTimestamp")
 
-            for nic in instance.get("networkInterfaces", []):
+            # Project primary IPs onto the instance for the ComputeInstance ontology.
+            # The full set of NIC / access-config IPs stays modelled on
+            # GCPNetworkInterface / GCPNicAccessConfig; these fields just expose the
+            # first pair for cross-cloud semantic queries.
+            network_interfaces = instance.get("networkInterfaces", []) or []
+            primary_nic = network_interfaces[0] if network_interfaces else {}
+            instance["private_ip"] = primary_nic.get("networkIP")
+            primary_access_configs = primary_nic.get("accessConfigs", []) or []
+            instance["public_ip"] = (
+                primary_access_configs[0].get("natIP")
+                if primary_access_configs
+                else None
+            )
+
+            for nic in network_interfaces:
                 nic["subnet_partial_uri"] = _parse_compute_full_uri_to_partial_uri(
                     nic["subnetwork"],
                 )
