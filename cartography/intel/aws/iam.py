@@ -496,7 +496,7 @@ def _load_policies_for_account_tx(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    ingest_users = """
+    ingest_policies = """
     UNWIND $policies_list AS policy
         MERGE (p:AWSPolicy{id: policy.id})
         ON CREATE SET
@@ -519,14 +519,22 @@ def _load_policies_for_account_tx(
                 r.lastupdated = $update_tag
     """
 
-    tx.run(
-        ingest_users,
-        policies_list=policies_list,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        policy_type=PolicyType.managed.value,
-        region="global",
-        update_tag=update_tag,
-    )
+    PAGE_SIZE = 500
+    total = len(policies_list)
+    total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
+    logger.info(f"Loading {total} policies in {total_pages} pages (page size: {PAGE_SIZE}).")
+    for i in range(0, total, PAGE_SIZE):
+        page = policies_list[i:i + PAGE_SIZE]
+        page_num = (i // PAGE_SIZE) + 1
+        logger.info(f"Loading policies page {page_num}/{total_pages} ({len(page)} items).")
+        tx.run(
+            ingest_policies,
+            policies_list=page,
+            AWS_ACCOUNT_ID=current_aws_account_id,
+            policy_type=PolicyType.managed.value,
+            region="global",
+            update_tag=update_tag,
+        )
 
 
 @timeit
