@@ -453,7 +453,6 @@ def transform_gcp_subnets(subnet_res: dict) -> list[dict]:
     return subnet_list
 
 
-@timeit
 # Map forwarding-rule target collection -> ontology `lb_type`. GCP encodes the load
 # balancer family in the target proxy resource path (e.g. targetHttpsProxies, targetPools).
 _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
@@ -481,6 +480,7 @@ def _derive_forwarding_rule_lb_type(target: str | None) -> str | None:
     return None
 
 
+@timeit
 def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
     """
     Add additional fields to the forwarding rule object to make it easier to process in `load_gcp_forwarding_rules()`.

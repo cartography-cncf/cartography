@@ -1063,3 +1063,17 @@ def start_gcp_ingestion(
             neo4j_session,
             common_job_parameters,
         )
+
+    # Derive `_ont_public` on GCPBucket from ACLs (collected at sync time) and
+    # public IAM bindings (collected by the policy_bindings sync). Run only when
+    # both upstream syncs were requested so we don't operate on stale data.
+    storage_requested = requested_syncs is None or "storage" in requested_syncs
+    policy_bindings_requested = (
+        requested_syncs is None or "policy_bindings" in requested_syncs
+    )
+    if storage_requested and policy_bindings_requested:
+        run_analysis_job(
+            "gcp_bucket_public_projection.json",
+            neo4j_session,
+            common_job_parameters,
+        )

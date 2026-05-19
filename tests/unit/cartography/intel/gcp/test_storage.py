@@ -24,6 +24,8 @@ def test_transform_gcp_buckets():
     assert bucket["location"] == "US"
     assert bucket["location_type"] == "multi-region"
     assert bucket["storage_class"] == "STANDARD"
+    # `allUsers` reader in `acl` -> ACL-based public exposure
+    assert bucket["acl_public"] is True
 
     # Test labels
     assert len(labels) == 2

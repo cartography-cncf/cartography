@@ -36,7 +36,10 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
     :return: Storage response object
     """
     try:
-        req = storage.buckets().list(project=project_id)
+        # `projection=full` is required to get the `acl` / `defaultObjectAcl`
+        # arrays back; the default `noAcl` projection strips them, which would
+        # leave legacy-ACL public buckets undetectable.
+        req = storage.buckets().list(project=project_id, projection="full")
         res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
@@ -70,7 +73,17 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
 
     buckets: List[Dict] = []
     labels: List[Dict] = []
+    public_entities = {"allUsers", "allAuthenticatedUsers"}
     for b in bucket_res.get("items", []):
+        # Legacy bucket / default-object ACLs can expose a bucket publicly without any
+        # IAM binding. Detect either form so the ontology `_ont_public` projection
+        # covers buckets that still rely on ACLs (uniformBucketLevelAccess=false).
+        acl_public = any(
+            entry.get("entity") in public_entities for entry in (b.get("acl") or [])
+        ) or any(
+            entry.get("entity") in public_entities
+            for entry in (b.get("defaultObjectAcl") or [])
+        )
         bucket = {
             "iam_config_bucket_policy_only": (
                 b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
@@ -96,6 +109,7 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
             "default_kms_key_name": b.get("encryption", {}).get("defaultKmsKeyName"),
             "log_bucket": b.get("logging", {}).get("logBucket"),
             "requester_pays": b.get("billing", {}).get("requesterPays"),
+            "acl_public": acl_public,
         }
         buckets.append(bucket)
         for key, val in b.get("labels", {}).items():

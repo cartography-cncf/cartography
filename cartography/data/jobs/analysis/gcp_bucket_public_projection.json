@@ -1,0 +1,10 @@
+{
+  "name": "Ontology - GCP bucket public projection",
+  "statements": [
+    {
+      "__comment": "Project `_ont_public` on GCPBucket. A bucket is considered public when either (a) a legacy ACL or default object ACL exposes it to `allUsers` / `allAuthenticatedUsers` — captured at sync time as the `acl_public` field — or (b) at least one IAM policy binding tagged `is_public = true` is attached via `APPLIES_TO`. Either signal is sufficient; absence of both yields `false` so rules can rely on a non-null boolean.",
+      "query": "MATCH (b:GCPBucket) SET b._ont_public = COALESCE(b.acl_public, false) OR EXISTS((b)<-[:APPLIES_TO]-(:GCPPolicyBinding {is_public: true}))",
+      "iterative": false
+    }
+  ]
+}
