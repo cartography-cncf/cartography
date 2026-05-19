@@ -233,7 +233,7 @@ def transform_key_vault_secrets(secrets: List[Dict], vault_id: str, common_job_p
     secrets_data = []
     for secret in secrets:
         secret['consolelink'] = azure_console_link.get_console_link(
-            id=secret['properties']['secret_uri'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            id=secret.get('properties', {}).get('secret_uri', ''), primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
         )
         secret['vault_id'] = vault_id
         secrets_data.append(secret)
