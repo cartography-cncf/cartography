@@ -891,6 +891,10 @@ def start_gcp_ingestion(
     # Track org cleanup jobs to run at the very end
     org_cleanup_jobs = []
 
+    # True only if policy bindings were synced successfully for every org in this run.
+    # Used to gate analysis jobs that depend on fresh APPLIES_TO edges from policy bindings.
+    all_policy_bindings_synced = True
+
     # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
     for org in orgs:
         org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
@@ -957,6 +961,8 @@ def start_gcp_ingestion(
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
         )
+        if not project_resources_result.policy_bindings_cleanup_safe:
+            all_policy_bindings_synced = False
         if project_resources_result.policy_bindings_cleanup_safe:
             policy_bindings.cleanup_inherited_policy_bindings(
                 neo4j_session,
@@ -1065,15 +1071,23 @@ def start_gcp_ingestion(
         )
 
     # Derive `_ont_public` on GCPBucket from ACLs (collected at sync time) and
-    # public IAM bindings (collected by the policy_bindings sync). Run only when
-    # both upstream syncs were requested so we don't operate on stale data.
+    # public IAM bindings (collected by the policy_bindings sync). Require storage
+    # to have been requested AND policy_bindings to have actually succeeded for
+    # every org — otherwise APPLIES_TO edges may be stale (cleanup is skipped on
+    # failed binding syncs) and would yield false `_ont_public` values.
     storage_requested = requested_syncs is None or "storage" in requested_syncs
     policy_bindings_requested = (
         requested_syncs is None or "policy_bindings" in requested_syncs
     )
-    if storage_requested and policy_bindings_requested:
+    if storage_requested and policy_bindings_requested and all_policy_bindings_synced:
         run_analysis_job(
             "gcp_bucket_public_projection.json",
             neo4j_session,
             common_job_parameters,
+        )
+    elif storage_requested and policy_bindings_requested:
+        logger.warning(
+            "Skipping GCP bucket _ont_public projection because policy bindings "
+            "sync did not succeed for every org. Existing _ont_public values "
+            "remain in place to avoid acting on stale APPLIES_TO edges."
         )
