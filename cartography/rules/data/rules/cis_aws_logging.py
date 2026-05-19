@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_aws
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -89,13 +90,9 @@ cis_aws_4_1_cloudtrail_multi_region = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.1",
-        ),
+        cis_aws("4.1"),
+        iso27001_annex_a("8.15"),
+        iso27001_annex_a("8.16"),
     ),
 )
 
@@ -161,13 +158,8 @@ cis_aws_4_2_cloudtrail_log_validation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.2",
-        ),
+        cis_aws("4.2"),
+        iso27001_annex_a("8.15"),
     ),
 )
 
@@ -237,13 +229,8 @@ cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.4",
-        ),
+        cis_aws("4.4"),
+        iso27001_annex_a("8.15"),
     ),
 )
 
@@ -309,13 +296,8 @@ cis_aws_4_5_cloudtrail_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.5",
-        ),
+        cis_aws("4.5"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -347,4 +329,11 @@ cis_aws_4_5_cloudtrail_encryption = Rule(
 # =============================================================================
 # TODO: CIS AWS 5.16: AWS Security Hub is enabled
 # Missing datamodel or evidence: Security Hub regional hub subscription state
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 8.15 and 8.16: Broader logging and monitoring coverage
+# Missing datamodel or evidence: AWS Config recorder status, CloudWatch alarm
+# configuration, metric filters, Security Hub state, VPC flow logs, and S3 data
+# event selectors.
 # =============================================================================
