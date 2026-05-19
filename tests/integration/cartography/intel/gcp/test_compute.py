@@ -561,6 +561,12 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
             "project-abc",
             "europe-west2",
         ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "10.0.0.30",
+            "project-abc",
+            "europe-west2",
+        ),
     }
 
     # Assert - lb_type derived from the target proxy / pool collection
@@ -581,6 +587,12 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
         (
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
             "network",
+        ),
+        # Backend-service-only forwarding rule (no `target`): lb_type falls back
+        # to the backendService collection => "tcp".
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "tcp",
         ),
     }
 
@@ -661,6 +673,10 @@ def test_sync_gcp_forwarding_rules_with_relationships(
         (
             "projects/project-abc/regions/europe-west2/subnetworks/default",
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
         ),
     }
 

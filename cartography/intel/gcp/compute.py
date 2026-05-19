@@ -468,15 +468,18 @@ _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
 }
 
 
-def _derive_forwarding_rule_lb_type(target: str | None) -> str | None:
-    if not target:
-        return None
-    # Target URIs look like ".../{collection}/{name}". Walk the segments in reverse so
-    # we ignore the trailing name and stop at the first segment we recognise.
-    segments = target.split("/")
-    for segment in reversed(segments):
-        if segment in _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND:
-            return _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND[segment]
+def _derive_forwarding_rule_lb_type(*uris: str | None) -> str | None:
+    # Forwarding rules either reference a target proxy / pool URI (`target`) or,
+    # for internal LBs, point straight at a backend service (`backendService`).
+    # Inspect each candidate URI in order and stop at the first known collection
+    # segment. Target URIs look like ".../{collection}/{name}", so we walk segments
+    # in reverse to ignore the trailing resource name.
+    for uri in uris:
+        if not uri:
+            continue
+        for segment in reversed(uri.split("/")):
+            if segment in _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND:
+                return _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND[segment]
     return None
 
 
@@ -515,7 +518,12 @@ def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
             forwarding_rule["target"] = _parse_compute_full_uri_to_partial_uri(target)
         else:
             forwarding_rule["target"] = None
-        forwarding_rule["lb_type"] = _derive_forwarding_rule_lb_type(target)
+        # Internal regional LBs front a backend service directly and omit `target`,
+        # so fall back to the `backendService` URI to recover an lb_type for them.
+        forwarding_rule["lb_type"] = _derive_forwarding_rule_lb_type(
+            target,
+            fwd.get("backendService"),
+        )
 
         network = fwd.get("network", None)
         if network:
