@@ -174,7 +174,8 @@ def load_vms(neo4j_session: neo4j.Session, subscription_id: str, vm_list: List[D
     )
 
     for vm in vm_list:
-        load_vm_os_disk(neo4j_session, vm['id'], vm['storage_profile']['os_disk'], update_tag)
+        if vm.get('storage_profile', {}).get('os_disk'):
+            load_vm_os_disk(neo4j_session, vm['id'], vm['storage_profile']['os_disk'], update_tag)
         if vm.get('storage_profile', {}).get('data_disks'):
             load_vm_data_disks(neo4j_session, vm['id'], vm['storage_profile']['data_disks'], update_tag)
 
