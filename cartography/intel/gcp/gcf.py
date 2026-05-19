@@ -89,6 +89,22 @@ def transform_gcp_cloud_functions(
             "resource"
         )
 
+        # Normalise memory/timeout for the Function ontology. GCF exposes memory as
+        # `availableMemoryMb` (int MB) and timeout as a string with a trailing "s"
+        # suffix (Duration format, e.g. "60s").
+        available_memory_mb = func_data.get("availableMemoryMb")
+        func_data["available_memory_mb"] = available_memory_mb
+        timeout_raw = func_data.get("timeout")
+        if isinstance(timeout_raw, str) and timeout_raw.endswith("s"):
+            try:
+                func_data["timeout"] = int(timeout_raw[:-1])
+            except ValueError:
+                func_data["timeout"] = None
+        elif isinstance(timeout_raw, (int, float)):
+            func_data["timeout"] = int(timeout_raw)
+        else:
+            func_data["timeout"] = None
+
         # Parse the region and group the function data
         region = _parse_region_from_name(func_data.get("name", ""))
         if region not in transformed_and_grouped_by_region:

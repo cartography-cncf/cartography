@@ -78,6 +78,24 @@ def test_gcp_functions_load_and_relationships(
     }
     assert check_nodes(neo4j_session, "GCPCloudFunction", ["id"]) == expected_nodes
 
+    # Assert: memory/timeout normalised from `availableMemoryMb` / "60s"-style fields
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudFunction",
+        ["id", "available_memory_mb", "timeout"],
+    ) == {
+        (
+            "projects/test-project/locations/us-central1/functions/function-1",
+            256,
+            60,
+        ),
+        (
+            "projects/test-project/locations/us-east1/functions/function-2",
+            512,
+            120,
+        ),
+    }
+
     # Assert: Test that the (GCPProject)-[:RESOURCE]->(GCPCloudFunction) relationships exist
     expected_rels = {
         (

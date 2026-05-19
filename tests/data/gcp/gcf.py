@@ -11,6 +11,8 @@ GCF_RESPONSE = {
             },
             "updateTime": "2023-01-01T10:00:00Z",
             "serviceAccountEmail": "service-1@test-project.iam.gserviceaccount.com",
+            "availableMemoryMb": 256,
+            "timeout": "60s",
         },
         {
             "name": "projects/test-project/locations/us-east1/functions/function-2",
@@ -24,6 +26,8 @@ GCF_RESPONSE = {
             },
             "updateTime": "2023-02-01T11:00:00Z",
             "serviceAccountEmail": "service-2@test-project.iam.gserviceaccount.com",
+            "availableMemoryMb": 512,
+            "timeout": "120s",
         },
     ],
 }
