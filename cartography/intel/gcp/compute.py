@@ -454,6 +454,33 @@ def transform_gcp_subnets(subnet_res: dict) -> list[dict]:
 
 
 @timeit
+# Map forwarding-rule target collection -> ontology `lb_type`. GCP encodes the load
+# balancer family in the target proxy resource path (e.g. targetHttpsProxies, targetPools).
+_FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
+    "targetHttpProxies": "http",
+    "targetHttpsProxies": "https",
+    "targetTcpProxies": "tcp",
+    "targetSslProxies": "ssl",
+    "targetGrpcProxies": "grpc",
+    "targetPools": "network",
+    "backendServices": "tcp",
+    "targetInstances": "network",
+    "targetVpnGateways": "vpn",
+}
+
+
+def _derive_forwarding_rule_lb_type(target: str | None) -> str | None:
+    if not target:
+        return None
+    # Target URIs look like ".../{collection}/{name}". Walk the segments in reverse so
+    # we ignore the trailing name and stop at the first segment we recognise.
+    segments = target.split("/")
+    for segment in reversed(segments):
+        if segment in _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND:
+            return _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND[segment]
+    return None
+
+
 def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
     """
     Add additional fields to the forwarding rule object to make it easier to process in `load_gcp_forwarding_rules()`.
@@ -488,6 +515,7 @@ def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
             forwarding_rule["target"] = _parse_compute_full_uri_to_partial_uri(target)
         else:
             forwarding_rule["target"] = None
+        forwarding_rule["lb_type"] = _derive_forwarding_rule_lb_type(target)
 
         network = fwd.get("network", None)
         if network:

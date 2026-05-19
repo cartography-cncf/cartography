@@ -563,6 +563,27 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
         ),
     }
 
+    # Assert - lb_type derived from the target proxy / pool collection
+    assert check_nodes(
+        neo4j_session,
+        "GCPForwardingRule",
+        ["id", "lb_type"],
+    ) == {
+        ("projects/project-abc/global/forwardingRules/global-rule-1", "https"),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+            "network",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
+            "vpn",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+            "network",
+        ),
+    }
+
 
 @patch.object(
     cartography.intel.gcp.compute,
