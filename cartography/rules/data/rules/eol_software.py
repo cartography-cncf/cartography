@@ -17,6 +17,7 @@ _OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR = 30
 # https://learn.microsoft.com/en-us/azure/aks/supported-kubernetes-versions
 _OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR = 33
 _AMAZON_LINUX_2_EOL_DATE = "2026-06-30"
+_INGRESS_NGINX_EOL_DATE = "2026-03-24"
 
 EOL_SOFTWARE_REFERENCES = [
     RuleReference(
@@ -51,6 +52,18 @@ EOL_SOFTWARE_REFERENCES = [
         text="AWS Systems Manager InstanceInformation API",
         url="https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html",
     ),
+    RuleReference(
+        text="Ingress NGINX Retirement",
+        url="https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/",
+    ),
+    RuleReference(
+        text="Ingress NGINX retirement statement",
+        url="https://kubernetes.io/blog/2026/01/29/ingress-nginx-statement/",
+    ),
+    RuleReference(
+        text="kubernetes/ingress-nginx archived repository",
+        url="https://github.com/kubernetes/ingress-nginx",
+    ),
 ]
 
 
@@ -73,6 +86,74 @@ def _build_ec2_instance_amazon_linux_2_eol_query(
            'vendor' AS support_basis,
            'eol' AS support_status
     ORDER BY asset_name
+    """
+
+
+def _build_kubernetes_ingress_nginx_eol_query(
+    current_date_expression: str = "date()",
+) -> str:
+    return f"""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+    WITH cluster, pod, container,
+         replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
+         toLower(coalesce(container.image, '')) AS image
+    WITH cluster, pod, container, labels_compacted, image,
+         labels_compacted CONTAINS '"app.kubernetes.io/name":"ingress-nginx"'
+             AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
+             AS has_controller_labels,
+         image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
+    WHERE {current_date_expression} > date('{_INGRESS_NGINX_EOL_DATE}')
+      AND (has_controller_labels OR has_controller_image)
+    WITH cluster, pod, container, labels_compacted, image,
+         CASE
+             WHEN labels_compacted CONTAINS '"app.kubernetes.io/instance":"'
+             THEN split(split(labels_compacted, '"app.kubernetes.io/instance":"')[1], '"')[0]
+             ELSE 'ingress-nginx'
+         END AS controller_instance,
+         CASE
+             WHEN labels_compacted CONTAINS '"app.kubernetes.io/version":"'
+             THEN split(split(labels_compacted, '"app.kubernetes.io/version":"')[1], '"')[0]
+             WHEN image CONTAINS '/ingress-nginx/controller:'
+             THEN split(split(image, '/ingress-nginx/controller:')[1], '@')[0]
+             ELSE NULL
+         END AS software_version_raw
+    WITH cluster, pod, container, controller_instance,
+         CASE
+             WHEN software_version_raw STARTS WITH 'v'
+             THEN substring(software_version_raw, 1)
+             ELSE software_version_raw
+         END AS software_version
+    WITH cluster,
+         coalesce(pod.namespace, container.namespace, 'default') AS namespace,
+         controller_instance,
+         software_version,
+         CASE
+             WHEN software_version IS NULL OR size(split(software_version, '.')) < 1 THEN NULL
+             ELSE toInteger(split(software_version, '.')[0])
+         END AS software_major,
+         CASE
+             WHEN software_version IS NULL OR size(split(software_version, '.')) < 2 THEN NULL
+             ELSE toInteger(split(split(software_version, '.')[1], '-')[0])
+         END AS software_minor
+    WITH DISTINCT cluster, namespace, controller_instance,
+                  software_version, software_major, software_minor
+    RETURN coalesce(cluster.id, cluster.name, 'unknown-cluster')
+               + '/namespaces/' + namespace
+               + '/ingress-controllers/' + controller_instance
+               + '/' + coalesce(software_version, 'unknown') AS asset_id,
+           coalesce(cluster.name, cluster.id, 'unknown-cluster')
+               + '/' + namespace
+               + '/' + controller_instance AS asset_name,
+           'KubernetesIngressController' AS asset_type,
+           'ingress-nginx' AS software_name,
+           software_version AS software_version,
+           software_major AS software_major,
+           software_minor AS software_minor,
+           NULL AS location,
+           'upstream' AS support_basis,
+           'eol' AS support_status
+    ORDER BY asset_name, software_version
     """
 
 
@@ -309,6 +390,78 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
+
+_kubernetes_ingress_nginx_controller_eol = Fact(
+    id="kubernetes_ingress_nginx_controller_eol",
+    name="Kubernetes clusters running retired ingress-nginx controllers",
+    description=(
+        "Detects Kubernetes ingress-nginx controller workloads after the "
+        "upstream ingress-nginx project retirement date. The project was "
+        "retired in March 2026 and no longer receives bug fixes or security "
+        "updates."
+    ),
+    cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
+    cypher_visual_query=f"""
+    MATCH controller_path=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+    WITH controller_path, cluster, pod, container,
+         replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
+         toLower(coalesce(container.image, '')) AS image
+    WITH controller_path, cluster, pod, container, labels_compacted, image,
+         labels_compacted CONTAINS '"app.kubernetes.io/name":"ingress-nginx"'
+             AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
+             AS has_controller_labels,
+         image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
+    WHERE date() > date('{_INGRESS_NGINX_EOL_DATE}')
+      AND (has_controller_labels OR has_controller_image)
+    RETURN cluster, pod, container, controller_path
+    """,
+    cypher_count_query=f"""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+    WITH cluster, pod, container,
+         replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
+         toLower(coalesce(container.image, '')) AS image
+    WITH cluster, pod, container, labels_compacted, image,
+         labels_compacted CONTAINS '"app.kubernetes.io/name":"ingress-nginx"'
+             AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
+             AS has_controller_labels,
+         image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
+    WHERE date() > date('{_INGRESS_NGINX_EOL_DATE}')
+      AND (has_controller_labels OR has_controller_image)
+    WITH cluster, pod, container, labels_compacted, image,
+         CASE
+             WHEN labels_compacted CONTAINS '"app.kubernetes.io/instance":"'
+             THEN split(split(labels_compacted, '"app.kubernetes.io/instance":"')[1], '"')[0]
+             ELSE 'ingress-nginx'
+         END AS controller_instance,
+         CASE
+             WHEN labels_compacted CONTAINS '"app.kubernetes.io/version":"'
+             THEN split(split(labels_compacted, '"app.kubernetes.io/version":"')[1], '"')[0]
+             WHEN image CONTAINS '/ingress-nginx/controller:'
+             THEN split(split(image, '/ingress-nginx/controller:')[1], '@')[0]
+             ELSE NULL
+         END AS software_version_raw
+    WITH DISTINCT coalesce(cluster.id, cluster.name, 'unknown-cluster')
+             + '/namespaces/' + coalesce(pod.namespace, container.namespace, 'default')
+             + '/ingress-controllers/' + controller_instance
+             + '/'
+             + coalesce(
+                 CASE
+                     WHEN software_version_raw STARTS WITH 'v'
+                     THEN substring(software_version_raw, 1)
+                     ELSE software_version_raw
+                 END,
+                 'unknown'
+             ) AS asset_id
+    RETURN COUNT(asset_id) AS count
+    """,
+    asset_id_field="asset_id",
+    module=Module.KUBERNETES,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 _ec2_instance_amazon_linux_2_eol = Fact(
     id="ec2_instance_amazon_linux_2_eol",
     name="EC2 instances running end-of-life Amazon Linux 2",
@@ -360,7 +513,9 @@ eol_software = Rule(
         "The initial coverage flags raw Kubernetes clusters using the upstream "
         "Kubernetes support window and EKS clusters using the Amazon EKS "
         "provider lifecycle. It also flags EC2 instances that AWS SSM reports "
-        "as running Amazon Linux 2 after the vendor end-of-life date."
+        "as running Amazon Linux 2 after the vendor end-of-life date and "
+        "Kubernetes ingress-nginx controllers after the upstream project "
+        "retirement date."
     ),
     output_model=EOLSoftwareOutput,
     facts=(
@@ -368,6 +523,7 @@ eol_software = Rule(
         _gke_cluster_kubernetes_version_eol,
         _aks_cluster_kubernetes_version_eol,
         _kubernetes_cluster_kubernetes_version_eol,
+        _kubernetes_ingress_nginx_controller_eol,
         _ec2_instance_amazon_linux_2_eol,
     ),
     tags=(
@@ -378,7 +534,7 @@ eol_software = Rule(
         "lifecycle",
         "compliance",
     ),
-    version="0.2.0",
+    version="0.3.0",
     references=EOL_SOFTWARE_REFERENCES,
     frameworks=(iso27001_annex_a("8.8"),),
 )
