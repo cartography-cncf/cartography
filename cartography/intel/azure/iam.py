@@ -432,16 +432,28 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
             members.extend(response.value)
 
         if members:
+            async def _fetch_subgroup_members(sub_group_id: str) -> List[Dict]:
+                inherited: List[Dict] = []
+                resp = await client.groups.by_group_id(sub_group_id).members.get()
+                inherited.extend(resp.value)
+                while resp.odata_next_link:
+                    resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+                    inherited.extend(resp.value)
+                return inherited
+
+            sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
+            sub_group_results = await asyncio.gather(
+                *[_fetch_subgroup_members(gid) for gid in sub_group_ids],
+                return_exceptions=True,
+            )
+            sub_group_members_map = {}
+            for gid, result in zip(sub_group_ids, sub_group_results):
+                if not isinstance(result, Exception):
+                    sub_group_members_map[gid] = result
+
             for member in members:
                 if member.odata_type == "#microsoft.graph.group":
-                    inherited_members: List[Dict] = []
-                    response = await client.groups.by_group_id(member.id).members.get()
-                    inherited_members.extend(response.value)
-
-                    while response.odata_next_link:
-                        response = await client.groups.by_group_id(member.id).members.with_url(response.odata_next_link).get()
-                        inherited_members.extend(response.value)
-                    for inherited_member in inherited_members:
+                    for inherited_member in sub_group_members_map.get(member.id, []):
                         members_data.append({
                             "id": inherited_member.id,
                             "display_name": inherited_member.display_name,
@@ -979,21 +991,22 @@ def _load_roles_tx(
     )
 
     attach_role = """
-    MATCH (principal:AzurePrincipal{object_id: $principal_id})
-    WITH principal
-    MATCH (i:AzureRole{id: $role})
-    WITH i,principal
+    UNWIND $role_assignments AS ra
+    MATCH (principal:AzurePrincipal{object_id: ra.principal_id})
+    WITH principal, ra
+    MATCH (i:AzureRole{id: ra.role_id})
     MERGE (principal)-[r:ASSUME_ROLE]->(i)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag
     """
-    for role_assignment in role_assignments_list:
-        tx.run(
-            attach_role,
-            role=role_assignment.get('role_definition_id', role_assignment.get('properties', {}).get('role_definition_id')),
-            principal_id=role_assignment.get('principal_id', role_assignment.get('properties', {}).get('principal_id')),
-            update_tag=update_tag,
-        )
+    prepared_assignments = [
+        {
+            "role_id": ra.get('role_definition_id', ra.get('properties', {}).get('role_definition_id')),
+            "principal_id": ra.get('principal_id', ra.get('properties', {}).get('principal_id')),
+        }
+        for ra in role_assignments_list
+    ]
+    tx.run(attach_role, role_assignments=prepared_assignments, update_tag=update_tag)
 
 
 def _load_managed_identities_tx(
@@ -1122,11 +1135,17 @@ async def sync_scoped_users_and_groups(
     if not scoped_groups:
         return set()
 
-    # 2. Fetch members for each scoped group
+    # 2. Fetch members for all scoped groups concurrently
     all_memberships = []
     all_member_ids = set()
-    for group in scoped_groups:
-        memberships = await get_group_members(credentials, group["id"])
+    membership_results = await asyncio.gather(
+        *[get_group_members(credentials, group["id"]) for group in scoped_groups],
+        return_exceptions=True,
+    )
+    for memberships in membership_results:
+        if isinstance(memberships, Exception):
+            logger.warning(f"Error fetching group members: {memberships}")
+            continue
         if memberships:
             all_memberships.extend(memberships)
             for member in memberships:
@@ -1193,15 +1212,17 @@ async def async_sync(
                     update_tag, common_job_parameters,
                 )
 
-            await sync_tenant_applications(
-                neo4j_session, credentials,
-                tenant_id, update_tag, common_job_parameters,
+            await asyncio.gather(
+                sync_tenant_applications(
+                    neo4j_session, credentials,
+                    tenant_id, update_tag, common_job_parameters,
+                ),
+                sync_tenant_service_accounts(
+                    neo4j_session, credentials,
+                    tenant_id, update_tag, common_job_parameters,
+                ),
+                sync_tenant_domains(neo4j_session, credentials, tenant_id, update_tag, common_job_parameters),
             )
-            await sync_tenant_service_accounts(
-                neo4j_session, credentials,
-                tenant_id, update_tag, common_job_parameters,
-            )
-            await sync_tenant_domains(neo4j_session, credentials, tenant_id, update_tag, common_job_parameters)
             sync_managed_identity(
                 neo4j_session, credentials, tenant_id, update_tag, common_job_parameters,
             )
