@@ -470,6 +470,40 @@ def test_discover_aws_organization_candidates_keeps_account_order(mocker):
     )
 
 
+def test_discover_aws_organization_candidates_warns_when_default_session_truncates(
+    mocker,
+    caplog,
+):
+    # Arrange
+    def fake_discover(profile_name, account_id, use_explicit_profile):
+        return cartography.intel.aws.AWSOrganizationDiscoveryCandidate(
+            profile_name,
+            account_id,
+            organization_id=f"org-{account_id}",
+        )
+
+    mocker.patch.object(
+        cartography.intel.aws,
+        "_discover_aws_organization_candidate",
+        side_effect=fake_discover,
+    )
+
+    # Act
+    candidates = cartography.intel.aws._discover_aws_organization_candidates(
+        TEST_ACCOUNTS,
+        use_explicit_profile=False,
+    )
+
+    # Assert
+    assert [(c.profile_name, c.account_id) for c in candidates] == [
+        ("profile1", "000000000000"),
+    ]
+    assert (
+        "AWS Organizations discovery is using the default AWS session, so only the first configured AWS account"
+        in caplog.text
+    )
+
+
 @mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")

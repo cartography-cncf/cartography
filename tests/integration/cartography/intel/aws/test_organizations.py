@@ -678,12 +678,12 @@ def test_sync_aws_organization_cleans_deleted_ous_without_deleting_accounts(
     assert check_nodes(
         neo4j_session,
         "AWSAccount",
-        ["id", "org_id", "state", "inscope"],
+        ["id", "org_id", "state", "inscope", "lastupdated"],
     ) == {
-        ("111111111111", "o-exampleorgid", "ACTIVE", None),
-        ("222222222222", "o-exampleorgid", "ACTIVE", None),
-        ("333333333333", "o-exampleorgid", "SUSPENDED", None),
-        ("444444444444", None, None, None),
+        ("111111111111", "o-exampleorgid", "ACTIVE", None, TEST_SECOND_UPDATE_TAG),
+        ("222222222222", "o-exampleorgid", "ACTIVE", None, TEST_SECOND_UPDATE_TAG),
+        ("333333333333", "o-exampleorgid", "SUSPENDED", None, TEST_SECOND_UPDATE_TAG),
+        ("444444444444", None, None, None, TEST_SECOND_UPDATE_TAG),
     }
     assert check_rels(
         neo4j_session,

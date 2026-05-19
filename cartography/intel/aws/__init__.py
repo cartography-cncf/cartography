@@ -336,6 +336,12 @@ def _discover_aws_organization_candidates(
     use_explicit_profile: bool,
 ) -> list[AWSOrganizationDiscoveryCandidate]:
     account_items = list(accounts.items())
+    if not use_explicit_profile and len(account_items) > 1:
+        logger.warning(
+            "AWS Organizations discovery is using the default AWS session, so only the first configured AWS account "
+            "(%s) will be probed. Use --aws-sync-all-profiles to probe multiple configured profiles.",
+            account_items[0][1],
+        )
     if not use_explicit_profile:
         account_items = account_items[:1]
     if not account_items:

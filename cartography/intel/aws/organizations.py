@@ -3,7 +3,6 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-from typing import Dict
 from typing import Iterable
 
 import boto3
@@ -89,12 +88,12 @@ def get_account_from_arn(arn: str) -> str:
     return arn.split(":")[4]
 
 
-def get_caller_identity(boto3_session: boto3.session.Session) -> Dict:
+def get_caller_identity(boto3_session: boto3.session.Session) -> dict[str, Any]:
     client = create_boto3_client(boto3_session, "sts")
     return client.get_caller_identity()
 
 
-def get_current_aws_account_id(boto3_session: boto3.session.Session) -> Dict:
+def get_current_aws_account_id(boto3_session: boto3.session.Session) -> str:
     return get_caller_identity(boto3_session)["Account"]
 
 
@@ -317,7 +316,7 @@ def get_aws_organization_hierarchy(
     return roots, organizational_units, accounts
 
 
-def get_aws_account_default(boto3_session: boto3.session.Session) -> Dict:
+def get_aws_account_default(boto3_session: boto3.session.Session) -> dict[str, str]:
     try:
         return {boto3_session.profile_name: get_current_aws_account_id(boto3_session)}
     except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
@@ -336,7 +335,9 @@ def get_aws_account_default(boto3_session: boto3.session.Session) -> Dict:
         return {}
 
 
-def get_aws_accounts_from_botocore_config(boto3_session: boto3.session.Session) -> Dict:
+def get_aws_accounts_from_botocore_config(
+    boto3_session: boto3.session.Session,
+) -> dict[str, str]:
     d = {}
     for profile_name in boto3_session.available_profiles:
         if profile_name == "default":
@@ -421,9 +422,9 @@ def load_aws_account_nodes_from_organization(
 
 def load_aws_accounts(
     neo4j_session: neo4j.Session,
-    aws_accounts: Dict,
+    aws_accounts: dict[str, str],
     aws_update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     account_data = [
         {
@@ -446,9 +447,9 @@ def load_aws_accounts(
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    accounts: Dict,
+    accounts: dict[str, str],
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     load_aws_accounts(neo4j_session, accounts, update_tag, common_job_parameters)
 
@@ -550,6 +551,7 @@ def cleanup_stale_aws_account_organization_metadata(
     neo4j_session: neo4j.Session,
     organization_id: str,
     current_account_ids: Iterable[str],
+    update_tag: int,
 ) -> None:
     run_write_query(
         neo4j_session,
@@ -562,10 +564,12 @@ def cleanup_stale_aws_account_organization_metadata(
             account.status = null,
             account.joined_method = null,
             account.joined_timestamp = null,
-            account.org_id = null
+            account.org_id = null,
+            account.lastupdated = $UPDATE_TAG
         """,
         ORG_ID=organization_id,
         CURRENT_ACCOUNT_IDS=list(current_account_ids),
+        UPDATE_TAG=update_tag,
     )
 
 
@@ -575,7 +579,7 @@ def sync_aws_organization(
     organizations_client: Any,
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> AWSOrganizationSyncResult:
     try:
         organization = get_aws_organization(organizations_client)
@@ -688,6 +692,7 @@ def sync_aws_organization(
         neo4j_session,
         organization_id,
         (account["Id"] for account in raw_accounts),
+        update_tag,
     )
     synced_organization_ids.append(organization_id)
     return AWSOrganizationSyncResult(
