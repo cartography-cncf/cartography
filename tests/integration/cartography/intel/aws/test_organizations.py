@@ -4,6 +4,7 @@ import botocore.exceptions
 import pytest
 
 import cartography.intel.aws.organizations
+from cartography.client.core.tx import run_write_query
 from tests.data.aws.organizations import TEST_ACCOUNTS
 from tests.data.aws.organizations import TEST_ACCOUNTS_FOR_PARENT
 from tests.data.aws.organizations import TEST_ORGANIZATION
@@ -225,17 +226,21 @@ def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
     Ensure configured AWS accounts are removed from foreign account classification.
     """
     # Arrange
-    neo4j_session.run(
+    account_name = "test-account-1"
+    account_id = TEST_ACCOUNTS[account_name]
+    run_write_query(
+        neo4j_session,
         """
-        MERGE (account:AWSAccount {id: "111111111111"})
+        MERGE (account:AWSAccount {id: $ACCOUNT_ID})
         SET account.foreign = true
         """,
+        ACCOUNT_ID=account_id,
     )
 
     # Act
     cartography.intel.aws.organizations.sync(
         neo4j_session,
-        {"test-account-1": "111111111111"},
+        {account_name: account_id},
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -246,7 +251,7 @@ def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
         "AWSAccount",
         ["id", "name", "inscope", "foreign"],
     ) == {
-        ("111111111111", "test-account-1", True, None),
+        (account_id, account_name, True, None),
     }
 
 
