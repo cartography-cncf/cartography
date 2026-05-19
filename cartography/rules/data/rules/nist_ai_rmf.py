@@ -786,12 +786,14 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
 )
 
 
-_anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
-    id="anthropic_nist_ai_stale_or_unscoped_api_keys",
-    name="Anthropic API keys stale/unused or lacking ownership/scope",
+_anthropic_nist_ai_unowned_or_unscoped_api_keys = Fact(
+    id="anthropic_nist_ai_unowned_or_unscoped_api_keys",
+    name="Anthropic API keys lacking ownership/scope",
     description=(
-        "Finds Anthropic API keys that are stale/unused (90+ days), lack owner "
-        "attribution, or are not scoped to a workspace."
+        "Finds Anthropic API keys that lack owner attribution or are not "
+        "scoped to a workspace. Staleness (last-used age) is not checked: "
+        "the Anthropic Admin API does not return last-used metadata for "
+        "API keys, so it cannot be evaluated from graph data."
     ),
     cypher_query="""
     MATCH (org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
@@ -803,18 +805,8 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
         k,
         has_owner,
         workspace,
-        CASE
-            WHEN k.last_used_at IS NULL THEN true
-            ELSE datetime(k.last_used_at) < datetime() - duration('P90D')
-        END AS is_stale_or_unused
-    WITH
-        org,
-        k,
-        has_owner,
-        workspace,
-        is_stale_or_unused,
         workspace IS NOT NULL AS has_project_or_workspace_scope
-    WHERE is_stale_or_unused OR NOT has_owner OR NOT has_project_or_workspace_scope
+    WHERE NOT has_owner OR NOT has_project_or_workspace_scope
     RETURN
         'anthropic' AS provider,
         org.id AS organization_id,
@@ -823,8 +815,8 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
         k.name AS api_key_name,
         coalesce(k.status, 'unknown') AS status,
         toString(k.created_at) AS created_at,
-        toString(k.last_used_at) AS last_used_at,
-        is_stale_or_unused,
+        NULL AS last_used_at,
+        NULL AS is_stale_or_unused,
         has_owner,
         has_project_or_workspace_scope
     ORDER BY provider, organization_id, api_key_name
@@ -833,16 +825,10 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     MATCH p=(org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
     OPTIONAL MATCH p1=(u:AnthropicUser)-[:OWNS]->(k)
     OPTIONAL MATCH p2=(workspace:AnthropicWorkspace)-[:CONTAINS]->(k)
-    WITH p, p1, p2, k
-    WITH
-        p, p1, p2,
-        CASE
-            WHEN k.last_used_at IS NULL THEN true
-            ELSE datetime(k.last_used_at) < datetime() - duration('P90D')
-        END AS is_stale_or_unused,
+    WITH p, p1, p2,
         p1 IS NOT NULL AS has_owner,
         p2 IS NOT NULL AS has_project_or_workspace_scope
-    WHERE is_stale_or_unused OR NOT has_owner OR NOT has_project_or_workspace_scope
+    WHERE NOT has_owner OR NOT has_project_or_workspace_scope
     RETURN *
     """,
     cypher_count_query="""
@@ -864,7 +850,7 @@ nist_ai_provider_api_key_hygiene = Rule(
     output_model=NistAiProviderApiKeyHygieneOutput,
     facts=(
         _openai_nist_ai_stale_or_unowned_api_keys,
-        _anthropic_nist_ai_stale_or_unscoped_api_keys,
+        _anthropic_nist_ai_unowned_or_unscoped_api_keys,
     ),
     tags=("ai", "credentials", "governance", "compliance"),
     version="0.1.0",
