@@ -400,10 +400,9 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     id="kubernetes_ingress_nginx_controller_eol",
     name="Kubernetes clusters running retired ingress-nginx controllers",
     description=(
-        "Detects Kubernetes ingress-nginx controller workloads after the "
-        "upstream ingress-nginx project retirement date. The project was "
-        "retired in March 2026 and no longer receives bug fixes or security "
-        "updates."
+        "Detects deployed Kubernetes ingress-nginx controller workloads now "
+        "that the upstream ingress-nginx project has been retired and no "
+        "longer receives bug fixes or security updates."
     ),
     cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
     cypher_visual_query="""
@@ -540,8 +539,8 @@ eol_software = Rule(
         "Kubernetes support window and EKS clusters using the Amazon EKS "
         "provider lifecycle. It also flags EC2 instances that AWS SSM reports "
         "as running Amazon Linux 2 after the vendor end-of-life date and "
-        "Kubernetes ingress-nginx controllers after the upstream project "
-        "retirement date."
+        "deployed Kubernetes ingress-nginx controllers now that the upstream "
+        "project has been retired."
     ),
     output_model=EOLSoftwareOutput,
     facts=(
