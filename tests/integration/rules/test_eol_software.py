@@ -220,7 +220,7 @@ def test_ingress_nginx_fact_collapses_controller_replicas(neo4j_session) -> None
     # Act
     findings = neo4j_session.execute_read(
         read_list_of_dicts_tx,
-        _build_kubernetes_ingress_nginx_eol_query("date('2026-03-25')"),
+        _build_kubernetes_ingress_nginx_eol_query(),
     )
 
     # Assert
@@ -238,21 +238,6 @@ def test_ingress_nginx_fact_collapses_controller_replicas(neo4j_session) -> None
             "support_status": "eol",
         }
     ]
-
-
-def test_ingress_nginx_fact_ignores_controllers_before_eol(neo4j_session) -> None:
-    # Arrange
-    _reset_graph(neo4j_session)
-    _seed_ingress_nginx_controller_graph(neo4j_session)
-
-    # Act
-    findings = neo4j_session.execute_read(
-        read_list_of_dicts_tx,
-        _build_kubernetes_ingress_nginx_eol_query("date('2026-03-23')"),
-    )
-
-    # Assert
-    assert findings == []
 
 
 def test_ingress_nginx_fact_ignores_non_controller_images(neo4j_session) -> None:
@@ -303,7 +288,7 @@ def test_ingress_nginx_fact_ignores_non_controller_images(neo4j_session) -> None
     # Act
     findings = neo4j_session.execute_read(
         read_list_of_dicts_tx,
-        _build_kubernetes_ingress_nginx_eol_query("date('2026-03-25')"),
+        _build_kubernetes_ingress_nginx_eol_query(),
     )
 
     # Assert

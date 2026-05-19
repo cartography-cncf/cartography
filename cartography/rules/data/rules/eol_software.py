@@ -17,7 +17,6 @@ _OLDEST_SUPPORTED_GKE_KUBERNETES_MINOR = 30
 # https://learn.microsoft.com/en-us/azure/aks/supported-kubernetes-versions
 _OLDEST_SUPPORTED_AKS_KUBERNETES_MINOR = 33
 _AMAZON_LINUX_2_EOL_DATE = "2026-06-30"
-_INGRESS_NGINX_EOL_DATE = "2026-03-24"
 
 EOL_SOFTWARE_REFERENCES = [
     RuleReference(
@@ -89,12 +88,10 @@ def _build_ec2_instance_amazon_linux_2_eol_query(
     """
 
 
-def _build_kubernetes_ingress_nginx_eol_query(
-    current_date_expression: str = "date()",
-) -> str:
-    return f"""
+def _build_kubernetes_ingress_nginx_eol_query() -> str:
+    return """
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    CALL {{
+    CALL {
         WITH pod
         MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
         RETURN container
@@ -102,7 +99,7 @@ def _build_kubernetes_ingress_nginx_eol_query(
         WITH pod
         MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
         RETURN container
-    }}
+    }
     WITH DISTINCT cluster, pod, container
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
@@ -112,8 +109,7 @@ def _build_kubernetes_ingress_nginx_eol_query(
              AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
              AS has_controller_labels,
          image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
-    WHERE {current_date_expression} > date('{_INGRESS_NGINX_EOL_DATE}')
-      AND (has_controller_labels OR has_controller_image)
+    WHERE has_controller_labels OR has_controller_image
     WITH cluster, pod, container, labels_compacted, image,
          CASE
              WHEN labels_compacted CONTAINS '"app.kubernetes.io/instance":"'
@@ -410,9 +406,9 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
         "updates."
     ),
     cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
-    cypher_visual_query=f"""
+    cypher_visual_query="""
     MATCH resource_path=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    CALL {{
+    CALL {
         WITH pod
         MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
         RETURN container
@@ -420,7 +416,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
         WITH pod
         MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
         RETURN container
-    }}
+    }
     WITH DISTINCT resource_path, cluster, pod, container
     OPTIONAL MATCH workload_parent_path=(container)-[:WORKLOAD_PARENT]->(pod)
     OPTIONAL MATCH legacy_contains_path=(pod)-[:CONTAINS]->(container)
@@ -435,13 +431,12 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
              AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
              AS has_controller_labels,
          image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
-    WHERE date() > date('{_INGRESS_NGINX_EOL_DATE}')
-      AND (has_controller_labels OR has_controller_image)
+    WHERE has_controller_labels OR has_controller_image
     RETURN cluster, pod, container, resource_path, controller_path
     """,
-    cypher_count_query=f"""
+    cypher_count_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    CALL {{
+    CALL {
         WITH pod
         MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
         RETURN container
@@ -449,7 +444,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
         WITH pod
         MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
         RETURN container
-    }}
+    }
     WITH DISTINCT cluster, pod, container
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
@@ -459,8 +454,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
              AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
              AS has_controller_labels,
          image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
-    WHERE date() > date('{_INGRESS_NGINX_EOL_DATE}')
-      AND (has_controller_labels OR has_controller_image)
+    WHERE has_controller_labels OR has_controller_image
     WITH cluster, pod, container, labels_compacted, image,
          CASE
              WHEN labels_compacted CONTAINS '"app.kubernetes.io/instance":"'

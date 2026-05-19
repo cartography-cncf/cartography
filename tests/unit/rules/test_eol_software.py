@@ -48,7 +48,7 @@ def test_aks_fact_flags_kubernetes_1_32_standard_support() -> None:
     assert "kubernetes_minor < 33" in fact.cypher_query
 
 
-def test_ingress_nginx_fact_uses_retirement_date() -> None:
+def test_ingress_nginx_fact_is_kubernetes_experimental() -> None:
     fact = next(
         f
         for f in eol_software.facts
@@ -56,5 +56,4 @@ def test_ingress_nginx_fact_uses_retirement_date() -> None:
     )
 
     assert fact.maturity == Maturity.EXPERIMENTAL
-    assert "2026-03-24" in fact.cypher_query
     assert fact.module == Module.KUBERNETES
