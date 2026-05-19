@@ -7,7 +7,7 @@ import cartography.intel.aws.identitycenter
 import cartography.intel.microsoft.entra.app_role_assignments
 import cartography.intel.microsoft.entra.applications
 import cartography.intel.microsoft.entra.service_principals
-import cartography.intel.ontology.thirdpartyapps
+import cartography.util
 import tests.data.aws.identitycenter
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
@@ -390,18 +390,35 @@ async def test_sync_entra_applications(
         == expected_entra_aws_sso_rels
     )
 
-    # Run the ontology thirdpartyapps projection: copies account_enabled from
-    # each EntraServicePrincipal onto its EntraApplication as `_ont_enabled`.
-    cartography.intel.ontology.thirdpartyapps.sync(
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
     # Assert `_ont_enabled` is projected onto EntraApplication from the
     # linked service principal (both mock SPs have account_enabled=True).
+    # The projection runs inside `sync_service_principals` so it executes
+    # even on a Microsoft-only sync, without the top-level ontology stage.
     assert check_nodes(
         neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
     ) == {
         ("Finance Tracker", True),
         ("HR Portal", True),
+    }
+
+    # Simulate one app losing its service principal (e.g. the SP was deleted
+    # upstream and removed by cleanup on the next sync): drop the SP and its
+    # relationship, re-run only the projection, and confirm `_ont_enabled`
+    # is reset to NULL on the orphan app instead of keeping the stale `True`.
+    neo4j_session.run(
+        """
+        MATCH (sp:EntraServicePrincipal {display_name: 'HR Portal Service Principal'})
+        DETACH DELETE sp
+        """,
+    )
+    cartography.util.run_analysis_job(
+        "ontology_entra_application_projection.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", None),
     }

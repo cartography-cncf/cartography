@@ -7,7 +7,6 @@ import cartography.intel.ontology.dnsrecords
 import cartography.intel.ontology.loadbalancers
 import cartography.intel.ontology.packages
 import cartography.intel.ontology.publicips
-import cartography.intel.ontology.thirdpartyapps
 import cartography.intel.ontology.users
 from cartography.config import Config
 from cartography.util import run_analysis_job
@@ -66,10 +65,6 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     cartography.intel.ontology.publicips.sync(
         neo4j_session,
         config.update_tag,
-        common_job_parameters,
-    )
-    cartography.intel.ontology.thirdpartyapps.sync(
-        neo4j_session,
         common_job_parameters,
     )
     # Create RESOLVED_IMAGE edges from :Container to the concrete single-platform :Image they are running.
