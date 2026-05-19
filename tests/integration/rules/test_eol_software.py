@@ -54,7 +54,7 @@ def _seed_ingress_nginx_controller_graph(neo4j_session) -> None:
         CREATE (cluster)-[:RESOURCE]->(pod_1)
         CREATE (cluster)-[:RESOURCE]->(pod_2)
         CREATE (container_1)-[:WORKLOAD_PARENT]->(pod_1)
-        CREATE (container_2)-[:WORKLOAD_PARENT]->(pod_2)
+        CREATE (pod_2)-[:CONTAINS]->(container_2)
         """
     )
     result.consume()

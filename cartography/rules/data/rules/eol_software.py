@@ -94,7 +94,7 @@ def _build_kubernetes_ingress_nginx_eol_query(
 ) -> str:
     return f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+    MATCH (pod)-[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
@@ -403,7 +403,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
     cypher_visual_query=f"""
     MATCH controller_path=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+          -[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
     WITH controller_path, cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
@@ -418,7 +418,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     """,
     cypher_count_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          <-[:WORKLOAD_PARENT]-(container:KubernetesContainer)
+    MATCH (pod)-[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
