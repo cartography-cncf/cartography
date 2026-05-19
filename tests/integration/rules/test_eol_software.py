@@ -333,6 +333,7 @@ def test_ingress_nginx_visual_query_returns_controller_context(
     assert record["container"]["image"].startswith(
         "registry.k8s.io/ingress-nginx/controller:v1.12.0",
     )
+    assert record["resource_path"] is not None
     assert record["controller_path"] is not None
 
 

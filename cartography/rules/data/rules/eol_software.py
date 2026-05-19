@@ -411,7 +411,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     ),
     cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
     cypher_visual_query=f"""
-    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+    MATCH resource_path=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     CALL {{
         WITH pod
         MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
@@ -421,22 +421,23 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
         MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
         RETURN container
     }}
-    WITH DISTINCT cluster, pod, container
+    WITH DISTINCT resource_path, cluster, pod, container
     OPTIONAL MATCH workload_parent_path=(container)-[:WORKLOAD_PARENT]->(pod)
     OPTIONAL MATCH legacy_contains_path=(pod)-[:CONTAINS]->(container)
     WITH cluster, pod, container,
+         resource_path,
          coalesce(workload_parent_path, legacy_contains_path) AS controller_path
-    WITH controller_path, cluster, pod, container,
+    WITH resource_path, controller_path, cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
-    WITH controller_path, cluster, pod, container, labels_compacted, image,
+    WITH resource_path, controller_path, cluster, pod, container, labels_compacted, image,
          labels_compacted CONTAINS '"app.kubernetes.io/name":"ingress-nginx"'
              AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
              AS has_controller_labels,
          image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
     WHERE date() > date('{_INGRESS_NGINX_EOL_DATE}')
       AND (has_controller_labels OR has_controller_image)
-    RETURN cluster, pod, container, controller_path
+    RETURN cluster, pod, container, resource_path, controller_path
     """,
     cypher_count_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
