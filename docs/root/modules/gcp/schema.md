@@ -1613,7 +1613,7 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 | description           | User-provided description of the function.                                  |
 | runtime               | The language runtime environment for the function (e.g., python310).        |
 | available_memory_mb   | Memory allocated to the function, in MB (from `availableMemoryMb`).         |
-| timeout               | Maximum execution time, in seconds (parsed from the API's Duration string). |
+| timeout               | Maximum execution time, in seconds (parsed from the API's Duration string; whole-second values are stored as int, fractional values as float). |
 | entry_point           | The name of the function within the source code to be executed.             |
 | status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
 | update_time           | The timestamp when the function was last modified.                          |

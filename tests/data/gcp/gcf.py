@@ -29,5 +29,21 @@ GCF_RESPONSE = {
             "availableMemoryMb": 512,
             "timeout": "120s",
         },
+        {
+            # Fractional-second Duration (legal in the protobuf Duration format
+            # used by the REST API). Exercises the float path of timeout parsing.
+            "name": "projects/test-project/locations/us-west1/functions/function-3",
+            "description": "Test function three (fractional timeout)",
+            "status": "ACTIVE",
+            "runtime": "go121",
+            "entryPoint": "Handler",
+            "httpsTrigger": {
+                "url": "https://us-west1-test-project.cloudfunctions.net/function-3",
+            },
+            "updateTime": "2023-03-01T12:00:00Z",
+            "serviceAccountEmail": "service-3@test-project.iam.gserviceaccount.com",
+            "availableMemoryMb": 128,
+            "timeout": "3.5s",
+        },
     ],
 }
