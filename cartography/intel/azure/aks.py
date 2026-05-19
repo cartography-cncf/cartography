@@ -509,7 +509,7 @@ def get_container_registry_runs_list(
 
         return container_registry_runs_list
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving container_registry_runs - {e}")
         return []
 
@@ -598,7 +598,7 @@ def get_container_registry_tasks_list(
             container_registry_tasks_list = container_registry_tasks_list + list(
                 map(
                     lambda x: x.as_dict(),
-                    client.runs.list(
+                    client.tasks.list(
                         registry_name=container_registry["name"],
                         resource_group_name=container_registry["resource_group"],
                     ),
@@ -615,7 +615,7 @@ def get_container_registry_tasks_list(
 
         return container_registry_tasks_list
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving container_registry_tasks - {e}")
         return []
 
