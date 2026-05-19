@@ -54,6 +54,7 @@ def _seed_ingress_nginx_controller_graph(neo4j_session) -> None:
         CREATE (cluster)-[:RESOURCE]->(pod_1)
         CREATE (cluster)-[:RESOURCE]->(pod_2)
         CREATE (container_1)-[:WORKLOAD_PARENT]->(pod_1)
+        CREATE (pod_1)-[:CONTAINS]->(container_1)
         CREATE (pod_2)-[:CONTAINS]->(container_2)
         """
     )
@@ -325,6 +326,7 @@ def test_ingress_nginx_visual_query_returns_controller_context(
 
     # Assert
     assert records
+    assert len(records) == 2
     record = records[0]
     assert record["cluster"]["name"] == "cluster-1"
     assert record["pod"]["namespace"] == "ingress-nginx"

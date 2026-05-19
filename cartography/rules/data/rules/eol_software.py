@@ -94,7 +94,16 @@ def _build_kubernetes_ingress_nginx_eol_query(
 ) -> str:
     return f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    MATCH (pod)-[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
+    CALL {{
+        WITH pod
+        MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
+        RETURN container
+        UNION
+        WITH pod
+        MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
+        RETURN container
+    }}
+    WITH DISTINCT cluster, pod, container
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
@@ -402,8 +411,21 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     ),
     cypher_query=_build_kubernetes_ingress_nginx_eol_query(),
     cypher_visual_query=f"""
-    MATCH controller_path=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          -[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+    CALL {{
+        WITH pod
+        MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
+        RETURN container
+        UNION
+        WITH pod
+        MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
+        RETURN container
+    }}
+    WITH DISTINCT cluster, pod, container
+    OPTIONAL MATCH workload_parent_path=(container)-[:WORKLOAD_PARENT]->(pod)
+    OPTIONAL MATCH legacy_contains_path=(pod)-[:CONTAINS]->(container)
+    WITH cluster, pod, container,
+         coalesce(workload_parent_path, legacy_contains_path) AS controller_path
     WITH controller_path, cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
@@ -418,7 +440,16 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     """,
     cypher_count_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    MATCH (pod)-[:CONTAINS|WORKLOAD_PARENT]-(container:KubernetesContainer)
+    CALL {{
+        WITH pod
+        MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
+        RETURN container
+        UNION
+        WITH pod
+        MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
+        RETURN container
+    }}
+    WITH DISTINCT cluster, pod, container
     WITH cluster, pod, container,
          replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
          toLower(coalesce(container.image, '')) AS image
