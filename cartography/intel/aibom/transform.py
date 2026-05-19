@@ -275,7 +275,7 @@ def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, A
 
     component_records: list[dict[str, Any]] = []
     for source_key, source_data in sources.items():
-        components = source_data.get("components")
+        components = source_data.get("components", {})
 
         for component_type, items in components.items():
             for component in items:
