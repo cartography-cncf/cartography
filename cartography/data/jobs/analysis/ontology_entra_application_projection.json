@@ -1,0 +1,10 @@
+{
+  "name": "Ontology - Entra application projection",
+  "statements": [
+    {
+      "__comment": "Project `_ont_enabled` on EntraApplication from the linked EntraServicePrincipal. Microsoft Graph exposes `accountEnabled` on the service principal, not on the application registration: the application is a template and the service principal is the tenant-local instance whose disabled state actually blocks sign-in. Applications with no service principal in the tenant keep `_ont_enabled = NULL` (unknown).",
+      "query": "MATCH (app:EntraApplication)-[:SERVICE_PRINCIPAL]->(sp:EntraServicePrincipal) SET app._ont_enabled = sp.account_enabled",
+      "iterative": false
+    }
+  ]
+}

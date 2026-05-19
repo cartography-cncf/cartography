@@ -7,6 +7,7 @@ import cartography.intel.aws.identitycenter
 import cartography.intel.microsoft.entra.app_role_assignments
 import cartography.intel.microsoft.entra.applications
 import cartography.intel.microsoft.entra.service_principals
+import cartography.intel.ontology.thirdpartyapps
 import tests.data.aws.identitycenter
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
@@ -388,3 +389,19 @@ async def test_sync_entra_applications(
         )
         == expected_entra_aws_sso_rels
     )
+
+    # Run the ontology thirdpartyapps projection: copies account_enabled from
+    # each EntraServicePrincipal onto its EntraApplication as `_ont_enabled`.
+    cartography.intel.ontology.thirdpartyapps.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert `_ont_enabled` is projected onto EntraApplication from the
+    # linked service principal (both mock SPs have account_enabled=True).
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", True),
+    }
