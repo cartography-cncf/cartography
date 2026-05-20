@@ -95,7 +95,7 @@ def test_gke_public_facing(neo4j_session):
     test_load_eks_clusters_relationships(neo4j_session)
     cloudanix_workspace_to_gcp_project(neo4j_session)
 
-    run_analysis_job('gcp_kubernetes_engine_analysis.json', neo4j_session, common_job_parameters)
+    run_analysis_job('gcp_gke_asset_exposure.json', neo4j_session, common_job_parameters)
 
     query1 = """
     MATCH (cluster:GKECluster)<-[:RESOURCE]-(:GCPProject{id: $GCP_PROJECT_ID})<-[:OWNER]-(:GCPOrganization{id:$GCP_ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) \nWHERE cluster.exposed_internet=true
