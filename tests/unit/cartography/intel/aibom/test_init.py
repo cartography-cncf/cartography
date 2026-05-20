@@ -90,6 +90,7 @@ def test_prepare_aibom_report_for_ingestion_skips_tag_only_source() -> None:
     # Arrange
     document = copy.deepcopy(AIBOM_REPORT)
     source_data = _get_first_source(document)
+    # replace source name with a tag only source key (fixtures uses digest)
     source_data["source_name"] = (
         "205930638578.dkr.ecr.us-east-1.amazonaws.com/subimage-backend:latest"
     )
