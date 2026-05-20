@@ -1,6 +1,7 @@
 import json
 import logging
 import string
+import time
 from pathlib import Path
 from string import Template
 from typing import Any
@@ -11,6 +12,7 @@ from typing import Set
 from typing import Union
 
 import neo4j
+from neo4j.exceptions import TransientError
 
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.statement import get_job_shortname
@@ -85,21 +87,44 @@ class GraphJob:
         for s in self.statements:
             s.merge_parameters(parameters)
 
-    def run(self, neo4j_session: neo4j.Session) -> None:
+    def run(self, neo4j_session: neo4j.Session, max_retries: int = 3) -> None:
         """
         Run the job. This will execute all statements sequentially.
         """
         logger.debug("Starting job '%s'.", self.name)
         for stm in self.statements:
-            try:
-                stm.run(neo4j_session)
-            except Exception as e:
-                logger.error(
-                    "Unhandled error while executing statement in job '%s': %s",
-                    self.name,
-                    e,
-                )
-                raise
+            retries = 0
+            while True:
+                try:
+                    stm.run(neo4j_session)
+                    break
+                except TransientError as e:
+                    if retries < max_retries:
+                        retries += 1
+                        wait = 2 ** retries
+                        logger.warning(
+                            "Transient Neo4j error in job '%s' (attempt %d/%d), retrying in %ds: %s",
+                            self.name,
+                            retries,
+                            max_retries,
+                            wait,
+                            e,
+                        )
+                        time.sleep(wait)
+                    else:
+                        logger.error(
+                            "Unhandled error while executing statement in job '%s': %s",
+                            self.name,
+                            e,
+                        )
+                        raise
+                except Exception as e:
+                    logger.error(
+                        "Unhandled error while executing statement in job '%s': %s",
+                        self.name,
+                        e,
+                    )
+                    raise
         log_msg = f"Finished job {self.short_name}" if self.short_name else f"Finished job {self.name}"
         logger.info(log_msg)
 
