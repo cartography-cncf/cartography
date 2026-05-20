@@ -203,6 +203,7 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
     device_security_posture_gaps,
 )
 from cartography.rules.data.rules.eol_software import eol_software
+from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -312,6 +313,7 @@ RULES = {
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
+    guardduty_active_threat.id: guardduty_active_threat,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
     unpinned_github_actions.id: unpinned_github_actions,
     # NIST AI RMF Rules

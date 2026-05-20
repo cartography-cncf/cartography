@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -22,6 +23,7 @@ class ESDomainNodeProperties(CartographyNodeProperties):
     endpoint: PropertyRef = PropertyRef("Endpoint")
     name: PropertyRef = PropertyRef("DomainName", extra_index=True)
     elasticsearch_version: PropertyRef = PropertyRef("ElasticsearchVersion")
+    engine: PropertyRef = PropertyRef("Engine")
     # Cluster config properties (flattened)
     elasticsearch_cluster_config_instancetype: PropertyRef = PropertyRef(
         "ElasticsearchClusterConfigInstanceType"
@@ -148,3 +150,4 @@ class ESDomainSchema(CartographyNodeSchema):
             ESDomainToEC2SecurityGroupRel(),
         ],
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
