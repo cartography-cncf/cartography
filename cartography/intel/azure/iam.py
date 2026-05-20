@@ -21,6 +21,7 @@ from msgraph.generated.groups.groups_request_builder import GroupsRequestBuilder
 from msgraph.generated.users.users_request_builder import UsersRequestBuilder
 
 from .util.credentials import Credentials
+from .util.timing import get_current_context
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -479,8 +480,14 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
         err_str = str(e)
         if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
             logger.warning(f"get_group_members group_id={group_id}: RATE_LIMITED (429) after {time.perf_counter() - t0:.2f}s — {e}")
+            ctx = get_current_context()
+            if ctx is not None:
+                ctx.throttle_count += 1
         else:
             logger.warning(f"get_group_members group_id={group_id}: error after {time.perf_counter() - t0:.2f}s — {e}")
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += 1
         return members_data
 
     elapsed = time.perf_counter() - t0
@@ -1188,6 +1195,10 @@ async def sync_scoped_users_and_groups(
         f"memberships={len(all_memberships)} unique_members={len(all_member_ids)} "
         f"errors={member_fetch_errors} rate_limit_errors={rate_limit_errors}",
     )
+    ctx = get_current_context()
+    if ctx is not None:
+        ctx.request_count += len(scoped_groups)
+        ctx.throttle_count += rate_limit_errors
 
     # 3. Fetch only the required users in batches using a $filter query to avoid URL length limits.
     t0 = time.perf_counter()

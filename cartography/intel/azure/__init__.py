@@ -33,8 +33,9 @@ AZURE_AUTH_MODE_SERVICE_PRINCIPAL = "service_principal"
 
 def concurrent_execution(
     service: str, service_func: Any, config: Config, credentials: Credentials, common_job_parameters: Dict, update_tag: int, subscription_id: str,
-):
+) -> Dict:
     run_mode = "parallel"
+    tenant_id = credentials.tenant_id
     logger.info(f"BEGIN processing for service: {service}")
 
     regions = config.params.get('regions', None)
@@ -77,6 +78,7 @@ def concurrent_execution(
         logger.info(
             json.dumps({
                 "event": "azure_service_timing",
+                "tenant_id": tenant_id,
                 "subscription_id": subscription_id,
                 "service": service,
                 "run_mode": run_mode,
@@ -86,6 +88,7 @@ def concurrent_execution(
                 **error_info,
             }),
         )
+    return {"service": service, "duration_seconds": elapsed, "status": status}
 
 
 def _sync_one_subscription(
@@ -100,6 +103,8 @@ def _sync_one_subscription(
 ) -> None:
 
     common_job_parameters['Azure_Primary_AD_Domain_Name'] = tenant['defaultDomain']
+
+    tenant_id = credentials.tenant_id
 
     if os.environ.get("LOCAL_RUN", "0") == "1" or os.environ.get("CDX_RUN_AS") == "EKS":
         # BEGIN - Sequential Run
@@ -139,6 +144,7 @@ def _sync_one_subscription(
                     logger.info(
                         json.dumps({
                             "event": "azure_service_timing",
+                            "tenant_id": tenant_id,
                             "subscription_id": subscription_id,
                             "service": func_name,
                             "run_mode": run_mode,
@@ -155,6 +161,7 @@ def _sync_one_subscription(
         logger.info(
             json.dumps({
                 "event": "azure_subscription_timing_summary",
+                "tenant_id": tenant_id,
                 "subscription_id": subscription_id,
                 "run_mode": run_mode,
                 "total_duration_seconds": total_services_elapsed,
@@ -168,6 +175,10 @@ def _sync_one_subscription(
 
     else:
         # BEGIN - Parallel Run
+
+        par_start = time.time()
+        par_service_timings: Dict[str, float] = {}
+        par_failed_services: Dict[str, str] = {}
 
         with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS)) as executor:
             futures = []
@@ -192,7 +203,29 @@ def _sync_one_subscription(
                     logger.warning(f'Azure sync function "{request}" was specified but does not exist. Did you misspell it?')
 
             for future in as_completed(futures):
-                logger.info(f'Result from Future - Service Processing: {future.result()}')
+                try:
+                    result = future.result()
+                    if isinstance(result, dict):
+                        svc = result.get("service", "unknown")
+                        par_service_timings[svc] = result.get("duration_seconds", 0.0)
+                        if result.get("status") == "error":
+                            par_failed_services[svc] = "error"
+                except Exception as e:
+                    logger.warning(f"error retrieving future result - {e}")
+
+        total_par_elapsed = round(time.time() - par_start, 2)
+        logger.info(
+            json.dumps({
+                "event": "azure_subscription_timing_summary",
+                "tenant_id": tenant_id,
+                "subscription_id": subscription_id,
+                "run_mode": "parallel",
+                "total_duration_seconds": total_par_elapsed,
+                "service_timings": par_service_timings,
+                "slowest_service": max(par_service_timings, key=par_service_timings.get) if par_service_timings else None,
+                "failed_services": par_failed_services,
+            }),
+        )
 
         # END - Parallel Run
 
@@ -278,6 +311,7 @@ def _sync_multiple_subscriptions(
         logger.info(
             json.dumps({
                 "event": "azure_analysis_jobs_timing",
+                "tenant_id": tenant_id,
                 "subscription_id": sub['subscriptionId'],
                 "total_duration_seconds": round(sum(analysis_timings.values()), 2),
                 "job_timings": analysis_timings,
