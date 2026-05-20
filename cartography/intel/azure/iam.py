@@ -1212,17 +1212,24 @@ async def async_sync(
                     update_tag, common_job_parameters,
                 )
 
-            await asyncio.gather(
-                sync_tenant_applications(
-                    neo4j_session, credentials,
-                    tenant_id, update_tag, common_job_parameters,
-                ),
-                sync_tenant_service_accounts(
-                    neo4j_session, credentials,
-                    tenant_id, update_tag, common_job_parameters,
-                ),
-                sync_tenant_domains(neo4j_session, credentials, tenant_id, update_tag, common_job_parameters),
+            # Fetch concurrently from Graph API — no Neo4j involvement yet
+            graph_client = get_graph_client(credentials.default_graph_credentials)
+            apps_list, svc_accounts_list, domains_list = await asyncio.gather(
+                get_tenant_applications_list(graph_client, tenant_id),
+                get_tenant_service_accounts_list(graph_client, tenant_id),
+                get_tenant_domains_list(graph_client, tenant_id),
             )
+
+            # Write sequentially — neo4j Session is not safe for concurrent use
+            load_tenant_applications(neo4j_session, tenant_id, apps_list, update_tag)
+            cleanup_tenant_applications(neo4j_session, common_job_parameters)
+
+            load_tenant_service_accounts(neo4j_session, tenant_id, svc_accounts_list, update_tag)
+            cleanup_tenant_service_accounts(neo4j_session, common_job_parameters)
+
+            load_tenant_domains(neo4j_session, tenant_id, domains_list, update_tag)
+            cleanup_tenant_domains(neo4j_session, common_job_parameters)
+
             sync_managed_identity(
                 neo4j_session, credentials, tenant_id, update_tag, common_job_parameters,
             )
