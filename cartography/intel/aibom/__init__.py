@@ -5,9 +5,15 @@ from neo4j import Session
 
 from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
-from cartography.intel.aibom.loader import load_aibom_component_relationships
 from cartography.intel.aibom.loader import load_aibom_components
+from cartography.intel.aibom.loader import load_aibom_custom_relationships
+from cartography.intel.aibom.loader import load_aibom_exposes_tool_relationships
 from cartography.intel.aibom.loader import load_aibom_sources
+from cartography.intel.aibom.loader import load_aibom_uses_model_relationships
+from cartography.intel.aibom.loader import load_aibom_uses_tool_relationships
+from cartography.intel.aibom.transform import (
+    group_aibom_relationship_payloads_by_source_key,
+)
 from cartography.intel.aibom.transform import transform_aibom_component_payloads
 from cartography.intel.aibom.transform import transform_aibom_relationship_payloads
 from cartography.intel.aibom.transform import transform_aibom_source_payloads
@@ -144,6 +150,28 @@ def sync_aibom_from_report_reader(
         relationship_payloads = transform_aibom_relationship_payloads(
             prepared_report,
         )
+        uses_model_relationship_payloads = (
+            group_aibom_relationship_payloads_by_source_key(
+                relationship_payloads,
+                "USES_MODEL",
+            )
+        )
+        uses_tool_relationship_payloads = (
+            group_aibom_relationship_payloads_by_source_key(
+                relationship_payloads,
+                "USES_TOOL",
+            )
+        )
+        exposes_tool_relationship_payloads = (
+            group_aibom_relationship_payloads_by_source_key(
+                relationship_payloads,
+                "EXPOSES_TOOL",
+            )
+        )
+        custom_relationship_payloads = group_aibom_relationship_payloads_by_source_key(
+            relationship_payloads,
+            "CUSTOM",
+        )
         if not source_payloads:
             logger.info("AIBOM report %s had no source payloads to ingest", source)
             continue
@@ -151,16 +179,32 @@ def sync_aibom_from_report_reader(
         stat_handler.incr("aibom_reports_processed")
         load_aibom_components(neo4j_session, component_payloads, update_tag)
         load_aibom_sources(neo4j_session, source_payloads, update_tag)
-        for relationship_label in (
-            "USES_MODEL",
-            "USES_TOOL",
-            "EXPOSES_TOOL",
-            "CUSTOM",
-        ):
-            load_aibom_component_relationships(
+        for source_key, source_payloads in uses_model_relationship_payloads.items():
+            load_aibom_uses_model_relationships(
                 neo4j_session,
-                relationship_payloads,
-                relationship_label,
+                source_payloads,
+                source_key,
+                update_tag,
+            )
+        for source_key, source_payloads in uses_tool_relationship_payloads.items():
+            load_aibom_uses_tool_relationships(
+                neo4j_session,
+                source_payloads,
+                source_key,
+                update_tag,
+            )
+        for source_key, source_payloads in exposes_tool_relationship_payloads.items():
+            load_aibom_exposes_tool_relationships(
+                neo4j_session,
+                source_payloads,
+                source_key,
+                update_tag,
+            )
+        for source_key, source_payloads in custom_relationship_payloads.items():
+            load_aibom_custom_relationships(
+                neo4j_session,
+                source_payloads,
+                source_key,
                 update_tag,
             )
         processed_reports += 1

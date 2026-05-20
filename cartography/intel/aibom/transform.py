@@ -1,7 +1,9 @@
 import hashlib
 import json
 import logging
+from collections import defaultdict
 from typing import Any
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -419,6 +421,28 @@ def transform_aibom_relationship_payloads(
         )
 
     return payloads
+
+
+def group_aibom_relationship_payloads_by_source_key(
+    relationship_payloads: list[dict[str, object]],
+    relationship_label: str,
+) -> dict[str, list[dict[str, object]]]:
+    """
+    Group normalized AIBOM relationship payloads by source_key for one rel label.
+
+    MatchLink cleanup is scoped to the owning AIBOMSource, so component-to-
+    component relationship payloads need to be partitioned by source_key before
+    the loader calls load_matchlinks().
+    """
+    payloads_by_source_key: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for relationship_payload in relationship_payloads:
+        if relationship_payload.get("relationship_label") != relationship_label:
+            continue
+
+        source_key = cast(str, relationship_payload["source_key"])
+        payloads_by_source_key[source_key].append(relationship_payload)
+
+    return dict(payloads_by_source_key)
 
 
 def transform_aibom_component_payloads(

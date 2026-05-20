@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 from neo4j import Session
 
 from cartography.client.core.tx import load
@@ -40,35 +38,65 @@ def load_aibom_components(
         )
 
 
-def load_aibom_component_relationships(
+def load_aibom_uses_model_relationships(
     neo4j_session: Session,
-    relationship_payloads: list[dict[str, object]],
-    relationship_label: str,
+    source_payloads: list[dict[str, object]],
+    source_key: str,
     update_tag: int,
 ) -> None:
-    rel_schema_map = {
-        "USES_MODEL": AIBOMComponentUsesModelRel(),
-        "USES_TOOL": AIBOMComponentUsesToolRel(),
-        "EXPOSES_TOOL": AIBOMComponentExposesToolRel(),
-        "CUSTOM": AIBOMComponentCustomRel(),
-    }
-    rel_schema = rel_schema_map[relationship_label]
+    load_matchlinks(
+        neo4j_session,
+        AIBOMComponentUsesModelRel(),
+        source_payloads,
+        lastupdated=update_tag,
+        _sub_resource_label="AIBOMSource",
+        _sub_resource_id=source_key,
+    )
 
-    payloads_by_source_key: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for relationship_payload in relationship_payloads:
-        if relationship_payload.get("relationship_label") != relationship_label:
-            continue
 
-        source_key = relationship_payload.get("source_key")
-        if isinstance(source_key, str):
-            payloads_by_source_key[source_key].append(relationship_payload)
+def load_aibom_uses_tool_relationships(
+    neo4j_session: Session,
+    source_payloads: list[dict[str, object]],
+    source_key: str,
+    update_tag: int,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        AIBOMComponentUsesToolRel(),
+        source_payloads,
+        lastupdated=update_tag,
+        _sub_resource_label="AIBOMSource",
+        _sub_resource_id=source_key,
+    )
 
-    for source_key, source_payloads in payloads_by_source_key.items():
-        load_matchlinks(
-            neo4j_session,
-            rel_schema,
-            source_payloads,
-            lastupdated=update_tag,
-            _sub_resource_label="AIBOMSource",
-            _sub_resource_id=source_key,
-        )
+
+def load_aibom_exposes_tool_relationships(
+    neo4j_session: Session,
+    source_payloads: list[dict[str, object]],
+    source_key: str,
+    update_tag: int,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        AIBOMComponentExposesToolRel(),
+        source_payloads,
+        lastupdated=update_tag,
+        _sub_resource_label="AIBOMSource",
+        _sub_resource_id=source_key,
+    )
+
+
+def load_aibom_custom_relationships(
+    neo4j_session: Session,
+    source_payloads: list[dict[str, object]],
+    source_key: str,
+    update_tag: int,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        AIBOMComponentCustomRel(),
+        source_payloads,
+        lastupdated=update_tag,
+        _sub_resource_label="AIBOMSource",
+        _sub_resource_id=source_key,
+    )
