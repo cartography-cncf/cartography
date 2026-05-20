@@ -262,7 +262,7 @@ def transform_gcp_bucket_iam_policy_bindings(bindings: Dict, project_id: str, bu
 
 @timeit
 def load_bucket_iam_policy_bindings(session: neo4j.Session, data_list: List[Dict], bucket_id: str, update_tag: int) -> None:
-    session.write_transaction(_load_bucket_iam_policy_bindings_tx, data_list, bucket_id, update_tag)
+    session.execute_write(_load_bucket_iam_policy_bindings_tx, data_list, bucket_id, update_tag)
 
 
 @timeit

@@ -89,7 +89,7 @@ def transform_cloudtasks_queues(queues: List[Dict], project_id: str) -> List[Dic
 
 @timeit
 def load_cloudtasks_queues(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_cloudtasks_queues_tx, data_list, project_id, update_tag)
+    session.execute_write(load_cloudtasks_queues_tx, data_list, project_id, update_tag)
 
 
 @timeit

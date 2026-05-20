@@ -803,7 +803,7 @@ def _attach_resource_group_fw_rule(neo4j_session: neo4j.Session, fw_rule_id: str
 
 
 def attach_firewall_rule_to_public_ip(session: neo4j.Session, fw_rule: Dict, public_ip: str, source: str, type: str, update_tag: int) -> None:
-    session.write_transaction(_attach_firewall_rule_to_public_ip_tx, fw_rule, public_ip, source, type, update_tag)
+    session.execute_write(_attach_firewall_rule_to_public_ip_tx, fw_rule, public_ip, source, type, update_tag)
 
 
 def _attach_firewall_rule_to_public_ip_tx(tx: neo4j.Transaction, fw_rule: Dict, public_ip: str, source: str, type: str, update_tag: int) -> None:

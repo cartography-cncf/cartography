@@ -40,7 +40,7 @@ def load_members_data(
         logger.warning("No valid GitLab members with IDs found to sync.")
         return
 
-    session.write_transaction(_load_members_data, valid_members, common_job_parameters, group_id)
+    session.execute_write(_load_members_data, valid_members, common_job_parameters, group_id)
 
 
 def _load_members_data(tx: neo4j.Transaction, members_data: List[Dict], common_job_parameters: Dict, group_id: int):

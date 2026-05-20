@@ -78,7 +78,7 @@ def get_compute_disks(compute: Resource, project_id: str, zones: list, common_jo
 
 @timeit
 def load_compute_disks(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_compute_disks_tx, data_list, project_id, update_tag)
+    session.execute_write(load_compute_disks_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -231,7 +231,7 @@ def transform_ssl_proxies(proxies: List, project_id: str) -> List[Resource]:
 
 @timeit
 def load_proxies(session: neo4j.Session, proxies: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_proxies_tx, proxies, project_id, update_tag)
+    session.execute_write(load_proxies_tx, proxies, project_id, update_tag)
 
 
 @timeit
@@ -277,7 +277,7 @@ def attach_compute_disks_to_instance(
     instance_id: str,
     update_tag: int,
 ) -> None:
-    session.write_transaction(attach_compute_disks_to_instance_tx, data_list, instance_id, update_tag)
+    session.execute_write(attach_compute_disks_to_instance_tx, data_list, instance_id, update_tag)
 
 
 @timeit
@@ -554,7 +554,7 @@ def transform_gcp_instances(response_objects: List[Dict], compute: Resource) -> 
         res["gke_node_pool_name"] = labels.get("goog-gke-nodepool")
 
         scheduling = res.get("scheduling", {})
-        res["is_spot_instance"] = scheduling.get("provisioningModel") == "SPOT" or scheduling.get("preemptible") == True
+        res["is_spot_instance"] = scheduling.get("provisioningModel") == "SPOT" or scheduling.get("preemptible") is True
 
         for disk in res.get("disks", []):
             if disk.get("boot"):
@@ -649,7 +649,6 @@ def transform_gcp_vpcs(vpc_res: Dict) -> List[Dict]:
     projectid = prefix.split("/")[1]
     for v in vpc_res.get("items", []):
         vpc = {}
-        partial_uri = f"{prefix}/{v['name']}"
         vpc["consolelink"] = gcp_console_link.get_console_link(
             resource_name="compute_instance_vpc_network",
             project_id=projectid,
@@ -708,7 +707,6 @@ def transform_gcp_subnets(subnet_res: Dict, projectId: str, compute: Resource) -
         subnet = {}
 
         # Has the form `projects/{project}/locations/{region}/subnetworks/{subnet_name}`
-        partial_uri = f"{prefix}/{s['name']}"
         subnet["id"] = f"projects/{projectid}/locations/{s['region'].split('/')[-1]}/subnetworks/{s['name']}"
         subnet["partial_uri"] = subnet["id"]
 
@@ -754,8 +752,6 @@ def transform_gcp_forwarding_rules(fwd_response: Resource) -> List[Dict]:
     project_id = prefix.split("/")[1]
     for fwd in fwd_response.get("items", []):
         forwarding_rule: Dict[str, Any] = {}
-
-        fwd_partial_uri = f"{prefix}/{fwd['name']}"
 
         forwarding_rule["project_id"] = project_id
         # Region looks like "https://www.googleapis.com/compute/v1/projects/{project}/regions/{region name}"
@@ -951,7 +947,7 @@ def _parse_port_string_to_rule(port: Optional[str], protocol: str, fw_partial_ur
 def load_gcp_instances(session: neo4j.Session, instances_list: List[Dict], gcp_update_tag: int) -> None:
     logger.info(f"Loading instances  {len(instances_list)}")
     for paginated_instances in batch(instances_list, size=500):
-        session.write_transaction(load_gcp_instances_tx, paginated_instances, gcp_update_tag)
+        session.execute_write(load_gcp_instances_tx, paginated_instances, gcp_update_tag)
 
     for instance in instances_list:
         _attach_instance_tags(session, instance, gcp_update_tag)
@@ -965,6 +961,8 @@ def load_gcp_instances(session: neo4j.Session, instances_list: List[Dict], gcp_u
             _link_instance_to_gke_cluster(session, instance, gcp_update_tag)
         if instance.get("gke_cluster_name") and instance.get("gke_node_pool_name"):
             _link_instance_to_gke_node_pool(session, instance, gcp_update_tag)
+
+    load_gcp_instance_image_relations(session, instances_list, gcp_update_tag)
 
 
 @timeit
@@ -1052,8 +1050,6 @@ def _link_instance_to_gke_node_pool(
         gcp_update_tag=gcp_update_tag,
     )
 
-    load_gcp_instance_image_relations(session, instances_list, gcp_update_tag)
-
 
 @timeit
 def load_gcp_instance_image_relations(
@@ -1061,7 +1057,7 @@ def load_gcp_instance_image_relations(
     instances_list: List[Dict],
     gcp_update_tag: int,
 ) -> None:
-    session.write_transaction(_load_gcp_instance_image_relations_tx, instances_list, gcp_update_tag)
+    session.execute_write(_load_gcp_instance_image_relations_tx, instances_list, gcp_update_tag)
 
 
 def _load_gcp_instance_image_relations_tx(
@@ -1148,7 +1144,7 @@ def load_gcp_instances_tx(tx: neo4j.Transaction, instances: Dict, gcp_update_tag
 
 @timeit
 def load_compute_entity_relation(session: neo4j.Session, instance: Dict, update_tag: int) -> None:
-    session.write_transaction(load_compute_entity_relation_tx, instance, update_tag)
+    session.execute_write(load_compute_entity_relation_tx, instance, update_tag)
 
 
 @timeit

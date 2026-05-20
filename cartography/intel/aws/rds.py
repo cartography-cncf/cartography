@@ -81,7 +81,7 @@ def get_rds_reserved_db_instances_data(boto3_session: boto3.session.Session, reg
 
 
 def load_rds_reserved_db_instances(session: neo4j.Session, instances: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_rds_reserved_db_instances_tx, instances, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_rds_reserved_db_instances_tx, instances, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -178,7 +178,7 @@ def transform_rds_sgs(secgs: List[Dict], region: str, account_id: str) -> List[D
 
 
 def load_rds_security_groups(session: neo4j.Session, secgroups: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_rds_security_groups_tx, secgroups, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_rds_security_groups_tx, secgroups, current_aws_account_id, aws_update_tag)
 
 
 @timeit

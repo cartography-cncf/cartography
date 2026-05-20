@@ -56,7 +56,7 @@ def transform_domains(boto3_session: boto3.session.Session, dms: List[Dict], reg
 
 
 def load_domains(session: neo4j.Session, domains: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_domains_tx, domains, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_domains_tx, domains, current_aws_account_id, aws_update_tag)
 
 
 @timeit

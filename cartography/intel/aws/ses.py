@@ -76,7 +76,7 @@ def transform_identities(boto3_session: boto3.session.Session, ids_names: List[D
 
 
 def load_ses_identity(session: neo4j.Session, identities: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_ses_identity_tx, identities, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_ses_identity_tx, identities, current_aws_account_id, aws_update_tag)
 
 
 @timeit

@@ -53,7 +53,7 @@ def get_dataproc_clusters(dataproc: Resource, project_id: str, regions: list) ->
 
 @timeit
 def load_dataproc_clusters(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(load_dataproc_clusters_tx, data_list, project_id, update_tag)
+    session.execute_write(load_dataproc_clusters_tx, data_list, project_id, update_tag)
 
 
 @timeit

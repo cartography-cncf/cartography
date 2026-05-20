@@ -168,7 +168,7 @@ def load_ecr_repository_images(
 ) -> None:
     logger.info(f"Loading {len(repo_images_list)} ECR repository images into graph.")
     for repo_image_batch in batch(repo_images_list, size=500):
-        neo4j_session.write_transaction(_load_ecr_repo_img_tx, repo_image_batch, aws_update_tag)
+        neo4j_session.execute_write(_load_ecr_repo_img_tx, repo_image_batch, aws_update_tag)
 
 
 @timeit

@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (snapshot:EBSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(snapshot.exposed_internet) WITH snapshot LIMIT $LIMIT_SIZE REMOVE snapshot.exposed_internet, snapshot.exposed_internet_type, snapshot.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (snapshot:EBSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE snapshot.exposed_internet IS NOT NULL WITH snapshot LIMIT $LIMIT_SIZE REMOVE snapshot.exposed_internet, snapshot.exposed_internet_type, snapshot.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

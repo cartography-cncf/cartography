@@ -1,7 +1,7 @@
 {
 	"statements": [
 		{
-			"query": "MATCH ((n:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) where EXISTS(n.exposed_internet) WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type return COUNT(*) as TotalCompleted",
+			"query": "MATCH ((n:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type return COUNT(*) as TotalCompleted",
 			"iterative": true,
 			"iterationsize": 100
 		},

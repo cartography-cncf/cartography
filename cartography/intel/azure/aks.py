@@ -21,13 +21,13 @@ azure_console_link = AzureLinker()
 def load_aks_managed_clusters(
     session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int,
 ) -> None:
-    session.write_transaction(_load_aks_managed_clusters_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_aks_managed_clusters_tx, subscription_id, data_list, update_tag)
 
 
 def load_aks_managed_cluster_agentpools(
     session: neo4j.Session, cluster_id: str, data_list: List[Dict], update_tag: int,
 ) -> None:
-    session.write_transaction(_load_aks_managed_cluster_agentpools_tx, cluster_id, data_list, update_tag)
+    session.execute_write(_load_aks_managed_cluster_agentpools_tx, cluster_id, data_list, update_tag)
 
 
 def load_container_registries(
@@ -36,31 +36,31 @@ def load_container_registries(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_container_registries_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_container_registries_tx, subscription_id, data_list, update_tag)
 
 
 def load_container_registry_replications(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_container_registry_replications_tx, data_list, update_tag)
+    session.execute_write(_load_container_registry_replications_tx, data_list, update_tag)
 
 
 def load_container_registry_runs(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_container_registry_runs_tx, data_list, update_tag)
+    session.execute_write(_load_container_registry_runs_tx, data_list, update_tag)
 
 
 def load_container_registry_tasks(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_container_registry_tasks_tx, data_list, update_tag)
+    session.execute_write(_load_container_registry_tasks_tx, data_list, update_tag)
 
 
 def load_container_registry_webhooks(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_container_registry_webhooks_tx, data_list, update_tag)
+    session.execute_write(_load_container_registry_webhooks_tx, data_list, update_tag)
 
 
 def load_container_groups(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_container_groups_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_container_groups_tx, subscription_id, data_list, update_tag)
 
 
 def load_containers(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_containers_tx, data_list, update_tag)
+    session.execute_write(_load_containers_tx, data_list, update_tag)
 
 
 @timeit
@@ -509,7 +509,7 @@ def get_container_registry_runs_list(
 
         return container_registry_runs_list
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving container_registry_runs - {e}")
         return []
 
@@ -598,7 +598,7 @@ def get_container_registry_tasks_list(
             container_registry_tasks_list = container_registry_tasks_list + list(
                 map(
                     lambda x: x.as_dict(),
-                    client.runs.list(
+                    client.tasks.list(
                         registry_name=container_registry["name"],
                         resource_group_name=container_registry["resource_group"],
                     ),
@@ -615,7 +615,7 @@ def get_container_registry_tasks_list(
 
         return container_registry_tasks_list
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving container_registry_tasks - {e}")
         return []
 

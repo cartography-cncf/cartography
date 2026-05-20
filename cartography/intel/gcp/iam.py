@@ -20,7 +20,7 @@ gcp_console_link = GCPLinker()
 
 
 def set_used_state(session: neo4j.Session, project_id: str, common_job_parameters: Dict, update_tag: int) -> None:
-    session.write_transaction(_set_used_state_tx, project_id, common_job_parameters, update_tag)
+    session.execute_write(_set_used_state_tx, project_id, common_job_parameters, update_tag)
 
 
 @timeit
@@ -1207,7 +1207,7 @@ def _set_used_state_tx(
     ingest_entity_unused = """
     MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->
     (:GCPProject{id: $GCP_PROJECT_ID})-[:RESOURCE]->(n:GCPPrincipal)
-    WHERE NOT EXISTS(n.isUsed) AND n.lastupdated = $update_tag
+    WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
     SET n.isUsed = $isUsed
     """
 

@@ -48,7 +48,7 @@ def load_notebook_instances(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_notebook_instances_tx, instances, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_notebook_instances_tx, instances, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -116,7 +116,7 @@ def load_endpoints(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_endpoints_tx, endpoints, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_endpoints_tx, endpoints, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -181,7 +181,7 @@ def load_training_jobs(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_training_jobs_tx, training_jobs, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_training_jobs_tx, training_jobs, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -247,7 +247,7 @@ def load_models(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_models_tx, models, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_models_tx, models, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -310,7 +310,7 @@ def load_domains(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_domains_tx, domains, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_domains_tx, domains, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -377,7 +377,7 @@ def load_clusters(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_clusters_tx, clusters, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_clusters_tx, clusters, current_aws_account_id, aws_update_tag)
 
 
 @timeit

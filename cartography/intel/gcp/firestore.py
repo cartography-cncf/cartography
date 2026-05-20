@@ -137,7 +137,7 @@ def load_firestore_databases(
     session: neo4j.Session, data_list: List[Dict],
     project_id: str, update_tag: int,
 ) -> None:
-    session.write_transaction(_load_firestore_databases_tx, data_list, project_id, update_tag)
+    session.execute_write(_load_firestore_databases_tx, data_list, project_id, update_tag)
 
 
 @timeit
@@ -189,7 +189,7 @@ def _load_firestore_databases_tx(
 
 @timeit
 def load_firestore_indexes(session: neo4j.Session, data_list: List[Dict], project_id: str, update_tag: int) -> None:
-    session.write_transaction(_load_firestore_indexes_tx, data_list, project_id, update_tag)
+    session.execute_write(_load_firestore_indexes_tx, data_list, project_id, update_tag)
 
 
 @timeit

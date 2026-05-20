@@ -49,7 +49,7 @@ def load_bedrock_agents(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_bedrock_agents_tx, bedrock_agents, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_bedrock_agents_tx, bedrock_agents, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -115,7 +115,7 @@ def load_model_customisation_jobs(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_model_customisation_jobs_tx, model_customisation_jobs, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_model_customisation_jobs_tx, model_customisation_jobs, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -180,7 +180,7 @@ def load_bedrock_guardrails(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_bedrock_guardrails_tx, bedrock_guardrails, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_bedrock_guardrails_tx, bedrock_guardrails, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -246,7 +246,7 @@ def load_custom_models(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(_load_custom_models_tx, custom_models, current_aws_account_id, aws_update_tag)
+    neo4j_session.execute_write(_load_custom_models_tx, custom_models, current_aws_account_id, aws_update_tag)
 
 
 @timeit

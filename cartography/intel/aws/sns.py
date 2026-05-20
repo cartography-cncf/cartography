@@ -93,7 +93,7 @@ def transform_topics(boto3_session: boto3.session.Session, tps: List[Dict], regi
 
 
 def load_sns_topic(session: neo4j.Session, topics: List[Dict], current_aws_account_id: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_sns_topic_tx, topics, current_aws_account_id, aws_update_tag)
+    session.execute_write(_load_sns_topic_tx, topics, current_aws_account_id, aws_update_tag)
 
 
 @timeit
@@ -135,7 +135,7 @@ def cleanup_sns_topic(neo4j_session: neo4j.Session, common_job_parameters: Dict)
 
 @timeit
 def load_sns_subscription_topic(session: neo4j.Session, subscriptions: List[Dict], topic_arn: str, aws_update_tag: int) -> None:
-    session.write_transaction(_load_sns_topic_subscription_tx, subscriptions, topic_arn, aws_update_tag)
+    session.execute_write(_load_sns_topic_subscription_tx, subscriptions, topic_arn, aws_update_tag)
 
 
 @timeit

@@ -88,7 +88,7 @@ def sync_vm_scale_sets_vms_part_of_relationships(
     if not relations:
         return
 
-    neo4j_session.write_transaction(
+    neo4j_session.execute_write(
         _load_vm_scale_set_vms_part_of_relationships_tx,
         relations,
         update_tag,

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import time
 from datetime import datetime
 from typing import Any
 from typing import Dict
@@ -20,6 +21,7 @@ from msgraph.generated.groups.groups_request_builder import GroupsRequestBuilder
 from msgraph.generated.users.users_request_builder import UsersRequestBuilder
 
 from .util.credentials import Credentials
+from .util.timing import get_current_context
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -50,39 +52,39 @@ def load_tenant_users(session: neo4j.Session, tenant_id: str, data_list: List[Di
             end = start + iteration_size
             paged_users = data_list[start:end]
 
-        session.write_transaction(_load_tenant_users_tx, tenant_id, paged_users, update_tag)
+        session.execute_write(_load_tenant_users_tx, tenant_id, paged_users, update_tag)
 
         logger.info(f"Iteration {counter + 1} of {total_iterations}. {start} - {end} - {len(paged_users)}")
 
 
 def load_roles(session: neo4j.Session, tenant_id: str, data_list: List[Dict], role_assignments_list: List[Dict], update_tag: int, SUBSCRIPTION_ID: str) -> None:
-    session.write_transaction(_load_roles_tx, tenant_id, data_list, role_assignments_list, update_tag, SUBSCRIPTION_ID)
+    session.execute_write(_load_roles_tx, tenant_id, data_list, role_assignments_list, update_tag, SUBSCRIPTION_ID)
 
 
 def load_managed_identities(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_managed_identities_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_managed_identities_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_groups(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_groups_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_groups_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_applications(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_applications_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_applications_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_service_accounts(
     session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int,
 ) -> None:
-    session.write_transaction(_load_tenant_service_accounts_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_service_accounts_tx, tenant_id, data_list, update_tag)
 
 
 def load_tenant_domains(session: neo4j.Session, tenant_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_tenant_domains_tx, tenant_id, data_list, update_tag)
+    session.execute_write(_load_tenant_domains_tx, tenant_id, data_list, update_tag)
 
 
 def set_used_state(session: neo4j.Session, tenant_id: str, common_job_parameters: Dict, update_tag: int) -> None:
-    session.write_transaction(_set_used_state_tx, tenant_id, common_job_parameters, update_tag)
+    session.execute_write(_set_used_state_tx, tenant_id, common_job_parameters, update_tag)
 
 
 @timeit
@@ -420,6 +422,7 @@ def _load_tenant_groups_tx(
 
 
 async def get_group_members(credentials: Credentials, group_id: str) -> List[Dict[str, Any]]:
+    t0 = time.perf_counter()
     client: GraphServiceClient = get_default_graph_client(credentials.default_graph_credentials)
     members_data = []
     try:
@@ -432,16 +435,35 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
             members.extend(response.value)
 
         if members:
+            async def _fetch_subgroup_members(sub_group_id: str) -> List[Dict]:
+                inherited: List[Dict] = []
+                resp = await client.groups.by_group_id(sub_group_id).members.get()
+                inherited.extend(resp.value)
+                while resp.odata_next_link:
+                    resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+                    inherited.extend(resp.value)
+                return inherited
+
+            sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
+            if sub_group_ids:
+                logger.debug(f"get_group_members group_id={group_id}: expanding {len(sub_group_ids)} sub-groups")
+            sub_group_results = await asyncio.gather(
+                *[_fetch_subgroup_members(gid) for gid in sub_group_ids],
+                return_exceptions=True,
+            )
+            sub_group_members_map = {}
+            sub_group_errors = 0
+            for gid, result in zip(sub_group_ids, sub_group_results):
+                if isinstance(result, Exception):
+                    sub_group_errors += 1
+                else:
+                    sub_group_members_map[gid] = result
+            if sub_group_errors:
+                logger.warning(f"get_group_members group_id={group_id}: {sub_group_errors}/{len(sub_group_ids)} sub-group fetches failed")
+
             for member in members:
                 if member.odata_type == "#microsoft.graph.group":
-                    inherited_members: List[Dict] = []
-                    response = await client.groups.by_group_id(member.id).members.get()
-                    inherited_members.extend(response.value)
-
-                    while response.odata_next_link:
-                        response = await client.groups.by_group_id(member.id).members.with_url(response.odata_next_link).get()
-                        inherited_members.extend(response.value)
-                    for inherited_member in inherited_members:
+                    for inherited_member in sub_group_members_map.get(member.id, []):
                         members_data.append({
                             "id": inherited_member.id,
                             "display_name": inherited_member.display_name,
@@ -455,13 +477,27 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
                     "group_id": group_id,
                 })
     except Exception as e:
-        logger.warning(f"error to get members of group {group_id} - {e}")
+        err_str = str(e)
+        if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
+            logger.warning(f"get_group_members group_id={group_id}: RATE_LIMITED (429) after {time.perf_counter() - t0:.2f}s — {e}")
+            ctx = get_current_context()
+            if ctx is not None:
+                ctx.throttle_count += 1
+        else:
+            logger.warning(f"get_group_members group_id={group_id}: error after {time.perf_counter() - t0:.2f}s — {e}")
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += 1
+        return members_data
+
+    elapsed = time.perf_counter() - t0
+    logger.debug(f"get_group_members group_id={group_id}: {len(members_data)} members in {elapsed:.2f}s")
     return members_data
 
 
 @timeit
 def load_group_memberships(neo4j_session: neo4j.Session, memberships: List[Dict], update_tag: int) -> None:
-    neo4j_session.write_transaction(_load_group_memberships_tx, memberships, update_tag)
+    neo4j_session.execute_write(_load_group_memberships_tx, memberships, update_tag)
 
 
 @timeit
@@ -979,21 +1015,22 @@ def _load_roles_tx(
     )
 
     attach_role = """
-    MATCH (principal:AzurePrincipal{object_id: $principal_id})
-    WITH principal
-    MATCH (i:AzureRole{id: $role})
-    WITH i,principal
+    UNWIND $role_assignments AS ra
+    MATCH (principal:AzurePrincipal{object_id: ra.principal_id})
+    WITH principal, ra
+    MATCH (i:AzureRole{id: ra.role_id})
     MERGE (principal)-[r:ASSUME_ROLE]->(i)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag
     """
-    for role_assignment in role_assignments_list:
-        tx.run(
-            attach_role,
-            role=role_assignment.get('role_definition_id', role_assignment.get('properties', {}).get('role_definition_id')),
-            principal_id=role_assignment.get('principal_id', role_assignment.get('properties', {}).get('principal_id')),
-            update_tag=update_tag,
-        )
+    prepared_assignments = [
+        {
+            "role_id": ra.get('role_definition_id', ra.get('properties', {}).get('role_definition_id')),
+            "principal_id": ra.get('principal_id', ra.get('properties', {}).get('principal_id')),
+        }
+        for ra in role_assignments_list
+    ]
+    tx.run(attach_role, role_assignments=prepared_assignments, update_tag=update_tag)
 
 
 def _load_managed_identities_tx(
@@ -1086,7 +1123,7 @@ def _set_used_state_tx(
     ingest_entity_unused = """
     MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->
     (:AzureTenant{id: $AZURE_TENANT_ID})-[r:RESOURCE]->(n)
-    WHERE NOT EXISTS(n.isUsed) AND n.lastupdated = $update_tag
+    WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
     AND labels(n) IN [['AzureUser'], ['AzureGroup'], ['AzureServiceAccount'], ['AzureRole']]
     SET n.isUsed = $isUsed
     """
@@ -1100,6 +1137,7 @@ def _set_used_state_tx(
     )
 
 
+@timeit
 async def sync_scoped_users_and_groups(
     neo4j_session: neo4j.Session, credentials: Credentials, tenant_id: str, update_tag: int,
     common_job_parameters: Dict, scoped_group_ids: List[str],
@@ -1107,9 +1145,11 @@ async def sync_scoped_users_and_groups(
     """
     Syncs only specified groups and their members (users).
     """
+    t_total = time.perf_counter()
     client = get_graph_client(credentials.default_graph_credentials)
 
     # 1. Fetch only the scoped groups in batches to avoid URL length limits.
+    t0 = time.perf_counter()
     scoped_groups = []
     group_id_list = list(scoped_group_ids)
     for i in range(0, len(group_id_list), SAFE_BATCH_SIZE):
@@ -1118,21 +1158,50 @@ async def sync_scoped_users_and_groups(
         group_batch = await get_tenant_groups_list(client, tenant_id, filter_query=id_filter_str)
         if group_batch:
             scoped_groups.extend(group_batch)
+    logger.info(
+        f"IAM tenant={tenant_id}: group fetch done — {len(scoped_groups)}/{len(group_id_list)} groups in {time.perf_counter() - t0:.2f}s",
+    )
 
     if not scoped_groups:
         return set()
 
-    # 2. Fetch members for each scoped group
+    # 2. Fetch members for all scoped groups concurrently
+    t0 = time.perf_counter()
+    logger.info(
+        f"IAM tenant={tenant_id}: fetching members for {len(scoped_groups)} groups concurrently",
+    )
     all_memberships = []
     all_member_ids = set()
-    for group in scoped_groups:
-        memberships = await get_group_members(credentials, group["id"])
+    member_fetch_errors = 0
+    rate_limit_errors = 0
+    membership_results = await asyncio.gather(
+        *[get_group_members(credentials, group["id"]) for group in scoped_groups],
+        return_exceptions=True,
+    )
+    for memberships in membership_results:
+        if isinstance(memberships, Exception):
+            err_str = str(memberships)
+            if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
+                rate_limit_errors += 1
+            member_fetch_errors += 1
+            logger.warning(f"IAM tenant={tenant_id}: group member fetch error — {memberships}")
+            continue
         if memberships:
             all_memberships.extend(memberships)
             for member in memberships:
                 all_member_ids.add(member['id'])
+    logger.info(
+        f"IAM tenant={tenant_id}: member fetch done in {time.perf_counter() - t0:.2f}s — "
+        f"memberships={len(all_memberships)} unique_members={len(all_member_ids)} "
+        f"errors={member_fetch_errors} rate_limit_errors={rate_limit_errors}",
+    )
+    ctx = get_current_context()
+    if ctx is not None:
+        ctx.request_count += len(scoped_groups)
+        ctx.throttle_count += rate_limit_errors
 
     # 3. Fetch only the required users in batches using a $filter query to avoid URL length limits.
+    t0 = time.perf_counter()
     scoped_users = []
     if all_member_ids:
         member_id_list = list(all_member_ids)
@@ -1142,19 +1211,27 @@ async def sync_scoped_users_and_groups(
             id_filter_str = "id in ({})".format(','.join(f"'{id_val}'" for id_val in batch_ids))
             user_fetch_tasks.append(list_tenant_users(client, tenant_id, filter_query=id_filter_str))
 
-        # Run all batch fetches concurrently
+        logger.info(
+            f"IAM tenant={tenant_id}: fetching {len(all_member_ids)} users across {len(user_fetch_tasks)} batches concurrently",
+        )
         user_batch_responses = await asyncio.gather(*user_fetch_tasks)
         for user_batch in user_batch_responses:
             if user_batch:
                 scoped_users.extend(user_batch)
+    logger.info(
+        f"IAM tenant={tenant_id}: user fetch done in {time.perf_counter() - t0:.2f}s — {len(scoped_users)} users",
+    )
 
     # 4. Load the filtered data into Neo4j
+    t0 = time.perf_counter()
     load_tenant_groups(neo4j_session, tenant_id, scoped_groups, update_tag)
     if scoped_users:
         load_tenant_users(neo4j_session, tenant_id, scoped_users, update_tag)
-
     if all_memberships:
         load_group_memberships(neo4j_session, all_memberships, update_tag)
+    logger.info(
+        f"IAM tenant={tenant_id}: Neo4j write done in {time.perf_counter() - t0:.2f}s",
+    )
 
     # 5. Collect and return the IDs of all ingested principals
     ingested_principal_ids = {u.get('object_id') for u in scoped_users}
@@ -1164,6 +1241,11 @@ async def sync_scoped_users_and_groups(
     cleanup_tenant_users(neo4j_session, common_job_parameters)
     cleanup_tenant_groups(neo4j_session, common_job_parameters)
 
+    logger.info(
+        f"IAM tenant={tenant_id}: sync_scoped_users_and_groups complete — "
+        f"groups={len(scoped_groups)} users={len(scoped_users)} memberships={len(all_memberships)} "
+        f"total_elapsed={time.perf_counter() - t_total:.2f}s",
+    )
     return ingested_principal_ids
 
 
@@ -1193,15 +1275,32 @@ async def async_sync(
                     update_tag, common_job_parameters,
                 )
 
-            await sync_tenant_applications(
-                neo4j_session, credentials,
-                tenant_id, update_tag, common_job_parameters,
+            # Fetch concurrently from Graph API — no Neo4j involvement yet
+            t0 = time.perf_counter()
+            logger.info(f"IAM tenant={tenant_id}: fetching applications/service_accounts/domains concurrently")
+            graph_client = get_graph_client(credentials.default_graph_credentials)
+            apps_list, svc_accounts_list, domains_list = await asyncio.gather(
+                get_tenant_applications_list(graph_client, tenant_id),
+                get_tenant_service_accounts_list(graph_client, tenant_id),
+                get_tenant_domains_list(graph_client, tenant_id),
             )
-            await sync_tenant_service_accounts(
-                neo4j_session, credentials,
-                tenant_id, update_tag, common_job_parameters,
+            logger.info(
+                f"IAM tenant={tenant_id}: Graph fetch done in {time.perf_counter() - t0:.2f}s — "
+                f"apps={len(apps_list)} svc_accounts={len(svc_accounts_list)} domains={len(domains_list)}",
             )
-            await sync_tenant_domains(neo4j_session, credentials, tenant_id, update_tag, common_job_parameters)
+
+            # Write sequentially — neo4j Session is not safe for concurrent use
+            t0 = time.perf_counter()
+            load_tenant_applications(neo4j_session, tenant_id, apps_list, update_tag)
+            cleanup_tenant_applications(neo4j_session, common_job_parameters)
+
+            load_tenant_service_accounts(neo4j_session, tenant_id, svc_accounts_list, update_tag)
+            cleanup_tenant_service_accounts(neo4j_session, common_job_parameters)
+
+            load_tenant_domains(neo4j_session, tenant_id, domains_list, update_tag)
+            cleanup_tenant_domains(neo4j_session, common_job_parameters)
+            logger.info(f"IAM tenant={tenant_id}: Neo4j write (apps/svc_accounts/domains) done in {time.perf_counter() - t0:.2f}s")
+
             sync_managed_identity(
                 neo4j_session, credentials, tenant_id, update_tag, common_job_parameters,
             )

@@ -1,22 +1,22 @@
 {
   "statements": [
     {
-      "query": "MATCH ((n:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH ((n:AzureKeyVaultKey)<-[:HAS_KEY]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureKeyVaultKey)<-[:HAS_KEY]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH ((n:AzureKeyVaultSecret)<-[:HAS_SECRET]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureKeyVaultSecret)<-[:HAS_SECRET]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH ((n:AzureKeyVaultCertificate)<-[:HAS_CERTIFICATE]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE EXISTS(n.exposed_internet) WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "query": "MATCH ((n:AzureKeyVaultCertificate)<-[:HAS_CERTIFICATE]-(:AzureKeyVault)<-[:RESOURCE]-(:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})<-[:RESOURCE]-(:AzureTenant{id: $AZURE_TENANT_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID})) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

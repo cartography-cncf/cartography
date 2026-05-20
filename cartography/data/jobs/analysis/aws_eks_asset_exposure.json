@@ -2,7 +2,7 @@
   "statements": [
     {
       "__comment": "This is a clean-up statement to remove custom attributes",
-      "query": "MATCH (cluster:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(cluster.exposed_internet) REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (cluster:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE cluster.exposed_internet IS NOT NULL REMOVE cluster.exposed_internet, cluster.exposed_internet_type, cluster.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

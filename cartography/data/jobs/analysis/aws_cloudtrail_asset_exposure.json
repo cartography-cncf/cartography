@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (trail:AWSCloudTrailTrail)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(trail.exposed_internet) WITH trail LIMIT $LIMIT_SIZE REMOVE trail.exposed_internet, trail.exposed_internet_type, trail.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (trail:AWSCloudTrailTrail)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE trail.exposed_internet IS NOT NULL WITH trail LIMIT $LIMIT_SIZE REMOVE trail.exposed_internet, trail.exposed_internet_type, trail.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

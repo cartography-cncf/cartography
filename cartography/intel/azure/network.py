@@ -18,11 +18,11 @@ azure_console_link = AzureLinker()
 
 
 def load_networks(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_networks_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_networks_tx, subscription_id, data_list, update_tag)
 
 
 def load_networks_subnets(session: neo4j.Session, data_list: List[Dict], subscription_id: str, update_tag: int) -> None:
-    session.write_transaction(_load_networks_subnets_tx, data_list, subscription_id, update_tag)
+    session.execute_write(_load_networks_subnets_tx, data_list, subscription_id, update_tag)
 
 
 def load_network_routetables(
@@ -31,7 +31,7 @@ def load_network_routetables(
         data_list: List[Dict],
         update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_routetables_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_network_routetables_tx, subscription_id, data_list, update_tag)
 
 
 def load_network_bastion_hosts(
@@ -40,19 +40,19 @@ def load_network_bastion_hosts(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_bastion_hosts_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_network_bastion_hosts_tx, subscription_id, data_list, update_tag)
 
 
 def attach_network_routetables_to_subnet(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_attach_network_routetables_to_subnet_tx, data_list, update_tag)
+    session.execute_write(_attach_network_routetables_to_subnet_tx, data_list, update_tag)
 
 
 def attach_network_bastion_hosts_to_subnet(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_attach_network_bastion_hosts_to_subnet_tx, data_list, update_tag)
+    session.execute_write(_attach_network_bastion_hosts_to_subnet_tx, data_list, update_tag)
 
 
 def load_network_routes(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_network_routes_tx, data_list, update_tag)
+    session.execute_write(_load_network_routes_tx, data_list, update_tag)
 
 
 def load_network_security_groups(
@@ -61,11 +61,11 @@ def load_network_security_groups(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_security_groups_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_network_security_groups_tx, subscription_id, data_list, update_tag)
 
 
 def load_network_security_rules(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_network_security_rules_tx, data_list, update_tag)
+    session.execute_write(_load_network_security_rules_tx, data_list, update_tag)
 
 
 def load_public_ip_addresses(
@@ -74,7 +74,7 @@ def load_public_ip_addresses(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_public_ip_addresses_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_public_ip_addresses_tx, subscription_id, data_list, update_tag)
 
 
 def load_network_interfaces(
@@ -83,7 +83,7 @@ def load_network_interfaces(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_interfaces_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_network_interfaces_tx, subscription_id, data_list, update_tag)
 
 
 def load_load_balancers(
@@ -92,7 +92,7 @@ def load_load_balancers(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_load_balancers_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_load_balancers_tx, subscription_id, data_list, update_tag)
 
 
 def load_backend_address_pools(
@@ -100,7 +100,7 @@ def load_backend_address_pools(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_backend_address_pools_tx, data_list, update_tag)
+    session.execute_write(_load_backend_address_pools_tx, data_list, update_tag)
 
 
 def load_frontend_ip_configurations(
@@ -108,7 +108,7 @@ def load_frontend_ip_configurations(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_frontend_ip_configurations_tx, data_list, update_tag)
+    session.execute_write(_load_frontend_ip_configurations_tx, data_list, update_tag)
 
 
 def create_relationship_between_network_interface_and_load_balancer(
@@ -116,7 +116,7 @@ def create_relationship_between_network_interface_and_load_balancer(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(
+    session.execute_write(
         _create_relationship_between_network_interface_and_load_balancer_tx,
         data_list,
         update_tag,
@@ -124,19 +124,19 @@ def create_relationship_between_network_interface_and_load_balancer(
 
 
 def load_ip_configurations(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_ip_configurations_tx, data_list, update_tag)
+    session.execute_write(_load_ip_configurations_tx, data_list, update_tag)
 
 
 def attach_subnet_to_network_interfaces(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_attach_subnet_to_network_interfaces_tx, data_list, update_tag)
+    session.execute_write(_attach_subnet_to_network_interfaces_tx, data_list, update_tag)
 
 
 def load_public_ip_network_interfaces_relationship(session: neo4j.Session, interface_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_public_ip_network_interfaces_relationship, interface_id, data_list, update_tag)
+    session.execute_write(_load_public_ip_network_interfaces_relationship, interface_id, data_list, update_tag)
 
 
 def attach_public_ip_to_load_balancer(session: neo4j.Session, load_balancer_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_attach_public_ip_to_load_balancer_tx, load_balancer_id, data_list, update_tag)
+    session.execute_write(_attach_public_ip_to_load_balancer_tx, load_balancer_id, data_list, update_tag)
 
 
 def _attach_public_ip_to_load_balancer_tx(tx: neo4j.Transaction, load_balancer_id: str, data_list: List[Dict], update_tag: int) -> None:
@@ -158,11 +158,11 @@ def _attach_public_ip_to_load_balancer_tx(tx: neo4j.Transaction, load_balancer_i
 
 
 def attach_public_ip_to_bastion_host(session: neo4j.Session, bastion_host_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_attach_public_ip_to_bastion_host_tx, bastion_host_id, data_list, update_tag)
+    session.execute_write(_attach_public_ip_to_bastion_host_tx, bastion_host_id, data_list, update_tag)
 
 
 def load_usages(session: neo4j.Session, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_usages_tx, data_list, update_tag)
+    session.execute_write(_load_usages_tx, data_list, update_tag)
 
 
 @timeit
@@ -872,7 +872,7 @@ def load_network_nat_gateway(
     data_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_nat_gateway_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_network_nat_gateway_tx, subscription_id, data_list, update_tag)
 
 
 def load_network_nat_gateway_subnet(
@@ -881,7 +881,7 @@ def load_network_nat_gateway_subnet(
     nat_subnet_list: List[Dict],
     update_tag: int,
 ) -> None:
-    session.write_transaction(_load_network_nat_subnet_tx, nat_subnet_list, nat_gateway_id, update_tag)
+    session.execute_write(_load_network_nat_subnet_tx, nat_subnet_list, nat_gateway_id, update_tag)
 
 
 def cleanup_network_nat_gateway(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:

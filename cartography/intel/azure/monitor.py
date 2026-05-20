@@ -19,7 +19,7 @@ azure_console_link = AzureLinker()
 
 
 def load_monitor_log_profiles(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_monitor_log_profiles_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_monitor_log_profiles_tx, subscription_id, data_list, update_tag)
 
 
 @timeit

@@ -1,7 +1,7 @@
 {
 	"statements": [
 		{
-			"query": "MATCH (subnet:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE NOT EXISTS((subnet)-[:HAS_EXPLICIT_ASSOCIATION]->(:EC2RouteTableAssociation)) WITH subnet MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(subnet)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)<-[:MEMBER_OF_AWS_VPC]-(:EC2RouteTable)-[:HAS_ASSOCIATION]->(asc:EC2RouteTableAssociation{main: true}) WITH subnet, asc MERGE (subnet)-[r:HAS_IMPLICIT_ASSOCIATION]->(asc) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+			"query": "MATCH (subnet:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE NOT EXISTS { MATCH (subnet)-[:HAS_EXPLICIT_ASSOCIATION]->(:EC2RouteTableAssociation) } WITH subnet MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(subnet)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)<-[:MEMBER_OF_AWS_VPC]-(:EC2RouteTable)-[:HAS_ASSOCIATION]->(asc:EC2RouteTableAssociation{main: true}) WITH subnet, asc MERGE (subnet)-[r:HAS_IMPLICIT_ASSOCIATION]->(asc) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
 			"iterative": false
 		}
 	],

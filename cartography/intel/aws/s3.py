@@ -451,7 +451,7 @@ def _load_s3_public_access_block(
 
 def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
     set_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where NOT EXISTS(s.anonymous_actions)
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.anonymous_actions IS NULL
     SET s.anonymous_access = false, s.anonymous_actions = []
     """
     neo4j_session.run(
@@ -460,7 +460,7 @@ def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> No
     )
 
     set_encryption_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where NOT EXISTS(s.default_encryption)
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.default_encryption IS NULL
     SET s.default_encryption = false
     """
     neo4j_session.run(

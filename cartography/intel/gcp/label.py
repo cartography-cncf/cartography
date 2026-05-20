@@ -49,7 +49,7 @@ def load_labels(session: neo4j.Session, data_list: List[Dict], update_tag: int, 
             end = start + iteration_size
             labels = data_list[start:end]
 
-        session.write_transaction(_load_labels_tx, labels, update_tag, common_job_parameters, service_label)
+        session.execute_write(_load_labels_tx, labels, update_tag, common_job_parameters, service_label)
 
         logger.info(f"Iteration {counter + 1} of {total_iterations}. {start} - {end} - {len(labels)}")
 

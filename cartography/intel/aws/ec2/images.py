@@ -27,10 +27,12 @@ def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_acc
     WITH collect(DISTINCT i.imageid) AS images
     OPTIONAL MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(lc:LaunchConfiguration)
     WHERE lc.region = $Region
-    WITH collect(DISTINCT lc.image_id)+images AS images
+    WITH images, collect(DISTINCT lc.image_id) AS new_lc_images
+    WITH images + new_lc_images AS images
     OPTIONAL MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(ltv:LaunchTemplateVersion)
     WHERE ltv.region = $Region
-    WITH collect(DISTINCT ltv.image_id)+images AS images
+    WITH images, collect(DISTINCT ltv.image_id) AS new_ltv_images
+    WITH images + new_ltv_images AS images
     RETURN images
     """
     results = neo4j_session.run(get_images_query, AWS_ACCOUNT_ID=current_aws_account_id, Region=region)

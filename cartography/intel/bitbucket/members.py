@@ -46,7 +46,7 @@ def transform_members(workspace_members: List[Dict], workspace: str) -> List[Dic
 
 
 def load_members_data(session: neo4j.Session, members_data: List[Dict], common_job_parameters: Dict) -> None:
-    session.write_transaction(_load_members_data, members_data, common_job_parameters)
+    session.execute_write(_load_members_data, members_data, common_job_parameters)
 
 
 def _load_members_data(tx: neo4j.Transaction, members_data: List[Dict], common_job_parameters: Dict) -> None:

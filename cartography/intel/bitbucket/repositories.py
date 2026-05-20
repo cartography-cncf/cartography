@@ -135,12 +135,12 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
 
 
 def load_repositories_data(session: neo4j.Session, repos_data: List[Dict], common_job_parameters: Dict) -> None:
-    session.write_transaction(_load_repositories_data, repos_data, common_job_parameters)
+    session.execute_write(_load_repositories_data, repos_data, common_job_parameters)
 
 
 @timeit
 def load_branches(session: neo4j.Session, branches_data: List[Dict], common_job_parameters: Dict) -> None:
-    session.write_transaction(_load_branches, branches_data, common_job_parameters)
+    session.execute_write(_load_branches, branches_data, common_job_parameters)
 
 
 @timeit

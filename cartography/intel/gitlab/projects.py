@@ -121,7 +121,7 @@ def load_projects_data(
     common_job_parameters: Dict,
     group_id: int,
 ) -> None:
-    session.write_transaction(
+    session.execute_write(
         _load_projects_data,
         project_data,
         common_job_parameters,
@@ -134,7 +134,7 @@ def load_branches_data(
     branches_data: List[Dict],
     common_job_parameters: Dict,
 ) -> None:
-    session.write_transaction(
+    session.execute_write(
         _load_branches_data,
         branches_data,
         common_job_parameters,

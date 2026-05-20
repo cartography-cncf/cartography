@@ -73,7 +73,7 @@ class GraphStatement:
         if self.iterative:
             self._run_iterative(session)
         else:
-            session.write_transaction(self._run_noniterative).consume()
+            session.execute_write(self._run_noniterative)
         logger.info(f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}")
 
     def as_dict(self) -> Dict[str, Any]:
@@ -87,7 +87,7 @@ class GraphStatement:
             "iterationsize": self.iterationsize,
         }
 
-    def _run_noniterative(self, tx: neo4j.Transaction) -> neo4j.Result:
+    def _run_noniterative(self, tx: neo4j.Transaction) -> neo4j.ResultSummary:
         """
         Non-iterative statement execution.
         """
@@ -107,7 +107,7 @@ class GraphStatement:
         stat_handler.incr('relationships_created', summary.counters.relationships_created)
         stat_handler.incr('relationships_deleted', summary.counters.relationships_deleted)
 
-        return result
+        return summary
 
     def _run_iterative(self, session: neo4j.Session) -> None:
         """
@@ -117,14 +117,11 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            result: neo4j.Result = session.write_transaction(self._run_noniterative)
+            summary: neo4j.ResultSummary = session.execute_write(self._run_noniterative)
 
             # Exit if we have finished processing all items
-            if not result.consume().counters.contains_updates:
-                # Ensure network buffers are cleared
-                result.consume()
+            if not summary.counters.contains_updates:
                 break
-            result.consume()
 
     @classmethod
     def create_from_json(

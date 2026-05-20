@@ -3,12 +3,12 @@
 	"statements": [
 		{
 			"__comment__": "Delete the attribute user_uploaded",
-			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(k:EC2KeyPair) WHERE EXISTS (k.user_uploaded) REMOVE k.user_uploaded return COUNT(*) as TotalCompleted",
+			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(k:EC2KeyPair) WHERE k.user_uploaded IS NOT NULL REMOVE k.user_uploaded return COUNT(*) as TotalCompleted",
 			"iterative": false
 		},
 		{
 			"__comment__": "Delete the attribute duplicate_keyfingerprint",
-			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(k:EC2KeyPair) WHERE EXISTS (k.duplicate_keyfingerprint) REMOVE k.duplicate_keyfingerprint return COUNT(*) as TotalCompleted",
+			"query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:AWSOrganization{id: $ORGANIZATION_ID})-[:OWNER]->(:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(k:EC2KeyPair) WHERE k.duplicate_keyfingerprint IS NOT NULL REMOVE k.duplicate_keyfingerprint return COUNT(*) as TotalCompleted",
 			"iterative": false
 		},
 		{

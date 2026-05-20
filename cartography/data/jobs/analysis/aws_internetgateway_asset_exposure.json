@@ -1,12 +1,12 @@
 {
   "statements": [
     {
-      "query": "MATCH (ig:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(ig.exposed_internet) WITH ig LIMIT $LIMIT_SIZE REMOVE ig.exposed_internet, ig.exposed_internet_type, ig.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (ig:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE ig.exposed_internet IS NOT NULL WITH ig LIMIT $LIMIT_SIZE REMOVE ig.exposed_internet, ig.exposed_internet_type, ig.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH (vpc:AWSVpc)-[:ATTACHED_TO]->(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE EXISTS(vpc.exposed_internet) WITH vpc LIMIT $LIMIT_SIZE REMOVE vpc.exposed_internet, vpc.exposed_internet_type, vpc.publicContext return COUNT(*) as TotalCompleted",
+      "query": "MATCH (vpc:AWSVpc)-[:ATTACHED_TO]->(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})<-[:OWNER]-(:AWSOrganization{id: $ORGANIZATION_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE vpc.exposed_internet IS NOT NULL WITH vpc LIMIT $LIMIT_SIZE REMOVE vpc.exposed_internet, vpc.exposed_internet_type, vpc.publicContext return COUNT(*) as TotalCompleted",
       "iterative": true,
       "iterationsize": 100
     },

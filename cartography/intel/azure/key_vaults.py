@@ -18,19 +18,19 @@ azure_console_link = AzureLinker()
 
 
 def load_key_vaults(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vaults_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vaults_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_keys(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vaults_keys_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vaults_keys_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_secrets(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vault_secrets_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vault_secrets_tx, subscription_id, data_list, update_tag)
 
 
 def load_key_vaults_certificates(session: neo4j.Session, subscription_id: str, data_list: List[Dict], update_tag: int) -> None:
-    session.write_transaction(_load_key_vault_certificates_tx, subscription_id, data_list, update_tag)
+    session.execute_write(_load_key_vault_certificates_tx, subscription_id, data_list, update_tag)
 
 
 @timeit
@@ -233,7 +233,7 @@ def transform_key_vault_secrets(secrets: List[Dict], vault_id: str, common_job_p
     secrets_data = []
     for secret in secrets:
         secret['consolelink'] = azure_console_link.get_console_link(
-            id=secret['properties']['secret_uri'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            id=secret.get('properties', {}).get('secret_uri', ''), primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
         )
         secret['vault_id'] = vault_id
         secrets_data.append(secret)
