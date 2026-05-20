@@ -5,9 +5,11 @@ from neo4j import Session
 
 from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
+from cartography.intel.aibom.loader import load_aibom_component_relationships
 from cartography.intel.aibom.loader import load_aibom_components
 from cartography.intel.aibom.loader import load_aibom_sources
 from cartography.intel.aibom.transform import transform_aibom_component_payloads
+from cartography.intel.aibom.transform import transform_aibom_relationship_payloads
 from cartography.intel.aibom.transform import transform_aibom_source_payloads
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import ObjectStoreError
@@ -139,6 +141,9 @@ def sync_aibom_from_report_reader(
             report_location=source,
         )
         component_payloads = transform_aibom_component_payloads(prepared_report)
+        relationship_payloads = transform_aibom_relationship_payloads(
+            prepared_report,
+        )
         if not source_payloads:
             logger.info("AIBOM report %s had no source payloads to ingest", source)
             continue
@@ -146,6 +151,18 @@ def sync_aibom_from_report_reader(
         stat_handler.incr("aibom_reports_processed")
         load_aibom_components(neo4j_session, component_payloads, update_tag)
         load_aibom_sources(neo4j_session, source_payloads, update_tag)
+        for relationship_label in (
+            "USES_MODEL",
+            "USES_TOOL",
+            "EXPOSES_TOOL",
+            "CUSTOM",
+        ):
+            load_aibom_component_relationships(
+                neo4j_session,
+                relationship_payloads,
+                relationship_label,
+                update_tag,
+            )
         processed_reports += 1
 
     if failed_report_count:

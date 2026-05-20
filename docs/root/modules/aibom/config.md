@@ -80,8 +80,12 @@ and creates these relationships:
 - `(:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)`
 - `(:AIBOMSource)-[:HAS_COMPONENT]->(:AIBOMComponent)`
 - `(:AIBOMComponent)-[:DETECTED_IN]->(:Image)`
+- `(:AIBOMComponent)-[:USES_MODEL]->(:AIBOMComponent)`
+- `(:AIBOMComponent)-[:USES_TOOL]->(:AIBOMComponent)`
+- `(:AIBOMComponent)-[:EXPOSES_TOOL]->(:AIBOMComponent)`
+- `(:AIBOMComponent)-[:CUSTOM]->(:AIBOMComponent)`
 
-Workflow nodes and component-to-component AIBOM relationships are intentionally deferred in the current rc3 implementation.
+Workflow nodes are still deferred in the current rc3 implementation.
 
 ### Prerequisite
 
@@ -112,3 +116,23 @@ cartography \
 ### Observability counters
 
 - `aibom_reports_processed`
+
+### Example queries
+
+Find images whose scanned source contains agent components:
+
+```cypher
+MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
+MATCH (source)-[:HAS_COMPONENT]->(component:AIBOMComponent)
+WHERE component.category = 'agent'
+RETURN source.image_uri, img._ont_digest, collect(component.name)
+```
+
+Find component-to-component relationships emitted by the AIBOM report:
+
+```cypher
+MATCH (source:AIBOMSource)-[:HAS_COMPONENT]->(src:AIBOMComponent)-[r]->(dst:AIBOMComponent)
+WHERE type(r) IN ['USES_MODEL', 'USES_TOOL', 'EXPOSES_TOOL', 'CUSTOM']
+RETURN source.source_key, src.name, type(r), dst.name
+ORDER BY src.name, type(r), dst.name
+```

@@ -298,6 +298,129 @@ def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, A
     return component_records
 
 
+def _parse_aibom_relationship_records(document: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Extract raw relationship records from the AIBOM rc3 report.
+
+    This is the relationship-specific traversal step that finds component-to-
+    component edges in the report and preserves the source context needed for
+    downstream transforms.
+    """
+    analysis = document["aibom_analysis"]
+    sources = analysis.get("sources")
+
+    relationship_records: list[dict[str, Any]] = []
+    for source_key, source_data in sources.items():
+        relationships = source_data.get("relationships", [])
+
+        for relationship in relationships:
+            relationship_records.append(
+                {
+                    "source_key": source_key,
+                    "relationship": relationship,
+                },
+            )
+
+    return relationship_records
+
+
+def _build_relationship_component_lookup(
+    document: dict[str, Any],
+) -> dict[tuple[str, str, str], str]:
+    """
+    Build a lookup from report-side component identity to the component node id.
+
+    The report relationship records identify endpoints by source-scoped
+    component fields like type and name. This helper resolves those fields onto
+    the stable AIBOMComponent.id values we derive for node ingestion.
+    """
+    component_lookup: dict[tuple[str, str, str], str] = {}
+    component_records = _parse_aibom_component_records(document)
+
+    for component_record in component_records:
+        source_key = component_record["source_key"]
+        component_type = component_record["component_type"]
+        component = component_record["component"]
+        normalized_component_type = (
+            _as_str(component.get("component_type")) or component_type
+        )
+        component_name = _as_str(component.get("name")) or ""
+        component_lookup[
+            (
+                source_key,
+                normalized_component_type,
+                component_name,
+            )
+        ] = _build_component_id(source_key, component)
+
+    return component_lookup
+
+
+def transform_aibom_relationship_payloads(
+    document: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Transform raw AIBOM rc3 relationship data into normalized edge payloads.
+
+    This consumes the raw report relationship records, resolves their endpoints
+    onto AIBOMComponent ids, and emits generic relationship payloads that can be
+    bucketed by relationship_type/label for later loading.
+    """
+    component_lookup = _build_relationship_component_lookup(document)
+    relationship_records = _parse_aibom_relationship_records(document)
+
+    payloads: list[dict[str, Any]] = []
+    for relationship_record in relationship_records:
+        source_key = relationship_record["source_key"]
+        relationship = relationship_record["relationship"]
+        relationship_type = _as_str(relationship.get("relationship_type"))
+        relationship_label = _as_str(relationship.get("label")) or relationship_type
+
+        source_component_lookup_key = (
+            source_key,
+            _as_str(relationship.get("source_type")) or "",
+            _as_str(relationship.get("source_name")) or "",
+        )
+        target_component_lookup_key = (
+            source_key,
+            _as_str(relationship.get("target_type")) or "",
+            _as_str(relationship.get("target_name")) or "",
+        )
+
+        source_component_id = component_lookup.get(source_component_lookup_key)
+        target_component_id = component_lookup.get(target_component_lookup_key)
+        if not source_component_id or not target_component_id:
+            logger.warning(
+                "Skipping unresolved AIBOM relationship %s on source %s: %s -> %s",
+                relationship_label or "unknown",
+                source_key,
+                relationship.get("source_name"),
+                relationship.get("target_name"),
+            )
+            continue
+
+        decision_annotation = relationship.get("decision_annotation") or {}
+        payloads.append(
+            {
+                "source_key": source_key,
+                "source_component_id": source_component_id,
+                "target_component_id": target_component_id,
+                "relationship_type": relationship_type,
+                "relationship_label": relationship_label,
+                "source_name": _as_str(relationship.get("source_name")),
+                "target_name": _as_str(relationship.get("target_name")),
+                "source_type": _as_str(relationship.get("source_type")),
+                "target_type": _as_str(relationship.get("target_type")),
+                "decision": _as_str(decision_annotation.get("decision")),
+                "decision_justification": _as_str(
+                    decision_annotation.get("justification"),
+                ),
+            },
+        )
+
+    return payloads
+
+
 def transform_aibom_component_payloads(
     document: dict[str, Any],
 ) -> list[dict[str, Any]]:

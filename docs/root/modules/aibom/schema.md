@@ -11,9 +11,8 @@ ontology `:Image` node.
   group equivalent components across repeated rebuilds and image churn.
 - Workflow-like context in `1.0.0rc3` is preserved through component evidence
   and metadata fields rather than first-class workflow nodes.
-- Component-to-component AIBOM edges are intentionally deferred to the later
-  data-model redesign, so this schema focuses on image/source/component
-  ingestion only.
+- Component-to-component AIBOM edges are loaded directly from the report's
+  `relationships` array as scoped MatchLinks between `AIBOMComponent` nodes.
 
 ### AIBOMSource
 
@@ -103,7 +102,7 @@ Representation of one detected AI component occurrence within a source.
 | **id** | Stable hash of source key + component occurrence identity fields |
 | logical_id | Stable cross-source fingerprint for equivalent components |
 | name | Detected component name |
-| **category** | Normalized component category used for graph labeling |
+| **category** | Normalized component category used for grouping and filtering |
 | component_type | AIBOM component type from the report |
 | instance_id | AIBOM component instance identifier |
 | file_path | File path reported for the component |
@@ -135,15 +134,6 @@ Representation of one detected AI component occurrence within a source.
 | metadata_json | Serialized component metadata preserved until category-specific remodel work lands |
 | manifest_digests | Concrete image digests used to link the component to `:Image` |
 
-`AIBOMComponent` also gets conditional category labels for discoverability:
-
-- `AIAgent` when `category = "agent"`
-- `AIModel` when `category = "model"`
-- `AITool` when `category = "tool"`
-- `AIMemory` when `category = "memory"`
-- `AIEmbedding` when `category = "embedding"`
-- `AIPrompt` when `category = "prompt"`
-
 #### Relationships
 
 - A component occurrence is detected in the concrete image resolved for the
@@ -151,6 +141,17 @@ Representation of one detected AI component occurrence within a source.
 
     ```
     (:AIBOMComponent)-[:DETECTED_IN]->(:Image)
+    ```
+
+- Report-defined component-to-component relationships are loaded between
+  `AIBOMComponent` nodes when both endpoints resolve successfully within the
+  same scanned source. The current implementation supports:
+
+    ```
+    (:AIBOMComponent)-[:USES_MODEL]->(:AIBOMComponent)
+    (:AIBOMComponent)-[:USES_TOOL]->(:AIBOMComponent)
+    (:AIBOMComponent)-[:EXPOSES_TOOL]->(:AIBOMComponent)
+    (:AIBOMComponent)-[:CUSTOM]->(:AIBOMComponent)
     ```
 
 #### Identity notes
@@ -163,13 +164,6 @@ Representation of one detected AI component occurrence within a source.
 - `metadata_json` intentionally preserves category-specific metadata until the
   follow-up data-model redesign decides which component categories should become
   their own first-class node types.
-
-### Relationship ingestion
-
-- The current `1.0.0rc3` implementation does **not** materialize AIBOM
-  component-to-component relationships as graph edges in this PR.
-- Source `relationships` are still counted in source/report summary fields, but
-  their first-class graph modeling is deferred to the follow-up redesign work.
 
 ### Linking constraints
 
@@ -201,10 +195,10 @@ RETURN img._ont_digest, component.category, component.name
 ORDER BY component.category, component.name
 ```
 
-Group equivalent agents across rebuilds:
+Group equivalent components across rebuilds:
 
 ```cypher
-MATCH (component:AIAgent)
+MATCH (component:AIBOMComponent)
 RETURN component.logical_id, collect(DISTINCT component.name), count(*) AS detections
 ORDER BY detections DESC
 ```

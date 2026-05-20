@@ -152,3 +152,15 @@ def test_sync_aibom_happy_path(
         rel_direction_right=True,
     )
     assert len(detected_in_rels) == len(component_nodes)
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "name",
+        "AIBOMComponent",
+        "name",
+        "USES_MODEL",
+        rel_direction_right=True,
+    ) == {
+        ("Agent", "gpt-5.2"),
+    }

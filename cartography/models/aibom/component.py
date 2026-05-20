@@ -3,13 +3,14 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -77,22 +78,88 @@ class AIBOMComponentDetectedInRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AIBOMComponentMatchLinkRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AIBOMComponentUsesModelRel(CartographyRelSchema):
+    source_node_label: str = "AIBOMComponent"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_component_id")},
+    )
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_component_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_MODEL"
+    properties: AIBOMComponentMatchLinkRelProperties = (
+        AIBOMComponentMatchLinkRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentUsesToolRel(CartographyRelSchema):
+    source_node_label: str = "AIBOMComponent"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_component_id")},
+    )
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_component_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_TOOL"
+    properties: AIBOMComponentMatchLinkRelProperties = (
+        AIBOMComponentMatchLinkRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentExposesToolRel(CartographyRelSchema):
+    source_node_label: str = "AIBOMComponent"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_component_id")},
+    )
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_component_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "EXPOSES_TOOL"
+    properties: AIBOMComponentMatchLinkRelProperties = (
+        AIBOMComponentMatchLinkRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentCustomRel(CartographyRelSchema):
+    source_node_label: str = "AIBOMComponent"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_component_id")},
+    )
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_component_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CUSTOM"
+    properties: AIBOMComponentMatchLinkRelProperties = (
+        AIBOMComponentMatchLinkRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AIBOMComponentSchema(CartographyNodeSchema):
     label: str = "AIBOMComponent"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [
-            ConditionalNodeLabel(label="AIAgent", conditions={"category": "agent"}),
-            ConditionalNodeLabel(label="AIModel", conditions={"category": "model"}),
-            ConditionalNodeLabel(label="AITool", conditions={"category": "tool"}),
-            ConditionalNodeLabel(label="AIMemory", conditions={"category": "memory"}),
-            ConditionalNodeLabel(
-                label="AIEmbedding",
-                conditions={"category": "embedding"},
-            ),
-            ConditionalNodeLabel(label="AIPrompt", conditions={"category": "prompt"}),
-        ],
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
     properties: AIBOMComponentNodeProperties = AIBOMComponentNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
