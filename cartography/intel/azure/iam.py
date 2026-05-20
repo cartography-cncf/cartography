@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import time
 from datetime import datetime
 from typing import Any
 from typing import Dict
@@ -420,6 +421,7 @@ def _load_tenant_groups_tx(
 
 
 async def get_group_members(credentials: Credentials, group_id: str) -> List[Dict[str, Any]]:
+    t0 = time.perf_counter()
     client: GraphServiceClient = get_default_graph_client(credentials.default_graph_credentials)
     members_data = []
     try:
@@ -442,14 +444,21 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
                 return inherited
 
             sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
+            if sub_group_ids:
+                logger.debug(f"get_group_members group_id={group_id}: expanding {len(sub_group_ids)} sub-groups")
             sub_group_results = await asyncio.gather(
                 *[_fetch_subgroup_members(gid) for gid in sub_group_ids],
                 return_exceptions=True,
             )
             sub_group_members_map = {}
+            sub_group_errors = 0
             for gid, result in zip(sub_group_ids, sub_group_results):
-                if not isinstance(result, Exception):
+                if isinstance(result, Exception):
+                    sub_group_errors += 1
+                else:
                     sub_group_members_map[gid] = result
+            if sub_group_errors:
+                logger.warning(f"get_group_members group_id={group_id}: {sub_group_errors}/{len(sub_group_ids)} sub-group fetches failed")
 
             for member in members:
                 if member.odata_type == "#microsoft.graph.group":
@@ -467,7 +476,15 @@ async def get_group_members(credentials: Credentials, group_id: str) -> List[Dic
                     "group_id": group_id,
                 })
     except Exception as e:
-        logger.warning(f"error to get members of group {group_id} - {e}")
+        err_str = str(e)
+        if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
+            logger.warning(f"get_group_members group_id={group_id}: RATE_LIMITED (429) after {time.perf_counter() - t0:.2f}s — {e}")
+        else:
+            logger.warning(f"get_group_members group_id={group_id}: error after {time.perf_counter() - t0:.2f}s — {e}")
+        return members_data
+
+    elapsed = time.perf_counter() - t0
+    logger.debug(f"get_group_members group_id={group_id}: {len(members_data)} members in {elapsed:.2f}s")
     return members_data
 
 
@@ -1113,6 +1130,7 @@ def _set_used_state_tx(
     )
 
 
+@timeit
 async def sync_scoped_users_and_groups(
     neo4j_session: neo4j.Session, credentials: Credentials, tenant_id: str, update_tag: int,
     common_job_parameters: Dict, scoped_group_ids: List[str],
@@ -1120,9 +1138,11 @@ async def sync_scoped_users_and_groups(
     """
     Syncs only specified groups and their members (users).
     """
+    t_total = time.perf_counter()
     client = get_graph_client(credentials.default_graph_credentials)
 
     # 1. Fetch only the scoped groups in batches to avoid URL length limits.
+    t0 = time.perf_counter()
     scoped_groups = []
     group_id_list = list(scoped_group_ids)
     for i in range(0, len(group_id_list), SAFE_BATCH_SIZE):
@@ -1131,27 +1151,46 @@ async def sync_scoped_users_and_groups(
         group_batch = await get_tenant_groups_list(client, tenant_id, filter_query=id_filter_str)
         if group_batch:
             scoped_groups.extend(group_batch)
+    logger.info(
+        f"IAM tenant={tenant_id}: group fetch done — {len(scoped_groups)}/{len(group_id_list)} groups in {time.perf_counter() - t0:.2f}s",
+    )
 
     if not scoped_groups:
         return set()
 
     # 2. Fetch members for all scoped groups concurrently
+    t0 = time.perf_counter()
+    logger.info(
+        f"IAM tenant={tenant_id}: fetching members for {len(scoped_groups)} groups concurrently",
+    )
     all_memberships = []
     all_member_ids = set()
+    member_fetch_errors = 0
+    rate_limit_errors = 0
     membership_results = await asyncio.gather(
         *[get_group_members(credentials, group["id"]) for group in scoped_groups],
         return_exceptions=True,
     )
     for memberships in membership_results:
         if isinstance(memberships, Exception):
-            logger.warning(f"Error fetching group members: {memberships}")
+            err_str = str(memberships)
+            if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
+                rate_limit_errors += 1
+            member_fetch_errors += 1
+            logger.warning(f"IAM tenant={tenant_id}: group member fetch error — {memberships}")
             continue
         if memberships:
             all_memberships.extend(memberships)
             for member in memberships:
                 all_member_ids.add(member['id'])
+    logger.info(
+        f"IAM tenant={tenant_id}: member fetch done in {time.perf_counter() - t0:.2f}s — "
+        f"memberships={len(all_memberships)} unique_members={len(all_member_ids)} "
+        f"errors={member_fetch_errors} rate_limit_errors={rate_limit_errors}",
+    )
 
     # 3. Fetch only the required users in batches using a $filter query to avoid URL length limits.
+    t0 = time.perf_counter()
     scoped_users = []
     if all_member_ids:
         member_id_list = list(all_member_ids)
@@ -1161,19 +1200,27 @@ async def sync_scoped_users_and_groups(
             id_filter_str = "id in ({})".format(','.join(f"'{id_val}'" for id_val in batch_ids))
             user_fetch_tasks.append(list_tenant_users(client, tenant_id, filter_query=id_filter_str))
 
-        # Run all batch fetches concurrently
+        logger.info(
+            f"IAM tenant={tenant_id}: fetching {len(all_member_ids)} users across {len(user_fetch_tasks)} batches concurrently",
+        )
         user_batch_responses = await asyncio.gather(*user_fetch_tasks)
         for user_batch in user_batch_responses:
             if user_batch:
                 scoped_users.extend(user_batch)
+    logger.info(
+        f"IAM tenant={tenant_id}: user fetch done in {time.perf_counter() - t0:.2f}s — {len(scoped_users)} users",
+    )
 
     # 4. Load the filtered data into Neo4j
+    t0 = time.perf_counter()
     load_tenant_groups(neo4j_session, tenant_id, scoped_groups, update_tag)
     if scoped_users:
         load_tenant_users(neo4j_session, tenant_id, scoped_users, update_tag)
-
     if all_memberships:
         load_group_memberships(neo4j_session, all_memberships, update_tag)
+    logger.info(
+        f"IAM tenant={tenant_id}: Neo4j write done in {time.perf_counter() - t0:.2f}s",
+    )
 
     # 5. Collect and return the IDs of all ingested principals
     ingested_principal_ids = {u.get('object_id') for u in scoped_users}
@@ -1183,6 +1230,11 @@ async def sync_scoped_users_and_groups(
     cleanup_tenant_users(neo4j_session, common_job_parameters)
     cleanup_tenant_groups(neo4j_session, common_job_parameters)
 
+    logger.info(
+        f"IAM tenant={tenant_id}: sync_scoped_users_and_groups complete — "
+        f"groups={len(scoped_groups)} users={len(scoped_users)} memberships={len(all_memberships)} "
+        f"total_elapsed={time.perf_counter() - t_total:.2f}s",
+    )
     return ingested_principal_ids
 
 
@@ -1213,14 +1265,21 @@ async def async_sync(
                 )
 
             # Fetch concurrently from Graph API — no Neo4j involvement yet
+            t0 = time.perf_counter()
+            logger.info(f"IAM tenant={tenant_id}: fetching applications/service_accounts/domains concurrently")
             graph_client = get_graph_client(credentials.default_graph_credentials)
             apps_list, svc_accounts_list, domains_list = await asyncio.gather(
                 get_tenant_applications_list(graph_client, tenant_id),
                 get_tenant_service_accounts_list(graph_client, tenant_id),
                 get_tenant_domains_list(graph_client, tenant_id),
             )
+            logger.info(
+                f"IAM tenant={tenant_id}: Graph fetch done in {time.perf_counter() - t0:.2f}s — "
+                f"apps={len(apps_list)} svc_accounts={len(svc_accounts_list)} domains={len(domains_list)}",
+            )
 
             # Write sequentially — neo4j Session is not safe for concurrent use
+            t0 = time.perf_counter()
             load_tenant_applications(neo4j_session, tenant_id, apps_list, update_tag)
             cleanup_tenant_applications(neo4j_session, common_job_parameters)
 
@@ -1229,6 +1288,7 @@ async def async_sync(
 
             load_tenant_domains(neo4j_session, tenant_id, domains_list, update_tag)
             cleanup_tenant_domains(neo4j_session, common_job_parameters)
+            logger.info(f"IAM tenant={tenant_id}: Neo4j write (apps/svc_accounts/domains) done in {time.perf_counter() - t0:.2f}s")
 
             sync_managed_identity(
                 neo4j_session, credentials, tenant_id, update_tag, common_job_parameters,
