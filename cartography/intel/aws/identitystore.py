@@ -766,6 +766,155 @@ def sync_identity_center_groups(
         load_identity_center_group_memberships(neo4j_session, group_memberships, aws_update_tag)
 
 
+@timeit
+def get_identity_center_group_by_id(
+    boto3_session: boto3.session.Session,
+    instance: Dict,
+    group_id: str,
+    region: str,
+) -> Dict:
+    """Fetch a single group by its GroupId from the identity store."""
+    client = get_boto3_client(boto3_session, "identitystore", region)
+    try:
+        response = client.describe_group(
+            IdentityStoreId=instance["IdentityStoreId"],
+            GroupId=group_id,
+        )
+        group = {
+            "GroupId": response["GroupId"],
+            "DisplayName": response.get("DisplayName"),
+            "Description": response.get("Description"),
+            "IdentityStoreId": response.get("IdentityStoreId", instance["IdentityStoreId"]),
+            "arn": f"{instance['InstanceArn']}/group/{response['GroupId']}",
+        }
+        return group
+    except Exception as e:
+        logger.warning(
+            f"Could not describe group {group_id} for {instance['IdentityStoreId']}. skipping. - {e}",
+        )
+        return {}
+
+
+@timeit
+def get_identity_center_user_by_id(
+    boto3_session: boto3.session.Session,
+    instance: Dict,
+    user_id: str,
+    region: str,
+) -> Dict:
+    """Fetch a single user by their UserId from the identity store."""
+    client = get_boto3_client(boto3_session, "identitystore", region)
+    try:
+        response = client.describe_user(
+            IdentityStoreId=instance["IdentityStoreId"],
+            UserId=user_id,
+        )
+        user = {
+            "UserId": response["UserId"],
+            "UserName": response.get("UserName"),
+            "DisplayName": response.get("DisplayName"),
+            "UserType": response.get("UserType"),
+            "IdentityStoreId": response.get("IdentityStoreId", instance["IdentityStoreId"]),
+            "arn": f"{instance['InstanceArn']}/user/{response['UserId']}",
+        }
+        return user
+    except Exception as e:
+        logger.warning(
+            f"Could not describe user {user_id} for {instance['IdentityStoreId']}. skipping. - {e}",
+        )
+        return {}
+
+
+@timeit
+def sync_scoped_groups(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    instance: Dict,
+    aws_update_tag: int,
+    region: str,
+    scoped_group_ids: List[Dict],
+) -> None:
+    """
+    Sync only specified groups and their members (users) from AWS Identity Store.
+    Similar to Azure IAM's sync_scoped_users_and_groups.
+
+    Args:
+        scoped_group_ids: List of dicts with 'id' key containing the GroupId to scope to.
+    """
+    t_total = time.perf_counter()
+
+    # 1. Fetch only the scoped groups
+    t0 = time.perf_counter()
+    scoped_groups: List[Dict] = []
+    for group_entry in scoped_group_ids:
+        group_id = group_entry.get("id", "") if isinstance(group_entry, dict) else group_entry
+        if not group_id:
+            continue
+        group = get_identity_center_group_by_id(boto3_session, instance, group_id, region)
+        if group:
+            scoped_groups.append(group)
+
+    logger.info(
+        f"IdentityStore: scoped group fetch done — {len(scoped_groups)}/{len(scoped_group_ids)} groups "
+        f"in {time.perf_counter() - t0:.2f}s",
+    )
+
+    if not scoped_groups:
+        return
+
+    # 2. Load the scoped groups into Neo4j
+    load_identity_center_groups(neo4j_session, instance["InstanceArn"], scoped_groups, aws_update_tag)
+
+    # 3. Fetch memberships for all scoped groups and collect unique member user IDs
+    t0 = time.perf_counter()
+    all_memberships: List[Dict] = []
+    all_member_user_ids: set = set()
+
+    for group in scoped_groups:
+        group_memberships = get_list_group_memberships(boto3_session, group, instance, region)
+        all_memberships.extend(group_memberships)
+        for membership in group_memberships:
+            member_id = membership.get("MemberId", {})
+            user_id = member_id.get("UserId") if isinstance(member_id, dict) else None
+            if user_id:
+                all_member_user_ids.add(user_id)
+
+    logger.info(
+        f"IdentityStore: membership fetch done in {time.perf_counter() - t0:.2f}s — "
+        f"memberships={len(all_memberships)} unique_members={len(all_member_user_ids)}",
+    )
+
+    # 4. Fetch only the required users
+    t0 = time.perf_counter()
+    scoped_users: List[Dict] = []
+    for user_id in all_member_user_ids:
+        user = get_identity_center_user_by_id(boto3_session, instance, user_id, region)
+        if user:
+            scoped_users.append(user)
+
+    logger.info(
+        f"IdentityStore: scoped user fetch done in {time.perf_counter() - t0:.2f}s — "
+        f"{len(scoped_users)} users",
+    )
+
+    # 5. Load users and memberships into Neo4j
+    t0 = time.perf_counter()
+    if scoped_users:
+        load_identity_center_users(neo4j_session, instance["InstanceArn"], scoped_users, aws_update_tag)
+    if all_memberships:
+        load_identity_center_group_memberships(neo4j_session, all_memberships, aws_update_tag)
+
+    logger.info(
+        f"IdentityStore: Neo4j write done in {time.perf_counter() - t0:.2f}s",
+    )
+
+    logger.info(
+        f"IdentityStore: sync_scoped_groups complete — "
+        f"groups={len(scoped_groups)} users={len(scoped_users)} memberships={len(all_memberships)} "
+        f"total_elapsed={time.perf_counter() - t_total:.2f}s",
+    )
+
+
 def cleanup_identitystore(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     run_cleanup_job("aws_import_identitystore_cleanup.json", neo4j_session, common_job_parameters)
 
@@ -780,6 +929,7 @@ def sync_identitystore(
 ) -> None:
     region: str = common_job_parameters["IDENTITY_STORE_REGION"]
     organization_id = common_job_parameters["ORGANIZATION_ID"]
+    scoped_group_ids = common_job_parameters.get("GROUPS", [])
     instances = get_identity_center_instances_list(boto3_session, common_job_parameters["IDENTITY_STORE_REGION"])
     for instance in instances:
         load_identity_center_instance(
@@ -788,8 +938,17 @@ def sync_identitystore(
             aws_update_tag,
             organization_id,
         )
-        sync_identity_center_users(neo4j_session, boto3_session, instance, aws_update_tag, region)
-        sync_identity_center_groups(neo4j_session, boto3_session, instance, aws_update_tag, region)
+
+        if scoped_group_ids:
+            # Only sync specified groups and their member users
+            sync_scoped_groups(
+                neo4j_session, boto3_session, instance, aws_update_tag, region, scoped_group_ids,
+            )
+        else:
+            # Sync all users and groups
+            sync_identity_center_users(neo4j_session, boto3_session, instance, aws_update_tag, region)
+            sync_identity_center_groups(neo4j_session, boto3_session, instance, aws_update_tag, region)
+
         sync_identity_center_permissions_sets(
             neo4j_session, boto3_session, instance, aws_update_tag, region, current_aws_account_id, common_job_parameters,
         )

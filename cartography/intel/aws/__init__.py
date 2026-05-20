@@ -545,6 +545,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "PARTIAL": config.partial,
         "MANUAL_RUN": config.manual_run,
         "DC": config.dc,
+        "GROUPS": config.params.get('groups', []),
         "DEFAULT_REGION": config.params.get("defaultRegion", None),
     }
 
