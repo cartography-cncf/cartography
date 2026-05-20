@@ -18,6 +18,8 @@ _unpinned_github_actions_fact = Fact(
     WHERE a.is_pinned = false
       AND a.is_local = false
       AND a.owner <> 'docker'
+      AND coalesce(repo.archived, false) = false
+      AND coalesce(repo.disabled, false) = false
     RETURN
         a.full_name AS action,
         a.version AS version,
@@ -31,13 +33,17 @@ _unpinned_github_actions_fact = Fact(
     WHERE a.is_pinned = false
       AND a.is_local = false
       AND a.owner <> 'docker'
+      AND coalesce(repo.archived, false) = false
+      AND coalesce(repo.disabled, false) = false
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (a:GitHubAction)
+    MATCH (repo:GitHubRepository)-[:HAS_WORKFLOW]->(:GitHubWorkflow)-[:USES_ACTION]->(a:GitHubAction)
     WHERE a.is_local = false
       AND a.owner <> 'docker'
-    RETURN COUNT(a) AS count
+      AND coalesce(repo.archived, false) = false
+      AND coalesce(repo.disabled, false) = false
+    RETURN COUNT(DISTINCT a) AS count
     """,
     asset_id_field="action_id",
     module=Module.GITHUB,
