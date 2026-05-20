@@ -45,8 +45,8 @@ CIS_REFERENCES = [
 class AccessKeyNotRotatedOutput(Finding):
     """Output model for access key rotation check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     key_create_date: Neo4jDateTime = None
     days_since_rotation: int | None = None
@@ -117,8 +117,8 @@ cis_aws_2_13_access_key_not_rotated = Rule(
 class UnusedCredentialsOutput(Finding):
     """Output model for unused credentials check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     last_used_date: Neo4jDateTime = None
     key_create_date: Neo4jDateTime = None
