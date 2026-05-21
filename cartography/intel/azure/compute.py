@@ -62,9 +62,14 @@ def _extract_aks_tags(tags_dict) -> Dict:
 def get_vm_list(credentials: Credentials, subscription_id: str, regions: list, common_job_parameters: Dict) -> List[Dict]:  # noqa: E501
     try:
         client = get_client(credentials, subscription_id)
-        vm_list = list(map(lambda x: x.as_dict(), client.virtual_machines.list_all()))
+        vm_data_raw = []
+        for x in client.virtual_machines.list_all():
+            try:
+                vm_data_raw.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping VM due to serialization error: %s", e)
         vm_data = []
-        for vm in vm_list:
+        for vm in vm_data_raw:
             vm['resource_group'] = get_azure_resource_group_name(vm.get('id'))
             vm['consolelink'] = azure_console_link.get_console_link(
                 id=vm['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
@@ -80,14 +85,14 @@ def get_vm_list(credentials: Credentials, subscription_id: str, regions: list, c
             vm['user_assigned_identities'] = list(vm.get('identity', {}).get('user_assigned_identities', {}).keys())
             network_security_group = []
             for config in vm.get('network_profile', {}).get('network_interface_configurations', []):
-                network_security_group.append(config.get('network_security_group'), None)
+                network_security_group.append(config.get('network_security_group'))
             vm['network_security_group'] = network_security_group
 
-            os_disk = vm.get("storage_profile", {}).get("os_disk", {})
+            os_disk = (vm.get("storage_profile") or {}).get("os_disk") or {}
             vm['os_type'] = os_disk.get('os_type')
             vm['os_disk_name'] = os_disk.get('name')
             vm['is_spot_instance'] = str(vm.get('priority', '')).lower() == 'spot'
-            image_reference = vm.get("storage_profile", {}).get("image_reference", {})
+            image_reference = (vm.get("storage_profile") or {}).get("image_reference") or {}
             sku = image_reference.get('sku')
             offer = image_reference.get('offer')
             publisher = image_reference.get('publisher', '')
@@ -174,10 +179,11 @@ def load_vms(neo4j_session: neo4j.Session, subscription_id: str, vm_list: List[D
     )
 
     for vm in vm_list:
-        if vm.get('storage_profile', {}).get('os_disk'):
-            load_vm_os_disk(neo4j_session, vm['id'], vm['storage_profile']['os_disk'], update_tag)
-        if vm.get('storage_profile', {}).get('data_disks'):
-            load_vm_data_disks(neo4j_session, vm['id'], vm['storage_profile']['data_disks'], update_tag)
+        storage_profile = vm.get('storage_profile') or {}
+        if storage_profile.get('os_disk'):
+            load_vm_os_disk(neo4j_session, vm['id'], storage_profile['os_disk'], update_tag)
+        if storage_profile.get('data_disks'):
+            load_vm_data_disks(neo4j_session, vm['id'], storage_profile['data_disks'], update_tag)
 
         if vm.get('network_security_group', []) != []:
             load_vm_security_groups_relationship(neo4j_session, vm['id'], vm.get('network_security_group'), update_tag)
