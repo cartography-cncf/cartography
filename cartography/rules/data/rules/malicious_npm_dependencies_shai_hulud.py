@@ -55,6 +55,8 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     UNWIND vulnerable AS v
     MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
@@ -102,6 +104,8 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
                     --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
         CALL {
             WITH r
             OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
@@ -126,6 +130,8 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     """,
     cypher_count_query="""
     MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
@@ -1144,6 +1150,8 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     UNWIND vulnerable AS v
     MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
@@ -2153,6 +2161,8 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
                     --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
         CALL {
             WITH r
             OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
@@ -2177,6 +2187,8 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     """,
     cypher_count_query="""
     MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
@@ -2604,6 +2616,8 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     UNWIND vulnerable AS v
     MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
@@ -3022,6 +3036,8 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
                     --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
         CALL {
             WITH r
             OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
@@ -3046,6 +3062,8 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     """,
     cypher_count_query="""
     MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
