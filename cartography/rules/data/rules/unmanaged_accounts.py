@@ -46,8 +46,8 @@ _unmanaged_accounts_ontology = Fact(
 
 # Rule
 class UnmanagedAccountRuleOutput(Finding):
-    id: str | None = None
     email: str | None = None
+    id: str | None = None
 
 
 unmanaged_accounts = Rule(
