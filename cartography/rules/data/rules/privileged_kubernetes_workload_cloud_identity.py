@@ -68,10 +68,9 @@ _k8s_privileged_workloads_with_aws_identity = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
-          -[:ASSUMES_ROLE]->(:AWSRole)
+    MATCH (pod:KubernetesPod)
     WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
-    RETURN COUNT(DISTINCT pod) AS count
+    RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
     module=Module.KUBERNETES,
@@ -141,10 +140,9 @@ _k8s_privileged_workloads_with_gcp_identity = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
-          -[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount)
+    MATCH (pod:KubernetesPod)
     WHERE NOT pod.namespace IN ['kube-system', 'kube-public', 'kube-node-lease']
-    RETURN COUNT(DISTINCT pod) AS count
+    RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
     module=Module.KUBERNETES,

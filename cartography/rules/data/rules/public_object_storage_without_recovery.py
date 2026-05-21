@@ -22,7 +22,7 @@ _aws_public_s3_without_versioning = Fact(
         OR EXISTS {
             MATCH (bucket)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
             WHERE stmt.effect = 'Allow'
-              AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
+              AND stmt.principal IN ['*', '"*"']
         }
       )
     OPTIONAL MATCH (account:AWSAccount)-[:RESOURCE]->(bucket)
@@ -46,7 +46,7 @@ _aws_public_s3_without_versioning = Fact(
         OR EXISTS {
             MATCH (bucket)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
             WHERE stmt.effect = 'Allow'
-              AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
+              AND stmt.principal IN ['*', '"*"']
         }
       )
     OPTIONAL MATCH p2=(account:AWSAccount)-[:RESOURCE]->(bucket)
@@ -55,13 +55,6 @@ _aws_public_s3_without_versioning = Fact(
     """,
     cypher_count_query="""
     MATCH (bucket:S3Bucket)
-    WHERE bucket.anonymous_access = true
-       OR (bucket.anonymous_actions IS NOT NULL AND size(bucket.anonymous_actions) > 0)
-       OR EXISTS {
-           MATCH (bucket)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
-           WHERE stmt.effect = 'Allow'
-             AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
-       }
     RETURN COUNT(bucket) AS count
     """,
     asset_id_field="id",
@@ -108,12 +101,6 @@ _gcp_public_bucket_without_versioning = Fact(
     """,
     cypher_count_query="""
     MATCH (bucket:GCPBucket)
-    WHERE coalesce(bucket.iam_config_public_access_prevention, '') <> 'enforced'
-      AND EXISTS {
-          MATCH (bucket)<-[:APPLIES_TO]-(binding:GCPPolicyBinding)
-          WHERE binding.is_public = true
-            AND coalesce(binding.has_condition, false) = false
-      }
     RETURN COUNT(bucket) AS count
     """,
     asset_id_field="id",
@@ -138,9 +125,10 @@ _azure_public_blob_without_retention = Fact(
     RETURN
         container.id AS id,
         container.name AS name,
-        coalesce(account.name, subscription.id) AS account,
+        subscription.id AS account,
         subscription.id AS account_id,
         account.location AS region,
+        account.name AS storage_account,
         'azure' AS provider,
         'no_retention_or_immutability' AS recovery_gap,
         toString(container.remaining_retention_days) AS recovery_status
@@ -157,7 +145,6 @@ _azure_public_blob_without_retention = Fact(
     """,
     cypher_count_query="""
     MATCH (container:AzureStorageBlobContainer)
-    WHERE container.public_access IN ['Container', 'Blob']
     RETURN COUNT(container) AS count
     """,
     asset_id_field="id",
@@ -172,6 +159,7 @@ class PublicObjectStorageWithoutRecovery(Finding):
     account: str | None = None
     account_id: str | None = None
     region: str | None = None
+    storage_account: str | None = None
     provider: str | None = None
     recovery_gap: str | None = None
     recovery_status: str | None = None

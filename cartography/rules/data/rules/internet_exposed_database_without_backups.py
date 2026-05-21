@@ -59,20 +59,8 @@ _aws_public_rds_without_backups = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (rds:RDSInstance {publicly_accessible: true})
-    WHERE rds.endpoint_port IS NOT NULL
-    MATCH (rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-        <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
-    MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(:AWSIpRange {range: '0.0.0.0/0'})
-    WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
-      AND (
-        rule.fromport IS NULL
-        OR (
-          coalesce(rule.fromport, 0) <= rds.endpoint_port
-          AND coalesce(rule.toport, rule.fromport, 0) >= rds.endpoint_port
-        )
-      )
-    RETURN COUNT(DISTINCT rds) AS count
+    MATCH (rds:RDSInstance)
+    RETURN COUNT(rds) AS count
     """,
     asset_id_field="id",
     module=Module.AWS,
@@ -101,7 +89,7 @@ _gcp_public_cloudsql_without_backups = Fact(
         sql.database_version AS engine,
         sql.connection_name AS host,
         null AS port,
-        0 AS backup_retention_days,
+        null AS backup_retention_days,
         null AS deletion_protection
     ORDER BY account, region, name
     """,
@@ -113,9 +101,8 @@ _gcp_public_cloudsql_without_backups = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sql:GCPCloudSQLInstance)-[:AUTHORIZED_NETWORK]-(net:GCPCloudSQLAuthorizedNetwork)
-    WHERE net.value = '0.0.0.0/0'
-    RETURN COUNT(DISTINCT sql) AS count
+    MATCH (sql:GCPCloudSQLInstance)
+    RETURN COUNT(sql) AS count
     """,
     asset_id_field="id",
     module=Module.GCP,

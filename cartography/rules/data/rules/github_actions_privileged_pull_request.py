@@ -67,7 +67,6 @@ _github_public_pull_request_target_write_token = Fact(
     MATCH (repo:GitHubRepository)-[:HAS_WORKFLOW]->(workflow:GitHubWorkflow)
     WHERE coalesce(repo.private, false) = false
       AND coalesce(repo.archived, false) = false
-      AND 'pull_request_target' IN coalesce(workflow.trigger_events, [])
     RETURN COUNT(workflow) AS count
     """,
     asset_id_field="workflow_id",
