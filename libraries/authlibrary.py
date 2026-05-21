@@ -1,10 +1,10 @@
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts.html
 # https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html
+import boto3
 from boto3.session import Session
 from botocore.exceptions import ClientError
 
-from libraries.kmslibrary import KMSLibrary
 from utils.errors import classify_error
 
 
@@ -12,20 +12,22 @@ class AuthLibrary:
     def __init__(self, context):
         self.context = context
 
-    def get_assume_role_access_key(self):
-        kms_library = KMSLibrary(self.context)
-        return kms_library.decrypt(self.context.assume_role_access_key_cipher)
-
-    def get_assume_role_access_secret(self):
-        kms_library = KMSLibrary(self.context)
-        return kms_library.decrypt(self.context.assume_role_access_secret_cipher)
+    def _get_cross_account_session(self) -> Session:
+        """Assume the cross-account role using the execution role's default credentials."""
+        sts_client = boto3.client("sts", region_name="us-east-1")
+        response = sts_client.assume_role(
+            RoleArn=self.context.cross_account_role_arn,
+            RoleSessionName="cdx-cross-account-session",
+        )
+        return Session(
+            aws_access_key_id=response["Credentials"]["AccessKeyId"],
+            aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+            aws_session_token=response["Credentials"]["SessionToken"],
+        )
 
     def assume_role(self, args):
-        # Create a Session with the credentials passed
-        session = Session(
-            aws_access_key_id=args["aws_access_key_id"],
-            aws_secret_access_key=args["aws_secret_access_key"],
-        )
+        # Use cross-account role session to assume customer role
+        session = self._get_cross_account_session()
 
         try:
             sts_client = session.client(
@@ -44,7 +46,7 @@ class AuthLibrary:
                 DurationSeconds=3600 * 4,
             )
 
-        except ClientError as e:
+        except ClientError:
             try:
                 response = sts_client.assume_role(
                     ExternalId=args["external_id"],
