@@ -148,6 +148,10 @@ def _get_account_state(account: dict[str, Any]) -> str | None:
     return account.get("State") or account.get("Status")
 
 
+def _has_account_state_signal(account: dict[str, Any]) -> bool:
+    return _get_account_state(account) is not None
+
+
 def _is_active_account(account: dict[str, Any]) -> bool:
     return _get_account_state(account) == "ACTIVE"
 
@@ -644,6 +648,17 @@ def sync_aws_organization(
             exc_info=True,
         )
         return result
+
+    if not all(_has_account_state_signal(account) for account in raw_accounts):
+        logger.warning(
+            "Unable to determine state for all accounts in AWS Organization %s; skipping AWS Organizations sync.",
+            organization_id,
+        )
+        return AWSOrganizationSyncResult(
+            current_aws_account_id,
+            AWSOrganizationSyncStatus.INCOMPLETE,
+            organization_id=organization_id,
+        )
 
     organization_accounts = transform_aws_organization_accounts(
         raw_accounts,

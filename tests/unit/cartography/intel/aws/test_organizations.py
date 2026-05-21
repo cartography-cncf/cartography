@@ -394,3 +394,50 @@ def test_sync_aws_organization_returns_incomplete_result_for_hierarchy_error():
     assert result.status == AWSOrganizationSyncStatus.INCOMPLETE
     assert result.organization_id == "o-exampleorgid"
     assert result.error_code == "ThrottlingException"
+
+
+def test_sync_aws_organization_returns_incomplete_when_account_state_is_unknown():
+    # Arrange
+    class FakeClient:
+        def describe_organization(self):
+            return {"Organization": TEST_ORGANIZATION}
+
+    account_without_state_or_status = {
+        key: value
+        for key, value in TEST_ORGANIZATION_ACCOUNTS[0].items()
+        if key not in {"State", "Status"}
+    }
+
+    with (
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "get_aws_organization_hierarchy",
+            return_value=(
+                [TEST_ORGANIZATION_ROOTS[0]],
+                [],
+                [account_without_state_or_status],
+            ),
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "load_aws_account_nodes_from_organization",
+        ) as mock_load_accounts,
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "cleanup_aws_organization_hierarchy",
+        ) as mock_cleanup,
+    ):
+        # Act
+        result = cartography.intel.aws.organizations.sync_aws_organization(
+            mock.Mock(),
+            FakeClient(),
+            "111111111111",
+            1,
+            {"UPDATE_TAG": 1},
+        )
+
+    # Assert
+    assert result.status == AWSOrganizationSyncStatus.INCOMPLETE
+    assert result.organization_id == "o-exampleorgid"
+    mock_load_accounts.assert_not_called()
+    mock_cleanup.assert_not_called()
