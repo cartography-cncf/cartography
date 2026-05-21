@@ -23,6 +23,7 @@ from netaddr import *
 
 from . import network
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.util import get_azure_resource_group_name
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -42,7 +43,7 @@ def get_client(credentials: Credentials, subscription_id: str) -> SqlManagementC
     """
     Getting the Azure SQL client
     """
-    client = SqlManagementClient(credentials, subscription_id)
+    client = SqlManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

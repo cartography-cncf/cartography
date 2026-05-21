@@ -65,19 +65,22 @@ def load_containers(session: neo4j.Session, data_list: List[Dict], update_tag: i
 
 @timeit
 def get_client(credentials: Credentials, subscription_id: str) -> ContainerServiceClient:
-    client = ContainerServiceClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerServiceClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
 @timeit
 def get_container_registry_Client(credentials: Credentials, subscription_id: str) -> ContainerRegistryManagementClient:
-    client = ContainerRegistryManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerRegistryManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
 @timeit
 def get_container_instance_Client(credentials: Credentials, subscription_id: str) -> ContainerInstanceManagementClient:
-    client = ContainerInstanceManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerInstanceManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

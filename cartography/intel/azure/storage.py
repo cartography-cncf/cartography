@@ -13,6 +13,7 @@ from azure.mgmt.storage import StorageManagementClient
 from cloudconsolelink.clouds.azure import AzureLinker
 
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.util import get_azure_resource_group_name
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -26,7 +27,7 @@ def get_client(credentials: Credentials, subscription_id: str) -> StorageManagem
     """
     Getting the Azure Storage client
     """
-    client = StorageManagementClient(credentials, subscription_id)
+    client = StorageManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

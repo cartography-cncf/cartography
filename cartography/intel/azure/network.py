@@ -167,7 +167,8 @@ def load_usages(session: neo4j.Session, data_list: List[Dict], update_tag: int) 
 
 @timeit
 def get_network_client(credentials: Credentials, subscription_id: str) -> NetworkManagementClient:
-    client = NetworkManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = NetworkManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

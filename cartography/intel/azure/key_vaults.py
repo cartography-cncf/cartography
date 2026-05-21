@@ -41,7 +41,8 @@ def get_key_vault_certificates_client(credentials: Credentials, vault_url: str) 
 
 @timeit
 def get_key_vaults_client(credentials: Credentials, subscription_id: str) -> KeyVaultManagementClient:
-    client = KeyVaultManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = KeyVaultManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

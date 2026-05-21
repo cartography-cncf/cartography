@@ -24,7 +24,8 @@ def load_monitor_log_profiles(session: neo4j.Session, subscription_id: str, data
 
 @timeit
 def get_monitoring_client(credentials: Credentials, subscription_id: str) -> MonitorManagementClient:
-    client = MonitorManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = MonitorManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

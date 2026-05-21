@@ -21,7 +21,8 @@ def load_security_contacts(session: neo4j.Session, subscription_id: str, data_li
 
 
 def get_security_center_client(credentials: Credentials, subscription_id: str) -> SecurityCenter:
-    client = client = SecurityCenter(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = SecurityCenter(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
