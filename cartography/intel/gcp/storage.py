@@ -38,10 +38,26 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
     try:
         # `projection=full` is required to get the `acl` / `defaultObjectAcl`
         # arrays back; the default `noAcl` projection strips them, which would
-        # leave legacy-ACL public buckets undetectable.
+        # leave legacy-ACL public buckets undetectable. With `full`, the API
+        # caps each response at 200 buckets, so we must follow `nextPageToken`
+        # before downstream cleanup runs — otherwise projects with more than
+        # 200 buckets would lose every bucket beyond the first page.
+        items: List[Dict] = []
+        first_response: Dict = {}
         req = storage.buckets().list(project=project_id, projection="full")
-        res = gcp_api_execute_with_retry(req)
-        return res
+        while req is not None:
+            res = gcp_api_execute_with_retry(req)
+            if not first_response:
+                first_response = res
+            items.extend(res.get("items", []))
+            req = storage.buckets().list_next(
+                previous_request=req, previous_response=res
+            )
+        # Preserve the first response's shape (kind, selfLink, ...) and replace
+        # items with the fully paginated list so callers see one logical page.
+        first_response["items"] = items
+        first_response.pop("nextPageToken", None)
+        return first_response
     except HttpError as e:
         reason = get_error_reason(e)
         if reason == "invalid":
