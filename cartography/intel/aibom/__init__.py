@@ -3,19 +3,12 @@ from typing import Any
 
 from neo4j import Session
 
+from cartography.client.core.tx import read_single_value_tx
 from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from cartography.intel.aibom.loader import load_aibom_components
-from cartography.intel.aibom.loader import load_aibom_custom_relationships
-from cartography.intel.aibom.loader import load_aibom_exposes_tool_relationships
 from cartography.intel.aibom.loader import load_aibom_sources
-from cartography.intel.aibom.loader import load_aibom_uses_model_relationships
-from cartography.intel.aibom.loader import load_aibom_uses_tool_relationships
-from cartography.intel.aibom.transform import (
-    group_aibom_relationship_payloads_by_source_key,
-)
 from cartography.intel.aibom.transform import transform_aibom_component_payloads
-from cartography.intel.aibom.transform import transform_aibom_relationship_payloads
 from cartography.intel.aibom.transform import transform_aibom_source_payloads
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import ObjectStoreError
@@ -32,10 +25,6 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
-def _extract_aibom_source_map(document: dict[str, Any]) -> dict[str, Any]:
-    return document["aibom_analysis"]["sources"]
-
-
 def _extract_digest_from_source_key(source_key: str) -> str | None:
     _, sep, digest = source_key.partition("@")
     if not sep or not digest.startswith("sha256:"):
@@ -44,10 +33,11 @@ def _extract_digest_from_source_key(source_key: str) -> str | None:
 
 
 def _image_digest_exists(neo4j_session: Session, digest: str) -> bool:
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_single_value_tx,
         "MATCH (img:Image {_ont_digest: $digest}) RETURN img._ont_digest LIMIT 1",
         digest=digest,
-    ).single()
+    )
     return result is not None
 
 
@@ -61,16 +51,8 @@ def prepare_aibom_report_for_ingestion(
     validate the raw document at a high level, extract source keys, require
     digest-qualified anchors, and verify they resolve to concrete :Image nodes.
     """
-    sources = _extract_aibom_source_map(document)
-    source_keys = tuple(
-        source_key for source_key in sources if isinstance(source_key, str)
-    )
-    if not source_keys:
-        logger.warning(
-            "Skipping AIBOM report %s: expected string source keys in sources map",
-            source,
-        )
-        return None
+    sources = document["aibom_analysis"]["sources"]
+    source_keys = tuple(sources)
 
     image_digests = tuple(
         digest
@@ -122,7 +104,7 @@ def sync_aibom_from_report_reader(
         )
         return
 
-    failed_report_count = 0
+    cleanup_blocking_report_count = 0
     processed_reports = 0
     for ref in json_files:
         source = ref.uri
@@ -130,7 +112,7 @@ def sync_aibom_from_report_reader(
             document = read_json_report(reader, ref)
         except ObjectStoreError as exc:
             logger.error("Failed to read AIBOM data from %s: %s", source, exc)
-            failed_report_count += 1
+            cleanup_blocking_report_count += 1
             continue
 
         prepared_report = prepare_aibom_report_for_ingestion(
@@ -140,6 +122,7 @@ def sync_aibom_from_report_reader(
         )
 
         if prepared_report is None:
+            cleanup_blocking_report_count += 1
             continue
 
         source_payloads = transform_aibom_source_payloads(
@@ -147,72 +130,22 @@ def sync_aibom_from_report_reader(
             report_location=source,
         )
         component_payloads = transform_aibom_component_payloads(prepared_report)
-        relationship_payloads = transform_aibom_relationship_payloads(
-            prepared_report,
-        )
-        uses_model_relationship_payloads = (
-            group_aibom_relationship_payloads_by_source_key(
-                relationship_payloads,
-                "USES_MODEL",
-            )
-        )
-        uses_tool_relationship_payloads = (
-            group_aibom_relationship_payloads_by_source_key(
-                relationship_payloads,
-                "USES_TOOL",
-            )
-        )
-        exposes_tool_relationship_payloads = (
-            group_aibom_relationship_payloads_by_source_key(
-                relationship_payloads,
-                "EXPOSES_TOOL",
-            )
-        )
-        custom_relationship_payloads = group_aibom_relationship_payloads_by_source_key(
-            relationship_payloads,
-            "CUSTOM",
-        )
         if not source_payloads:
             logger.info("AIBOM report %s had no source payloads to ingest", source)
             continue
 
-        stat_handler.incr("aibom_reports_processed")
-        load_aibom_components(neo4j_session, component_payloads, update_tag)
+        if component_payloads:
+            load_aibom_components(neo4j_session, component_payloads, update_tag)
         load_aibom_sources(neo4j_session, source_payloads, update_tag)
-        for source_key, source_payloads in uses_model_relationship_payloads.items():
-            load_aibom_uses_model_relationships(
-                neo4j_session,
-                source_payloads,
-                source_key,
-                update_tag,
-            )
-        for source_key, source_payloads in uses_tool_relationship_payloads.items():
-            load_aibom_uses_tool_relationships(
-                neo4j_session,
-                source_payloads,
-                source_key,
-                update_tag,
-            )
-        for source_key, source_payloads in exposes_tool_relationship_payloads.items():
-            load_aibom_exposes_tool_relationships(
-                neo4j_session,
-                source_payloads,
-                source_key,
-                update_tag,
-            )
-        for source_key, source_payloads in custom_relationship_payloads.items():
-            load_aibom_custom_relationships(
-                neo4j_session,
-                source_payloads,
-                source_key,
-                update_tag,
-            )
+        stat_handler.incr("aibom_reports_processed")
         processed_reports += 1
 
-    if failed_report_count:
+    # Skip cleanup if we did not fully observe every candidate report.
+    # This matches the trivy modules all or nothing approach.
+    if cleanup_blocking_report_count:
         logger.warning(
-            "Skipping AIBOM cleanup because %d report(s) failed to read or parse.",
-            failed_report_count,
+            "Skipping AIBOM cleanup because %d report(s) failed or were skipped during preparation.",
+            cleanup_blocking_report_count,
         )
         return
 

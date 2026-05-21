@@ -85,6 +85,16 @@ and creates these relationships:
 - `(:AIBOMComponent)-[:EXPOSES_TOOL]->(:AIBOMComponent)`
 - `(:AIBOMComponent)-[:CUSTOM]->(:AIBOMComponent)`
 
+Component-to-component relationships are loaded as standard relationships owned
+by the source `AIBOMComponent` payload. During transform, report
+`relationship_type` values are resolved onto target component id arrays such as
+`uses_model_component_ids` and `uses_tool_component_ids`.
+
+When the shared ontology analysis jobs run later in the overall sync, Cartography
+also creates:
+
+- `(:AIBOMSource)-[:RUNS_ON]->(:Container)`
+
 Workflow nodes are still deferred in the current rc3 implementation.
 
 ### Prerequisite
@@ -94,6 +104,10 @@ Run image provider ingestion (ECR, GCP Artifact Registry, GitLab, etc.) before A
 ### Results layout
 
 The AIBOM module ingests every `*.json` file under the configured source as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their scans and detections will all be loaded in that snapshot because they share the same `update_tag`.
+
+Cleanup is module-wide and runs only after a fully observed snapshot. If any
+report fails to read or is skipped during preparation, Cartography skips AIBOM
+cleanup for that run to avoid deleting last-known-good data.
 
 ### Run with local files
 

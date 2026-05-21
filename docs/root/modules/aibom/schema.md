@@ -12,7 +12,8 @@ ontology `:Image` node.
 - Workflow-like context in `1.0.0rc3` is preserved through component evidence
   and metadata fields rather than first-class workflow nodes.
 - Component-to-component AIBOM edges are loaded directly from the report's
-  `relationships` array as scoped MatchLinks between `AIBOMComponent` nodes.
+  `relationships` array as standard component-owned relationships between
+  `AIBOMComponent` nodes.
 
 ### AIBOMSource
 
@@ -25,9 +26,9 @@ scanned artifact.
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Stable hash of the source key |
-| **image_uri** | Source image URI emitted by the report |
+| **image_uri** | Source image URI derived from `source_name` when present, otherwise the `source_key` |
 | manifest_digests | Concrete image digests extracted from the source key |
-| image_matched | Whether the source resolved to at least one concrete `:Image` digest |
+| image_matched | Whether the ingested source carried a digest-qualified anchor; accepted reports are pre-validated against concrete `:Image` nodes before load |
 | report_location | Local file path or object-store URI used for ingestion |
 | run_id | Report run identifier |
 | analyzer_version | AIBOM analyzer version |
@@ -54,7 +55,7 @@ scanned artifact.
 | risk_score | Top-level risk score |
 | risk_severity | Top-level risk severity |
 | **source_key** | Native source key emitted by AIBOM |
-| source_name | Source name emitted by AIBOM |
+| source_name | Source name emitted by AIBOM, falling back to `source_key` when absent |
 | source_path | Extracted filesystem path used during scanning |
 | source_status | Source status (for example `completed`) |
 | source_kind | Source kind (for example `container`) |
@@ -145,7 +146,9 @@ Representation of one detected AI component occurrence within a source.
 
 - Report-defined component-to-component relationships are loaded between
   `AIBOMComponent` nodes when both endpoints resolve successfully within the
-  same scanned source. The current implementation supports:
+  same scanned source. During transform, the source component payload owns the
+  target component id arrays that drive these one-to-many relationships. The
+  current implementation supports:
 
     ```
     (:AIBOMComponent)-[:USES_MODEL]->(:AIBOMComponent)

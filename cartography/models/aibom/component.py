@@ -7,10 +7,8 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -78,80 +76,62 @@ class AIBOMComponentDetectedInRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AIBOMComponentMatchLinkRelProperties(CartographyRelProperties):
+class AIBOMComponentToComponentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label",
-        set_in_kwargs=True,
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class AIBOMComponentUsesModelRel(CartographyRelSchema):
-    source_node_label: str = "AIBOMComponent"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("source_component_id")},
-    )
+    # These arrays should contain resolved AIBOMComponent.id values built during
+    # transform, not raw report-side identifiers. The current report links
+    # components by source-scoped type/name and does not provide stable edge ids.
     target_node_label: str = "AIBOMComponent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("target_component_id")},
+        {"id": PropertyRef("uses_model_component_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_MODEL"
-    properties: AIBOMComponentMatchLinkRelProperties = (
-        AIBOMComponentMatchLinkRelProperties()
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class AIBOMComponentUsesToolRel(CartographyRelSchema):
-    source_node_label: str = "AIBOMComponent"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("source_component_id")},
-    )
     target_node_label: str = "AIBOMComponent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("target_component_id")},
+        {"id": PropertyRef("uses_tool_component_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_TOOL"
-    properties: AIBOMComponentMatchLinkRelProperties = (
-        AIBOMComponentMatchLinkRelProperties()
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class AIBOMComponentExposesToolRel(CartographyRelSchema):
-    source_node_label: str = "AIBOMComponent"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("source_component_id")},
-    )
     target_node_label: str = "AIBOMComponent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("target_component_id")},
+        {"id": PropertyRef("exposes_tool_component_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "EXPOSES_TOOL"
-    properties: AIBOMComponentMatchLinkRelProperties = (
-        AIBOMComponentMatchLinkRelProperties()
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class AIBOMComponentCustomRel(CartographyRelSchema):
-    source_node_label: str = "AIBOMComponent"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("source_component_id")},
-    )
     target_node_label: str = "AIBOMComponent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("target_component_id")},
+        {"id": PropertyRef("custom_component_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CUSTOM"
-    properties: AIBOMComponentMatchLinkRelProperties = (
-        AIBOMComponentMatchLinkRelProperties()
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
     )
 
 
@@ -164,5 +144,9 @@ class AIBOMComponentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AIBOMComponentDetectedInRel(),
+            AIBOMComponentUsesModelRel(),
+            AIBOMComponentUsesToolRel(),
+            AIBOMComponentExposesToolRel(),
+            AIBOMComponentCustomRel(),
         ],
     )

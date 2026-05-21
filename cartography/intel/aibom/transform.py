@@ -1,11 +1,17 @@
 import hashlib
 import json
 import logging
-from collections import defaultdict
 from typing import Any
 from typing import cast
 
 logger = logging.getLogger(__name__)
+
+_RELATIONSHIP_TARGET_FIELD_BY_TYPE = {
+    "USES_MODEL": "uses_model_component_ids",
+    "USES_TOOL": "uses_tool_component_ids",
+    "EXPOSES_TOOL": "exposes_tool_component_ids",
+    "CUSTOM": "custom_component_ids",
+}
 
 
 def _stable_hash(value: str) -> str:
@@ -77,7 +83,6 @@ def _build_component_payload(
     component_type: str,
     component: dict[str, Any],
 ) -> dict[str, Any]:
-
     digest = source_key.partition("@")[2]
     manifest_digests = [digest] if digest else []
     normalized_component_type = (
@@ -132,6 +137,10 @@ def _build_component_payload(
         "decision_justification": _as_str(decision_annotation.get("justification")),
         "metadata_json": _json_dumps(component_metadata),
         "manifest_digests": manifest_digests,
+        "uses_model_component_ids": [],
+        "uses_tool_component_ids": [],
+        "exposes_tool_component_ids": [],
+        "custom_component_ids": [],
     }
 
 
@@ -142,8 +151,6 @@ def _build_source_component_ids(
     component_ids: list[str] = []
     for items in source_components.values():
         for component in items:
-            if not _as_str(component.get("name")):
-                continue
             component_ids.append(_build_component_id(source_key, component))
 
     return component_ids
@@ -243,10 +250,6 @@ def transform_aibom_source_payloads(
 ) -> list[dict[str, Any]]:
     """
     Transform raw AIBOM rc3 source data into AIBOMSource payloads.
-
-    This is the first transform step: consume the raw report dict
-    directly and emit schema-ready source payloads without introducing parser
-    dataclasses or other compatibility shims.
     """
     analysis = document["aibom_analysis"]
     sources = analysis.get("sources")
@@ -281,14 +284,6 @@ def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, A
 
         for component_type, items in components.items():
             for component in items:
-                if not _as_str(component.get("name")):
-                    logger.warning(
-                        "Skipping unnamed AIBOM component in bucket %s on source %s",
-                        component_type,
-                        source_key,
-                    )
-                    continue
-
                 component_records.append(
                     {
                         "source_key": source_key,
@@ -303,10 +298,6 @@ def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, A
 def _parse_aibom_relationship_records(document: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Extract raw relationship records from the AIBOM rc3 report.
-
-    This is the relationship-specific traversal step that finds component-to-
-    component edges in the report and preserves the source context needed for
-    downstream transforms.
     """
     analysis = document["aibom_analysis"]
     sources = analysis.get("sources")
@@ -327,18 +318,14 @@ def _parse_aibom_relationship_records(document: dict[str, Any]) -> list[dict[str
 
 
 def _build_relationship_component_lookup(
-    document: dict[str, Any],
+    component_records: list[dict[str, Any]],
 ) -> dict[tuple[str, str, str], str]:
     """
-    Build a lookup from report-side component identity to the component node id.
-
     The report relationship records identify endpoints by source-scoped
     component fields like type and name. This helper resolves those fields onto
     the stable AIBOMComponent.id values we derive for node ingestion.
     """
     component_lookup: dict[tuple[str, str, str], str] = {}
-    component_records = _parse_aibom_component_records(document)
-
     for component_record in component_records:
         source_key = component_record["source_key"]
         component_type = component_record["component_type"]
@@ -358,91 +345,55 @@ def _build_relationship_component_lookup(
     return component_lookup
 
 
-def transform_aibom_relationship_payloads(
-    document: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """
-    Transform raw AIBOM rc3 relationship data into normalized edge payloads.
+def _build_component_payloads_by_id(
+    component_records: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    component_payloads_by_id: dict[str, dict[str, Any]] = {}
 
-    This consumes the raw report relationship records, resolves their endpoints
-    onto AIBOMComponent ids, and emits generic relationship payloads that can be
-    bucketed by relationship_type/label for later loading.
-    """
-    component_lookup = _build_relationship_component_lookup(document)
-    relationship_records = _parse_aibom_relationship_records(document)
-
-    payloads: list[dict[str, Any]] = []
-    for relationship_record in relationship_records:
-        source_key = relationship_record["source_key"]
-        relationship = relationship_record["relationship"]
-        relationship_type = _as_str(relationship.get("relationship_type"))
-        relationship_label = _as_str(relationship.get("label")) or relationship_type
-
-        source_component_lookup_key = (
+    for component_record in component_records:
+        source_key = component_record["source_key"]
+        component_type = component_record["component_type"]
+        component = component_record["component"]
+        component_payload = _build_component_payload(
             source_key,
-            _as_str(relationship.get("source_type")) or "",
-            _as_str(relationship.get("source_name")) or "",
+            component_type,
+            component,
         )
-        target_component_lookup_key = (
+        component_payloads_by_id[cast(str, component_payload["id"])] = component_payload
+
+    return component_payloads_by_id
+
+
+def _resolve_relationship_component_ids(
+    source_key: str,
+    relationship: dict[str, Any],
+    component_lookup: dict[tuple[str, str, str], str],
+) -> tuple[str, str] | None:
+    source_component_lookup_key = (
+        source_key,
+        _as_str(relationship.get("source_type")) or "",
+        _as_str(relationship.get("source_name")) or "",
+    )
+    target_component_lookup_key = (
+        source_key,
+        _as_str(relationship.get("target_type")) or "",
+        _as_str(relationship.get("target_name")) or "",
+    )
+
+    source_component_id = component_lookup.get(source_component_lookup_key)
+    target_component_id = component_lookup.get(target_component_lookup_key)
+    if not source_component_id or not target_component_id:
+        relationship_type = _as_str(relationship.get("relationship_type")) or "unknown"
+        logger.warning(
+            "Skipping unresolved AIBOM relationship %s on source %s: %s -> %s",
+            relationship_type,
             source_key,
-            _as_str(relationship.get("target_type")) or "",
-            _as_str(relationship.get("target_name")) or "",
+            relationship.get("source_name"),
+            relationship.get("target_name"),
         )
+        return None
 
-        source_component_id = component_lookup.get(source_component_lookup_key)
-        target_component_id = component_lookup.get(target_component_lookup_key)
-        if not source_component_id or not target_component_id:
-            logger.warning(
-                "Skipping unresolved AIBOM relationship %s on source %s: %s -> %s",
-                relationship_label or "unknown",
-                source_key,
-                relationship.get("source_name"),
-                relationship.get("target_name"),
-            )
-            continue
-
-        decision_annotation = relationship.get("decision_annotation") or {}
-        payloads.append(
-            {
-                "source_key": source_key,
-                "source_component_id": source_component_id,
-                "target_component_id": target_component_id,
-                "relationship_type": relationship_type,
-                "relationship_label": relationship_label,
-                "source_name": _as_str(relationship.get("source_name")),
-                "target_name": _as_str(relationship.get("target_name")),
-                "source_type": _as_str(relationship.get("source_type")),
-                "target_type": _as_str(relationship.get("target_type")),
-                "decision": _as_str(decision_annotation.get("decision")),
-                "decision_justification": _as_str(
-                    decision_annotation.get("justification"),
-                ),
-            },
-        )
-
-    return payloads
-
-
-def group_aibom_relationship_payloads_by_source_key(
-    relationship_payloads: list[dict[str, object]],
-    relationship_label: str,
-) -> dict[str, list[dict[str, object]]]:
-    """
-    Group normalized AIBOM relationship payloads by source_key for one rel label.
-
-    MatchLink cleanup is scoped to the owning AIBOMSource, so component-to-
-    component relationship payloads need to be partitioned by source_key before
-    the loader calls load_matchlinks().
-    """
-    payloads_by_source_key: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for relationship_payload in relationship_payloads:
-        if relationship_payload.get("relationship_label") != relationship_label:
-            continue
-
-        source_key = cast(str, relationship_payload["source_key"])
-        payloads_by_source_key[source_key].append(relationship_payload)
-
-    return dict(payloads_by_source_key)
+    return source_component_id, target_component_id
 
 
 def transform_aibom_component_payloads(
@@ -455,17 +406,40 @@ def transform_aibom_component_payloads(
     schema-ready component payloads.
     """
     component_records = _parse_aibom_component_records(document)
-    payloads: list[dict[str, Any]] = []
-    for component_record in component_records:
-        source_key = component_record["source_key"]
-        component_type = component_record["component_type"]
-        component = component_record["component"]
-        payloads.append(
-            _build_component_payload(
-                source_key,
-                component_type,
-                component,
-            ),
-        )
+    component_payloads_by_id = _build_component_payloads_by_id(component_records)
+    component_lookup = _build_relationship_component_lookup(component_records)
+    relationship_records = _parse_aibom_relationship_records(document)
 
-    return payloads
+    for relationship_record in relationship_records:
+        source_key = relationship_record["source_key"]
+        relationship = relationship_record["relationship"]
+        relationship_type = _as_str(relationship.get("relationship_type"))
+        if relationship_type is None:
+            continue
+
+        target_field = _RELATIONSHIP_TARGET_FIELD_BY_TYPE.get(relationship_type)
+        if target_field is None:
+            logger.info(
+                "Skipping unsupported AIBOM relationship type %s",
+                relationship_type,
+            )
+            continue
+
+        resolved_component_ids = _resolve_relationship_component_ids(
+            source_key,
+            relationship,
+            component_lookup,
+        )
+        if resolved_component_ids is None:
+            continue
+
+        source_component_id, target_component_id = resolved_component_ids
+        source_component_payload = component_payloads_by_id.get(source_component_id)
+        if source_component_payload is None:
+            continue
+
+        target_component_ids = cast(list[str], source_component_payload[target_field])
+        if target_component_id not in target_component_ids:
+            target_component_ids.append(target_component_id)
+
+    return list(component_payloads_by_id.values())
