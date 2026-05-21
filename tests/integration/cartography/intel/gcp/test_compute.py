@@ -589,10 +589,10 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
             "network",
         ),
         # Backend-service-only forwarding rule (no `target`): lb_type falls back
-        # to the backendService collection => "tcp".
+        # to the backendService collection => "network" (L4 Network LB family).
         (
             "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
-            "tcp",
+            "network",
         ),
     }
 

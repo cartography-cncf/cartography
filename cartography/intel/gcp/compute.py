@@ -462,7 +462,9 @@ _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
     "targetSslProxies": "ssl",
     "targetGrpcProxies": "grpc",
     "targetPools": "network",
-    "backendServices": "tcp",
+    # Backend-service-only forwarding rules (no target proxy) are L4 Network LBs.
+    # The protocol (TCP/UDP/ESP/L3_DEFAULT) lives on `IPProtocol`, not the family.
+    "backendServices": "network",
     "targetInstances": "network",
     "targetVpnGateways": "vpn",
 }
