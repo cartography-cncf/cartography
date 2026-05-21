@@ -24,6 +24,17 @@ def get_client(credentials: Credentials, subscription_id: str) -> ContainerRegis
     return client
 
 
+def _safe_console_link(resource_id: str, common_job_parameters: Dict) -> str:
+    try:
+        return azure_console_link.get_console_link(
+            id=resource_id,
+            primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
+        )
+    except (ValueError, KeyError) as e:
+        logger.warning("Could not generate console link for %s: %s", resource_id, e)
+        return ''
+
+
 def get_registry_list(
     credentials: Credentials,
     subscription_id: str,
@@ -60,10 +71,7 @@ def get_registry_list(
                 if registry.policies and registry.policies.retention_policy
                 else None,
                 "creation_date": registry.creation_date.isoformat() if registry.creation_date else None,
-                "console_link": azure_console_link.get_console_link(
-                    id=registry.id,
-                    primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
-                ),
+                "console_link": _safe_console_link(registry.id, common_job_parameters),
                 "subscription_id": subscription_id,
                 "type": registry.type,
                 "tags": json.dumps(registry.tags) if registry.tags else None,
@@ -102,6 +110,12 @@ def get_repository_list(
             repositories.append(repo_dict)
 
         return repositories
+    except AttributeError as e:
+        logger.warning(
+            f"Repositories API not available on management client for registry {registry_name} "
+            f"(data-plane operation): {e}",
+        )
+        return []
     except HttpResponseError as e:
         logger.warning(f"Failed to retrieve repositories for registry {registry_name}: {e}")
         return []
@@ -120,6 +134,9 @@ def get_image_list(
         images = []
 
         for manifest in client.manifests.list(resource_group, registry_name, repository_name):
+            quarantine_details = getattr(manifest, "quarantine_details", "")
+            if isinstance(quarantine_details, dict):
+                quarantine_details = json.dumps(quarantine_details)
             image_dict = {
                 "digest": manifest.digest,
                 "repository_name": repository_name,
@@ -134,13 +151,19 @@ def get_image_list(
                 "media_type": getattr(manifest, "media_type", ""),
                 "config_media_type": getattr(manifest, "config_media_type", ""),
                 "quarantine_state": getattr(manifest, "quarantine_state", ""),
-                "quarantine_details": getattr(manifest, "quarantine_details", ""),
+                "quarantine_details": quarantine_details,
                 "subscription_id": subscription_id,
                 "resource_group": resource_group,
             }
             images.append(image_dict)
 
         return images
+    except AttributeError as e:
+        logger.warning(
+            f"Manifests API not available on management client for repository {repository_name} "
+            f"(data-plane operation): {e}",
+        )
+        return []
     except HttpResponseError as e:
         logger.warning(f"Failed to retrieve images for repository {repository_name}: {e}")
         return []
