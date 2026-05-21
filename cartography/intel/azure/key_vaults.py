@@ -35,7 +35,8 @@ def load_key_vaults_certificates(session: neo4j.Session, subscription_id: str, d
 
 @timeit
 def get_key_vault_certificates_client(credentials: Credentials, vault_url: str) -> CertificateClient:
-    client = CertificateClient(vault_url, credentials)
+    from .util.timing import get_timing_policy
+    client = CertificateClient(vault_url, credentials, per_call_policies=[get_timing_policy()])
     return client
 
 

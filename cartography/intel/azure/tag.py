@@ -12,6 +12,7 @@ from cloudconsolelink.clouds.azure import AzureLinker
 from neo4j import GraphDatabase
 
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.config import Config
 from cartography.graph.session import Session
 from cartography.util import batch
@@ -34,7 +35,7 @@ def load_tags(session: neo4j.Session, data_list: List[Dict], update_tag: int, co
 
 @timeit
 def get_resource_management_client(credentials: Credentials, subscription_id: str) -> ResourceManagementClient:
-    client = ResourceManagementClient(credentials, subscription_id)
+    client = ResourceManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 

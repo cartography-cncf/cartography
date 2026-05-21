@@ -137,7 +137,7 @@ def _get_postgresql_flexible_servers(credentials: Credentials, subscription_id: 
     Get Azure Database for PostgreSQL Flexible Servers.
     """
     try:
-        pg_flex_client = PostgreSQLFlexibleServersManagementClient(credentials, subscription_id)
+        pg_flex_client = PostgreSQLFlexibleServersManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         pg_flex_servers = list(map(lambda x: x.as_dict(), pg_flex_client.servers.list()))
         logger.debug(f"Retrieved {len(pg_flex_servers)} PostgreSQL Flexible Servers")
         return pg_flex_servers
@@ -157,7 +157,7 @@ def _get_mysql_flexible_servers(credentials: Credentials, subscription_id: str) 
     Get Azure Database for MySQL Flexible Servers.
     """
     try:
-        mysql_flex_client = MySQLFlexibleServersManagementClient(credentials, subscription_id)
+        mysql_flex_client = MySQLFlexibleServersManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         mysql_flex_servers = list(map(lambda x: x.as_dict(), mysql_flex_client.servers.list()))
         logger.debug(f"Retrieved {len(mysql_flex_servers)} MySQL Flexible Servers")
         return mysql_flex_servers
@@ -177,7 +177,7 @@ def _get_postgresql_rdbms_servers(credentials: Credentials, subscription_id: str
     Get Azure Database for PostgreSQL (Regular RDBMS) servers.
     """
     try:
-        pg_rdbms_client = PostgreSQLManagementClient(credentials, subscription_id)
+        pg_rdbms_client = PostgreSQLManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         pg_rdbms_servers = list(map(lambda x: x.as_dict(), pg_rdbms_client.servers.list()))
         logger.debug(f"Retrieved {len(pg_rdbms_servers)} PostgreSQL RDBMS Servers")
         return pg_rdbms_servers
@@ -197,7 +197,7 @@ def _get_mysql_rdbms_servers(credentials: Credentials, subscription_id: str) -> 
     Get Azure Database for MySQL (Regular RDBMS) servers.
     """
     try:
-        mysql_rdbms_client = MySQLManagementClient(credentials, subscription_id)
+        mysql_rdbms_client = MySQLManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         mysql_rdbms_servers = list(map(lambda x: x.as_dict(), mysql_rdbms_client.servers.list()))
         logger.debug(f"Retrieved {len(mysql_rdbms_servers)} MySQL RDBMS Servers")
         return mysql_rdbms_servers
