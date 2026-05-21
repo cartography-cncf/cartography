@@ -195,6 +195,31 @@ def test_sync_aibom_happy_path(
         ("Agent", "gpt-5.2"),
     }
 
+    # Assert the same relationships are traversable through the AI-specific labels used by downstream rules.
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "AIAgent",
+        "name",
+        "HAS_COMPONENT",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SOURCE_KEY, "Agent"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "AIModel",
+        "name",
+        "USES_MODEL",
+        rel_direction_right=True,
+    ) == {
+        ("Agent", "gpt-5.2"),
+    }
+
     ai_labeled_components = neo4j_session.run(
         """
         MATCH (component:AIBOMComponent)
