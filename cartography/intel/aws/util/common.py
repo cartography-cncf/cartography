@@ -26,6 +26,25 @@ def parse_and_validate_aws_requested_syncs(aws_requested_syncs: str) -> List[str
     return validated_resources
 
 
+def parse_and_validate_aws_excluded_syncs(aws_excluded_syncs: str) -> List[str]:
+    validated_resources: List[str] = []
+    for resource in aws_excluded_syncs.split(","):
+        resource = resource.strip()
+        if not resource:
+            continue
+        if resource in RESOURCE_FUNCTIONS:
+            validated_resources.append(resource)
+        else:
+            valid_syncs: str = ", ".join(RESOURCE_FUNCTIONS.keys())
+            raise ValueError(
+                f'Error parsing `aws-excluded-syncs`. You specified "{aws_excluded_syncs}". '
+                f"Please check that your string is formatted properly. "
+                f'Example valid input looks like "secretsmanager" or "secretsmanager, sagemaker". '
+                f"Our full list of valid values is: {valid_syncs}.",
+            )
+    return validated_resources
+
+
 def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
     """
     Parse and validate a comma-separated string of AWS regions.

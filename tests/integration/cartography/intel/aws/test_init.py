@@ -98,6 +98,7 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
+        aws_excluded_syncs=[],
         aioboto3_session=mock_aioboto3_session(profile_name="profile1"),
     )
     mock_sync_one.assert_any_call(
@@ -108,6 +109,7 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
+        aws_excluded_syncs=[],
         aioboto3_session=mock_aioboto3_session(profile_name="profile2"),
     )
     mock_sync_one.assert_any_call(
@@ -118,6 +120,7 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
+        aws_excluded_syncs=[],
         aioboto3_session=mock_aioboto3_session(profile_name="profile3"),
     )
 
@@ -545,6 +548,7 @@ def test_sync_multiple_accounts_single_profile_uses_profile_name(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
+        aws_excluded_syncs=[],
         aioboto3_session=mock_aioboto3_session(profile_name="spoke1"),
     )
 
@@ -964,6 +968,103 @@ def test_sync_one_account_just_iam_rels_and_tags(
     assert mock_autodiscover.call_count == 1
     assert mock_cleanup.call_count == 0
     assert mock_analysis.call_count == 1
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.dict(
+    "cartography.intel.aws.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
+)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "sync", return_value=None
+)
+@mock.patch("cartography.intel.aws.permission_relationships.sync")
+@mock.patch.object(
+    cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+def test_sync_one_account_excluded_syncs_skipped(
+    mock_analysis,
+    mock_cleanup,
+    mock_autodiscover,
+    mock_perm_rels,
+    mock_tags,
+    mock_boto3_session,
+    mock_aioboto3_session,
+    neo4j_session,
+):
+    """
+    Modules listed in aws_excluded_syncs must not run, even after
+    _normalize_requested_syncs has had a chance to auto-include them.
+    This is the canonical case: --aws-requested-syncs ec2:load_balancer_v2,iam
+    plus --aws-excluded-syncs ec2:load_balancer_v2:expose. _normalize_requested_syncs
+    would otherwise re-add ':expose', silently overriding the user's exclusion.
+    """
+    # AWS_RESOURCE_FUNCTIONS_STUB is a module-level dict of MagicMocks that
+    # persists `.called` state across tests in this module. Reset before
+    # asserting which modules ran in this test.
+    for stub in AWS_RESOURCE_FUNCTIONS_STUB.values():
+        stub.reset_mock()
+
+    cartography.intel.aws._sync_one_account(
+        neo4j_session,
+        mock_boto3_session(),
+        "1234",
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_requested_syncs=["iam", "ec2:load_balancer_v2"],
+        aws_excluded_syncs=["ec2:load_balancer_v2:expose"],
+    )
+
+    AWS_RESOURCE_FUNCTIONS_STUB["iam"].assert_called()
+    AWS_RESOURCE_FUNCTIONS_STUB["ec2:load_balancer_v2"].assert_called()
+    AWS_RESOURCE_FUNCTIONS_STUB["ec2:load_balancer_v2:expose"].assert_not_called()
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch.dict(
+    "cartography.intel.aws.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
+)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "sync", return_value=None
+)
+@mock.patch("cartography.intel.aws.permission_relationships.sync")
+@mock.patch.object(
+    cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+def test_sync_one_account_excluded_syncs_with_no_requested(
+    mock_analysis,
+    mock_cleanup,
+    mock_autodiscover,
+    mock_perm_rels,
+    mock_tags,
+    mock_boto3_session,
+    mock_aioboto3_session,
+    neo4j_session,
+):
+    """
+    Passing only aws_excluded_syncs (no aws_requested_syncs) excludes the named
+    module from the default full-sync set. Excluded module should NOT be invoked;
+    a non-excluded module should be invoked.
+    """
+    for stub in AWS_RESOURCE_FUNCTIONS_STUB.values():
+        stub.reset_mock()
+
+    cartography.intel.aws._sync_one_account(
+        neo4j_session,
+        mock_boto3_session(),
+        "1234",
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_excluded_syncs=["secretsmanager"],
+    )
+
+    AWS_RESOURCE_FUNCTIONS_STUB["iam"].assert_called()
+    AWS_RESOURCE_FUNCTIONS_STUB["secretsmanager"].assert_not_called()
 
 
 def test_standardize_aws_sync_kwargs():

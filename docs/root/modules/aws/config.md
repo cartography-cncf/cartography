@@ -158,3 +158,22 @@ cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ecr,lambda_
 For a complete and up-to-date list of resource identifiers that can be specified with `--aws-requested-syncs`, refer to the `RESOURCE_FUNCTIONS` dictionary in `cartography/cartography/intel/aws/resources.py`.
 
 **Note**: Cartography automatically handles resource dependencies and sync order internally, so you don't need to worry about the order in which you specify resources in the list. Using `--aws-requested-syncs` can significantly reduce sync time and API calls when you only need specific resources.
+
+### Skipping Specific Syncs with `--aws-excluded-syncs`
+
+When you want everything *except* one or two modules, `--aws-excluded-syncs` is more convenient than enumerating an allowlist with `--aws-requested-syncs`. It accepts the same comma-separated resource identifiers and subtracts them from the effective sync set.
+
+Sync everything except SecretsManager:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-excluded-syncs "secretsmanager"
+```
+
+Both flags can be combined; exclusions are applied after the requested list:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 \
+    --aws-requested-syncs "ec2:instance,s3,iam,secretsmanager" \
+    --aws-excluded-syncs "secretsmanager"
+# Effective set: ec2:instance, s3, iam
+```
+
+Unknown names raise an error at startup, matching `--aws-requested-syncs` behavior.

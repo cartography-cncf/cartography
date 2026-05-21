@@ -15,6 +15,7 @@ import neo4j
 from cartography.config import Config
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
+from cartography.intel.aws.util.common import parse_and_validate_aws_excluded_syncs
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -91,6 +92,7 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
+    aws_excluded_syncs: Iterable[str] = (),
     aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
     if aioboto3_session is None:
@@ -110,6 +112,20 @@ def _sync_one_account(
     )
 
     aws_requested_syncs = _normalize_requested_syncs(aws_requested_syncs)
+
+    # Apply exclusions after normalization so that _normalize_requested_syncs's
+    # backward-compat auto-includes (e.g. pulling in 'ec2:load_balancer_v2:expose'
+    # whenever 'ec2:load_balancer_v2' is requested) cannot silently re-add a
+    # module the caller explicitly asked to skip.
+    excluded_syncs_set = set(aws_excluded_syncs)
+    if excluded_syncs_set:
+        aws_requested_syncs = [
+            s for s in aws_requested_syncs if s not in excluded_syncs_set
+        ]
+        logger.info(
+            "Excluding AWS sync modules per aws_excluded_syncs: %s",
+            ", ".join(sorted(excluded_syncs_set)),
+        )
 
     # Validate that all requested syncs exist
     requested_syncs_set = set(aws_requested_syncs)
@@ -509,6 +525,7 @@ def _sync_multiple_accounts(
     common_job_parameters: Dict[str, Any],
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
+    aws_excluded_syncs: List[str] = [],
     regions: list[str] | None = None,
     organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
@@ -549,6 +566,7 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
+                aws_excluded_syncs=aws_excluded_syncs,
                 aioboto3_session=aioboto3_session,
             )
         except Exception as e:
@@ -706,6 +724,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
     requested_syncs = _normalize_requested_syncs(requested_syncs)
 
+    excluded_syncs: List[str] = []
+    if getattr(config, "aws_excluded_syncs", None):
+        excluded_syncs = parse_and_validate_aws_excluded_syncs(
+            config.aws_excluded_syncs,
+        )
+
     if config.aws_regions:
         regions = parse_and_validate_aws_regions(config.aws_regions)
     else:
@@ -724,6 +748,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.aws_best_effort_mode,
         requested_syncs,
+        aws_excluded_syncs=excluded_syncs,
         regions=regions,
         organization_account_ids=organization_account_ids,
         # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
@@ -732,4 +757,5 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
 
     if sync_successful:
-        _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
+        effective_syncs = [s for s in requested_syncs if s not in set(excluded_syncs)]
+        _perform_aws_analysis(effective_syncs, neo4j_session, common_job_parameters)
