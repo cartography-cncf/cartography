@@ -48,7 +48,12 @@ def get_key_vaults_client(credentials: Credentials, subscription_id: str) -> Key
 @timeit
 def get_key_vaults_list(client: KeyVaultManagementClient) -> List[Dict]:
     try:
-        key_vaults_list = list(map(lambda x: x.as_dict(), client.vaults.list_by_subscription()))
+        key_vaults_list = []
+        for x in client.vaults.list_by_subscription():
+            try:
+                key_vaults_list.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping key vault due to serialization error: %s", e)
         return key_vaults_list
     except HttpResponseError as e:
         logger.warning(f"Error while retrieving key vaults - {e}")
@@ -93,8 +98,8 @@ def update_access_policies(vault: Dict, common_job_parameters: Dict, client: Key
 def transform_key_vaults(key_vaults: List[Dict], regions: List, common_job_parameters: Dict) -> List[Dict]:
     key_vaults_data = []
     for vault in key_vaults:
-        vault['created_on'] = vault.get('systemData', {}).get('createdAt')
-        vault['updated_on'] = vault.get('systemData', {}).get('lastModifiedAt')
+        vault['created_on'] = (vault.get('systemData') or {}).get('createdAt')
+        vault['updated_on'] = (vault.get('systemData') or {}).get('lastModifiedAt')
         vault['resource_group'] = get_azure_resource_group_name(vault.get('id'))
         vault['consolelink'] = azure_console_link.get_console_link(
             id=vault['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
@@ -160,9 +165,13 @@ def _attach_resource_group_key_vaults(tx: neo4j.Transaction, key_vault_id: str, 
 
 @timeit
 def get_key_vault_keys_list(client: KeyVaultManagementClient, vault: Dict) -> List[Dict]:
-
     try:
-        keys_list = list(map(lambda x: x.as_dict(), client.keys.list(resource_group_name=vault['resource_group'], vault_name=vault['name'])))
+        keys_list = []
+        for x in client.keys.list(resource_group_name=vault['resource_group'], vault_name=vault['name']):
+            try:
+                keys_list.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping key vault key due to serialization error: %s", e)
         return keys_list
     except HttpResponseError as e:
         logger.warning(f"Error while retrieving key vaults keys - {e}")
@@ -173,9 +182,13 @@ def get_key_vault_keys_list(client: KeyVaultManagementClient, vault: Dict) -> Li
 def transform_key_vaults_keys(keys: List[Dict], vault_id: str, common_job_parameters):
     keys_data = []
     for key in keys:
-        key['consolelink'] = azure_console_link.get_console_link(
-            id=key['key_uri'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
-        )
+        try:
+            key['consolelink'] = azure_console_link.get_console_link(
+                id=key.get('key_uri', ''), primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("Could not generate console link for key vault key: %s", e)
+            key['consolelink'] = ''
         key['vault_id'] = vault_id
         keys_data.append(key)
     return keys_data
@@ -219,9 +232,13 @@ def _load_key_vaults_keys_tx(
 
 @timeit
 def get_key_vault_secrets(client: KeyVaultManagementClient, vault: Dict) -> List[Dict]:
-
     try:
-        secrets_list = list(map(lambda x: x.as_dict(), client.secrets.list(resource_group_name=vault['resource_group'], vault_name=vault['name'])))
+        secrets_list = []
+        for x in client.secrets.list(resource_group_name=vault['resource_group'], vault_name=vault['name']):
+            try:
+                secrets_list.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping key vault secret due to serialization error: %s", e)
         return secrets_list
     except HttpResponseError as e:
         logger.warning(f"Error while retrieving secrets list  - {e}")
@@ -232,9 +249,14 @@ def get_key_vault_secrets(client: KeyVaultManagementClient, vault: Dict) -> List
 def transform_key_vault_secrets(secrets: List[Dict], vault_id: str, common_job_parameters):
     secrets_data = []
     for secret in secrets:
-        secret['consolelink'] = azure_console_link.get_console_link(
-            id=secret.get('properties', {}).get('secret_uri', ''), primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
-        )
+        try:
+            secret['consolelink'] = azure_console_link.get_console_link(
+                id=(secret.get('properties') or {}).get('secret_uri', ''),
+                primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("Could not generate console link for key vault secret: %s", e)
+            secret['consolelink'] = ''
         secret['vault_id'] = vault_id
         secrets_data.append(secret)
     return secrets_data
@@ -307,9 +329,13 @@ def transform_key_vault_certificates(certificates: List[Dict], vault_id: str, co
     certificates_data = []
     for certificate in certificates:
         certificate['vault_id'] = vault_id
-        certificate['consolelink'] = azure_console_link.get_console_link(
-            id=certificate['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
-        )
+        try:
+            certificate['consolelink'] = azure_console_link.get_console_link(
+                id=certificate.get('id', ''), primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("Could not generate console link for key vault certificate: %s", e)
+            certificate['consolelink'] = ''
         certificates_data.append(certificate)
 
     return certificates_data
