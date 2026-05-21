@@ -138,14 +138,21 @@ async def list_tenant_users(client: GraphServiceClient, tenant_id: str, filter_q
                 query_parameters=query_params,
             )
         users: List[Dict] = []
+        pages = 0
         response = await client.users.get(request_configuration=request_config)
         if not response or not response.value:
             return []
+        pages += 1
         users.extend(response.value)
 
         while response.odata_next_link:
             response = await client.users.with_url(response.odata_next_link).get()
+            pages += 1
             users.extend(response.value)
+
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += pages
 
         users = transform_users(users, tenant_id)
         return users
@@ -325,14 +332,22 @@ async def get_tenant_groups_list(client: GraphServiceClient, tenant_id: str, fil
                 query_parameters=query_params,
             )
         groups: List[Dict] = []
+        pages = 0
         response = await client.groups.get(request_configuration=request_config)
         if not response or not response.value:
             return []
+        pages += 1
         groups.extend(response.value)
 
         while response.odata_next_link:
             response = await client.groups.with_url(response.odata_next_link).get()
+            pages += 1
             groups.extend(response.value)
+
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += pages
+
         tenant_groups_list = []
 
         for group in groups:
@@ -596,14 +611,21 @@ async def get_tenant_applications_list(client: GraphServiceClient, tenant_id: st
     """
     try:
         apps: List[Dict] = []
+        pages = 0
         response = await client.applications.get()
         if not response or not response.value:
             return []
+        pages += 1
         apps.extend(response.value)
 
         while response.odata_next_link:
             response = await client.applications.with_url(response.odata_next_link).get()
+            pages += 1
             apps.extend(response.value)
+
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += pages
 
         tenant_applications_list = []
 
@@ -710,14 +732,21 @@ async def get_tenant_service_accounts_list(client: GraphServiceClient, tenant_id
     """
     try:
         service_accounts: List[Dict] = []
+        pages = 0
         response = await client.service_principals.get()
         if not response or not response.value:
             return []
+        pages += 1
         service_accounts.extend(response.value)
 
         while response.odata_next_link:
             response = await client.service_principals.with_url(response.odata_next_link).get()
+            pages += 1
             service_accounts.extend(response.value)
+
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += pages
 
         tenant_service_accounts_list = []
 
@@ -848,6 +877,10 @@ async def get_tenant_domains_list(client: GraphServiceClient, tenant_id: str) ->
         response = await client.domains.get()
         if not response or not response.value:
             return []
+
+        ctx = get_current_context()
+        if ctx is not None:
+            ctx.request_count += 1
 
         tenant_domains_list = []
 
