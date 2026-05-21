@@ -421,77 +421,122 @@ def _load_tenant_groups_tx(
     )
 
 
-async def get_group_members(credentials: Credentials, group_id: str) -> List[Dict[str, Any]]:
-    t0 = time.perf_counter()
-    client: GraphServiceClient = get_default_graph_client(credentials.default_graph_credentials)
-    members_data = []
-    try:
-        members: List[Dict] = []
-        response = await client.groups.by_group_id(group_id.split("/")[-1]).members.get()
-        members.extend(response.value)
+_GRAPH_MAX_RETRIES = 5
+_GRAPH_DEFAULT_RETRY_AFTER = 30  # seconds to wait on 429 if Retry-After header is absent
 
-        while response.odata_next_link:
-            response = await client.groups.by_group_id(group_id.split("/")[-1]).members.with_url(response.odata_next_link).get()
+
+def _is_throttle_error(e: Exception) -> bool:
+    err_str = str(e)
+    return '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower()
+
+
+def _get_retry_after(e: Exception) -> float:
+    """Extract Retry-After seconds from exception headers if available."""
+    headers = getattr(e, 'response_headers', None) or getattr(getattr(e, 'response', None), 'headers', None) or {}
+    raw = headers.get('Retry-After') or headers.get('retry-after')
+    if raw:
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            pass
+    return _GRAPH_DEFAULT_RETRY_AFTER
+
+
+async def get_group_members(
+    credentials: Credentials,
+    group_id: str,
+    client: Optional[GraphServiceClient] = None,
+) -> List[Dict[str, Any]]:
+    t0 = time.perf_counter()
+    if client is None:
+        client = get_default_graph_client(credentials.default_graph_credentials)
+    members_data = []
+
+    for attempt in range(1, _GRAPH_MAX_RETRIES + 1):
+        try:
+            members: List[Dict] = []
+            raw_id = group_id.split("/")[-1]
+            response = await client.groups.by_group_id(raw_id).members.get()
             members.extend(response.value)
 
-        if members:
-            async def _fetch_subgroup_members(sub_group_id: str) -> List[Dict]:
-                inherited: List[Dict] = []
-                resp = await client.groups.by_group_id(sub_group_id).members.get()
-                inherited.extend(resp.value)
-                while resp.odata_next_link:
-                    resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+            while response.odata_next_link:
+                response = await client.groups.by_group_id(raw_id).members.with_url(response.odata_next_link).get()
+                members.extend(response.value)
+
+            if members:
+                async def _fetch_subgroup_members(sub_group_id: str) -> List[Dict]:
+                    inherited: List[Dict] = []
+                    resp = await client.groups.by_group_id(sub_group_id).members.get()
                     inherited.extend(resp.value)
-                return inherited
+                    while resp.odata_next_link:
+                        resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+                        inherited.extend(resp.value)
+                    return inherited
 
-            sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
-            if sub_group_ids:
-                logger.debug(f"get_group_members group_id={group_id}: expanding {len(sub_group_ids)} sub-groups")
-            sub_group_results = await asyncio.gather(
-                *[_fetch_subgroup_members(gid) for gid in sub_group_ids],
-                return_exceptions=True,
-            )
-            sub_group_members_map = {}
-            sub_group_errors = 0
-            for gid, result in zip(sub_group_ids, sub_group_results):
-                if isinstance(result, Exception):
-                    sub_group_errors += 1
-                else:
-                    sub_group_members_map[gid] = result
-            if sub_group_errors:
-                logger.warning(f"get_group_members group_id={group_id}: {sub_group_errors}/{len(sub_group_ids)} sub-group fetches failed")
+                sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
+                if sub_group_ids:
+                    logger.debug(f"get_group_members group_id={group_id}: expanding {len(sub_group_ids)} sub-groups")
+                sub_group_results = await asyncio.gather(
+                    *[_fetch_subgroup_members(gid) for gid in sub_group_ids],
+                    return_exceptions=True,
+                )
+                sub_group_members_map = {}
+                sub_group_errors = 0
+                for gid, result in zip(sub_group_ids, sub_group_results):
+                    if isinstance(result, Exception):
+                        sub_group_errors += 1
+                    else:
+                        sub_group_members_map[gid] = result
+                if sub_group_errors:
+                    logger.warning(f"get_group_members group_id={group_id}: {sub_group_errors}/{len(sub_group_ids)} sub-group fetches failed")
 
-            for member in members:
-                if member.odata_type == "#microsoft.graph.group":
-                    for inherited_member in sub_group_members_map.get(member.id, []):
-                        members_data.append({
-                            "id": inherited_member.id,
-                            "display_name": inherited_member.display_name,
-                            "mail": inherited_member.mail,
-                            "group_id": group_id,
-                        })
-                members_data.append({
-                    "id": member.id,
-                    "display_name": member.display_name,
-                    "mail": member.mail,
-                    "group_id": group_id,
-                })
-    except Exception as e:
-        err_str = str(e)
-        if '429' in err_str or 'throttl' in err_str.lower() or 'too many requests' in err_str.lower():
-            logger.warning(f"get_group_members group_id={group_id}: RATE_LIMITED (429) after {time.perf_counter() - t0:.2f}s — {e}")
+                for member in members:
+                    if member.odata_type == "#microsoft.graph.group":
+                        for inherited_member in sub_group_members_map.get(member.id, []):
+                            members_data.append({
+                                "id": inherited_member.id,
+                                "display_name": inherited_member.display_name,
+                                "mail": inherited_member.mail,
+                                "group_id": group_id,
+                            })
+                    members_data.append({
+                        "id": member.id,
+                        "display_name": member.display_name,
+                        "mail": member.mail,
+                        "group_id": group_id,
+                    })
+
+            elapsed = time.perf_counter() - t0
+            logger.debug(f"get_group_members group_id={group_id}: {len(members_data)} members in {elapsed:.2f}s")
+            return members_data
+
+        except Exception as e:
             ctx = get_current_context()
+            if _is_throttle_error(e):
+                retry_after = _get_retry_after(e)
+                if ctx is not None:
+                    ctx.throttle_count += 1
+                if attempt < _GRAPH_MAX_RETRIES:
+                    if ctx is not None:
+                        ctx.retry_count += 1
+                    logger.warning(
+                        f"get_group_members group_id={group_id}: RATE_LIMITED (429) attempt {attempt}/{_GRAPH_MAX_RETRIES}, "
+                        f"waiting {retry_after:.0f}s — {e}",
+                    )
+                    await asyncio.sleep(retry_after)
+                    members_data = []
+                    continue
+                else:
+                    logger.warning(
+                        f"get_group_members group_id={group_id}: RATE_LIMITED (429) after {_GRAPH_MAX_RETRIES} attempts, "
+                        f"giving up after {time.perf_counter() - t0:.2f}s",
+                    )
+            else:
+                logger.warning(f"get_group_members group_id={group_id}: error after {time.perf_counter() - t0:.2f}s — {e}")
             if ctx is not None:
-                ctx.throttle_count += 1
-        else:
-            logger.warning(f"get_group_members group_id={group_id}: error after {time.perf_counter() - t0:.2f}s — {e}")
-        ctx = get_current_context()
-        if ctx is not None:
-            ctx.request_count += 1
-        return members_data
+                ctx.request_count += 1
+            return members_data
 
-    elapsed = time.perf_counter() - t0
-    logger.debug(f"get_group_members group_id={group_id}: {len(members_data)} members in {elapsed:.2f}s")
     return members_data
 
 
@@ -537,7 +582,7 @@ async def sync_tenant_groups(
 
     load_tenant_groups(neo4j_session, tenant_id, tenant_groups_list, update_tag)
     for group in tenant_groups_list:
-        memberships = await get_group_members(credentials, group["id"])
+        memberships = await get_group_members(credentials, group["id"], client=client)
         load_group_memberships(neo4j_session, memberships, update_tag)
 
     cleanup_tenant_groups(neo4j_session, common_job_parameters)
@@ -1165,17 +1210,23 @@ async def sync_scoped_users_and_groups(
     if not scoped_groups:
         return set()
 
-    # 2. Fetch members for all scoped groups concurrently
+    # 2. Fetch members for all scoped groups concurrently (bounded by semaphore to avoid 429 floods)
     t0 = time.perf_counter()
     logger.info(
         f"IAM tenant={tenant_id}: fetching members for {len(scoped_groups)} groups concurrently",
     )
+    _member_semaphore = asyncio.Semaphore(10)
+
+    async def _bounded_get_members(group_id: str) -> List[Dict]:
+        async with _member_semaphore:
+            return await get_group_members(credentials, group_id, client=client)
+
     all_memberships = []
     all_member_ids = set()
     member_fetch_errors = 0
     rate_limit_errors = 0
     membership_results = await asyncio.gather(
-        *[get_group_members(credentials, group["id"]) for group in scoped_groups],
+        *[_bounded_get_members(group["id"]) for group in scoped_groups],
         return_exceptions=True,
     )
     for memberships in membership_results:
