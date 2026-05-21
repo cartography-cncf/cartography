@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import string
 import time
 from pathlib import Path
@@ -101,9 +102,9 @@ class GraphJob:
                 except TransientError as e:
                     if retries < max_retries:
                         retries += 1
-                        wait = 2 ** retries
+                        wait = random.uniform(0, min(2 ** retries, 30))
                         logger.warning(
-                            "Transient Neo4j error in job '%s' (attempt %d/%d), retrying in %ds: %s",
+                            "Transient Neo4j error in job '%s' (attempt %d/%d), retrying in %.2fs: %s",
                             self.name,
                             retries,
                             max_retries,
