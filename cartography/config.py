@@ -114,10 +114,13 @@ class Config:
         aws_requested_syncs=None,
         azure_requested_syncs=None,
         gcp_requested_syncs=None,
+        oci_requested_syncs=None,
         analysis_job_directory=None,
         crxcavator_api_base_uri=None,
         crxcavator_api_key=None,
         oci_sync_all_profiles=None,
+        oci_tenancy_id=None,
+        oci_compartment_id=None,
         okta_org_id=None,
         okta_api_key=None,
         okta_saml_role_regex=None,
@@ -178,10 +181,13 @@ class Config:
         self.aws_requested_syncs = aws_requested_syncs
         self.azure_requested_syncs = azure_requested_syncs
         self.gcp_requested_syncs = gcp_requested_syncs
+        self.oci_requested_syncs = oci_requested_syncs
         self.analysis_job_directory = analysis_job_directory
         self.crxcavator_api_base_uri = crxcavator_api_base_uri
         self.crxcavator_api_key = crxcavator_api_key
         self.oci_sync_all_profiles = oci_sync_all_profiles
+        self.oci_tenancy_id = oci_tenancy_id
+        self.oci_compartment_id = oci_compartment_id
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
         self.okta_saml_role_regex = okta_saml_role_regex

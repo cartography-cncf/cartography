@@ -28,7 +28,7 @@ def replace_char_in_dict(in_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 # Grab list of all compartments and sub-compartments in neo4j already populated by iam.
 def get_compartments_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[*]->(compartment:OCICompartment) " \
+    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(compartment:OCICompartment) " \
             "return DISTINCT compartment.name as name, compartment.ocid as ocid, " \
             "compartment.compartmentid as compartmentid;"
     return neo4j_session.run(query, OCI_TENANCY_ID=tenancy_id)

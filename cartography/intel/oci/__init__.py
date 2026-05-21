@@ -1,9 +1,11 @@
 # Copyright (c) 2020, Oracle and/or its affiliates.
+import base64
+import json
 import logging
 from collections import namedtuple
 from typing import Any
 from typing import Dict
-from typing import NamedTuple
+from typing import List
 
 import neo4j
 import oci
@@ -11,10 +13,13 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
+from . import compartment
 from . import iam
 from . import organizations
 from . import utils
+from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
+from cartography.intel.oci.util.common import parse_and_validate_oci_requested_syncs
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network
@@ -24,62 +29,97 @@ logger = logging.getLogger(__name__)
 Resources = namedtuple('Resources', 'compute iam network')
 
 
-def _sync_one_account(
+def _sync_one_compartment(
     neo4j_session: neo4j.Session,
     resources: Resources,
+    compartment_id: str,
     tenancy_id: str,
+    requested_syncs: List[str],
     oci_sync_tag: int,
     common_job_parameters: Dict[str, Any],
+    regions: List[str],
 ) -> None:
-    logger.info("Syncing OCI IAM client for OCI Tenancy with ID '%s'.", tenancy_id)
-    iam.sync(neo4j_session, resources.iam, tenancy_id, oci_sync_tag, common_job_parameters)
+    """
+    Sync requested services for a single OCI compartment.
+    Similar to Azure's _sync_one_subscription.
 
-    regions = utils.get_regions_in_tenancy(neo4j_session, tenancy_id)
-    for region in regions:
-        logger.info("Syncing OCI region '%s' for OCI Tenancy with ID '%s'.", region["name"], tenancy_id)
-        _change_resources_region(resources, region["name"])
-        # compute.sync(neo4j_session, resources.compute,
-        #   tenancy_id, region["name"], oci_sync_tag, common_job_parameters
-        # )
-        # network.sync(neo4j_session, resources.network,
-        #   tenancy_id, region["name"], oci_sync_tag, common_job_parameters
-        # )
+    If this is the default compartment (compartment_id == tenancy_id), IAM is run first
+    to populate regions. For child compartments, IAM is skipped.
+    """
+    is_default_compartment = (compartment_id == tenancy_id)
 
-    # Look into adding once DNS records are implemented.
-    # NOTE clean up all DNS records, regardless of which job created them
-    # run_cleanup_job('OCI_account_dns_cleanup.json', neo4j_session, common_job_parameters)
+    # For default compartment, run IAM first to populate regions
+    if is_default_compartment and "iam" in requested_syncs:
+        logger.info("Syncing OCI IAM for tenancy '%s'.", tenancy_id)
+        try:
+            iam.sync(
+                neo4j_session, resources.iam, tenancy_id, oci_sync_tag,
+                common_job_parameters, regions,
+            )
+        except Exception as e:
+            logger.error("Error syncing OCI IAM: %s", e, exc_info=True)
+
+    # Get regions from neo4j (populated by IAM region subscriptions)
+    updated_regions = [r["name"] for r in utils.get_regions_in_tenancy(neo4j_session, tenancy_id)]
+    if updated_regions:
+        regions = updated_regions
+
+    # Run remaining resource syncs (skip IAM since it's already handled above)
+    for func_name in requested_syncs:
+        if func_name == "iam":
+            continue
+        if func_name in RESOURCE_FUNCTIONS:
+            logger.info("Syncing OCI %s for compartment '%s'.", func_name, compartment_id)
+            try:
+                RESOURCE_FUNCTIONS[func_name](
+                    neo4j_session, getattr(resources, func_name), tenancy_id, oci_sync_tag,
+                    common_job_parameters, regions,
+                )
+            except Exception as e:
+                logger.error(
+                    "Error syncing OCI %s for compartment '%s': %s", func_name, compartment_id, e, exc_info=True,
+                )
+        else:
+            logger.warning(
+                'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
+            )
 
 
-def _sync_multiple_accounts(
+def _sync_multiple_compartments(
     neo4j_session: neo4j.Session,
-    accounts: Dict[str, Any],
+    credentials: Dict[str, Any],
+    tenancy_id: str,
+    compartments: List[Dict[str, Any]],
+    requested_syncs: List[str],
     sync_tag: int,
     common_job_parameters: Dict[str, Any],
+    regions: List[str],
 ) -> None:
-    logger.debug("Syncing OCI accounts: %s", ', '.join(accounts.keys()))
-    organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    """
+    Sync OCI resources for the requested compartments.
+    Similar to Azure's _sync_multiple_subscriptions.
+    """
+    logger.info("Syncing OCI compartments under tenancy '%s'.", tenancy_id)
 
-    for name in accounts:
-        logger.info("Syncing OCI Tenancy with ID '%s' using configured profile '%s'.", accounts[name]["tenancy"], name)
-        resources = _initialize_resources(accounts[name])
-        tenancy_id = accounts[name]["tenancy"]
-        common_job_parameters["OCI_TENANCY_ID"] = tenancy_id
-        _sync_one_account(neo4j_session, resources, tenancy_id, sync_tag, common_job_parameters)
+    resources = _initialize_resources(credentials)
 
-    del common_job_parameters["OCI_TENANCY_ID"]
+    common_job_parameters["OCI_TENANCY_ID"] = tenancy_id
 
-    # Look into adding cleanup
-    # There may be orphan Users which point outside of known OCI accounts. This job cleans
-    # up those nodes after all OCI accounts have been synced.
-    # run_cleanup_job('oci_post_ingestion_principals_cleanup.json', neo4j_session, common_job_parameters)
-    # There may be orphan DNS entries that point outside of known OCI zones. This job cleans
-    # up those entries after all OCI accounts have been synced.
-    # run_cleanup_job('oci_post_ingestion_dns_cleanup.json', neo4j_session, common_job_parameters)
+    for comp in compartments:
+        compartment_id = comp["compartmentId"]
+        common_job_parameters["OCI_COMPARTMENT_ID"] = compartment_id
 
+        logger.info(
+            "Syncing OCI Compartment with ID '%s'.",
+            compartment_id,
+        )
 
-def _change_resources_region(resources: NamedTuple, region: str) -> None:
-    for resource in resources:
-        resource.base_client.set_region(region)
+        _sync_one_compartment(
+            neo4j_session, resources, compartment_id, tenancy_id,
+            requested_syncs, sync_tag, common_job_parameters, regions,
+        )
+
+        del common_job_parameters["OCI_COMPARTMENT_ID"]
 
 
 def _get_network_resource(credentials: Dict[str, Any]) -> oci.core.virtual_network_client.VirtualNetworkClient:
@@ -127,64 +167,162 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
 
 def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
-    Starts the OCI ingestion process by initializing OCI Application Default Credentials, creating the necessary
-    resource objects, listing all OCI organizations and projects available to the OCI identity, and supplying that
-    context to all intel modules.
+    Starts the OCI ingestion process by initializing OCI credentials, creating the necessary
+    resource objects, and syncing data for the specified compartment.
+
+    If config.params["oci_config"] exists, it is used as a base64-encoded JSON string containing:
+    {
+        user_ocid, fingerprint, private_key_content, tenancy_ocid, region,
+        compartment_ocid, is_default_compartment
+    }
+
+    - tenancy_ocid: Always required for OCI SDK auth
+    - compartment_ocid: The compartment to scope resource listing to
+    - is_default_compartment: If true, run IAM sync. If false, skip IAM.
+
+    Otherwise, falls back to reading credentials from ~/.oci/config.
+
     :param neo4j_session: The Neo4j session
     :param config: A `cartography.config` object
     :return: Nothing
     """
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
+        "WORKSPACE_ID": config.params["workspace"]["id_string"] if hasattr(config, 'params') and config.params else "",
     }
-    try:
-        # Explicitly use Application Default Credentials.
-        credentials = oci.config.from_file("~/.oci/config", "DEFAULT")
-        oci.config.validate_config(credentials)
-        # computeClient = oci.core.ComputeClient(credentials)
-    except (ConfigFileNotFound, ProfileNotFound, InvalidConfig) as e:
-        logger.debug("Error occurred calling oci.config.from_file.", exc_info=True)
-        logger.error(
-            (
-                "Unable to initialize OCI creds. If you don't have OCI data or don't want to load "
-                "OCI data then you can ignore this message. Otherwise, the error code is: %s "
-                "Make sure your OCI credentials are configured correctly, your credentials file (if any) is valid, and "
-                "that the identity you are authenticating to has the required Audit policies attached "
-                "(https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/commonpolicies.htm)."
-            ),
-            e,
-        )
-        return
 
-    if config.oci_sync_all_profiles:
-        oci_accounts = organizations.get_oci_accounts_from_config()
+    oci_config_b64 = config.params.get("oci_config") if hasattr(config, 'params') and config.params else None
+
+    if oci_config_b64:
+        # Use base64-encoded JSON config from params
+        logger.info("Using OCI credentials from config.params['oci_config'].")
+        try:
+            oci_config_json = json.loads(base64.b64decode(oci_config_b64).decode())
+        except (ValueError, json.JSONDecodeError) as e:
+            logger.error("Failed to decode OCI config from base64/JSON: %s", e)
+            return
+
+        try:
+            tenancy_ocid = config.oci_tenancy_id or oci_config_json.get("tenancy_ocid", "")
+            compartment_ocid = config.oci_compartment_id or oci_config_json.get("compartment_ocid", tenancy_ocid)
+            credentials = {
+                "user": oci_config_json["user_ocid"],
+                "fingerprint": oci_config_json["fingerprint"],
+                "key_content": oci_config_json["private_key_content"],
+                "tenancy": tenancy_ocid,
+                "region": config.params.get("default_region", "us-phoenix-1"),
+            }
+            oci.config.validate_config(credentials)
+        except (KeyError, InvalidConfig) as e:
+            logger.debug("Error occurred validating OCI config from params.", exc_info=True)
+            logger.error(
+                (
+                    "Unable to initialize OCI creds from config.params. Error: %s "
+                    "Make sure your OCI credentials are configured correctly and "
+                    "that the identity you are authenticating to has the required Audit policies attached "
+                    "(https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/commonpolicies.htm)."
+                ),
+                e,
+            )
+            return
+
+        is_default_compartment = (compartment_ocid == tenancy_ocid)
+
+        common_job_parameters["OCI_TENANCY_ID"] = tenancy_ocid
+        common_job_parameters["OCI_COMPARTMENT_ID"] = compartment_ocid
+        common_job_parameters["IS_DEFAULT_COMPARTMENT"] = is_default_compartment
+
+        # Determine requested syncs
+        requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
+        if config.oci_requested_syncs:
+            oci_requested_syncs_string = ""
+            for service in config.oci_requested_syncs:
+                oci_requested_syncs_string += f"{service.get('name', ' ')},"
+            requested_syncs = parse_and_validate_oci_requested_syncs(oci_requested_syncs_string[:-1])
+
+        # Initialize resources
+        resources = _initialize_resources(credentials)
+
+        # Create workspace and tenancy nodes
+        organizations.load_oci_accounts(
+            neo4j_session, {"DEFAULT": credentials}, config.update_tag, common_job_parameters,
+            identity_client=resources.iam,
+        )
+
+        # Load compartment nodes into Neo4j
+        compartment_list = compartment.get_current_oci_compartment(resources.iam, compartment_ocid)
+        if not compartment_list:
+            compartment_list = [{"compartmentId": compartment_ocid, "name": compartment_ocid}]
+        compartment.sync(neo4j_session, tenancy_ocid, compartment_list, config.update_tag, common_job_parameters)
+
+        # Get regions from config
+        regions = [oci_config_json.get("region", "")]
+
+        # Sync resources for the requested compartment
+        _sync_multiple_compartments(
+            neo4j_session, credentials, tenancy_ocid, compartment_list,
+            requested_syncs, config.update_tag, common_job_parameters, regions,
+        )
+
     else:
-        oci_accounts = organizations.get_oci_account_default()
+        # Fallback: read from ~/.oci/config file
+        logger.info("No config.params['oci_config'] found, falling back to ~/.oci/config file.")
+        try:
+            credentials = oci.config.from_file("~/.oci/config", "DEFAULT")
+            oci.config.validate_config(credentials)
+        except (ConfigFileNotFound, ProfileNotFound, InvalidConfig) as e:
+            logger.debug("Error occurred calling oci.config.from_file.", exc_info=True)
+            logger.error(
+                (
+                    "Unable to initialize OCI creds. If you don't have OCI data or don't want to load "
+                    "OCI data then you can ignore this message. Otherwise, the error code is: %s "
+                    "Make sure your OCI credentials are configured correctly, your credentials file (if any) is valid, and "
+                    "that the identity you are authenticating to has the required Audit policies attached "
+                    "(https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/commonpolicies.htm)."
+                ),
+                e,
+            )
+            return
 
-    tenancy_list = []
-    for x in oci_accounts:
-        tenancy_list.append(oci_accounts[x]["tenancy"])
+        if config.oci_sync_all_profiles:
+            oci_accounts = organizations.get_oci_accounts_from_config()
+        else:
+            oci_accounts = organizations.get_oci_account_default()
 
-    if len(tenancy_list) != len(set(tenancy_list)):
-        logger.warning(
-            (
-                "There are duplicate OCI tenancy's in your OCI configuration. It is strongly recommended that you run "
-                "cartography with an OCI configuration which has exactly one profile for each OCI tenancy you want to "
-                "sync. Doing otherwise will result in undefined and untested behavior."
-            ),
+        if not oci_accounts:
+            logger.warning(
+                "No valid OCI credentials could be found. No OCI accounts can be synced. Exiting OCI sync stage.",
+            )
+            return
+
+        tenancy_id = list(oci_accounts.values())[0]["tenancy"]
+        compartment_id = config.oci_compartment_id or tenancy_id
+
+        common_job_parameters["OCI_TENANCY_ID"] = tenancy_id
+        common_job_parameters["OCI_COMPARTMENT_ID"] = compartment_id
+
+        # Determine requested syncs
+        requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
+        if config.oci_requested_syncs:
+            oci_requested_syncs_string = ""
+            for service in config.oci_requested_syncs:
+                oci_requested_syncs_string += f"{service.get('name', ' ')},"
+            requested_syncs = parse_and_validate_oci_requested_syncs(oci_requested_syncs_string[:-1])
+
+        # Create workspace and tenancy nodes
+        organizations.sync(neo4j_session, oci_accounts, config.update_tag, common_job_parameters, resources.iam)
+
+        # Load compartment nodes into Neo4j
+        resources = _initialize_resources(list(oci_accounts.values())[0])
+        compartment_list = compartment.get_current_oci_compartment(resources.iam, compartment_id)
+        if not compartment_list:
+            compartment_list = [{"compartmentId": compartment_id, "name": compartment_id}]
+        compartment.sync(neo4j_session, tenancy_id, compartment_list, config.update_tag, common_job_parameters)
+
+        # Get regions
+        regions = [oci_accounts[list(oci_accounts.keys())[0]].get("region", "")]
+
+        _sync_multiple_compartments(
+            neo4j_session, list(oci_accounts.values())[0], tenancy_id, compartment_list,
+            requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-
-    if not oci_accounts:
-        logger.warning(
-            "No valid OCI credentials could be found. No OCI accounts can be synced. Exiting OCI sync stage.",
-        )
-        return
-
-    _sync_multiple_accounts(neo4j_session, oci_accounts, config.update_tag, common_job_parameters)
-
-    # Look into adding analysis job once compute is implemented.
-    # run_analysis_job(
-    #    'oci_compute_asset_exposure.json',
-    #    neo4j_session,
-    #    common_job_parameters,
-    # )
