@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 from unittest.mock import MagicMock
@@ -17,6 +18,7 @@ from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
+TEST_UPDATE_TAG_2 = 123456790
 TEST_REGION = "us-east-1"
 
 
@@ -78,6 +80,34 @@ def _seed_single_platform_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
+
+
+def _build_report_without_component(
+    report: dict,
+    component_bucket: str,
+    component_name: str,
+) -> dict:
+    trimmed_report = copy.deepcopy(report)
+    analysis = trimmed_report["aibom_analysis"]
+    source_data = analysis["sources"][TEST_SOURCE_KEY]
+    components = source_data["components"][component_bucket]
+
+    source_data["components"][component_bucket] = [
+        component for component in components if component["name"] != component_name
+    ]
+    if not source_data["components"][component_bucket]:
+        del source_data["components"][component_bucket]
+
+    source_summary = source_data["summary"]
+    source_summary["assets_discovered"] -= 1
+
+    report_summary = analysis["summary"]
+    report_summary["total_components"] -= 1
+    report_summary["component_types"][component_bucket] -= 1
+    if report_summary["component_types"][component_bucket] == 0:
+        del report_summary["component_types"][component_bucket]
+
+    return trimmed_report
 
 
 @patch(
@@ -164,3 +194,103 @@ def test_sync_aibom_happy_path(
     ) == {
         ("Agent", "gpt-5.2"),
     }
+
+    ai_labeled_components = neo4j_session.run(
+        """
+        MATCH (component:AIBOMComponent)
+        WHERE component.name IN ['Agent', 'gpt-5.2', 'subimageGetTicket']
+        RETURN component.name AS name,
+               component:AIAgent AS is_agent,
+               component:AIModel AS is_model,
+               component:AITool AS is_tool
+        ORDER BY component.name
+        """,
+    ).data()
+    assert ai_labeled_components == [
+        {
+            "name": "Agent",
+            "is_agent": True,
+            "is_model": False,
+            "is_tool": False,
+        },
+        {
+            "name": "gpt-5.2",
+            "is_agent": False,
+            "is_model": True,
+            "is_tool": False,
+        },
+        {
+            "name": "subimageGetTicket",
+            "is_agent": False,
+            "is_model": False,
+            "is_tool": True,
+        },
+    ]
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    # Arrange
+    _seed_single_platform_graph(neo4j_session)
+    trimmed_report = _build_report_without_component(
+        AIBOM_REPORT,
+        component_bucket="secret",
+        component_name="vault-secret",
+    )
+    mock_file_open.return_value.read.side_effect = [
+        json.dumps(AIBOM_REPORT).encode("utf-8"),
+        json.dumps(trimmed_report).encode("utf-8"),
+    ]
+
+    # Act
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        LocalReportReader("/tmp"),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        LocalReportReader("/tmp"),
+        TEST_UPDATE_TAG_2,
+        {"UPDATE_TAG": TEST_UPDATE_TAG_2},
+    )
+
+    # Assert
+    component_nodes = check_nodes(
+        neo4j_session,
+        "AIBOMComponent",
+        ["name"],
+    )
+    assert component_nodes is not None
+    assert ("vault-secret",) not in component_nodes
+
+    expected_component_count = sum(
+        len(items)
+        for items in trimmed_report["aibom_analysis"]["sources"][TEST_SOURCE_KEY][
+            "components"
+        ].values()
+    )
+    assert len(component_nodes) == expected_component_count
+
+    has_component_rels = check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "AIBOMComponent",
+        "name",
+        "HAS_COMPONENT",
+        rel_direction_right=True,
+    )
+    assert len(has_component_rels) == expected_component_count

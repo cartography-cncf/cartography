@@ -2,6 +2,8 @@ import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 from cartography.intel.aibom import _extract_digest_from_source_key
 from cartography.intel.aibom import _image_digest_exists
 from cartography.intel.aibom import prepare_aibom_report_for_ingestion
@@ -72,18 +74,16 @@ def test_prepare_aibom_report_for_ingestion_returns_document_for_exact_image_mat
     assert prepared_report == document
 
 
-def test_prepare_aibom_report_for_ingestion_skips_when_image_digest_missing() -> None:
+def test_prepare_aibom_report_for_ingestion_raises_when_image_digest_missing() -> None:
     # Arrange
     neo4j_session = MagicMock()
     document = copy.deepcopy(AIBOM_REPORT)
 
     with patch("cartography.intel.aibom._image_digest_exists", return_value=False):
-        # Act
-        prepared_report = prepare_aibom_report_for_ingestion(
-            neo4j_session,
-            document,
-            "/tmp/aibom.json",
-        )
-
-    # Assert
-    assert prepared_report is None
+        # Act and assert
+        with pytest.raises(ValueError):
+            prepare_aibom_report_for_ingestion(
+                neo4j_session,
+                document,
+                "/tmp/aibom.json",
+            )

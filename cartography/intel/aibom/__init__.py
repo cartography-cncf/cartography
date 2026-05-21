@@ -45,7 +45,7 @@ def prepare_aibom_report_for_ingestion(
     neo4j_session: Session,
     document: dict[str, Any],
     source: str,
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """
     Perform the GET/preparation step for an AIBOM report:
     validate the raw document at a high level, extract source keys, require
@@ -62,11 +62,9 @@ def prepare_aibom_report_for_ingestion(
         if digest
     )
     if not image_digests:
-        logger.warning(
-            "Skipping AIBOM report %s: no digest-qualified source keys were found",
-            source,
+        raise ValueError(
+            f"AIBOM report at {source} did not contain any digest-qualified source keys",
         )
-        return None
 
     missing_digests = [
         digest
@@ -74,12 +72,11 @@ def prepare_aibom_report_for_ingestion(
         if not _image_digest_exists(neo4j_session, digest)
     ]
     if missing_digests:
-        logger.warning(
-            "Skipping AIBOM report %s: source digests did not resolve to concrete :Image nodes: %s",
-            source,
-            ", ".join(sorted(set(missing_digests))),
+        raise ValueError(
+            "AIBOM report "
+            f"{source} did not resolve to concrete :Image nodes for digests: "
+            f"{', '.join(sorted(set(missing_digests)))}",
         )
-        return None
 
     return document
 
@@ -120,10 +117,6 @@ def sync_aibom_from_report_reader(
             document,
             source,
         )
-
-        if prepared_report is None:
-            cleanup_blocking_report_count += 1
-            continue
 
         source_payloads = transform_aibom_source_payloads(
             prepared_report,

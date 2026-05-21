@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -139,7 +140,19 @@ class AIBOMComponentCustomRel(CartographyRelSchema):
 class AIBOMComponentSchema(CartographyNodeSchema):
     label: str = "AIBOMComponent"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(label="AIAgent", conditions={"category": "agent"}),
+            ConditionalNodeLabel(label="AIModel", conditions={"category": "model"}),
+            ConditionalNodeLabel(label="AITool", conditions={"category": "tool"}),
+            ConditionalNodeLabel(label="AIMemory", conditions={"category": "memory"}),
+            ConditionalNodeLabel(
+                label="AIEmbedding",
+                conditions={"category": "embedding"},
+            ),
+            ConditionalNodeLabel(label="AIPrompt", conditions={"category": "prompt"}),
+        ],
+    )
     properties: AIBOMComponentNodeProperties = AIBOMComponentNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
