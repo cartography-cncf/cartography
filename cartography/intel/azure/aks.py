@@ -249,14 +249,23 @@ def get_container_registries_list(
     client: ContainerRegistryManagementClient, regions: list, common_job_parameters: Dict,
 ) -> List[Dict]:
     try:
-        container_registries_list = list(map(lambda x: x.as_dict(), client.registries.list()))
+        container_registries_list = []
+        for x in client.registries.list():
+            try:
+                container_registries_list.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping container registry due to serialization error: %s", e)
         registry_data = []
         for registry in container_registries_list:
             registry["resource_group"] = get_azure_resource_group_name(registry.get("id"))
-            registry["consolelink"] = azure_console_link.get_console_link(
-                id=registry["id"],
-                primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
-            )
+            try:
+                registry["consolelink"] = azure_console_link.get_console_link(
+                    id=registry["id"],
+                    primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
+                )
+            except (ValueError, KeyError) as e:
+                logger.warning("Could not generate console link for container registry %s: %s", registry.get("id"), e)
+                registry["consolelink"] = ""
             if regions is None:
                 registry_data.append(registry)
             else:
@@ -265,7 +274,7 @@ def get_container_registries_list(
 
         return registry_data
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving registries - {e}")
         return []
 
