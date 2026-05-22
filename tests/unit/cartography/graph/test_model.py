@@ -111,6 +111,12 @@ GLOBAL_NODE_LABELS: Set[str] = {
     "WorkdayHuman",
 }
 
+ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
+    # AWSAccount remains the root tenant for normal AWS service resources, while
+    # AWSOrganization is a separate top-level tenant for Organizations hierarchy.
+    "AWSOrganization",
+}
+
 
 def test_sub_resource_relationship():
     """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
@@ -153,7 +159,9 @@ def test_sub_resource_relationship():
         unanchored_labels = sorted(
             label
             for label, anchored in label_anchors.items()
-            if not anchored and label not in GLOBAL_NODE_LABELS
+            if not anchored
+            and label not in GLOBAL_NODE_LABELS
+            and label not in ADDITIONAL_TOP_LEVEL_TENANT_LABELS
         )
         if len(unanchored_labels) > 1:
             errors.append(
