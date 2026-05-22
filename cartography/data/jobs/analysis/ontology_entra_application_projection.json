@@ -1,0 +1,10 @@
+{
+  "name": "Ontology - Entra application projection",
+  "statements": [
+    {
+      "__comment": "Project `_ont_enabled` on every EntraApplication owned by the tenant being synced ($TENANT_ID). Microsoft Graph exposes `accountEnabled` on the service principal (tenant-local instance) rather than on the application registration. Scoping to the syncing tenant is important on two fronts: (1) the SERVICE_PRINCIPAL relationship is matched only on `app_id`, so a multi-tenant graph can attach service principals from foreign tenants to a home-tenant application, and selecting the SP through the shared EntraTenant guarantees we read the home-tenant state; (2) when one cartography run ingests multiple tenants, syncing tenant A must not touch apps owned by tenant B. OPTIONAL MATCH guarantees every in-scope application is touched: when an app has no service principal in its own tenant (e.g. the SP was just deleted by cleanup), `_ont_enabled` is reset to NULL so stale values from prior syncs cannot linger.",
+      "query": "MATCH (app:EntraApplication)<-[:RESOURCE]-(tenant:EntraTenant {id: $TENANT_ID}) OPTIONAL MATCH (tenant)-[:RESOURCE]->(sp:EntraServicePrincipal {app_id: app.app_id}) WITH app, sp SET app._ont_enabled = sp.account_enabled",
+      "iterative": false
+    }
+  ]
+}
