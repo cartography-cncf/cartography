@@ -60,7 +60,7 @@ def load_instances(
     inode.image_id = $IMAGE_ID,
     inode.lastupdated = $oci_update_tag
     WITH inode
-    MATCH (cc) WHERE (cc:OCICompartment OR cc:OCITenancy) AND cc.ocid=$COMPARTMENT_ID
+    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(inode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -190,7 +190,7 @@ def load_images(
     img.size_in_mbs = $SIZE_IN_MBS,
     img.lastupdated = $oci_update_tag
     WITH img
-    MATCH (cc) WHERE (cc:OCICompartment OR cc:OCITenancy) AND cc.ocid=$COMPARTMENT_ID
+    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(img)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -201,7 +201,7 @@ def load_images(
             ingest_image,
             OCID=image.get("id"),
             DISPLAY_NAME=image.get("display-name"),
-            COMPARTMENT_ID=image.get("compartment-id", compartment_id),
+            COMPARTMENT_ID=image.get("compartment-id") if image.get("compartment-id") else compartment_id,
             OPERATING_SYSTEM=image.get("operating-system"),
             OPERATING_SYSTEM_VERSION=image.get("operating-system-version"),
             LIFECYCLE_STATE=image.get("lifecycle-state"),

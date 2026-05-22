@@ -191,7 +191,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "WORKSPACE_ID": config.params["workspace"]["id_string"] if hasattr(config, 'params') and config.params else "",
     }
 
-    oci_config_b64 = config.params.get("oci_config") if hasattr(config, 'params') and config.params else None
+    oci_config_b64 = config.params.get("ociConfig") if hasattr(config, 'params') and config.params else None
 
     if oci_config_b64:
         # Use base64-encoded JSON config from params
@@ -210,7 +210,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "fingerprint": oci_config_json["fingerprint"],
                 "key_content": oci_config_json["private_key_content"],
                 "tenancy": tenancy_ocid,
-                "region": config.params.get("default_region", "us-phoenix-1"),
+                "region": config.params.get("defaultRegion", "us-phoenix-1"),
             }
             oci.config.validate_config(credentials)
         except (KeyError, InvalidConfig) as e:
@@ -263,7 +263,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, credentials, tenancy_ocid, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-
+        return common_job_parameters
     else:
         # Fallback: read from ~/.oci/config file
         logger.info("No config.params['oci_config'] found, falling back to ~/.oci/config file.")

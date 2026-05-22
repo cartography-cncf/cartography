@@ -274,8 +274,8 @@ def load_policies(
     pnode.statements = $STATEMENTS,
     pnode.updatedate = $POLICY_UPDATE, pnode.lastupdated = $oci_update_tag
     WITH pnode
-    MATCH (aa) WHERE (aa:OCITenancy OR aa:OCICompartment) AND aa.ocid=$COMPARTMENT_ID
-    MERGE (aa)-[r:OCI_POLICY]->(pnode)
+    MATCH (aa:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MERGE (aa)-[r:RESOURCE]->(pnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """

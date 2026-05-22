@@ -86,6 +86,8 @@ def gcp_cartography_worker(event, ctx):
         gitlab_process_request(logger, params)
     elif params.get("templateType") == "AZUREDEVOPSINVENTORYVIEWS":
         azure_devops_process_request(logger, params)
+    elif params.get("templateType") == "OCIINVENTORYVIEWS":
+        oci_process_request(logger, params)
 
     return {
         "statusCode": 200,
@@ -142,6 +144,81 @@ def gcp_process_request(logger, params):
     }
 
     resp = cartography.cli.run_gcp(body)
+
+    if "status" in resp and resp["status"] == "success":
+        if resp.get("pagination", None):
+            services = []
+            for service, pagination in resp.get("pagination", {}).items():
+                if pagination.get("hasNextPage", False):
+                    services.append(
+                        {
+                            "name": service,
+                            "pagination": {
+                                "pageSize": pagination.get("pageSize", 1),
+                                "pageNo": pagination.get("pageNo", 0) + 1,
+                            },
+                        },
+                    )
+            if len(services) > 0:
+                resp["services"] = services
+
+            else:
+                del resp["updateTag"]
+
+            del resp["pagination"]
+
+        logger.info(f"successfully processed cartography: {resp}")
+
+    else:
+        logger.info(f"failed to process cartography: {resp['message']}")
+
+    publish_response(logger, body, resp, params)
+
+    logger.info(f"inventory sync gcp response - {params.get('eventId')}: {json.dumps(resp)}")
+
+
+def oci_process_request(logger, params):
+    logger.info(f"request - {params.get('templateType')} - {params.get('eventId')} - {params.get('workspace')}")
+
+    svcs = []
+    for svc in params.get("services", []):
+        page = svc.get("pagination", {}).get("pageSize")
+        if page:
+            svc["pagination"]["pageSize"] = 10000
+
+        svcs.append(svc)
+
+    body = {
+        "neo4j": {
+            "uri": params.get("neo4j", {}).get("uri", ""),
+            "user": params.get("neo4j", {}).get("user", ""),
+            "pwd": params.get("neo4j", {}).get("pwd", ""),
+            "connection_lifetime": 200,
+        },
+        "logging": {
+            "mode": "verbose",
+        },
+        "params": {
+            "sessionString": params.get("sessionString"),
+            "eventId": params.get("eventId"),
+            "templateType": params.get("templateType"),
+            "workspace": params.get("workspace"),
+            "groups": params.get("groups", []),
+            "actions": params.get("actions"),
+            "resultTopic": params.get("resultTopic"),
+            "requestTopic": params.get("requestTopic"),
+            "partial": params.get("partial"),
+            "services": params.get("services"),
+            "ociConfig": os.environ["OCI_CONFIG"],
+            "tenancyOCID": params.get("tenancyOCID"),
+            "compartmentOCID": params.get("compartmentOCID"),
+            "defaultRegion": params.get("defaultRegion", "us-phoenix-1"),
+        },
+        "services": svcs,
+        "updateTag": params.get("runTimestamp"),
+    }
+
+    resp = cartography.cli.run_oci(body)
 
     if "status" in resp and resp["status"] == "success":
         if resp.get("pagination", None):
