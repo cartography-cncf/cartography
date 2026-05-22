@@ -66,7 +66,9 @@ AIBOM links scan results to concrete `:Image` nodes by digest, making the ingest
 - **Tag-only source keys** (`repo:tag`): Not accepted for this ingestion flow.
 - **Manifest list and image-tag anchors**: Not accepted as primary ingestion anchors for this module. The report must resolve to a concrete `:Image` digest already present in the graph.
 
-If any digest-qualified source key in the report does not resolve to a concrete `:Image`, the report is skipped.
+If any source key is not digest-qualified, or if any digest-qualified source key
+does not resolve to a concrete `:Image`, Cartography raises an error and fails
+the AIBOM sync run.
 
 ### Current graph scope
 
@@ -106,8 +108,8 @@ Run image provider ingestion (ECR, GCP Artifact Registry, GitLab, etc.) before A
 The AIBOM module ingests every `*.json` file under the configured source as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their scans and detections will all be loaded in that snapshot because they share the same `update_tag`.
 
 Cleanup is module-wide and runs only after a fully observed snapshot. If any
-report fails to read or is skipped during preparation, Cartography skips AIBOM
-cleanup for that run to avoid deleting last-known-good data.
+report fails to read, Cartography skips AIBOM cleanup for that run to avoid
+deleting last-known-good data.
 
 ### Run with local files
 

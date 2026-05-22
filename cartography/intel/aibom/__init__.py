@@ -54,17 +54,19 @@ def prepare_aibom_report_for_ingestion(
     sources = document["aibom_analysis"]["sources"]
     source_keys = tuple(sources)
 
-    image_digests = tuple(
-        digest
-        for digest in (
-            _extract_digest_from_source_key(source_key) for source_key in source_keys
-        )
-        if digest
-    )
-    if not image_digests:
+    invalid_source_keys = [
+        source_key
+        for source_key in source_keys
+        if _extract_digest_from_source_key(source_key) is None
+    ]
+    if invalid_source_keys:
         raise ValueError(
-            f"AIBOM report at {source} did not contain any digest-qualified source keys",
+            "AIBOM report "
+            f"{source} contained non-digest-qualified source keys: "
+            f"{', '.join(sorted(invalid_source_keys))}",
         )
+
+    image_digests = tuple(source_key.partition("@")[2] for source_key in source_keys)
 
     missing_digests = [
         digest

@@ -176,8 +176,9 @@ Representation of one detected AI component occurrence within a source.
   `:Image` node before the report is ingested.
 - `:ImageManifestList` and `:ImageTag` are not valid primary anchors for this
   ingestion flow.
-- If the exact digest does not already exist as `(:Image {_ont_digest: ...})`,
-  the report is skipped rather than partially loaded.
+- If any source key is not digest-qualified, or if the exact digest does not
+  already exist as `(:Image {_ont_digest: ...})`, Cartography raises an error
+  and fails the AIBOM sync run rather than partially loading data.
 
 ### Example queries
 

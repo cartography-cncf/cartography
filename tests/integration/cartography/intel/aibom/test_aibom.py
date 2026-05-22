@@ -319,3 +319,56 @@ def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
         rel_direction_right=True,
     )
     assert len(has_component_rels) == expected_component_count
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_sync_aibom_skips_ambiguous_type_name_relationship_endpoints(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    # Arrange
+    _seed_single_platform_graph(neo4j_session)
+    ambiguous_report = copy.deepcopy(AIBOM_REPORT)
+    source_data = ambiguous_report["aibom_analysis"]["sources"][TEST_SOURCE_KEY]
+    # Add a duplicate model endpoint (same source/type/name) with different
+    # identity fields so fallback type/name resolution becomes ambiguous.
+    source_data["components"]["model"].append(
+        {
+            **copy.deepcopy(source_data["components"]["model"][0]),
+            "file_path": "/tmp/ambiguous_model.py",
+            "line_number": 4242,
+        },
+    )
+    mock_file_open.return_value.read.return_value = json.dumps(ambiguous_report).encode(
+        "utf-8",
+    )
+
+    # Act
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        LocalReportReader("/tmp"),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "AIBOMComponent",
+            "name",
+            "AIBOMComponent",
+            "name",
+            "USES_MODEL",
+            rel_direction_right=True,
+        )
+        == set()
+    )

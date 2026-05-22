@@ -1,4 +1,5 @@
 import copy
+from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -87,3 +88,25 @@ def test_prepare_aibom_report_for_ingestion_raises_when_image_digest_missing() -
                 document,
                 "/tmp/aibom.json",
             )
+
+
+def test_prepare_aibom_report_for_ingestion_raises_for_mixed_digest_and_non_digest_source_keys() -> (
+    None
+):
+    # Arrange
+    neo4j_session = MagicMock()
+    document: dict[str, Any] = copy.deepcopy(AIBOM_REPORT)
+    document["aibom_analysis"]["sources"]["repo:latest"] = copy.deepcopy(
+        document["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+    )
+
+    # Act and assert
+    with pytest.raises(
+        ValueError,
+        match="contained non-digest-qualified source keys: repo:latest",
+    ):
+        prepare_aibom_report_for_ingestion(
+            neo4j_session,
+            document,
+            "/tmp/aibom.json",
+        )

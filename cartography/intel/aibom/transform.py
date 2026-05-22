@@ -319,30 +319,50 @@ def _parse_aibom_relationship_records(document: dict[str, Any]) -> list[dict[str
 
 def _build_relationship_component_lookup(
     component_records: list[dict[str, Any]],
-) -> dict[tuple[str, str, str], str]:
+) -> tuple[dict[tuple[str, ...], str], set[tuple[str, str, str]]]:
     """
-    The report relationship records identify endpoints by source-scoped
-    component fields like type and name. This helper resolves those fields onto
-    the stable AIBOMComponent.id values we derive for node ingestion.
+    Build a mixed-shape endpoint lookup for relationship resolution.
+
+    Keys are tuples scoped by source key and map to the stable
+    AIBOMComponent.id values derived during transform:
+    - (source_key, instance_id) for relationship endpoints that provide
+      source_instance_id/target_instance_id.
+    - (source_key, component_type, component_name) for fallback endpoints
+      resolved by type/name.
+
+    Returns:
+    - component_lookup: maps either key shape above to AIBOMComponent.id.
+    - ambiguous_type_name_keys: the subset of (source_key, component_type,
+      component_name) keys that map to multiple component ids and therefore
+      must not be used for fallback resolution.
     """
-    component_lookup: dict[tuple[str, str, str], str] = {}
+    component_lookup: dict[tuple[str, ...], str] = {}
+    ambiguous_type_name_keys: set[tuple[str, str, str]] = set()
     for component_record in component_records:
         source_key = component_record["source_key"]
         component_type = component_record["component_type"]
         component = component_record["component"]
+        component_id = _build_component_id(source_key, component)
+
+        component_instance_id = _as_str(component.get("instance_id"))
+        if component_instance_id:
+            component_lookup[(source_key, component_instance_id)] = component_id
+
         normalized_component_type = (
             _as_str(component.get("component_type")) or component_type
         )
         component_name = _as_str(component.get("name")) or ""
-        component_lookup[
-            (
-                source_key,
-                normalized_component_type,
-                component_name,
-            )
-        ] = _build_component_id(source_key, component)
+        type_name_key = (
+            source_key,
+            normalized_component_type,
+            component_name,
+        )
+        existing_id = component_lookup.get(type_name_key)
+        if existing_id is not None and existing_id != component_id:
+            ambiguous_type_name_keys.add(type_name_key)
+        component_lookup[type_name_key] = component_id
 
-    return component_lookup
+    return component_lookup, ambiguous_type_name_keys
 
 
 def _build_component_payloads_by_id(
@@ -367,23 +387,38 @@ def _build_component_payloads_by_id(
 def _resolve_relationship_component_ids(
     source_key: str,
     relationship: dict[str, Any],
-    component_lookup: dict[tuple[str, str, str], str],
+    component_lookup: dict[tuple[str, ...], str],
+    source_component_lookup_key: tuple[str, ...],
+    target_component_lookup_key: tuple[str, ...],
+    ambiguous_type_name_keys: set[tuple[str, str, str]],
 ) -> tuple[str, str] | None:
-    source_component_lookup_key = (
-        source_key,
-        _as_str(relationship.get("source_type")) or "",
-        _as_str(relationship.get("source_name")) or "",
-    )
-    target_component_lookup_key = (
-        source_key,
-        _as_str(relationship.get("target_type")) or "",
-        _as_str(relationship.get("target_name")) or "",
-    )
+    """
+    Resolve source/target component ids for one relationship endpoint pair.
+
+    The caller precomputes lookup keys per relationship, preferring
+    `(source_key, instance_id)` when both instance ids are present and falling
+    back to `(source_key, component_type, component_name)` otherwise.
+    Fallback keys marked ambiguous are rejected to avoid silently choosing the
+    wrong endpoint.
+    """
+    if (
+        source_component_lookup_key in ambiguous_type_name_keys
+        or target_component_lookup_key in ambiguous_type_name_keys
+    ):
+        relationship_type = _as_str(relationship.get("relationship_type"))
+        logger.warning(
+            "Skipping ambiguous AIBOM relationship %s on source %s: %s -> %s",
+            relationship_type,
+            source_key,
+            relationship.get("source_name"),
+            relationship.get("target_name"),
+        )
+        return None
 
     source_component_id = component_lookup.get(source_component_lookup_key)
     target_component_id = component_lookup.get(target_component_lookup_key)
     if not source_component_id or not target_component_id:
-        relationship_type = _as_str(relationship.get("relationship_type")) or "unknown"
+        relationship_type = _as_str(relationship.get("relationship_type"))
         logger.warning(
             "Skipping unresolved AIBOM relationship %s on source %s: %s -> %s",
             relationship_type,
@@ -402,12 +437,15 @@ def transform_aibom_component_payloads(
     """
     Transform raw AIBOM rc3 component data into AIBOMComponent payloads.
 
-    This consumes the raw AIBOM report, extracts component records, and emits
-    schema-ready component payloads.
+    This consumes the raw AIBOM report, extracts component records, resolves
+    report relationships onto component ids, and emits schema-ready component
+    payloads.
     """
     component_records = _parse_aibom_component_records(document)
     component_payloads_by_id = _build_component_payloads_by_id(component_records)
-    component_lookup = _build_relationship_component_lookup(component_records)
+    component_lookup, ambiguous_type_name_keys = _build_relationship_component_lookup(
+        component_records,
+    )
     relationship_records = _parse_aibom_relationship_records(document)
 
     for relationship_record in relationship_records:
@@ -416,6 +454,26 @@ def transform_aibom_component_payloads(
         relationship_type = _as_str(relationship.get("relationship_type"))
         if relationship_type is None:
             continue
+        source_component_lookup_key: tuple[str, ...]
+        target_component_lookup_key: tuple[str, ...]
+        # Prefer instance-id endpoint matching when both endpoint ids are
+        # present; otherwise fall back to type/name endpoint matching.
+        source_instance_id = _as_str(relationship.get("source_instance_id"))
+        target_instance_id = _as_str(relationship.get("target_instance_id"))
+        if source_instance_id and target_instance_id:
+            source_component_lookup_key = (source_key, source_instance_id)
+            target_component_lookup_key = (source_key, target_instance_id)
+        else:
+            source_component_lookup_key = (
+                source_key,
+                _as_str(relationship.get("source_type")) or "",
+                _as_str(relationship.get("source_name")) or "",
+            )
+            target_component_lookup_key = (
+                source_key,
+                _as_str(relationship.get("target_type")) or "",
+                _as_str(relationship.get("target_name")) or "",
+            )
 
         target_field = _RELATIONSHIP_TARGET_FIELD_BY_TYPE.get(relationship_type)
         if target_field is None:
@@ -429,6 +487,9 @@ def transform_aibom_component_payloads(
             source_key,
             relationship,
             component_lookup,
+            source_component_lookup_key=source_component_lookup_key,
+            target_component_lookup_key=target_component_lookup_key,
+            ambiguous_type_name_keys=ambiguous_type_name_keys,
         )
         if resolved_component_ids is None:
             continue
