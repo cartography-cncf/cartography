@@ -36,8 +36,8 @@ CIS_REFERENCES = [
 class UserWithout2SVOutput(Finding):
     """Output model for users without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     is_admin: bool | None = None
     org_unit_path: str | None = None
     is_enrolled_in_2sv: bool | None = None
@@ -109,8 +109,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
 class AdminWithout2SVOutput(Finding):
     """Output model for admin accounts without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     is_admin: bool | None = None
     is_delegated_admin: bool | None = None
@@ -328,8 +328,8 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
 class SuperAdminDualRoleOutput(Finding):
     """Output model for Super Admins that also hold delegated admin roles."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     tenant_id: str | None = None
 

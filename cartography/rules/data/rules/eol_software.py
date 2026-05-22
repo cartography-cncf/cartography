@@ -518,8 +518,8 @@ _ec2_instance_amazon_linux_2_eol = Fact(
 
 
 class EOLSoftwareOutput(Finding):
-    asset_id: str | None = None
     asset_name: str | None = None
+    asset_id: str | None = None
     asset_type: str | None = None
     software_name: str | None = None
     software_version: str | None = None
