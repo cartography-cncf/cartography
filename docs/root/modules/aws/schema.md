@@ -369,6 +369,9 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
+| principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
+| principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
 | archived | Whether the finding has been archived |
 | service_action_type | The GuardDuty service action type for the finding (for example `AWS_API_CALL` or `NETWORK_CONNECTION`) |
 | service_count | The number of times GuardDuty observed the activity represented by the finding |
@@ -414,6 +417,21 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect S3 Buckets
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    ```
+
+- GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AccountAccessKey)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=IAMUser` affect the AWS IAM user
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSUser)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=AssumedRole` affect the assumed IAM role
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSRole)
     ```
 
 ### AWSInspectorFinding::Risk
