@@ -280,28 +280,28 @@ class AppContext:
         )
 
         self.aws_cartography_queue_url = self.get_value(
-            config, ["common", "cartography", "aws", "queueUrl", "us"]
+            config, ["common", "cartography", "aws", "queueUrl", "us"],
         )
         if os.environ.get("CDX_DC") == "IN":
             self.aws_cartography_queue_url = self.get_value(
-                config, ["common", "cartography", "aws", "queueUrl", "in"]
+                config, ["common", "cartography", "aws", "queueUrl", "in"],
             )
         elif os.environ.get("CDX_DC") == "MC1":
             self.aws_cartography_queue_url = self.get_value(
-                config, ["common", "cartography", "aws", "queueUrl", "mc1"]
+                config, ["common", "cartography", "aws", "queueUrl", "mc1"],
             )
         if os.environ.get("CDX_CLOUD_TYPE") == "AZURE":
             self.aws_cartography_queue_url = self.get_value(
-                config, ["common", "cartography", "azure", "queueUrl", "us"]
+                config, ["common", "cartography", "azure", "queueUrl", "us"],
             )
 
         if config.get("audit"):
             cfg = config["audit"]
             self.audit_sns_request_topic = self.get_sns_topic(
-                self.get_value(cfg, ["sns", "reqTopic"])
+                self.get_value(cfg, ["sns", "reqTopic"]),
             )
             self.audit_sns_response_topic = self.get_sns_topic(
-                self.get_value(cfg, ["sns", "resTopic"])
+                self.get_value(cfg, ["sns", "resTopic"]),
             )
             self.aws_iam_compliance_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["iamcompliance", "reqTopic"]),
@@ -312,13 +312,13 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_iam_compliance_min_days_for_rotation = self.get_value(
-                cfg, ["iamcompliance", "minDaysForRotation"]
+                cfg, ["iamcompliance", "minDaysForRotation"],
             )
             self.aws_iam_compliance_min_days_for_update = self.get_value(
-                cfg, ["iamcompliance", "minDaysForUpdate"]
+                cfg, ["iamcompliance", "minDaysForUpdate"],
             )
             self.aws_iam_compliance_min_days_for_use = self.get_value(
-                cfg, ["iamcompliance", "minDaysForUse"]
+                cfg, ["iamcompliance", "minDaysForUse"],
             )
             self.aws_sg_audit_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["sgaudit", "reqTopic"]),
@@ -345,7 +345,7 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_ec2_monitoring_outdated_instance_types = self.get_value(
-                cfg, ["ec2monitoring", "outdatedInstanceTypes"]
+                cfg, ["ec2monitoring", "outdatedInstanceTypes"],
             )
             self.aws_rds_monitoring_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["rdsmonitoring", "reqTopic"]),
@@ -420,7 +420,7 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_kubernetes_monitoring_latest_versions = self.get_value(
-                cfg, ["kubernetesmonitoring", "latestVersions"]
+                cfg, ["kubernetesmonitoring", "latestVersions"],
             )
             self.aws_apigateway_monitoring_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["apigatewaymonitoring", "reqTopic"]),
@@ -455,30 +455,30 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_redshift_monitoring_idleconnection_limit_per_day = self.get_value(
-                cfg, ["redshiftmonitoring", "idleConnectionLimitPerDay"]
+                cfg, ["redshiftmonitoring", "idleConnectionLimitPerDay"],
             )
             self.aws_redshift_monitoring_idle_readiops_limit_per_day = self.get_value(
-                cfg, ["redshiftmonitoring", "idleReadIOPSLimitPerDay"]
+                cfg, ["redshiftmonitoring", "idleReadIOPSLimitPerDay"],
             )
             self.aws_redshift_monitoring_idle_writeiops_limit_per_day = self.get_value(
-                cfg, ["redshiftmonitoring", "idleWriteIOPSLimitPerDay"]
+                cfg, ["redshiftmonitoring", "idleWriteIOPSLimitPerDay"],
             )
             self.aws_redshift_monitoring_maximum_diskspace_usage_limit = self.get_value(
-                cfg, ["redshiftmonitoring", "maximumDiskSpaceUsageLimit"]
+                cfg, ["redshiftmonitoring", "maximumDiskSpaceUsageLimit"],
             )
             self.aws_redshift_monitoring_underutilized_average_cpu_usage_limit = (
                 self.get_value(
-                    cfg, ["redshiftmonitoring", "underutilizedAverageCPUUsageLimit"]
+                    cfg, ["redshiftmonitoring", "underutilizedAverageCPUUsageLimit"],
                 )
             )
             self.aws_redshift_monitoring_underutilized_readiops_limit_per_day = (
                 self.get_value(
-                    cfg, ["redshiftmonitoring", "underutilizedReadIOPSLimitPerDay"]
+                    cfg, ["redshiftmonitoring", "underutilizedReadIOPSLimitPerDay"],
                 )
             )
             self.aws_redshift_monitoring_underutilized_writeiops_limit_per_day = (
                 self.get_value(
-                    cfg, ["redshiftmonitoring", "underutilizedWriteIOPSLimitPerDay"]
+                    cfg, ["redshiftmonitoring", "underutilizedWriteIOPSLimitPerDay"],
                 )
             )
             self.aws_cloudformation_monitoring_request_topic = self.get_sns_topic(
@@ -520,7 +520,7 @@ class AppContext:
             self.neo4j_user = self.get_value(cfg, ["neo4j", "user"])
             self.neo4j_pwd = self.get_value(cfg, ["neo4j", "pwd"])
             self.neo4j_connection_lifetime = self.get_value(
-                cfg, ["neo4j", "connection_lifetime"]
+                cfg, ["neo4j", "connection_lifetime"],
             )
             self.aws_inventory_sync_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["awsinventorysync", "reqTopic"]),
@@ -558,22 +558,22 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_remediation_sourceip = self.get_value(
-                cfg, ["awsremediation", "sourceIp"]
+                cfg, ["awsremediation", "sourceIp"],
             )
             self.aws_remediation_ports = self.get_value(
-                cfg, ["awsremediation", "ports"]
+                cfg, ["awsremediation", "ports"],
             )
             self.aws_remediation_rotation_threshold = self.get_value(
-                cfg, ["awsremediation", "rotationThreshold"]
+                cfg, ["awsremediation", "rotationThreshold"],
             )
             self.aws_remediation_retention_period = self.get_value(
-                cfg, ["awsremediation", "retentionPeriod"]
+                cfg, ["awsremediation", "retentionPeriod"],
             )
             self.aws_remediation_kms_master_key_id = self.get_value(
-                cfg, ["awsremediation", "kmsMasterKeyId"]
+                cfg, ["awsremediation", "kmsMasterKeyId"],
             )
             self.aws_remediation_kms_datakey_reuse_period_seconds = self.get_value(
-                cfg, ["awsremediation", "kmsDataKeyReusePeriodSeconds"]
+                cfg, ["awsremediation", "kmsDataKeyReusePeriodSeconds"],
             )
             self.aws_cost_anomaly_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["awscostanomaly", "reqTopic"]),
@@ -584,19 +584,19 @@ class AppContext:
                 self.audit_sns_response_topic,
             )
             self.aws_cost_anomaly_granularity = self.get_value(
-                cfg, ["awscostanomaly", "granularity"]
+                cfg, ["awscostanomaly", "granularity"],
             )
             self.aws_cost_anomaly_cost_usage_table = self.get_value(
-                cfg, ["awscostanomaly", "costAndUsageTable"]
+                cfg, ["awscostanomaly", "costAndUsageTable"],
             )
             self.aws_cost_anomaly_secondary_index = self.get_value(
-                cfg, ["awscostanomaly", "secondaryIndex"]
+                cfg, ["awscostanomaly", "secondaryIndex"],
             )
             self.aws_cost_anomaly_total_days_to_prefill = self.get_value(
-                cfg, ["awscostanomaly", "totalDaysToPrefill"]
+                cfg, ["awscostanomaly", "totalDaysToPrefill"],
             )
             self.aws_cost_anomaly_services = self.get_value(
-                cfg, ["awscostanomaly", "services"]
+                cfg, ["awscostanomaly", "services"],
             )
             self.aws_cost_saving_request_topic = self.get_sns_topic(
                 self.get_value(cfg, ["awscostsaving", "reqTopic"]),
