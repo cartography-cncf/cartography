@@ -119,6 +119,7 @@ class Sync:
                         "bitbucket",
                         "gitlab",
                         "azuredevops",
+                        "oci",
                     ]:
                         response = stage_func(neo4j_session, config)
                     else:
@@ -285,6 +286,27 @@ def build_gcp_sync():
     stages = []
     stages.append(("cloudanix-workspace", cloudanix.run))
     stages.append(("gcp", cartography.intel.gcp.start_gcp_ingestion))
+    stages.append(("analysis", cartography.intel.analysis.run))
+
+    sync.add_stages(stages)
+
+    return sync
+
+
+def build_oci_sync():
+    """
+    Build the default cartography sync, which runs all intelligence modules shipped with the cartography package.
+
+    :rtype: cartography.sync.Sync
+    :return: The default cartography sync object.
+    """
+    import cartography.intel.oci
+
+    sync = Sync()
+
+    stages = []
+    stages.append(("cloudanix-workspace", cloudanix.run))
+    stages.append(("oci", cartography.intel.oci.start_oci_ingestion))
     stages.append(("analysis", cartography.intel.analysis.run))
 
     sync.add_stages(stages)

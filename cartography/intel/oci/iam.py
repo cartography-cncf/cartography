@@ -64,10 +64,11 @@ def load_compartments(
     MERGE (cnode:OCICompartment{ocid: $OCID})
     ON CREATE SET cnode:OCICompartment, cnode.firstseen = timestamp(),
     cnode.createdate = $CREATE_DATE
-    SET cnode.name = $NAME, cnode.compartmentid = $COMPARTMENT_ID
+    SET cnode.name = $NAME, cnode.compartmentid = $COMPARTMENT_ID,
+    cnode.lastupdated = $oci_update_tag
     WITH cnode
-    MATCH (aa) WHERE (aa:OCITenancy OR aa:OCICompartment) AND aa.ocid=$COMPARTMENT_ID
-    MERGE (aa)-[r:OCI_COMPARTMENT]->(cnode)
+    MATCH (tenancy:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MERGE (tenancy)-[r:OWNER]->(cnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
@@ -273,8 +274,8 @@ def load_policies(
     pnode.statements = $STATEMENTS,
     pnode.updatedate = $POLICY_UPDATE, pnode.lastupdated = $oci_update_tag
     WITH pnode
-    MATCH (aa) WHERE (aa:OCITenancy OR aa:OCICompartment) AND aa.ocid=$COMPARTMENT_ID
-    MERGE (aa)-[r:OCI_POLICY]->(pnode)
+    MATCH (aa:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MERGE (aa)-[r:RESOURCE]->(pnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
@@ -450,12 +451,14 @@ def sync(
     tenancy_id: str,
     oci_update_tag: int,
     common_job_parameters: Dict[str, Any],
+    regions: List[str] = None,
 ) -> None:
     logger.info("Syncing IAM for account '%s'.", tenancy_id)
     sync_users(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_groups(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_group_memberships(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
-    sync_compartments(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
+    # Compartment sync is handled by compartment.py in __init__.py, not here
+    # sync_compartments(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_policies(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_oci_policy_references(neo4j_session, tenancy_id, oci_update_tag, common_job_parameters)
     sync_region_subscriptions(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)

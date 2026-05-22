@@ -873,6 +873,33 @@ def run_gcp(request):
     return CLI(default_sync, prog="cartography").process(config)
 
 
+def run_oci(request):
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("neo4j").setLevel(logging.WARNING)
+
+    default_sync = cartography.sync.build_oci_sync()
+
+    config = Config(
+        neo4j_uri=request["neo4j"]["uri"],
+        neo4j_user=request["neo4j"]["user"],
+        neo4j_password=request["neo4j"]["pwd"],
+        neo4j_max_connection_lifetime=request["neo4j"]["connection_lifetime"],
+        params=request["params"],
+        oci_requested_syncs=request.get("services", None),
+        update_tag=request.get("updateTag", None),
+        oci_tenancy_id=request.get("params", {}).get("tenancyOCID", ""),
+        oci_compartment_id=request.get("params", {}).get("compartmentOCID", ""),
+    )
+
+    if request["logging"]["mode"] == "verbose":
+        config.verbose = True
+    elif request["logging"]["mode"] == "quiet":
+        config.quiet = True
+
+    return CLI(default_sync, prog="cartography").process(config)
+
+
 def run_github(request):
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("botocore").setLevel(logging.WARNING)

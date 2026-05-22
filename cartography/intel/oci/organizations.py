@@ -84,22 +84,60 @@ def get_oci_accounts_from_config() -> Dict[str, Any]:
     return d
 
 
+def get_tenancy_details(
+    identity_client: oci.identity.identity_client.IdentityClient,
+    tenancy_id: str,
+) -> Dict[str, Any]:
+    """
+    Get tenancy details (name, home region, etc.) from the OCI API.
+    """
+    try:
+        response = identity_client.get_tenancy(tenancy_id)
+        tenancy = response.data
+        return {
+            "id": tenancy.id,
+            "name": tenancy.name,
+            "description": tenancy.description,
+            "home_region_key": tenancy.home_region_key,
+        }
+    except oci.exceptions.ServiceError as e:
+        logger.warning("Could not fetch tenancy details for '%s': %s", tenancy_id, e.message)
+        return {"id": tenancy_id, "name": tenancy_id}
+
+
 def load_oci_accounts(
     neo4j_session: neo4j.Session,
     oci_accounts: Dict[str, Any],
     oci_update_tag: int,
     common_job_parameters: Dict[str, Any],
+    identity_client: oci.identity.identity_client.IdentityClient = None,
 ) -> None:
     query = """
+    MERGE (w:CloudanixWorkspace{id: $WORKSPACE_ID})
+    SET w.lastupdated = $oci_update_tag
+    WITH w
     MERGE (aa:OCITenancy{ocid: $TENANCY_ID})
     ON CREATE SET aa.firstseen = timestamp()
     SET aa.lastupdated = $oci_update_tag, aa.name = $ACCOUNT_NAME
+    WITH w, aa
+    MERGE (w)-[r:OWNER]->(aa)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $oci_update_tag
     """
     for name in oci_accounts:
+        tenancy_id = oci_accounts[name]["tenancy"]
+
+        # Get real tenancy name from API if identity_client is available
+        account_name = name
+        if identity_client:
+            tenancy_details = get_tenancy_details(identity_client, tenancy_id)
+            account_name = tenancy_details.get("name", name)
+
         neo4j_session.run(
             query,
-            TENANCY_ID=oci_accounts[name]["tenancy"],
-            ACCOUNT_NAME=name,
+            WORKSPACE_ID=common_job_parameters.get("WORKSPACE_ID", ""),
+            TENANCY_ID=tenancy_id,
+            ACCOUNT_NAME=account_name,
             oci_update_tag=oci_update_tag,
         )
 
@@ -113,6 +151,7 @@ def sync(
     accounts: Dict[str, Any],
     oci_update_tag: int,
     common_job_parameters: Dict[str, Any],
+    identity_client: oci.identity.identity_client.IdentityClient = None,
 ) -> None:
-    load_oci_accounts(neo4j_session, accounts, oci_update_tag, common_job_parameters)
+    load_oci_accounts(neo4j_session, accounts, oci_update_tag, common_job_parameters, identity_client)
     cleanup(neo4j_session, common_job_parameters)
