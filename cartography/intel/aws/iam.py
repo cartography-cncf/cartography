@@ -480,6 +480,61 @@ def load_users(
 
 
 @timeit
+def load_service_accounts(
+    neo4j_session: neo4j.Session,
+    service_accounts: List[Dict],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    ingest_service_account = """
+    MERGE (sanode:AWSServiceAccount{arn: $ARN})
+    ON CREATE SET sanode:AWSPrincipal, sanode.userid = $USERID, sanode.firstseen = timestamp(),
+    sanode.consolelink = $consolelink,
+    sanode.createdate = $CREATE_DATE
+    SET sanode.name = $USERNAME, sanode.user_name = $USERNAME,
+    sanode.path = $PATH, sanode.passwordlastused = $PASSWORD_LASTUSED,
+    sanode.region = $region,
+    sanode.consoleloginenabled = $CONSOLELOGINENABLED,
+    sanode.mfaenabled = $MFAENABLED,
+    sanode.lastupdated = $aws_update_tag
+    WITH sanode
+    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
+    MERGE (aa)-[r:RESOURCE]->(sanode)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $aws_update_tag
+    """
+    logger.info(f"Loading {len(service_accounts)} IAM service accounts.")
+    for sa in service_accounts:
+        neo4j_session.run(
+            ingest_service_account,
+            ARN=sa["Arn"],
+            consolelink=aws_console_link.get_console_link(arn=sa["Arn"]),
+            USERID=sa["UserId"],
+            CREATE_DATE=str(sa["CreateDate"]),
+            USERNAME=sa["UserName"],
+            PATH=sa["Path"],
+            CONSOLELOGINENABLED=sa.get("consoleLoginEnabled", False),
+            MFAENABLED=sa.get("MFAEnabled", False),
+            PASSWORD_LASTUSED=str(sa.get("PasswordLastUsed", "")),
+            AWS_ACCOUNT_ID=current_aws_account_id,
+            region="global",
+            aws_update_tag=aws_update_tag,
+        )
+
+
+def _is_service_account(user: Dict) -> bool:
+    """
+    Determine if an IAM user should be classified as a service account.
+    A service account is an IAM user that has no console login enabled
+    AND has never used a password (PasswordLastUsed is empty or null).
+    """
+    console_login_enabled = user.get("consoleLoginEnabled", False)
+    password_last_used = user.get("PasswordLastUsed")
+    # If no console login and password was never used, treat as service account
+    return not console_login_enabled and (not password_last_used or str(password_last_used) == "")
+
+
+@timeit
 def load_policies_for_account(
     neo4j_session: neo4j.Session,
     policies_list: List[Dict],
@@ -686,7 +741,8 @@ def load_group_memberships(neo4j_session: neo4j.Session, group_memberships: Dict
     ingest_membership = """
     MATCH (group:AWSGroup{arn: $GroupArn})
     WITH group
-    MATCH (user:AWSUser{arn: $PrincipalArn})
+    MATCH (user:AWSPrincipal{arn: $PrincipalArn})
+    WHERE user:AWSUser OR user:AWSServiceAccount
     MERGE (user)-[r:MEMBER_AWS_GROUP]->(group)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $aws_update_tag
@@ -787,7 +843,8 @@ def load_user_access_keys(
     # To rotate key there is no option in aws. we need to create new and delete existing key that's why rotatedate same as createdate
     # TODO change the node label to reflect that this is a user access key, not an account access key
     ingest_account_key = """
-    MATCH (user:AWSUser{arn: $ARN})
+    MATCH (user:AWSPrincipal{arn: $ARN})
+    WHERE user:AWSUser OR user:AWSServiceAccount
     WITH user
     MERGE (key:AccountAccessKey{accesskeyid: $AccessKeyId})
     ON CREATE SET key.firstseen = timestamp(),
@@ -1063,7 +1120,14 @@ def sync_users(
 
     data = transform_users_data(boto3_session, data["Users"])
 
-    load_users(neo4j_session, data["Users"], current_aws_account_id, aws_update_tag)
+    # Split users into human users and service accounts
+    human_users = [u for u in data["Users"] if not _is_service_account(u)]
+    service_accounts = [u for u in data["Users"] if _is_service_account(u)]
+
+    logger.info(f"Human users: {len(human_users)}, Service accounts: {len(service_accounts)}")
+
+    load_users(neo4j_session, human_users, current_aws_account_id, aws_update_tag)
+    load_service_accounts(neo4j_session, service_accounts, current_aws_account_id, aws_update_tag)
 
     # INFO: This is a temporary solution to skip Loading Policies for Manual runs.
     if common_job_parameters.get("MANUAL_RUN", False) or current_aws_account_id == "934101271236":
@@ -1075,6 +1139,7 @@ def sync_users(
         sync_user_managed_policies(boto3_session, data, neo4j_session, current_aws_account_id, aws_update_tag)
 
     run_cleanup_job("aws_import_users_cleanup.json", neo4j_session, common_job_parameters)
+    run_cleanup_job("aws_import_service_accounts_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1263,7 +1328,7 @@ def sync_user_access_keys(
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing IAM user access keys for account '%s'.", current_aws_account_id)
-    query = "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) return user.name as name"
+    query = "MATCH (user:AWSPrincipal)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) WHERE user:AWSUser OR user:AWSServiceAccount return user.name as name"
     result = neo4j_session.run(query, AWS_ACCOUNT_ID=current_aws_account_id)
     usernames = [r["name"] for r in result]
     for name in usernames:
@@ -1308,7 +1373,7 @@ def _set_used_state_tx(
     ingest_entity_used = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n)
     WHERE ()-[:TRUSTS_AWS_PRINCIPAL]->(n) AND n.lastupdated = $update_tag
-    AND labels(n) IN [['AWSUser'], ['AWSGroup']]
+    AND (n:AWSUser OR n:AWSGroup OR n:AWSServiceAccount)
     SET n.isUsed = $isUsed
     """
 
@@ -1323,7 +1388,7 @@ def _set_used_state_tx(
     ingest_entity_unused = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n)
     WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
-    AND labels(n) IN [['AWSUser'], ['AWSGroup'], ['AWSRole']]
+    AND (n:AWSUser OR n:AWSGroup OR n:AWSRole OR n:AWSServiceAccount)
     SET n.isUsed = $isUsed
     """
 
