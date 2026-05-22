@@ -20,6 +20,7 @@ class GCPSqlInstanceProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("selfLink")
     name: PropertyRef = PropertyRef("name")
     database_version: PropertyRef = PropertyRef("databaseVersion")
+    database_engine: PropertyRef = PropertyRef("database_engine")
     region: PropertyRef = PropertyRef("region")
     gce_zone: PropertyRef = PropertyRef("gceZone")
     state: PropertyRef = PropertyRef("state")
