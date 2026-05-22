@@ -25,14 +25,8 @@ export CDX_DEFAULT_LOG_LEVEL=$log_level
 app_env=$(cat $file_name | jq -r '.appEnv')
 export CDX_APP_ENV=$app_env
 
-assume_role_kms_key_id=$(cat $file_name | jq -r '.assumeRoleKMSKeyID')
-export CDX_APP_ASSUME_ROLE_KMS_KEY_ID=$assume_role_kms_key_id
-
-assume_role_access_key=$(cat $file_name | jq -r '.assumeRoleAccessKey')
-export CDX_APP_ASSUME_ROLE_ACCESS_KEY=$assume_role_access_key
-
-assume_role_access_secret=$(cat $file_name | jq -r '.assumeRoleAccessSecret')
-export CDX_APP_ASSUME_ROLE_ACCESS_SECRET=$assume_role_access_secret
+cross_account_role_arn=$(cat $file_name | jq -r '.crossAccountRoleARN')
+export CDX_CROSS_ACCOUNT_ROLE_ARN=$cross_account_role_arn
 
 neo4j_uri=$(cat $file_name | jq -r '.neo4jURI')
 export CDX_APP_NEO4J_URI=$neo4j_uri
