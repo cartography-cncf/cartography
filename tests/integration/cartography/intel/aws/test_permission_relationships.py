@@ -157,7 +157,7 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
 def test_permission_relationships_can_passrole(neo4j_session):
     """
     A principal with iam:PassRole on a target AWSRole should get a
-    (:AWSPrincipal)-[:CAN_PASSROLE]->(:AWSRole) edge via the declarative
+    (:AWSPrincipal)-[:CAN_PASS_ROLE]->(:AWSRole) edge via the declarative
     resolver. This is the prerequisite for PassRole-based privesc detections
     (e.g. Karpenter workload identity abuse).
     """
@@ -217,7 +217,7 @@ def test_permission_relationships_can_passrole(neo4j_session):
         "arn",
         "AWSRole",
         "arn",
-        "CAN_PASSROLE",
+        "CAN_PASS_ROLE",
     )
 
     expected_rels = {
@@ -229,7 +229,7 @@ def test_permission_relationships_can_passrole(neo4j_session):
 
     assert (
         actual_rels == expected_rels
-    ), f"Expected CAN_PASSROLE relationship not found. Got: {actual_rels}"
+    ), f"Expected CAN_PASS_ROLE relationship not found. Got: {actual_rels}"
 
 
 def test_permission_relationships_skips_resources_without_arn(neo4j_session):

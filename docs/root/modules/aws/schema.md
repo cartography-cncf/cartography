@@ -936,7 +936,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWSPrincipals with `iam:PassRole` can pass an IAM role to an AWS service (e.g. attaching an instance profile to `ec2:RunInstances`, an execution role to `lambda:CreateFunction`, `ecs:RunTask`). Combined with a service-launch permission this is a privilege-escalation primitive. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
 
     ```cypher
-    (AWSPrincipal)-[CAN_PASSROLE]->(AWSRole)
+    (AWSPrincipal)-[CAN_PASS_ROLE]->(AWSRole)
     ```
 
 ### AWSPrincipal::AWSUser
