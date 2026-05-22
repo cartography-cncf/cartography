@@ -110,3 +110,21 @@ def test_prepare_aibom_report_for_ingestion_raises_for_mixed_digest_and_non_dige
             document,
             "/tmp/aibom.json",
         )
+
+
+def test_prepare_aibom_report_for_ingestion_raises_when_sources_are_empty() -> None:
+    # Arrange
+    neo4j_session = MagicMock()
+    document: dict[str, Any] = copy.deepcopy(AIBOM_REPORT)
+    document["aibom_analysis"]["sources"] = {}
+
+    # Act and assert
+    with pytest.raises(
+        ValueError,
+        match="did not contain any sources",
+    ):
+        prepare_aibom_report_for_ingestion(
+            neo4j_session,
+            document,
+            "/tmp/aibom.json",
+        )

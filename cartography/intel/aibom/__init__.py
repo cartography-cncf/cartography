@@ -53,6 +53,10 @@ def prepare_aibom_report_for_ingestion(
     """
     sources = document["aibom_analysis"]["sources"]
     source_keys = tuple(sources)
+    if not source_keys:
+        raise ValueError(
+            f"AIBOM report at {source} did not contain any sources",
+        )
 
     invalid_source_keys = [
         source_key
