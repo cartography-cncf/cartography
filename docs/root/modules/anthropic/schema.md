@@ -116,7 +116,6 @@ Represents an individual API key in a project.
 | name | The name of the API key |
 | status | Status of the API key. Available options: active, inactive, archived  |
 | created_at | The RFC 3339 datetime of when the API key was created |
-| last_used_at | The RFC 3339 datetime of when the API key was last used. |
 
 #### Relationships
 - `Apikey` belongs to an `Organization`

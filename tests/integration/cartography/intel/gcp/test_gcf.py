@@ -75,8 +75,34 @@ def test_gcp_functions_load_and_relationships(
     expected_nodes = {
         ("projects/test-project/locations/us-central1/functions/function-1",),
         ("projects/test-project/locations/us-east1/functions/function-2",),
+        ("projects/test-project/locations/us-west1/functions/function-3",),
     }
     assert check_nodes(neo4j_session, "GCPCloudFunction", ["id"]) == expected_nodes
+
+    # Assert: memory/timeout normalised from `availableMemoryMb` and the protobuf
+    # Duration `timeout` field. Whole-second durations stay int; fractional
+    # durations (allowed by Duration) are preserved as float.
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudFunction",
+        ["id", "available_memory_mb", "timeout"],
+    ) == {
+        (
+            "projects/test-project/locations/us-central1/functions/function-1",
+            256,
+            60,
+        ),
+        (
+            "projects/test-project/locations/us-east1/functions/function-2",
+            512,
+            120,
+        ),
+        (
+            "projects/test-project/locations/us-west1/functions/function-3",
+            128,
+            3.5,
+        ),
+    }
 
     # Assert: Test that the (GCPProject)-[:RESOURCE]->(GCPCloudFunction) relationships exist
     expected_rels = {
@@ -87,6 +113,10 @@ def test_gcp_functions_load_and_relationships(
         (
             TEST_PROJECT_ID,
             "projects/test-project/locations/us-east1/functions/function-2",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "projects/test-project/locations/us-west1/functions/function-3",
         ),
     }
     assert (

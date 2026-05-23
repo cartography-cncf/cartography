@@ -61,3 +61,11 @@
   permissions:
   - ecs:ExecuteCommand
   relationship_name: CAN_EXECUTE_COMMAND
+# Map principals that can pass an IAM role to an AWS service.
+# iam:PassRole is required to attach an instance profile to ec2:RunInstances,
+# an execution role to lambda:CreateFunction, ecs:RunTask, etc. Combined with
+# a service-launch permission this is a privilege-escalation primitive.
+- target_label: AWSRole
+  permissions:
+  - iam:PassRole
+  relationship_name: CAN_PASS_ROLE

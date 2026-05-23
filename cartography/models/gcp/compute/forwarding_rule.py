@@ -20,6 +20,7 @@ class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
     ip_address: PropertyRef = PropertyRef("ip_address")
     ip_protocol: PropertyRef = PropertyRef("ip_protocol")
     load_balancing_scheme: PropertyRef = PropertyRef("load_balancing_scheme")
+    lb_type: PropertyRef = PropertyRef("lb_type")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     network: PropertyRef = PropertyRef("network_partial_uri")
     port_range: PropertyRef = PropertyRef("port_range")
