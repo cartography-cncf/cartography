@@ -149,6 +149,7 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 | log_bucket                    | The destination bucket where the current bucket's logs should be placed |
 | requester_pays                | The bucket's billing configuration (if set to true, Requester Pays is enabled for this bucket) |
 | default_kms_key_name          | A Cloud KMS key that will be used to encrypt objects inserted into this bucket, if no encryption method is specified |
+| acl_public                    | `true` if the bucket's legacy ACL or default object ACL grants access to `allUsers` or `allAuthenticatedUsers`. Consumed by the `_ont_public` projection job. |
 
 #### Relationships
 
@@ -281,6 +282,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
 | machine_type | The instance machine type short name, e.g. `n2d-standard-4`. |
+| creation_timestamp | RFC 3339 timestamp of when the instance was created. |
+| private_ip | Primary internal IP address (first NIC's `networkIP`). |
+| public_ip | Primary external IP address (first access config's `natIP`), if any. |
 | service_account_email | Primary attached service account email when the instance has one. |
 | service_account_scopes | OAuth scopes configured on the primary attached service account. |
 | can_ip_forward | Whether the instance is configured with IP forwarding enabled. |
@@ -640,6 +644,7 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 | ip_address            | IP address that this Forwarding Rule serves                                                                                                          |
 | ip_protocol           | IP protocol to which this rule applies                                                                                                               |
 | load_balancing_scheme | Specifies the Forwarding Rule type                                                                                                                   |
+| lb_type               | Normalised load-balancer family derived from the target proxy collection (`http`, `https`, `tcp`, `ssl`, `grpc`, `network`, `vpn`).                  |
 | name                  | Name of the Forwarding Rule                                                                                                                          |
 | network               | A partial resource URI of the network this Forwarding Rule belongs to                                                                                |
 | port_range            | Port range used in conjunction with a target resource. Only packets addressed to ports in the specified range will be forwarded to target configured |
@@ -1457,6 +1462,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
 | **id** | The instance's `selfLink`, which is its unique URI. |
 | name | The user-assigned name of the instance. |
 | database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| database\_engine | Normalised engine name derived from `database_version`, e.g. `postgres`, `mysql`, `sqlserver`. |
 | region | The GCP region the instance lives in. |
 | gce\_zone | The specific Compute Engine zone the instance is serving from. |
 | state | The current state of the instance (e.g., `RUNNABLE`). |
@@ -1606,6 +1612,8 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 | name                  | The full, unique resource name of the function (same as id).                |
 | description           | User-provided description of the function.                                  |
 | runtime               | The language runtime environment for the function (e.g., python310).        |
+| available_memory_mb   | Memory allocated to the function, in MB (from `availableMemoryMb`).         |
+| timeout               | Maximum execution time, in seconds (parsed from the API's Duration string; whole-second values are stored as int, fractional values as float). |
 | entry_point           | The name of the function within the source code to be executed.             |
 | status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
 | update_time           | The timestamp when the function was last modified.                          |

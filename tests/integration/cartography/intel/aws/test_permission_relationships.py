@@ -58,6 +58,18 @@ SSM_ROLE_POLICY_DATA = {
     }
 }
 
+PASSROLE_POLICY_DATA = {
+    "arn:aws:iam::000000000000:role/TestReadRole": {
+        "PassRolePolicy": [
+            {
+                "Effect": "Allow",
+                "Action": ["iam:PassRole"],
+                "Resource": ["arn:aws:iam::000000000000:role/PassableRole"],
+            }
+        ]
+    }
+}
+
 
 def test_permission_relationships_with_iam_integration(neo4j_session):
     """
@@ -140,6 +152,84 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
     assert (
         actual_rels == expected_rels
     ), f"Expected CAN_READ relationship not found. Got: {actual_rels}"
+
+
+def test_permission_relationships_can_passrole(neo4j_session):
+    """
+    A principal with iam:PassRole on a target AWSRole should get a
+    (:AWSPrincipal)-[:CAN_PASS_ROLE]->(:AWSRole) edge via the declarative
+    resolver. This is the prerequisite for PassRole-based privesc detections
+    (e.g. Karpenter workload identity abuse).
+    """
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Seed the target role out-of-band (sync_roles only creates TestReadRole).
+    neo4j_session.run(
+        """
+        MATCH (aws:AWSAccount{id: $AccountId})
+        MERGE (r:AWSRole:AWSPrincipal{
+            arn: 'arn:aws:iam::000000000000:role/PassableRole'
+        })<-[:RESOURCE]-(aws)
+        SET r.roleid = 'AROAPASSABLEROLEID0',
+            r.name = 'PassableRole',
+            r.lastupdated = $UpdateTag
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+
+    with (
+        patch(
+            "cartography.intel.aws.iam.get_role_list_data",
+            return_value=SIMPLE_ROLE_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_policy_data",
+            return_value=PASSROLE_POLICY_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
+        ),
+    ):
+        common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
+        cartography.intel.aws.iam.sync_roles(
+            neo4j_session,
+            MagicMock(),
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    cartography.intel.aws.permission_relationships.sync(
+        neo4j_session,
+        None,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+        },
+    )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSRole",
+        "arn",
+        "CAN_PASS_ROLE",
+    )
+
+    expected_rels = {
+        (
+            "arn:aws:iam::000000000000:role/TestReadRole",
+            "arn:aws:iam::000000000000:role/PassableRole",
+        )
+    }
+
+    assert (
+        actual_rels == expected_rels
+    ), f"Expected CAN_PASS_ROLE relationship not found. Got: {actual_rels}"
 
 
 def test_permission_relationships_skips_resources_without_arn(neo4j_session):

@@ -24,6 +24,8 @@ def test_transform_gcp_buckets():
     assert bucket["location"] == "US"
     assert bucket["location_type"] == "multi-region"
     assert bucket["storage_class"] == "STANDARD"
+    # `allUsers` reader in `acl` -> ACL-based public exposure
+    assert bucket["acl_public"] is True
 
     # Test labels
     assert len(labels) == 2
@@ -70,3 +72,42 @@ def test_get_gcp_buckets_permission_denied_logs_concisely(monkeypatch, caplog):
     assert buckets == {}
     assert "HTTP 403 insufficientPermissions" in caplog.text
     assert "googleapiclient.errors.HttpError" not in caplog.text
+
+
+def test_get_gcp_buckets_paginates_through_next_page_token(monkeypatch):
+    """`projection=full` caps `buckets.list` responses at 200 items, so we must
+    follow `nextPageToken`. Without pagination, anything beyond the first page
+    would be dropped and cleanup would prune valid buckets.
+    """
+    storage = MagicMock()
+    page1_req = MagicMock(name="page1_req")
+    page2_req = MagicMock(name="page2_req")
+    storage.buckets.return_value.list.return_value = page1_req
+    # Two responses: first carries `nextPageToken`, second closes the iterator.
+    page1 = {
+        "kind": "storage#buckets",
+        "items": [{"id": "bucket-1"}, {"id": "bucket-2"}],
+        "nextPageToken": "tok",
+    }
+    page2 = {"kind": "storage#buckets", "items": [{"id": "bucket-3"}]}
+
+    storage.buckets.return_value.list_next.side_effect = [page2_req, None]
+
+    execute_calls = []
+
+    def fake_execute(request):
+        execute_calls.append(request)
+        return page1 if request is page1_req else page2
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.storage.gcp_api_execute_with_retry",
+        fake_execute,
+    )
+
+    result = cartography.intel.gcp.storage.get_gcp_buckets(storage, "test-project")
+
+    assert [b["id"] for b in result["items"]] == ["bucket-1", "bucket-2", "bucket-3"]
+    # `nextPageToken` must not leak into the aggregated result.
+    assert "nextPageToken" not in result
+    # Both pages must actually have been fetched.
+    assert execute_calls == [page1_req, page2_req]

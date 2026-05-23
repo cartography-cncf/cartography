@@ -30,6 +30,9 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     detectorid: PropertyRef = PropertyRef("detectorid")
     resource_type: PropertyRef = PropertyRef("resource_type")
     resource_id: PropertyRef = PropertyRef("resource_id")
+    access_key_id: PropertyRef = PropertyRef("access_key_id", extra_index=True)
+    principal_user_id: PropertyRef = PropertyRef("principal_user_id", extra_index=True)
+    principal_role_id: PropertyRef = PropertyRef("principal_role_id", extra_index=True)
     archived: PropertyRef = PropertyRef("archived")
     # Service-level fields (apply to all action types)
     service_action_type: PropertyRef = PropertyRef("service_action_type")
@@ -150,6 +153,60 @@ class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToAccountAccessKeyRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAccountAccessKeyRel(CartographyRelSchema):
+    target_node_label: str = "AccountAccessKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("access_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAccountAccessKeyRelRelProperties = (
+        GuardDutyFindingToAccountAccessKeyRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSUserRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSUserRel(CartographyRelSchema):
+    target_node_label: str = "AWSUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"userid": PropertyRef("principal_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAWSUserRelRelProperties = (
+        GuardDutyFindingToAWSUserRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSRoleRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"roleid": PropertyRef("principal_role_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAWSRoleRelRelProperties = (
+        GuardDutyFindingToAWSRoleRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
     label: str = "GuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
@@ -163,5 +220,8 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
             GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToS3BucketRel(),
+            GuardDutyFindingToAccountAccessKeyRel(),
+            GuardDutyFindingToAWSUserRel(),
+            GuardDutyFindingToAWSRoleRel(),
         ],
     )
