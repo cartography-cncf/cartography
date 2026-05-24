@@ -25,7 +25,7 @@ AIBOM_REPORT = {
     "aibom_analysis": {
         "metadata": {
             "run_id": "4a06dcd7-f495-4ef8-a977-d2ec51e60ff9",
-            "analyzer_version": "1.0.0rc3",
+            "analyzer_version": "1.0.0rc4",
             "started_at": "2026-05-18T21:40:05Z",
             "output_format": "json",
             "sources_requested": 1,

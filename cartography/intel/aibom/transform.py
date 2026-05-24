@@ -249,7 +249,7 @@ def transform_aibom_source_payloads(
     report_location: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Transform raw AIBOM rc3 source data into AIBOMSource payloads.
+    Transform raw AIBOM rc4 source data into AIBOMSource payloads.
     """
     analysis = document["aibom_analysis"]
     sources = analysis.get("sources")
@@ -270,7 +270,7 @@ def transform_aibom_source_payloads(
 
 def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, Any]]:
     """
-    Extract raw component records from the AIBOM rc3 report.
+    Extract raw component records from the AIBOM rc4 report.
 
     This is the component-specific traversal step that finds component nodes in
     the report and preserves the source context needed for downstream transforms.
@@ -297,7 +297,7 @@ def _parse_aibom_component_records(document: dict[str, Any]) -> list[dict[str, A
 
 def _parse_aibom_relationship_records(document: dict[str, Any]) -> list[dict[str, Any]]:
     """
-    Extract raw relationship records from the AIBOM rc3 report.
+    Extract raw relationship records from the AIBOM rc4 report.
     """
     analysis = document["aibom_analysis"]
     sources = analysis.get("sources")
@@ -435,7 +435,7 @@ def transform_aibom_component_payloads(
     document: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """
-    Transform raw AIBOM rc3 component data into AIBOMComponent payloads.
+    Transform raw AIBOM rc4 component data into AIBOMComponent payloads.
 
     This consumes the raw AIBOM report, extracts component records, resolves
     report relationships onto component ids, and emits schema-ready component

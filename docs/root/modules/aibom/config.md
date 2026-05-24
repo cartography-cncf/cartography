@@ -16,7 +16,7 @@ This module adds that missing inventory layer and ties it to the production grap
 
 ### Input format
 
-Each JSON file must be a raw AIBOM `1.0.0rc3` report with a top-level `aibom_analysis` object.
+Each JSON file must be a raw AIBOM `1.0.0rc4` report with a top-level `aibom_analysis` object.
 
 ```json
 {
@@ -42,12 +42,15 @@ Each JSON file must be a raw AIBOM `1.0.0rc3` report with a top-level `aibom_ana
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `aibom_analysis` | Yes | Root payload for a raw AIBOM `1.0.0rc3` report. |
+| `aibom_analysis` | Yes | Root payload for a raw AIBOM `1.0.0rc4` report. |
 | `aibom_analysis.metadata` | Yes | Report-level metadata such as analyzer version, timing, model, and schema version. |
 | `aibom_analysis.sources` | Yes | Map of scanned sources keyed by digest-qualified source reference. |
 | `aibom_analysis.summary` | No | Report-level summary counts and severity fields. |
 | `aibom_analysis.risk` | No | Report-level risk score and severity summary. |
 | `aibom_analysis.errors` | No | Report-level error list. |
+
+`aibom_analysis.sources` must be non-empty. Empty source maps are treated as
+malformed input and fail AIBOM sync with a validation error.
 
 Each source under `aibom_analysis.sources` should include:
 
@@ -97,7 +100,7 @@ also creates:
 
 - `(:AIBOMSource)-[:RUNS_ON]->(:Container)`
 
-Workflow nodes are still deferred in the current rc3 implementation.
+Workflow nodes are still deferred in the current rc4 implementation.
 
 ### Prerequisite
 

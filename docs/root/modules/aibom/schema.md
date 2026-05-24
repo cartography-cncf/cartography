@@ -1,6 +1,6 @@
 ## AIBOM Schema
 
-The AIBOM module now ingests raw AIBOM `1.0.0rc3` reports directly and loads
+The AIBOM module now ingests raw AIBOM `1.0.0rc4` reports directly and loads
 them into a source/component graph model that is anchored to a concrete
 ontology `:Image` node.
 
@@ -9,7 +9,7 @@ ontology `:Image` node.
   source.
 - `AIBOMComponent.logical_id` provides a stable fingerprint that can be used to
   group equivalent components across repeated rebuilds and image churn.
-- Workflow-like context in `1.0.0rc3` is preserved through component evidence
+- Workflow-like context in `1.0.0rc4` is preserved through component evidence
   and metadata fields rather than first-class workflow nodes.
 - Component-to-component AIBOM edges are loaded directly from the report's
   `relationships` array as standard component-owned relationships between
@@ -172,6 +172,8 @@ Representation of one detected AI component occurrence within a source.
 
 - AIBOM ingestion is anchored to a concrete digest-qualified source key such as
   `repo@sha256:...`.
+- `aibom_analysis.sources` must be non-empty. Empty source maps are treated as
+  malformed input and fail AIBOM sync.
 - Cartography verifies that the digest resolves to an existing concrete
   `:Image` node before the report is ingested.
 - `:ImageManifestList` and `:ImageTag` are not valid primary anchors for this
