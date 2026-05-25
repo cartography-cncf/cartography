@@ -103,9 +103,13 @@ def transform_key_vaults(key_vaults: List[Dict], regions: List, common_job_param
         vault['created_on'] = (vault.get('systemData') or {}).get('createdAt')
         vault['updated_on'] = (vault.get('systemData') or {}).get('lastModifiedAt')
         vault['resource_group'] = get_azure_resource_group_name(vault.get('id'))
-        vault['consolelink'] = azure_console_link.get_console_link(
-            id=vault['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
-        )
+        try:
+            vault['consolelink'] = azure_console_link.get_console_link(
+                id=vault['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("Could not generate console link for key vault: %s", e)
+            vault['consolelink'] = ''
         if regions is None:
             key_vaults_data.append(vault)
         else:
@@ -410,8 +414,8 @@ def sync_key_vaults(
             certificates = get_key_vault_certificates(certificate_client, key_vault)
             certificates_list = transform_key_vault_certificates(certificates, key_vault.get('id', None), common_job_parameters)
             load_key_vaults_certificates(neo4j_session, subscription_id, certificates_list, update_tag)
-        except HttpResponseError as e:
-            logger.warning(f"Error while updating access policies of vault - {e}")
+        except (HttpResponseError, ValueError) as e:
+            logger.warning(f"Error while getting certificates for vault - {e}")
 
     cleanup_key_vaults(neo4j_session, common_job_parameters)
 
