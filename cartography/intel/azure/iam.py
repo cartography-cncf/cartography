@@ -482,14 +482,17 @@ async def get_group_members(
                 members.extend(response.value)
 
             if members:
+                _subgroup_semaphore = asyncio.Semaphore(3)
+
                 async def _fetch_subgroup_members(sub_group_id: str) -> List[Dict]:
-                    inherited: List[Dict] = []
-                    resp = await client.groups.by_group_id(sub_group_id).members.get()
-                    inherited.extend(resp.value)
-                    while resp.odata_next_link:
-                        resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+                    async with _subgroup_semaphore:
+                        inherited: List[Dict] = []
+                        resp = await client.groups.by_group_id(sub_group_id).members.get()
                         inherited.extend(resp.value)
-                    return inherited
+                        while resp.odata_next_link:
+                            resp = await client.groups.by_group_id(sub_group_id).members.with_url(resp.odata_next_link).get()
+                            inherited.extend(resp.value)
+                        return inherited
 
                 sub_group_ids = [m.id for m in members if m.odata_type == "#microsoft.graph.group"]
                 if sub_group_ids:
