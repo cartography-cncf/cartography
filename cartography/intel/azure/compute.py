@@ -78,13 +78,14 @@ def get_vm_list(credentials: Credentials, subscription_id: str, regions: list, c
             vm['aks_cluster_name'] = aks_tags['aks_cluster_name']
             vm['aks_pool_name'] = aks_tags['aks_pool_name']
             vm['aks_cluster_rg'] = aks_tags['aks_cluster_rg']
+            network_profile = vm.get('network_profile') or {}
             network_interfaces = []
-            for interface in vm.get('network_profile', {}).get('network_interfaces', []):
+            for interface in network_profile.get('network_interfaces', []):
                 network_interfaces.append(interface)
             vm['network_interfaces'] = network_interfaces
-            vm['user_assigned_identities'] = list(vm.get('identity', {}).get('user_assigned_identities', {}).keys())
+            vm['user_assigned_identities'] = list((vm.get('identity') or {}).get('user_assigned_identities', {}).keys())
             network_security_group = []
-            for config in vm.get('network_profile', {}).get('network_interface_configurations', []):
+            for config in network_profile.get('network_interface_configurations', []):
                 network_security_group.append(config.get('network_security_group'))
             vm['network_security_group'] = network_security_group
 
