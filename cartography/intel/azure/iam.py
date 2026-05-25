@@ -438,6 +438,7 @@ def _load_tenant_groups_tx(
 
 _GRAPH_MAX_RETRIES = 5
 _GRAPH_DEFAULT_RETRY_AFTER = 10  # seconds to wait on 429 if Retry-After header absent
+_IAM_TENANT_SYNC_KEY = '_iam_tenant_level_synced'  # key in common_job_parameters tracking per-cycle dedup
 
 
 def _is_throttle_error(e: Exception) -> bool:
@@ -1346,8 +1347,19 @@ async def async_sync(
 ) -> None:
     scoped_group_ids = common_job_parameters.get('GROUPS', [])
     ingested_principal_ids: Optional[set] = None
+
+    # Tenant-level IAM data (users/groups/apps/domains) is tenant-wide, not per-subscription.
+    # Guard against re-fetching it for every subscription in the same tenant within one sync cycle.
+    tenant_synced_set: set = common_job_parameters.get(_IAM_TENANT_SYNC_KEY, set())
+    tenant_level_done = tenant_id in tenant_synced_set
+
     try:
-        if common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id or not common_job_parameters.get("DEFAULT_SUBSCRIPTION"):
+        should_run_tenant_level = not tenant_level_done and (
+            common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id
+            or not common_job_parameters.get("DEFAULT_SUBSCRIPTION")
+        )
+
+        if should_run_tenant_level:
             if scoped_group_ids:
                 # Only sync specified groups and their users
                 ingested_principal_ids = await sync_scoped_users_and_groups(
@@ -1393,6 +1405,16 @@ async def async_sync(
 
             sync_managed_identity(
                 neo4j_session, credentials, tenant_id, update_tag, common_job_parameters,
+            )
+
+            # Mark tenant-level sync done for this cycle so subsequent subscriptions skip it
+            tenant_synced_set.add(tenant_id)
+            common_job_parameters[_IAM_TENANT_SYNC_KEY] = tenant_synced_set
+
+        elif tenant_level_done:
+            logger.info(
+                "IAM tenant=%s: tenant-level sync already done this cycle, skipping (users/groups/apps/domains)",
+                tenant_id,
             )
 
         sync_roles(
