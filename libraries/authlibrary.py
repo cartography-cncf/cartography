@@ -46,7 +46,13 @@ class AuthLibrary:
                 DurationSeconds=3600 * 4,
             )
 
-        except ClientError:
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            # For permission/auth errors, fail immediately — retrying won't help
+            if error_code in ("AccessDenied", "AccessDeniedException", "InvalidClientTokenId", "ExpiredTokenException"):
+                raise classify_error(self.context.logger, e, "Failed to assume role")
+
+            # For other errors (e.g., DurationSeconds exceeds MaxSessionDuration), retry with 1 hour
             try:
                 response = sts_client.assume_role(
                     ExternalId=args["external_id"],
@@ -56,7 +62,6 @@ class AuthLibrary:
                 )
 
             except ClientError as e:
-                # TODO: Check if the error is related to Duration, if yes, retry with 1 hour
                 raise classify_error(self.context.logger, e, "Failed to assume role")
 
         return {
