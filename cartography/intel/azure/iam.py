@@ -437,7 +437,7 @@ def _load_tenant_groups_tx(
 
 
 _GRAPH_MAX_RETRIES = 5
-_GRAPH_DEFAULT_RETRY_AFTER = 30  # seconds to wait on 429 if Retry-After header is absent
+_GRAPH_DEFAULT_RETRY_AFTER = 10  # seconds to wait on 429 if Retry-After header absent
 
 
 def _is_throttle_error(e: Exception) -> bool:
@@ -451,9 +451,12 @@ def _get_retry_after(e: Exception) -> float:
     raw = headers.get('Retry-After') or headers.get('retry-after')
     if raw:
         try:
-            return float(raw)
+            val = float(raw)
+            logger.debug("Retry-After header=%ss (from Azure response)", val)
+            return val
         except (ValueError, TypeError):
             pass
+    logger.debug("No Retry-After header on %s, using default %ss", type(e).__name__, _GRAPH_DEFAULT_RETRY_AFTER)
     return _GRAPH_DEFAULT_RETRY_AFTER
 
 
