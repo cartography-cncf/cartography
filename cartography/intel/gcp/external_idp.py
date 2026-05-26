@@ -81,6 +81,7 @@ def transform_bucket_file_memberships(data: str) -> None:
 def sync_identites_from_bucket(
     neo4j_session: neo4j.Session, project_id: str, gcp_update_tag: int, common_job_parameters: Dict,
 ) -> None:
+    tic = time.perf_counter()
     bucket_name = os.environ.get("CDX_CUSTOMERS_IDP_BUCKET_NAME")
     file_name = f"{common_job_parameters['WORKSPACE_ID']}/{common_job_parameters['GCP_PROJECT_ID']}/identity.yml"
     data = download_blob_as_text(bucket_name, file_name)
@@ -102,12 +103,16 @@ def sync_identites_from_bucket(
 
     cleanup_users(neo4j_session, common_job_parameters)
     cleanup_groups(neo4j_session, common_job_parameters)
+    logger.info(f"Time to process GCP external IDP bucket identities for project '{project_id}': {time.perf_counter() - tic:0.4f} seconds")
 
 
 @timeit
 def sync(
     neo4j_session: neo4j.Session, external_idp: Dict, project_id: str, gcp_update_tag: int, common_job_parameters: Dict,
 ) -> None:
+    tic = time.perf_counter()
     logger.info("Syncing Identity data for project '%s' from external Identity '%s'", project_id, external_idp.get("type"))
     if external_idp.get("type") == "BUCKET":
         sync_identites_from_bucket(neo4j_session, project_id, gcp_update_tag, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process GCP external IDP for project '{project_id}': {toc - tic:0.4f} seconds")
