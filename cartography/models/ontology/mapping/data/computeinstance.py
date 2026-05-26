@@ -89,10 +89,16 @@ gcp_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="zone_name"),
                 OntologyFieldMapping(ontology_field="state", node_field="status"),
-                # public_ip_address: not available in GCPInstance
-                # private_ip_address: not available in GCPInstance
-                # instance type: not available in GCPInstance
-                # created_at: not available in GCPInstance
+                OntologyFieldMapping(ontology_field="type", node_field="machine_type"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="creation_timestamp"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="private_ip_address", node_field="private_ip"
+                ),
             ],
         ),
     ],

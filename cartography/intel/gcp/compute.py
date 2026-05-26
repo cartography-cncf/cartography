@@ -312,8 +312,23 @@ def transform_gcp_instances(response_objects: list[dict]) -> list[dict]:
             )
             instance["enable_oslogin_metadata"] = metadata_items.get("enable-oslogin")
             instance["serial_port_enable"] = metadata_items.get("serial-port-enable")
+            instance["creation_timestamp"] = instance.get("creationTimestamp")
 
-            for nic in instance.get("networkInterfaces", []):
+            # Project primary IPs onto the instance for the ComputeInstance ontology.
+            # The full set of NIC / access-config IPs stays modelled on
+            # GCPNetworkInterface / GCPNicAccessConfig; these fields just expose the
+            # first pair for cross-cloud semantic queries.
+            network_interfaces = instance.get("networkInterfaces", []) or []
+            primary_nic = network_interfaces[0] if network_interfaces else {}
+            instance["private_ip"] = primary_nic.get("networkIP")
+            primary_access_configs = primary_nic.get("accessConfigs", []) or []
+            instance["public_ip"] = (
+                primary_access_configs[0].get("natIP")
+                if primary_access_configs
+                else None
+            )
+
+            for nic in network_interfaces:
                 nic["subnet_partial_uri"] = _parse_compute_full_uri_to_partial_uri(
                     nic["subnetwork"],
                 )
@@ -438,6 +453,38 @@ def transform_gcp_subnets(subnet_res: dict) -> list[dict]:
     return subnet_list
 
 
+# Map forwarding-rule target collection -> ontology `lb_type`. GCP encodes the load
+# balancer family in the target proxy resource path (e.g. targetHttpsProxies, targetPools).
+_FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
+    "targetHttpProxies": "http",
+    "targetHttpsProxies": "https",
+    "targetTcpProxies": "tcp",
+    "targetSslProxies": "ssl",
+    "targetGrpcProxies": "grpc",
+    "targetPools": "network",
+    # Backend-service-only forwarding rules (no target proxy) are L4 Network LBs.
+    # The protocol (TCP/UDP/ESP/L3_DEFAULT) lives on `IPProtocol`, not the family.
+    "backendServices": "network",
+    "targetInstances": "network",
+    "targetVpnGateways": "vpn",
+}
+
+
+def _derive_forwarding_rule_lb_type(*uris: str | None) -> str | None:
+    # Forwarding rules either reference a target proxy / pool URI (`target`) or,
+    # for internal LBs, point straight at a backend service (`backendService`).
+    # Inspect each candidate URI in order and stop at the first known collection
+    # segment. Target URIs look like ".../{collection}/{name}", so we walk segments
+    # in reverse to ignore the trailing resource name.
+    for uri in uris:
+        if not uri:
+            continue
+        for segment in reversed(uri.split("/")):
+            if segment in _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND:
+                return _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND[segment]
+    return None
+
+
 @timeit
 def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
     """
@@ -473,6 +520,12 @@ def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
             forwarding_rule["target"] = _parse_compute_full_uri_to_partial_uri(target)
         else:
             forwarding_rule["target"] = None
+        # Internal regional LBs front a backend service directly and omit `target`,
+        # so fall back to the `backendService` URI to recover an lb_type for them.
+        forwarding_rule["lb_type"] = _derive_forwarding_rule_lb_type(
+            target,
+            fwd.get("backendService"),
+        )
 
         network = fwd.get("network", None)
         if network:

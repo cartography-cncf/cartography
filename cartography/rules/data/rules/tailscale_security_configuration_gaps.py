@@ -7,9 +7,9 @@ from cartography.rules.spec.model import Rule
 
 
 class TailscaleSecurityConfigurationGapOutput(Finding):
-    tailnet_id: str | None = None
-    asset_id: str | None = None
     asset_name: str | None = None
+    asset_id: str | None = None
+    tailnet_id: str | None = None
     asset_type: str | None = None
     issue: str | None = None
     current_value: str | None = None

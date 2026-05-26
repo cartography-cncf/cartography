@@ -87,7 +87,12 @@ entra_mapping = OntologyMapping(
                     node_field="display_name",
                     required=True,
                 ),
-                # enabled: Not available - Entra applications don't have an enabled field in current schema
+                # enabled: Microsoft Graph exposes `accountEnabled` on the
+                # service principal (the tenant-local instance), not on the
+                # application registration. `_ont_enabled` is projected onto
+                # EntraApplication by the `ontology_entra_application_projection`
+                # analysis job, which copies it from the linked
+                # EntraServicePrincipal.
                 # native_app: Not available - Application type not currently ingested
                 OntologyFieldMapping(
                     ontology_field="protocol",

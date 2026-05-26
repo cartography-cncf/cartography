@@ -83,7 +83,7 @@ class SocketDevAlertToRepoRel(CartographyRelSchema):
 class SocketDevAlertSchema(CartographyNodeSchema):
     label: str = "SocketDevAlert"
     properties: SocketDevAlertNodeProperties = SocketDevAlertNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
     sub_resource_relationship: SocketDevOrgToAlertRel = SocketDevOrgToAlertRel()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

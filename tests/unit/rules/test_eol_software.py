@@ -10,7 +10,7 @@ def test_eol_software_rule_registered() -> None:
 
 def test_eol_software_rule_shape() -> None:
     assert eol_software.name == "End-of-Life Software"
-    assert len(eol_software.facts) == 5
+    assert len(eol_software.facts) == 6
     assert len(eol_software.references) >= 5
 
 
@@ -46,3 +46,14 @@ def test_aks_fact_flags_kubernetes_1_32_standard_support() -> None:
         f for f in eol_software.facts if f.id == "aks_cluster_kubernetes_version_eol"
     )
     assert "kubernetes_minor < 33" in fact.cypher_query
+
+
+def test_ingress_nginx_fact_is_kubernetes_experimental() -> None:
+    fact = next(
+        f
+        for f in eol_software.facts
+        if f.id == "kubernetes_ingress_nginx_controller_eol"
+    )
+
+    assert fact.maturity == Maturity.EXPERIMENTAL
+    assert fact.module == Module.KUBERNETES

@@ -475,6 +475,19 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = None,
+            aws_organization_account_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-organization-account-ids",
+                    help=(
+                        "Comma-separated AWS account IDs to use for AWS Organizations hierarchy sync. "
+                        "Use this to provide the management or delegated administrator account and skip "
+                        "Organizations candidate discovery."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
             aws_best_effort_mode: Annotated[
                 bool,
                 typer.Option(
@@ -1964,6 +1977,12 @@ class CLI:
                 )
 
                 parse_and_validate_aws_regions(aws_regions)
+            if aws_organization_account_ids:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_account_ids,
+                )
+
+                parse_and_validate_aws_account_ids(aws_organization_account_ids)
 
             # Validate GCP options
             if gcp_requested_syncs:
@@ -2465,6 +2484,7 @@ class CLI:
                 update_tag=update_tag,
                 aws_sync_all_profiles=aws_sync_all_profiles,
                 aws_regions=aws_regions,
+                aws_organization_account_ids=aws_organization_account_ids,
                 aws_best_effort_mode=aws_best_effort_mode,
                 aws_cloudtrail_management_events_lookback_hours=aws_cloudtrail_management_events_lookback_hours,
                 experimental_aws_inspector_batch=experimental_aws_inspector_batch,
