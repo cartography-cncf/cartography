@@ -331,6 +331,7 @@ def sync(
     neo4j_session: neo4j.Session, admin: Resource,
     project_id: str, gcp_update_tag: int, common_job_parameters: Dict, regions: List,
 ) -> None:
+    tic = time.perf_counter()
     if common_job_parameters.get("GOOGLE_WORKSPACE_USER_EMAIL"):
         logger.info("Syncing workspace objects for project %s.", project_id)
 
@@ -350,3 +351,8 @@ def sync(
             load_groups_members(neo4j_session, group, group.get("members", []), gcp_update_tag)
         cleanup_users(neo4j_session, common_job_parameters)
         cleanup_groups(neo4j_session, common_job_parameters)
+        logger.info(
+            f"gcp/workspace project={project_id}: {len(groups)} groups, {len(users)} users synced in {time.perf_counter() - tic:0.4f}s",
+        )
+    toc = time.perf_counter()
+    logger.info(f"Time to process GCP Workspace for project '{project_id}': {toc - tic:0.4f} seconds")
