@@ -12,9 +12,7 @@ from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load_matchlinks_cross_product
-from tests.data.graph.matchlink.iam_permissions import (
-    PrincipalToS3BucketCrossProductPermissionRel,
-)
+from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
 
 
 def _create_client_error(
@@ -25,6 +23,14 @@ def _create_client_error(
     # Set the code attribute (this is how Neo4j driver sets it internally)
     object.__setattr__(exc, "_neo4j_code", code)
     return exc
+
+
+def _cross_product_rel_schema() -> GCPPermissionMatchLink:
+    return GCPPermissionMatchLink(
+        source_node_label="AWSPrincipal",
+        target_node_label="S3Bucket",
+        rel_label="CAN_BULK_ACCESS",
+    )
 
 
 # Tests for _is_retryable_client_error
@@ -273,7 +279,7 @@ def test_execute_write_with_retry_calls_run_with_retry(mock_run_with_retry):
 
 def test_load_matchlinks_cross_product_empty_input_short_circuits():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = _cross_product_rel_schema()
     mock_session = MagicMock()
 
     # Act
@@ -294,7 +300,7 @@ def test_load_matchlinks_cross_product_empty_input_short_circuits():
 
 def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = _cross_product_rel_schema()
     mock_session = MagicMock()
 
     # Act and assert
@@ -305,7 +311,7 @@ def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
             ["principal-1"],
             ["bucket-1"],
             source_batch_size=0,
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_label="AWSAccount",
             _sub_resource_id="1234",
         )
@@ -318,7 +324,7 @@ def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
             ["principal-1"],
             ["bucket-1"],
             target_batch_size=0,
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_label="AWSAccount",
             _sub_resource_id="1234",
         )
@@ -326,7 +332,7 @@ def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
 
 def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = _cross_product_rel_schema()
     mock_session = MagicMock()
 
     # Act and assert
@@ -338,7 +344,7 @@ def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
             rel_schema,
             ["principal-1"],
             ["bucket-1"],
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_id="1234",
         )
 
@@ -351,14 +357,14 @@ def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
             rel_schema,
             ["principal-1"],
             ["bucket-1"],
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_label="AWSAccount",
         )
 
 
 def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = _cross_product_rel_schema()
     mock_session = MagicMock()
 
     def fake_execute_write(_session, _tx_func, _query, **kwargs):
@@ -388,7 +394,7 @@ def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
             source_batch_size=2,
             target_batch_size=3,
             progress_description="bulk permission test",
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_label="AWSAccount",
             _sub_resource_id="1234",
         )
@@ -418,7 +424,7 @@ def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
 
 def test_load_matchlinks_cross_product_warns_when_nodes_do_not_match(caplog):
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = _cross_product_rel_schema()
     mock_session = MagicMock()
 
     # Act
@@ -438,7 +444,7 @@ def test_load_matchlinks_cross_product_warns_when_nodes_do_not_match(caplog):
             ["principal-1", "principal-2"],
             ["bucket-1", "bucket-2"],
             progress_description="partial bulk permission test",
-            UPDATE_TAG=1,
+            lastupdated=1,
             _sub_resource_label="AWSAccount",
             _sub_resource_id="1234",
         )
