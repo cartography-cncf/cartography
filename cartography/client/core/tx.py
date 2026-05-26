@@ -621,7 +621,14 @@ def write_matchlink_cross_product_tx(
     query: str,
     **kwargs: Any,
 ) -> int:
-    result: neo4j.BoltStatementResult = tx.run(query, **kwargs)
+    """
+    Execute a MatchLink cross-product write and return matched relationships.
+
+    The generated query returns ``count(r)`` so callers can log actual matched
+    relationships, which may be lower than attempted pairs when some endpoint
+    nodes are not present in the graph.
+    """
+    result: neo4j.BoltStatementResult = tx.run(query, kwargs)
     record = result.single()
     rel_count = int(record["rel_count"]) if record else 0
     result.consume()
@@ -930,6 +937,31 @@ def load_matchlinks_cross_product(
     progress_description: str | None = None,
     **kwargs: Any,
 ) -> int:
+    """
+    Create every relationship between two batches of existing nodes.
+
+    Use this when the input means "each source should link to each target" and
+    all relationship properties are constant kwargs. For row-specific mappings
+    or relationship properties, use ``load_matchlinks()`` instead.
+
+    The function keeps writes serial and splits the source and target value sets
+    into bounded chunks, avoiding a large Python-side list of relationship rows.
+
+    Args:
+        neo4j_session: The Neo4j session for database operations.
+        rel_schema: A simple MatchLink schema with one source matcher key and
+            one target matcher key.
+        source_values: Values for the source matcher property.
+        target_values: Values for the target matcher property.
+        source_batch_size: Number of source values per write transaction.
+        target_batch_size: Number of target values per write transaction.
+        progress_description: Optional text used in per-batch progress logs.
+        **kwargs: Query kwargs for relationship properties. Must include
+            ``_sub_resource_label`` and ``_sub_resource_id`` for cleanup.
+
+    Returns:
+        The actual number of relationships matched and merged by Neo4j.
+    """
     if source_batch_size <= 0:
         raise ValueError(
             f"source_batch_size must be greater than 0, got {source_batch_size}"
@@ -939,11 +971,15 @@ def load_matchlinks_cross_product(
             f"target_batch_size must be greater than 0, got {target_batch_size}"
         )
 
+    # Preserve input order for predictable batching while avoiding repeated
+    # attempts for duplicated source or target values.
     unique_source_values = list(dict.fromkeys(source_values))
     unique_target_values = list(dict.fromkeys(target_values))
     if len(unique_source_values) == 0 or len(unique_target_values) == 0:
         return 0
 
+    # MatchLink cleanup is scoped by these relationship properties via
+    # GraphJob.from_matchlink(), so loaders must always populate them.
     if "_sub_resource_label" not in kwargs:
         raise ValueError(
             f"Required kwarg '_sub_resource_label' not provided for {rel_schema.rel_label}. "
@@ -959,6 +995,8 @@ def load_matchlinks_cross_product(
     matchlink_query = build_matchlink_cross_product_query(rel_schema)
     logger.debug(f"Matchlink cross-product query: {matchlink_query}")
 
+    # Bound both sides of the cross product. This keeps each write transaction
+    # controlled without parallelizing Neo4j writes.
     source_batches = list(batch(unique_source_values, size=source_batch_size))
     target_batches = list(batch(unique_target_values, size=target_batch_size))
     total_batches = len(source_batches) * len(target_batches)

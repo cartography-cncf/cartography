@@ -82,6 +82,17 @@ class PrincipalToS3BucketCrossProductIgnoreCaseTargetMatcherRel(
 
 
 @dataclass(frozen=True)
+class PrincipalToS3BucketCrossProductFuzzyTargetMatcherRel(
+    PrincipalToS3BucketCrossProductPermissionRel
+):
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("BucketName", fuzzy_and_ignore_case=True),
+        }
+    )
+
+
+@dataclass(frozen=True)
 class PrincipalToS3BucketCrossProductSourceScopedRel(
     PrincipalToS3BucketCrossProductPermissionRel
 ):
@@ -195,6 +206,15 @@ def test_build_matchlink_cross_product_query_rejects_ignore_case_matcher():
 
     # Act and assert
     with pytest.raises(ValueError, match="ignore_case"):
+        build_matchlink_cross_product_query(rel_schema)
+
+
+def test_build_matchlink_cross_product_query_rejects_fuzzy_matcher():
+    # Arrange
+    rel_schema = PrincipalToS3BucketCrossProductFuzzyTargetMatcherRel()
+
+    # Act and assert
+    with pytest.raises(ValueError, match="fuzzy_and_ignore_case"):
         build_matchlink_cross_product_query(rel_schema)
 
 

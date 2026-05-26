@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -12,7 +13,38 @@ from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load_matchlinks_cross_product
-from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import SourceNodeMatcher
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class BulkAccessRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCrossProductRel(CartographyRelSchema):
+    source_node_label: str = "AWSPrincipal"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"principal_arn": PropertyRef("principal_arn")},
+    )
+    target_node_label: str = "S3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("BucketName")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_BULK_ACCESS"
+    properties: BulkAccessRelProperties = BulkAccessRelProperties()
 
 
 def _create_client_error(
@@ -25,12 +57,8 @@ def _create_client_error(
     return exc
 
 
-def _cross_product_rel_schema() -> GCPPermissionMatchLink:
-    return GCPPermissionMatchLink(
-        source_node_label="AWSPrincipal",
-        target_node_label="S3Bucket",
-        rel_label="CAN_BULK_ACCESS",
-    )
+def _cross_product_rel_schema() -> PrincipalToS3BucketCrossProductRel:
+    return PrincipalToS3BucketCrossProductRel()
 
 
 # Tests for _is_retryable_client_error

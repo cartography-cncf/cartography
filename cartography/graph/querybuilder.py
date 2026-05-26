@@ -1670,8 +1670,24 @@ def _validate_matchlink_cross_product_matcher(
 
 def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str:
     """
-    Generate a query that creates every relationship between existing source and
-    target node batches for a simple MatchLink schema.
+    Generate a query that links every matched source node to every matched target.
+
+    This is the querybuilder companion to ``load_matchlinks_cross_product()``.
+    It intentionally supports only the simple MatchLink shape where each
+    endpoint is matched by one exact property and relationship properties are
+    supplied from query kwargs. Row-specific relationship properties belong on
+    the regular ``build_matchlink_query()`` path instead.
+
+    Args:
+        rel_schema: A MatchLink relationship schema.
+
+    Returns:
+        A Cypher query that accepts ``SourceValues`` and ``TargetValues`` lists
+        and returns ``rel_count``.
+
+    Raises:
+        ValueError: If the schema uses unsupported matcher, sub-resource, or
+            relationship property shapes.
     """
     if not rel_schema.source_node_label:
         raise ValueError(
@@ -1711,6 +1727,8 @@ def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str
                 f"set from kwargs. Unsupported property: {rel_property}."
             )
 
+    # The generated query has no row object, so every relationship property must
+    # be set from kwargs and shared by the full source x target expansion.
     if rel_schema.direction == LinkDirection.INWARD:
         rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
     else:
