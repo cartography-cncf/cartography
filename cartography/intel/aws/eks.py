@@ -108,12 +108,27 @@ def get_eks_access_entries(
                 principalArn=principal_arn,
             )
         except ClientError as e:
-            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            error_code = e.response["Error"]["Code"]
+            if error_code == "ResourceNotFoundException":
                 logger.warning(
                     "Access entry lookup failed for principal %s on cluster %s: %s",
                     principal_arn,
                     cluster_name,
                     e,
+                )
+                continue
+            if error_code == "AccessDeniedException":
+                logger.warning(
+                    "Access entry detail lookup denied for principal %s on cluster %s; "
+                    "loading minimal access entry data from ListAccessEntries.",
+                    principal_arn,
+                    cluster_name,
+                )
+                access_entries.append(
+                    {
+                        "clusterName": cluster_name,
+                        "principalArn": principal_arn,
+                    }
                 )
                 continue
             raise
@@ -316,7 +331,10 @@ def transform_access_entries(
     transformed_entries = []
     for entry in access_entries:
         transformed_entry = entry.copy()
-        transformed_entry["id"] = entry["accessEntryArn"]
+        transformed_entry["id"] = entry.get(
+            "accessEntryArn",
+            f"{cluster_arn}/access-entry/{entry['principalArn']}",
+        )
         transformed_entry["cluster_arn"] = cluster_arn
         transformed_entries.append(transformed_entry)
     return transformed_entries

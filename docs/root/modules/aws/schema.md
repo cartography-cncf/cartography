@@ -3053,15 +3053,15 @@ Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/late
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Same as `arn` |
-| **arn** | AWS-unique identifier for this access entry |
+| **id** | Same as `arn` when `eks:DescribeAccessEntry` is available. Otherwise a stable identifier derived from the cluster ARN and principal ARN |
+| arn | AWS-unique identifier for this access entry. Null when only `eks:ListAccessEntries` is available |
 | cluster_name | Name of the EKS cluster this access entry belongs to |
 | **principal_arn** | ARN of the IAM principal granted cluster access |
-| username | Kubernetes username mapped by the access entry |
-| type | EKS access entry type, for example `STANDARD`, `EC2_LINUX`, `EC2_WINDOWS`, or `FARGATE_LINUX` |
-| kubernetes_groups | Kubernetes groups mapped by the access entry |
-| created_at | The date and time the access entry was created |
-| modified_at | The date and time the access entry was last modified |
+| username | Kubernetes username mapped by the access entry. Requires `eks:DescribeAccessEntry` |
+| type | EKS access entry type, for example `STANDARD`, `EC2_LINUX`, `EC2_WINDOWS`, or `FARGATE_LINUX`. Requires `eks:DescribeAccessEntry` |
+| kubernetes_groups | Kubernetes groups mapped by the access entry. Requires `eks:DescribeAccessEntry` |
+| created_at | The date and time the access entry was created. Requires `eks:DescribeAccessEntry` |
+| modified_at | The date and time the access entry was last modified. Requires `eks:DescribeAccessEntry` |
 
 #### Relationships
 
