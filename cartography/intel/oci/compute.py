@@ -2,6 +2,7 @@
 # OCI Compute API-centric functions
 # https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -353,11 +354,15 @@ def sync_instances(
     """
     Sync all compute instances across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI compute instances for tenancy '%s', region '%s'.", tenancy_id, region)
+    total = 0
     for compartment in compartments:
         data = get_instance_list_data(compute, compartment["ocid"])
         if data["Instances"]:
+            total += len(data["Instances"])
             load_instances(neo4j_session, data["Instances"], tenancy_id, compartment["ocid"], region, oci_update_tag)
+    logger.info(f"Time to process OCI compute instances for tenancy '{tenancy_id}' region '{region}' ({total} instances): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_vnic_attachments(
@@ -371,11 +376,15 @@ def sync_vnic_attachments(
     """
     Sync all VNIC attachments across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI VNIC attachments for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_vnic_attachment_list_data(compute, compartment["ocid"])
         if data["VnicAttachments"]:
+            total += len(data["VnicAttachments"])
             load_vnic_attachments(neo4j_session, data["VnicAttachments"], tenancy_id, oci_update_tag)
+    logger.info(f"Time to process OCI VNIC attachments for tenancy '{tenancy_id}' ({total} attachments): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_images(
@@ -389,11 +398,15 @@ def sync_images(
     """
     Sync all images across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI images for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_image_list_data(compute, compartment["ocid"])
         if data["Images"]:
+            total += len(data["Images"])
             load_images(neo4j_session, data["Images"], tenancy_id, compartment["ocid"], oci_update_tag)
+    logger.info(f"Time to process OCI images for tenancy '{tenancy_id}' ({total} images): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_volume_attachments(
@@ -407,11 +420,15 @@ def sync_volume_attachments(
     """
     Sync all volume attachments across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI volume attachments for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_volume_attachment_list_data(compute, compartment["ocid"])
         if data["VolumeAttachments"]:
+            total += len(data["VolumeAttachments"])
             load_volume_attachments(neo4j_session, data["VolumeAttachments"], tenancy_id, oci_update_tag)
+    logger.info(f"Time to process OCI volume attachments for tenancy '{tenancy_id}' ({total} attachments): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync(
@@ -425,6 +442,7 @@ def sync(
     """
     Sync OCI Compute resources for the compartment specified in common_job_parameters.
     """
+    tic = time.perf_counter()
     compartment_ocid = common_job_parameters.get("OCI_COMPARTMENT_ID", tenancy_id)
     logger.info("Syncing OCI Compute for compartment '%s'.", compartment_ocid)
 
@@ -453,3 +471,5 @@ def sync(
 
     # Cleanup stale nodes
     run_cleanup_job('oci_import_compute_instances_cleanup.json', neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI Compute for tenancy '{tenancy_id}': {toc - tic:0.4f} seconds")
