@@ -73,7 +73,7 @@ class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
         {"arn": PropertyRef("principalArn")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_EKS_ACCESS_ENTRY"
+    rel_label: str = "HAS_ACCESS_ENTRY"
     properties: AWSPrincipalToEKSAccessEntryRelProperties = (
         AWSPrincipalToEKSAccessEntryRelProperties()
     )

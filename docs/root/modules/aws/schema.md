@@ -3077,7 +3077,7 @@ Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/late
 
 - IAM principals can have EKS Access Entries. This relationship is created when the principal exists in the graph as an `AWSPrincipal` such as an `AWSRole` or `AWSUser`.
     ```
-    (AWSPrincipal)-[HAS_EKS_ACCESS_ENTRY]->(EKSAccessEntry)
+    (AWSPrincipal)-[HAS_ACCESS_ENTRY]->(EKSAccessEntry)
     ```
 
 ### EMRCluster

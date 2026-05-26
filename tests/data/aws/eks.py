@@ -37,6 +37,10 @@ ACCESS_ENTRIES = [
             "username": "eks-admin",
             "type": "STANDARD",
         },
+        {
+            "clusterName": "cluster_1",
+            "principalArn": "arn:aws:iam::111111111111:role/EKSListOnlyRole",
+        },
     ],
     [],
 ]

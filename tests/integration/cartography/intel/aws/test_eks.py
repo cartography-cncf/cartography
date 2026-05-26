@@ -40,6 +40,11 @@ def test_sync_eks_clusters(
             arn: 'arn:aws:iam::111111111111:role/EKSAdminRole'
         })
         SET role.id = role.arn, role.lastupdated = $update_tag
+        MERGE (list_only_role:AWSRole:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:role/EKSListOnlyRole'
+        })
+        SET list_only_role.id = list_only_role.arn,
+            list_only_role.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
     )
@@ -83,6 +88,13 @@ def test_sync_eks_clusters(
             "arn:aws:iam::111111111111:role/EKSAdminRole",
             "eks-admin",
             "STANDARD",
+        ),
+        (
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSListOnlyRole",
+            "arn:aws:iam::111111111111:role/EKSListOnlyRole",
+            None,
+            None,
         ),
     }
     groups_result = neo4j_session.run(
@@ -146,6 +158,11 @@ def test_sync_eks_clusters(
             "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
             "000000000000",
         ),
+        (
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSListOnlyRole",
+            "000000000000",
+        ),
     }
     assert check_rels(
         neo4j_session,
@@ -160,6 +177,11 @@ def test_sync_eks_clusters(
             "arn:aws:eks:eu-west-1:111111111111:access-entry/"
             "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
         ),
+        (
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1",
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSListOnlyRole",
+        ),
     }
     assert check_rels(
         neo4j_session,
@@ -167,12 +189,17 @@ def test_sync_eks_clusters(
         "arn",
         "EKSAccessEntry",
         "id",
-        "HAS_EKS_ACCESS_ENTRY",
+        "HAS_ACCESS_ENTRY",
     ) == {
         (
             "arn:aws:iam::111111111111:role/EKSAdminRole",
             "arn:aws:eks:eu-west-1:111111111111:access-entry/"
             "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
+        ),
+        (
+            "arn:aws:iam::111111111111:role/EKSListOnlyRole",
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSListOnlyRole",
         ),
     }
     mock_get_access_entries.assert_any_call(
