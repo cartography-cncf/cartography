@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Any
@@ -43,10 +44,9 @@ def _sync_one_workspace(
     config: Config,
 ) -> None:
     _ws_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
-
-    # if os.environ.get("LOCAL_RUN","0") == "1":
-    # BEGIN - Sequential Run
 
     sync_args = {
         'neo4j_session': neo4j_session,
@@ -57,49 +57,43 @@ def _sync_one_workspace(
 
     for func_name in requested_syncs:
         if func_name in RESOURCE_FUNCTIONS:
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err: Dict = {}
             try:
-                _svc_tic = time.perf_counter()
                 logger.info(f"Processing {func_name} workspace={workspace_name}")
                 RESOURCE_FUNCTIONS[func_name](**sync_args)
-                logger.info(f"Done {func_name} workspace={workspace_name} — {time.perf_counter() - _svc_tic:0.4f}s")
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[func_name] = _svc_elapsed
             except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[func_name] = str(e)
                 logger.warning(f"error to process service {func_name} - {e}")
-
+            finally:
+                _ev: Dict = {
+                    "event": "bitbucket_service_timing",
+                    "workspace": workspace_name,
+                    "service": func_name,
+                    "run_mode": "sequential",
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
         else:
             logger.warning(f'BITBUCKET sync function "{func_name}" was specified but does not exist. Did you misspell it?')
 
-    # END - Sequential Run
-
-    # else:
-    #     # BEGIN - Parallel Run
-
-    #     # Process each service in parallel.
-    #     with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS)) as executor:
-    #         futures = []
-    #         for request in requested_syncs:
-    #             if request in RESOURCE_FUNCTIONS:
-    #                 futures.append(
-    #                     executor.submit(
-    #                         concurrent_execution,
-    #                         request,
-    #                         RESOURCE_FUNCTIONS[request],
-    #                         config,
-    #                         workspace_name,
-    #                         access_token,
-    #                         common_job_parameters,
-    #                     ),
-    #                 )
-    #             else:
-    #                 raise ValueError(
-    #                     f'Azure sync function "{request}" was specified but does not exist. Did you misspell it?',
-    #                 )
-
-    #         for future in as_completed(futures):
-    #             logger.info(f'Result from Future - Service Processing: {future.result()}')
-
-    #     # END - Parallel Run
-
-    logger.info(f"bitbucket workspace={workspace_name}: full sync done in {time.perf_counter() - _ws_tic:0.4f}s")
+    logger.info(json.dumps({
+        "event": "bitbucket_workspace_timing_summary",
+        "workspace": workspace_name,
+        "total_duration_seconds": round(time.perf_counter() - _ws_tic, 4),
+        "service_timings": _service_timings,
+        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+        "failed_services": _failed_services,
+    }))
 
 
 def _sync_multiple_workspaces(
