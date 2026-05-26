@@ -2,6 +2,7 @@
 import base64
 import json
 import logging
+import time
 from collections import namedtuple
 from typing import Any
 from typing import Dict
@@ -46,16 +47,19 @@ def _sync_one_compartment(
     If this is the default compartment (compartment_id == tenancy_id), IAM is run first
     to populate regions. For child compartments, IAM is skipped.
     """
+    _comp_tic = time.perf_counter()
     is_default_compartment = (compartment_id == tenancy_id)
 
     # For default compartment, run IAM first to populate regions
     if is_default_compartment and "iam" in requested_syncs:
         logger.info("Syncing OCI IAM for tenancy '%s'.", tenancy_id)
         try:
+            _svc_tic = time.perf_counter()
             iam.sync(
                 neo4j_session, resources.iam, tenancy_id, oci_sync_tag,
                 common_job_parameters, regions,
             )
+            logger.info("oci iam tenancy=%s — %.4fs", tenancy_id, time.perf_counter() - _svc_tic)
         except Exception as e:
             logger.error("Error syncing OCI IAM: %s", e, exc_info=True)
 
@@ -71,10 +75,12 @@ def _sync_one_compartment(
         if func_name in RESOURCE_FUNCTIONS:
             logger.info("Syncing OCI %s for compartment '%s'.", func_name, compartment_id)
             try:
+                _svc_tic = time.perf_counter()
                 RESOURCE_FUNCTIONS[func_name](
                     neo4j_session, getattr(resources, func_name), tenancy_id, oci_sync_tag,
                     common_job_parameters, regions,
                 )
+                logger.info("oci %s compartment=%s — %.4fs", func_name, compartment_id, time.perf_counter() - _svc_tic)
             except Exception as e:
                 logger.error(
                     "Error syncing OCI %s for compartment '%s': %s", func_name, compartment_id, e, exc_info=True,
@@ -83,6 +89,7 @@ def _sync_one_compartment(
             logger.warning(
                 'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
             )
+    logger.info("oci compartment=%s: full sync done in %.4fs", compartment_id, time.perf_counter() - _comp_tic)
 
 
 def _sync_multiple_compartments(
@@ -186,6 +193,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
+    _ingestion_tic = time.perf_counter()
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "WORKSPACE_ID": config.params["workspace"]["id_string"] if hasattr(config, 'params') and config.params else "",
@@ -263,6 +271,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, credentials, tenancy_ocid, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
+        logger.info("oci tenancy=%s: full ingestion done in %.4fs", tenancy_ocid, time.perf_counter() - _ingestion_tic)
         return common_job_parameters
     else:
         # Fallback: read from ~/.oci/config file
@@ -326,3 +335,4 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, list(oci_accounts.values())[0], tenancy_id, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
+        logger.info("oci tenancy=%s: full ingestion done in %.4fs", tenancy_id, time.perf_counter() - _ingestion_tic)
