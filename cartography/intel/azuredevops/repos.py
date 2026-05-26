@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -267,6 +268,7 @@ def sync(
     """
     Syncs the repositories for the given list of projects.
     """
+    tic = time.perf_counter()
     logger.info(
         f"Syncing repositories for {len(projects)} projects in organization '{organization_name}'",
     )
@@ -309,3 +311,5 @@ def sync(
                     _update_repo_last_activity(neo4j_session, repo["id"], transformed_branches, default_branch)
 
     cleanup(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process AzureDevOps repos for org '{organization_name}' ({len(projects)} projects): {toc - tic:0.4f} seconds")
