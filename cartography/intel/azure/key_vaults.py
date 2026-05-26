@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -390,12 +391,19 @@ def sync_key_vaults(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_key_vaults_client(credentials.arm_credentials, subscription_id)
     key_vaults = get_key_vaults_list(client)
     key_vaults_list = transform_key_vaults(key_vaults, regions, common_job_parameters)
+    logger.info(f"key_vaults sub={subscription_id}: vault list fetch done — {len(key_vaults_list)} vaults in {time.perf_counter() - t0:.2f}s")
 
+    t0 = time.perf_counter()
     load_key_vaults(neo4j_session, subscription_id, key_vaults_list, update_tag)
+    logger.info(f"key_vaults sub={subscription_id}: vault load done in {time.perf_counter() - t0:.2f}s")
+
     for key_vault in key_vaults_list:
+        vault_name = key_vault.get('name', key_vault.get('id', '?'))
+        t0 = time.perf_counter()
         # KEY VAULT KEYS
         keys = get_key_vault_keys_list(client, key_vault)
         keys_list = transform_key_vaults_keys(keys, key_vault.get('id', None), common_job_parameters)
@@ -407,6 +415,7 @@ def sync_key_vaults(
         load_key_vaults_secrets(neo4j_session, subscription_id, secrets_list, update_tag)
 
         # KEY VAULT CERTIFICATES
+        certificates_list: List[Dict] = []
         try:
             # To update access policies need write permissions
             # update_access_policies(key_vault, common_job_parameters, client)
@@ -416,6 +425,11 @@ def sync_key_vaults(
             load_key_vaults_certificates(neo4j_session, subscription_id, certificates_list, update_tag)
         except (HttpResponseError, ValueError) as e:
             logger.warning(f"Error while getting certificates for vault - {e}")
+        logger.info(
+            f"key_vaults sub={subscription_id} vault={vault_name}: "
+            f"{len(keys_list)} keys, {len(secrets_list)} secrets, {len(certificates_list)} certs "
+            f"in {time.perf_counter() - t0:.2f}s",
+        )
 
     cleanup_key_vaults(neo4j_session, common_job_parameters)
 

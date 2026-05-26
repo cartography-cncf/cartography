@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -1053,10 +1054,16 @@ def sync(
         sync_tag: int, common_job_parameters: Dict, regions: list,
 ) -> None:
     logger.info("Syncing Azure Storage for subscription '%s'.", subscription_id)
+    t0 = time.perf_counter()
     storage_account_list = get_storage_account_list(credentials, subscription_id, regions, common_job_parameters)
+    logger.info(f"storage sub={subscription_id}: account fetch done — {len(storage_account_list)} accounts in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_storage_account_data(neo4j_session, subscription_id, storage_account_list, sync_tag)
+    logger.info(f"storage sub={subscription_id}: account load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_storage_account_details(
         neo4j_session, credentials, subscription_id,
         storage_account_list, sync_tag, common_job_parameters,
     )
     cleanup_azure_storage_accounts(neo4j_session, common_job_parameters)
+    logger.info(f"storage sub={subscription_id}: details + cleanup done in {time.perf_counter() - t0:.2f}s")

@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -213,14 +214,18 @@ def sync_function_apps(
     common_job_parameters: Dict,
     regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_client(credentials, subscription_id)
     function_apps_list = get_function_apps_list(client, regions, common_job_parameters)
-
+    logger.info(f"function_app sub={subscription_id}: fetch done — {len(function_apps_list)} apps in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_function_apps(
         neo4j_session, subscription_id, function_apps_list,
         update_tag,
     )
     cleanup_function_apps(neo4j_session, common_job_parameters)
+    logger.info(f"function_app sub={subscription_id}: load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     # sync_function_apps_conf(
     #     neo4j_session, function_apps_list, client,
     #     update_tag, common_job_parameters,
@@ -229,6 +234,7 @@ def sync_function_apps(
         neo4j_session, function_apps_list, client,
         update_tag, common_job_parameters,
     )
+    logger.info(f"function_app sub={subscription_id}: sub-resource sync done in {time.perf_counter() - t0:.2f}s")
     # sync_function_apps_deployments(
     #     neo4j_session, function_apps_list, client,
     #     update_tag, common_job_parameters,

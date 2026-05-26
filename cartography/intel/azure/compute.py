@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -570,9 +571,11 @@ def sync_vm_scale_sets(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_client(credentials, subscription_id)
     vm_scale_sets_list = get_vm_scale_sets_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: VMSS fetch done — {len(vm_scale_sets_list)} scale sets in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_vm_scale_sets(neo4j_session, subscription_id, vm_scale_sets_list, update_tag)
     vmss.sync_vm_scale_sets_vms_part_of_relationships(
         neo4j_session,
@@ -585,6 +588,7 @@ def sync_vm_scale_sets(
     sync_virtual_machine_scale_sets_extensions(
         neo4j_session, client, vm_scale_sets_list, update_tag, common_job_parameters,
     )
+    logger.info(f"compute sub={subscription_id}: VMSS Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def get_vm_scale_sets_extensions_list(vm_scale_sets_list: List[Dict], client: ComputeManagementClient, common_job_parameters: Dict) -> List[Dict]:  # noqa: E501
@@ -930,32 +934,40 @@ def sync_virtual_machine(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     # client = get_client(credentials, subscription_id)
     vm_list = get_vm_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: VM fetch done — {len(vm_list)} VMs in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_vms(neo4j_session, subscription_id, vm_list, update_tag)
     # sync_virtual_machine_extensions(neo4j_session, client, vm_list, update_tag, common_job_parameters)
     # sync_virtual_machine_available_sizes(neo4j_session, client, vm_list, update_tag, common_job_parameters)
 
     cleanup_virtual_machine(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: VM Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def sync_disk(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     disk_list = get_disks(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: disk fetch done — {len(disk_list)} disks in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_disks(neo4j_session, subscription_id, disk_list, update_tag)
     cleanup_disks(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: disk Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def sync_snapshot(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     snapshots = get_snapshots_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: snapshot fetch done — {len(snapshots)} snapshots in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_snapshots(neo4j_session, subscription_id, snapshots, update_tag)
     for snapshot in snapshots:
         if snapshot.get("creation_data").get("create_option", "") == "Copy":
@@ -965,6 +977,7 @@ def sync_snapshot(
             )
 
     cleanup_snapshot(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: snapshot Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit

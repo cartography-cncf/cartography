@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
@@ -198,11 +199,15 @@ def sync_resource_groups(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, config: Config,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_resource_management_client(credentials, subscription_id)
     resource_groups_list = get_resource_groups_list(client, common_job_parameters)
+    logger.info(f"tag sub={subscription_id}: resource group fetch done — {len(resource_groups_list)} groups in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_resource_groups(neo4j_session, subscription_id, resource_groups_list, update_tag)
     cleanup_resource_groups(neo4j_session, common_job_parameters)
     sync_tags(neo4j_session, client, resource_groups_list, update_tag, common_job_parameters, config)
+    logger.info(f"tag sub={subscription_id}: resource groups + tags Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit

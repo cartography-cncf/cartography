@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -106,13 +107,15 @@ def sync_security_contacts(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: List,
 ) -> None:
-
+    t0 = time.perf_counter()
     client = get_security_center_client(credentials, subscription_id)
     contacts = get_security_contacts_list(client)
     security_contacts_list = transform_security_contacts(contacts, subscription_id, common_job_parameters)
-
+    logger.info(f"securitycenter sub={subscription_id}: contacts fetch done — {len(security_contacts_list)} contacts in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_security_contacts(neo4j_session, subscription_id, security_contacts_list, update_tag)
     cleanup_security_contacts(neo4j_session, common_job_parameters)
+    logger.info(f"securitycenter sub={subscription_id}: contacts Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit

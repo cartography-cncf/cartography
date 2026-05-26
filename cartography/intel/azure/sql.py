@@ -1,5 +1,6 @@
 import ipaddress
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -1615,8 +1616,14 @@ def sync(
         sync_tag: int, common_job_parameters: Dict, regions: list,
 ) -> None:
     logger.info("Syncing Azure SQL for subscription '%s'.", subscription_id)
+    t0 = time.perf_counter()
     server_list = get_server_list(credentials, subscription_id, regions, common_job_parameters)
+    logger.info(f"sql sub={subscription_id}: server fetch done — {len(server_list)} servers in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_server_data(neo4j_session, subscription_id, server_list, sync_tag)
     load_server_private_endpoint_connection(neo4j_session, server_list, sync_tag)
+    logger.info(f"sql sub={subscription_id}: server load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_server_details(neo4j_session, credentials, subscription_id, server_list, sync_tag, common_job_parameters)
     cleanup_azure_sql_servers(neo4j_session, common_job_parameters)
+    logger.info(f"sql sub={subscription_id}: server details + cleanup done in {time.perf_counter() - t0:.2f}s")
