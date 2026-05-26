@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+import time
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -62,8 +63,10 @@ def concurrent_execution(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
+    shared_neo4j_driver=None,
 ):
-    logger.info(f"BEGIN processing for service: {service}")
+    tic = time.perf_counter()
+    logger.info(f"BEGIN processing for service: {service} account={current_aws_account_id}")
     try:
         if creds["type"] == "self":
             boto3_session = boto3.Session(
@@ -78,12 +81,15 @@ def concurrent_execution(
                 aws_session_token=creds["session_token"],
             )
 
-        neo4j_auth = (config.neo4j_user, config.neo4j_password)
-        neo4j_driver = GraphDatabase.driver(
-            config.neo4j_uri,
-            auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-        )
+        if shared_neo4j_driver is not None:
+            neo4j_driver = shared_neo4j_driver
+        else:
+            neo4j_auth = (config.neo4j_user, config.neo4j_password)
+            neo4j_driver = GraphDatabase.driver(
+                config.neo4j_uri,
+                auth=neo4j_auth,
+                max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            )
 
         sync_args = _build_aws_sync_kwargs(
             Session(neo4j_driver),
@@ -96,9 +102,12 @@ def concurrent_execution(
 
         service_func(**sync_args)
 
-        logger.info(f"END processing for service: {service}")
+        toc = time.perf_counter()
+        logger.info(f"END processing for service: {service} account={current_aws_account_id} — {toc - tic:0.4f}s")
+        return toc - tic
     except Exception as e:
-        logger.warning(f"error to process service {service} - {e}")
+        logger.warning(f"error to process service {service} account={current_aws_account_id} — {e}")
+        return None
 
 
 def _sync_one_account(
@@ -112,6 +121,8 @@ def _sync_one_account(
     creds=Dict[str, str],
     config=Config,
 ) -> None:
+    _account_tic = time.perf_counter()
+    logger.info(f"aws account={current_aws_account_id}: starting full sync")
     regions.sort()
 
     enabled_regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -158,39 +169,43 @@ def _sync_one_account(
 
     else:
         # BEGIN - Parallel Run
-        # Process each service in parallel.
-        with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS) - 2) as executor:
-            futures = []
+        # Process each service in parallel using a shared driver to avoid N connection pools.
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        shared_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
+        parallel_services = [
+            f for f in aws_requested_syncs
+            if f in RESOURCE_FUNCTIONS and f not in ["permission_relationships", "resourcegroupstaggingapi"]
+            and not (f == "identitystore" and not config.params["workspace"].get("is_identity_sso_used"))
+        ]
+        try:
+            with ThreadPoolExecutor(max_workers=min(8, len(parallel_services))) as executor:
+                futures = []
 
-            for func_name in aws_requested_syncs:
-                if func_name in RESOURCE_FUNCTIONS:
-                    if func_name == "identitystore" and not config.params["workspace"].get("is_identity_sso_used"):
-                        continue
+                for func_name in parallel_services:
+                    try:
+                        futures.append(
+                            executor.submit(
+                                concurrent_execution,
+                                func_name,
+                                RESOURCE_FUNCTIONS[func_name],
+                                creds,
+                                config,
+                                **sync_args,
+                                shared_neo4j_driver=shared_driver,
+                            ),
+                        )
+                    except Exception as e:
+                        logger.warning(f"error to append service {func_name} in futures - {e}")
 
-                    # Skip permission relationships and tags for now because they rely on data already being in the graph
-                    if func_name not in ["permission_relationships", "resourcegroupstaggingapi"]:
-                        try:
-                            futures.append(
-                                executor.submit(
-                                    concurrent_execution,
-                                    func_name,
-                                    RESOURCE_FUNCTIONS[func_name],
-                                    creds,
-                                    config,
-                                    **sync_args,
-                                ),
-                            )
-                        except Exception as e:
-                            logger.warning(f"error to append service {func_name} in futures - {e}")
-
-                    else:
-                        continue
-
-                else:
-                    logger.warning(f'AWS sync function "{func_name}" was specified but does not exist. Did you misspell it?')
-
-            for future in as_completed(futures):
-                logger.info(f"Result from Future - Service Processing: {future.result()}")
+                for future in as_completed(futures):
+                    result = future.result()
+                    logger.info(f"Result from Future - Service Processing: {result}")
+        finally:
+            shared_driver.close()
 
         # END - Parallel Run
 
@@ -361,6 +376,7 @@ def _sync_one_account(
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
+    logger.info(f"aws account={current_aws_account_id}: full sync done in {time.perf_counter() - _account_tic:0.4f}s")
 
 
 def _autodiscover_account_regions(boto3_session: boto3.session.Session, account_id: str) -> List[str]:
