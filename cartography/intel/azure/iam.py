@@ -94,7 +94,9 @@ def load_tenant_domains(session: neo4j.Session, tenant_id: str, data_list: List[
 
 
 def set_used_state(session: neo4j.Session, tenant_id: str, common_job_parameters: Dict, update_tag: int) -> None:
+    t0 = time.perf_counter()
     session.execute_write(_set_used_state_tx, tenant_id, common_job_parameters, update_tag)
+    logger.info(f"IAM tenant={tenant_id}: set_used_state done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
@@ -327,10 +329,13 @@ async def sync_tenant_users(
     Sync users from Microsoft Graph API to Neo4j.
     """
     client = get_graph_client(credentials.default_graph_credentials)
+    t0 = time.perf_counter()
     tenant_users_list = await list_tenant_users(client, tenant_id)
-
+    logger.info(f"IAM tenant={tenant_id}: user list fetch done — {len(tenant_users_list)} users in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_tenant_users(neo4j_session, tenant_id, tenant_users_list, update_tag)
     cleanup_tenant_users(neo4j_session, common_job_parameters)
+    logger.info(f"IAM tenant={tenant_id}: user Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
@@ -638,14 +643,16 @@ async def sync_tenant_groups(
     Sync groups from Microsoft Graph API to Neo4j.
     """
     client = get_graph_client(credentials.default_graph_credentials)
+    t0 = time.perf_counter()
     tenant_groups_list = await get_tenant_groups_list(client, tenant_id)
-
+    logger.info(f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_tenant_groups(neo4j_session, tenant_id, tenant_groups_list, update_tag)
     for group in tenant_groups_list:
         memberships = await get_group_members(credentials, group["id"], client=client)
         load_group_memberships(neo4j_session, memberships, update_tag)
-
     cleanup_tenant_groups(neo4j_session, common_job_parameters)
+    logger.info(f"IAM tenant={tenant_id}: group Neo4j write+members done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
@@ -1244,17 +1251,24 @@ def sync_roles(
     common_job_parameters: Dict,
     ingested_principal_ids: Optional[set] = None,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_authorization_client(credentials.arm_credentials, credentials.subscription_id)
     roles_list = get_roles_list(credentials.subscription_id, client, common_job_parameters)
     role_assignments_list = get_role_assignments(client, common_job_parameters)
+    logger.info(
+        f"IAM tenant={tenant_id}: roles fetch done — {len(roles_list)} roles, "
+        f"{len(role_assignments_list)} assignments in {time.perf_counter() - t0:.2f}s",
+    )
     if ingested_principal_ids is not None:
         role_assignments_list = [
             assignment
             for assignment in role_assignments_list
             if assignment.get("principal_id") in ingested_principal_ids
         ]
+    t0 = time.perf_counter()
     load_roles(neo4j_session, tenant_id, roles_list, role_assignments_list, update_tag, credentials.subscription_id)
     cleanup_roles(neo4j_session, common_job_parameters)
+    logger.info(f"IAM tenant={tenant_id}: roles Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def sync_managed_identity(
@@ -1264,10 +1278,17 @@ def sync_managed_identity(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_managed_identity_client(credentials.arm_credentials, credentials.subscription_id)
     managed_identity_list = get_managed_identity_list(client, credentials.subscription_id, common_job_parameters)
+    logger.info(
+        f"IAM tenant={tenant_id}: managed identity fetch done — "
+        f"{len(managed_identity_list)} identities in {time.perf_counter() - t0:.2f}s",
+    )
+    t0 = time.perf_counter()
     load_managed_identities(neo4j_session, tenant_id, managed_identity_list, update_tag)
     cleanup_managed_identities(neo4j_session, common_job_parameters)
+    logger.info(f"IAM tenant={tenant_id}: managed identity Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def _set_used_state_tx(

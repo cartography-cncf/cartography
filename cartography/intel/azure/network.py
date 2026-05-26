@@ -1,5 +1,6 @@
 import ipaddress
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -1651,7 +1652,19 @@ def sync(
     logger.info("Syncing networks for subscription '%s'.", subscription_id)
 
     client = get_network_client(credentials, subscription_id)
+
+    t0 = time.perf_counter()
     sync_network_security_groups(neo4j_session, client, subscription_id, update_tag, common_job_parameters, regions)
+    logger.info(f"network sub={subscription_id}: NSG sync done in {time.perf_counter() - t0:.2f}s")
+
+    t0 = time.perf_counter()
     sync_networks(neo4j_session, client, subscription_id, update_tag, common_job_parameters, regions)
+    logger.info(f"network sub={subscription_id}: VNet sync done in {time.perf_counter() - t0:.2f}s")
+
+    t0 = time.perf_counter()
     sync_load_balancer(neo4j_session, client, subscription_id, update_tag, common_job_parameters, regions)
+    logger.info(f"network sub={subscription_id}: load balancer sync done in {time.perf_counter() - t0:.2f}s")
+
+    t0 = time.perf_counter()
     sync_nat_gateway(neo4j_session, client, subscription_id, update_tag, common_job_parameters, regions)
+    logger.info(f"network sub={subscription_id}: NAT gateway sync done in {time.perf_counter() - t0:.2f}s")
