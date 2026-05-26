@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -42,6 +43,7 @@ def _sync_one_gitlab_group(
     common_job_parameters: Dict[str, Any],
     config: Config,
 ):
+    _group_tic = time.perf_counter()
     logger.info(f"Syncing Gitlab Group: {common_job_parameters['GITLAB_GROUP_ID']}")
 
     sync_order = ["projects", "members"]
@@ -58,8 +60,10 @@ def _sync_one_gitlab_group(
     for func_name in sync_order:
         if func_name in RESOURCE_FUNCTIONS:
             try:
-                logger.info(f"Processing {func_name}")
+                _svc_tic = time.perf_counter()
+                logger.info(f"Processing {func_name} group={group_name}")
                 RESOURCE_FUNCTIONS[func_name](**sync_args)
+                logger.info(f"Done {func_name} group={group_name} — {time.perf_counter() - _svc_tic:0.4f}s")
             except Exception as e:
                 logger.warning(f"error to process service {func_name} - {e}")
         else:
@@ -67,6 +71,7 @@ def _sync_one_gitlab_group(
                 f'Gitlab sync function "{func_name}" was specified but is not available.',
             )
 
+    logger.info(f"gitlab group={group_name}: full sync done in {time.perf_counter() - _group_tic:0.4f}s")
     return True
 
 
