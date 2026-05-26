@@ -135,7 +135,9 @@ def get_managed_identity_client(credentials: Credentials, subscription_id: str) 
 
 @timeit
 async def list_tenant_users(
-    client: GraphServiceClient, tenant_id: str, filter_query: Optional[str] = None,
+    client: GraphServiceClient,
+    tenant_id: str,
+    filter_query: Optional[str] = None,
 ) -> List[Dict]:
     """
     List users from Microsoft Graph API.
@@ -331,7 +333,9 @@ async def sync_tenant_users(
     client = get_graph_client(credentials.default_graph_credentials)
     t0 = time.perf_counter()
     tenant_users_list = await list_tenant_users(client, tenant_id)
-    logger.info(f"IAM tenant={tenant_id}: user list fetch done — {len(tenant_users_list)} users in {time.perf_counter() - t0:.2f}s")
+    logger.info(
+        f"IAM tenant={tenant_id}: user list fetch done — {len(tenant_users_list)} users in {time.perf_counter() - t0:.2f}s"
+    )
     t0 = time.perf_counter()
     load_tenant_users(neo4j_session, tenant_id, tenant_users_list, update_tag)
     cleanup_tenant_users(neo4j_session, common_job_parameters)
@@ -340,7 +344,9 @@ async def sync_tenant_users(
 
 @timeit
 async def get_tenant_groups_list(
-    client: GraphServiceClient, tenant_id: str, filter_query: Optional[str] = None,
+    client: GraphServiceClient,
+    tenant_id: str,
+    filter_query: Optional[str] = None,
 ) -> List[Dict]:
     """
     Get groups from Microsoft Graph API.
@@ -645,7 +651,9 @@ async def sync_tenant_groups(
     client = get_graph_client(credentials.default_graph_credentials)
     t0 = time.perf_counter()
     tenant_groups_list = await get_tenant_groups_list(client, tenant_id)
-    logger.info(f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s")
+    logger.info(
+        f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s"
+    )
 
     # Fetch all group members concurrently (bounded) then write sequentially
     _member_semaphore = asyncio.Semaphore(10)
@@ -851,7 +859,9 @@ async def get_tenant_service_accounts_list(client: GraphServiceClient, tenant_id
                     "logout_url": getattr(sp, "logout_url", None),
                     "preferred_single_sign_on_mode": getattr(sp, "preferred_single_sign_on_mode", None),
                     "preferred_token_signing_key_thumbprint": getattr(
-                        sp, "preferred_token_signing_key_thumbprint", None,
+                        sp,
+                        "preferred_token_signing_key_thumbprint",
+                        None,
                     ),
                     "service_principal_type": getattr(sp, "service_principal_type", None),
                     "sign_in_audience": getattr(sp, "sign_on_audience", None),
@@ -984,7 +994,9 @@ async def get_tenant_domains_list(client: GraphServiceClient, tenant_id: str) ->
                     "is_root": getattr(domain, "is_root", None),
                     "is_verified": getattr(domain, "is_verified", None),
                     "password_notification_window_in_days": getattr(
-                        domain, "password_notification_window_in_days", None,
+                        domain,
+                        "password_notification_window_in_days",
+                        None,
                     ),
                     "password_validity_period_in_days": getattr(domain, "password_validity_period_in_days", None),
                     "supported_services": getattr(domain, "supported_services", []),
@@ -1083,7 +1095,9 @@ async def sync_tenant_domains(
 
 @timeit
 def get_roles_list(
-    subscription_id: str, client: AuthorizationManagementClient, common_job_parameters: Dict,
+    subscription_id: str,
+    client: AuthorizationManagementClient,
+    common_job_parameters: Dict,
 ) -> List[Dict]:
     try:
         role_definitions_list = list(
@@ -1132,7 +1146,9 @@ def get_role_assignments(client: AuthorizationManagementClient, common_job_param
 
 @timeit
 def get_managed_identity_list(
-    client: ManagedServiceIdentityClient, subscription_id: str, common_job_parameters: Dict,
+    client: ManagedServiceIdentityClient,
+    subscription_id: str,
+    common_job_parameters: Dict,
 ) -> List[Dict]:
     try:
         managed_identity_list = list(
@@ -1368,7 +1384,7 @@ async def sync_scoped_users_and_groups(
     scoped_groups = []
     group_id_list = list(scoped_group_ids)
     for i in range(0, len(group_id_list), SAFE_BATCH_SIZE):
-        batch_ids = group_id_list[i: i + SAFE_BATCH_SIZE]
+        batch_ids = group_id_list[i : i + SAFE_BATCH_SIZE]
         id_filter_str = "id in ({})".format(",".join(f"'{id_val['id']}'" for id_val in batch_ids))
         group_batch = await get_tenant_groups_list(client, tenant_id, filter_query=id_filter_str)
         if group_batch:
@@ -1428,7 +1444,7 @@ async def sync_scoped_users_and_groups(
         member_id_list = list(all_member_ids)
         user_fetch_tasks = []
         for i in range(0, len(member_id_list), SAFE_BATCH_SIZE):
-            batch_ids = member_id_list[i: i + SAFE_BATCH_SIZE]
+            batch_ids = member_id_list[i : i + SAFE_BATCH_SIZE]
             id_filter_str = "id in ({})".format(",".join(f"'{id_val}'" for id_val in batch_ids))
             user_fetch_tasks.append(list_tenant_users(client, tenant_id, filter_query=id_filter_str))
 
@@ -1488,8 +1504,8 @@ async def async_sync(
 
     try:
         should_run_tenant_level = not tenant_level_done and (
-            common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id or
-            not common_job_parameters.get("DEFAULT_SUBSCRIPTION")
+            common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id
+            or not common_job_parameters.get("DEFAULT_SUBSCRIPTION")
         )
 
         if should_run_tenant_level:
@@ -1559,6 +1575,16 @@ async def async_sync(
             # Mark tenant-level sync done for this cycle
             tenant_synced_set.add(tenant_id)
             common_job_parameters[_IAM_TENANT_SYNC_KEY] = list(tenant_synced_set)
+
+        elif tenant_level_done:
+            logger.info(
+                "IAM tenant=%s: tenant-level sync already done this cycle, skipping (users/groups/apps/domains)",
+                tenant_id,
+            )
+
+            # Mark tenant-level sync done for this cycle
+            tenant_synced_set.add(tenant_id)
+            common_job_parameters[_IAM_TENANT_SYNC_KEY] = tenant_synced_set
 
         elif tenant_level_done:
             logger.info(
