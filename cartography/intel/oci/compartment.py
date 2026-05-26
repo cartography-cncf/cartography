@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -130,6 +131,8 @@ def sync(
     Sync OCI compartments into Neo4j.
     Similar to Azure's subscription.sync.
     """
+    tic = time.perf_counter()
+    logger.info(f"Syncing OCI compartments for tenancy '{tenancy_id}'")
     load_oci_compartments(neo4j_session, tenancy_id, compartments, update_tag, common_job_parameters)
 
     for comp in compartments:
@@ -140,3 +143,5 @@ def sync(
 
     del common_job_parameters['OCI_COMPARTMENT_ID']
     del common_job_parameters['OCI_TENANCY_ID']
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI compartments for tenancy '{tenancy_id}' ({len(compartments)} compartments): {toc - tic:0.4f} seconds")
