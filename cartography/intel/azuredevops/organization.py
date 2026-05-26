@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -105,7 +104,6 @@ def sync(
     url: str,
     org_name: str,
 ) -> None:
-    tic = time.perf_counter()
     logger.info(f"Syncing Azure DevOps Organization '{org_name}'")
     # There is no direct api to get org data
     org_data = {
@@ -115,5 +113,3 @@ def sync(
     if org_data:
         load_organization(neo4j_session, org_data, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)
-    toc = time.perf_counter()
-    logger.info(f"Time to process AzureDevOps organization '{org_name}': {toc - tic:0.4f} seconds")

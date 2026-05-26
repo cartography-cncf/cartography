@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -152,12 +151,10 @@ def sync(
     """
     Syncs the users for the given Azure DevOps organization.
     """
-    tic = time.perf_counter()
     logger.info(f"Syncing users for organization '{org_name}'")
     users = get_users(url, org_name, access_token)
     if users:
         transformed_users = [transform_user(user_data) for user_data in users]
         load_users(neo4j_session, transformed_users, org_name, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)
-    toc = time.perf_counter()
-    logger.info(f"Time to process AzureDevOps members for org '{org_name}' ({len(users) if users else 0} users): {toc - tic:0.4f} seconds")
+    logger.info(f"Processed {len(users) if users else 0} users for org '{org_name}'")

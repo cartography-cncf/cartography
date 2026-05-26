@@ -54,43 +54,72 @@ def sync_organization(
         common_job_parameters: Common parameters for all sync operations
     """
     _org_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     try:
         logger.info(f"Syncing Azure DevOps Organization: {org_name}")
 
-        # sync the organization details
-        organization.sync(
-            neo4j_session,
-            common_job_parameters,
-            access_token,
-            url,
-            org_name,
-        )
+        for _svc_name, _svc_call in [
+            ("organization", lambda: organization.sync(neo4j_session, common_job_parameters, access_token, url, org_name)),
+            ("projects", lambda: projects.sync(neo4j_session, common_job_parameters, access_token, url, org_name)),
+        ]:
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err: Dict = {}
+            try:
+                result = _svc_call()
+                if _svc_name == "projects":
+                    projects_data = result
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[_svc_name] = _svc_elapsed
+            except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[_svc_name] = str(e)
+                logger.warning(f"error syncing {_svc_name} for org={org_name}: {e}")
+                if _svc_name == "projects":
+                    projects_data = None
+            finally:
+                _ev: Dict = {
+                    "event": "azuredevops_service_timing",
+                    "org": org_name,
+                    "service": _svc_name,
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
 
-        # Sync all projects for the organization and get the data back
-        projects_data = projects.sync(
-            neo4j_session,
-            common_job_parameters,
-            access_token,
-            url,
-            org_name,
-        )
-
-        repos.sync(
-            neo4j_session,
-            common_job_parameters,
-            access_token,
-            url,
-            org_name,
-            projects_data,
-        )
-
-        members.sync(
-            neo4j_session,
-            common_job_parameters,
-            access_token,
-            url,
-            org_name,
-        )
+        for _svc_name, _svc_call in [
+            ("repos", lambda: repos.sync(neo4j_session, common_job_parameters, access_token, url, org_name, projects_data)),
+            ("members", lambda: members.sync(neo4j_session, common_job_parameters, access_token, url, org_name)),
+        ]:
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err = {}
+            try:
+                _svc_call()
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[_svc_name] = _svc_elapsed
+            except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[_svc_name] = str(e)
+                logger.warning(f"error syncing {_svc_name} for org={org_name}: {e}")
+            finally:
+                _ev = {
+                    "event": "azuredevops_service_timing",
+                    "org": org_name,
+                    "service": _svc_name,
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
 
     except exceptions.RequestException as e:
         logger.error(
@@ -101,7 +130,14 @@ def sync_organization(
             f"Unexpected error during organization sync for {org_name}: {e}",
             exc_info=True,
         )
-    logger.info(f"azuredevops org={org_name}: full sync done in {time.perf_counter() - _org_tic:0.4f}s")
+    logger.info(json.dumps({
+        "event": "azuredevops_org_timing_summary",
+        "org": org_name,
+        "total_duration_seconds": round(time.perf_counter() - _org_tic, 4),
+        "service_timings": _service_timings,
+        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+        "failed_services": _failed_services,
+    }))
 
 
 def validate_auth_config(auth_details: Dict) -> bool:
