@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Any
@@ -44,6 +45,8 @@ def _sync_one_gitlab_group(
     config: Config,
 ):
     _group_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     logger.info(f"Syncing Gitlab Group: {common_job_parameters['GITLAB_GROUP_ID']}")
 
     sync_order = ["projects", "members"]
@@ -59,19 +62,45 @@ def _sync_one_gitlab_group(
 
     for func_name in sync_order:
         if func_name in RESOURCE_FUNCTIONS:
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err: Dict = {}
             try:
-                _svc_tic = time.perf_counter()
                 logger.info(f"Processing {func_name} group={group_name}")
                 RESOURCE_FUNCTIONS[func_name](**sync_args)
-                logger.info(f"Done {func_name} group={group_name} — {time.perf_counter() - _svc_tic:0.4f}s")
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[func_name] = _svc_elapsed
             except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[func_name] = str(e)
                 logger.warning(f"error to process service {func_name} - {e}")
+            finally:
+                _ev: Dict = {
+                    "event": "gitlab_service_timing",
+                    "group": group_name,
+                    "service": func_name,
+                    "run_mode": "sequential",
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
         else:
             logger.warning(
                 f'Gitlab sync function "{func_name}" was specified but is not available.',
             )
 
-    logger.info(f"gitlab group={group_name}: full sync done in {time.perf_counter() - _group_tic:0.4f}s")
+    logger.info(json.dumps({
+        "event": "gitlab_group_timing_summary",
+        "group": group_name,
+        "total_duration_seconds": round(time.perf_counter() - _group_tic, 4),
+        "service_timings": _service_timings,
+        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+        "failed_services": _failed_services,
+    }))
     return True
 
 
