@@ -665,7 +665,9 @@ def load_server_details(
                 rules['server_name'] = name
                 rules['server_id'] = server_id
                 rules['resource_group_name'] = rg
-                rules['consolelink'] = ''  # TODO: implement for firewall rules
+                rules['consolelink'] = azure_console_link.get_console_link(
+                    id=rules['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+                )
                 fw_rules.append(rules)
 
     _load_server_dns_aliases(neo4j_session, dns_aliases, update_tag)

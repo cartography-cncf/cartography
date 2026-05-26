@@ -646,13 +646,31 @@ async def sync_tenant_groups(
     t0 = time.perf_counter()
     tenant_groups_list = await get_tenant_groups_list(client, tenant_id)
     logger.info(f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s")
+
+    # Fetch all group members concurrently (bounded) then write sequentially
+    _member_semaphore = asyncio.Semaphore(10)
+
+    async def _bounded_get_members(group_id: str) -> List[Dict]:
+        async with _member_semaphore:
+            return await get_group_members(credentials, group_id, client=client)
+
+    t0 = time.perf_counter()
+    membership_results = await asyncio.gather(
+        *[_bounded_get_members(group["id"]) for group in tenant_groups_list],
+        return_exceptions=True,
+    )
+    logger.info(f"IAM tenant={tenant_id}: group member fetch done in {time.perf_counter() - t0:.2f}s")
+
     t0 = time.perf_counter()
     load_tenant_groups(neo4j_session, tenant_id, tenant_groups_list, update_tag)
-    for group in tenant_groups_list:
-        memberships = await get_group_members(credentials, group["id"], client=client)
-        load_group_memberships(neo4j_session, memberships, update_tag)
+    for result in membership_results:
+        if isinstance(result, Exception):
+            logger.warning(f"IAM tenant={tenant_id}: group member fetch error — {result}")
+            continue
+        if result:
+            load_group_memberships(neo4j_session, result, update_tag)
     cleanup_tenant_groups(neo4j_session, common_job_parameters)
-    logger.info(f"IAM tenant={tenant_id}: group Neo4j write+members done in {time.perf_counter() - t0:.2f}s")
+    logger.info(f"IAM tenant={tenant_id}: group Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
