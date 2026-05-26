@@ -506,15 +506,20 @@ def concurrent_execution(
     apikey: Resource,
     compute: Resource,
     regions: list,
+    shared_neo4j_driver=None,
 ):
-    logger.info(f"BEGIN processing for service: {service}")
+    tic = time.perf_counter()
+    logger.info(f"BEGIN processing for service: {service} project={project_id}")
 
-    neo4j_auth = (config.neo4j_user, config.neo4j_password)
-    neo4j_driver = GraphDatabase.driver(
-        config.neo4j_uri,
-        auth=neo4j_auth,
-        max_connection_lifetime=config.neo4j_max_connection_lifetime,
-    )
+    if shared_neo4j_driver is not None:
+        neo4j_driver = shared_neo4j_driver
+    else:
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        neo4j_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
     try:
         if service == "iam":
             service_func(
@@ -540,11 +545,13 @@ def concurrent_execution(
             )
     except Exception as e:
         logger.error(
-            f"error to process service {service} - {e}",
+            f"error to process service {service} project={project_id} - {e}",
             exc_info=True,
             stack_info=True,
         )
-    logger.info(f"END processing for service: {service}")
+    toc = time.perf_counter()
+    logger.info(f"END processing for service: {service} project={project_id} — {toc - tic:0.4f}s")
+    return toc - tic
 
 
 def _sync_single_project(
@@ -567,6 +574,8 @@ def _sync_single_project(
     :return: Nothing
     """
 
+    _project_tic = time.perf_counter()
+    logger.info(f"gcp project={project_id}: starting full sync")
     all_regions = get_all_regions(resources.compute, project_id)
 
     regions = []
@@ -624,11 +633,17 @@ def _sync_single_project(
 
         # Determine the resources available on the project.
         enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-        with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS)) as executor:
-            futures = []
-            for request in requested_syncs:
-                if request in RESOURCE_FUNCTIONS:
-                    # if getattr(service_names, request) in enabled_services:
+        parallel_requests = [r for r in requested_syncs if r in RESOURCE_FUNCTIONS]
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        shared_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=min(8, len(parallel_requests))) as executor:
+                futures = []
+                for request in parallel_requests:
                     try:
                         futures.append(
                             executor.submit(
@@ -636,10 +651,7 @@ def _sync_single_project(
                                 request,
                                 RESOURCE_FUNCTIONS[request],
                                 config,
-                                getattr(
-                                    resources,
-                                    request,
-                                ),
+                                getattr(resources, request),
                                 common_job_parameters,
                                 gcp_update_tag,
                                 project_id,
@@ -649,17 +661,22 @@ def _sync_single_project(
                                 resources.apikey,
                                 resources.compute,
                                 regions,
+                                shared_driver,
                             ),
                         )
                     except Exception as e:
                         logger.warning(f"error to append service {request} in futures - {e}")
-                else:
-                    logger.warning(
-                        f'GCP sync function "{request}" was specified but does not exist. Did you misspell it?',
-                    )
 
-            for future in as_completed(futures):
-                logger.info(f"Result from Future - Service Processing: {future.result()}")
+                for request in requested_syncs:
+                    if request not in RESOURCE_FUNCTIONS:
+                        logger.warning(
+                            f'GCP sync function "{request}" was specified but does not exist. Did you misspell it?',
+                        )
+
+                for future in as_completed(futures):
+                    logger.info(f"Result from Future - Service Processing: {future.result()}")
+        finally:
+            shared_driver.close()
 
         # END - Parallel Run
 
@@ -669,6 +686,8 @@ def _sync_single_project(
         label.cleanup_labels(neo4j_session, common_job_parameters, service_name)
 
         del common_job_parameters["service_label"]
+
+    logger.info(f"gcp project={project_id}: full sync done in {time.perf_counter() - _project_tic:0.4f}s")
 
 
 def get_all_regions(compute: Resource, project_id: str):
