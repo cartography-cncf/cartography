@@ -6,7 +6,7 @@ from . import repos
 
 
 RESOURCE_FUNCTIONS: Dict = {
-    'projects': projects.sync,
-    'repos': repos.sync,
-    'members': members.sync,
+    "projects": projects.sync,
+    "repositories": repos.sync,
+    "members": members.sync,
 }
