@@ -2995,6 +2995,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | rolearn | The ARN of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API |
 | version | Kubernetes version running |
 | platform_version | Version of EKS |
+| authentication_mode | Cluster authentication mode. Valid values include `CONFIG_MAP`, `API`, and `API_AND_CONFIG_MAP` |
 | status | Status of the cluster. Valid Values: creating, active, deleting, failed, updating |
 | audit_logging | Whether audit logging is enabled |
 | certificate_authority_data_present | Whether the EKS API server certificate authority data was returned by AWS |
@@ -3043,6 +3044,42 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_parse_error
     ORDER BY c.certificate_authority_parse_status, c.name;
     ```
+
+### EKSAccessEntry
+
+Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html), which grants an IAM principal access to an EKS cluster through the EKS API authentication mode.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as `arn` |
+| **arn** | AWS-unique identifier for this access entry |
+| cluster_name | Name of the EKS cluster this access entry belongs to |
+| **principal_arn** | ARN of the IAM principal granted cluster access |
+| username | Kubernetes username mapped by the access entry |
+| type | EKS access entry type, for example `STANDARD`, `EC2_LINUX`, `EC2_WINDOWS`, or `FARGATE_LINUX` |
+| kubernetes_groups | Kubernetes groups mapped by the access entry |
+| created_at | The date and time the access entry was created |
+| modified_at | The date and time the access entry was last modified |
+
+#### Relationships
+
+- EKS Access Entries belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(EKSAccessEntry)
+    ```
+
+- EKS Clusters have EKS Access Entries.
+    ```
+    (EKSCluster)-[HAS_ACCESS_ENTRY]->(EKSAccessEntry)
+    ```
+
+- IAM principals can have EKS Access Entries. This relationship is created when the principal exists in the graph as an `AWSPrincipal` such as an `AWSRole` or `AWSUser`.
+    ```
+    (AWSPrincipal)-[HAS_EKS_ACCESS_ENTRY]->(EKSAccessEntry)
+    ```
+
 ### EMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).

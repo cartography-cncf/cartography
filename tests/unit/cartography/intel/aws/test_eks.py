@@ -2,6 +2,8 @@ import base64
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -103,6 +105,75 @@ def test_transform_eks_clusters_valid_der_certificate_authority_data():
     assert cluster["certificate_authority_not_after"].tzinfo == timezone.utc
     assert cluster["certificate_authority_subject_key_identifier"] == expected_ski
     assert cluster["certificate_authority_authority_key_identifier"] == expected_aki
+
+
+def test_transform_eks_clusters_access_config_authentication_mode():
+    cluster_data = {
+        "prod-cluster": {
+            "name": "prod-cluster",
+            "arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            "resourcesVpcConfig": {"endpointPublicAccess": True},
+            "logging": {"clusterLogging": []},
+            "accessConfig": {"authenticationMode": "API_AND_CONFIG_MAP"},
+        },
+    }
+
+    transformed = eks.transform(cluster_data)
+
+    assert transformed[0]["AuthenticationMode"] == "API_AND_CONFIG_MAP"
+
+
+def test_transform_access_entries_adds_id_and_cluster_arn():
+    access_entries = [
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+            "accessEntryArn": (
+                "arn:aws:eks:us-east-1:123456789012:access-entry/"
+                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+            ),
+            "username": "eks-admin",
+            "type": "STANDARD",
+            "kubernetesGroups": ["system:masters"],
+        },
+    ]
+
+    transformed = eks.transform_access_entries(
+        access_entries,
+        "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+    )
+
+    assert transformed == [
+        {
+            "id": (
+                "arn:aws:eks:us-east-1:123456789012:access-entry/"
+                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+            ),
+            "cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+            "accessEntryArn": (
+                "arn:aws:eks:us-east-1:123456789012:access-entry/"
+                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+            ),
+            "username": "eks-admin",
+            "type": "STANDARD",
+            "kubernetesGroups": ["system:masters"],
+        },
+    ]
+
+
+@patch("cartography.intel.aws.eks.create_boto3_client")
+def test_get_eks_access_entries_skips_config_map_auth_mode(mock_create_client):
+    result = eks.get_eks_access_entries(
+        MagicMock(),
+        "us-east-1",
+        "prod-cluster",
+        "CONFIG_MAP",
+    )
+
+    assert result == []
+    mock_create_client.assert_not_called()
 
 
 def test_transform_eks_clusters_valid_pem_certificate_authority_data():
