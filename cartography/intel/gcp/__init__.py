@@ -178,13 +178,10 @@ def _sync_project_resources(
     # 2. Policy bindings sync (cai_grpc_client)
     #
     # Note: We do NOT explicitly set a quota project for CAI clients. Google's default behavior
-    # will use the service account's host project for quota/billing, which doesn't require
-    # the serviceusage.serviceUsageConsumer permission.
+    # will use the credential/default project for quota/billing; that project must have CAI
+    # enabled and the caller must have the required CAI and Service Usage permissions.
     cai_rest_client: Optional[Resource] = None  # REST client for asset listing
     cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
-    cai_enabled_on_first_project: Optional[bool] = (
-        None  # Cached check for CAI enablement
-    )
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
@@ -668,33 +665,7 @@ def _sync_project_resources(
                 policy_bindings_status = (
                     policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
                 )
-            elif cai_enabled_on_first_project is None:
-                first_project_services = _services_enabled_on_project(
-                    build_client("serviceusage", "v1", credentials=credentials),
-                    project_id,
-                )
-                cai_enabled_on_first_project = (
-                    service_names.cai in first_project_services
-                )
-                if cai_enabled_on_first_project:
-                    logger.info(
-                        "CAI enabled, will sync policy bindings for all projects.",
-                    )
-                else:
-                    logger.info(
-                        "CAI not enabled on project %s, skipping policy bindings sync. "
-                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
-                        project_id,
-                    )
-                    policy_bindings_status = (
-                        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
-                    )
-            elif cai_enabled_on_first_project is False:
-                policy_bindings_status = (
-                    policy_bindings.PolicyBindingsSyncStatus.SKIPPED_API_DISABLED
-                )
-
-            if cai_enabled_on_first_project and policy_bindings_status is None:
+            if policy_bindings_status is None:
                 # Lazily initialize CAI gRPC client for policy bindings.
                 if cai_grpc_client is None:
                     cai_grpc_client = build_asset_client(
