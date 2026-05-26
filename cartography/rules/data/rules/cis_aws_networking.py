@@ -105,8 +105,8 @@ cis_aws_6_1_1_ebs_encryption = Rule(
 class CifsInternetAccessOutput(Finding):
     """Output model for CIFS internet exposure check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     from_port: int | None = None
     to_port: int | None = None

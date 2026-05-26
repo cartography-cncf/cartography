@@ -1,6 +1,7 @@
 import datetime
 import logging
 import traceback
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -13,6 +14,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -29,6 +31,15 @@ from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class AWSOrganizationDiscoveryCandidate:
+    profile_name: str
+    account_id: str
+    organization_id: str | None = None
+    management_account_id: str | None = None
+    result: organizations.AWSOrganizationSyncResult | None = None
 
 
 # DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
@@ -223,40 +234,272 @@ def _autodiscover_account_regions(
     return regions
 
 
-def _autodiscover_accounts(
+def _sync_aws_organization_for_account(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
-) -> None:
-    logger.info("Trying to autodiscover accounts.")
+) -> organizations.AWSOrganizationSyncResult:
+    logger.info("Trying to sync AWS Organizations hierarchy.")
     try:
-        # Fetch all accounts
         client = create_boto3_client(boto3_session, "organizations")
-        paginator = client.get_paginator("list_accounts")
-        accounts: List[Dict] = []
-        for page in paginator.paginate():
-            accounts.extend(page["Accounts"])
-
-        # Filter out every account which is not in the ACTIVE status
-        # and select only the Id and Name fields
-        filtered_accounts: Dict[str, str] = {
-            x["Name"]: x["Id"] for x in accounts if x["Status"] == "ACTIVE"
-        }
-
-        # Add them to the graph
-        logger.info("Loading autodiscovered accounts.")
-        organizations.load_aws_accounts(
+        return organizations.sync_aws_organization(
             neo4j_session,
-            filtered_accounts,
+            client,
+            account_id,
             sync_tag,
             common_job_parameters,
         )
-    except botocore.exceptions.ClientError:
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "AWSOrganizationsNotInUseException":
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+            return organizations.AWSOrganizationSyncResult(
+                account_id,
+                organizations.AWSOrganizationSyncStatus.NOT_IN_ORG,
+                error_code=error_code,
+            )
         logger.warning(
-            f"The current account ({account_id}) doesn't have enough permissions to perform autodiscovery.",
+            "The current account (%s) doesn't have enough permissions to sync AWS Organizations hierarchy. "
+            "AWS Organizations error code: %s.",
+            account_id,
+            error_code,
+            exc_info=True,
         )
+        status = (
+            organizations.AWSOrganizationSyncStatus.ACCESS_DENIED
+            if error_code in {"AccessDenied", "AccessDeniedException"}
+            else organizations.AWSOrganizationSyncStatus.INCOMPLETE
+        )
+        return organizations.AWSOrganizationSyncResult(
+            account_id,
+            status,
+            error_code=error_code,
+        )
+
+
+def _discover_aws_organization_candidate(
+    profile_name: str,
+    account_id: str,
+    use_explicit_profile: bool,
+) -> AWSOrganizationDiscoveryCandidate:
+    session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+    boto3_session = boto3.Session(**session_kwargs)
+    try:
+        client = create_boto3_client(boto3_session, "organizations")
+        response = client.describe_organization()
+        organization = response["Organization"]
+    except botocore.exceptions.ClientError as e:
+        result = organizations.get_aws_organization_sync_result_from_client_error(
+            account_id,
+            e,
+        )
+        if result.status == organizations.AWSOrganizationSyncStatus.NOT_IN_ORG:
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+        elif result.status == organizations.AWSOrganizationSyncStatus.ACCESS_DENIED:
+            logger.warning(
+                "The current account (%s) doesn't have enough permissions to describe AWS Organizations. "
+                "AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        else:
+            logger.warning(
+                "Unable to describe AWS Organization for account %s. AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        return AWSOrganizationDiscoveryCandidate(
+            profile_name,
+            account_id,
+            result=result,
+        )
+    return AWSOrganizationDiscoveryCandidate(
+        profile_name,
+        account_id,
+        organization_id=organization["Id"],
+        management_account_id=organization.get("MasterAccountId"),
+    )
+
+
+def _discover_aws_organization_candidates(
+    accounts: Dict[str, str],
+    use_explicit_profile: bool,
+) -> list[AWSOrganizationDiscoveryCandidate]:
+    account_items = list(accounts.items())
+    if not use_explicit_profile and len(account_items) > 1:
+        logger.warning(
+            "AWS Organizations discovery is using the default AWS session, so only the first configured AWS account "
+            "(%s) will be probed. Use --aws-sync-all-profiles to probe multiple configured profiles.",
+            account_items[0][1],
+        )
+    if not use_explicit_profile:
+        account_items = account_items[:1]
+    if not account_items:
+        return []
+
+    return [
+        _discover_aws_organization_candidate(
+            profile_name,
+            account_id,
+            use_explicit_profile,
+        )
+        for profile_name, account_id in account_items
+    ]
+
+
+def _group_aws_organization_candidates(
+    candidates: Iterable[AWSOrganizationDiscoveryCandidate],
+) -> tuple[
+    list[organizations.AWSOrganizationSyncResult],
+    dict[str, list[AWSOrganizationDiscoveryCandidate]],
+]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
+    for candidate in candidates:
+        if candidate.result is not None:
+            results.append(candidate.result)
+            continue
+        if candidate.organization_id is None:
+            continue
+        candidates_by_organization.setdefault(candidate.organization_id, []).append(
+            candidate,
+        )
+    return results, candidates_by_organization
+
+
+def _sync_aws_organization_candidate_groups(
+    neo4j_session: neo4j.Session,
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    use_explicit_profile: bool,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    for organization_id, organization_candidates in candidates_by_organization.items():
+        organization_candidates.sort(
+            key=lambda candidate: (
+                candidate.account_id != candidate.management_account_id,
+            ),
+        )
+        for candidate in organization_candidates:
+            session_kwargs = (
+                {"profile_name": candidate.profile_name} if use_explicit_profile else {}
+            )
+            boto3_session = boto3.Session(**session_kwargs)
+            result = _sync_aws_organization_for_account(
+                neo4j_session,
+                boto3_session,
+                candidate.account_id,
+                sync_tag,
+                common_job_parameters,
+            )
+            results.append(result)
+            if result.status in {
+                organizations.AWSOrganizationSyncStatus.SYNCED,
+                organizations.AWSOrganizationSyncStatus.ALREADY_SYNCED,
+            }:
+                break
+        else:
+            logger.warning(
+                "Unable to find an account with access to enumerate AWS Organization %s.",
+                organization_id,
+            )
+    return results
+
+
+def _sync_explicit_aws_organization_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str],
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    account_ids = set(organization_account_ids)
+    candidate_accounts = {
+        profile_name: account_id
+        for profile_name, account_id in accounts.items()
+        if account_id in account_ids
+    }
+    candidates = _discover_aws_organization_candidates(
+        candidate_accounts,
+        use_explicit_profile,
+    )
+    results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
+        )
+    )
+
+    missing_account_ids = account_ids - set(accounts.values())
+    if missing_account_ids:
+        logger.warning(
+            "AWS Organizations sync candidate account IDs are not in the AWS sync account list: %s.",
+            ", ".join(sorted(missing_account_ids)),
+        )
+
+    return results
+
+
+def _sync_aws_organizations_for_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str] | None = None,
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    """
+    Discover AWS Organizations before per-account resource sync.
+
+    This keeps standard Cartography's sequential CLI/library flow compatible while
+    giving external orchestrators a single phase they can call before parallel
+    account fanout.
+    """
+    if organization_account_ids is not None:
+        return _sync_explicit_aws_organization_accounts(
+            neo4j_session,
+            accounts,
+            sync_tag,
+            common_job_parameters,
+            organization_account_ids,
+            use_explicit_profile=use_explicit_profile,
+        )
+
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    candidates = _discover_aws_organization_candidates(accounts, use_explicit_profile)
+    discovery_results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(discovery_results)
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
+        )
+    )
+
+    return results
 
 
 def _sync_multiple_accounts(
@@ -267,10 +510,19 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    _sync_aws_organizations_for_accounts(
+        neo4j_session,
+        accounts,
+        sync_tag,
+        common_job_parameters,
+        organization_account_ids=organization_account_ids,
+        use_explicit_profile=use_explicit_profile,
+    )
 
     failed_account_ids = []
     exception_tracebacks = []
@@ -287,14 +539,6 @@ def _sync_multiple_accounts(
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
         aioboto3_session = aioboto3.Session(**session_kwargs)
-
-        _autodiscover_accounts(
-            neo4j_session,
-            boto3_session,
-            account_id,
-            sync_tag,
-            common_job_parameters,
-        )
 
         try:
             _sync_one_account(
@@ -466,6 +710,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         regions = parse_and_validate_aws_regions(config.aws_regions)
     else:
         regions = None
+    if config.aws_organization_account_ids:
+        organization_account_ids = parse_and_validate_aws_account_ids(
+            config.aws_organization_account_ids,
+        )
+    else:
+        organization_account_ids = None
 
     sync_successful = _sync_multiple_accounts(
         neo4j_session,
@@ -475,6 +725,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        organization_account_ids=organization_account_ids,
         # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
         # stays decoupled from the CLI option should the two ever diverge.
         use_explicit_profile=config.aws_sync_all_profiles,

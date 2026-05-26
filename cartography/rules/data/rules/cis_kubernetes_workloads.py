@@ -144,8 +144,8 @@ cis_k8s_5_4_1_secrets_in_env_vars = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class ServiceAccountTokenMountOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     service_account_name: str | None = None
     pod_automount_service_account_token: bool | None = None
@@ -268,8 +268,8 @@ cis_k8s_5_1_6_sa_token_mounts = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPidOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -318,8 +318,8 @@ cis_k8s_5_2_3_host_pid = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostIpcOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -368,8 +368,8 @@ cis_k8s_5_2_4_host_ipc = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostNetworkOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -419,8 +419,8 @@ cis_k8s_5_2_5_host_network = Rule(
 # Main node: KubernetesContainer
 # =============================================================================
 class AllowPrivilegeEscalationOutput(Finding):
-    container_id: str | None = None
     container_name: str | None = None
+    container_id: str | None = None
     image: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
@@ -479,8 +479,8 @@ cis_k8s_5_2_6_allow_privilege_escalation = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPathVolumeOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     host_path_volume_paths: list[str] | None = None
     cluster_name: str | None = None
@@ -535,8 +535,8 @@ cis_k8s_5_2_11_host_path_volumes = Rule(
 # Main node: KubernetesContainer
 # =============================================================================
 class HostPortOutput(Finding):
-    container_id: str | None = None
     container_name: str | None = None
+    container_id: str | None = None
     namespace: str | None = None
     host_ports: list[int] | None = None
     cluster_name: str | None = None
@@ -592,8 +592,8 @@ cis_k8s_5_2_12_host_ports = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class SeccompRuntimeDefaultOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     pod_seccomp_profile_type: str | None = None
     container_names_without_runtime_default: list[str] | None = None

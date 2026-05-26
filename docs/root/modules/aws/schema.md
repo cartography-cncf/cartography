@@ -28,6 +28,15 @@ Representation of an AWS Account.
 |providers| Number of identity providers in the account. From IAM GetAccountSummary.|
 |server\_certificates| Number of server certificates in the account. From IAM GetAccountSummary.|
 |policy\_versions\_in\_use| Number of policy versions in use. From IAM GetAccountSummary.|
+|arn| The AWS Organizations ARN for this account, when discovered from AWS Organizations.|
+|email| The email address associated with the account, when discovered from AWS Organizations.|
+|state| The AWS Organizations account lifecycle state.|
+|status| The legacy AWS Organizations account status. AWS recommends using `state` instead.|
+|joined\_method| The method by which the account joined the organization.|
+|joined\_timestamp| The date the account joined the organization.|
+|org\_id| The AWS Organization ID that contains this account, when available.|
+
+Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only through AWS Organizations are not marked `inscope`; use `org_id` and the root/OU placement relationships to query organization membership.
 
 #### Relationships
 - Many node types belong to an `AWSAccount`.
@@ -85,6 +94,114 @@ Representation of an AWS Account.
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
+    ```
+
+- `AWSAccount` nodes can belong to an `AWSOrganizationRoot` or `AWSOrganizationalUnit`.
+
+    ```cypher
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
+- `AWSOrganizationRoot` and `AWSOrganizationalUnit` nodes can scope organization account placement.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+Only active AWS Organization accounts receive organization placement relationships and synced AWS account root principals. Suspended or closed organization accounts are still loaded as `AWSAccount` nodes with organization metadata, but they are not attached under the root/OU hierarchy.
+
+### AWSOrganization
+
+Representation of an AWS Organization.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
+| Field | Description |
+|-------|-------------|
+|**id**| The AWS Organization ID.|
+|arn| The AWS Organization ARN.|
+|feature\_set| The feature set of the organization, such as `ALL` or `CONSOLIDATED_BILLING`.|
+|management\_account\_arn| The ARN of the organization's management account.|
+|management\_account\_id| The ID of the organization's management account.|
+|management\_account\_email| The email address of the organization's management account.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
+    ```
+
+Cartography only cleans up AWS Organizations hierarchy data after it successfully enumerates the complete organization hierarchy. If the Organizations API is unavailable, access is denied, or hierarchy enumeration is incomplete, Cartography skips Organizations cleanup to preserve the prior hierarchy. `AWSAccount` nodes and their account-scoped resources are preserved when accounts move, leave the organization, or become inactive; Organizations cleanup only updates stale placement metadata, roots, OUs, and hierarchy relationships.
+
+### AWSOrganizationRoot
+
+Representation of an AWS Organizations root.
+
+| Field | Description |
+|-------|-------------|
+|**id**| Cartography ID for this root, formatted as `{org_id}/{root_id}` because AWS root IDs are unique only within an organization.|
+|root\_id| The raw AWS Organizations root ID.|
+|arn| The AWS Organizations root ARN.|
+|name| The AWS Organizations root name.|
+|org\_id| The AWS Organization ID.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
+    ```
+
+- `AWSOrganizationRoot` nodes can contain AWS accounts and organizational units.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    ```
+
+### AWSOrganizationalUnit
+
+Representation of an AWS Organizations organizational unit.
+
+| Field | Description |
+|-------|-------------|
+|**id**| Cartography ID for this organizational unit, formatted as `{org_id}/{ou_id}` because AWS organizational unit IDs are unique only within an organization.|
+|ou\_id| The raw AWS Organizations organizational unit ID.|
+|arn| The AWS Organizations organizational unit ARN.|
+|name| The AWS Organizations organizational unit name.|
+|org\_id| The AWS Organization ID.|
+|root\_id| The Cartography root ID that scopes the organizational unit, formatted as `{org_id}/{root_id}`.|
+|parent\_root\_id| The Cartography parent root ID, when the organizational unit is directly under a root.|
+|parent\_ou\_id| The Cartography parent organizational unit ID, when the organizational unit is nested under another organizational unit.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationalUnit` nodes can be nested under roots or other OUs.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
+- `AWSOrganizationalUnit` nodes can contain AWS accounts.
+
+    ```cypher
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
     ```
 
 ### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock
@@ -252,6 +369,9 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
+| principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
+| principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
 | archived | Whether the finding has been archived |
 | service_action_type | The GuardDuty service action type for the finding (for example `AWS_API_CALL` or `NETWORK_CONNECTION`) |
 | service_count | The number of times GuardDuty observed the activity represented by the finding |
@@ -297,6 +417,21 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect S3 Buckets
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    ```
+
+- GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AccountAccessKey)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=IAMUser` affect the AWS IAM user
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSUser)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=AssumedRole` affect the assumed IAM role
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSRole)
     ```
 
 ### AWSInspectorFinding::Risk
@@ -814,6 +949,12 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 
     ```cypher
     (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
+    ```
+
+- AWSPrincipals with `iam:PassRole` can pass an IAM role to an AWS service (e.g. attaching an instance profile to `ec2:RunInstances`, an execution role to `lambda:CreateFunction`, `ecs:RunTask`). Combined with a service-launch permission this is a privilege-escalation primitive. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_PASS_ROLE]->(AWSRole)
     ```
 
 ### AWSPrincipal::AWSUser

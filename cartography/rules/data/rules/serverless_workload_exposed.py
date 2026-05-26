@@ -144,8 +144,8 @@ _aws_lambda_anonymous_access = Fact(
 
 # Rule
 class ServerlessWorkloadExposed(Finding):
-    id: str | None = None
     name: str | None = None
+    id: str | None = None
     region: str | None = None
     runtime: str | None = None
     exposure_type: str | None = None

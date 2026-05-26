@@ -38,6 +38,9 @@ class GCPBucketNodeProperties(CartographyNodeProperties):
     log_bucket: PropertyRef = PropertyRef("log_bucket")
     requester_pays: PropertyRef = PropertyRef("requester_pays")
     default_kms_key_name: PropertyRef = PropertyRef("default_kms_key_name")
+    # True when the legacy ACL or default object ACL grants access to `allUsers`
+    # or `allAuthenticatedUsers`. Consumed by the bucket `_ont_public` analysis job.
+    acl_public: PropertyRef = PropertyRef("acl_public")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

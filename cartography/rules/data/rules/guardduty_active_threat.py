@@ -71,9 +71,9 @@ aws_guardduty_active_threat = Fact(
 
 
 class GuardDutyActiveThreat(Finding):
+    title: str | None = None
     finding_id: str | None = None
     finding_arn: str | None = None
-    title: str | None = None
     type: str | None = None
     severity: float | None = None
     region: str | None = None

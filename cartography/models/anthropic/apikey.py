@@ -18,7 +18,6 @@ class AnthropicApiKeyNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     status: PropertyRef = PropertyRef("status")
     created_at: PropertyRef = PropertyRef("created_at")
-    last_used_at: PropertyRef = PropertyRef("last_used_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
