@@ -32,8 +32,23 @@ ACCESS_ENTRIES = [
                 "arn:aws:eks:eu-west-1:111111111111:access-entry/"
                 "cluster_1/role/111111111111/EKSAdminRole/ae-12345"
             ),
-            "createdAt": "2024-01-15T10:30:00Z",
-            "modifiedAt": "2024-01-15T10:30:00Z",
+            "createdAt": datetime.datetime(
+                2024,
+                1,
+                15,
+                10,
+                30,
+                tzinfo=datetime.timezone.utc,
+            ),
+            "modifiedAt": datetime.datetime(
+                2024,
+                1,
+                15,
+                10,
+                30,
+                tzinfo=datetime.timezone.utc,
+            ),
+            "tags": {},
             "username": "eks-admin",
             "type": "STANDARD",
         },
