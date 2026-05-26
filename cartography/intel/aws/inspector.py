@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -209,6 +210,8 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    tic = time.perf_counter()
+    logger.info(f"Syncing AWS Inspector for account {current_aws_account_id}")
     for region in regions:
         logger.info(f"Syncing AWS Inspector findings for account {current_aws_account_id} and region {region}")
         # findings = get_inspector_findings(boto3_session, region, current_aws_account_id)
@@ -218,3 +221,5 @@ def sync(
         # logger.info(f"Loading {len(finding_data)} findings")
         # load_inspector_findings(neo4j_session, finding_data, region, update_tag)
         # cleanup(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process AWS Inspector: {toc - tic:0.4f} seconds")
