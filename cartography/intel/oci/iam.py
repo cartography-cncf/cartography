@@ -3,6 +3,7 @@
 # https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/overview.htm
 import logging
 import re
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -146,10 +147,12 @@ def sync_users(
     oci_update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    tic = time.perf_counter()
     logger.debug("Syncing IAM users for account '%s'.", current_tenancy_id)
     data = get_user_list_data(iam, current_tenancy_id)
     load_users(neo4j_session, data['Users'], current_tenancy_id, oci_update_tag)
     run_cleanup_job('oci_import_users_cleanup.json', neo4j_session, common_job_parameters)
+    logger.info(f"Time to process OCI IAM users for tenancy '{current_tenancy_id}' ({len(data['Users'])} users): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def get_group_list_data(
@@ -198,10 +201,12 @@ def sync_groups(
     oci_update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    tic = time.perf_counter()
     logger.debug("Syncing IAM groups for account '%s'.", current_tenancy_id)
     data = get_group_list_data(iam, current_tenancy_id)
     load_groups(neo4j_session, data["Groups"], current_tenancy_id, oci_update_tag)
     run_cleanup_job('oci_import_groups_cleanup.json', neo4j_session, common_job_parameters)
+    logger.info(f"Time to process OCI IAM groups for tenancy '{current_tenancy_id}' ({len(data['Groups'])} groups): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def get_group_membership_data(
@@ -453,6 +458,7 @@ def sync(
     common_job_parameters: Dict[str, Any],
     regions: List[str] = None,
 ) -> None:
+    tic = time.perf_counter()
     logger.info("Syncing IAM for account '%s'.", tenancy_id)
     sync_users(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_groups(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
@@ -462,3 +468,5 @@ def sync(
     sync_policies(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
     sync_oci_policy_references(neo4j_session, tenancy_id, oci_update_tag, common_job_parameters)
     sync_region_subscriptions(neo4j_session, iam, tenancy_id, oci_update_tag, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI IAM for tenancy '{tenancy_id}': {toc - tic:0.4f} seconds")
