@@ -1,6 +1,7 @@
 # Copyright (c) 2020, Oracle and/or its affiliates.
 import logging
 import re
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -153,5 +154,9 @@ def sync(
     common_job_parameters: Dict[str, Any],
     identity_client: oci.identity.identity_client.IdentityClient = None,
 ) -> None:
+    tic = time.perf_counter()
+    logger.info("Syncing OCI organizations")
     load_oci_accounts(neo4j_session, accounts, oci_update_tag, common_job_parameters, identity_client)
     cleanup(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI organizations ({len(accounts)} accounts): {toc - tic:0.4f} seconds")
