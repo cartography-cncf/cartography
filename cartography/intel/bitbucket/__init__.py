@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -41,6 +42,7 @@ def _sync_one_workspace(
     common_job_parameters: Dict[str, Any],
     config: Config,
 ) -> None:
+    _ws_tic = time.perf_counter()
     requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
 
     # if os.environ.get("LOCAL_RUN","0") == "1":
@@ -56,8 +58,10 @@ def _sync_one_workspace(
     for func_name in requested_syncs:
         if func_name in RESOURCE_FUNCTIONS:
             try:
-                logger.info(f"Processing {func_name}")
+                _svc_tic = time.perf_counter()
+                logger.info(f"Processing {func_name} workspace={workspace_name}")
                 RESOURCE_FUNCTIONS[func_name](**sync_args)
+                logger.info(f"Done {func_name} workspace={workspace_name} — {time.perf_counter() - _svc_tic:0.4f}s")
             except Exception as e:
                 logger.warning(f"error to process service {func_name} - {e}")
 
@@ -94,6 +98,8 @@ def _sync_one_workspace(
     #             logger.info(f'Result from Future - Service Processing: {future.result()}')
 
     #     # END - Parallel Run
+
+    logger.info(f"bitbucket workspace={workspace_name}: full sync done in {time.perf_counter() - _ws_tic:0.4f}s")
 
 
 def _sync_multiple_workspaces(
