@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -85,7 +86,10 @@ def sync(
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
     :return: Nothing
     """
+    tic = time.perf_counter()
     logger.info("Syncing Gitlab All Dependencies")
     project_dependencies = get_dependencies(hosted_domain, access_token, project_id)
     load_dependencies_data(neo4j_session, project_dependencies, project_id, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process GitLab Dependencies for project '{project_id}': {toc - tic:0.4f} seconds")
