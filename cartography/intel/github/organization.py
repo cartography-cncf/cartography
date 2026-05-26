@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Any
@@ -122,5 +123,10 @@ def sync(
         load_organization(neo4j_session, org_data, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
-    toc = time.perf_counter()
-    logger.info(f"Time to process GitHub Organization '{github_org}': {toc - tic:0.4f} seconds")
+    logger.info(json.dumps({
+        "event": "github_service_timing",
+        "org": github_org,
+        "service": "organization",
+        "duration_seconds": round(time.perf_counter() - tic, 4),
+        "status": "success",
+    }))
