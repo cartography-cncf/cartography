@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import os
 import time
@@ -66,7 +67,9 @@ def concurrent_execution(
     shared_neo4j_driver=None,
 ):
     tic = time.perf_counter()
-    logger.info(f"BEGIN processing for service: {service} account={current_aws_account_id}")
+    _status = "success"
+    _err: Dict = {}
+    _result = None
     try:
         if creds["type"] == "self":
             boto3_session = boto3.Session(
@@ -101,13 +104,25 @@ def concurrent_execution(
         )
 
         service_func(**sync_args)
-
-        toc = time.perf_counter()
-        logger.info(f"END processing for service: {service} account={current_aws_account_id} — {toc - tic:0.4f}s")
-        return toc - tic
+        _result = round(time.perf_counter() - tic, 4)
     except Exception as e:
+        _status = "error"
+        _err = {"error_type": type(e).__name__, "error_message": str(e)}
         logger.warning(f"error to process service {service} account={current_aws_account_id} — {e}")
-        return None
+    finally:
+        _elapsed = _result if _result is not None else round(time.perf_counter() - tic, 4)
+        _ev: Dict = {
+            "event": "aws_service_timing",
+            "account_id": current_aws_account_id,
+            "service": service,
+            "run_mode": "parallel",
+            "duration_seconds": _elapsed,
+            "status": _status,
+        }
+        if _err:
+            _ev.update(_err)
+        logger.info(json.dumps(_ev))
+    return _result
 
 
 def _sync_one_account(
@@ -122,6 +137,8 @@ def _sync_one_account(
     config=Config,
 ) -> None:
     _account_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     logger.info(f"aws account={current_aws_account_id}: starting full sync")
     regions.sort()
 
@@ -154,10 +171,31 @@ def _sync_one_account(
                 # Skip permission relationships and tags for now because they rely on data already being in the graph
                 if func_name not in ["permission_relationships", "resourcegroupstaggingapi"]:
                     logger.info(f"Processing {func_name}")
+                    _svc_tic = time.perf_counter()
+                    _svc_status = "success"
+                    _svc_err: Dict = {}
                     try:
                         RESOURCE_FUNCTIONS[func_name](**sync_args)
                     except Exception as e:
+                        _svc_status = "error"
+                        _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
                         logger.warning(f"error to process service {func_name} - {e}")
+                    finally:
+                        _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                        _service_timings[func_name] = _svc_elapsed
+                        if _svc_status == "error":
+                            _failed_services[func_name] = _svc_err.get("error_type", "error")
+                        _sev: Dict = {
+                            "event": "aws_service_timing",
+                            "account_id": current_aws_account_id,
+                            "service": func_name,
+                            "run_mode": "sequential",
+                            "duration_seconds": _svc_elapsed,
+                            "status": _svc_status,
+                        }
+                        if _svc_err:
+                            _sev.update(_svc_err)
+                        logger.info(json.dumps(_sev))
 
                 else:
                     continue
@@ -183,27 +221,30 @@ def _sync_one_account(
         ]
         try:
             with ThreadPoolExecutor(max_workers=min(8, len(parallel_services))) as executor:
-                futures = []
+                futures: Dict = {}
 
                 for func_name in parallel_services:
                     try:
-                        futures.append(
-                            executor.submit(
-                                concurrent_execution,
-                                func_name,
-                                RESOURCE_FUNCTIONS[func_name],
-                                creds,
-                                config,
-                                **sync_args,
-                                shared_neo4j_driver=shared_driver,
-                            ),
+                        _f = executor.submit(
+                            concurrent_execution,
+                            func_name,
+                            RESOURCE_FUNCTIONS[func_name],
+                            creds,
+                            config,
+                            **sync_args,
+                            shared_neo4j_driver=shared_driver,
                         )
+                        futures[_f] = func_name
                     except Exception as e:
                         logger.warning(f"error to append service {func_name} in futures - {e}")
 
                 for future in as_completed(futures):
-                    result = future.result()
-                    logger.info(f"Result from Future - Service Processing: {result}")
+                    _fn = futures[future]
+                    _elapsed = future.result()
+                    if _elapsed is not None:
+                        _service_timings[_fn] = _elapsed
+                    else:
+                        _failed_services[_fn] = "error"
         finally:
             shared_driver.close()
 
@@ -376,7 +417,14 @@ def _sync_one_account(
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
-    logger.info(f"aws account={current_aws_account_id}: full sync done in {time.perf_counter() - _account_tic:0.4f}s")
+    logger.info(json.dumps({
+        "event": "aws_account_timing_summary",
+        "account_id": current_aws_account_id,
+        "total_duration_seconds": round(time.perf_counter() - _account_tic, 4),
+        "service_timings": _service_timings,
+        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+        "failed_services": _failed_services,
+    }))
 
 
 def _autodiscover_account_regions(boto3_session: boto3.session.Session, account_id: str) -> List[str]:
