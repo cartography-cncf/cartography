@@ -10,13 +10,13 @@ marshmallow>=3.0.0rc7
 pyyaml>=5.3.1
 requests>=2.22.0
 statsd~=3.3.0
-packaging~=21.3
+packaging
 netaddr~=0.8.0
 maya~=0.6.1
 pytz~=2022.6
 
-cloudconsolelink~=1.0.24
-sentry_sdk~=2.35.0
+cloudconsolelink~=4.0.1
+sentry-sdk~=2.60.0
 clouduniqueid~=1.0.3
 
 # GCP Cloud Function specific packages
@@ -24,3 +24,7 @@ clouduniqueid~=1.0.3
 google-cloud-pubsub~=2.3.0
 google-cloud-storage~=1.36.0
 google-cloud-compute~=1.11.0
+
+azure-identity>=1.5.0
+
+setuptools>=75.0.0,<81  # Required for pkg_resources (used by opentelemetry deps in semgrep). Pin <81 to avoid deprecation warnings.

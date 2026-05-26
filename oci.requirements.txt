@@ -16,7 +16,7 @@ netaddr~=0.8.0
 maya~=0.6.1
 pytz~=2022.6
 
-cloudconsolelink~=1.0.24
+cloudconsolelink~=4.0.1
 sentry_sdk~=2.35.0
 clouduniqueid~=1.0.3
 

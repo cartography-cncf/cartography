@@ -170,6 +170,7 @@ def process_request(context, args, retry=0):
                 "refreshEntitlements": args.get("refreshEntitlements"),
                 "identityStoreRegion": args.get("identityStoreRegion"),
                 "internalAccounts": args.get("internalAccounts"),
+                "awsExcludedRegions": context.aws_excluded_regions,
             }
 
             resp = cartography.cli.run_aws(body)

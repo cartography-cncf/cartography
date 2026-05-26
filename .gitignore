@@ -26,6 +26,9 @@ node_modules
 .venv
 */venv_cartography_test/
 
+package/*
+function.zip
+
 build.log
 azure.build.log
 git.worker.log
@@ -34,3 +37,7 @@ dev.py
 Dockerfile.aws.worker
 Dockerfile.azure.worker
 config
+aws.build.log
+
+# Added by code-review-graph
+.code-review-graph/
