@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -127,6 +128,7 @@ def sync(
     """
     Syncs the projects for the given Azure DevOps organization and returns the data.
     """
+    tic = time.perf_counter()
     logger.info(f"Syncing projects for organization '{organization_name}'")
     projects = get_projects(azure_devops_url, organization_name, access_token)
     if projects:
@@ -136,4 +138,6 @@ def sync(
             project["last_activity_at_timestamp"] = ts_ms
         load_projects(neo4j_session, projects, organization_name, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process AzureDevOps projects for org '{organization_name}' ({len(projects) if projects else 0} projects): {toc - tic:0.4f} seconds")
     return projects
