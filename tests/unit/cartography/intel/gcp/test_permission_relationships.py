@@ -310,6 +310,7 @@ def test_iter_permission_relationship_batches_preserves_matches():
 
 
 def test_split_bigquery_table_broad_scope_principals():
+    # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -329,6 +330,7 @@ def test_split_bigquery_table_broad_scope_principals():
         ),
     }
 
+    # Act
     project_principals, dataset_principals, residual_principals = (
         permission_relationships.split_bigquery_table_broad_scope_principals(
             principals,
@@ -337,6 +339,7 @@ def test_split_bigquery_table_broad_scope_principals():
         )
     )
 
+    # Assert
     assert project_principals == {"project-viewer@example.com"}
     assert dataset_principals == {
         "project-abc:analytics": {"dataset-viewer@example.com"},
@@ -344,7 +347,54 @@ def test_split_bigquery_table_broad_scope_principals():
     assert set(residual_principals) == {"table-viewer@example.com"}
 
 
+def test_load_bigquery_table_permission_relationships_uses_core_cross_product_loader():
+    # Arrange
+    matchlink_schema = permission_relationships.GCPPermissionMatchLink(
+        source_node_label="GCPPrincipal",
+        target_node_label="GCPBigQueryTable",
+        rel_label="CAN_READ",
+    )
+    neo4j_session = MagicMock()
+
+    # Act
+    with patch.object(
+        permission_relationships,
+        "load_matchlinks_cross_product",
+        return_value=4,
+    ) as mock_load_cross_product:
+        loaded_count = (
+            permission_relationships.load_bigquery_table_permission_relationships(
+                neo4j_session,
+                matchlink_schema,
+                {"zara@example.com", "alice@example.com"},
+                ["project-abc:logs.audit", "project-abc:analytics.events"],
+                TEST_UPDATE_TAG,
+                TEST_PROJECT_ID,
+                principal_batch_size=7,
+                table_batch_size=11,
+            )
+        )
+
+    # Assert
+    assert loaded_count == 4
+    mock_load_cross_product.assert_called_once_with(
+        neo4j_session,
+        matchlink_schema,
+        ["alice@example.com", "zara@example.com"],
+        ["project-abc:analytics.events", "project-abc:logs.audit"],
+        source_batch_size=7,
+        target_batch_size=11,
+        progress_description=(
+            "CAN_READ GCPBigQueryTable permissions for project project-abc"
+        ),
+        lastupdated=TEST_UPDATE_TAG,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=TEST_PROJECT_ID,
+    )
+
+
 def test_bigquery_table_fast_path_avoids_project_scope_cross_product(monkeypatch):
+    # Arrange
     principals = {
         f"user-{i}@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -365,6 +415,7 @@ def test_bigquery_table_fast_path_avoids_project_scope_cross_product(monkeypatch
     )
     neo4j_session = MagicMock()
 
+    # Act
     with (
         patch.object(
             permission_relationships,
@@ -386,6 +437,7 @@ def test_bigquery_table_fast_path_avoids_project_scope_cross_product(monkeypatch
             TEST_PROJECT_ID,
         )
 
+    # Assert
     assert loaded_count == 200000
     mock_bulk_load.assert_called_once_with(
         neo4j_session,
@@ -399,6 +451,7 @@ def test_bigquery_table_fast_path_avoids_project_scope_cross_product(monkeypatch
 
 
 def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
+    # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -424,6 +477,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
     )
     neo4j_session = MagicMock()
 
+    # Act
     with (
         patch.object(
             permission_relationships,
@@ -445,6 +499,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
             TEST_PROJECT_ID,
         )
 
+    # Assert
     assert loaded_count == 3
     mock_load_principal_mappings.assert_called_once()
     assert mock_load_principal_mappings.call_args.args[1] == [

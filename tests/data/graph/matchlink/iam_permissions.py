@@ -28,6 +28,17 @@ class IAMAccessRelProps(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class IAMCrossProductAccessRelProps(CartographyRelProperties):
+    """Relationship properties for MatchLink cross-product tests."""
+
+    lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
     """Test relationship schema connecting principals to S3 buckets with permissions."""
 
@@ -46,6 +57,36 @@ class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_ACCESS"
     properties: IAMAccessRelProps = IAMAccessRelProps()
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCrossProductPermissionRel(CartographyRelSchema):
+    """Test relationship schema for bulk cross-product MatchLinks."""
+
+    source_node_label: str = "AWSPrincipal"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "principal_arn": PropertyRef("principal_arn"),
+        }
+    )
+    target_node_label: str = "S3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("BucketName"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_BULK_ACCESS"
+    properties: IAMCrossProductAccessRelProps = IAMCrossProductAccessRelProps()
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCrossProductInwardPermissionRel(
+    PrincipalToS3BucketCrossProductPermissionRel
+):
+    """Test relationship schema for inward bulk cross-product MatchLinks."""
+
+    direction: LinkDirection = LinkDirection.INWARD
 
 
 @dataclass(frozen=True)

@@ -590,3 +590,10 @@ def test_sync_bigquery_table_permission_relationship_fast_paths(
     ) == {
         ("table-deleter@example.com", "project-abc:analytics.events"),
     }
+    stale_count = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "stale@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable)
+        RETURN count(r) AS stale_count
+        """,
+    ).single()["stale_count"]
+    assert stale_count == 0
