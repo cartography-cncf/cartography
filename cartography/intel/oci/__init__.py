@@ -48,20 +48,41 @@ def _sync_one_compartment(
     to populate regions. For child compartments, IAM is skipped.
     """
     _comp_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     is_default_compartment = (compartment_id == tenancy_id)
 
     # For default compartment, run IAM first to populate regions
     if is_default_compartment and "iam" in requested_syncs:
         logger.info("Syncing OCI IAM for tenancy '%s'.", tenancy_id)
+        _svc_tic = time.perf_counter()
+        _svc_status = "success"
+        _svc_err: Dict = {}
         try:
-            _svc_tic = time.perf_counter()
             iam.sync(
                 neo4j_session, resources.iam, tenancy_id, oci_sync_tag,
                 common_job_parameters, regions,
             )
-            logger.info("oci iam tenancy=%s — %.4fs", tenancy_id, time.perf_counter() - _svc_tic)
+            _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+            _service_timings["iam"] = _svc_elapsed
         except Exception as e:
+            _svc_status = "error"
+            _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+            _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+            _failed_services["iam"] = str(e)
             logger.error("Error syncing OCI IAM: %s", e, exc_info=True)
+        finally:
+            _ev: Dict = {
+                "event": "oci_service_timing",
+                "tenancy": tenancy_id,
+                "compartment": compartment_id,
+                "service": "iam",
+                "duration_seconds": _svc_elapsed,
+                "status": _svc_status,
+            }
+            if _svc_err:
+                _ev.update(_svc_err)
+            logger.info(json.dumps(_ev))
 
     # Get regions from neo4j (populated by IAM region subscriptions)
     updated_regions = [r["name"] for r in utils.get_regions_in_tenancy(neo4j_session, tenancy_id)]
@@ -74,22 +95,49 @@ def _sync_one_compartment(
             continue
         if func_name in RESOURCE_FUNCTIONS:
             logger.info("Syncing OCI %s for compartment '%s'.", func_name, compartment_id)
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err = {}
             try:
-                _svc_tic = time.perf_counter()
                 RESOURCE_FUNCTIONS[func_name](
                     neo4j_session, getattr(resources, func_name), tenancy_id, oci_sync_tag,
                     common_job_parameters, regions,
                 )
-                logger.info("oci %s compartment=%s — %.4fs", func_name, compartment_id, time.perf_counter() - _svc_tic)
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[func_name] = _svc_elapsed
             except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[func_name] = str(e)
                 logger.error(
                     "Error syncing OCI %s for compartment '%s': %s", func_name, compartment_id, e, exc_info=True,
                 )
+            finally:
+                _ev = {
+                    "event": "oci_service_timing",
+                    "tenancy": tenancy_id,
+                    "compartment": compartment_id,
+                    "service": func_name,
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
         else:
             logger.warning(
                 'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
             )
-    logger.info("oci compartment=%s: full sync done in %.4fs", compartment_id, time.perf_counter() - _comp_tic)
+    logger.info(json.dumps({
+        "event": "oci_compartment_timing_summary",
+        "tenancy": tenancy_id,
+        "compartment": compartment_id,
+        "total_duration_seconds": round(time.perf_counter() - _comp_tic, 4),
+        "service_timings": _service_timings,
+        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+        "failed_services": _failed_services,
+    }))
 
 
 def _sync_multiple_compartments(
@@ -271,7 +319,11 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, credentials, tenancy_ocid, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-        logger.info("oci tenancy=%s: full ingestion done in %.4fs", tenancy_ocid, time.perf_counter() - _ingestion_tic)
+        logger.info(json.dumps({
+            "event": "oci_tenancy_timing_summary",
+            "tenancy": tenancy_ocid,
+            "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+        }))
         return common_job_parameters
     else:
         # Fallback: read from ~/.oci/config file
