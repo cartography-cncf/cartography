@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import time
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -52,6 +53,7 @@ def sync_organization(
         access_token: Microsoft Entra ID OAuth access token
         common_job_parameters: Common parameters for all sync operations
     """
+    _org_tic = time.perf_counter()
     try:
         logger.info(f"Syncing Azure DevOps Organization: {org_name}")
 
@@ -99,6 +101,7 @@ def sync_organization(
             f"Unexpected error during organization sync for {org_name}: {e}",
             exc_info=True,
         )
+    logger.info(f"azuredevops org={org_name}: full sync done in {time.perf_counter() - _org_tic:0.4f}s")
 
 
 def validate_auth_config(auth_details: Dict) -> bool:
