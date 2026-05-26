@@ -5,6 +5,8 @@ Follow these steps to analyze AWS assets with Cartography.
 
 In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) library to retrieve assets from AWS and follows boto3's normal credential resolution behavior. For retry behavior, Cartography now constructs its own shared botocore config for AWS clients, so Cartography-specific retry environment variables take precedence over ambient AWS retry env vars. If you've used boto3 before, then you're already very familiar with setting up Cartography for AWS.
 
+Cartography supports single-account AWS syncs and multi-account AWS syncs. For AWS Organizations hierarchy data, the recommended setup is a multi-account sync that includes the AWS Organizations management account or a delegated administrator account.
+
 ### Very helpful references
 - Ensure your ~/.aws/credentials and ~/.aws/config files are set up correctly: https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html
 - Review the various AWS environment variables: https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
@@ -22,9 +24,24 @@ In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) libra
    - Lambda keeps narrower defaults for its own regional calls: read timeout `30` seconds and max attempts `2`, while still inheriting the shared retry mode unless explicitly overridden in code.
    These settings help with API throttling and transient regional endpoint failures. They are separate from AWS SDK env vars like `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE`, because Cartography now builds botocore config objects itself for AWS clients.
 
+Single-account sync uses boto3's normal credential resolution behavior. If the account is in an AWS Organization, Cartography will attempt AWS Organizations sync as best-effort enrichment. Full organization hierarchy sync and cleanup require credentials from the management account or a delegated administrator account; otherwise Cartography skips Organizations cleanup and continues the account resource sync.
+
 ### Multiple AWS Account Setup
 
-There are many ways to allow Cartography to pull from more than one AWS account.  We can't cover all of them, but here's one way that works at Lyft.  In this scenario we will assume that you are going to run Cartography on an EC2 instance.
+There are many ways to allow Cartography to pull from more than one AWS account. The recommended pattern is to configure one named AWS profile per account in `~/.aws/config` and run Cartography with `--aws-sync-all-profiles`.
+
+If you want AWS Organizations hierarchy data, include a profile for the Organizations management account or a delegated administrator account. For large environments, pass that account ID with `--aws-organization-account-ids` so Cartography can sync Organizations once without probing every configured profile.
+
+```bash
+cartography \
+  --neo4j-uri bolt://localhost:7687 \
+  --aws-sync-all-profiles \
+  --aws-organization-account-ids 123456789012
+```
+
+If you omit `--aws-organization-account-ids`, Cartography will use `DescribeOrganization` against the configured profiles to find candidate accounts, prefer the management account when it is present, and then try to sync the hierarchy. This fallback is useful for small environments and ad hoc runs, but explicit organization account IDs are more predictable at scale.
+
+In this example, we will assume that you are going to run Cartography on an EC2 instance.
 
 1. Pick one of your AWS accounts to be the "**Hub**" account.  This Hub account will pull data from all of your other accounts - we'll call those "**Spoke**" accounts.
 
@@ -106,6 +123,19 @@ There are many ways to allow Cartography to pull from more than one AWS account.
    - `CARTOGRAPHY_AWS_READ_TIMEOUT`
    Default values and behavior are described in the single-account setup section above. These Cartography env vars control the botocore config objects Cartography builds for AWS clients.
 1. [Optional] Use regional STS endpoints to avoid `InvalidToken` errors when assuming roles across regions. Add `sts_regional_endpoints = regional` to your AWS config file or set the `AWS_STS_REGIONAL_ENDPOINTS=regional` environment variable. [AWS Docs](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html).
+
+### AWS Organizations Behavior
+
+AWS Organizations sync is separate from per-account resource sync. It models the organization, root, organizational units, and account placement before Cartography syncs normal account-scoped resources.
+
+| Configuration | Organizations behavior | Account resource sync |
+|---------------|------------------------|-----------------------|
+| Single-account credentials | Attempts Organizations sync with the current credentials. If the account cannot enumerate the hierarchy, Organizations cleanup is skipped. | Syncs the current account. |
+| `--aws-sync-all-profiles --aws-organization-account-ids <account-id>` | Probes only the specified Organizations sync candidate IDs, groups them by organization, prefers the management account when present, and tries candidates until one syncs each organization. | Syncs each configured profile/account. |
+| `--aws-sync-all-profiles` without organization account IDs | Probes configured profiles with `DescribeOrganization`, groups candidates by organization, prefers the management account when present, and tries candidates until one syncs each organization. | Syncs each configured profile/account. |
+| No usable Organizations-enumerating account | Skips Organizations hierarchy writes and cleanup to preserve prior hierarchy data. | Continues account resource sync. |
+
+AWS's managed `SecurityAudit` policy currently includes `organizations:Describe*` and `organizations:List*`, but the policy alone is not enough for full hierarchy enumeration. AWS Organizations allows `DescribeOrganization` from any member account, while hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and `ListOrganizationalUnitsForParent` require the management account or a delegated administrator account. Cartography only runs Organizations hierarchy cleanup after a complete hierarchy enumeration.
 
 ### Selective Syncing with `--aws-requested-syncs`
 

@@ -56,13 +56,15 @@ gcp_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
                 OntologyFieldMapping(
+                    ontology_field="memory", node_field="available_memory_mb"
+                ),
+                OntologyFieldMapping(ontology_field="timeout", node_field="timeout"),
+                OntologyFieldMapping(
                     ontology_field="deployment_type",
                     node_field="",
                     special_handling="static_value",
                     extra={"value": "code"},
                 ),
-                # memory: not available in GCPCloudFunction
-                # timeout: not available in GCPCloudFunction
             ],
         ),
     ],

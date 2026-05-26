@@ -66,22 +66,34 @@ def test_nist_ai_fact_structure_and_maturity():
 
 def test_nist_ai_framework_requirements():
     inventory_requirements = {
-        fw.requirement for fw in nist_ai_third_party_app_inventory.frameworks
+        fw.requirement
+        for fw in nist_ai_third_party_app_inventory.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
     sensitive_requirements = {
-        fw.requirement for fw in nist_ai_third_party_app_sensitive_scopes.frameworks
+        fw.requirement
+        for fw in nist_ai_third_party_app_sensitive_scopes.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
     admin_requirements = {
-        fw.requirement for fw in nist_ai_admin_ai_app_authorizations.frameworks
+        fw.requirement
+        for fw in nist_ai_admin_ai_app_authorizations.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
     aibom_inventory_requirements = {
-        fw.requirement for fw in nist_ai_aibom_agent_inventory.frameworks
+        fw.requirement
+        for fw in nist_ai_aibom_agent_inventory.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
     aibom_gap_requirements = {
-        fw.requirement for fw in nist_ai_aibom_coverage_gaps.frameworks
+        fw.requirement
+        for fw in nist_ai_aibom_coverage_gaps.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
     provider_requirements = {
-        fw.requirement for fw in nist_ai_provider_api_key_hygiene.frameworks
+        fw.requirement
+        for fw in nist_ai_provider_api_key_hygiene.frameworks
+        if fw.short_name == "nist-ai-rmf"
     }
 
     assert inventory_requirements == {"map 1"}

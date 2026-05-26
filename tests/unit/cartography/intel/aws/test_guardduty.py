@@ -13,8 +13,8 @@ def test_transform_findings():
     findings_data = GET_FINDINGS["Findings"]
     transformed = transform_findings(findings_data)
 
-    # Should transform 3 findings
-    assert len(transformed) == 3
+    # Should transform 4 findings
+    assert len(transformed) == 4
 
     # Expected EC2 Instance finding
     expected_ec2_finding = EXPECTED_TRANSFORM_RESULTS[0]
@@ -24,9 +24,13 @@ def test_transform_findings():
     expected_s3_finding = EXPECTED_TRANSFORM_RESULTS[1]
     assert transformed[1] == expected_s3_finding
 
-    # Expected IAM AccessKey finding
-    expected_iam_finding = EXPECTED_TRANSFORM_RESULTS[2]
-    assert transformed[2] == expected_iam_finding
+    # Expected IAM AccessKey finding (UserType=IAMUser)
+    expected_iam_user_finding = EXPECTED_TRANSFORM_RESULTS[2]
+    assert transformed[2] == expected_iam_user_finding
+
+    # Expected IAM AccessKey finding (UserType=AssumedRole)
+    expected_iam_role_finding = EXPECTED_TRANSFORM_RESULTS[3]
+    assert transformed[3] == expected_iam_role_finding
 
 
 def test_transform_findings_prefers_service_event_fields():

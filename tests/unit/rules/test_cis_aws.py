@@ -26,6 +26,9 @@ from cartography.rules.data.rules.cis_aws_logging import (
 )
 from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_1_1_ebs_encryption
 from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_6_1_2_cifs_restricted,
+)
+from cartography.rules.data.rules.cis_aws_networking import (
     cis_aws_6_3_remote_admin_ipv4,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
@@ -57,6 +60,7 @@ ALL_CIS_AWS_RULES = [
     cis_aws_4_4_cloudtrail_bucket_access_logging,
     cis_aws_4_5_cloudtrail_encryption,
     cis_aws_6_1_1_ebs_encryption,
+    cis_aws_6_1_2_cifs_restricted,
     cis_aws_6_3_remote_admin_ipv4,
     cis_aws_6_4_remote_admin_ipv6,
     cis_aws_6_5_default_sg_traffic,
@@ -92,8 +96,9 @@ class TestCisAwsFrameworkMetadata:
 
     @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
     def test_rule_has_cis_aws_v6_framework(self, rule):
-        assert len(rule.frameworks) == 1
-        fw = rule.frameworks[0]
+        fw = next(
+            fw for fw in rule.frameworks if fw.short_name == "cis" and fw.scope == "aws"
+        )
         assert fw.short_name == "cis"
         assert fw.scope == "aws"
         assert fw.revision == "6.0.0"
@@ -102,6 +107,10 @@ class TestCisAwsFrameworkMetadata:
     def test_rule_matches_cis_aws_filter(self, rule):
         assert rule.has_framework(short_name="CIS", scope="aws")
         assert rule.has_framework(short_name="CIS", scope="aws", revision="6.0.0")
+
+    @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
+    def test_rule_has_iso27001_framework(self, rule):
+        assert rule.has_framework(short_name="27001", revision="2022")
 
 
 class TestCisAwsFactMetadata:
@@ -160,6 +169,7 @@ class TestCisAwsRuleIds:
         "cis_aws_4_4_cloudtrail_bucket_access_logging": "4.4",
         "cis_aws_4_5_cloudtrail_encryption": "4.5",
         "cis_aws_6_1_1_ebs_encryption": "6.1.1",
+        "cis_aws_6_1_2_cifs_restricted": "6.1.2",
         "cis_aws_6_3_remote_admin_ipv4": "6.3",
         "cis_aws_6_4_remote_admin_ipv6": "6.4",
         "cis_aws_6_5_default_sg_traffic": "6.5",
@@ -175,5 +185,41 @@ class TestCisAwsRuleIds:
     def test_rule_id_matches_framework_requirement(self, rule):
         expected_requirement = self.EXPECTED_RULES.get(rule.id)
         assert expected_requirement is not None, f"Unknown rule {rule.id}"
-        fw = rule.frameworks[0]
+        fw = next(
+            fw for fw in rule.frameworks if fw.short_name == "cis" and fw.scope == "aws"
+        )
         assert fw.requirement == expected_requirement
+
+
+class TestIso27001AwsMappings:
+    """Test that batch 1 AWS rules have expected ISO 27001 Annex A mappings."""
+
+    EXPECTED_REQUIREMENTS = {
+        "cis_aws_2_11_unused_credentials": {"5.18"},
+        "cis_aws_2_12_multiple_access_keys": {"5.17"},
+        "cis_aws_2_13_access_key_not_rotated": {"5.17"},
+        "cis_aws_2_14_user_direct_policies": {"5.18"},
+        "cis_aws_2_18_expired_certificates": {"8.24"},
+        "cis_aws_3_1_2_s3_mfa_delete": {"8.10"},
+        "cis_aws_3_1_4_s3_block_public_access": {"8.3"},
+        "cis_aws_3_2_1_rds_encryption": {"8.24"},
+        "cis_aws_4_1_cloudtrail_multi_region": {"8.15", "8.16"},
+        "cis_aws_4_2_cloudtrail_log_validation": {"8.15"},
+        "cis_aws_4_4_cloudtrail_bucket_access_logging": {"8.15"},
+        "cis_aws_4_5_cloudtrail_encryption": {"8.24"},
+        "cis_aws_6_1_1_ebs_encryption": {"8.24"},
+        "cis_aws_6_1_2_cifs_restricted": {"8.20"},
+        "cis_aws_6_3_remote_admin_ipv4": {"8.20"},
+        "cis_aws_6_4_remote_admin_ipv6": {"8.20"},
+        "cis_aws_6_5_default_sg_traffic": {"8.20", "8.22"},
+        "cis_aws_6_7_ec2_imdsv2": {"8.9"},
+    }
+
+    @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
+    def test_iso27001_requirements(self, rule):
+        actual = {
+            fw.requirement
+            for fw in rule.frameworks
+            if fw.short_name == "27001" and fw.revision == "2022"
+        }
+        assert actual == self.EXPECTED_REQUIREMENTS[rule.id]

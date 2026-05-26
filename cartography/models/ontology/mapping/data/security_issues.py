@@ -97,6 +97,38 @@ semgrep_mapping = OntologyMapping(
     ],
 )
 
+socketdev_mapping = OntologyMapping(
+    module_name="socketdev",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SocketDevAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="type",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="created_at",
+                ),
+            ],
+        ),
+    ],
+)
+
 azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
@@ -116,5 +148,6 @@ azure_mapping = OntologyMapping(
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
+    "socketdev": socketdev_mapping,
     "azure": azure_mapping,
 }

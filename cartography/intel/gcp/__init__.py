@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import namedtuple
 from typing import Dict
@@ -40,6 +39,7 @@ from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
+from cartography.intel.gcp import workload_identity
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
@@ -51,7 +51,9 @@ from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import parse_and_validate_gcp_requested_syncs
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
 from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
 from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
@@ -125,15 +127,19 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
             )
         return services
     except HttpError as http_error:
-        http_error = json.loads(http_error.content.decode("utf-8"))
+        category = classify_gcp_http_error(http_error)
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
         # audit (e.g. adding a script to a Google spreadsheet causes a project to get created) and we don't need to emit
         # a warning for these projects.
         logger.info(
-            f"HttpError when trying to get enabled services on project {project_id}. "
-            f"Code: {http_error['error']['code']}, Message: {http_error['error']['message']}. "
-            f"Skipping.",
+            "HttpError when trying to get enabled services on project %s (%s). %s Skipping.",
+            project_id,
+            category,
+            summarize_gcp_http_error(http_error),
         )
+        # Returning an empty set here is intentional: callers treat the project as
+        # having no visible enabled services, which preserves current-state semantics
+        # without surfacing noisy access errors for Google-managed projects.
         return set()
 
 
@@ -282,6 +288,14 @@ def _sync_project_resources(
                 iam.build_role_permissions_by_name(project_roles)
             )
             iam_sync_succeeded = True
+
+            workload_identity.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
             kms_cred = build_client("cloudkms", "v1", credentials=credentials)
@@ -325,14 +339,20 @@ def _sync_project_resources(
                 )
                 iam_sync_succeeded = True
             except HttpError as e:
-                if e.resp.status == 403:
+                category = classify_gcp_http_error(e)
+                status = getattr(e.resp, "status", None)
+                if category in ("forbidden", "api_disabled") or (
+                    category == "transient" and status == 403
+                ):
                     logger.warning(
                         "CAI fallback skipped for project %s: %s. "
                         "Ensure Cloud Asset API is enabled and roles/cloudasset.viewer is granted.",
                         project_id,
-                        e.reason,
+                        summarize_gcp_http_error(e),
                     )
-                    # iam_sync_succeeded stays False - don't run cleanup for this project
+                    # Skipping the fallback is intentional: if we cannot see IAM data
+                    # via CAI, we must leave iam_sync_succeeded=False so cleanup does
+                    # not delete previously ingested IAM resources for this project.
                 else:
                     raise
         if service_names.bigtable in enabled_services:
@@ -842,6 +862,15 @@ def start_gcp_ingestion(
     # Track org cleanup jobs to run at the very end
     org_cleanup_jobs = []
 
+    # Track policy-binding sync state across the org loop to guard analysis jobs
+    # that depend on fresh APPLIES_TO edges. The projection runs only if at least
+    # one org's policy bindings actually synced (`any_policy_bindings_synced`) AND
+    # no org's sync failed (`policy_bindings_sync_failed` stays False). An empty
+    # orgs list, a sync that never reaches a successful project, or any failure
+    # along the way leaves the gate closed.
+    any_policy_bindings_synced = False
+    policy_bindings_sync_failed = False
+
     # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
     for org in orgs:
         org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
@@ -908,6 +937,10 @@ def start_gcp_ingestion(
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
         )
+        if project_resources_result.policy_bindings_cleanup_safe:
+            any_policy_bindings_synced = True
+        else:
+            policy_bindings_sync_failed = True
         if project_resources_result.policy_bindings_cleanup_safe:
             policy_bindings.cleanup_inherited_policy_bindings(
                 neo4j_session,
@@ -1013,4 +1046,30 @@ def start_gcp_ingestion(
             "gcp_gke_basic_auth.json",
             neo4j_session,
             common_job_parameters,
+        )
+
+    # Derive `_ont_public` on GCPBucket from ACLs (collected at sync time) and
+    # public IAM bindings (collected by the policy_bindings sync). Require storage
+    # to have been requested AND policy_bindings to have actually succeeded for
+    # every org — otherwise APPLIES_TO edges may be stale (cleanup is skipped on
+    # failed binding syncs) and would yield false `_ont_public` values.
+    storage_requested = requested_syncs is None or "storage" in requested_syncs
+    policy_bindings_requested = (
+        requested_syncs is None or "policy_bindings" in requested_syncs
+    )
+    policy_bindings_fully_synced = (
+        any_policy_bindings_synced and not policy_bindings_sync_failed
+    )
+    if storage_requested and policy_bindings_requested and policy_bindings_fully_synced:
+        run_analysis_job(
+            "gcp_bucket_public_projection.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+    elif storage_requested and policy_bindings_requested:
+        logger.warning(
+            "Skipping GCP bucket _ont_public projection because policy bindings "
+            "sync did not succeed for every org (or no orgs were discovered). "
+            "Existing _ont_public values remain in place to avoid acting on "
+            "stale APPLIES_TO edges."
         )

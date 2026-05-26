@@ -21,9 +21,12 @@ anthropic_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="created_at", node_field="created_at"
                 ),
-                OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="last_used_at"
-                ),
+                # last_used_at: Not available - the Anthropic Admin API
+                # (GET /v1/organizations/api_keys) does not return a
+                # last_used_at field for API keys.
+                # expires_at: Available upstream but not currently ingested
+                # on AnthropicApiKey; add the property to the schema and map
+                # it here when needed.
             ],
         ),
     ],
@@ -143,6 +146,26 @@ aws_mapping = OntologyMapping(
     ],
 )
 
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPServiceAccountKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="valid_after_time"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="valid_before_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
     "openai": openai_mapping,
@@ -150,4 +173,5 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "workos": workos_apikeys_mapping,
     "subimage": subimage_mapping,
     "aws": aws_mapping,
+    "gcp": gcp_mapping,
 }

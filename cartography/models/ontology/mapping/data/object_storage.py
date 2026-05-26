@@ -52,15 +52,21 @@ gcp_mapping = OntologyMapping(
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # GCS encrypts every bucket at rest by default; `default_kms_key_name`
+                # is set only for CMEK buckets, so use a static value rather than
+                # mistakenly reporting Google-managed-key buckets as unencrypted.
                 OntologyFieldMapping(
                     ontology_field="encrypted",
-                    node_field="default_kms_key_name",
-                    special_handling="to_boolean",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
                 ),
                 OntologyFieldMapping(
                     ontology_field="versioning", node_field="versioning_enabled"
                 ),
-                # _ont_public: Not directly available in GCPBucket (uses IAM policies)
+                # _ont_public is derived from ACLs + IAM policy bindings by the
+                # `gcp_bucket_public_projection.json` analysis job — not from a
+                # single bucket field.
             ],
         ),
     ],
