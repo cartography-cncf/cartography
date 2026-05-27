@@ -25,15 +25,33 @@ def concurrent_execution(
     access_token: str,
     common_job_parameters: Dict,
 ):
-    logger.info(f"BEGIN processing for service: {service}")
-    service_func(
-        neo4j_session,
-        common_job_parameters["GITLAB_GROUP_ID"],
-        access_token,
-        common_job_parameters,
-        group_name,
-    )
-    logger.info(f"END processing for service: {service}")
+    tic = time.perf_counter()
+    _status = "success"
+    _err: Dict = {}
+    try:
+        service_func(
+            neo4j_session,
+            common_job_parameters["GITLAB_GROUP_ID"],
+            access_token,
+            common_job_parameters,
+            group_name,
+        )
+    except Exception as e:
+        _status = "error"
+        _err = {"error_type": type(e).__name__, "error_message": str(e)}
+        logger.warning(f"error processing service {service} group={group_name} — {e}")
+    finally:
+        _ev: Dict = {
+            "event": "gitlab_service_timing",
+            "group": group_name,
+            "service": service,
+            "run_mode": "parallel",
+            "duration_seconds": round(time.perf_counter() - tic, 4),
+            "status": _status,
+        }
+        if _err:
+            _ev.update(_err)
+        logger.info(json.dumps(_ev))
 
 
 def _sync_one_gitlab_group(

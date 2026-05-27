@@ -22,18 +22,36 @@ logger = logging.getLogger(__name__)
 def concurrent_execution(
     service: str, service_func: Any, config: Config, workspace_name: str, access_token: str, common_job_parameters: Dict,
 ) -> None:
-    logger.info(f"BEGIN processing for service: {service}")
-    neo4j_auth = (config.neo4j_user, config.neo4j_password)
-    neo4j_driver = GraphDatabase.driver(
-        config.neo4j_uri,
-        auth=neo4j_auth,
-        max_connection_lifetime=config.neo4j_max_connection_lifetime,
-    )
-    service_func(
-        Session(neo4j_driver), workspace_name, access_token,
-        common_job_parameters,
-    )
-    logger.info(f"END processing for service: {service}")
+    tic = time.perf_counter()
+    _status = "success"
+    _err: Dict = {}
+    try:
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        neo4j_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
+        service_func(
+            Session(neo4j_driver), workspace_name, access_token,
+            common_job_parameters,
+        )
+    except Exception as e:
+        _status = "error"
+        _err = {"error_type": type(e).__name__, "error_message": str(e)}
+        logger.warning(f"error processing service {service} workspace={workspace_name} — {e}")
+    finally:
+        _ev: Dict = {
+            "event": "bitbucket_service_timing",
+            "workspace": workspace_name,
+            "service": service,
+            "run_mode": "parallel",
+            "duration_seconds": round(time.perf_counter() - tic, 4),
+            "status": _status,
+        }
+        if _err:
+            _ev.update(_err)
+        logger.info(json.dumps(_ev))
 
 
 def _sync_one_workspace(

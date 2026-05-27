@@ -387,4 +387,8 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, list(oci_accounts.values())[0], tenancy_id, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-        logger.info("oci tenancy=%s: full ingestion done in %.4fs", tenancy_id, time.perf_counter() - _ingestion_tic)
+        logger.info(json.dumps({
+            "event": "oci_tenancy_timing_summary",
+            "tenancy": tenancy_id,
+            "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+        }))
