@@ -12,7 +12,7 @@ from cartography.client.core.tx import _is_retryable_client_error
 from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
-from cartography.client.core.tx import load_matchlinks_cross_product
+from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -33,7 +33,7 @@ class BulkAccessRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductRel(CartographyRelSchema):
+class PrincipalToS3BucketCartesianProductRel(CartographyRelSchema):
     source_node_label: str = "AWSPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"principal_arn": PropertyRef("principal_arn")},
@@ -57,8 +57,8 @@ def _create_client_error(
     return exc
 
 
-def _cross_product_rel_schema() -> PrincipalToS3BucketCrossProductRel:
-    return PrincipalToS3BucketCrossProductRel()
+def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
+    return PrincipalToS3BucketCartesianProductRel()
 
 
 # Tests for _is_retryable_client_error
@@ -305,16 +305,16 @@ def test_execute_write_with_retry_calls_run_with_retry(mock_run_with_retry):
     )
 
 
-def test_load_matchlinks_cross_product_empty_input_short_circuits():
+def test_load_matchlinks_cartesian_product_empty_input_short_circuits():
     # Arrange
-    rel_schema = _cross_product_rel_schema()
+    rel_schema = _cartesian_product_rel_schema()
     mock_session = MagicMock()
 
     # Act
     with patch(
         "cartography.client.core.tx.ensure_indexes_for_matchlinks"
     ) as mock_ensure:
-        result = load_matchlinks_cross_product(
+        result = load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             [],
@@ -326,14 +326,14 @@ def test_load_matchlinks_cross_product_empty_input_short_circuits():
     mock_ensure.assert_not_called()
 
 
-def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
+def test_load_matchlinks_cartesian_product_rejects_invalid_batch_sizes():
     # Arrange
-    rel_schema = _cross_product_rel_schema()
+    rel_schema = _cartesian_product_rel_schema()
     mock_session = MagicMock()
 
     # Act and assert
     with pytest.raises(ValueError, match="source_batch_size must be greater than 0"):
-        load_matchlinks_cross_product(
+        load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1"],
@@ -346,7 +346,7 @@ def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
 
     # Act and assert
     with pytest.raises(ValueError, match="target_batch_size must be greater than 0"):
-        load_matchlinks_cross_product(
+        load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1"],
@@ -358,16 +358,16 @@ def test_load_matchlinks_cross_product_rejects_invalid_batch_sizes():
         )
 
 
-def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
+def test_load_matchlinks_cartesian_product_requires_cleanup_kwargs():
     # Arrange
-    rel_schema = _cross_product_rel_schema()
+    rel_schema = _cartesian_product_rel_schema()
     mock_session = MagicMock()
 
     # Act and assert
     with pytest.raises(
         ValueError, match="Required kwarg '_sub_resource_label' not provided"
     ):
-        load_matchlinks_cross_product(
+        load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1"],
@@ -380,7 +380,7 @@ def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
     with pytest.raises(
         ValueError, match="Required kwarg '_sub_resource_id' not provided"
     ):
-        load_matchlinks_cross_product(
+        load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1"],
@@ -390,9 +390,9 @@ def test_load_matchlinks_cross_product_requires_cleanup_kwargs():
         )
 
 
-def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
+def test_load_matchlinks_cartesian_product_batches_and_records_metrics(caplog):
     # Arrange
-    rel_schema = _cross_product_rel_schema()
+    rel_schema = _cartesian_product_rel_schema()
     mock_session = MagicMock()
 
     def fake_execute_write(_session, _tx_func, _query, **kwargs):
@@ -404,7 +404,7 @@ def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
             "cartography.client.core.tx.ensure_indexes_for_matchlinks"
         ) as mock_ensure,
         patch(
-            "cartography.client.core.tx.build_matchlink_cross_product_query",
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
             return_value="QUERY",
         ) as mock_build_query,
         patch(
@@ -414,7 +414,7 @@ def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
         patch("cartography.client.core.tx.stat_handler") as mock_stat_handler,
         caplog.at_level("INFO"),
     ):
-        result = load_matchlinks_cross_product(
+        result = load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1", "principal-2", "principal-1", "principal-3"],
@@ -450,23 +450,23 @@ def test_load_matchlinks_cross_product_batches_and_records_metrics(caplog):
     )
 
 
-def test_load_matchlinks_cross_product_warns_when_nodes_do_not_match(caplog):
+def test_load_matchlinks_cartesian_product_warns_when_nodes_do_not_match(caplog):
     # Arrange
-    rel_schema = _cross_product_rel_schema()
+    rel_schema = _cartesian_product_rel_schema()
     mock_session = MagicMock()
 
     # Act
     with (
         patch("cartography.client.core.tx.ensure_indexes_for_matchlinks"),
         patch(
-            "cartography.client.core.tx.build_matchlink_cross_product_query",
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
             return_value="QUERY",
         ),
         patch("cartography.client.core.tx.execute_write_with_retry", return_value=3),
         patch("cartography.client.core.tx.stat_handler"),
         caplog.at_level("WARNING"),
     ):
-        result = load_matchlinks_cross_product(
+        result = load_matchlinks_cartesian_product(
             mock_session,
             rel_schema,
             ["principal-1", "principal-2"],
@@ -483,6 +483,45 @@ def test_load_matchlinks_cross_product_warns_when_nodes_do_not_match(caplog):
         r
         for r in caplog.records
         if "Some source or target nodes were not matched" in r.message
+    ]
+    assert len(warning_records) == 1
+
+
+def test_load_matchlinks_cartesian_product_warns_when_matcher_values_are_not_unique(
+    caplog,
+):
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act
+    with (
+        patch("cartography.client.core.tx.ensure_indexes_for_matchlinks"),
+        patch(
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
+            return_value="QUERY",
+        ),
+        patch("cartography.client.core.tx.execute_write_with_retry", return_value=5),
+        patch("cartography.client.core.tx.stat_handler"),
+        caplog.at_level("WARNING"),
+    ):
+        result = load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1", "principal-2"],
+            ["bucket-1", "bucket-2"],
+            progress_description="duplicate matcher test",
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+    # Assert
+    assert result == 5
+    warning_records = [
+        r
+        for r in caplog.records
+        if "A matcher key likely resolved to multiple nodes" in r.message
     ]
     assert len(warning_records) == 1
 

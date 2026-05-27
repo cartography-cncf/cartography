@@ -1636,43 +1636,43 @@ def _build_matchlink_endpoint_match(
     )
 
 
-def _validate_matchlink_cross_product_matcher(
+def _validate_matchlink_cartesian_product_matcher(
     matcher_name: str,
     matcher: TargetNodeMatcher | SourceNodeMatcher | None,
 ) -> tuple[str, PropertyRef]:
     if matcher is None:
         raise ValueError(
-            f"build_matchlink_cross_product_query() requires a {matcher_name} matcher."
+            f"build_matchlink_cartesian_product_query() requires a {matcher_name} matcher."
         )
 
     matcher_fields = asdict(matcher)
     if len(matcher_fields) != 1:
         raise ValueError(
-            "build_matchlink_cross_product_query() supports exactly one source matcher key "
+            "build_matchlink_cartesian_product_query() supports exactly one source matcher key "
             "and one target matcher key."
         )
 
     node_property, property_ref = next(iter(matcher_fields.items()))
     if property_ref.ignore_case:
         raise ValueError(
-            "build_matchlink_cross_product_query() does not support ignore_case matchers."
+            "build_matchlink_cartesian_product_query() does not support ignore_case matchers."
         )
     if property_ref.fuzzy_and_ignore_case:
         raise ValueError(
-            "build_matchlink_cross_product_query() does not support fuzzy_and_ignore_case matchers."
+            "build_matchlink_cartesian_product_query() does not support fuzzy_and_ignore_case matchers."
         )
     if property_ref.one_to_many:
         raise ValueError(
-            "build_matchlink_cross_product_query() does not support one_to_many matchers."
+            "build_matchlink_cartesian_product_query() does not support one_to_many matchers."
         )
     return node_property, property_ref
 
 
-def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str:
+def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) -> str:
     """
     Generate a query that links every matched source node to every matched target.
 
-    This is the querybuilder companion to ``load_matchlinks_cross_product()``.
+    This is the querybuilder companion to ``load_matchlinks_cartesian_product()``.
     It intentionally supports only the simple MatchLink shape where each
     endpoint is matched by one exact property and relationship properties are
     supplied from query kwargs. Row-specific relationship properties belong on
@@ -1692,19 +1692,19 @@ def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str
     if not rel_schema.source_node_label:
         raise ValueError(
             f"No source node label found for {rel_schema.rel_label}. "
-            "MatchLink cross-product relationships require a source_node_label."
+            "MatchLink Cartesian product relationships require a source_node_label."
         )
 
     if rel_schema.source_node_sub_resource or rel_schema.target_node_sub_resource:
         raise ValueError(
-            "build_matchlink_cross_product_query() does not support endpoint sub-resource matchers."
+            "build_matchlink_cartesian_product_query() does not support endpoint sub-resource matchers."
         )
 
-    source_node_property, _ = _validate_matchlink_cross_product_matcher(
+    source_node_property, _ = _validate_matchlink_cartesian_product_matcher(
         "source node",
         rel_schema.source_node_matcher,
     )
-    target_node_property, _ = _validate_matchlink_cross_product_matcher(
+    target_node_property, _ = _validate_matchlink_cartesian_product_matcher(
         "target node",
         rel_schema.target_node_matcher,
     )
@@ -1723,7 +1723,7 @@ def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str
     for rel_property, property_ref in rel_props_as_dict.items():
         if not property_ref.set_in_kwargs:
             raise ValueError(
-                "build_matchlink_cross_product_query() only supports relationship properties "
+                "build_matchlink_cartesian_product_query() only supports relationship properties "
                 f"set from kwargs. Unsupported property: {rel_property}."
             )
 
@@ -1734,7 +1734,7 @@ def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str
     else:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
-    matchlink_cross_product_query_template = Template(
+    matchlink_cartesian_product_query_template = Template(
         """
         UNWIND $SourceValues AS source_value
             MATCH (from:$source_node_label{$source_node_property: source_value})
@@ -1753,7 +1753,7 @@ def build_matchlink_cross_product_query(rel_schema: CartographyRelSchema) -> str
         """,
     )
 
-    return matchlink_cross_product_query_template.safe_substitute(
+    return matchlink_cartesian_product_query_template.safe_substitute(
         source_node_label=rel_schema.source_node_label,
         source_node_property=source_node_property,
         target_node_label=rel_schema.target_node_label,

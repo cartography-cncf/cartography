@@ -28,8 +28,8 @@ class IAMAccessRelProps(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class IAMCrossProductAccessRelProps(CartographyRelProperties):
-    """Relationship properties for MatchLink cross-product tests."""
+class IAMCartesianProductAccessRelProps(CartographyRelProperties):
+    """Relationship properties for MatchLink Cartesian product tests."""
 
     lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
@@ -60,8 +60,8 @@ class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductPermissionRel(CartographyRelSchema):
-    """Test relationship schema for bulk cross-product MatchLinks."""
+class PrincipalToS3BucketCartesianProductPermissionRel(CartographyRelSchema):
+    """Test relationship schema for bulk Cartesian product MatchLinks."""
 
     source_node_label: str = "AWSPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -77,14 +77,14 @@ class PrincipalToS3BucketCrossProductPermissionRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_BULK_ACCESS"
-    properties: IAMCrossProductAccessRelProps = IAMCrossProductAccessRelProps()
+    properties: IAMCartesianProductAccessRelProps = IAMCartesianProductAccessRelProps()
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductInwardPermissionRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductInwardPermissionRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
-    """Test relationship schema for inward bulk cross-product MatchLinks."""
+    """Test relationship schema for inward bulk Cartesian product MatchLinks."""
 
     direction: LinkDirection = LinkDirection.INWARD
 

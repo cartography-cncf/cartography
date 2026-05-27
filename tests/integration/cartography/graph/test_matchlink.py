@@ -8,10 +8,10 @@ import neo4j
 import pytest
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import load_matchlinks_cross_product
+from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.graph.job import GraphJob
 from tests.data.graph.matchlink.iam_permissions import (
-    PrincipalToS3BucketCrossProductPermissionRel,
+    PrincipalToS3BucketCartesianProductPermissionRel,
 )
 from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
 from tests.data.graph.matchlink.iam_permissions import (
@@ -271,13 +271,13 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
     )
 
 
-def test_load_matchlinks_cross_product_and_cleanup_integration(neo4j_session):
+def test_load_matchlinks_cartesian_product_and_cleanup_integration(neo4j_session):
     # Arrange
-    matchlink = PrincipalToS3BucketCrossProductPermissionRel()
+    matchlink = PrincipalToS3BucketCartesianProductPermissionRel()
     _setup_test_data(neo4j_session, TEST_UPDATE_TAG_1)
 
     # Act
-    rel_count = load_matchlinks_cross_product(
+    rel_count = load_matchlinks_cartesian_product(
         neo4j_session,
         matchlink,
         [
@@ -317,7 +317,7 @@ def test_load_matchlinks_cross_product_and_cleanup_integration(neo4j_session):
     }
 
     # Act
-    load_matchlinks_cross_product(
+    load_matchlinks_cartesian_product(
         neo4j_session,
         matchlink,
         ["arn:aws:iam::9876:role/Admin"],

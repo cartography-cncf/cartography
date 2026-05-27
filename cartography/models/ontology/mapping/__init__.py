@@ -35,6 +35,7 @@ from cartography.models.ontology.mapping.data.containerregistries import (
 from cartography.models.ontology.mapping.data.containers import (
     CONTAINER_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
@@ -139,6 +140,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,
     "certificates": CERTIFICATES_ONTOLOGY_MAPPING,
+    "cves": CVES_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
