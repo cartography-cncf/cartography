@@ -11,7 +11,7 @@ import pytest
 
 from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
-from cartography.graph.querybuilder import build_matchlink_cross_product_query
+from cartography.graph.querybuilder import build_matchlink_cartesian_product_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import LinkDirection
@@ -21,10 +21,10 @@ from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from tests.data.graph.matchlink.iam_permissions import (
-    PrincipalToS3BucketCrossProductInwardPermissionRel,
+    PrincipalToS3BucketCartesianProductInwardPermissionRel,
 )
 from tests.data.graph.matchlink.iam_permissions import (
-    PrincipalToS3BucketCrossProductPermissionRel,
+    PrincipalToS3BucketCartesianProductPermissionRel,
 )
 from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
 from tests.data.graph.matchlink.iam_permissions import (
@@ -48,8 +48,8 @@ from tests.unit.cartography.graph.helpers import (
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductMultiSourceMatcherRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductMultiSourceMatcherRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {
@@ -60,8 +60,8 @@ class PrincipalToS3BucketCrossProductMultiSourceMatcherRel(
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductOneToManyTargetMatcherRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductOneToManyTargetMatcherRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -71,8 +71,8 @@ class PrincipalToS3BucketCrossProductOneToManyTargetMatcherRel(
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductIgnoreCaseTargetMatcherRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductIgnoreCaseTargetMatcherRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -82,8 +82,8 @@ class PrincipalToS3BucketCrossProductIgnoreCaseTargetMatcherRel(
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductFuzzyTargetMatcherRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductFuzzyTargetMatcherRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -93,8 +93,8 @@ class PrincipalToS3BucketCrossProductFuzzyTargetMatcherRel(
 
 
 @dataclass(frozen=True)
-class PrincipalToS3BucketCrossProductSourceScopedRel(
-    PrincipalToS3BucketCrossProductPermissionRel
+class PrincipalToS3BucketCartesianProductSourceScopedRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
 ):
     source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
         target_node_label="AWSAccount",
@@ -136,12 +136,12 @@ def test_build_matchlink_query(_mock_get_cartography_version):
 
 
 @patch("cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16")
-def test_build_matchlink_cross_product_query(_mock_get_cartography_version):
+def test_build_matchlink_cartesian_product_query(_mock_get_cartography_version):
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductPermissionRel()
+    rel_schema = PrincipalToS3BucketCartesianProductPermissionRel()
 
     # Act
-    link_query = build_matchlink_cross_product_query(rel_schema)
+    link_query = build_matchlink_cartesian_product_query(rel_schema)
 
     # Assert
     expected = """
@@ -168,72 +168,72 @@ def test_build_matchlink_cross_product_query(_mock_get_cartography_version):
 
 
 @patch("cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16")
-def test_build_matchlink_cross_product_query_inward_direction(
+def test_build_matchlink_cartesian_product_query_inward_direction(
     _mock_get_cartography_version,
 ):
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductInwardPermissionRel()
+    rel_schema = PrincipalToS3BucketCartesianProductInwardPermissionRel()
 
     # Act
-    link_query = build_matchlink_cross_product_query(rel_schema)
+    link_query = build_matchlink_cartesian_product_query(rel_schema)
 
     # Assert
     assert "MERGE (from)<-[r:CAN_BULK_ACCESS]-(to)" in link_query
     assert "RETURN count(r) AS rel_count" in link_query
 
 
-def test_build_matchlink_cross_product_query_rejects_multiple_matcher_keys():
+def test_build_matchlink_cartesian_product_query_rejects_multiple_matcher_keys():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductMultiSourceMatcherRel()
+    rel_schema = PrincipalToS3BucketCartesianProductMultiSourceMatcherRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="exactly one source matcher key"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
-def test_build_matchlink_cross_product_query_rejects_one_to_many_matcher():
+def test_build_matchlink_cartesian_product_query_rejects_one_to_many_matcher():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductOneToManyTargetMatcherRel()
+    rel_schema = PrincipalToS3BucketCartesianProductOneToManyTargetMatcherRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="one_to_many"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
-def test_build_matchlink_cross_product_query_rejects_ignore_case_matcher():
+def test_build_matchlink_cartesian_product_query_rejects_ignore_case_matcher():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductIgnoreCaseTargetMatcherRel()
+    rel_schema = PrincipalToS3BucketCartesianProductIgnoreCaseTargetMatcherRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="ignore_case"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
-def test_build_matchlink_cross_product_query_rejects_fuzzy_matcher():
+def test_build_matchlink_cartesian_product_query_rejects_fuzzy_matcher():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductFuzzyTargetMatcherRel()
+    rel_schema = PrincipalToS3BucketCartesianProductFuzzyTargetMatcherRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="fuzzy_and_ignore_case"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
-def test_build_matchlink_cross_product_query_rejects_endpoint_sub_resource():
+def test_build_matchlink_cartesian_product_query_rejects_endpoint_sub_resource():
     # Arrange
-    rel_schema = PrincipalToS3BucketCrossProductSourceScopedRel()
+    rel_schema = PrincipalToS3BucketCartesianProductSourceScopedRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="endpoint sub-resource"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
-def test_build_matchlink_cross_product_query_rejects_row_relationship_properties():
+def test_build_matchlink_cartesian_product_query_rejects_row_relationship_properties():
     # Arrange
     rel_schema = PrincipalToS3BucketPermissionRel()
 
     # Act and assert
     with pytest.raises(ValueError, match="relationship properties set from kwargs"):
-        build_matchlink_cross_product_query(rel_schema)
+        build_matchlink_cartesian_product_query(rel_schema)
 
 
 @patch("cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16")

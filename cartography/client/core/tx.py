@@ -18,7 +18,7 @@ from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
-from cartography.graph.querybuilder import build_matchlink_cross_product_query
+from cartography.graph.querybuilder import build_matchlink_cartesian_product_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.helpers import backoff_handler
 from cartography.helpers import batch
@@ -616,17 +616,17 @@ def write_list_of_dicts_tx(
     tx.run(query, kwargs).consume()
 
 
-def write_matchlink_cross_product_tx(
+def write_matchlink_cartesian_product_tx(
     tx: neo4j.Transaction,
     query: str,
     **kwargs: Any,
 ) -> int:
     """
-    Execute a MatchLink cross-product write and return matched relationships.
+    Execute a MatchLink Cartesian product write and return matched relationships.
 
     The generated query returns ``count(r)`` so callers can log actual matched
-    relationships, which may be lower than attempted pairs when some endpoint
-    nodes are not present in the graph.
+    relationships, which may differ from attempted pairs when endpoint nodes
+    are missing or matcher properties are not unique.
     """
     result: neo4j.BoltStatementResult = tx.run(query, kwargs)
     record = result.single()
@@ -927,7 +927,7 @@ def load_matchlinks(
     )
 
 
-def load_matchlinks_cross_product(
+def load_matchlinks_cartesian_product(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
     source_values: list[Any],
@@ -946,6 +946,11 @@ def load_matchlinks_cross_product(
 
     The function keeps writes serial and splits the source and target value sets
     into bounded chunks, avoiding a large Python-side list of relationship rows.
+    The defaults cap each transaction at up to 100,000 input pairs; tune them
+    down if Neo4j transaction latency or memory pressure is high, and tune them
+    up only after confirming the target database handles larger writes well.
+    Accurate pair accounting assumes each matcher value resolves to at most one
+    source node and at most one target node.
 
     Args:
         neo4j_session: The Neo4j session for database operations.
@@ -992,10 +997,10 @@ def load_matchlinks_cross_product(
         )
 
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
-    matchlink_query = build_matchlink_cross_product_query(rel_schema)
-    logger.debug(f"Matchlink cross-product query: {matchlink_query}")
+    matchlink_query = build_matchlink_cartesian_product_query(rel_schema)
+    logger.debug(f"Matchlink Cartesian product query: {matchlink_query}")
 
-    # Bound both sides of the cross product. This keeps each write transaction
+    # Bound both sides of the Cartesian product. This keeps each write transaction
     # controlled without parallelizing Neo4j writes.
     source_batches = list(batch(unique_source_values, size=source_batch_size))
     target_batches = list(batch(unique_target_values, size=target_batch_size))
@@ -1016,7 +1021,7 @@ def load_matchlinks_cross_product(
             started_at = time.monotonic()
             rel_count = execute_write_with_retry(
                 neo4j_session,
-                write_matchlink_cross_product_tx,
+                write_matchlink_cartesian_product_tx,
                 matchlink_query,
                 SourceValues=source_batch,
                 TargetValues=target_batch,
@@ -1045,6 +1050,14 @@ def load_matchlinks_cross_product(
         logger.warning(
             "Loaded %d relationships for %d attempted %s pairs. Some source or target "
             "nodes were not matched.",
+            relationships_loaded,
+            total_attempted_pairs,
+            description,
+        )
+    elif relationships_loaded > total_attempted_pairs:
+        logger.warning(
+            "Loaded %d relationships for only %d attempted %s pairs. A matcher key "
+            "likely resolved to multiple nodes; relationship counts are unreliable.",
             relationships_loaded,
             total_attempted_pairs,
             description,
