@@ -46,6 +46,14 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
+def _extract_tailscale_device_dns_names(hostnames: list[str]) -> list[str]:
+    return [
+        hostname.lower().rstrip(".")
+        for hostname in hostnames
+        if hostname and hostname.lower().rstrip(".").endswith(".ts.net")
+    ]
+
+
 def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -> str:
 
     def _format_ingress_ports(
@@ -100,6 +108,7 @@ def transform_services(
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
             "load_balancer_dns_names": [],
+            "tailscale_device_dns_names": [],
         }
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
@@ -111,6 +120,11 @@ def transform_services(
                 # Extract DNS names for relationship matching with AWS LoadBalancerV2
                 item["load_balancer_dns_names"] = _extract_load_balancer_dns_names(
                     service.status.load_balancer.ingress
+                )
+                item["tailscale_device_dns_names"] = (
+                    _extract_tailscale_device_dns_names(
+                        item["load_balancer_dns_names"],
+                    )
                 )
 
         # check if pod labels match service selector and add pod_ids to item

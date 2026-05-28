@@ -182,6 +182,39 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
+def _extract_tailscale_operator_metadata(
+    labels: dict[str, str] | None,
+) -> dict[str, Any]:
+    labels = labels or {}
+    parent_type = labels.get("tailscale.com/parent-resource-type")
+    parent_namespace = labels.get("tailscale.com/parent-resource-ns")
+    parent_name = labels.get("tailscale.com/parent-resource")
+
+    if not parent_type or not parent_namespace or not parent_name:
+        return {
+            "tailscale_managed": labels.get("tailscale.com/managed") == "true",
+            "tailscale_parent_resource_type": parent_type,
+            "tailscale_parent_resource_namespace": parent_namespace,
+            "tailscale_parent_resource_name": parent_name,
+            "tailscale_parent_ingress_name": None,
+            "tailscale_parent_service_name": None,
+        }
+
+    normalized_parent_type = parent_type.lower()
+    return {
+        "tailscale_managed": labels.get("tailscale.com/managed") == "true",
+        "tailscale_parent_resource_type": normalized_parent_type,
+        "tailscale_parent_resource_namespace": parent_namespace,
+        "tailscale_parent_resource_name": parent_name,
+        "tailscale_parent_ingress_name": (
+            parent_name if normalized_parent_type == "ingress" else None
+        ),
+        "tailscale_parent_service_name": (
+            parent_name if normalized_parent_type in {"service", "svc"} else None
+        ),
+    }
+
+
 def transform_pods(
     pods: list[V1Pod],
     cluster_name: str,
@@ -195,6 +228,7 @@ def transform_pods(
         containers = _extract_pod_containers(pod, node_arch=node_arch)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
+        tailscale_metadata = _extract_tailscale_operator_metadata(pod.metadata.labels)
         transformed_pods.append(
             {
                 "uid": pod.metadata.uid,
@@ -235,6 +269,7 @@ def transform_pods(
                 ),
                 "architecture_normalized": node_arch,
                 "labels": _format_pod_labels(pod.metadata.labels),
+                **tailscale_metadata,
                 "containers": list(containers.values()),
                 "secret_volume_ids": volume_secrets,
                 "secret_env_ids": env_secrets,

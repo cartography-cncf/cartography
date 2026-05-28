@@ -44,6 +44,12 @@ def test_transform_pods_defaults_service_account_name():
             "node_id": "my-cluster-1/node-a",
             "architecture_normalized": None,
             "labels": "{}",
+            "tailscale_managed": False,
+            "tailscale_parent_resource_type": None,
+            "tailscale_parent_resource_namespace": None,
+            "tailscale_parent_resource_name": None,
+            "tailscale_parent_ingress_name": None,
+            "tailscale_parent_service_name": None,
             "containers": [],
             "secret_volume_ids": [],
             "secret_env_ids": [],
@@ -88,3 +94,37 @@ def test_transform_pods_propagates_node_architecture_to_pod_and_container():
     assert transformed[0]["architecture_normalized"] == "arm64"
     assert transformed[0]["containers"][0]["image_pull_policy"] == "IfNotPresent"
     assert transformed[0]["containers"][0]["architecture_normalized"] == "arm64"
+
+
+def test_transform_pods_extracts_tailscale_operator_service_parent_labels():
+    pod = SimpleNamespace(
+        metadata=SimpleNamespace(
+            uid="pod-3",
+            name="ts-private-gateway-f-nx2j4-0",
+            namespace="tailscale",
+            creation_timestamp=None,
+            deletion_timestamp=None,
+            labels={
+                "tailscale.com/managed": "true",
+                "tailscale.com/parent-resource": "private-gateway",
+                "tailscale.com/parent-resource-ns": "gateway-system",
+                "tailscale.com/parent-resource-type": "svc",
+            },
+        ),
+        spec=SimpleNamespace(
+            containers=[],
+            volumes=[],
+            node_name="node-a",
+            service_account_name="proxies",
+        ),
+        status=SimpleNamespace(phase="Running", container_statuses=[]),
+    )
+
+    [transformed] = transform_pods([pod], "my-cluster-1")
+
+    assert transformed["tailscale_managed"] is True
+    assert transformed["tailscale_parent_resource_type"] == "svc"
+    assert transformed["tailscale_parent_resource_namespace"] == "gateway-system"
+    assert transformed["tailscale_parent_resource_name"] == "private-gateway"
+    assert transformed["tailscale_parent_ingress_name"] is None
+    assert transformed["tailscale_parent_service_name"] == "private-gateway"

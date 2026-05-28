@@ -25,6 +25,7 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
     load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
     load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
     load_balancer_dns_names: PropertyRef = PropertyRef("load_balancer_dns_names")
+    tailscale_device_dns_names: PropertyRef = PropertyRef("tailscale_device_dns_names")
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
@@ -58,48 +59,26 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesServiceToTailscaleEndpointRelProperties(CartographyRelProperties):
+class KubernetesServiceToTailscaleDeviceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    matched_hostname: PropertyRef = PropertyRef("matched_hostname")
-    match_type: PropertyRef = PropertyRef("match_type")
-    source_field: PropertyRef = PropertyRef("source_field")
-
-
-@dataclass(frozen=True)
-# (:KubernetesService)-[:USES_TAILSCALE_SERVICE]->(:TailscaleService)
-class KubernetesServiceToTailscaleServiceRel(CartographyRelSchema):
-    """
-    Schema-visible relationship created by k8s_tailscale_endpoint_linking.json.
-    The analysis job owns hostname normalization and match precedence.
-    """
-
-    target_node_label: str = "TailscaleService"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("tailscale_service_names", one_to_many=True)}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "USES_TAILSCALE_SERVICE"
-    properties: KubernetesServiceToTailscaleEndpointRelProperties = (
-        KubernetesServiceToTailscaleEndpointRelProperties()
-    )
 
 
 @dataclass(frozen=True)
 # (:KubernetesService)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
 class KubernetesServiceToTailscaleDeviceRel(CartographyRelSchema):
     """
-    Schema-visible relationship created by k8s_tailscale_endpoint_linking.json.
-    The analysis job owns hostname normalization and tailnet scoping.
+    Link Tailscale-operator-backed service DNS names to the corresponding
+    Tailscale device when the Tailscale module is also synced.
     """
 
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("tailscale_device_names", one_to_many=True)}
+        {"name": PropertyRef("tailscale_device_dns_names", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_TAILSCALE_DEVICE"
-    properties: KubernetesServiceToTailscaleEndpointRelProperties = (
-        KubernetesServiceToTailscaleEndpointRelProperties()
+    properties: KubernetesServiceToTailscaleDeviceRelProperties = (
+        KubernetesServiceToTailscaleDeviceRelProperties()
     )
 
 
@@ -179,7 +158,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
             KubernetesServiceToLoadBalancerV2Rel(),
-            KubernetesServiceToTailscaleServiceRel(),
             KubernetesServiceToTailscaleDeviceRel(),
         ]
     )

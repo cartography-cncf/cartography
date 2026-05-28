@@ -35,6 +35,22 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     )
     node: PropertyRef = PropertyRef("node")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    tailscale_managed: PropertyRef = PropertyRef("tailscale_managed")
+    tailscale_parent_resource_type: PropertyRef = PropertyRef(
+        "tailscale_parent_resource_type"
+    )
+    tailscale_parent_resource_namespace: PropertyRef = PropertyRef(
+        "tailscale_parent_resource_namespace"
+    )
+    tailscale_parent_resource_name: PropertyRef = PropertyRef(
+        "tailscale_parent_resource_name"
+    )
+    tailscale_parent_ingress_name: PropertyRef = PropertyRef(
+        "tailscale_parent_ingress_name"
+    )
+    tailscale_parent_service_name: PropertyRef = PropertyRef(
+        "tailscale_parent_service_name"
+    )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet", extra_index=True
     )  # Populated by k8s_compute_asset_exposure.json.
@@ -185,6 +201,47 @@ class KubernetesPodToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPodToTailscaleParentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:TAILSCALE_PROXY_FOR]->(:KubernetesIngress)
+class KubernetesPodToTailscaleParentIngressRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesIngress"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("tailscale_parent_resource_namespace"),
+            "name": PropertyRef("tailscale_parent_ingress_name"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAILSCALE_PROXY_FOR"
+    properties: KubernetesPodToTailscaleParentRelProperties = (
+        KubernetesPodToTailscaleParentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:TAILSCALE_PROXY_FOR]->(:KubernetesService)
+class KubernetesPodToTailscaleParentServiceRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("tailscale_parent_resource_namespace"),
+            "name": PropertyRef("tailscale_parent_service_name"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAILSCALE_PROXY_FOR"
+    properties: KubernetesPodToTailscaleParentRelProperties = (
+        KubernetesPodToTailscaleParentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     label: str = "KubernetesPod"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
@@ -200,5 +257,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),
+            KubernetesPodToTailscaleParentIngressRel(),
+            KubernetesPodToTailscaleParentServiceRel(),
         ]
     )
