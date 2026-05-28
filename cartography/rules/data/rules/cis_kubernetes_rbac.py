@@ -117,7 +117,7 @@ class SecretAccessOutput(Finding):
 
     role_name: str | None = None
     role_type: str | None = None
-    verbs: str | None = None
+    verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -735,7 +735,7 @@ class EscalationPermissionsOutput(Finding):
 
     role_name: str | None = None
     role_type: str | None = None
-    dangerous_verbs: str | None = None
+    dangerous_verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
