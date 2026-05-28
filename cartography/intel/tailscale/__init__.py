@@ -69,7 +69,10 @@ def _attach_oauth_refresh(
             return response
         logger.info("Tailscale returned 401; re-minting OAuth bearer and retrying.")
         new_token = _mint_oauth_bearer(
-            api_session, base_url, client_id, client_secret,
+            api_session,
+            base_url,
+            client_id,
+            client_secret,
         )
         api_session.headers["Authorization"] = f"Bearer {new_token}"
         retried = response.request.copy()
