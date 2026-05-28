@@ -14,6 +14,7 @@ from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
+from cartography.intel.kubernetes.tailscale import run_tailscale_endpoint_linking
 from cartography.intel.kubernetes.util import get_k8s_clients
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
@@ -105,11 +106,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
 
-            run_scoped_analysis_job(
-                "k8s_tailscale_endpoint_linking.json",
-                session,
-                common_job_parameters,
-            )
+            run_tailscale_endpoint_linking(session, common_job_parameters)
             run_scoped_analysis_job(
                 "k8s_compute_asset_exposure.json",
                 session,

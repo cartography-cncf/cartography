@@ -6,6 +6,7 @@ from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.ingress import load_ingresses
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.services import load_services
+from cartography.intel.kubernetes.tailscale import run_tailscale_endpoint_linking
 from cartography.util import run_scoped_analysis_job
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -130,8 +131,7 @@ def _load_tailscale_endpoints(neo4j_session) -> None:
 
 
 def _run_tailscale_linking(neo4j_session) -> None:
-    run_scoped_analysis_job(
-        "k8s_tailscale_endpoint_linking.json",
+    run_tailscale_endpoint_linking(
         neo4j_session,
         _common_job_parameters(),
     )
