@@ -67,7 +67,7 @@ CM -- CONTAINS --> CosmosDBMongoDBCollection
 ```
 
 :::{note}
-All entities are linked to an AzureSubscription, these relationships are not represented for readability.
+Most Azure resource entities are linked to an AzureSubscription; these relationships are not represented for readability.
 :::
 
 ### AzureTenant
@@ -87,6 +87,47 @@ Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/re
 - Azure Principal is part of the Azure Account.
     ```cypher
     (AzureTenant)-[RESOURCE]->(AzurePrincipal)
+    ```
+
+- Azure Tenant contains one or more Management Groups.
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureManagementGroup)
+    ```
+
+### AzureManagementGroup
+
+Representation of an [Azure Management Group](https://learn.microsoft.com/en-us/azure/governance/management-groups/overview).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full Azure resource ID for the management group|
+|name| The management group name|
+|displayname| The friendly display name for the management group|
+|tenantid| The Azure Tenant ID that owns the management group|
+|type| The type of the resource (Microsoft.Management/managementGroups)|
+|updatedby| The principal ID that last updated the management group|
+|updatedtime| Timestamp when the management group was last updated|
+|version| The current management group version|
+|parent_tenant_id| The tenant ID when the management group's hierarchy parent is the Azure Tenant|
+|parent_management_group_id| The management group ID when the management group's hierarchy parent is another Azure Management Group|
+
+#### Relationships
+
+- Azure Management Group is part of the Azure Tenant inventory.
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureManagementGroup)
+    ```
+
+- Azure Management Group can have the Azure Tenant as its hierarchy parent.
+    ```cypher
+    (AzureManagementGroup)-[PARENT]->(AzureTenant)
+    ```
+
+- Azure Management Group can have another Azure Management Group as its hierarchy parent.
+    ```cypher
+    (AzureManagementGroup)-[PARENT]->(AzureManagementGroup)
     ```
 
 ### AzurePrincipal
@@ -120,12 +161,18 @@ Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/
 |name | The friendly name that identifies the subscription|
 |path | The full ID for the Subscription|
 |state| Can be one of ``Enabled \| Disabled \| Deleted \| PastDue \| Warned``|
+|parent_management_group_id| The management group ID when the subscription belongs to an Azure Management Group|
 
 #### Relationships
 
 - Azure Tenant contains one or more Subscriptions.
     ```cypher
     (AzureTenant)-[RESOURCE]->(AzureSubscription)
+    ```
+
+- Azure Subscription can belong to an Azure Management Group in the hierarchy.
+    ```cypher
+    (AzureSubscription)-[PARENT]->(AzureManagementGroup)
     ```
 
 ### AzureRoleAssignment

@@ -27,6 +27,7 @@ from . import group_containers
 from . import key_vaults
 from . import load_balancers
 from . import logic_apps
+from . import management_groups
 from . import monitor
 from . import network
 from . import permission_relationships
@@ -305,6 +306,22 @@ def _sync_tenant(
     )
 
 
+def _sync_management_groups(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    logger.info("Syncing Azure management groups for tenant: %s", credentials.tenant_id)
+    management_groups.sync(
+        neo4j_session,
+        credentials,
+        credentials.tenant_id or "",
+        update_tag,
+        common_job_parameters,
+    )
+
+
 def _sync_multiple_subscriptions(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -317,6 +334,7 @@ def _sync_multiple_subscriptions(
 
     subscription.sync(
         neo4j_session,
+        credentials,
         tenant_id,
         subscriptions,
         update_tag,
@@ -376,6 +394,12 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters["TENANT_ID"] = credentials.tenant_id
 
     _sync_tenant(
+        neo4j_session,
+        credentials,
+        config.update_tag,
+        common_job_parameters,
+    )
+    _sync_management_groups(
         neo4j_session,
         credentials,
         config.update_tag,
