@@ -95,11 +95,21 @@ def get_azure_management_group_subscriptions(
             continue
         seen_group_names.add(group_name)
 
-        subscriptions = list(
-            client.management_group_subscriptions.get_subscriptions_under_management_group(
-                group_id=group_name,
+        try:
+            subscriptions = list(
+                client.management_group_subscriptions.get_subscriptions_under_management_group(
+                    group_id=group_name,
+                )
             )
-        )
+        except HttpResponseError as e:
+            logger.warning(
+                "Failed to fetch Azure management-group subscriptions for '%s'. "
+                "Skipping this management group. Details: %s",
+                group_name,
+                e,
+            )
+            continue
+
         results.extend(subscription.as_dict() for subscription in subscriptions)
 
     return results
