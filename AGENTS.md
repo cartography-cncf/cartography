@@ -32,7 +32,7 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 - **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()` -> `analysis` (optional)
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
-- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance)
+- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance). When a job manages relationships, put `MERGE` statements before the stale-edge `DELETE`; iterative deletion exposes a window where concurrent readers see those edges missing. See the `analysis-jobs` skill.
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
@@ -250,30 +250,10 @@ tests/integration/cartography/intel/your_service/
 └── test_entities.py     # Integration tests
 ```
 
-### Test Utilities
+### Tests
 
-```python
-from tests.integration.util import check_nodes, check_rels
-
-# Check nodes
-expected_nodes = {("user-123", "alice@example.com")}
-assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
-
-# Check relationships
-expected_rels = {("user-123", "tenant-123")}
-assert check_rels(
-    neo4j_session,
-    "YourServiceUser", "id",
-    "YourServiceTenant", "id",
-    "RESOURCE",
-    rel_direction_right=True,
-) == expected_rels
-```
-
-### Integration Test Boundary
-
-- Integration tests may seed prerequisite graph state with Cypher, but should exercise real Cartography `sync()` / `sync_*()` flows end-to-end whenever practical.
-- Prefer mocking only external boundaries such as API clients, service discovery, credentials, and network responses; do not mock Cartography internal sync, load, or cleanup functions in integration tests.
+For test-specific guidance, including integration test boundaries, Cypher usage,
+fixtures, and `check_nodes()` / `check_rels()` helpers, see `tests/AGENTS.md`.
 
 ---
 

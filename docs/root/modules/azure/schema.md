@@ -339,6 +339,8 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/compute/disks).
 
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, ScalewayVolume).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -353,6 +355,7 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 |encryption | Specifies whether the disk has encryption enabled |
 |maxshares | Specifies how many machines can share the disk|
 |ostype | The operating system type of the disk|
+|state | The disk lifecycle state (e.g., `Unattached`, `Attached`, `Reserved`)|
 |tier | Performance Tier associated with the disk|
 |sku | The disk sku name|
 |zones | The logical zone list for disk|
@@ -1565,6 +1568,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -1909,6 +1913,7 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
 |provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
 |kubernetes_version| The version of Kubernetes the Cluster is running. |
 |fqdn| The fully qualified domain name of the Cluster's API server. |
+|api_server_public_access| True when the Kubernetes API server is reachable from the public internet. Derived from two independent gates: it is False when either `apiServerAccessProfile.enablePrivateCluster` is true (classic private cluster) or `publicNetworkAccess` is set to `Disabled` (API Server VNet Integration); otherwise True. |
 
 #### Relationships
 
@@ -2021,6 +2026,7 @@ Representation of an individual container within an [Azure Container Group](http
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 ### AzureLoadBalancer

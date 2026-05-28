@@ -26,7 +26,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     )
     host_pid: PropertyRef = PropertyRef("host_pid")
     host_ipc: PropertyRef = PropertyRef("host_ipc")
-    host_network: PropertyRef = PropertyRef("host_network")
+    host_network: PropertyRef = PropertyRef("host_network", extra_index=True)
     seccomp_profile_type: PropertyRef = PropertyRef("seccomp_profile_type")
     host_path_volume_paths: PropertyRef = PropertyRef("host_path_volume_paths")
     labels: PropertyRef = PropertyRef("labels")
@@ -35,6 +35,9 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     )
     node: PropertyRef = PropertyRef("node")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by k8s_compute_asset_exposure.json.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

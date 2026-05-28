@@ -199,6 +199,26 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
         ),
     }
 
+    # Assert - Ontology projection fields populated from raw API payload
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "creation_timestamp", "private_ip", "public_ip"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "2018-02-16T10:42:04.362-08:00",
+            "10.0.0.2",
+            "1.2.3.4",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "2018-04-19T05:24:54.903-07:00",
+            "10.0.0.3",
+            "1.3.4.5",
+        ),
+    }
+
     # Assert - Project to Instance relationship created
     assert check_rels(
         neo4j_session,
@@ -541,6 +561,39 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
             "project-abc",
             "europe-west2",
         ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "10.0.0.30",
+            "project-abc",
+            "europe-west2",
+        ),
+    }
+
+    # Assert - lb_type derived from the target proxy / pool collection
+    assert check_nodes(
+        neo4j_session,
+        "GCPForwardingRule",
+        ["id", "lb_type"],
+    ) == {
+        ("projects/project-abc/global/forwardingRules/global-rule-1", "https"),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+            "network",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
+            "vpn",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+            "network",
+        ),
+        # Backend-service-only forwarding rule (no `target`): lb_type falls back
+        # to the backendService collection => "network" (L4 Network LB family).
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "network",
+        ),
     }
 
 
@@ -620,6 +673,10 @@ def test_sync_gcp_forwarding_rules_with_relationships(
         (
             "projects/project-abc/regions/europe-west2/subnetworks/default",
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
         ),
     }
 

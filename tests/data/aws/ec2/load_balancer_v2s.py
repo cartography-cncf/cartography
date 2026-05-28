@@ -30,6 +30,13 @@ GET_LOAD_BALANCER_V2_DATA = [
                 "Port": 443,
                 "Protocol": "HTTPS",
                 "SslPolicy": "ELBSecurityPolicy-2016-08",
+                "MutualAuthentication": {
+                    "Mode": "verify",
+                    "TrustStoreArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:truststore/test-ts/1111222233334444",
+                    "IgnoreClientCertificateExpiry": False,
+                    "TrustStoreAssociationStatus": "active",
+                    "AdvertiseTrustStoreCaNames": "on",
+                },
             },
             {
                 "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/test-alb/1234567890123456/1234567890abcdef",

@@ -124,6 +124,9 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     canonicalhostedzonenameid: PropertyRef = PropertyRef("CanonicalHostedZoneId")
     type: PropertyRef = PropertyRef("Type")
     scheme: PropertyRef = PropertyRef("Scheme")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by aws_ec2_asset_exposure.json.
     arn: PropertyRef = PropertyRef("LoadBalancerArn", extra_index=True)
     createdtime: PropertyRef = PropertyRef("CreatedTime")
 
@@ -313,6 +316,17 @@ class ELBV2ListenerNodeProperties(CartographyNodeProperties):
     protocol: PropertyRef = PropertyRef("Protocol")
     ssl_policy: PropertyRef = PropertyRef("SslPolicy")
     targetgrouparn: PropertyRef = PropertyRef("TargetGroupArn")
+    mutual_authentication_mode: PropertyRef = PropertyRef("MutualAuthenticationMode")
+    trust_store_arn: PropertyRef = PropertyRef("TrustStoreArn")
+    ignore_client_certificate_expiry: PropertyRef = PropertyRef(
+        "IgnoreClientCertificateExpiry"
+    )
+    trust_store_association_status: PropertyRef = PropertyRef(
+        "TrustStoreAssociationStatus"
+    )
+    advertise_trust_store_ca_names: PropertyRef = PropertyRef(
+        "AdvertiseTrustStoreCaNames"
+    )
 
 
 @dataclass(frozen=True)

@@ -74,6 +74,25 @@ class SemgrepSecretsFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSecretsFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSecretsFinding)-[:FOUND_IN]->(:GitLabProject)
+class SemgrepSecretsFindingToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: SemgrepSecretsFindingToGitLabProjectRelProperties = (
+        SemgrepSecretsFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSecretsFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
@@ -86,5 +105,6 @@ class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepSecretsFindingToGithubRepoRel(),
+            SemgrepSecretsFindingToGitLabProjectRel(),
         ],
     )

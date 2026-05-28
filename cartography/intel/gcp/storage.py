@@ -36,9 +36,28 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
     :return: Storage response object
     """
     try:
-        req = storage.buckets().list(project=project_id)
-        res = gcp_api_execute_with_retry(req)
-        return res
+        # `projection=full` is required to get the `acl` / `defaultObjectAcl`
+        # arrays back; the default `noAcl` projection strips them, which would
+        # leave legacy-ACL public buckets undetectable. With `full`, the API
+        # caps each response at 200 buckets, so we must follow `nextPageToken`
+        # before downstream cleanup runs — otherwise projects with more than
+        # 200 buckets would lose every bucket beyond the first page.
+        items: List[Dict] = []
+        first_response: Dict = {}
+        req = storage.buckets().list(project=project_id, projection="full")
+        while req is not None:
+            res = gcp_api_execute_with_retry(req)
+            if not first_response:
+                first_response = res
+            items.extend(res.get("items", []))
+            req = storage.buckets().list_next(
+                previous_request=req, previous_response=res
+            )
+        # Preserve the first response's shape (kind, selfLink, ...) and replace
+        # items with the fully paginated list so callers see one logical page.
+        first_response["items"] = items
+        first_response.pop("nextPageToken", None)
+        return first_response
     except HttpError as e:
         reason = get_error_reason(e)
         if reason == "invalid":
@@ -70,7 +89,17 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
 
     buckets: List[Dict] = []
     labels: List[Dict] = []
+    public_entities = {"allUsers", "allAuthenticatedUsers"}
     for b in bucket_res.get("items", []):
+        # Legacy bucket / default-object ACLs can expose a bucket publicly without any
+        # IAM binding. Detect either form so the ontology `_ont_public` projection
+        # covers buckets that still rely on ACLs (uniformBucketLevelAccess=false).
+        acl_public = any(
+            entry.get("entity") in public_entities for entry in (b.get("acl") or [])
+        ) or any(
+            entry.get("entity") in public_entities
+            for entry in (b.get("defaultObjectAcl") or [])
+        )
         bucket = {
             "iam_config_bucket_policy_only": (
                 b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
@@ -96,6 +125,7 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
             "default_kms_key_name": b.get("encryption", {}).get("defaultKmsKeyName"),
             "log_bucket": b.get("logging", {}).get("logBucket"),
             "requester_pays": b.get("billing", {}).get("requesterPays"),
+            "acl_public": acl_public,
         }
         buckets.append(bucket)
         for key, val in b.get("labels", {}).items():

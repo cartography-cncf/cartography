@@ -16,7 +16,13 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                # direction: Not applicable (SGs are bidirectional, rules have direction)
+                # direction: intentionally not projected. AWS security groups
+                # are bidirectional containers and almost always carry both
+                # ingress and egress rules at the same time, so a single
+                # direction value at the SG level would be uniformly "BOTH"
+                # and not useful for cross-cloud correlation. Direction lives
+                # on the individual IpPermissionInbound / IpPermissionEgress
+                # rule nodes instead.
             ],
         ),
     ],

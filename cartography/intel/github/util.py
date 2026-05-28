@@ -7,6 +7,9 @@ from datetime import timedelta
 from datetime import timezone as tz
 from typing import Any
 from typing import NamedTuple
+from urllib.parse import quote
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 import requests
 
@@ -383,9 +386,36 @@ def _get_rest_api_base_url(graphql_url: str) -> str:
 
 def rest_api_base_url(api_url: str) -> str:
     """Public wrapper that accepts a REST or GraphQL URL and returns the REST base URL."""
-    if api_url.endswith("/graphql"):
-        return _get_rest_api_base_url(api_url)
-    return api_url.rstrip("/")
+    normalized_url = api_url.rstrip("/")
+    if normalized_url.endswith("/graphql"):
+        return _get_rest_api_base_url(normalized_url)
+    return normalized_url
+
+
+def is_github_dotcom_api_url(api_url: str) -> bool:
+    """Return True when the configured API URL targets public github.com."""
+    return urlsplit(rest_api_base_url(api_url)).netloc == "api.github.com"
+
+
+def github_org_url(api_url: str, organization: str) -> str:
+    """
+    Return the browser URL GitHub GraphQL reports for an organization.
+
+    GitHubOrganization.id is sourced from GraphQL ``organization.url``. REST-only
+    syncs must derive the same value from the configured API URL so GitHub
+    Enterprise resources attach to the correct organization node.
+    """
+    parsed = urlsplit(api_url.rstrip("/"))
+    if parsed.netloc == "api.github.com":
+        return f"https://github.com/{quote(organization, safe='')}"
+
+    path = parsed.path.rstrip("/")
+    for suffix in ("/api/graphql", "/api/v3", "/graphql"):
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    path = f"{path.rstrip('/')}/{quote(organization, safe='')}"
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
 
 def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
@@ -425,6 +455,8 @@ def fetch_all_rest_api_pages(
     result_key: str,
     retries: int = 5,
     raise_on_status: tuple[int, ...] = (),
+    params: dict[str, Any] | None = None,
+    api_version: str = "2022-11-28",
 ) -> list[dict[str, Any]]:
     """
     Fetch all pages from a GitHub REST API endpoint using Link header pagination.
@@ -442,10 +474,13 @@ def fetch_all_rest_api_pages(
                             the caller needs to distinguish "no data" from
                             "missing scope" — for example to skip a cleanup
                             that would otherwise reap previously-synced data.
+    :param params: Optional query parameters to send on the first paginated request.
+    :param api_version: GitHub REST API version header value.
     :return: A list of all items from all pages.
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
+    first_request = True
     retry = 0
 
     while url:
@@ -453,13 +488,19 @@ def fetch_all_rest_api_pages(
         headers = {
             "Authorization": f"Bearer {_resolve_token(token)}",
             "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
+            "X-GitHub-Api-Version": api_version,
         }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)
-            response = requests.get(url, headers=headers, timeout=_TIMEOUT)
+            response = requests.get(
+                url,
+                headers=headers,
+                params=params if first_request else None,
+                timeout=_TIMEOUT,
+            )
             response.raise_for_status()
+            first_request = False
             retry = 0
         except requests.exceptions.Timeout as err:
             retry += 1

@@ -122,11 +122,11 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
     (Package)-[DETECTED_AS]->(SocketDevDependency)
     ```
 
-### SocketDevAlert
+### SocketDevAlert::Risk::SecurityIssue
 
 Represents a security alert from Socket.dev. Alerts cover vulnerabilities (CVE), supply chain risks (malware, typosquatting), quality issues, maintenance concerns, and license violations.
 
-> **Ontology Mapping**: This node has the extra label `Risk` to enable cross-platform queries for security findings across different systems (e.g., TrivyImageFinding, S1AppFinding, AWSInspectorFinding).
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-platform queries for security findings (e.g., TrivyImageFinding, S1AppFinding, AWSInspectorFinding) and for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|-------------|

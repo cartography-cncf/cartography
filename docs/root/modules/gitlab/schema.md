@@ -350,6 +350,9 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 | **name** | Name of the dependency |
 | **version** | Version of the dependency |
 | **package_manager** | Package manager (npm, pip, maven, etc.) |
+| type | Package type derived from the PURL (e.g., `npm`, `pypi`, `maven`) |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`) |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
 
@@ -363,6 +366,12 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
     ```
     (GitLabDependencyFile)-[HAS_DEP]->(GitLabDependency)
+    ```
+
+- A canonical Package (ontology) is detected as a GitLabDependency.
+
+    ```
+    (Package)-[DETECTED_AS]->(GitLabDependency)
     ```
 
 ### GitLabContainerRepository
@@ -910,6 +919,8 @@ Representation of a project's parsed `.gitlab-ci.yml`. When the GitLab
 YAML (all `include:` references expanded by GitLab); otherwise the raw
 `.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
 the two cases.
+
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, SpaceliftStack).
 
 | Field | Description |
 |-------|-------------|
