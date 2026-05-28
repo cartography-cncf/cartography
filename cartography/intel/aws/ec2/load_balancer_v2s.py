@@ -88,8 +88,8 @@ def load_load_balancer_v2s(
     """
     for lb in data:
         region = lb.get('region', '')
-        load_balancer_id = lb.get("DNSName")
         load_balancer_arn = lb["LoadBalancerArn"]
+        load_balancer_id = lb.get("DNSName") or load_balancer_arn
 
         neo4j_session.run(
             ingest_load_balancer_v2,
