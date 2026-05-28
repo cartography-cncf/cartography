@@ -36,7 +36,7 @@ def _mint_oauth_bearer(
             "client_id": client_id,
             "client_secret": client_secret,
         },
-        headers={_REAUTH_HEADER: "1"},
+        headers={_REAUTH_HEADER: "1", "Authorization": None},
         timeout=_OAUTH_TIMEOUT,
     )
     response.raise_for_status()
@@ -75,7 +75,7 @@ def _attach_oauth_refresh(
         retried = response.request.copy()
         retried.headers["Authorization"] = f"Bearer {new_token}"
         retried.headers[_REAUTH_HEADER] = "1"
-        return api_session.send(retried)
+        return api_session.send(retried, **kwargs)
 
     api_session.hooks["response"].append(_refresh_on_unauthorized)
 

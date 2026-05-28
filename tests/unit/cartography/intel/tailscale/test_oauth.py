@@ -45,6 +45,7 @@ def test_mint_oauth_bearer_posts_client_credentials() -> None:
         "client_id": "client-id",
         "client_secret": "client-secret",
     }
+    assert api_session.post.call_args.kwargs["headers"]["Authorization"] is None
     api_session.post.return_value.raise_for_status.assert_called_once()
 
 
@@ -171,13 +172,14 @@ def test_refresh_hook_remints_and_retries_on_401() -> None:
 
         retried = _response(200)
         with patch.object(api_session, "send", return_value=retried) as mock_send:
-            result = hook(_response(401))
+            result = hook(_response(401), timeout=(5, 30), verify=False)
 
         mock_mint.assert_called_once()
         assert result is retried
         sent_req = mock_send.call_args.args[0]
         assert sent_req.headers["Authorization"] == "Bearer fresh-bearer"
         assert sent_req.headers["X-Cartography-Tailscale-Reauth"] == "1"
+        assert mock_send.call_args.kwargs == {"timeout": (5, 30), "verify": False}
         assert api_session.headers["Authorization"] == "Bearer fresh-bearer"
 
 
