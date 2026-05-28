@@ -10,7 +10,7 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import load_matchlinks_cross_product
+from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
@@ -290,7 +290,7 @@ def split_bigquery_table_broad_scope_principals(
 
     Project- and dataset-scope BigQuery grants can apply to every table in a
     project or dataset. Group those principals up front so they can be loaded
-    through the core MatchLink cross-product helper instead of repeatedly
+    through the core MatchLink Cartesian product helper instead of repeatedly
     evaluating the same broad scope for every table.
     """
     project_scope_pattern = f"project/{project_id}/.*"
@@ -347,7 +347,7 @@ def load_bigquery_table_permission_relationships(
     # A broad grant means each principal should link to each table in this
     # scope. The core MatchLink helper performs that expansion in bounded graph
     # batches without constructing every pair as a Python dict first.
-    return load_matchlinks_cross_product(
+    return load_matchlinks_cartesian_product(
         neo4j_session,
         matchlink_schema,
         sorted(principal_emails),

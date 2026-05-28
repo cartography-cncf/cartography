@@ -354,7 +354,7 @@ def test_split_bigquery_table_broad_scope_principals():
     assert set(residual_principals) == {"table-viewer@example.com"}
 
 
-def test_load_bigquery_table_permission_relationships_uses_core_cross_product_loader():
+def test_load_bigquery_table_permission_relationships_uses_core_cartesian_product_loader():
     # Arrange
     matchlink_schema = permission_relationships.GCPPermissionMatchLink(
         source_node_label="GCPPrincipal",
@@ -366,9 +366,9 @@ def test_load_bigquery_table_permission_relationships_uses_core_cross_product_lo
     # Act
     with patch.object(
         permission_relationships,
-        "load_matchlinks_cross_product",
+        "load_matchlinks_cartesian_product",
         return_value=4,
-    ) as mock_load_cross_product:
+    ) as mock_load_cartesian_product:
         loaded_count = (
             permission_relationships.load_bigquery_table_permission_relationships(
                 neo4j_session,
@@ -384,7 +384,7 @@ def test_load_bigquery_table_permission_relationships_uses_core_cross_product_lo
 
     # Assert
     assert loaded_count == 4
-    mock_load_cross_product.assert_called_once_with(
+    mock_load_cartesian_product.assert_called_once_with(
         neo4j_session,
         matchlink_schema,
         ["alice@example.com", "zara@example.com"],
