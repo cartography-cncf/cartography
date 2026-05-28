@@ -22,7 +22,7 @@ from cartography.config import Config
 from cartography.intel.oci.util.common import parse_and_validate_oci_requested_syncs
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
-# from . import network
+from . import network
 # from . import compute
 
 logger = logging.getLogger(__name__)
