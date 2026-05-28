@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 from typing import Any
 from typing import Callable
 
@@ -9,6 +11,7 @@ from neo4j.exceptions import ServiceUnavailable
 from neo4j.exceptions import SessionExpired
 from neo4j.exceptions import TransactionError
 from neo4j.exceptions import TransactionNestingError
+from neo4j.exceptions import TransientError
 from neo4j.exceptions import WriteServiceUnavailable
 
 
@@ -43,13 +46,27 @@ class Session:
     # Core query execution
     # ------------------------------------------------------------------
 
-    def run(self, query: str, parameters: Any = None, **kwparameters: Any) -> Any:
-        try:
-            return self.neo4j_session.run(query, parameters, **kwparameters)
-        except _NEO4J_WRITE_EXCEPTIONS as e:
-            logger.warning(f"Failed run neo4j cypher query. Error - {e}", exc_info=True, stack_info=True)
-        except Exception as e:
-            logger.warning(f"Failed run neo4j cypher query. Error - {e}", exc_info=True, stack_info=True)
+    def run(self, query: str, parameters: Any = None, max_retries: int = 3, **kwparameters: Any) -> Any:
+        for attempt in range(max_retries + 1):
+            try:
+                return self.neo4j_session.run(query, parameters, **kwparameters)
+            except TransientError as e:
+                if attempt < max_retries:
+                    wait = random.uniform(0, min(2 ** attempt, 30))
+                    logger.warning(
+                        "Transient Neo4j error (attempt %d/%d), retrying in %.2fs: %s",
+                        attempt + 1, max_retries, wait, e,
+                    )
+                    time.sleep(wait)
+                else:
+                    logger.error("Transient Neo4j error unresolved after %d retries: %s", max_retries, e)
+                    return self
+            except _NEO4J_WRITE_EXCEPTIONS as e:
+                logger.warning(f"Failed run neo4j cypher query. Error - {e}", exc_info=True, stack_info=True)
+                return self
+            except Exception as e:
+                logger.warning(f"Failed run neo4j cypher query. Error - {e}", exc_info=True, stack_info=True)
+                return self
         return self
 
     # ------------------------------------------------------------------
