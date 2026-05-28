@@ -2,6 +2,8 @@ import enum
 import json
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -255,27 +257,31 @@ def transform_policies_data(current_aws_account_id: str, policies: List[Dict]) -
     return policies
 
 
+def _enrich_one_user(client: Any, user: Dict) -> Dict:
+    try:
+        client.get_login_profile(UserName=user["UserName"])
+        user["consoleLoginEnabled"] = True
+    except client.exceptions.NoSuchEntityException:
+        user["consoleLoginEnabled"] = False
+    except Exception:
+        user["consoleLoginEnabled"] = False
+    try:
+        mfa_devices = client.list_mfa_devices(UserName=user["UserName"])
+        user["MFAEnabled"] = len(mfa_devices.get("MFADevices", [])) > 0
+    except client.exceptions.NoSuchEntityException:
+        user["MFAEnabled"] = False
+    except Exception:
+        user["MFAEnabled"] = False
+    return user
+
+
 @timeit
 def transform_users_data(boto3_session: boto3.session.Session, users: List[Dict]) -> Dict:
     client = boto3_session.client("iam")
-    for user in users:
-        try:
-            client.get_login_profile(UserName=user["UserName"])
-            user["consoleLoginEnabled"] = True
-        except client.exceptions.NoSuchEntityException:
-            user["consoleLoginEnabled"] = False
-        except Exception:
-            user["consoleLoginEnabled"] = False
-        try:
-            mfa_devices = client.list_mfa_devices(UserName=user["UserName"])
-            if len(mfa_devices.get("MFADevices", [])) > 0:
-                user["MFAEnabled"] = True
-            else:
-                user["MFAEnabled"] = False
-        except client.exceptions.NoSuchEntityException:
-            user["MFAEnabled"] = False
-        except Exception:
-            user["MFAEnabled"] = False
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_enrich_one_user, client, user): user for user in users}
+        for future in as_completed(futures):
+            future.result()
     return {"Users": users}
 
 
