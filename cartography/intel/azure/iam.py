@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import random
 import time
 from datetime import datetime
 from typing import Any
@@ -589,7 +590,7 @@ async def get_group_members(
                         f"get_group_members group_id={group_id}: RATE_LIMITED (429) attempt {attempt}/{_GRAPH_MAX_RETRIES}, "
                         f"waiting {retry_after:.0f}s — {e}",
                     )
-                    await asyncio.sleep(retry_after)
+                    await asyncio.sleep(retry_after + random.uniform(0, 3))
                     members_data = []
                     continue
                 else:
@@ -656,7 +657,7 @@ async def sync_tenant_groups(
     )
 
     # Fetch all group members concurrently (bounded) then write sequentially
-    _member_semaphore = asyncio.Semaphore(10)
+    _member_semaphore = asyncio.Semaphore(3)
 
     async def _bounded_get_members(group_id: str) -> List[Dict]:
         async with _member_semaphore:
@@ -1401,7 +1402,7 @@ async def sync_scoped_users_and_groups(
     logger.info(
         f"IAM tenant={tenant_id}: fetching members for {len(scoped_groups)} groups concurrently",
     )
-    _member_semaphore = asyncio.Semaphore(10)
+    _member_semaphore = asyncio.Semaphore(3)
 
     async def _bounded_get_members(group_id: str) -> List[Dict]:
         async with _member_semaphore:
