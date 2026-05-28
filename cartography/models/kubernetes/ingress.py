@@ -123,6 +123,52 @@ class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesIngressToTailscaleEndpointRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    matched_hostname: PropertyRef = PropertyRef("matched_hostname")
+    match_type: PropertyRef = PropertyRef("match_type")
+    source_field: PropertyRef = PropertyRef("source_field")
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_TAILSCALE_SERVICE]->(:TailscaleService)
+class KubernetesIngressToTailscaleServiceRel(CartographyRelSchema):
+    """
+    Schema-visible relationship created by k8s_tailscale_endpoint_linking.json.
+    The analysis job owns hostname normalization and match precedence.
+    """
+
+    target_node_label: str = "TailscaleService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("tailscale_service_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_TAILSCALE_SERVICE"
+    properties: KubernetesIngressToTailscaleEndpointRelProperties = (
+        KubernetesIngressToTailscaleEndpointRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
+class KubernetesIngressToTailscaleDeviceRel(CartographyRelSchema):
+    """
+    Schema-visible relationship created by k8s_tailscale_endpoint_linking.json.
+    The analysis job owns hostname normalization and tailnet scoping.
+    """
+
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("tailscale_device_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_TAILSCALE_DEVICE"
+    properties: KubernetesIngressToTailscaleEndpointRelProperties = (
+        KubernetesIngressToTailscaleEndpointRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesIngressSchema(CartographyNodeSchema):
     label: str = "KubernetesIngress"
     properties: KubernetesIngressNodeProperties = KubernetesIngressNodeProperties()
@@ -134,5 +180,7 @@ class KubernetesIngressSchema(CartographyNodeSchema):
             KubernetesIngressToKubernetesNamespaceRel(),
             KubernetesIngressToKubernetesServiceRel(),
             KubernetesIngressToLoadBalancerV2Rel(),
+            KubernetesIngressToTailscaleServiceRel(),
+            KubernetesIngressToTailscaleDeviceRel(),
         ]
     )

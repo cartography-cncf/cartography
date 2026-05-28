@@ -99,6 +99,7 @@ def transform_services(
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
+            "load_balancer_dns_names": [],
         }
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
