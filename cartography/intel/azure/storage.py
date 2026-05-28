@@ -1,5 +1,6 @@
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -151,14 +152,14 @@ def get_storage_account_details(
     Iterates over all Storage Accounts to get the different storage services.
     """
     for storage_account in storage_account_list:
-        queue_services = get_queue_services(credentials, subscription_id, storage_account)
-        table_services = get_table_services(credentials, subscription_id, storage_account)
-        file_services = get_file_services(credentials, subscription_id, storage_account)
-        blob_services = get_blob_services(credentials, subscription_id, storage_account)
-
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            f_queue = pool.submit(get_queue_services, credentials, subscription_id, storage_account)
+            f_table = pool.submit(get_table_services, credentials, subscription_id, storage_account)
+            f_file = pool.submit(get_file_services, credentials, subscription_id, storage_account)
+            f_blob = pool.submit(get_blob_services, credentials, subscription_id, storage_account)
         yield storage_account['id'], storage_account['name'], storage_account[
             'resourceGroup'
-        ], queue_services, table_services, file_services, blob_services
+        ], f_queue.result(), f_table.result(), f_file.result(), f_blob.result()
 
 
 @timeit
