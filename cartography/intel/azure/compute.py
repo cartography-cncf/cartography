@@ -970,7 +970,7 @@ def sync_snapshot(
     t0 = time.perf_counter()
     load_snapshots(neo4j_session, subscription_id, snapshots, update_tag)
     for snapshot in snapshots:
-        if snapshot.get("creation_data").get("create_option", "") == "Copy":
+        if (snapshot.get("creation_data") or {}).get("create_option", "") == "Copy":
             _attach_snapshot_disk(
                 neo4j_session, snapshot["id"],
                 snapshot["creation_data"]["source_resource_id"], update_tag,
