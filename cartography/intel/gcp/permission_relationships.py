@@ -177,15 +177,15 @@ def evaluate_policy_binding_for_permissions(
     return False
 
 
-def assignment_allows_permissions(
+def _assignment_allows_permissions(
     assignment_data: dict[str, Any],
     permissions: list[str],
 ) -> bool:
     """
     Check permission allow/deny logic without evaluating resource scope.
 
-    BigQuery broad-scope handling uses this after it has already classified an
-    assignment as project- or dataset-wide.
+    Broad-scope handling uses this after it has already classified an
+    assignment as project- or container-wide.
     """
     permissions_dict = assignment_data["permissions"]
     for permission in permissions:
@@ -193,6 +193,35 @@ def assignment_allows_permissions(
             if evaluate_permission_for_permission(permissions_dict, permission):
                 return True
     return False
+
+
+def _split_project_scope_principals(
+    principals: GCPPrincipalPermissionContext,
+    permissions: list[str],
+    project_id: str,
+) -> tuple[set[str], GCPPrincipalPermissionContext]:
+    project_scope_pattern = f"project/{project_id}/.*"
+    project_scope_principals: set[str] = set()
+    residual_principals: GCPPrincipalPermissionContext = {}
+
+    for principal_email, policy_bindings in principals.items():
+        for binding_id, assignment_data in policy_bindings.items():
+            if not _assignment_allows_permissions(assignment_data, permissions):
+                continue
+
+            if assignment_data["scope"].pattern == project_scope_pattern:
+                project_scope_principals.add(principal_email)
+                continue
+
+            residual_principals.setdefault(principal_email, {})[
+                binding_id
+            ] = assignment_data
+
+    if project_scope_principals:
+        for principal_email in project_scope_principals:
+            residual_principals.pop(principal_email, None)
+
+    return project_scope_principals, residual_principals
 
 
 def principal_allowed_on_resource(
@@ -293,21 +322,35 @@ def split_bigquery_table_broad_scope_principals(
     through the core MatchLink Cartesian product helper instead of repeatedly
     evaluating the same broad scope for every table.
     """
-    project_scope_pattern = f"project/{project_id}/.*"
-    project_scope_principals: set[str] = set()
+    project_scope_principals, residual_principals = _split_project_scope_principals(
+        principals,
+        permissions,
+        project_id,
+    )
+    dataset_scope_principals, residual_principals = (
+        _split_bigquery_table_dataset_scope_principals(
+            residual_principals,
+            permissions,
+            project_id,
+        )
+    )
+    return project_scope_principals, dataset_scope_principals, residual_principals
+
+
+def _split_bigquery_table_dataset_scope_principals(
+    principals: GCPPrincipalPermissionContext,
+    permissions: list[str],
+    project_id: str,
+) -> tuple[dict[str, set[str]], GCPPrincipalPermissionContext]:
     dataset_scope_principals: dict[str, set[str]] = {}
     residual_principals: GCPPrincipalPermissionContext = {}
 
     for principal_email, policy_bindings in principals.items():
         for binding_id, assignment_data in policy_bindings.items():
-            if not assignment_allows_permissions(assignment_data, permissions):
+            if not _assignment_allows_permissions(assignment_data, permissions):
                 continue
 
             scope_pattern = assignment_data["scope"].pattern
-            if scope_pattern == project_scope_pattern:
-                project_scope_principals.add(principal_email)
-                continue
-
             dataset_id = _match_bigquery_dataset_scope(scope_pattern, project_id)
             if dataset_id is not None:
                 dataset_scope_principals.setdefault(dataset_id, set()).add(
@@ -319,43 +362,36 @@ def split_bigquery_table_broad_scope_principals(
                 binding_id
             ] = assignment_data
 
-    if project_scope_principals:
-        for dataset_id in list(dataset_scope_principals):
-            dataset_scope_principals[dataset_id] -= project_scope_principals
-            if not dataset_scope_principals[dataset_id]:
-                del dataset_scope_principals[dataset_id]
-        for principal_email in project_scope_principals:
-            residual_principals.pop(principal_email, None)
-
-    return project_scope_principals, dataset_scope_principals, residual_principals
+    return dataset_scope_principals, residual_principals
 
 
 @timeit
-def load_bigquery_table_permission_relationships(
+def load_permission_relationships_cartesian_product(
     neo4j_session: neo4j.Session,
     matchlink_schema: GCPPermissionMatchLink,
     principal_emails: set[str],
-    table_ids: list[str],
+    resource_ids: list[str],
     update_tag: int,
     project_id: str,
+    scope_description: str,
     principal_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE,
-    table_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE,
+    resource_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE,
 ) -> int:
-    if not principal_emails or not table_ids:
+    if not principal_emails or not resource_ids:
         return 0
 
-    # A broad grant means each principal should link to each table in this
+    # A broad grant means each principal should link to each resource in this
     # scope. The core MatchLink helper performs that expansion in bounded graph
     # batches without constructing every pair as a Python dict first.
     return load_matchlinks_cartesian_product(
         neo4j_session,
         matchlink_schema,
         sorted(principal_emails),
-        sorted(table_ids),
+        sorted(resource_ids),
         source_batch_size=principal_batch_size,
-        target_batch_size=table_batch_size,
+        target_batch_size=resource_batch_size,
         progress_description=(
-            f"{matchlink_schema.rel_label} GCPBigQueryTable permissions for project {project_id}"
+            f"{matchlink_schema.rel_label} {matchlink_schema.target_node_label} permissions for {scope_description}"
         ),
         lastupdated=update_tag,
         _sub_resource_label="GCPProject",
@@ -364,7 +400,7 @@ def load_bigquery_table_permission_relationships(
 
 
 @timeit
-def evaluate_and_load_bigquery_table_permission_relationships(
+def _load_bigquery_table_dataset_scope_relationships(
     neo4j_session: neo4j.Session,
     principals: GCPPrincipalPermissionContext,
     resource_dict: dict[str, str],
@@ -372,10 +408,9 @@ def evaluate_and_load_bigquery_table_permission_relationships(
     matchlink_schema: GCPPermissionMatchLink,
     update_tag: int,
     project_id: str,
-    batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
-) -> int:
-    project_scope_principals, dataset_scope_principals, residual_principals = (
-        split_bigquery_table_broad_scope_principals(
+) -> tuple[int, GCPPrincipalPermissionContext]:
+    dataset_scope_principals, residual_principals = (
+        _split_bigquery_table_dataset_scope_principals(
             principals,
             permissions,
             project_id,
@@ -384,23 +419,6 @@ def evaluate_and_load_bigquery_table_permission_relationships(
 
     relationships_loaded = 0
     table_ids = list(resource_dict)
-    if project_scope_principals:
-        logger.info(
-            "Bulk loading relationship '%s' for %d project-scope principals across %d BigQuery tables in project '%s'",
-            matchlink_schema.rel_label,
-            len(project_scope_principals),
-            len(table_ids),
-            project_id,
-        )
-        relationships_loaded += load_bigquery_table_permission_relationships(
-            neo4j_session,
-            matchlink_schema,
-            project_scope_principals,
-            table_ids,
-            update_tag,
-            project_id,
-        )
-
     if dataset_scope_principals:
         table_ids_by_dataset: dict[str, list[str]] = {}
         for table_id in table_ids:
@@ -417,14 +435,93 @@ def evaluate_and_load_bigquery_table_permission_relationships(
                 len(dataset_table_ids),
                 dataset_id,
             )
-            relationships_loaded += load_bigquery_table_permission_relationships(
+            relationships_loaded += load_permission_relationships_cartesian_product(
                 neo4j_session,
                 matchlink_schema,
                 dataset_principals,
                 dataset_table_ids,
                 update_tag,
                 project_id,
+                f"dataset {dataset_id}",
             )
+
+    return relationships_loaded, residual_principals
+
+
+_ContainerScopeLoader = Callable[
+    [
+        neo4j.Session,
+        GCPPrincipalPermissionContext,
+        dict[str, str],
+        list[str],
+        GCPPermissionMatchLink,
+        int,
+        str,
+    ],
+    tuple[int, GCPPrincipalPermissionContext],
+]
+
+_CONTAINER_SCOPE_LOADERS: dict[str, _ContainerScopeLoader] = {
+    "GCPBigQueryTable": _load_bigquery_table_dataset_scope_relationships,
+}
+
+
+@timeit
+def evaluate_and_load_scope_aware_permission_relationships(
+    neo4j_session: neo4j.Session,
+    principals: GCPPrincipalPermissionContext,
+    resource_dict: dict[str, str],
+    permissions: list[str],
+    matchlink_schema: GCPPermissionMatchLink,
+    update_tag: int,
+    project_id: str,
+    batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+) -> int:
+    project_scope_principals, residual_principals = _split_project_scope_principals(
+        principals,
+        permissions,
+        project_id,
+    )
+
+    relationships_loaded = 0
+    resource_ids = list(resource_dict)
+    if project_scope_principals:
+        logger.info(
+            "Bulk loading relationship '%s' for %d project-scope principals across %d %s resources in project '%s'",
+            matchlink_schema.rel_label,
+            len(project_scope_principals),
+            len(resource_ids),
+            matchlink_schema.target_node_label,
+            project_id,
+        )
+        relationships_loaded += load_permission_relationships_cartesian_product(
+            neo4j_session,
+            matchlink_schema,
+            project_scope_principals,
+            resource_ids,
+            update_tag,
+            project_id,
+            f"project {project_id}",
+        )
+
+    # Project scopes are universal, but container scopes are resource-specific.
+    # Each registered loader decides from assignment scope whether a Cartesian
+    # write is correct and returns the exact/non-container work for row-by-row
+    # evaluation.
+    container_scope_loader = _CONTAINER_SCOPE_LOADERS.get(
+        matchlink_schema.target_node_label
+    )
+    if container_scope_loader is not None:
+        container_loaded, residual_principals = container_scope_loader(
+            neo4j_session,
+            residual_principals,
+            resource_dict,
+            permissions,
+            matchlink_schema,
+            update_tag,
+            project_id,
+        )
+        relationships_loaded += container_loaded
 
     if residual_principals:
         relationships_loaded += evaluate_and_load_permission_relationships(
@@ -437,6 +534,7 @@ def evaluate_and_load_bigquery_table_permission_relationships(
             project_id,
             batch_size=batch_size,
         )
+
     return relationships_loaded
 
 
@@ -760,21 +858,8 @@ def sync(
             rel_label=relationship_name,
         )
 
-        if target_label == "GCPBigQueryTable":
-            loaded_relationship_count = (
-                evaluate_and_load_bigquery_table_permission_relationships(
-                    neo4j_session,
-                    principals,
-                    resource_dict,
-                    permissions,
-                    matchlink_schema,
-                    update_tag,
-                    project_id,
-                    batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
-                )
-            )
-        else:
-            loaded_relationship_count = evaluate_and_load_permission_relationships(
+        loaded_relationship_count = (
+            evaluate_and_load_scope_aware_permission_relationships(
                 neo4j_session,
                 principals,
                 resource_dict,
@@ -784,6 +869,7 @@ def sync(
                 project_id,
                 batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
             )
+        )
         logger.info(
             "Finished loading relationship '%s' for resource type '%s' in project '%s' with %d total relationships before cleanup",
             relationship_name,

@@ -354,7 +354,7 @@ def test_split_bigquery_table_broad_scope_principals():
     assert set(residual_principals) == {"table-viewer@example.com"}
 
 
-def test_load_bigquery_table_permission_relationships_uses_core_cartesian_product_loader():
+def test_load_permission_relationships_cartesian_product_uses_core_cartesian_product_loader():
     # Arrange
     matchlink_schema = permission_relationships.GCPPermissionMatchLink(
         source_node_label="GCPPrincipal",
@@ -370,15 +370,16 @@ def test_load_bigquery_table_permission_relationships_uses_core_cartesian_produc
         return_value=4,
     ) as mock_load_cartesian_product:
         loaded_count = (
-            permission_relationships.load_bigquery_table_permission_relationships(
+            permission_relationships.load_permission_relationships_cartesian_product(
                 neo4j_session,
                 matchlink_schema,
                 {"zara@example.com", "alice@example.com"},
                 ["project-abc:logs.audit", "project-abc:analytics.events"],
                 TEST_UPDATE_TAG,
                 TEST_PROJECT_ID,
+                "project project-abc",
                 principal_batch_size=7,
-                table_batch_size=11,
+                resource_batch_size=11,
             )
         )
 
@@ -400,24 +401,22 @@ def test_load_bigquery_table_permission_relationships_uses_core_cartesian_produc
     )
 
 
-def test_bigquery_table_fast_path_avoids_project_scope_per_resource_evaluation():
+def test_scope_aware_loader_uses_cartesian_product_for_project_scope():
     # Arrange
     principals = {
         f"user-{i}@example.com": _build_policy_bindings(
-            ["bigquery.tables.getData"],
+            ["storage.objects.get"],
             "project/project-abc/*",
         )
         for i in range(100)
     }
     resource_dict = {
-        f"project-abc:analytics.table_{i}": (
-            f"project/project-abc/resource/projects/project-abc/datasets/analytics/tables/table_{i}"
-        )
+        f"bucket-{i}": f"project/project-abc/resource/buckets/bucket-{i}"
         for i in range(2000)
     }
     matchlink_schema = permission_relationships.GCPPermissionMatchLink(
         source_node_label="GCPPrincipal",
-        target_node_label="GCPBigQueryTable",
+        target_node_label="GCPBucket",
         rel_label="CAN_READ",
     )
     neo4j_session = MagicMock()
@@ -426,7 +425,7 @@ def test_bigquery_table_fast_path_avoids_project_scope_per_resource_evaluation()
     with (
         patch.object(
             permission_relationships,
-            "load_bigquery_table_permission_relationships",
+            "load_permission_relationships_cartesian_product",
             return_value=200000,
         ) as mock_bulk_load,
         patch.object(
@@ -434,11 +433,11 @@ def test_bigquery_table_fast_path_avoids_project_scope_per_resource_evaluation()
             "calculate_permission_relationships_for_resource",
         ) as mock_calculate,
     ):
-        loaded_count = permission_relationships.evaluate_and_load_bigquery_table_permission_relationships(
+        loaded_count = permission_relationships.evaluate_and_load_scope_aware_permission_relationships(
             neo4j_session,
             principals,
             resource_dict,
-            ["bigquery.tables.getData"],
+            ["storage.objects.get"],
             matchlink_schema,
             TEST_UPDATE_TAG,
             TEST_PROJECT_ID,
@@ -453,6 +452,7 @@ def test_bigquery_table_fast_path_avoids_project_scope_per_resource_evaluation()
         list(resource_dict),
         TEST_UPDATE_TAG,
         TEST_PROJECT_ID,
+        "project project-abc",
     )
     mock_calculate.assert_not_called()
 
@@ -488,7 +488,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
     with (
         patch.object(
             permission_relationships,
-            "load_bigquery_table_permission_relationships",
+            "load_permission_relationships_cartesian_product",
             return_value=2,
         ),
         patch.object(
@@ -496,7 +496,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
             "load_principal_mappings",
         ) as mock_load_principal_mappings,
     ):
-        loaded_count = permission_relationships.evaluate_and_load_bigquery_table_permission_relationships(
+        loaded_count = permission_relationships.evaluate_and_load_scope_aware_permission_relationships(
             neo4j_session,
             principals,
             resource_dict,
