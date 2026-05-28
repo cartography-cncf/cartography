@@ -1,6 +1,7 @@
 import ipaddress
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -97,13 +98,19 @@ def get_server_list(credentials: Credentials, subscription_id: str, regions: lis
     """
     Returning the list of Azure SQL servers, PostgreSQL servers, and MySQL servers.
     """
-    # Gather all server types
+    # Gather all server types in parallel (independent API calls, different ARM endpoints)
+    fetchers = [
+        _get_sql_database_servers,
+        _get_postgresql_flexible_servers,
+        _get_mysql_flexible_servers,
+        _get_postgresql_rdbms_servers,
+        _get_mysql_rdbms_servers,
+    ]
     server_list = []
-    server_list.extend(_get_sql_database_servers(credentials, subscription_id))
-    server_list.extend(_get_postgresql_flexible_servers(credentials, subscription_id))
-    server_list.extend(_get_mysql_flexible_servers(credentials, subscription_id))
-    server_list.extend(_get_postgresql_rdbms_servers(credentials, subscription_id))
-    server_list.extend(_get_mysql_rdbms_servers(credentials, subscription_id))
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = [pool.submit(fn, credentials, subscription_id) for fn in fetchers]
+    for f in futures:
+        server_list.extend(f.result())
 
     # Enrich server data with additional metadata
     server_data = [
