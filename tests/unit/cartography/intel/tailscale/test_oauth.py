@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 import requests
 
+from cartography.intel.tailscale import _attach_oauth_refresh
 from cartography.intel.tailscale import _mint_oauth_bearer
 from cartography.intel.tailscale import start_tailscale_ingestion
 
@@ -146,3 +147,75 @@ def test_skip_when_only_oauth_client_id_set(
 
     mock_mint.assert_not_called()
     mock_tailnets_sync.assert_not_called()
+
+
+def _response(status: int, url: str = "https://api.tailscale.com/api/v2/tailnet/x/devices") -> requests.Response:
+    resp = requests.Response()
+    resp.status_code = status
+    resp.url = url
+    req = requests.Request("GET", url).prepare()
+    resp.request = req
+    return resp
+
+
+def test_refresh_hook_remints_and_retries_on_401() -> None:
+    api_session = requests.Session()
+    with patch(
+        "cartography.intel.tailscale._mint_oauth_bearer",
+        return_value="fresh-bearer",
+    ) as mock_mint:
+        _attach_oauth_refresh(
+            api_session, "https://api.tailscale.com/api/v2", "cid", "csecret",
+        )
+        hook = api_session.hooks["response"][-1]
+
+        retried = _response(200)
+        with patch.object(api_session, "send", return_value=retried) as mock_send:
+            result = hook(_response(401))
+
+        mock_mint.assert_called_once()
+        assert result is retried
+        sent_req = mock_send.call_args.args[0]
+        assert sent_req.headers["Authorization"] == "Bearer fresh-bearer"
+        assert sent_req.headers["X-Cartography-Tailscale-Reauth"] == "1"
+        assert api_session.headers["Authorization"] == "Bearer fresh-bearer"
+
+
+def test_refresh_hook_passes_through_non_401() -> None:
+    api_session = requests.Session()
+    with patch("cartography.intel.tailscale._mint_oauth_bearer") as mock_mint:
+        _attach_oauth_refresh(
+            api_session, "https://api.tailscale.com/api/v2", "cid", "csecret",
+        )
+        hook = api_session.hooks["response"][-1]
+        ok = _response(200)
+        assert hook(ok) is ok
+        mock_mint.assert_not_called()
+
+
+def test_refresh_hook_does_not_loop_on_repeated_401() -> None:
+    api_session = requests.Session()
+    with patch(
+        "cartography.intel.tailscale._mint_oauth_bearer",
+        return_value="fresh-bearer",
+    ) as mock_mint:
+        _attach_oauth_refresh(
+            api_session, "https://api.tailscale.com/api/v2", "cid", "csecret",
+        )
+        hook = api_session.hooks["response"][-1]
+        already_retried = _response(401)
+        already_retried.request.headers["X-Cartography-Tailscale-Reauth"] = "1"
+        assert hook(already_retried) is already_retried
+        mock_mint.assert_not_called()
+
+
+def test_refresh_hook_ignores_401_from_token_endpoint() -> None:
+    api_session = requests.Session()
+    with patch("cartography.intel.tailscale._mint_oauth_bearer") as mock_mint:
+        _attach_oauth_refresh(
+            api_session, "https://api.tailscale.com/api/v2", "cid", "csecret",
+        )
+        hook = api_session.hooks["response"][-1]
+        mint_resp = _response(401, url="https://api.tailscale.com/api/v2/oauth/token")
+        assert hook(mint_resp) is mint_resp
+        mock_mint.assert_not_called()

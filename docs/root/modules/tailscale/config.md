@@ -9,7 +9,15 @@ In both cases, pass `--tailscale-org <tailnet-name>` (find it under [Settings �
 
 ### OAuth client (recommended)
 
-1. Create an OAuth client at [Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth) with the read-only scopes you want cartography to ingest (typically `devices:core:read`, `users:read`, `users:read_all`, `dns:read`, `routes:read`, `policy_file:read`).
+1. Create an OAuth client at [Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth) with the read-only scopes cartography needs:
+
+    - `devices:core:read` — `/tailnet/:org/devices`
+    - `devices:posture_attributes:read` — `/device/:id/attributes`
+    - `users:read` — `/tailnet/:org/users`
+    - `policy_file:read` — `/tailnet/:org/acl`
+    - `feature_settings:read` — `/tailnet/:org/settings` and `/tailnet/:org/posture/integrations`
+
+    See [trust credentials](https://tailscale.com/docs/reference/trust-credentials) for the canonical scope list.
 2. Put the client ID and secret in two environment variables and pass their names to cartography:
 
     ```bash
