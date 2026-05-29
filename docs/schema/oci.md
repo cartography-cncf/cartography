@@ -280,6 +280,7 @@ Representation of an [OCI Subnet](https://docs.oracle.com/en-us/iaas/api/#/en/ia
 | lifecycle_state | The subnet's current state |
 | vcn_id | The OCID of the VCN the subnet belongs to |
 | route_table_id | The OCID of the route table associated with the subnet |
+| security_list_ids | List of OCIDs of the security lists associated with the subnet |
 | subnet_domain_name | The subnet's domain name |
 | prohibit_public_ip_on_vnic | Whether VNICs in this subnet can have public IPs |
 | region | The region the subnet resides in |
@@ -291,6 +292,30 @@ Representation of an [OCI Subnet](https://docs.oracle.com/en-us/iaas/api/#/en/ia
 
 	```
 	(OCIVcn)-[OCI_SUBNET]->(OCISubnet)
+	```
+
+- Subnets are associated with a Route Table.
+
+	```
+	(OCISubnet)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+- Subnets are associated with one or more Security Lists.
+
+	```
+	(OCISubnet)-[OCI_SECURITY_LIST]->(OCISecurityList)
+	```
+
+- Subnets contain VNICs.
+
+	```
+	(OCISubnet)-[OCI_VNIC]->(OCIVnic)
+	```
+
+- Subnets can have a Flow Log.
+
+	```
+	(OCISubnet)-[OCI_FLOW_LOG]->(OCIFlowLog)
 	```
 
 ## OCISecurityList
@@ -458,4 +483,82 @@ Representation of an [OCI Route Table](https://docs.oracle.com/en-us/iaas/api/#/
 
 	```
 	(OCIVcn)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+- Subnets are associated with a Route Table.
+
+	```
+	(OCISubnet)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+## OCIVnic
+
+Representation of an [OCI VNIC](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Vnic/). A VNIC connects a compute instance to a subnet and can carry a public IP.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this VNIC |
+| display_name | The user-friendly name of the VNIC |
+| compartment_id | The OCID of the compartment containing the VNIC |
+| availability_domain | The availability domain the VNIC resides in |
+| lifecycle_state | The VNIC's current state |
+| private_ip | The private IP address of the VNIC |
+| public_ip | The public IP address of the VNIC (if any) |
+| is_primary | Whether the VNIC is the primary VNIC of the instance |
+| hostname_label | The hostname for the VNIC's primary private IP |
+| mac_address | The MAC address of the VNIC |
+| skip_source_dest_check | Whether source/destination check is skipped |
+| subnet_id | The OCID of the subnet the VNIC is in |
+| region | The region the VNIC resides in |
+| createdate | ISO 8601 date-time when the VNIC was created |
+
+### Relationships
+
+- Subnets contain VNICs.
+
+	```
+	(OCISubnet)-[OCI_VNIC]->(OCIVnic)
+	```
+
+- VNIC Attachments reference VNICs (linking an instance to its VNIC).
+
+	```
+	(OCIVnicAttachment)-[OCI_VNIC]->(OCIVnic)
+	```
+
+## OCIFlowLog
+
+Representation of an [OCI VCN Flow Log](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/flowlogoverview.htm). Flow logs are OCI service logs (`OCILog`) whose source service is `flowlogs`. The node carries both the `OCIFlowLog` and `OCILog` labels.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this log |
+| display_name | The user-friendly name of the log |
+| compartment_id | The OCID of the compartment containing the log |
+| log_group_id | The OCID of the log group the log belongs to |
+| log_type | The type of log (CUSTOM or SERVICE) |
+| is_enabled | Whether the log is enabled |
+| lifecycle_state | The log's current state |
+| source_service | The service that created the log (e.g., flowlogs) |
+| source_category | The log category (e.g., all) |
+| source_resource | The OCID of the resource the log is configured for (subnet or VCN) |
+| region | The region the log resides in |
+| createdate | ISO 8601 date-time when the log was created |
+
+### Relationships
+
+- Subnets can have a Flow Log.
+
+	```
+	(OCISubnet)-[OCI_FLOW_LOG]->(OCIFlowLog)
+	```
+
+- VCNs can have a Flow Log.
+
+	```
+	(OCIVcn)-[OCI_FLOW_LOG]->(OCIFlowLog)
 	```

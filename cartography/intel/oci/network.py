@@ -9,6 +9,7 @@ from typing import List
 
 import neo4j
 import oci
+import oci.logging
 
 from . import utils
 from cartography.util import run_cleanup_job
@@ -150,6 +151,7 @@ def load_subnets(
     subnet.lifecycle_state = $LIFECYCLE_STATE,
     subnet.vcn_id = $VCN_ID,
     subnet.route_table_id = $ROUTE_TABLE_ID,
+    subnet.security_list_ids = $SECURITY_LIST_IDS,
     subnet.subnet_domain_name = $SUBNET_DOMAIN_NAME,
     subnet.prohibit_public_ip_on_vnic = $PROHIBIT_PUBLIC_IP,
     subnet.region = $REGION,
@@ -173,6 +175,7 @@ def load_subnets(
             LIFECYCLE_STATE=subnet.get("lifecycle-state"),
             VCN_ID=subnet.get("vcn-id", ""),
             ROUTE_TABLE_ID=subnet.get("route-table-id", ""),
+            SECURITY_LIST_IDS=subnet.get("security-list-ids", []) or [],
             SUBNET_DOMAIN_NAME=subnet.get("subnet-domain-name", ""),
             PROHIBIT_PUBLIC_IP=subnet.get("prohibit-public-ip-on-vnic", False),
             REGION=region,
@@ -780,6 +783,317 @@ def sync_route_tables(
 
 
 # ============================================================
+# Subnet associations (Subnet -> RouteTable, Subnet -> SecurityList)
+# ============================================================
+
+def sync_subnet_associations(
+    neo4j_session: neo4j.Session,
+    network_client: oci.core.virtual_network_client.VirtualNetworkClient,
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    region: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Link subnets to the route tables and security lists they reference. The IDs are
+    captured on the OCISubnet node by load_subnets (route_table_id, security_list_ids).
+    """
+    logger.debug("Syncing OCI subnet associations for tenancy '%s', region '%s'.", tenancy_id, region)
+    link_subnet_route_table = """
+    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
+    MATCH (rt:OCIRouteTable{ocid: $ROUTE_TABLE_ID})
+    MERGE (subnet)-[r:OCI_ROUTE_TABLE]->(rt)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $oci_update_tag
+    """
+    link_subnet_security_list = """
+    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
+    MATCH (sl:OCISecurityList{ocid: $SECURITY_LIST_ID})
+    MERGE (subnet)-[r:OCI_SECURITY_LIST]->(sl)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $oci_update_tag
+    """
+
+    query = (
+        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIVcn)"
+        "-[:OCI_SUBNET]->(subnet:OCISubnet) "
+        "WHERE subnet.region = $REGION "
+        "RETURN subnet.ocid as ocid, subnet.route_table_id as route_table_id, "
+        "subnet.security_list_ids as security_list_ids"
+    )
+    for compartment in compartments:
+        subnets = neo4j_session.run(query, COMPARTMENT_ID=compartment["ocid"], REGION=region)
+        for subnet in subnets:
+            route_table_id = subnet["route_table_id"]
+            if route_table_id:
+                neo4j_session.run(
+                    link_subnet_route_table,
+                    SUBNET_ID=subnet["ocid"],
+                    ROUTE_TABLE_ID=route_table_id,
+                    oci_update_tag=oci_update_tag,
+                )
+            for security_list_id in (subnet["security_list_ids"] or []):
+                neo4j_session.run(
+                    link_subnet_security_list,
+                    SUBNET_ID=subnet["ocid"],
+                    SECURITY_LIST_ID=security_list_id,
+                    oci_update_tag=oci_update_tag,
+                )
+
+
+# ============================================================
+# VNICs
+# ============================================================
+
+def get_vnic_data(
+    network_client: oci.core.virtual_network_client.VirtualNetworkClient,
+    vnic_id: str,
+) -> Dict[str, Any]:
+    """
+    Get a single VNIC's details.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Vnic/GetVnic
+    """
+    try:
+        response = network_client.get_vnic(vnic_id)
+        return utils.oci_single_object_to_json(response.data)
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve VNIC '%s': %s", vnic_id, e.message,
+        )
+        return {}
+
+
+def load_vnics(
+    neo4j_session: neo4j.Session,
+    vnics: List[Dict[str, Any]],
+    region: str,
+    oci_update_tag: int,
+) -> None:
+    """
+    Ingest OCI VNIC data into Neo4j, link to subnet, and link to the owning instance
+    via its VNIC attachment.
+    """
+    ingest_vnic = """
+    MERGE (vnic:OCIVnic{ocid: $OCID})
+    ON CREATE SET vnic.firstseen = timestamp(),
+    vnic.createdate = $TIME_CREATED
+    SET vnic.display_name = $DISPLAY_NAME,
+    vnic.compartment_id = $COMPARTMENT_ID,
+    vnic.availability_domain = $AVAILABILITY_DOMAIN,
+    vnic.lifecycle_state = $LIFECYCLE_STATE,
+    vnic.private_ip = $PRIVATE_IP,
+    vnic.public_ip = $PUBLIC_IP,
+    vnic.is_primary = $IS_PRIMARY,
+    vnic.hostname_label = $HOSTNAME_LABEL,
+    vnic.mac_address = $MAC_ADDRESS,
+    vnic.skip_source_dest_check = $SKIP_SOURCE_DEST_CHECK,
+    vnic.subnet_id = $SUBNET_ID,
+    vnic.region = $REGION,
+    vnic.lastupdated = $oci_update_tag
+    WITH vnic
+    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
+    MERGE (subnet)-[rs:OCI_VNIC]->(vnic)
+    ON CREATE SET rs.firstseen = timestamp()
+    SET rs.lastupdated = $oci_update_tag
+    WITH vnic
+    MATCH (attachment:OCIVnicAttachment{vnic_id: $OCID})
+    MERGE (attachment)-[ra:OCI_VNIC]->(vnic)
+    ON CREATE SET ra.firstseen = timestamp()
+    SET ra.lastupdated = $oci_update_tag
+    """
+
+    for vnic in vnics:
+        neo4j_session.run(
+            ingest_vnic,
+            OCID=vnic.get("id"),
+            DISPLAY_NAME=vnic.get("display-name"),
+            COMPARTMENT_ID=vnic.get("compartment-id", ""),
+            AVAILABILITY_DOMAIN=vnic.get("availability-domain", ""),
+            LIFECYCLE_STATE=vnic.get("lifecycle-state"),
+            PRIVATE_IP=vnic.get("private-ip", ""),
+            PUBLIC_IP=vnic.get("public-ip", ""),
+            IS_PRIMARY=vnic.get("is-primary", False),
+            HOSTNAME_LABEL=vnic.get("hostname-label", ""),
+            MAC_ADDRESS=vnic.get("mac-address", ""),
+            SKIP_SOURCE_DEST_CHECK=vnic.get("skip-source-dest-check", False),
+            SUBNET_ID=vnic.get("subnet-id", ""),
+            REGION=region,
+            TIME_CREATED=str(vnic.get("time-created", "")),
+            oci_update_tag=oci_update_tag,
+        )
+
+
+def sync_vnics(
+    neo4j_session: neo4j.Session,
+    network_client: oci.core.virtual_network_client.VirtualNetworkClient,
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    region: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync VNICs by reading the VNIC IDs recorded on OCIVnicAttachment nodes (populated by
+    compute.sync) and fetching each VNIC's details from the Network API.
+    """
+    logger.debug("Syncing OCI VNICs for tenancy '%s', region '%s'.", tenancy_id, region)
+    query = (
+        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)"
+        "-[:OCI_VNIC_ATTACHMENT]->(attachment:OCIVnicAttachment) "
+        "WHERE attachment.vnic_id IS NOT NULL "
+        "RETURN DISTINCT attachment.vnic_id as vnic_id"
+    )
+    for compartment in compartments:
+        attachments = neo4j_session.run(query, COMPARTMENT_ID=compartment["ocid"])
+        vnics = []
+        for attachment in attachments:
+            vnic = get_vnic_data(network_client, attachment["vnic_id"])
+            if vnic:
+                vnics.append(vnic)
+        if vnics:
+            load_vnics(neo4j_session, vnics, region, oci_update_tag)
+
+
+# ============================================================
+# Flow Logs (from the Logging service)
+# ============================================================
+
+def get_log_group_list_data(
+    logging_client: "oci.logging.LoggingManagementClient",
+    compartment_id: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get all log groups in a compartment.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/logging-management/latest/LogGroup/ListLogGroups
+    """
+    try:
+        response = oci.pagination.list_call_get_all_results(
+            logging_client.list_log_groups, compartment_id=compartment_id,
+        )
+        return {'LogGroups': utils.oci_object_to_json(response.data)}
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve log groups for compartment '%s': %s", compartment_id, e.message,
+        )
+        return {'LogGroups': []}
+
+
+def get_log_list_data(
+    logging_client: "oci.logging.LoggingManagementClient",
+    log_group_id: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get all logs within a log group.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/logging-management/latest/Log/ListLogs
+    """
+    try:
+        response = oci.pagination.list_call_get_all_results(
+            logging_client.list_logs, log_group_id,
+        )
+        return {'Logs': utils.oci_object_to_json(response.data)}
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve logs for log group '%s': %s", log_group_id, e.message,
+        )
+        return {'Logs': []}
+
+
+def load_flow_logs(
+    neo4j_session: neo4j.Session,
+    logs: List[Dict[str, Any]],
+    log_group_id: str,
+    region: str,
+    oci_update_tag: int,
+) -> None:
+    """
+    Ingest OCI flow logs (VCN flow logs are service logs sourced from the
+    flowlogs/vcn service) into Neo4j and link them to the subnet or VCN they
+    are configured for.
+    """
+    ingest_flow_log = """
+    MERGE (fl:OCIFlowLog:OCILog{ocid: $OCID})
+    ON CREATE SET fl.firstseen = timestamp(),
+    fl.createdate = $TIME_CREATED
+    SET fl.display_name = $DISPLAY_NAME,
+    fl.compartment_id = $COMPARTMENT_ID,
+    fl.log_group_id = $LOG_GROUP_ID,
+    fl.log_type = $LOG_TYPE,
+    fl.is_enabled = $IS_ENABLED,
+    fl.lifecycle_state = $LIFECYCLE_STATE,
+    fl.source_service = $SOURCE_SERVICE,
+    fl.source_category = $SOURCE_CATEGORY,
+    fl.source_resource = $SOURCE_RESOURCE,
+    fl.region = $REGION,
+    fl.lastupdated = $oci_update_tag
+    WITH fl, $SOURCE_RESOURCE as source_resource
+    OPTIONAL MATCH (subnet:OCISubnet{ocid: source_resource})
+    FOREACH (_ IN CASE WHEN subnet IS NULL THEN [] ELSE [1] END |
+        MERGE (subnet)-[rs:OCI_FLOW_LOG]->(fl)
+        ON CREATE SET rs.firstseen = timestamp()
+        SET rs.lastupdated = $oci_update_tag
+    )
+    WITH fl, source_resource
+    OPTIONAL MATCH (vcn:OCIVcn{ocid: source_resource})
+    FOREACH (_ IN CASE WHEN vcn IS NULL THEN [] ELSE [1] END |
+        MERGE (vcn)-[rv:OCI_FLOW_LOG]->(fl)
+        ON CREATE SET rv.firstseen = timestamp()
+        SET rv.lastupdated = $oci_update_tag
+    )
+    """
+
+    for log in logs:
+        configuration = log.get("configuration", {}) or {}
+        source = configuration.get("source", {}) or {}
+        neo4j_session.run(
+            ingest_flow_log,
+            OCID=log.get("id"),
+            DISPLAY_NAME=log.get("display-name"),
+            COMPARTMENT_ID=log.get("compartment-id", ""),
+            LOG_GROUP_ID=log.get("log-group-id", log_group_id),
+            LOG_TYPE=log.get("log-type", ""),
+            IS_ENABLED=log.get("is-enabled", False),
+            LIFECYCLE_STATE=log.get("lifecycle-state"),
+            SOURCE_SERVICE=source.get("service", ""),
+            SOURCE_CATEGORY=source.get("category", ""),
+            SOURCE_RESOURCE=source.get("resource", ""),
+            REGION=region,
+            TIME_CREATED=str(log.get("time-created", "")),
+            oci_update_tag=oci_update_tag,
+        )
+
+
+def sync_flow_logs(
+    neo4j_session: neo4j.Session,
+    logging_client: "oci.logging.LoggingManagementClient",
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    region: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync VCN flow logs across compartments. Flow logs are OCI service logs whose
+    source service is "flowlogs". We enumerate log groups, then the logs within
+    each group, and keep only the flow logs.
+    """
+    logger.debug("Syncing OCI flow logs for tenancy '%s', region '%s'.", tenancy_id, region)
+    for compartment in compartments:
+        log_groups = get_log_group_list_data(logging_client, compartment["ocid"])
+        for log_group in log_groups["LogGroups"]:
+            log_group_id = log_group.get("id")
+            if not log_group_id:
+                continue
+            data = get_log_list_data(logging_client, log_group_id)
+            flow_logs = [
+                log for log in data["Logs"]
+                if ((log.get("configuration", {}) or {}).get("source", {}) or {}).get("service") == "flowlogs"
+            ]
+            if flow_logs:
+                load_flow_logs(neo4j_session, flow_logs, log_group_id, region, oci_update_tag)
+
+
+# ============================================================
 # Top-level sync function
 # ============================================================
 
@@ -804,9 +1118,17 @@ def sync(
     if not regions:
         regions = [network.base_client.region or ""]
 
+    # The Logging service (separate client) provides VCN flow logs. Reuse the
+    # network client's config/signer so we authenticate identically.
+    logging_client = oci.logging.LoggingManagementClient(
+        config=network.base_client.config,
+        signer=getattr(network.base_client, "signer", None),
+    )
+
     for region in regions:
         logger.info("Syncing OCI Network in region '%s' for compartment '%s'.", region, compartment_ocid)
         network.base_client.set_region(region)
+        logging_client.base_client.set_region(region)
 
         # Sync VCNs first (parent of all other network resources)
         sync_vcns(neo4j_session, network, compartments, tenancy_id, region, oci_update_tag, common_job_parameters)
@@ -842,6 +1164,22 @@ def sync(
         # Sync route tables (children of VCNs)
         sync_route_tables(
             neo4j_session, network, compartments, tenancy_id, region, oci_update_tag, common_job_parameters,
+        )
+
+        # Link subnets to their route tables and security lists (needs route tables
+        # and security lists to already exist).
+        sync_subnet_associations(
+            neo4j_session, network, compartments, tenancy_id, region, oci_update_tag, common_job_parameters,
+        )
+
+        # Sync VNICs (needs OCIVnicAttachment nodes from compute.sync and subnets).
+        sync_vnics(
+            neo4j_session, network, compartments, tenancy_id, region, oci_update_tag, common_job_parameters,
+        )
+
+        # Sync VCN flow logs (from the Logging service; links to subnet/VCN).
+        sync_flow_logs(
+            neo4j_session, logging_client, compartments, tenancy_id, region, oci_update_tag, common_job_parameters,
         )
 
     # Cleanup stale network nodes
