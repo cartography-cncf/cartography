@@ -20,7 +20,12 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 _OAUTH_TIMEOUT = (10, 30)
-_REAUTH_REQUEST_ATTR = "_cartography_tailscale_reauth"
+
+
+def _get_oauth_client_credentials(config: Config) -> tuple[str, str] | None:
+    if not config.tailscale_oauth_client_id or not config.tailscale_oauth_client_secret:
+        return None
+    return config.tailscale_oauth_client_id, config.tailscale_oauth_client_secret
 
 
 def _mint_oauth_bearer(
@@ -55,6 +60,7 @@ def _attach_oauth_refresh(
     401 and retries the original request.
     """
     token_url = f"{base_url.rstrip('/')}/oauth/token"
+    retried_request_ids: set[int] = set()
 
     def _refresh_on_unauthorized(
         response: requests.Response,
@@ -65,7 +71,9 @@ def _attach_oauth_refresh(
             return response
         if response.request.url == token_url:
             return response
-        if getattr(response.request, _REAUTH_REQUEST_ATTR, False):
+        request_id = id(response.request)
+        if request_id in retried_request_ids:
+            retried_request_ids.discard(request_id)
             return response
         logger.info("Tailscale returned 401; re-minting OAuth bearer and retrying.")
         new_token = _mint_oauth_bearer(
@@ -76,10 +84,13 @@ def _attach_oauth_refresh(
         )
         api_session.headers["Authorization"] = f"Bearer {new_token}"
         retried = response.request.copy()
-        setattr(retried, _REAUTH_REQUEST_ATTR, True)
         retried.headers["Authorization"] = f"Bearer {new_token}"
+        retried_request_ids.add(id(retried))
         response.close()
-        return api_session.send(retried, **kwargs)
+        try:
+            return api_session.send(retried, **kwargs)
+        finally:
+            retried_request_ids.discard(id(retried))
 
     api_session.hooks["response"].append(_refresh_on_unauthorized)
 
@@ -93,9 +104,8 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    oauth_client_id = config.tailscale_oauth_client_id
-    oauth_client_secret = config.tailscale_oauth_client_secret
-    has_oauth_client = bool(oauth_client_id and oauth_client_secret)
+    oauth_client_credentials = _get_oauth_client_credentials(config)
+    has_oauth_client = oauth_client_credentials is not None
     if not config.tailscale_org or not (config.tailscale_token or has_oauth_client):
         logger.info(
             "Tailscale import is not configured - skipping this module. "
@@ -118,9 +128,8 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
-    if has_oauth_client:
-        assert oauth_client_id is not None
-        assert oauth_client_secret is not None
+    if oauth_client_credentials:
+        oauth_client_id, oauth_client_secret = oauth_client_credentials
         bearer_token = _mint_oauth_bearer(
             api_session,
             config.tailscale_base_url,

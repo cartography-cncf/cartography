@@ -8,7 +8,6 @@ import requests
 
 from cartography.intel.tailscale import _attach_oauth_refresh
 from cartography.intel.tailscale import _mint_oauth_bearer
-from cartography.intel.tailscale import _REAUTH_REQUEST_ATTR
 from cartography.intel.tailscale import start_tailscale_ingestion
 
 
@@ -164,6 +163,7 @@ def _response(
     resp = requests.Response()
     resp.status_code = status
     resp.url = url
+    resp.raw = MagicMock()
     req = requests.Request("GET", url).prepare()
     resp.request = req
     return resp
@@ -196,7 +196,6 @@ def test_refresh_hook_remints_and_retries_on_401() -> None:
         sent_req = mock_send.call_args.args[0]
         assert sent_req.headers["Authorization"] == "Bearer fresh-bearer"
         assert "X-Cartography-Tailscale-Reauth" not in sent_req.headers
-        assert getattr(sent_req, _REAUTH_REQUEST_ATTR) is True
         mock_close.assert_called_once()
         assert mock_send.call_args.kwargs == {"timeout": (5, 30), "verify": False}
         assert api_session.headers["Authorization"] == "Bearer fresh-bearer"
@@ -217,7 +216,7 @@ def test_refresh_hook_passes_through_non_401() -> None:
         mock_mint.assert_not_called()
 
 
-def test_refresh_hook_does_not_loop_on_repeated_401() -> None:
+def test_refresh_hook_does_not_loop_when_retry_also_401s() -> None:
     api_session = requests.Session()
     with patch(
         "cartography.intel.tailscale._mint_oauth_bearer",
@@ -229,11 +228,18 @@ def test_refresh_hook_does_not_loop_on_repeated_401() -> None:
             "cid",
             "csecret",
         )
-        hook = api_session.hooks["response"][-1]
-        already_retried = _response(401)
-        setattr(already_retried.request, _REAUTH_REQUEST_ATTR, True)
-        assert hook(already_retried) is already_retried
-        mock_mint.assert_not_called()
+        hook = cast(Callable[..., requests.Response], api_session.hooks["response"][-1])
+
+        def _send_retry(request: requests.PreparedRequest) -> requests.Response:
+            retry_response = _response(401)
+            retry_response.request = request
+            return hook(retry_response)
+
+        with patch.object(api_session, "send", side_effect=_send_retry):
+            result = hook(_response(401))
+
+        assert result.status_code == 401
+        mock_mint.assert_called_once()
 
 
 def test_refresh_hook_ignores_401_from_token_endpoint() -> None:
