@@ -289,6 +289,7 @@ def test_sync_subscriptions_preserves_existing_parent_only_for_failed_groups(
         common_job_parameters,
     )
 
+    # seed graph with existing state from a "previous sync"
     neo4j_session.run(
         """
         MATCH (t:AzureTenant{id: $tenant_id})
