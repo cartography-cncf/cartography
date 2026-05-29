@@ -399,12 +399,18 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
-    _sync_management_groups(
-        neo4j_session,
-        credentials,
-        config.update_tag,
-        common_job_parameters,
-    )
+    try:
+        _sync_management_groups(
+            neo4j_session,
+            credentials,
+            config.update_tag,
+            common_job_parameters,
+        )
+    except RuntimeError as e:
+        logger.warning(
+            "Skipping Azure management groups sync. Details: %s",
+            e,
+        )
     if credentials.tenant_id:
         if config.azure_sync_all_subscriptions:
             subscriptions = subscription.get_all_azure_subscriptions(credentials)

@@ -44,7 +44,9 @@ def _transform_one_management_group(
 
     parent_tenant_id = None
     parent_management_group_id = None
-    if tenant_id and (
+    if tenant_id and not parent_id:
+        parent_tenant_id = tenant_id
+    elif tenant_id and (
         parent_name == tenant_id
         or parent_id == f"/providers/Microsoft.Management/managementGroups/{tenant_id}"
     ):
@@ -67,20 +69,10 @@ def _transform_one_management_group(
     }
 
 
-def _merge_non_null_values(
-    base: dict[str, Any],
-    update: dict[str, Any],
-) -> dict[str, Any]:
-    merged = dict(base)
-    for key, value in update.items():
-        if value is not None:
-            merged[key] = value
-    return merged
-
-
 def _walk_management_group_tree(
     management_group: dict[str, Any],
-    transformed_by_id: dict[str, dict[str, Any]],
+    transformed_management_groups: list[dict[str, Any]],
+    seen_ids: set[str],
     inherited_parent: dict[str, Any] | None = None,
 ) -> None:
     transformed = _transform_one_management_group(
@@ -88,20 +80,14 @@ def _walk_management_group_tree(
         inherited_parent=inherited_parent,
     )
     management_group_id = transformed.get("id")
-    if not management_group_id:
+    if management_group_id in seen_ids:
         return
-
-    existing = transformed_by_id.get(management_group_id)
-    if existing:
-        transformed_by_id[management_group_id] = _merge_non_null_values(
-            existing,
-            transformed,
-        )
-    else:
-        transformed_by_id[management_group_id] = transformed
+    if management_group_id:
+        seen_ids.add(management_group_id)
+    transformed_management_groups.append(transformed)
 
     child_parent = {
-        "id": management_group_id,
+        "id": transformed.get("id"),
         "name": transformed.get("name"),
         "displayName": transformed.get("displayName"),
     }
@@ -110,7 +96,8 @@ def _walk_management_group_tree(
         if child_type == "Microsoft.Management/managementGroups":
             _walk_management_group_tree(
                 child,
-                transformed_by_id,
+                transformed_management_groups,
+                seen_ids,
                 inherited_parent=child_parent,
             )
 
@@ -119,44 +106,32 @@ def _walk_management_group_tree(
 def get_azure_management_groups(credentials: Credentials) -> list[dict[str, Any]]:
     client = ManagementGroupsAPI(credentials.credential)
     try:
-        management_groups = list(client.management_groups.list())
+        expanded_root = client.management_groups.get(
+            group_id=credentials.tenant_id,
+            expand="children",
+            recurse=True,
+        )
     except HttpResponseError as e:
         raise RuntimeError(
-            "Failed to fetch Azure management groups for tenant "
-            f"'{credentials.tenant_id}': {e}"
+            "Failed to fetch expanded Azure tenant root management group "
+            f"'{credentials.tenant_id}' for tenant '{credentials.tenant_id}': {e}"
         ) from e
 
-    results: list[dict[str, Any]] = []
-    for management_group in management_groups:
-        group_name = management_group.name
-        try:
-            expanded_group = client.management_groups.get(
-                group_id=group_name,
-                expand="children",
-                recurse=True,
-            )
-            results.append(expanded_group.as_dict())
-        except HttpResponseError as e:
-            logger.warning(
-                "Failed to fetch expanded Azure management group '%s'. "
-                "Falling back to basic payload. Details: %s",
-                group_name,
-                e,
-            )
-            results.append(management_group.as_dict())
-    return results
+    return [expanded_root.as_dict()]
 
 
 def transform_azure_management_groups(
     management_groups: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    transformed_by_id: dict[str, dict[str, Any]] = {}
+    transformed_management_groups: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for management_group in management_groups:
         _walk_management_group_tree(
             management_group,
-            transformed_by_id,
+            transformed_management_groups,
+            seen_ids,
         )
-    return list(transformed_by_id.values())
+    return transformed_management_groups
 
 
 @timeit

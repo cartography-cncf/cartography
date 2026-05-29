@@ -10,6 +10,7 @@ from azure.mgmt.managementgroups import ManagementGroupsAPI
 from azure.mgmt.resource.subscriptions import SubscriptionClient
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.models.azure.subscription import AzureSubscriptionSchema
 from cartography.util import timeit
@@ -83,11 +84,12 @@ def get_current_azure_subscription(
 
 def get_azure_management_group_subscriptions(
     credentials: Credentials,
-) -> List[Dict]:
+) -> tuple[List[Dict], bool]:
     client = ManagementGroupsAPI(credentials.credential)
     management_groups = list(client.management_groups.list())
     results: List[Dict] = []
     seen_group_names: set[str] = set()
+    partial_enrichment = False
 
     for management_group in management_groups:
         group_name = management_group.name
@@ -108,16 +110,40 @@ def get_azure_management_group_subscriptions(
                 group_name,
                 e,
             )
+            partial_enrichment = True
             continue
 
         results.extend(subscription.as_dict() for subscription in subscriptions)
 
-    return results
+    return results, partial_enrichment
+
+
+def get_existing_subscription_parent_mappings(
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+) -> Dict[str, str]:
+    query = """
+    MATCH (:AzureTenant{id: $TENANT_ID})-[:RESOURCE]->(s:AzureSubscription)-[:PARENT]->(mg:AzureManagementGroup)
+    RETURN s.id AS subscriptionId, mg.id AS parent_management_group_id
+    """
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        TENANT_ID=tenant_id,
+    )
+    return {
+        row["subscriptionId"]: row["parent_management_group_id"]
+        for row in rows
+        if row.get("subscriptionId") and row.get("parent_management_group_id")
+    }
 
 
 def transform_azure_subscriptions(
     subscriptions: List[Dict],
     management_group_subscriptions: List[Dict],
+    existing_parent_management_group_id_by_subscription_id: Optional[
+        Dict[str, str]
+    ] = None,
 ) -> List[Dict]:
     parent_management_group_id_by_subscription_id = {}
 
@@ -146,6 +172,15 @@ def transform_azure_subscriptions(
         parent_management_group_id = parent_management_group_id_by_subscription_id.get(
             _get_value(subscription, "subscriptionId"),
         )
+        if (
+            not parent_management_group_id
+            and existing_parent_management_group_id_by_subscription_id
+        ):
+            parent_management_group_id = (
+                existing_parent_management_group_id_by_subscription_id.get(
+                    _get_value(subscription, "subscriptionId"),
+                )
+            )
         if parent_management_group_id:
             transformed_subscription["parent_management_group_id"] = (
                 parent_management_group_id
@@ -188,12 +223,23 @@ def sync(
     transformed_subscriptions = subscriptions
 
     try:
-        management_group_subscriptions = get_azure_management_group_subscriptions(
-            credentials,
+        management_group_subscriptions, partial_enrichment = (
+            get_azure_management_group_subscriptions(
+                credentials,
+            )
         )
+        existing_parent_management_group_id_by_subscription_id = None
+        if partial_enrichment:
+            existing_parent_management_group_id_by_subscription_id = (
+                get_existing_subscription_parent_mappings(
+                    neo4j_session,
+                    tenant_id,
+                )
+            )
         transformed_subscriptions = transform_azure_subscriptions(
             subscriptions,
             management_group_subscriptions,
+            existing_parent_management_group_id_by_subscription_id,
         )
     except HttpResponseError as e:
         logger.warning(
