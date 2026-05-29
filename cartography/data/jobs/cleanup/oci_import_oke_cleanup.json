@@ -1,0 +1,36 @@
+{
+    "statements": [
+        {
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIOKECluster) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "iterative": true,
+            "iterationsize": 100
+        },
+        {
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIOKECluster) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "iterative": true,
+            "iterationsize": 100
+        },
+        {
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIOKENodePool) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "iterative": true,
+            "iterationsize": 100
+        },
+        {
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIOKENodePool) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "iterative": true,
+            "iterationsize": 100
+        },
+        {
+            "query": "MATCH (:OCIOKECluster)-[r:HAS_NODE_POOL]->(:OCIOKENodePool) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "iterative": true,
+            "iterationsize": 100
+        },
+        {
+            "query": "MATCH (:OCIOKENodePool)-[r:CONTAINS_NODE]->(:OCIInstance) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "iterative": true,
+            "iterationsize": 100
+        }
+    ],
+    "name": "cleanup OCI OKE resources",
+    "comment": "Copyright (c) 2020, Oracle and/or its affiliates."
+}
