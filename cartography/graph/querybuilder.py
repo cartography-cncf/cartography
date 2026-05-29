@@ -1457,6 +1457,8 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
                 ),
             )
             for mapping_field in ontology_mapping.fields:
+                if not mapping_field.indexed:
+                    continue
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label_name,
