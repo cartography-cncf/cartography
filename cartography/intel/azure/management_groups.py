@@ -80,10 +80,11 @@ def _walk_management_group_tree(
         inherited_parent=inherited_parent,
     )
     management_group_id = transformed.get("id")
+    if not management_group_id:
+        return
     if management_group_id in seen_ids:
         return
-    if management_group_id:
-        seen_ids.add(management_group_id)
+    seen_ids.add(management_group_id)
     transformed_management_groups.append(transformed)
 
     child_parent = {

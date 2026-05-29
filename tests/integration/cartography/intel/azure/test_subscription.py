@@ -32,7 +32,7 @@ def test_sync_subscriptions_from_a_management_group(
     mock_get_management_groups.return_value = AZURE_MANAGEMENT_GROUPS
     mock_get_management_group_subscriptions.return_value = (
         AZURE_MANAGEMENT_GROUP_SUBSCRIPTIONS,
-        False,
+        set(),
     )
 
     neo4j_session.run(
@@ -129,8 +129,8 @@ def test_cleanup_stale_management_group_hierarchy_and_subscription_parentage(
         UPDATED_AZURE_MANAGEMENT_GROUPS,
     ]
     mock_get_management_group_subscriptions.side_effect = [
-        (AZURE_MANAGEMENT_GROUP_SUBSCRIPTIONS, False),
-        (UPDATED_AZURE_MANAGEMENT_GROUP_SUBSCRIPTIONS, False),
+        (AZURE_MANAGEMENT_GROUP_SUBSCRIPTIONS, set()),
+        (UPDATED_AZURE_MANAGEMENT_GROUP_SUBSCRIPTIONS, set()),
     ]
 
     neo4j_session.run(

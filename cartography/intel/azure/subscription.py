@@ -84,12 +84,12 @@ def get_current_azure_subscription(
 
 def get_azure_management_group_subscriptions(
     credentials: Credentials,
-) -> tuple[List[Dict], bool]:
+) -> tuple[List[Dict], set[str]]:
     client = ManagementGroupsAPI(credentials.credential)
     management_groups = list(client.management_groups.list())
     results: List[Dict] = []
     seen_group_names: set[str] = set()
-    partial_enrichment = False
+    failed_management_group_ids: set[str] = set()
 
     for management_group in management_groups:
         group_name = management_group.name
@@ -110,12 +110,14 @@ def get_azure_management_group_subscriptions(
                 group_name,
                 e,
             )
-            partial_enrichment = True
+            failed_management_group_ids.add(
+                f"/providers/Microsoft.Management/managementGroups/{group_name}",
+            )
             continue
 
         results.extend(subscription.as_dict() for subscription in subscriptions)
 
-    return results, partial_enrichment
+    return results, failed_management_group_ids
 
 
 def get_existing_subscription_parent_mappings(
@@ -144,6 +146,7 @@ def transform_azure_subscriptions(
     existing_parent_management_group_id_by_subscription_id: Optional[
         Dict[str, str]
     ] = None,
+    failed_management_group_ids: Optional[set[str]] = None,
 ) -> List[Dict]:
     parent_management_group_id_by_subscription_id = {}
 
@@ -176,11 +179,17 @@ def transform_azure_subscriptions(
             not parent_management_group_id
             and existing_parent_management_group_id_by_subscription_id
         ):
-            parent_management_group_id = (
+            existing_parent_management_group_id = (
                 existing_parent_management_group_id_by_subscription_id.get(
                     _get_value(subscription, "subscriptionId"),
                 )
             )
+            if (
+                existing_parent_management_group_id
+                and failed_management_group_ids
+                and existing_parent_management_group_id in failed_management_group_ids
+            ):
+                parent_management_group_id = existing_parent_management_group_id
         if parent_management_group_id:
             transformed_subscription["parent_management_group_id"] = (
                 parent_management_group_id
@@ -223,13 +232,13 @@ def sync(
     transformed_subscriptions = subscriptions
 
     try:
-        management_group_subscriptions, partial_enrichment = (
+        management_group_subscriptions, failed_management_group_ids = (
             get_azure_management_group_subscriptions(
                 credentials,
             )
         )
         existing_parent_management_group_id_by_subscription_id = None
-        if partial_enrichment:
+        if failed_management_group_ids:
             existing_parent_management_group_id_by_subscription_id = (
                 get_existing_subscription_parent_mappings(
                     neo4j_session,
@@ -240,6 +249,7 @@ def sync(
             subscriptions,
             management_group_subscriptions,
             existing_parent_management_group_id_by_subscription_id,
+            failed_management_group_ids,
         )
     except HttpResponseError as e:
         logger.warning(
