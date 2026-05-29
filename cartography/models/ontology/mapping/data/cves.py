@@ -36,14 +36,17 @@ cve_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="references",
                     node_field="references",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="problem_types",
                     node_field="problem_types",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="vector_string",
@@ -121,14 +124,17 @@ trivy_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="references",
                     node_field="references",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="problem_types",
                     node_field="cwe_ids",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="vector_string",
@@ -169,6 +175,7 @@ ubuntu_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="attack_vector",
@@ -245,14 +252,17 @@ github_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="advisory_description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="references",
                     node_field="references",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="problem_types",
                     node_field="cwe_ids",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(
                     ontology_field="vector_string",
