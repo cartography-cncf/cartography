@@ -230,6 +230,7 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     transformed_subscriptions = subscriptions
+    management_group_enrichment_failed = False
 
     try:
         management_group_subscriptions, failed_management_group_ids = (
@@ -252,10 +253,27 @@ def sync(
             failed_management_group_ids,
         )
     except HttpResponseError as e:
+        management_group_enrichment_failed = True
         logger.warning(
             "Skipping Azure management-group subscription enrichment. "
             "Base subscription ingestion will continue. Details: %s",
             e,
+        )
+
+    # Preserve existing subscription parent edges when management-group
+    # enrichment fails so the normal cleanup path does not delete them.
+    if management_group_enrichment_failed:
+        existing_parent_management_group_id_by_subscription_id = (
+            get_existing_subscription_parent_mappings(
+                neo4j_session,
+                tenant_id,
+            )
+        )
+        transformed_subscriptions = transform_azure_subscriptions(
+            subscriptions,
+            [],
+            existing_parent_management_group_id_by_subscription_id,
+            set(existing_parent_management_group_id_by_subscription_id.values()),
         )
 
     load_azure_subscriptions(

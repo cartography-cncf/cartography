@@ -453,3 +453,86 @@ def test_sync_subscriptions_continues_when_management_group_enrichment_fails(
         "PARENT",
     )
     assert subscription_parent_rels == set()
+
+
+@patch("cartography.intel.azure.subscription.get_azure_management_group_subscriptions")
+@patch("cartography.intel.azure.management_groups.get_azure_management_groups")
+def test_sync_subscriptions_preserves_existing_parent_when_global_enrichment_fails(
+    mock_get_management_groups,
+    mock_get_management_group_subscriptions,
+    neo4j_session,
+):
+    # Arrange
+    mock_get_management_groups.return_value = AZURE_MANAGEMENT_GROUPS
+    mock_get_management_group_subscriptions.side_effect = HttpResponseError(
+        message="management group subscription lookup failed",
+    )
+
+    neo4j_session.run(
+        """
+        MERGE (t:AzureTenant{id: $tenant_id})
+        SET t.lastupdated = $previous_update_tag
+        """,
+        tenant_id=TEST_TENANT_ID,
+        previous_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "TENANT_ID": TEST_TENANT_ID,
+    }
+
+    management_groups.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_TENANT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    neo4j_session.run(
+        """
+        MATCH (t:AzureTenant{id: $tenant_id})
+        MATCH (childMg:AzureManagementGroup{id: $child_management_group_id})
+        MERGE (s:AzureSubscription{id: $subscription_id})
+        SET s.lastupdated = $previous_update_tag
+        MERGE (t)-[:RESOURCE {lastupdated: $previous_update_tag}]->(s)
+        MERGE (s)-[:PARENT {lastupdated: $previous_update_tag}]->(childMg)
+        """,
+        tenant_id=TEST_TENANT_ID,
+        child_management_group_id=TEST_CHILD_MANAGEMENT_GROUP_ID,
+        subscription_id=TEST_SUBSCRIPTION_ID,
+        previous_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    subscriptions = [
+        {
+            "id": f"/subscriptions/{TEST_SUBSCRIPTION_ID}",
+            "subscriptionId": TEST_SUBSCRIPTION_ID,
+            "displayName": "Test Subscription",
+            "state": "Enabled",
+        },
+    ]
+
+    # Act
+    subscription.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_TENANT_ID,
+        subscriptions,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert
+    subscription_parent_rels = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureManagementGroup",
+        "id",
+        "PARENT",
+    )
+    assert subscription_parent_rels == {
+        (TEST_SUBSCRIPTION_ID, TEST_CHILD_MANAGEMENT_GROUP_ID),
+    }
