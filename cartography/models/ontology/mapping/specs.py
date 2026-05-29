@@ -13,6 +13,9 @@ class OntologyFieldMapping:
         required: Whether this field is required to create an ontology node or not.
         special_handling: Any special handling required for this field (e.g., "invert_boolean").
         extra: Additional info that may be relevant for this mapping (only used for specific special_handling).
+        indexed: Whether to create a RANGE index on the resulting `_ont_<field>` for each semantic label.
+          Set to False for unbounded text/list fields (e.g. references, description) whose values can
+          exceed Neo4j's index value limit (~8 KB).
 
     Available special_handling options:
         - "invert_boolean": Inverts the boolean value of the field (e.g., True becomes False and vice versa).
@@ -35,6 +38,7 @@ class OntologyFieldMapping:
     required: bool = False
     special_handling: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    indexed: bool = True
 
 
 @dataclass(frozen=True)
