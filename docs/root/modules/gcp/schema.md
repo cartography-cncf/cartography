@@ -950,7 +950,7 @@ Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference
 
 ### GCPPolicyBinding
 
-Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
+Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups, and Workload Identity Federation external principals) to roles on specific resources.
 
 | Field                | Description                                                                      |
 | -------------------- | -------------------------------------------------------------------------------- |
@@ -958,8 +958,9 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | role                 | The name of the GCP role being granted.                                          |
 | resource             | The full resource name where the policy binding is attached.                     |
 | resource_type        | The type of resource.                                                            |
-| members              | A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. |
+| members              | A list of email-backed principal identifiers granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. Workload Identity Federation principal URIs are reflected in `wif_external_principals`. |
 | wif_pools            | A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding. |
+| wif_external_principals | A list of Workload Identity Federation principal URI members (`principal://...` or `principalSet://...`) granted the role. |
 | is_public            | True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
@@ -995,6 +996,13 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
     (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
     ```
 
+- Workload Identity Federation external principals have allow policies that
+  grant the selected subject, group, attribute value, or entire pool access.
+
+    ```
+    (GCPExternalPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
 - GCPPolicyBindings grant roles to principals.
 
     ```
@@ -1011,6 +1019,33 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
     ```
     (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
+### GCPExternalPrincipal
+
+Representation of a Workload Identity Federation principal discovered from a GCP IAM policy binding member such as `principal://iam.googleapis.com/...` or `principalSet://iam.googleapis.com/...`.
+
+| Field                                  | Description                                                       |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| id                                     | The full IAM principal URI.                                       |
+| principal_type                         | `principal` or `principalSet`.                                    |
+| workload_identity_pool_project_number  | The project number that owns the workload identity pool.          |
+| location                               | The workload identity pool location.                              |
+| workload_identity_pool_id              | The workload identity pool ID.                                    |
+| selector_type                          | The selector type, such as `subject`, `group`, `attribute`, or `pool`. |
+| selector_name                          | The attribute name for `attribute.*` selectors.                   |
+| selector_value                         | The selected subject, group, attribute value, or `*`.             |
+| workload_identity_pool                 | The full resource name of the referenced workload identity pool.  |
+| firstseen                              | Timestamp of when a sync job first discovered this node.          |
+| lastupdated                            | Timestamp of the last time the node was updated.                  |
+
+#### Relationships
+
+- GCPExternalPrincipals can have allow policies and permission relationships.
+
+    ```
+    (GCPExternalPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    (GCPExternalPrincipal)-[:CAN_READ]->(GCPBucket)
     ```
 
 ### GCPWorkloadIdentityPool

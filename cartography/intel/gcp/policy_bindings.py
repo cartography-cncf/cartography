@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 import time
 from dataclasses import dataclass
 from dataclasses import field
@@ -33,6 +34,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import MatchLinkSubResource
+from cartography.models.gcp.policy_bindings import GCPExternalPrincipalSchema
 from cartography.models.gcp.policy_bindings import GCPFolderPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPOrganizationPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
@@ -483,6 +485,12 @@ _WIF_PRINCIPAL_PREFIXES = (
     "principalSet://iam.googleapis.com/",
 )
 
+_WORKLOAD_IDENTITY_MEMBER_RE = re.compile(
+    r"^(?P<principal_type>principal|principalSet)://iam\.googleapis\.com/"
+    r"projects/(?P<project_number>[^/]+)/locations/(?P<location>[^/]+)/"
+    r"workloadIdentityPools/(?P<pool_id>[^/]+)(?:/(?P<selector>.+))?$"
+)
+
 
 def _extract_wif_pool_resource(member: str) -> str | None:
     """
@@ -512,6 +520,54 @@ def _extract_wif_pool_resource(member: str) -> str | None:
             return "/".join(parts[:6])
         return None
     return None
+
+
+def _parse_workload_identity_member(member: str) -> dict[str, str | None] | None:
+    match = _WORKLOAD_IDENTITY_MEMBER_RE.match(member)
+    if not match:
+        return None
+
+    selector = match.group("selector")
+    if selector is None:
+        return None
+
+    selector_type = None
+    selector_name = None
+    selector_value = None
+    if selector == "*":
+        selector_type = "pool"
+        selector_value = "*"
+    else:
+        selector_type, _, selector_value = selector.partition("/")
+        if not selector_value:
+            return None
+        if selector_type.startswith("attribute."):
+            selector_name = selector_type.removeprefix("attribute.")
+            selector_type = "attribute"
+        elif selector_type not in {"subject", "group"}:
+            return None
+
+    principal_type = match.group("principal_type")
+    if principal_type == "principal" and selector_type != "subject":
+        return None
+    if principal_type == "principalSet" and selector_type == "subject":
+        return None
+
+    workload_identity_pool = (
+        f"projects/{match.group('project_number')}/locations/"
+        f"{match.group('location')}/workloadIdentityPools/{match.group('pool_id')}"
+    )
+    return {
+        "id": member,
+        "principal_type": principal_type,
+        "workload_identity_pool_project_number": match.group("project_number"),
+        "location": match.group("location"),
+        "workload_identity_pool_id": match.group("pool_id"),
+        "selector_type": selector_type,
+        "selector_name": selector_name,
+        "selector_value": selector_value,
+        "workload_identity_pool": workload_identity_pool,
+    }
 
 
 def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -546,6 +602,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
                 wif_pools: set[str] = set()
+                wif_external_principals: dict[str, dict[str, str | None]] = {}
                 is_public = False
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
@@ -562,6 +619,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     wif_pool = _extract_wif_pool_resource(member)
                     if wif_pool:
                         wif_pools.add(wif_pool)
+                        wif_external_principal = _parse_workload_identity_member(member)
+                        if wif_external_principal:
+                            wif_external_principals[member] = wif_external_principal
                         continue
                     if ":" not in member:
                         continue
@@ -592,6 +652,19 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_pools = set(bindings[key].get("wif_pools", []))
                     existing_pools.update(wif_pools)
                     bindings[key]["wif_pools"] = sorted(existing_pools)
+                    existing_external_principals = {
+                        principal["id"]: principal
+                        for principal in bindings[key].get(
+                            "wif_external_principal_details", []
+                        )
+                    }
+                    existing_external_principals.update(wif_external_principals)
+                    bindings[key]["wif_external_principal_details"] = list(
+                        existing_external_principals.values()
+                    )
+                    bindings[key]["wif_external_principals"] = sorted(
+                        existing_external_principals
+                    )
                     bindings[key]["is_public"] = (
                         bindings[key].get("is_public", False) or is_public
                     )
@@ -616,6 +689,10 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
                         "wif_pools": sorted(wif_pools),
+                        "wif_external_principals": sorted(wif_external_principals),
+                        "wif_external_principal_details": list(
+                            wif_external_principals.values()
+                        ),
                         "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
@@ -625,6 +702,27 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     }
 
     return list(bindings.values())
+
+
+def _get_external_principals(
+    bindings: list[dict[str, Any]],
+) -> list[dict[str, str | None]]:
+    principals: dict[str, dict[str, str | None]] = {}
+    for binding in bindings:
+        for principal in binding.get("wif_external_principal_details", []):
+            principals[principal["id"]] = principal
+    return list(principals.values())
+
+
+def _strip_loader_only_fields(bindings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            key: value
+            for key, value in binding.items()
+            if key != "wif_external_principal_details"
+        }
+        for binding in bindings
+    ]
 
 
 def _group_applies_to_links(
@@ -718,6 +816,17 @@ def load_bindings(
     project_id: str,
     update_tag: int,
 ) -> None:
+    external_principals = _get_external_principals(bindings)
+    if external_principals:
+        load(
+            neo4j_session,
+            GCPExternalPrincipalSchema(),
+            external_principals,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+        )
+
+    bindings = _strip_loader_only_fields(bindings)
     load(
         neo4j_session,
         GCPPolicyBindingSchema(),
@@ -745,6 +854,17 @@ def _load_organization_bindings(
     org_resource_name: str,
     update_tag: int,
 ) -> None:
+    external_principals = _get_external_principals(bindings)
+    if external_principals:
+        load(
+            neo4j_session,
+            GCPExternalPrincipalSchema(),
+            external_principals,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+        )
+
+    bindings = _strip_loader_only_fields(bindings)
     load(
         neo4j_session,
         GCPOrganizationPolicyBindingSchema(),
@@ -772,6 +892,17 @@ def _load_folder_bindings(
     folder_id: str,
     update_tag: int,
 ) -> None:
+    external_principals = _get_external_principals(bindings)
+    if external_principals:
+        load(
+            neo4j_session,
+            GCPExternalPrincipalSchema(),
+            external_principals,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+        )
+
+    bindings = _strip_loader_only_fields(bindings)
     load(
         neo4j_session,
         GCPFolderPolicyBindingSchema(),
@@ -852,6 +983,20 @@ def _cleanup_applies_to_relationships(
     ).run(neo4j_session)
 
 
+def _cleanup_orphan_external_principals(neo4j_session: neo4j.Session) -> None:
+    GraphStatement(
+        """
+        MATCH (principal:GCPExternalPrincipal)
+        WHERE NOT (principal)-[:HAS_ALLOW_POLICY]->(:GCPPolicyBinding)
+        WITH principal LIMIT $LIMIT_SIZE
+        DETACH DELETE principal;
+        """,
+        iterative=True,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+        parent_job_name="GCPExternalPrincipal",
+    ).run(neo4j_session)
+
+
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
@@ -876,6 +1021,7 @@ def cleanup(
         project_id,
         update_tag,
     )
+    _cleanup_orphan_external_principals(neo4j_session)
 
 
 @timeit
@@ -916,6 +1062,7 @@ def cleanup_inherited_policy_bindings(
             folder_id,
             update_tag,
         )
+    _cleanup_orphan_external_principals(neo4j_session)
 
 
 @timeit

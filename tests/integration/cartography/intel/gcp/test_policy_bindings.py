@@ -461,6 +461,47 @@ def test_sync_gcp_policy_bindings(
         ),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "GCPExternalPrincipal",
+        [
+            "id",
+            "principal_type",
+            "workload_identity_pool_project_number",
+            "workload_identity_pool_id",
+            "selector_type",
+            "selector_name",
+            "selector_value",
+            "workload_identity_pool",
+        ],
+    ) == {
+        (
+            tests.data.gcp.policy_bindings.MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+            "principalSet",
+            "123456789012",
+            "test-pool",
+            "attribute",
+            "aws_role",
+            "arn:aws:sts::111122223333:assumed-role/example-readonly",
+            "projects/123456789012/locations/global/workloadIdentityPools/test-pool",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPExternalPrincipal",
+        "id",
+        "GCPPolicyBinding",
+        "id",
+        "HAS_ALLOW_POLICY",
+        rel_direction_right=True,
+    ) == {
+        (
+            tests.data.gcp.policy_bindings.MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+            "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+    }
+
     # Check GCPPolicyBinding to GCPRole relationships
     assert check_rels(
         neo4j_session,
