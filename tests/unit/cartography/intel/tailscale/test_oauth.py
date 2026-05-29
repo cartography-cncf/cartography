@@ -8,6 +8,7 @@ import requests
 
 from cartography.intel.tailscale import _attach_oauth_refresh
 from cartography.intel.tailscale import _mint_oauth_bearer
+from cartography.intel.tailscale import _REAUTH_REQUEST_ATTR
 from cartography.intel.tailscale import start_tailscale_ingestion
 
 
@@ -48,6 +49,10 @@ def test_mint_oauth_bearer_posts_client_credentials() -> None:
         "client_secret": "client-secret",
     }
     assert api_session.post.call_args.kwargs["headers"]["Authorization"] is None
+    assert (
+        "X-Cartography-Tailscale-Reauth"
+        not in api_session.post.call_args.kwargs["headers"]
+    )
     api_session.post.return_value.raise_for_status.assert_called_once()
 
 
@@ -178,15 +183,21 @@ def test_refresh_hook_remints_and_retries_on_401() -> None:
         )
         hook = cast(Callable[..., requests.Response], api_session.hooks["response"][-1])
 
+        original_response = _response(401)
         retried = _response(200)
-        with patch.object(api_session, "send", return_value=retried) as mock_send:
-            result = hook(_response(401), timeout=(5, 30), verify=False)
+        with (
+            patch.object(original_response, "close") as mock_close,
+            patch.object(api_session, "send", return_value=retried) as mock_send,
+        ):
+            result = hook(original_response, timeout=(5, 30), verify=False)
 
         mock_mint.assert_called_once()
         assert result is retried
         sent_req = mock_send.call_args.args[0]
         assert sent_req.headers["Authorization"] == "Bearer fresh-bearer"
-        assert sent_req.headers["X-Cartography-Tailscale-Reauth"] == "1"
+        assert "X-Cartography-Tailscale-Reauth" not in sent_req.headers
+        assert getattr(sent_req, _REAUTH_REQUEST_ATTR) is True
+        mock_close.assert_called_once()
         assert mock_send.call_args.kwargs == {"timeout": (5, 30), "verify": False}
         assert api_session.headers["Authorization"] == "Bearer fresh-bearer"
 
@@ -220,7 +231,7 @@ def test_refresh_hook_does_not_loop_on_repeated_401() -> None:
         )
         hook = api_session.hooks["response"][-1]
         already_retried = _response(401)
-        already_retried.request.headers["X-Cartography-Tailscale-Reauth"] = "1"
+        setattr(already_retried.request, _REAUTH_REQUEST_ATTR, True)
         assert hook(already_retried) is already_retried
         mock_mint.assert_not_called()
 
