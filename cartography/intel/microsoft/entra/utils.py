@@ -62,8 +62,10 @@ def is_directory_expired_page_token_error(error: Exception) -> bool:
     if error.response_status_code != 400:
         return False
 
-    graph_error = getattr(error, "error", None)
-    return getattr(graph_error, "code", None) == DIRECTORY_EXPIRED_PAGE_TOKEN
+    graph_error = error.error
+    if graph_error is None:
+        return False
+    return graph_error.code == DIRECTORY_EXPIRED_PAGE_TOKEN
 
 
 async def get_paginated_values_with_expired_page_retry(
