@@ -58,20 +58,20 @@ _aws_s3_mfa_delete_disabled = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
-       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete = false
+       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete <> 'Enabled'
     RETURN
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
         bucket.versioning_status AS versioning_status,
-        bucket.mfa_delete AS mfa_delete_enabled,
+        bucket.mfa_delete = 'Enabled' AS mfa_delete_enabled,
         a.id AS account_id,
         a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
-       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete = false
+       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete <> 'Enabled'
     RETURN *
     """,
     cypher_count_query="""
