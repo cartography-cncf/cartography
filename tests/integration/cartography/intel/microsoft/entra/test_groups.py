@@ -172,8 +172,8 @@ async def test_get_group_members_does_not_restart_expired_page_token_forever():
             "11111111-1111-1111-1111-111111111111",
         )
 
-    assert members_builder.first_page_calls == 2
-    assert members_builder.next_page_calls == 2
+    assert members_builder.first_page_calls == 6
+    assert members_builder.next_page_calls == 6
 
 
 @pytest.mark.asyncio

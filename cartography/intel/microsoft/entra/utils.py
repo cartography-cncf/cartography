@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 TRANSIENT_EXCEPTIONS = (httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
 MAX_RETRIES = 3
 DIRECTORY_EXPIRED_PAGE_TOKEN = "Directory_ExpiredPageToken"
-MAX_EXPIRED_PAGE_TOKEN_RESTARTS = 1
+MAX_EXPIRED_PAGE_TOKEN_RESTARTS = 5
 
 
 async def call_with_retries(
