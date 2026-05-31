@@ -562,3 +562,135 @@ Representation of an [OCI VCN Flow Log](https://docs.oracle.com/en-us/iaas/Conte
 	```
 	(OCIVcn)-[OCI_FLOW_LOG]->(OCIFlowLog)
 	```
+
+## OCIInstance
+
+Representation of an [OCI Compute Instance](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Instance/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this instance |
+| display_name | The user-friendly name of the instance |
+| compartment_id | The OCID of the compartment containing the instance |
+| availability_domain | The availability domain the instance is in |
+| fault_domain | The fault domain the instance is in |
+| shape | The shape of the instance |
+| lifecycle_state | The instance's current state |
+| region | The region the instance resides in |
+| image_id | The OCID of the image used to boot the instance |
+| are_legacy_imds_endpoints_disabled | Whether legacy (v1) instance metadata service endpoints are disabled |
+| is_secure_boot_enabled | Whether Secure Boot is enabled (shielded instance) |
+| is_pv_encryption_in_transit_enabled | Whether paravirtualized in-transit encryption is enabled |
+| is_monitoring_disabled | Whether the monitoring plugin (agent) is disabled |
+| createdate | ISO 8601 date-time when the instance was created |
+
+### Relationships
+
+- OCI Compartments contain Instances.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIInstance)
+	```
+
+- Instances have VNIC Attachments.
+
+	```
+	(OCIInstance)-[OCI_VNIC_ATTACHMENT]->(OCIVnicAttachment)
+	```
+
+- Instances have Boot Volume Attachments.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME_ATTACHMENT]->(OCIBootVolumeAttachment)
+	```
+
+- Instances have Volume Attachments.
+
+	```
+	(OCIInstance)-[OCI_VOLUME_ATTACHMENT]->(OCIVolumeAttachment)
+	```
+
+- Instances are attached to Boot Volumes.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME]->(OCIBootVolume)
+	```
+
+- Block Volumes are attached to Instances.
+
+	```
+	(OCIBlockVolume)-[ATTACHED_TO]->(OCIInstance)
+	```
+
+## OCIBootVolume
+
+Representation of an [OCI Boot Volume](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/BootVolume/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this boot volume |
+| display_name | The user-friendly name of the boot volume |
+| compartment_id | The OCID of the compartment containing the boot volume |
+| availability_domain | The availability domain the boot volume is in |
+| lifecycle_state | The boot volume's current state |
+| size_in_gbs | The size of the boot volume in GBs |
+| kms_key_id | The OCID of the KMS key used to encrypt the boot volume (if any) |
+| is_hydrated | Whether the boot volume's data has finished copying from the source |
+| vpus_per_gb | The number of volume performance units per GB |
+| image_id | The OCID of the image the boot volume was created from |
+| has_backup_policy | Whether a volume backup policy is assigned to the boot volume |
+| region | The region the boot volume resides in |
+| createdate | ISO 8601 date-time when the boot volume was created |
+
+### Relationships
+
+- OCI Compartments contain Boot Volumes.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIBootVolume)
+	```
+
+- Instances are attached to Boot Volumes.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME]->(OCIBootVolume)
+	```
+
+## OCIBlockVolume
+
+Representation of an [OCI Block Volume](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Volume/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this block volume |
+| display_name | The user-friendly name of the block volume |
+| compartment_id | The OCID of the compartment containing the block volume |
+| availability_domain | The availability domain the block volume is in |
+| lifecycle_state | The block volume's current state |
+| size_in_gbs | The size of the block volume in GBs |
+| kms_key_id | The OCID of the KMS key used to encrypt the block volume (if any) |
+| is_hydrated | Whether the block volume's data has finished copying from the source |
+| vpus_per_gb | The number of volume performance units per GB |
+| has_backup_policy | Whether a volume backup policy is assigned to the block volume |
+| region | The region the block volume resides in |
+| createdate | ISO 8601 date-time when the block volume was created |
+
+### Relationships
+
+- OCI Compartments contain Block Volumes.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIBlockVolume)
+	```
+
+- Block Volumes are attached to Instances.
+
+	```
+	(OCIBlockVolume)-[ATTACHED_TO]->(OCIInstance)
+	```

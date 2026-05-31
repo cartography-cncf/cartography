@@ -8,6 +8,8 @@ from typing import List
 
 import neo4j
 import oci
+import oci.core
+import oci.identity
 
 from . import utils
 from cartography.util import run_cleanup_job
@@ -58,6 +60,10 @@ def load_instances(
     inode.lifecycle_state = $LIFECYCLE_STATE,
     inode.region = $REGION,
     inode.image_id = $IMAGE_ID,
+    inode.are_legacy_imds_endpoints_disabled = $ARE_LEGACY_IMDS_ENDPOINTS_DISABLED,
+    inode.is_secure_boot_enabled = $IS_SECURE_BOOT_ENABLED,
+    inode.is_pv_encryption_in_transit_enabled = $IS_PV_ENCRYPTION_IN_TRANSIT_ENABLED,
+    inode.is_monitoring_disabled = $IS_MONITORING_DISABLED,
     inode.lastupdated = $oci_update_tag
     WITH inode
     MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
@@ -67,6 +73,12 @@ def load_instances(
     """
 
     for instance in instances:
+        # Nested config objects (may be absent depending on shape/image).
+        instance_options = instance.get("instance-options", {}) or {}
+        platform_config = instance.get("platform-config", {}) or {}
+        launch_options = instance.get("launch-options", {}) or {}
+        agent_config = instance.get("agent-config", {}) or {}
+
         neo4j_session.run(
             ingest_instance,
             OCID=instance.get("id"),
@@ -78,6 +90,10 @@ def load_instances(
             LIFECYCLE_STATE=instance.get("lifecycle-state"),
             REGION=region,
             IMAGE_ID=instance.get("image-id"),
+            ARE_LEGACY_IMDS_ENDPOINTS_DISABLED=instance_options.get("are-legacy-imds-endpoints-disabled"),
+            IS_SECURE_BOOT_ENABLED=platform_config.get("is-secure-boot-enabled"),
+            IS_PV_ENCRYPTION_IN_TRANSIT_ENABLED=launch_options.get("is-pv-encryption-in-transit-enabled"),
+            IS_MONITORING_DISABLED=agent_config.get("is-monitoring-disabled"),
             TIME_CREATED=str(instance.get("time-created", "")),
             oci_update_tag=oci_update_tag,
         )
@@ -341,6 +357,283 @@ def load_volume_attachments(
         )
 
 
+def get_availability_domains(
+    identity: oci.identity.identity_client.IdentityClient,
+    compartment_id: str,
+) -> List[str]:
+    """
+    Get the names of all availability domains in a compartment. Block/boot volume
+    listing is scoped per availability domain.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/identity/latest/AvailabilityDomain/ListAvailabilityDomains
+    """
+    try:
+        response = identity.list_availability_domains(compartment_id=compartment_id)
+        return [ad.name for ad in response.data]
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve availability domains for compartment '%s': %s", compartment_id, e.message,
+        )
+        return []
+
+
+def get_boot_volume_list_data(
+    blockstorage: oci.core.blockstorage_client.BlockstorageClient,
+    availability_domain: str,
+    compartment_id: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get all boot volumes in a compartment for a given availability domain.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/BootVolume/ListBootVolumes
+    """
+    try:
+        response = oci.pagination.list_call_get_all_results(
+            blockstorage.list_boot_volumes,
+            availability_domain=availability_domain,
+            compartment_id=compartment_id,
+        )
+        return {'BootVolumes': utils.oci_object_to_json(response.data)}
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve boot volumes for compartment '%s', AD '%s': %s",
+            compartment_id, availability_domain, e.message,
+        )
+        return {'BootVolumes': []}
+
+
+def has_backup_policy_assigned(
+    blockstorage: oci.core.blockstorage_client.BlockstorageClient,
+    volume_id: str,
+) -> bool:
+    """
+    Return True if the given volume (boot or block) has a backup policy assigned.
+    Uses BlockstorageClient.get_volume_backup_policy_asset_assignment (asset_id = volume OCID).
+    """
+    if not volume_id:
+        return False
+    try:
+        response = blockstorage.get_volume_backup_policy_asset_assignment(asset_id=volume_id)
+        return bool(response.data)
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve backup policy assignment for volume '%s': %s", volume_id, e.message,
+        )
+        return False
+
+
+def load_boot_volumes(
+    neo4j_session: neo4j.Session,
+    boot_volumes: List[Dict[str, Any]],
+    tenancy_id: str,
+    compartment_id: str,
+    region: str,
+    oci_update_tag: int,
+) -> None:
+    """
+    Ingest OCI Boot Volume data into Neo4j, link to its compartment, and link to the
+    owning instance via its boot volume attachment.
+    """
+    ingest_boot_volume = """
+    MERGE (bv:OCIBootVolume{ocid: $OCID})
+    ON CREATE SET bv.firstseen = timestamp(),
+    bv.createdate = $TIME_CREATED
+    SET bv.display_name = $DISPLAY_NAME,
+    bv.compartment_id = $COMPARTMENT_ID,
+    bv.availability_domain = $AVAILABILITY_DOMAIN,
+    bv.lifecycle_state = $LIFECYCLE_STATE,
+    bv.size_in_gbs = $SIZE_IN_GBS,
+    bv.kms_key_id = $KMS_KEY_ID,
+    bv.is_hydrated = $IS_HYDRATED,
+    bv.vpus_per_gb = $VPUS_PER_GB,
+    bv.image_id = $IMAGE_ID,
+    bv.has_backup_policy = $HAS_BACKUP_POLICY,
+    bv.region = $REGION,
+    bv.lastupdated = $oci_update_tag
+    WITH bv
+    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MERGE (cc)-[r:RESOURCE]->(bv)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $oci_update_tag
+    WITH bv
+    OPTIONAL MATCH (inode:OCIInstance)-[:OCI_BOOT_VOLUME_ATTACHMENT]->(:OCIBootVolumeAttachment{boot_volume_id: $OCID})
+    FOREACH (_ IN CASE WHEN inode IS NULL THEN [] ELSE [1] END |
+        MERGE (inode)-[ri:OCI_BOOT_VOLUME]->(bv)
+        ON CREATE SET ri.firstseen = timestamp()
+        SET ri.lastupdated = $oci_update_tag
+    )
+    """
+
+    for volume in boot_volumes:
+        neo4j_session.run(
+            ingest_boot_volume,
+            OCID=volume.get("id"),
+            DISPLAY_NAME=volume.get("display-name"),
+            COMPARTMENT_ID=volume.get("compartment-id", compartment_id),
+            AVAILABILITY_DOMAIN=volume.get("availability-domain", ""),
+            LIFECYCLE_STATE=volume.get("lifecycle-state"),
+            SIZE_IN_GBS=volume.get("size-in-gbs"),
+            KMS_KEY_ID=volume.get("kms-key-id", ""),
+            IS_HYDRATED=volume.get("is-hydrated"),
+            VPUS_PER_GB=volume.get("vpus-per-gb"),
+            IMAGE_ID=volume.get("image-id", ""),
+            HAS_BACKUP_POLICY=volume.get("_has_backup_policy", False),
+            REGION=region,
+            TIME_CREATED=str(volume.get("time-created", "")),
+            oci_update_tag=oci_update_tag,
+        )
+
+
+def get_block_volume_list_data(
+    blockstorage: oci.core.blockstorage_client.BlockstorageClient,
+    compartment_id: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get all block volumes in a compartment.
+    See https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Volume/ListVolumes
+    """
+    try:
+        response = oci.pagination.list_call_get_all_results(
+            blockstorage.list_volumes, compartment_id=compartment_id,
+        )
+        return {'Volumes': utils.oci_object_to_json(response.data)}
+    except oci.exceptions.ServiceError as e:
+        logger.warning(
+            "Could not retrieve block volumes for compartment '%s': %s", compartment_id, e.message,
+        )
+        return {'Volumes': []}
+
+
+def load_block_volumes(
+    neo4j_session: neo4j.Session,
+    block_volumes: List[Dict[str, Any]],
+    tenancy_id: str,
+    compartment_id: str,
+    region: str,
+    oci_update_tag: int,
+) -> None:
+    """
+    Ingest OCI Block Volume data into Neo4j, link to its compartment, and create an
+    ATTACHED_TO relationship to the instance via its volume attachment.
+    """
+    ingest_block_volume = """
+    MERGE (bv:OCIBlockVolume{ocid: $OCID})
+    ON CREATE SET bv.firstseen = timestamp(),
+    bv.createdate = $TIME_CREATED
+    SET bv.display_name = $DISPLAY_NAME,
+    bv.compartment_id = $COMPARTMENT_ID,
+    bv.availability_domain = $AVAILABILITY_DOMAIN,
+    bv.lifecycle_state = $LIFECYCLE_STATE,
+    bv.size_in_gbs = $SIZE_IN_GBS,
+    bv.kms_key_id = $KMS_KEY_ID,
+    bv.is_hydrated = $IS_HYDRATED,
+    bv.vpus_per_gb = $VPUS_PER_GB,
+    bv.has_backup_policy = $HAS_BACKUP_POLICY,
+    bv.region = $REGION,
+    bv.lastupdated = $oci_update_tag
+    WITH bv
+    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MERGE (cc)-[r:RESOURCE]->(bv)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $oci_update_tag
+    WITH bv
+    OPTIONAL MATCH (inode:OCIInstance)-[:OCI_VOLUME_ATTACHMENT]->(:OCIVolumeAttachment{volume_id: $OCID})
+    FOREACH (_ IN CASE WHEN inode IS NULL THEN [] ELSE [1] END |
+        MERGE (bv)-[ri:ATTACHED_TO]->(inode)
+        ON CREATE SET ri.firstseen = timestamp()
+        SET ri.lastupdated = $oci_update_tag
+    )
+    """
+
+    for volume in block_volumes:
+        neo4j_session.run(
+            ingest_block_volume,
+            OCID=volume.get("id"),
+            DISPLAY_NAME=volume.get("display-name"),
+            COMPARTMENT_ID=volume.get("compartment-id", compartment_id),
+            AVAILABILITY_DOMAIN=volume.get("availability-domain", ""),
+            LIFECYCLE_STATE=volume.get("lifecycle-state"),
+            SIZE_IN_GBS=volume.get("size-in-gbs"),
+            KMS_KEY_ID=volume.get("kms-key-id", ""),
+            IS_HYDRATED=volume.get("is-hydrated"),
+            VPUS_PER_GB=volume.get("vpus-per-gb"),
+            HAS_BACKUP_POLICY=volume.get("_has_backup_policy", False),
+            REGION=region,
+            TIME_CREATED=str(volume.get("time-created", "")),
+            oci_update_tag=oci_update_tag,
+        )
+
+
+def sync_boot_volume_attachments(
+    neo4j_session: neo4j.Session,
+    compute: oci.core.compute_client.ComputeClient,
+    availability_domains: List[str],
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync all boot volume attachments across compartments and availability domains.
+    """
+    logger.debug("Syncing OCI boot volume attachments for tenancy '%s'.", tenancy_id)
+    for compartment in compartments:
+        for availability_domain in availability_domains:
+            data = get_boot_volume_attachment_list_data(compute, availability_domain, compartment["ocid"])
+            if data["BootVolumeAttachments"]:
+                load_boot_volume_attachments(
+                    neo4j_session, data["BootVolumeAttachments"], tenancy_id, oci_update_tag,
+                )
+
+
+def sync_boot_volumes(
+    neo4j_session: neo4j.Session,
+    blockstorage: oci.core.blockstorage_client.BlockstorageClient,
+    availability_domains: List[str],
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    region: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync all boot volumes across compartments and availability domains, enriching each
+    with whether a backup policy is assigned.
+    """
+    logger.debug("Syncing OCI boot volumes for tenancy '%s', region '%s'.", tenancy_id, region)
+    for compartment in compartments:
+        for availability_domain in availability_domains:
+            data = get_boot_volume_list_data(blockstorage, availability_domain, compartment["ocid"])
+            for volume in data["BootVolumes"]:
+                volume["_has_backup_policy"] = has_backup_policy_assigned(blockstorage, volume.get("id"))
+            if data["BootVolumes"]:
+                load_boot_volumes(
+                    neo4j_session, data["BootVolumes"], tenancy_id, compartment["ocid"], region, oci_update_tag,
+                )
+
+
+def sync_block_volumes(
+    neo4j_session: neo4j.Session,
+    blockstorage: oci.core.blockstorage_client.BlockstorageClient,
+    compartments: List[Dict[str, Any]],
+    tenancy_id: str,
+    region: str,
+    oci_update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync all block volumes across compartments, enriching each with whether a backup
+    policy is assigned.
+    """
+    logger.debug("Syncing OCI block volumes for tenancy '%s', region '%s'.", tenancy_id, region)
+    for compartment in compartments:
+        data = get_block_volume_list_data(blockstorage, compartment["ocid"])
+        for volume in data["Volumes"]:
+            volume["_has_backup_policy"] = has_backup_policy_assigned(blockstorage, volume.get("id"))
+        if data["Volumes"]:
+            load_block_volumes(
+                neo4j_session, data["Volumes"], tenancy_id, compartment["ocid"], region, oci_update_tag,
+            )
+
+
 def sync_instances(
     neo4j_session: neo4j.Session,
     compute: oci.core.compute_client.ComputeClient,
@@ -435,9 +728,30 @@ def sync(
     if not regions:
         regions = [compute.base_client.region or ""]
 
+    # Block storage (boot/block volumes) and identity (availability domains) live on
+    # separate clients. Reuse the compute client's config/signer so we authenticate
+    # identically.
+    blockstorage = oci.core.BlockstorageClient(
+        config=compute.base_client.config,
+        signer=getattr(compute.base_client, "signer", None),
+    )
+    identity = oci.identity.IdentityClient(
+        config=compute.base_client.config,
+        signer=getattr(compute.base_client, "signer", None),
+    )
+
     for region in regions:
         logger.info("Syncing OCI Compute in region '%s' for compartment '%s'.", region, compartment_ocid)
         compute.base_client.set_region(region)
+        blockstorage.base_client.set_region(region)
+        identity.base_client.set_region(region)
+
+        # Availability domains are needed to scope boot volume / boot volume attachment listing.
+        availability_domains: List[str] = []
+        for compartment in compartments:
+            availability_domains.extend(get_availability_domains(identity, compartment["ocid"]))
+        # De-duplicate while preserving order.
+        availability_domains = list(dict.fromkeys(availability_domains))
 
         # Sync instances
         sync_instances(neo4j_session, compute, compartments, tenancy_id, region, oci_update_tag, common_job_parameters)
@@ -448,8 +762,25 @@ def sync(
         # Sync images
         sync_images(neo4j_session, compute, compartments, tenancy_id, oci_update_tag, common_job_parameters)
 
+        # Sync boot volume attachments (links instances to boot volumes)
+        sync_boot_volume_attachments(
+            neo4j_session, compute, availability_domains, compartments, tenancy_id,
+            oci_update_tag, common_job_parameters,
+        )
+
         # Sync volume attachments (block volumes attached to instances)
         sync_volume_attachments(neo4j_session, compute, compartments, tenancy_id, oci_update_tag, common_job_parameters)
+
+        # Sync boot volumes (with kms_key_id + has_backup_policy; links to instance)
+        sync_boot_volumes(
+            neo4j_session, blockstorage, availability_domains, compartments, tenancy_id,
+            region, oci_update_tag, common_job_parameters,
+        )
+
+        # Sync block volumes (with kms_key_id + has_backup_policy; ATTACHED_TO instance)
+        sync_block_volumes(
+            neo4j_session, blockstorage, compartments, tenancy_id, region, oci_update_tag, common_job_parameters,
+        )
 
     # Cleanup stale nodes
     run_cleanup_job('oci_import_compute_instances_cleanup.json', neo4j_session, common_job_parameters)
