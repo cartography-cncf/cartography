@@ -139,3 +139,16 @@ def test_get_okta_group_members_raises_after_non_json_sdk_retries(
 
     assert api_client.get_path.call_count == 3
     assert mock_sleep.call_count == 2
+
+
+def test_get_okta_group_members_raises_on_malformed_next_link() -> None:
+    api_client = mock.MagicMock()
+    response = _Response(json.dumps(GROUP_MEMBERS_SAMPLE_DATA))
+    response.links = {"next": {}}
+    api_client.get_path.return_value = response
+
+    with pytest.raises(ValueError, match="missing a next URL"):
+        get_okta_group_members(api_client, "group-001")
+
+    api_client.get_path.assert_called_once()
+    api_client.get.assert_not_called()

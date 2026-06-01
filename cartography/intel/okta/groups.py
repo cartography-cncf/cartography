@@ -56,11 +56,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_link = paged_response.links.get("next")
-            if next_link is None:
-                next_url = None
-            else:
-                next_url = next_link.get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
@@ -86,15 +82,18 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_link = paged_response.links.get("next")
-            if next_link is None:
-                next_url = None
-            else:
-                next_url = next_link.get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
     return member_list
+
+
+def _get_next_url(paged_response: Response) -> str:
+    next_link = paged_response.links.get("next")
+    if not isinstance(next_link, dict) or not next_link.get("url"):
+        raise ValueError("Okta paginated response was missing a next URL.")
+    return str(next_link["url"])
 
 
 def _get_okta_group_members_page(
