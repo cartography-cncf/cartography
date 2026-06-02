@@ -61,6 +61,7 @@ def transform_agents(agent_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Optional fields - use .get() with None default
             "uuid": agent.get("uuid"),
             "computer_name": agent.get("computerName"),
+            "public_ip": agent.get("externalIp"),
             "firewall_enabled": agent.get("firewallEnabled"),
             "os_name": agent.get("osName"),
             "os_revision": agent.get("osRevision"),

@@ -63,6 +63,7 @@ def test_transform_agents():
     assert agent1["id"] == AGENT_ID
     assert agent1["uuid"] == "uuid-123-456-789"
     assert agent1["computer_name"] == "test-computer-01"
+    assert agent1["public_ip"] == "203.0.113.10"
     assert agent1["firewall_enabled"] is True
     assert agent1["os_name"] == "Windows 10"
     assert agent1["os_revision"] == "1909"
@@ -75,12 +76,14 @@ def test_transform_agents():
     # Test second agent (Linux with different values)
     agent2 = result[1]
     assert agent2["id"] == AGENT_ID_2
+    assert agent2["public_ip"] == "203.0.113.11"
     assert agent2["firewall_enabled"] is False  # Boolean type preservation
     assert agent2["os_name"] == "Ubuntu 20.04"
 
     # Test third agent (macOS with None fields)
     agent3 = result[2]
     assert agent3["id"] == AGENT_ID_3
+    assert agent3["public_ip"] is None
     assert agent3["domain"] is None  # None value handling
     assert agent3["last_successful_scan"] is None  # None value handling
 
@@ -100,6 +103,7 @@ def test_transform_agents_missing_optional_fields():
     # Optional fields should be None
     assert agent["uuid"] is None
     assert agent["computer_name"] is None
+    assert agent["public_ip"] is None
     assert agent["firewall_enabled"] is None
     assert agent["os_name"] is None
     assert agent["os_revision"] is None
