@@ -283,6 +283,69 @@ Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us
     (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
     ```
 
+### EntraRoleDefinition
+
+Representation of an Entra directory [Role Definition](https://learn.microsoft.com/en-us/graph/api/resources/unifiedroledefinition) (e.g. Global Administrator, User Administrator), fetched from the unified RBAC endpoint `roleManagement/directory/roleDefinitions`.
+
+|Field | Description|
+|-------|-------------|
+|id | Unique identifier for the role definition|
+|display_name | Display name of the directory role (e.g. "Global Administrator")|
+|description | Description of what the role grants|
+|is_built_in | Whether this is a built-in role (vs. a custom role)|
+|is_enabled | Whether the role definition is enabled|
+|template_id | The role template ID; equals `id` for built-in roles|
+|lastupdated | Timestamp of when this node was last updated in Cartography|
+
+#### Relationships
+
+- All role definitions are scoped to an Entra Tenant
+
+    ```cypher
+    (:EntraRoleDefinition)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- Role assignments target a role definition
+
+    ```cypher
+    (:EntraRoleAssignment)-[:ASSIGNED_TO]->(:EntraRoleDefinition)
+    ```
+
+### EntraRoleAssignment
+
+Representation of an Entra directory [Role Assignment](https://learn.microsoft.com/en-us/graph/api/resources/unifiedroleassignment), fetched from `roleManagement/directory/roleAssignments`. Each assignment grants a principal (user, group, or service principal) a directory role at a given scope, and acts as the junction node linking the principal to the role definition.
+
+|Field | Description|
+|-------|-------------|
+|id | Unique identifier for the role assignment|
+|role_definition_id | The ID of the assigned role definition|
+|principal_id | The ID of the user, group, or service principal granted the role|
+|directory_scope_id | The directory scope of the assignment (e.g. "/" for tenant-wide)|
+|app_scope_id | The app-specific scope of the assignment, if any|
+|lastupdated | Timestamp of when this node was last updated in Cartography|
+
+#### Relationships
+
+- All role assignments are scoped to an Entra Tenant
+
+    ```cypher
+    (:EntraRoleAssignment)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- A role assignment targets a role definition
+
+    ```cypher
+    (:EntraRoleAssignment)-[:ASSIGNED_TO]->(:EntraRoleDefinition)
+    ```
+
+- Users, groups, and service principals hold directory roles via their role assignments
+
+    ```cypher
+    (:EntraUser)-[:HAS_ROLE]->(:EntraRoleAssignment)
+    (:EntraGroup)-[:HAS_ROLE]->(:EntraRoleAssignment)
+    (:EntraServicePrincipal)-[:HAS_ROLE]->(:EntraRoleAssignment)
+    ```
+
 ### IntuneManagedDevice
 
 Representation of a [Managed Device](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0) enrolled in Intune.
