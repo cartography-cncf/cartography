@@ -107,26 +107,50 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         (TEST_ACCOUNT_ID, "test-nlb-abcdef0123.us-east-1.elb.amazonaws.com"),
     }
 
-    # Assert - ELBV2Listener nodes exist
+    # Assert - ELBV2Listener nodes exist with mTLS fields
     assert check_nodes(
         neo4j_session,
         "ELBV2Listener",
-        ["id", "port", "protocol"],
+        [
+            "id",
+            "port",
+            "protocol",
+            "mutual_authentication_mode",
+            "trust_store_arn",
+            "ignore_client_certificate_expiry",
+            "trust_store_association_status",
+            "advertise_trust_store_ca_names",
+        ],
     ) == {
         (
             "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/test-alb/1234567890123456/abcdef1234567890",
             443,
             "HTTPS",
+            "verify",
+            "arn:aws:elasticloadbalancing:us-east-1:000000000000:truststore/test-ts/1111222233334444",
+            False,
+            "active",
+            "on",
         ),
         (
             "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/test-alb/1234567890123456/1234567890abcdef",
             80,
             "HTTP",
+            None,
+            None,
+            None,
+            None,
+            None,
         ),
         (
             "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/net/test-nlb/abcdef0123456789/fedcba9876543210",
             443,
             "TLS",
+            None,
+            None,
+            None,
+            None,
+            None,
         ),
     }
 

@@ -76,6 +76,25 @@ class OSSSemgrepSASTFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OSSSemgrepSASTFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSASTFinding)-[:FOUND_IN]->(:GitLabProject)
+class OSSSemgrepSASTFindingToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: OSSSemgrepSASTFindingToGitLabProjectRelProperties = (
+        OSSSemgrepSASTFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class OSSSemgrepSASTFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSASTFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
@@ -88,5 +107,6 @@ class OSSSemgrepSASTFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             OSSSemgrepSASTFindingToGithubRepoRel(),
+            OSSSemgrepSASTFindingToGitLabProjectRel(),
         ],
     )

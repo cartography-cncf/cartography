@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_google_workspace
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -35,8 +36,8 @@ CIS_REFERENCES = [
 class UserWithout2SVOutput(Finding):
     """Output model for users without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     is_admin: bool | None = None
     org_unit_path: str | None = None
     is_enrolled_in_2sv: bool | None = None
@@ -90,13 +91,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="4.1.1.3",
-        ),
+        cis_google_workspace("4.1.1.3"),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -113,8 +109,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
 class AdminWithout2SVOutput(Finding):
     """Output model for admin accounts without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     is_admin: bool | None = None
     is_delegated_admin: bool | None = None
@@ -175,13 +171,9 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="4.1.1.1",
-        ),
+        cis_google_workspace("4.1.1.1"),
+        iso27001_annex_a("8.5"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -264,13 +256,8 @@ cis_gw_1_1_1_super_admin_count_too_low = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.1",
-        ),
+        cis_google_workspace("1.1.1"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -327,13 +314,9 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.2",
-        ),
+        cis_google_workspace("1.1.2"),
+        iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -345,8 +328,8 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
 class SuperAdminDualRoleOutput(Finding):
     """Output model for Super Admins that also hold delegated admin roles."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     tenant_id: str | None = None
 
@@ -394,13 +377,8 @@ cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.3",
-        ),
+        cis_google_workspace("1.1.3"),
+        iso27001_annex_a("8.2"),
     ),
 )
 

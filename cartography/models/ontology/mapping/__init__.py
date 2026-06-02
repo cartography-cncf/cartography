@@ -35,6 +35,7 @@ from cartography.models.ontology.mapping.data.containerregistries import (
 from cartography.models.ontology.mapping.data.containers import (
     CONTAINER_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
@@ -139,6 +140,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,
     "certificates": CERTIFICATES_ONTOLOGY_MAPPING,
+    "cves": CVES_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
@@ -172,3 +174,24 @@ def get_semantic_label_mapping_from_node_schema(
                     )
                     return mapping_node
     return None
+
+
+def get_deprecated_ontology_index_properties() -> set[str]:
+    """DEPRECATED: temporary backward-compatibility helper. Remove in v1.0.0.
+
+    Returns the set of `_ont_<field>` property names whose RANGE index was removed by the
+    `indexed=False` opt-out (#2845). Graphs synced before that change still carry these indexes
+    on their semantic labels; this set is used to drop them. Driven entirely by the data model:
+    any field flagged `indexed=False` is picked up automatically.
+    """
+    props: set[str] = set()
+    for module_mappings in (
+        *SEMANTIC_LABELS_MAPPING.values(),
+        *ONTOLOGY_NODES_MAPPING.values(),
+    ):
+        for ontology_mapping in module_mappings.values():
+            for node in ontology_mapping.nodes:
+                for mapping_field in node.fields:
+                    if not mapping_field.indexed:
+                        props.add(f"_ont_{mapping_field.ontology_field}")
+    return props

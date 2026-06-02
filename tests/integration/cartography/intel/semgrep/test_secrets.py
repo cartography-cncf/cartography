@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
@@ -7,6 +8,10 @@ import tests.data.semgrep.secrets
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.secrets import sync_secrets
 from tests.integration.cartography.intel.semgrep.common import create_github_repos
+from tests.integration.cartography.intel.semgrep.common import create_gitlab_projects
+from tests.integration.cartography.intel.semgrep.common import (
+    TEST_GITLAB_PROJECT_WEB_URL,
+)
 from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -108,6 +113,63 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
     ) == {
         (
             "simpsoncorp/sample_repo",
+            tests.data.semgrep.secrets.SECRETS_FINDING_ID,
+        ),
+    }
+
+
+def _build_gitlab_secret_findings():
+    findings = copy.deepcopy(tests.data.semgrep.secrets.RAW_SECRETS)
+    for finding in findings:
+        finding["repository"]["url"] = TEST_GITLAB_PROJECT_WEB_URL
+        finding["repository"]["scmType"] = "SCM_TYPE_GITLAB"
+    return findings
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.secrets,
+    "get_secret_findings",
+    return_value=_build_gitlab_secret_findings(),
+)
+def test_sync_secrets_links_gitlab_project(
+    mock_get_secret_findings, mock_get_deployment, neo4j_session
+):
+    # Arrange
+    create_gitlab_projects(neo4j_session)
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+
+    # Act
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    sync_secrets(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert GitLab project relationship
+    assert check_rels(
+        neo4j_session,
+        "GitLabProject",
+        "web_url",
+        "SemgrepSecretsFinding",
+        "id",
+        "FOUND_IN",
+        rel_direction_right=False,
+    ) == {
+        (
+            TEST_GITLAB_PROJECT_WEB_URL,
             tests.data.semgrep.secrets.SECRETS_FINDING_ID,
         ),
     }
