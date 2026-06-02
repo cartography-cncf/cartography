@@ -3,6 +3,7 @@ from typing import Type
 
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.ontology.mapping import get_deprecated_ontology_index_properties
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
@@ -195,6 +196,29 @@ def test_ontology_mapping_prefix_usage():
                         f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
                         "should not use ontology fields starting with '_ont_' (prefix are added automatically)."
                     )
+
+
+def test_get_deprecated_ontology_index_properties():
+    # DEPRECATED helper (#2845, remove in v1.0.0): it must return exactly the `_ont_<field>`
+    # property names whose RANGE index was opted out via `indexed=False` in the data model.
+    expected: set[str] = set()
+    for mappings in ALL_MAPPINGS.values():
+        for mapping in mappings.values():
+            for node in mapping.nodes:
+                for mapping_field in node.fields:
+                    if not mapping_field.indexed:
+                        expected.add(f"_ont_{mapping_field.ontology_field}")
+
+    result = get_deprecated_ontology_index_properties()
+
+    assert result == expected
+    # Sanity check the fields that #2845 actually opted out, so a regression in the data model
+    # (re-enabling an index on an unbounded field) is caught here.
+    assert {"_ont_description", "_ont_references", "_ont_problem_types"}.issubset(
+        result
+    )
+    # All deprecated properties must carry the ontology `_ont_` namespace prefix.
+    assert all(prop.startswith("_ont_") for prop in result)
 
 
 def test_ontology_mapping_or_boolean_fields():
