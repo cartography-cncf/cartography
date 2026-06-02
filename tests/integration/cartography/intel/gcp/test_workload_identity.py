@@ -142,6 +142,67 @@ def test_sync_workload_identity_pools_and_providers(
 
 @patch.object(
     cartography.intel.gcp.workload_identity,
+    "get_workload_identity_providers",
+    side_effect=wif_data.fake_get_providers,
+)
+@patch.object(
+    cartography.intel.gcp.workload_identity,
+    "get_workload_identity_pools",
+    return_value=wif_data.LIST_WORKLOAD_IDENTITY_POOLS_RESPONSE[
+        "workloadIdentityPools"
+    ],
+)
+def test_aws_provider_trusts_aws_account(_mock_pools, _mock_providers, neo4j_session):
+    """
+    An AWS-protocol provider links to the trusted AWSAccount when that account is
+    in the graph. OIDC providers (null aws_account_id) create no such edge, and no
+    phantom AWSAccount node is created.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    # The trust edge is match-only, so the AWS account must already exist.
+    aws_account_id = "111122223333"
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id:$AccountId})
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated = $gcp_update_tag
+        """,
+        AccountId=aws_account_id,
+        gcp_update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.gcp.workload_identity.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+    )
+
+    aws_provider_id = (
+        f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
+        "workloadIdentityPools/aws-pool/providers/aws-prod"
+    )
+    assert check_rels(
+        neo4j_session,
+        "GCPWorkloadIdentityProvider",
+        "id",
+        "AWSAccount",
+        "id",
+        "TRUSTS_AWS_ACCOUNT",
+        rel_direction_right=True,
+    ) == {
+        (aws_provider_id, aws_account_id),
+    }
+
+    # No phantom AWS account nodes were created by the match-only relationship.
+    assert check_nodes(neo4j_session, "AWSAccount", ["id"]) == {(aws_account_id,)}
+
+
+@patch.object(
+    cartography.intel.gcp.workload_identity,
     "get_workload_identity_pools",
     return_value=wif_data.LIST_WORKLOAD_IDENTITY_POOLS_RESPONSE[
         "workloadIdentityPools"

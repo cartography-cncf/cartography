@@ -301,6 +301,9 @@ class PolicyBindingsSyncStatus(str, Enum):
 class PolicyBindingsSyncResult:
     status: PolicyBindingsSyncStatus
     permission_context: GCPPrincipalPermissionContext
+    # Permission context keyed by Workload Identity Pool id (binding wif_pools),
+    # resolved against GCPWorkloadIdentityPool nodes. Empty on skipped syncs.
+    wif_permission_context: GCPPrincipalPermissionContext = field(default_factory=dict)
 
 
 CAI_POLICY_BINDINGS_RETRY_INITIAL = 1.0
@@ -1001,7 +1004,7 @@ def sync(
     direct_bindings, inherited_bindings = _split_bindings_by_graph_scope(
         transformed_bindings_data
     )
-    permission_context = build_principals_from_policy_bindings(
+    permission_context, wif_permission_context = build_principals_from_policy_bindings(
         transformed_bindings_data,
         role_permissions_by_name,
         project_id,
@@ -1026,7 +1029,7 @@ def sync(
         "Synced GCP policy bindings for project '%s': policy_results=%d, "
         "transformed_bindings=%d, direct_graph_bindings=%d, "
         "inherited_bindings=%d, newly_loaded_inherited_bindings=%d, "
-        "permission_principals=%d",
+        "permission_principals=%d, wif_permission_pools=%d",
         project_id,
         len(bindings_data["policy_results"]),
         len(transformed_bindings_data),
@@ -1034,8 +1037,10 @@ def sync(
         sum(len(bindings) for bindings in inherited_bindings.values()),
         inherited_loaded_count,
         len(permission_context),
+        len(wif_permission_context),
     )
     return PolicyBindingsSyncResult(
         PolicyBindingsSyncStatus.SUCCESS,
         permission_context,
+        wif_permission_context,
     )

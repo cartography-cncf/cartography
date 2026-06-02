@@ -1044,6 +1044,12 @@ Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/do
     (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
     ```
 
+- GCPWorkloadIdentityPools have resolved capability edges to the GCP resources their federated identity is authorized for. These are produced by the same permission-resolution engine that emits `(GCPPrincipal)-[:CAN_*]->(resource)` edges, applied to the pool's `principalSet://` grants (including grants inherited from org/folder/project scope). The relationship label depends on the granted permissions (see [GCP permission mapping](permission-mapping.html)).
+
+    ```
+    (GCPWorkloadIdentityPool)-[:CAN_READ|CAN_WRITE|CAN_DECRYPT|CAN_IMPERSONATE|...]->(GCPResource)
+    ```
+
 ### GCPWorkloadIdentityProvider
 
 Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers). A provider connects a pool to an external identity source (OIDC, AWS, SAML, or X509).
@@ -1081,6 +1087,12 @@ Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.c
 
     ```
     (GCPWorkloadIdentityProvider)-[:MEMBER_OF]->(GCPWorkloadIdentityPool)
+    ```
+
+- AWS-protocol GCPWorkloadIdentityProviders trust an AWS account, so any AWS identity in that account can federate into the pool. This edge is only present in a multi-cloud graph where the trusted `AWSAccount` (id = `aws_account_id`) is also synced; no edge is created otherwise. When `attribute_condition` is non-null the trust is narrower than the whole account; the condition is not parsed, so consumers should treat the edge with lower confidence in that case.
+
+    ```
+    (GCPWorkloadIdentityProvider{protocol: 'AWS'})-[:TRUSTS_AWS_ACCOUNT]->(AWSAccount)
     ```
 
 ### GCPBigtableInstance

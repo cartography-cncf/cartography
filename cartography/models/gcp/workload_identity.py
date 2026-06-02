@@ -112,6 +112,33 @@ class GCPWorkloadIdentityProviderToPoolRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPWorkloadIdentityProviderToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPWorkloadIdentityProviderToAWSAccountRel(CartographyRelSchema):
+    """
+    Cross-cloud trust: an AWS-protocol WIF provider trusts an AWS account, so any
+    AWS identity in that account can federate into the pool. Match-only: no edge is
+    created unless the AWS account is also synced into the graph, and OIDC/SAML
+    providers (null aws_account_id) never match. Per-role scoping carried by
+    attribute_condition is not parsed here; consumers can lower confidence when the
+    provider's attribute_condition is non-null.
+    """
+
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("awsAccountId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TRUSTS_AWS_ACCOUNT"
+    properties: GCPWorkloadIdentityProviderToAWSAccountRelProperties = (
+        GCPWorkloadIdentityProviderToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPWorkloadIdentityProviderSchema(CartographyNodeSchema):
     label: str = "GCPWorkloadIdentityProvider"
     properties: GCPWorkloadIdentityProviderNodeProperties = (
@@ -124,5 +151,6 @@ class GCPWorkloadIdentityProviderSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPWorkloadIdentityProviderToPoolRel(),
+            GCPWorkloadIdentityProviderToAWSAccountRel(),
         ],
     )
