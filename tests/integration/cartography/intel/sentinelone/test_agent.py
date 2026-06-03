@@ -110,6 +110,18 @@ def test_sync_agents(neo4j_session, mocker):
 
     assert actual_nodes == expected_nodes
 
+    local_ips = {
+        (record["id"], tuple(record["local_ips"]))
+        for record in neo4j_session.run(
+            "MATCH (a:S1Agent) RETURN a.id AS id, a.local_ips AS local_ips",
+        )
+    }
+    assert local_ips == {
+        (AGENT_ID, ("192.168.1.10",)),
+        (AGENT_ID_2, ("10.0.0.20",)),
+        (AGENT_ID_3, ()),
+    }
+
     # Verify that relationships to the account were created
     expected_rels = {
         (AGENT_ID, TEST_ACCOUNT_ID),
