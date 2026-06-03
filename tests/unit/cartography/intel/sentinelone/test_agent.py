@@ -134,6 +134,25 @@ def test_transform_agents_missing_required_field():
         transform_agents(test_data)
 
 
+def test_transform_agents_handles_unexpected_local_ip_shapes():
+    """
+    Test that transform_agents handles scalar local IPs and invalid local IPs.
+    """
+    result = transform_agents(
+        [
+            {
+                "id": "unexpected-local-ip-agent",
+                "networkInterfaces": [
+                    {"inet": "192.168.1.11"},
+                    {"inet": ["not-an-ip-address", "127.0.0.1", "10.0.0.11"]},
+                ],
+            },
+        ],
+    )
+
+    assert result[0]["local_ips"] == ["192.168.1.11", "10.0.0.11"]
+
+
 def test_transform_agents_empty_list():
     """
     Test that transform_agents handles empty input list

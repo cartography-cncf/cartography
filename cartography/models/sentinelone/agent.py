@@ -15,7 +15,7 @@ class S1AgentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     uuid: PropertyRef = PropertyRef("uuid", extra_index=True)
     computer_name: PropertyRef = PropertyRef("computer_name", extra_index=True)
-    public_ip: PropertyRef = PropertyRef("public_ip")
+    public_ip: PropertyRef = PropertyRef("public_ip", extra_index=True)
     local_ips: PropertyRef = PropertyRef("local_ips")
     firewall_enabled: PropertyRef = PropertyRef("firewall_enabled")
     os_name: PropertyRef = PropertyRef("os_name")
