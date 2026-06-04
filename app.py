@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import signal
 import threading
 import time
 import uuid
@@ -18,6 +19,12 @@ from utils.logger import get_logger
 
 app_init = None
 context = None
+shutdown_event = threading.Event()
+
+
+def handle_sigterm(signum, frame):
+    logging.info(f"Received signal {signum}. Initiating graceful shutdown...")
+    shutdown_event.set()
 
 
 def current_config(env):
@@ -625,31 +632,36 @@ def process_message(context: AppContext, message: dict):
     finally:
         stop_event.set()
 
-        # Delete the message from the queue
-        sqs_library = SQSLibrary(context)
-
-        # After processing, delete the message
-        status = sqs_library.delete_message(message["ReceiptHandle"])
-        if status:
-            context.logger.debug(
-                "Successfully deleted message from queue",
+        if not shutdown_event.is_set() and is_success:
+            # Only delete if we completed successfully and aren't shutting down
+            sqs_library = SQSLibrary(context)
+            status = sqs_library.delete_message(message["ReceiptHandle"])
+            if status:
+                context.logger.debug(
+                    "Successfully deleted message from queue",
+                    extra={
+                        "message": message["Body"],
+                        "handle": receipt_handle,
+                        "status": status,
+                    },
+                )
+            else:
+                context.logger.debug(
+                    "Failed to delete message from queue",
+                    extra={
+                        "message": message["Body"],
+                        "handle": receipt_handle,
+                        "status": status,
+                    },
+                )
+        elif shutdown_event.is_set():
+            context.logger.info(
+                "Shutdown in progress. Not deleting message so it can be re-processed.",
                 extra={
                     "message": message["Body"],
                     "handle": receipt_handle,
-                    "status": status,
                 },
             )
-            is_success = True
-        else:
-            context.logger.debug(
-                "Failed to delete message from queue",
-                extra={
-                    "message": message["Body"],
-                    "handle": receipt_handle,
-                    "status": status,
-                },
-            )
-            is_success = False
 
         visibility_extension_thread.join()
 
@@ -664,6 +676,10 @@ def poll_messages(context: AppContext):
     # INFO: poll messages from sqs, fetch one message, process it and die
     processed_count: int = 0
     while True:
+        if shutdown_event.is_set():
+            context.logger.info("Shutdown signal received. Exiting poll loop.")
+            break
+
         context.logger.debug("fetching messages")
 
         try:
@@ -726,6 +742,9 @@ def init_app_context() -> AppContext:
 
 if __name__ == "__main__":
     print("Service started...")
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+    signal.signal(signal.SIGINT, handle_sigterm)
 
     if os.environ.get("CDX_RUN_AS") == "EKS":
         context = init_app_context()
