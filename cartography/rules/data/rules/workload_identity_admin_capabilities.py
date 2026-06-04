@@ -53,7 +53,9 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
             <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         UNWIND effective_actions AS action
-        WITH a, ec2, role, sg, ip, COLLECT(DISTINCT action) AS actions
+        WITH a, ec2, role,
+            COLLECT(DISTINCT action) AS actions,
+            COLLECT(DISTINCT toString(ip.fromport) + '-' + toString(ip.toport)) AS open_inbound_ports
         RETURN DISTINCT
             ec2.id AS workload_id,
             a.name AS account,
@@ -62,9 +64,8 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             actions,
             ec2.exposed_internet AS internet_accessible,
             ec2.publicipaddress AS public_ip_address,
-            ip.fromport AS from_port,
-            ip.toport AS to_port
-        ORDER BY account, workload_id, internet_accessible, from_port
+            open_inbound_ports
+        ORDER BY account, workload_id, internet_accessible
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -91,6 +92,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="workload_id",
+    identity_fields=("workload_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -170,6 +172,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
     RETURN COUNT(lambda) AS count
     """,
     asset_id_field="workload_id",
+    identity_fields=("workload_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -185,6 +188,7 @@ class WorkloadIdentityAdminCapabilities(Finding):
     actions: list[str] | None = None
     internet_accessible: bool | None = None
     public_ip_address: str | None = None
+    open_inbound_ports: list[str] | None = None
 
 
 workload_identity_admin_capabilities = Rule(

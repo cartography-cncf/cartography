@@ -45,6 +45,7 @@ _aws_trust_relationship_manipulation = Fact(
             a.id AS account_id,
             principal.name AS principal_name,
             principal.arn AS principal_identifier,
+            policy.id AS policy_id,
             policy.name AS policy_name,
             principal_type,
             collect(DISTINCT action) AS actions,
@@ -80,6 +81,7 @@ _aws_trust_relationship_manipulation = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -155,6 +157,7 @@ _gcp_trust_relationship_manipulation = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -214,6 +217,7 @@ _azure_trust_relationship_manipulation = Fact(
         principal.id AS principal_identifier,
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.id AS policy_id,
         rd.role_name AS policy_name,
         matched AS actions,
         [ra.scope] AS resources
@@ -243,6 +247,7 @@ _azure_trust_relationship_manipulation = Fact(
     RETURN COUNT(ra) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -255,6 +260,7 @@ class DelegationBoundaryModifiable(Finding):
     principal_type: str | None = None
     account: str | None = None
     account_id: str | None = None
+    policy_id: str | None = None
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []

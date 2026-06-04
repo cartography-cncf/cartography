@@ -525,6 +525,47 @@ object_storage_public = Rule(
 )
 ```
 
+### Finding identity vs. display fields
+
+Output-model fields are for display and context. Many of them change over time even though the
+underlying finding does not: counts (`active_key_count`, `super_admin_count`, `image_count`), dates
+and usage flags (`days_since_rotation`, `last_used_date`, `is_stale_or_unused`), and aggregate
+lists. If a downstream system that tracks finding lifecycle (first-seen time, acceptance/suppression,
+ownership, issue correlation) keys on those volatile fields, the same finding reappears as new every
+time a metric moves.
+
+To give such consumers a stable contract, every `Fact` **must** declare `identity_fields`: the
+subset of output-model fields that form the **stable logical identity** of a finding across syncs.
+The field is required (no default), so a fact that omits it fails to construct.
+
+```python
+_aws_user_direct_policies = Fact(
+    id="aws_user_direct_policies",
+    ...
+    asset_id_field="user_arn",                    # compliance failing-count only
+    identity_fields=("user_arn", "policy_arn"),   # one finding per attachment
+)
+```
+
+Guidelines:
+
+- Every field in `identity_fields` must exist on the rule's output model and be returned by the
+  fact's `cypher_query` (a unit test enforces this).
+- Downstream lifecycle tracking should build its storage identity from `rule.id` + `fact.id` +
+  the `identity_fields` values, so multi-fact rules cannot collide.
+- For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only
+  unique per provider: two providers can have distinct nodes with the same `id`. A cross-cloud fact
+  that matches such a label must include a provider discriminator (typically `source` from
+  `_ont_source`) in `identity_fields`, returning it from the query if it is not already aliased.
+- `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
+  fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
+  Python rule registry.
+- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` only drives the
+  distinct-asset failing count shown in compliance metrics; it is not a lifecycle-identity contract.
+  The two can differ on purpose: `aws_user_direct_policies` counts distinct users
+  (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
+  (`identity_fields=("user_arn", "policy_arn")`).
+
 ### Steps to add a new rule
 
 1. **Create a new rule file** in `cartography/rules/data/rules/`:

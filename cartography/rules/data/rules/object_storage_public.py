@@ -43,6 +43,7 @@ _aws_s3_public = Fact(
     MATCH (b:S3Bucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -84,6 +85,7 @@ _gcp_bucket_public = Fact(
     MATCH (b:GCPBucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -120,6 +122,7 @@ _azure_storage_public_blob_access = Fact(
     MATCH (bc:AzureStorageBlobContainer)
     RETURN COUNT(bc) AS count
     """,
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
