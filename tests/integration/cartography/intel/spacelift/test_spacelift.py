@@ -25,6 +25,7 @@ TEST_API_ENDPOINT = "https://fake.spacelift.io/graphql"
 TEST_ACCOUNT_ID = "test-account-123"
 TEST_AWS_ACCOUNT_ID = "000000000000"
 TEST_AWS_REGION = "us-east-1"
+TEST_AWS_ROLE_ARN = "arn:aws:iam::000000000000:role/SpaceLift-Administrator-Access"
 
 
 @patch.object(
@@ -116,6 +117,17 @@ def test_spacelift_end_to_end(
     actual_ec2_nodes = check_nodes(neo4j_session, "EC2Instance", ["id", "instanceid"])
     assert actual_ec2_nodes is not None
     assert expected_ec2_nodes == actual_ec2_nodes
+
+    # Seed an AWSRole node (normally created by the AWS IAM sync) so the
+    # SpaceliftStack-[:ASSUMES]->AWSRole relationship can be matched.
+    neo4j_session.run(
+        """
+        MERGE (r:AWSRole {arn: $arn})
+        SET r.id = $arn, r.lastupdated = $update_tag
+        """,
+        arn=TEST_AWS_ROLE_ARN,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -302,3 +314,19 @@ def test_spacelift_end_to_end(
     )
     assert actual_pool_worker_relationships is not None
     assert expected_pool_worker_relationships == actual_pool_worker_relationships
+
+    # Check that Stack-[:ASSUMES]->AWSRole relationships were created.
+    # Only stack-1 has an assumed role ARN; stack-2's is null, so it gets no edge.
+    expected_stack_role_relationships = {
+        ("stack-1", TEST_AWS_ROLE_ARN),
+    }
+    actual_stack_role_relationships = check_rels(
+        neo4j_session,
+        "SpaceliftStack",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+    )
+    assert actual_stack_role_relationships is not None
+    assert expected_stack_role_relationships == actual_stack_role_relationships
