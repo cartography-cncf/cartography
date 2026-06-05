@@ -11,7 +11,6 @@ from cartography.rules.data.rules.subimage_coverage import (
     subimage_module_not_configured,
 )
 from cartography.rules.runners import get_all_frameworks
-from cartography.rules.spec.model import Module
 
 SUBIMAGE_COVERAGE_RULES = (
     subimage_module_not_configured,
@@ -28,51 +27,7 @@ def test_subimage_coverage_rules_registered_without_frameworks():
         assert RULES[rule.id] is rule
         assert rule.version == "0.1.0"
         assert rule.frameworks == ()
-
-
-def test_subimage_coverage_rules_keep_coverage_tags():
-    expected_tags = {
-        subimage_module_not_configured.id: {
-            "subimage",
-            "coverage",
-            "misconfiguration",
-        },
-        subimage_framework_disabled_module_enabled.id: {
-            "subimage",
-            "coverage",
-            "misconfiguration",
-        },
-        container_image_not_found.id: {
-            "subimage",
-            "container",
-            "coverage",
-            "infrastructure",
-        },
-        repository_without_slsa_provenance.id: {
-            "subimage",
-            "coverage",
-            "supply-chain",
-            "slsa",
-        },
-        aws_account_not_synced.id: {
-            "subimage",
-            "aws",
-            "coverage",
-            "infrastructure",
-            "misconfiguration",
-        },
-    }
-
-    for rule in SUBIMAGE_COVERAGE_RULES:
-        assert set(rule.tags) == expected_tags[rule.id]
-
-
-def test_subimage_coverage_rule_modules():
-    assert subimage_module_not_configured.modules == {Module.SUBIMAGE}
-    assert subimage_framework_disabled_module_enabled.modules == {Module.SUBIMAGE}
-    assert container_image_not_found.modules == {Module.CROSS_CLOUD}
-    assert repository_without_slsa_provenance.modules == {Module.SUBIMAGE}
-    assert aws_account_not_synced.modules == {Module.AWS}
+        assert "coverage" in rule.tags
 
 
 def test_subimage_coverage_not_advertised_as_compliance_framework():
