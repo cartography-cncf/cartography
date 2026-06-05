@@ -79,6 +79,9 @@ from cartography.models.ontology.mapping.data.security_issues import (
 from cartography.models.ontology.mapping.data.serviceaccounts import (
     SERVICEACCOUNTS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.snapshots import (
+    SNAPSHOTS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.subnets import SUBNETS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
@@ -138,6 +141,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "roles": ROLES_ONTOLOGY_MAPPING,
     "secrets": SECRETS_ONTOLOGY_MAPPING,
     "securityissues": SECURITY_ISSUES_ONTOLOGY_MAPPING,
+    "snapshots": SNAPSHOTS_ONTOLOGY_MAPPING,
     "subnets": SUBNETS_ONTOLOGY_MAPPING,
     "vpcs": VPCS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,

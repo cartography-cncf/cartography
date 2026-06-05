@@ -371,6 +371,8 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 
 Representation of an [Azure Snapshot](https://docs.microsoft.com/en-us/rest/api/compute/snapshots).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, RDSSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|

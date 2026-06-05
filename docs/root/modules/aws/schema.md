@@ -3833,6 +3833,8 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4713,6 +4715,8 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 ### EBSSnapshot
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
+
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., RDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
