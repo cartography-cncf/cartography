@@ -73,6 +73,15 @@ Each rule has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps trac
 
 When a rule's version changes, you can review the changes in the git history to understand what was modified and assess impact on your existing workflows.
 
+### Catalog Visibility
+
+Each rule has `catalog_visibility` metadata that tells consumers which catalog views the rule belongs in:
+
+- `rules`: show in the standalone rule catalog.
+- `compliance`: show through compliance framework pages.
+
+If omitted, standalone rules default to `("rules",)` and framework-mapped rules default to `("rules", "compliance")`. Use `("compliance",)` for framework checklist controls that are not useful as standalone detections.
+
 ### Fact Maturity Levels
 
 Each fact has a maturity level that indicates its stability and production-readiness:

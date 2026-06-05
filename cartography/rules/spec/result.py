@@ -8,6 +8,7 @@ of rule and fact execution.
 from dataclasses import dataclass
 from dataclasses import field
 
+from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
 
@@ -85,6 +86,7 @@ class RuleResult:
         facts (list[FactResult]): Results from each Fact executed within this Rule.
         rule_tags (tuple[str, ...]): Tags associated with the Rule.
         rule_frameworks (tuple[Framework, ...]): Compliance frameworks this rule maps to.
+        rule_catalog_visibility (tuple[Catalog, ...]): Where this rule appears in catalogs.
     """
 
     rule_id: str
@@ -94,3 +96,4 @@ class RuleResult:
     facts: list[FactResult] = field(default_factory=list)
     rule_tags: tuple[str, ...] = ()
     rule_frameworks: tuple[Framework, ...] = ()
+    rule_catalog_visibility: tuple[Catalog, ...] = (Catalog.RULES,)

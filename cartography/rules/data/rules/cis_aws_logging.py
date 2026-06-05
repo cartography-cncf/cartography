@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -89,6 +90,7 @@ cis_aws_4_1_cloudtrail_multi_region = Rule(
     tags=("logging", "cloudtrail", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("4.1"),
         iso27001_annex_a("8.15"),
@@ -157,6 +159,7 @@ cis_aws_4_2_cloudtrail_log_validation = Rule(
     tags=("logging", "cloudtrail", "stride:repudiation", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("4.2"),
         iso27001_annex_a("8.15"),
@@ -228,6 +231,7 @@ cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
     tags=("logging", "cloudtrail", "s3", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("4.4"),
         iso27001_annex_a("8.15"),
@@ -295,6 +299,7 @@ cis_aws_4_5_cloudtrail_encryption = Rule(
     tags=("logging", "cloudtrail", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("4.5"),
         iso27001_annex_a("8.24"),

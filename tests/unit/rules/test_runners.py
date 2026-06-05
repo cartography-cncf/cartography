@@ -8,7 +8,9 @@ correctly sums up from facts → findings.
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from cartography.rules.formatters import to_serializable
 from cartography.rules.runners import _run_single_rule
+from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
@@ -45,6 +47,7 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
     mock_rule.facts = (mock_fact1, mock_fact2, mock_fact3)
     mock_rule.tags = ("test",)
     mock_rule.frameworks = ()
+    mock_rule.catalog_visibility = (Catalog.RULES,)
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -96,6 +99,7 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
     # Verify tags and frameworks are propagated to RuleResult
     assert rule_result.rule_tags == ("test",)
     assert rule_result.rule_frameworks == ()
+    assert rule_result.rule_catalog_visibility == (Catalog.RULES,)
 
     assert (
         len(rule_result.facts) == 3
@@ -123,6 +127,7 @@ def test_run_single_rule_with_zero_findings(mock_run_fact):
     mock_rule.facts = (mock_fact,)
     mock_rule.tags = ("test",)
     mock_rule.frameworks = ()
+    mock_rule.catalog_visibility = (Catalog.RULES,)
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -155,6 +160,7 @@ def test_run_single_rule_with_zero_findings(mock_run_fact):
     # Verify tags and frameworks are propagated to RuleResult
     assert rule_result.rule_tags == ("test",)
     assert rule_result.rule_frameworks == ()
+    assert rule_result.rule_catalog_visibility == (Catalog.RULES,)
 
 
 @patch("cartography.rules.runners._run_fact")
@@ -177,6 +183,7 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     mock_rule.facts = (mock_fact1, mock_fact2)
     mock_rule.tags = ("test",)
     mock_rule.frameworks = ()
+    mock_rule.catalog_visibility = (Catalog.RULES,)
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -235,6 +242,7 @@ def test_run_single_rule_propagates_frameworks(mock_run_fact):
     mock_rule.facts = (mock_fact,)
     mock_rule.tags = ("iam", "credentials", "stride:spoofing")
     mock_rule.frameworks = (cis_framework,)
+    mock_rule.catalog_visibility = (Catalog.COMPLIANCE,)
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -266,3 +274,5 @@ def test_run_single_rule_propagates_frameworks(mock_run_fact):
     assert rule_result.rule_frameworks[0].scope == "aws"
     assert rule_result.rule_frameworks[0].revision == "5.0"
     assert rule_result.rule_frameworks[0].requirement == "1.14"
+    assert rule_result.rule_catalog_visibility == (Catalog.COMPLIANCE,)
+    assert to_serializable(rule_result)["rule_catalog_visibility"] == ["compliance"]

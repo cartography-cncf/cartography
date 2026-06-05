@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -94,6 +95,7 @@ cis_aws_3_1_2_s3_mfa_delete = Rule(
     tags=("storage", "s3", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("3.1.2"),
         iso27001_annex_a("8.10"),
@@ -171,6 +173,7 @@ cis_aws_3_1_4_s3_block_public_access = Rule(
     tags=("storage", "s3", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("3.1.4"),
         iso27001_annex_a("8.3"),
@@ -243,6 +246,7 @@ cis_aws_3_2_1_rds_encryption = Rule(
     tags=("storage", "rds", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    catalog_visibility=(Catalog.COMPLIANCE,),
     frameworks=(
         cis_aws("3.2.1"),
         iso27001_annex_a("8.24"),

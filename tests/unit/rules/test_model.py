@@ -1,7 +1,23 @@
+from cartography.rules.spec.model import Catalog
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
+from cartography.rules.spec.model import Rule
 from cartography.sync import TOP_LEVEL_MODULES
+
+_TEST_FACT = Fact(
+    id="test_fact",
+    name="Test Fact",
+    description="Test fact",
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+    cypher_query="MATCH (n) RETURN n.id AS id",
+    cypher_visual_query="MATCH (n) RETURN *",
+    cypher_count_query="MATCH (n) RETURN COUNT(n) AS count",
+)
 
 
 def test_framework_normalizes_to_lowercase():
@@ -114,6 +130,72 @@ def test_framework_matches_with_optional_fields():
     assert not fw_no_revision.matches(
         "cis", "aws", "5.0"
     )  # Can't match revision if None
+
+
+def test_rule_catalog_visibility_defaults_to_rules_for_standalone_rule():
+    rule = Rule(
+        id="standalone_rule",
+        name="Standalone Rule",
+        tags=("test",),
+        description="Standalone rule",
+        version="0.1.0",
+        facts=(_TEST_FACT,),
+        output_model=Finding,
+    )
+
+    assert rule.catalog_visibility == (Catalog.RULES,)
+
+
+def test_rule_catalog_visibility_defaults_to_rules_and_compliance_for_framework_mapped_rule():
+    rule = Rule(
+        id="framework_mapped_rule",
+        name="Framework-Mapped Rule",
+        tags=("test",),
+        description="Framework-mapped rule",
+        version="0.1.0",
+        facts=(_TEST_FACT,),
+        output_model=Finding,
+        frameworks=(
+            Framework(
+                name="ISO/IEC 27001",
+                short_name="27001",
+                requirement="8.5",
+                revision="2022",
+            ),
+        ),
+    )
+
+    assert rule.catalog_visibility == (Catalog.RULES, Catalog.COMPLIANCE)
+
+
+def test_rule_catalog_visibility_accepts_string_values():
+    rule = Rule(
+        id="compliance_rule",
+        name="Compliance Rule",
+        tags=("test",),
+        description="Compliance rule",
+        version="0.1.0",
+        facts=(_TEST_FACT,),
+        output_model=Finding,
+        catalog_visibility="compliance",
+    )
+
+    assert rule.catalog_visibility == (Catalog.COMPLIANCE,)
+
+
+def test_rule_catalog_visibility_accepts_list_values():
+    rule = Rule(
+        id="multi_catalog_rule",
+        name="Multi-Catalog Rule",
+        tags=("test",),
+        description="Multi-catalog rule",
+        version="0.1.0",
+        facts=(_TEST_FACT,),
+        output_model=Finding,
+        catalog_visibility=["rules", "compliance"],
+    )
+
+    assert rule.catalog_visibility == (Catalog.RULES, Catalog.COMPLIANCE)
 
 
 def test_all_module_keys_in_mapping_except_cross_cloud():
