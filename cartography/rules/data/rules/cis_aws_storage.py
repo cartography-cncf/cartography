@@ -174,7 +174,6 @@ cis_aws_3_1_4_s3_block_public_access = Rule(
     tags=("storage", "s3", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    compliance_only=True,
     frameworks=(
         cis_aws("3.1.4"),
         iso27001_annex_a("8.3"),

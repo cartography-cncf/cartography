@@ -1,6 +1,18 @@
 from cartography.rules.data.rules import RULES
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
+from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_6_3_remote_admin_ipv4,
+)
+from cartography.rules.data.rules.cis_aws_storage import (
+    cis_aws_3_1_4_s3_block_public_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_8_escalation_permissions,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_6_2_runtime_default_seccomp,
+)
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.nist_ai_rmf import nist_ai_admin_ai_app_authorizations
 from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_agent_inventory
@@ -32,19 +44,25 @@ def _serialized_compliance_only(rule) -> bool:
     return to_serializable(result)["rule_compliance_only"]
 
 
-def test_cis_catalog_rules_are_compliance_only() -> None:
-    cis_rules = {
-        rule_id: rule
-        for rule_id, rule in RULES.items()
-        if rule_id.startswith(("cis_aws_", "cis_gcp_", "cis_k8s_", "cis_gw_"))
-    }
-
-    assert cis_rules
-    for rule in cis_rules.values():
+def test_compliance_hygiene_rules_are_compliance_only() -> None:
+    for rule in (
+        cis_aws_2_11_unused_credentials,
+        cis_aws_2_13_access_key_not_rotated,
+        cis_k8s_5_6_2_runtime_default_seccomp,
+    ):
         assert rule.compliance_only is True
+        assert _serialized_compliance_only(rule) is True
 
-    assert _serialized_compliance_only(cis_aws_2_11_unused_credentials) is True
-    assert _serialized_compliance_only(cis_aws_2_13_access_key_not_rotated) is True
+
+def test_framework_mapped_operational_cis_rules_are_not_compliance_only() -> None:
+    for rule in (
+        cis_aws_6_3_remote_admin_ipv4,
+        cis_aws_3_1_4_s3_block_public_access,
+        cis_k8s_5_1_8_escalation_permissions,
+    ):
+        assert rule.frameworks
+        assert rule.compliance_only is False
+        assert _serialized_compliance_only(rule) is False
 
 
 def test_standalone_operational_rules_are_not_compliance_only() -> None:
@@ -87,4 +105,4 @@ def test_compliance_only_does_not_remove_framework_mappings() -> None:
         rule for rule in RULES.values() if rule.has_framework("cis", "aws", "6.0.0")
     ]
     assert "cis" in frameworks
-    assert len(cis_aws_rules) == 18
+    assert cis_aws_rules

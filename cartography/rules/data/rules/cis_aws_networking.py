@@ -195,7 +195,6 @@ cis_aws_6_1_2_cifs_restricted = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    compliance_only=True,
     frameworks=(
         cis_aws("6.1.2"),
         iso27001_annex_a("8.20"),
@@ -301,7 +300,6 @@ cis_aws_6_3_remote_admin_ipv4 = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    compliance_only=True,
     frameworks=(
         cis_aws("6.3"),
         iso27001_annex_a("8.20"),
@@ -407,7 +405,6 @@ cis_aws_6_4_remote_admin_ipv6 = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    compliance_only=True,
     frameworks=(
         cis_aws("6.4"),
         iso27001_annex_a("8.20"),
@@ -498,7 +495,6 @@ cis_aws_6_5_default_sg_traffic = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    compliance_only=True,
     frameworks=(
         cis_aws("6.5"),
         iso27001_annex_a("8.20"),
