@@ -30,6 +30,7 @@ from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
 from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
+from cartography.intel.gcp.wif import WIF_PRINCIPAL_PREFIXES
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
@@ -480,11 +481,6 @@ def get_policy_bindings(
     }
 
 
-_WIF_PRINCIPAL_PREFIXES = (
-    "principal://iam.googleapis.com/",
-    "principalSet://iam.googleapis.com/",
-)
-
 _WORKLOAD_IDENTITY_MEMBER_RE = re.compile(
     r"^(?P<principal_type>principal|principalSet)://iam\.googleapis\.com/"
     r"projects/(?P<project_number>[^/]+)/locations/(?P<location>[^/]+)/"
@@ -504,7 +500,7 @@ def _extract_wif_pool_resource(member: str) -> str | None:
     the value matches ``GCPWorkloadIdentityPool.id`` (which is set from the
     pool's API ``name`` field).
     """
-    for prefix in _WIF_PRINCIPAL_PREFIXES:
+    for prefix in WIF_PRINCIPAL_PREFIXES:
         if not member.startswith(prefix):
             continue
         path = member[len(prefix) :]
@@ -1022,7 +1018,6 @@ def cleanup(
         project_id,
         update_tag,
     )
-    _cleanup_orphan_external_principals(neo4j_session)
 
 
 @timeit

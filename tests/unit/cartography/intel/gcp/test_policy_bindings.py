@@ -563,7 +563,7 @@ def test_cleanup_uses_one_generic_applies_to_cleanup(
         == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
     )
     cleanup_job.run.assert_called_once_with(neo4j_session)
-    assert mock_graph_statement.call_count == 2
+    assert mock_graph_statement.call_count == 1
     query = mock_graph_statement.call_args_list[0].args[0]
     assert "MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()" in query
     assert "r._sub_resource_id = $_sub_resource_id" in query
@@ -571,10 +571,7 @@ def test_cleanup_uses_one_generic_applies_to_cleanup(
         mock_graph_statement.call_args_list[0].kwargs["iterationsize"]
         == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
     )
-    orphan_query = mock_graph_statement.call_args_list[1].args[0]
-    assert "MATCH (principal:GCPExternalPrincipal)" in orphan_query
-    assert "NOT (principal)-[:HAS_ALLOW_POLICY]->(:GCPPolicyBinding)" in orphan_query
-    assert applies_to_cleanup.run.call_count == 2
+    applies_to_cleanup.run.assert_called_once_with(neo4j_session)
 
 
 @patch.object(policy_bindings, "GraphStatement")

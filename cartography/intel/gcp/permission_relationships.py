@@ -13,6 +13,7 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.wif import is_wif_external_principal
 from cartography.models.gcp.permission_relationships import (
     GCPExternalPrincipalPermissionMatchLink,
 )
@@ -25,14 +26,6 @@ GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
 GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE = 1000
 GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE = 100
 GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
-_WIF_PRINCIPAL_PREFIXES = (
-    "principal://iam.googleapis.com/",
-    "principalSet://iam.googleapis.com/",
-)
-
-
-def _is_wif_external_principal(principal: str) -> bool:
-    return principal.startswith(_WIF_PRINCIPAL_PREFIXES)
 
 
 def resolve_gcp_scope(scope: str, project_id: str) -> str:
@@ -394,7 +387,7 @@ def load_permission_relationships_cartesian_product(
     email_principals = {
         principal
         for principal in principal_emails
-        if not _is_wif_external_principal(principal)
+        if not is_wif_external_principal(principal)
     }
     external_principals = principal_emails - email_principals
     loaded_count = 0
@@ -751,7 +744,7 @@ def load_principal_mappings(
     email_mappings = []
     external_mappings = []
     for mapping in principal_mappings:
-        if _is_wif_external_principal(mapping["principal_email"]):
+        if is_wif_external_principal(mapping["principal_email"]):
             external_mappings.append(mapping)
         else:
             email_mappings.append(mapping)
