@@ -23,7 +23,6 @@ shutdown_event = threading.Event()
 
 
 def handle_sigterm(signum, frame):
-    logging.info(f"Received signal {signum}. Initiating graceful shutdown...")
     shutdown_event.set()
 
 
@@ -632,8 +631,8 @@ def process_message(context: AppContext, message: dict):
     finally:
         stop_event.set()
 
-        if not shutdown_event.is_set() and is_success:
-            # Only delete if we completed successfully and aren't shutting down
+        if is_success:
+            # Delete message if processing completed successfully
             sqs_library = SQSLibrary(context)
             status = sqs_library.delete_message(message["ReceiptHandle"])
             if status:
@@ -654,9 +653,9 @@ def process_message(context: AppContext, message: dict):
                         "status": status,
                     },
                 )
-        elif shutdown_event.is_set():
+        else:
             context.logger.info(
-                "Shutdown in progress. Not deleting message so it can be re-processed.",
+                "Processing did not complete successfully. Not deleting message so it can be re-processed.",
                 extra={
                     "message": message["Body"],
                     "handle": receipt_handle,
@@ -693,6 +692,10 @@ def poll_messages(context: AppContext):
             )
 
             if len(messages) > 0:
+                if shutdown_event.is_set():
+                    context.logger.info("Shutdown signal received after fetching messages. Exiting without processing.")
+                    break
+
                 for message in messages:
                     process_message(context, message)
                     processed_count += 1
