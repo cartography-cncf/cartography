@@ -1058,6 +1058,9 @@ def cleanup_inherited_policy_bindings(
             folder_id,
             update_tag,
         )
+    # External principal nodes are loaded before HAS_ALLOW_POLICY edges during
+    # each project sync. Keep this global cleanup after all project workers have
+    # completed so it cannot delete another worker's in-flight principal.
     _cleanup_orphan_external_principals(neo4j_session)
 
 
