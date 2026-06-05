@@ -33,6 +33,51 @@ def test_transform_findings():
     assert transformed[3] == expected_iam_role_finding
 
 
+def test_transform_findings_extracts_sample_flag():
+    """sample flag is parsed from the JSON-encoded service.additionalInfo.value."""
+    findings = [
+        {
+            "Id": "sample",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName","sample":true}',
+                    "Type": "default",
+                },
+            },
+        },
+        {
+            "Id": "real-with-additional-info",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName"}',
+                    "Type": "default",
+                },
+            },
+        },
+        {
+            "Id": "no-additional-info",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {},
+        },
+        {
+            "Id": "non-json-value",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {"AdditionalInfo": {"Value": "not-json", "Type": "default"}},
+        },
+    ]
+
+    samples = {f["id"]: f["sample"] for f in transform_findings(findings)}
+
+    assert samples == {
+        "sample": True,
+        "real-with-additional-info": None,
+        "no-additional-info": None,
+        "non-json-value": None,
+    }
+
+
 def test_transform_findings_prefers_service_event_fields():
     findings = [
         {

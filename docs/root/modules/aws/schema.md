@@ -373,6 +373,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
 | principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
 | archived | Whether the finding has been archived |
+| sample | Whether the finding is a GuardDuty sample finding (generated for testing/demonstration, not real activity). Parsed from the `sample` flag nested in `service.additionalInfo.value` |
 | service_action_type | The GuardDuty service action type for the finding (for example `AWS_API_CALL` or `NETWORK_CONNECTION`) |
 | service_count | The number of times GuardDuty observed the activity represented by the finding |
 | service_resource_role | The role of the affected resource in the activity (for example `TARGET` or `ACTOR`) |
