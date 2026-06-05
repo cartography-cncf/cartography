@@ -17,6 +17,7 @@ _TEST_FACT = Fact(
     cypher_query="MATCH (n) RETURN n.id AS id",
     cypher_visual_query="MATCH (n) RETURN *",
     cypher_count_query="MATCH (n) RETURN COUNT(n) AS count",
+    identity_fields=("id",),
 )
 
 
