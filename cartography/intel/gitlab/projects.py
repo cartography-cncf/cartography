@@ -231,14 +231,14 @@ def sync_gitlab_projects(
     token: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    projects_to_load: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Sync GitLab projects for a specific organization.
+    Fetch, transform, and load GitLab projects for a specific organization.
 
-    The organization ID should be passed in common_job_parameters["ORGANIZATION_ID"].
-    This also fetches and stores language information for each project.
-
-    Returns the raw projects list to avoid redundant API calls in downstream sync functions.
+    If `projects_to_load` is provided, skips fetch+transform and loads that
+    pre-filtered list directly. The raw (unfiltered) list is always returned so
+    callers can decide what to pass to downstream syncs.
     """
     organization_id = common_job_parameters.get("ORGANIZATION_ID")
     if not organization_id:
@@ -246,43 +246,40 @@ def sync_gitlab_projects(
 
     logger.info(f"Syncing GitLab projects for organization {organization_id}")
 
-    # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
     org_url: str = org["web_url"]
     org_name: str = org["name"]
 
     logger.info(f"Syncing projects for organization: {org_name}")
 
-    # Fetch ALL projects for this organization at once (includes all nested groups)
     raw_projects = get_projects(gitlab_url, token, organization_id)
 
     if not raw_projects:
         logger.info(f"No projects found for organization {org_name}")
         return []
 
-    # Fetch languages for all projects concurrently
-    logger.debug("Fetching languages for %s projects", len(raw_projects))
-    languages_by_project = asyncio.run(
-        _fetch_all_languages(gitlab_url, token, raw_projects)
-    )
-    projects_with_languages = sum(1 for langs in languages_by_project.values() if langs)
-    logger.info(f"Found languages for {projects_with_languages} projects")
+    if projects_to_load is None:
+        logger.debug("Fetching languages for %s projects", len(raw_projects))
+        languages_by_project = asyncio.run(
+            _fetch_all_languages(gitlab_url, token, raw_projects)
+        )
+        projects_with_languages = sum(
+            1 for langs in languages_by_project.values() if langs
+        )
+        logger.info(f"Found languages for {projects_with_languages} projects")
+        projects_to_load = transform_projects(
+            raw_projects, organization_id, org_url, gitlab_url, languages_by_project
+        )
 
-    transformed_projects = transform_projects(
-        raw_projects, organization_id, org_url, gitlab_url, languages_by_project
-    )
-
-    if not transformed_projects:
-        logger.info(f"No group projects found for organization {org_name}")
+    if not projects_to_load:
+        logger.info(f"No group projects to load for organization {org_name}")
         return raw_projects
 
-    logger.info(
-        f"Found {len(transformed_projects)} projects in organization {org_name}"
-    )
+    logger.info(f"Loading {len(projects_to_load)} projects in organization {org_name}")
 
     load_projects(
         neo4j_session,
-        transformed_projects,
+        projects_to_load,
         organization_id,
         gitlab_url,
         update_tag,
