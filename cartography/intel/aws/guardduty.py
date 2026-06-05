@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -165,6 +166,24 @@ def get_findings(
     return findings_data
 
 
+def _extract_sample(service: dict[str, Any]) -> bool | None:
+    # GuardDuty flags sample findings (CreateSampleFindings / the console
+    # "Generate sample findings" button) with `"sample": true` *inside* the
+    # JSON-encoded `service.additionalInfo.value` string, not as a top-level
+    # field. boto3 returns that string verbatim, so parse it to recover the flag.
+    additional_info = service.get("AdditionalInfo") or {}
+    raw_value = additional_info.get("Value")
+    if not raw_value:
+        return None
+    try:
+        parsed = json.loads(raw_value)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed.get("sample")
+
+
 def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform GuardDuty findings from API response to schema format."""
     transformed: list[dict[str, Any]] = []
@@ -209,6 +228,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # `Archived` lives under the `Service` object per the AWS Finding
             # schema; fall back to a top-level `Archived` for safety.
             "archived": service.get("Archived", f.get("Archived")),
+            "sample": _extract_sample(service),
             # Service-level fields
             "service_action_type": action_type,
             "service_count": service.get("Count"),

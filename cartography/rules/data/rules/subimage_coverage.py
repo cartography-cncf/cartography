@@ -1,4 +1,3 @@
-from cartography.rules.data.frameworks.subimage import subimage_coverage
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -23,7 +22,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN m.name AS module_name, app.name AS app_name, app.source AS app_source
+    RETURN m.name AS module_name, app._ont_name AS app_name, app._ont_source AS app_source
     ORDER BY m.name
     """,
     cypher_visual_query="""
@@ -40,6 +39,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN count(m) AS count
     """,
+    identity_fields=("module_name", "app_name", "app_source"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -67,7 +67,6 @@ subimage_module_not_configured = Rule(
     ),
     facts=(_subimage_module_not_configured_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.1"),),
 )
 
 # =============================================================================
@@ -104,6 +103,7 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
     WHERE m.is_configured = true AND f.scope = m.id
     RETURN count(f) AS count
     """,
+    identity_fields=("framework_name", "framework_scope"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -120,17 +120,16 @@ subimage_framework_disabled_module_enabled = Rule(
     name="SubImage Framework Disabled While Module Enabled",
     description=(
         "Detects SubImage frameworks that are disabled while their corresponding "
-        "module is configured and active, indicating a compliance framework gap."
+        "module is configured and active, indicating a coverage gap."
     ),
     output_model=SubImageFrameworkDisabledModuleEnabledOutput,
     tags=(
         "subimage",
         "coverage",
-        "compliance",
+        "misconfiguration",
     ),
     facts=(_subimage_framework_disabled_module_enabled_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.2"),),
 )
 
 # =============================================================================
@@ -170,6 +169,7 @@ _container_image_not_found_fact = Fact(
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     RETURN count(c) AS count
     """,
+    identity_fields=("container_id",),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -192,13 +192,13 @@ container_image_not_found = Rule(
     ),
     output_model=ContainerImageNotFoundOutput,
     tags=(
+        "subimage",
         "container",
         "coverage",
         "infrastructure",
     ),
     facts=(_container_image_not_found_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("2.1"),),
 )
 
 # =============================================================================
@@ -235,6 +235,7 @@ _aws_account_not_synced_fact = Fact(
     WHERE resource_count <= 1
     RETURN count(a) AS count
     """,
+    identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -257,13 +258,14 @@ aws_account_not_synced = Rule(
     ),
     output_model=AWSAccountNotSyncedOutput,
     tags=(
+        "subimage",
         "aws",
+        "coverage",
         "infrastructure",
         "misconfiguration",
     ),
     facts=(_aws_account_not_synced_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("2.2"),),
 )
 
 # =============================================================================
@@ -301,6 +303,7 @@ _repository_without_slsa_provenance_fact = Fact(
     WHERE r.match_method <> 'provenance'
     RETURN count(DISTINCT repo) AS count
     """,
+    identity_fields=("repo_id",),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -332,5 +335,4 @@ repository_without_slsa_provenance = Rule(
     ),
     facts=(_repository_without_slsa_provenance_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("3.1"),),
 )

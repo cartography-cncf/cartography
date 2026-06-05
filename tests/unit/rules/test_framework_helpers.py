@@ -4,7 +4,6 @@ from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
-from cartography.rules.data.frameworks.subimage import subimage_coverage
 
 
 def test_framework_helpers_preserve_framework_metadata():
@@ -56,14 +55,6 @@ def test_framework_helpers_preserve_framework_metadata():
             None,
             "1.0",
             "map 1",
-        ),
-        (
-            subimage_coverage("1.1"),
-            "subimage coverage",
-            "coverage",
-            "subimage",
-            None,
-            "1.1",
         ),
     ]
 

@@ -34,7 +34,8 @@ _missing_mfa_ontology = Fact(
         a._ont_email AS email,
         a._ont_firstname AS firstname,
         a._ont_lastname AS lastname,
-        a._ont_source AS status
+        a._ont_source AS status,
+        a._ont_source AS source
     ORDER BY id
     """,
     cypher_visual_query="""
@@ -54,6 +55,7 @@ _missing_mfa_ontology = Fact(
     RETURN COUNT(a) AS count
     """,
     asset_id_field="id",
+    identity_fields=("source", "id"),
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -98,6 +100,7 @@ _missing_mfa_aws = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     maturity=Maturity.EXPERIMENTAL,
 )
 

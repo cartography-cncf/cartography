@@ -23,6 +23,7 @@ _unmanaged_accounts = Fact(
     MATCH (ua:UserAccount)
     RETURN COUNT(ua) AS count
     """,
+    identity_fields=("id",),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.STABLE,
 )

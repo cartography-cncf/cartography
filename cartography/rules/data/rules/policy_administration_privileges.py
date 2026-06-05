@@ -58,6 +58,7 @@ _aws_policy_manipulation_capabilities = Fact(
             principal.name AS principal_name,
             principal.arn  AS principal_identifier,
             principal_type,
+            policy.id      AS policy_id,
             policy.name    AS policy_name,
             actions,
             resources
@@ -88,6 +89,7 @@ _aws_policy_manipulation_capabilities = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -160,6 +162,7 @@ _gcp_policy_manipulation_capabilities = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -227,6 +230,7 @@ _azure_policy_manipulation_capabilities = Fact(
         principal.id AS principal_identifier,
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.id AS policy_id,
         rd.role_name AS policy_name,
         actions,
         resources
@@ -258,6 +262,7 @@ _azure_policy_manipulation_capabilities = Fact(
     RETURN COUNT(ra) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -270,6 +275,7 @@ class PolicyAdministrationPrivileges(Finding):
     account: str | None = None
     account_id: str | None = None
     principal_type: str | None = None
+    policy_id: str | None = None
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
