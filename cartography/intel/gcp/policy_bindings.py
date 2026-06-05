@@ -986,6 +986,7 @@ def _cleanup_applies_to_relationships(
 def _cleanup_orphan_external_principals(neo4j_session: neo4j.Session) -> None:
     GraphStatement(
         """
+        // remove this after #2850 gives gcp principals a stable lifecycle.
         MATCH (principal:GCPExternalPrincipal)
         WHERE NOT (principal)-[:HAS_ALLOW_POLICY]->(:GCPPolicyBinding)
         WITH principal LIMIT $LIMIT_SIZE
