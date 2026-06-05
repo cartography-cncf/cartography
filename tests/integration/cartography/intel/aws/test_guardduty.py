@@ -4,10 +4,14 @@ from unittest.mock import patch
 import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
+from cartography.rules.data.rules.guardduty_active_threat import (
+    aws_guardduty_active_threat,
+)
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE
 from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
 from tests.data.aws.guardduty import GET_FINDINGS
+from tests.data.aws.guardduty import GET_SAMPLE_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -350,6 +354,69 @@ def test_sync_guardduty_findings(
     assert (
         len(findings) == 3
     ), f"Expected 3 HIGH+ severity findings, got {len(findings)}"
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    return_value=GET_SAMPLE_FINDINGS["Findings"],
+)
+def test_sync_guardduty_sample_findings_excluded_from_rule(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
+    """Sample findings are ingested but excluded from the active-threat rule."""
+    boto3_session = MagicMock()
+    sample_update_tag = 987654323
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, sample_update_tag)
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        sample_update_tag,
+        {
+            "UPDATE_TAG": sample_update_tag,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        },
+    )
+
+    sample_id = "5a1samplefinding0000000000000000"
+    real_id = "6b2realfinding00000000000000000"
+
+    # Both findings are ingested; only the sample carries sample=True.
+    assert check_nodes(neo4j_session, "GuardDutyFinding", ["id", "sample"]) == {
+        (sample_id, True),
+        (real_id, None),
+    }
+
+    # The rule's failing-set query returns the real finding and excludes the sample.
+    rule_hits = {
+        row["finding_id"]
+        for row in neo4j_session.run(aws_guardduty_active_threat.cypher_query).data()
+    }
+    assert rule_hits == {real_id}
+
+    # The denominator also excludes the sample (counts only the real finding).
+    count = neo4j_session.run(aws_guardduty_active_threat.cypher_count_query).single()[
+        "count"
+    ]
+    assert count == 1
+
+    mock_get_findings.assert_called()
 
 
 @patch.object(
