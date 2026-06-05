@@ -1044,6 +1044,7 @@ Representation of a Workload Identity Federation principal discovered from a GCP
 - GCPExternalPrincipals can have allow policies and permission relationships.
 
     ```
+    (GCPWorkloadIdentityPool)-[:RESOURCE]->(GCPExternalPrincipal)
     (GCPExternalPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
     (GCPExternalPrincipal)-[:CAN_READ]->(GCPBucket)
     ```

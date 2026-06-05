@@ -79,6 +79,19 @@ def _create_test_bucket(neo4j_session):
     )
 
 
+def _create_test_workload_identity_pool(neo4j_session):
+    """Create a test WIF pool node to verify external principal ownership."""
+    neo4j_session.run(
+        """
+        MERGE (pool:GCPWorkloadIdentityPool{id: $pool_id})
+        ON CREATE SET pool.firstseen = timestamp()
+        SET pool.lastupdated = $update_tag
+        """,
+        pool_id="projects/123456789012/locations/global/workloadIdentityPools/test-pool",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 def _sync_test_resource_hierarchy(neo4j_session):
     with (
         patch.object(
@@ -283,6 +296,7 @@ def test_sync_gcp_policy_bindings(
     _create_test_project(neo4j_session)
     _create_test_organization(neo4j_session)
     _create_test_bucket(neo4j_session)
+    _create_test_workload_identity_pool(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
     mock_asset_client = MagicMock()
@@ -499,6 +513,21 @@ def test_sync_gcp_policy_bindings(
         (
             tests.data.gcp.policy_bindings.MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPWorkloadIdentityPool",
+        "id",
+        "GCPExternalPrincipal",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/123456789012/locations/global/workloadIdentityPools/test-pool",
+            tests.data.gcp.policy_bindings.MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
         ),
     }
 

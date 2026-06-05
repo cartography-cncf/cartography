@@ -214,10 +214,31 @@ class GCPExternalPrincipalNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class GCPExternalPrincipalToWifPoolRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalToWifPoolRel(CartographyRelSchema):
+    target_node_label: str = "GCPWorkloadIdentityPool"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("workload_identity_pool")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPExternalPrincipalToWifPoolRelProperties = (
+        GCPExternalPrincipalToWifPoolRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPExternalPrincipalSchema(CartographyNodeSchema):
     label: str = "GCPExternalPrincipal"
     properties: GCPExternalPrincipalNodeProperties = (
         GCPExternalPrincipalNodeProperties()
+    )
+    sub_resource_relationship: GCPExternalPrincipalToWifPoolRel = (
+        GCPExternalPrincipalToWifPoolRel()
     )
 
 
