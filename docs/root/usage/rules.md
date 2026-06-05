@@ -73,14 +73,13 @@ Each rule has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps trac
 
 When a rule's version changes, you can review the changes in the git history to understand what was modified and assess impact on your existing workflows.
 
-### Catalog Visibility
+### Compliance-Only Rules
 
-Each rule has `catalog_visibility` metadata that tells consumers which catalog views the rule belongs in:
+Each rule has a `compliance_only` flag that tells consumers whether the rule is primarily a compliance framework control rather than a standalone actionable detection.
 
-- `rules`: show in the standalone rule catalog.
-- `compliance`: show through compliance framework pages.
+Set `compliance_only=True` for framework checklist controls that are more about hygiene, governance, or audit posture than immediate threats. Examples include CIS benchmark controls that verify credential rotation, logging configuration, or policy hygiene.
 
-If omitted, standalone rules default to `("rules",)` and framework-mapped rules default to `("rules", "compliance")`. Use `("compliance",)` for framework checklist controls that are not useful as standalone detections.
+Leave `compliance_only=False` for operational detections that should appear in standalone rule catalogs, even if they are also mapped to one or more compliance frameworks. Framework mappings are preserved either way; this flag only helps catalog consumers decide whether to show the rule outside framework-specific pages.
 
 ### Fact Maturity Levels
 

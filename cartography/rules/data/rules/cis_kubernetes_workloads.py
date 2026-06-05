@@ -12,7 +12,6 @@ import json
 
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -134,7 +133,7 @@ cis_k8s_5_4_1_secrets_in_env_vars = Rule(
     tags=("secrets", "environment-variables", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.4.1"),
         iso27001_annex_a("8.12"),
@@ -254,7 +253,7 @@ cis_k8s_5_1_6_sa_token_mounts = Rule(
     tags=("service-accounts", "tokens", "workloads", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.6"),
         iso27001_annex_a("5.17"),
@@ -312,7 +311,7 @@ cis_k8s_5_2_3_host_pid = Rule(
     tags=("pod-security", "hostpid", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.3"),
         iso27001_annex_a("8.9"),
@@ -364,7 +363,7 @@ cis_k8s_5_2_4_host_ipc = Rule(
     tags=("pod-security", "hostipc", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.4"),
         iso27001_annex_a("8.9"),
@@ -416,7 +415,7 @@ cis_k8s_5_2_5_host_network = Rule(
     tags=("pod-security", "hostnetwork", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.5"),
         iso27001_annex_a("8.9"),
@@ -474,7 +473,7 @@ cis_k8s_5_2_6_allow_privilege_escalation = Rule(
     tags=("pod-security", "privilege-escalation", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.6"),
         iso27001_annex_a("8.9"),
@@ -537,7 +536,7 @@ cis_k8s_5_2_11_host_path_volumes = Rule(
     tags=("pod-security", "hostpath", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.11"),
         iso27001_annex_a("8.9"),
@@ -590,7 +589,7 @@ cis_k8s_5_2_12_host_ports = Rule(
     tags=("pod-security", "hostports", "networking", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.2.12"),
         iso27001_annex_a("8.9"),
@@ -670,7 +669,7 @@ cis_k8s_5_6_2_runtime_default_seccomp = Rule(
     tags=("pod-security", "seccomp", "runtime-default"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.6.2"),
         iso27001_annex_a("8.9"),
@@ -743,7 +742,7 @@ cis_k8s_5_6_4_default_namespace = Rule(
     tags=("namespaces", "general-policies", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(cis_kubernetes("5.6.4"),),
 )
 

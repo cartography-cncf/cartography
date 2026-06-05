@@ -10,7 +10,6 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -92,7 +91,7 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
     tags=("iam", "authentication", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_google_workspace("4.1.1.3"),
         iso27001_annex_a("8.5"),
@@ -174,7 +173,7 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
     tags=("iam", "authentication", "privileged_access", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_google_workspace("4.1.1.1"),
         iso27001_annex_a("8.5"),
@@ -261,7 +260,7 @@ cis_gw_1_1_1_super_admin_count_too_low = Rule(
     tags=("iam", "privileged_access", "resilience"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_google_workspace("1.1.1"),
         iso27001_annex_a("8.2"),
@@ -321,7 +320,7 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
     tags=("iam", "privileged_access", "least_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_google_workspace("1.1.2"),
         iso27001_annex_a("8.2"),
@@ -386,7 +385,7 @@ cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
     tags=("iam", "privileged_access", "least_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_google_workspace("1.1.3"),
         iso27001_annex_a("8.2"),

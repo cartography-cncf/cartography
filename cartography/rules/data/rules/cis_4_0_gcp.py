@@ -10,7 +10,6 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_gcp
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -93,7 +92,7 @@ cis_gcp_3_1_default_network = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.1"),
         iso27001_annex_a("8.20"),
@@ -185,7 +184,7 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.6"),
         iso27001_annex_a("8.20"),
@@ -276,7 +275,7 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.7"),
         iso27001_annex_a("8.20"),
@@ -352,7 +351,7 @@ cis_gcp_4_9_public_ip = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.9"),
         iso27001_annex_a("8.20"),
@@ -440,7 +439,7 @@ cis_gcp_4_11_confidential_compute = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.11"),
         iso27001_annex_a("8.24"),
@@ -501,7 +500,7 @@ cis_gcp_3_3_dnssec_enabled = Rule(
     tags=("dns", "dnssec", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.3"),
         iso27001_annex_a("8.20"),
@@ -573,7 +572,7 @@ cis_gcp_3_4_dnssec_no_rsasha1_ksk = Rule(
     tags=("dns", "dnssec", "crypto", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.4"),
         iso27001_annex_a("8.24"),
@@ -639,7 +638,7 @@ cis_gcp_3_5_dnssec_no_rsasha1_zsk = Rule(
     tags=("dns", "dnssec", "crypto", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.5"),
         iso27001_annex_a("8.24"),
@@ -732,7 +731,7 @@ cis_gcp_3_8_vpc_flow_logs = Rule(
     tags=("networking", "subnet", "flow-logs", "logging"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.8"),
         iso27001_annex_a("8.15"),
@@ -791,7 +790,7 @@ cis_gcp_6_6_cloudsql_public_ip = Rule(
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.6"),
         iso27001_annex_a("8.20"),
@@ -849,7 +848,7 @@ cis_gcp_6_7_cloudsql_backups = Rule(
     tags=("cloudsql", "database", "backup", "resilience"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.7"),
         iso27001_annex_a("8.13"),
@@ -907,7 +906,7 @@ cis_gcp_7_1_bigquery_dataset_public = Rule(
     tags=("bigquery", "data-warehouse", "iam", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("7.1"),
         iso27001_annex_a("8.3"),
@@ -965,7 +964,7 @@ cis_gcp_7_2_bigquery_table_cmek = Rule(
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("7.2"),
         iso27001_annex_a("8.24"),
@@ -1021,7 +1020,7 @@ cis_gcp_7_3_bigquery_dataset_cmek = Rule(
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("7.3"),
         iso27001_annex_a("8.24"),
@@ -1083,7 +1082,7 @@ cis_gcp_6_4_cloudsql_ssl_required = Rule(
     tags=("cloudsql", "database", "ssl", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.4"),
         iso27001_annex_a("8.24"),
@@ -1141,7 +1140,7 @@ cis_gcp_6_5_cloudsql_authorized_networks = Rule(
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.5"),
         iso27001_annex_a("8.20"),
@@ -1215,7 +1214,7 @@ def _make_cloudsql_flag_rule(
         tags=("cloudsql", "database", "configuration"),
         version="1.0.0",
         references=CIS_REFERENCES,
-        catalog_visibility=(Catalog.COMPLIANCE,),
+        compliance_only=True,
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),
@@ -1536,7 +1535,7 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("5.2"),
         iso27001_annex_a("8.3"),
@@ -1780,7 +1779,7 @@ cis_gcp_4_1_default_service_account = Rule(
     tags=("compute", "iam", "service-accounts", "least-privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.1"),
         iso27001_annex_a("5.16"),
@@ -1848,7 +1847,7 @@ cis_gcp_4_2_default_service_account_full_api = Rule(
     tags=("compute", "iam", "service-accounts", "least-privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.2"),
         iso27001_annex_a("5.18"),
@@ -1931,7 +1930,7 @@ cis_gcp_4_3_block_project_wide_ssh_keys = Rule(
     tags=("compute", "ssh", "oslogin", "remote-access"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.3"),
         iso27001_annex_a("8.5"),
@@ -2000,7 +1999,7 @@ cis_gcp_4_4_oslogin_enabled = Rule(
     tags=("compute", "ssh", "oslogin", "iam"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.4"),
         iso27001_annex_a("8.5"),
@@ -2067,7 +2066,7 @@ cis_gcp_4_6_ip_forwarding = Rule(
     tags=("compute", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.6"),
         iso27001_annex_a("8.20"),
@@ -2144,7 +2143,7 @@ cis_gcp_4_8_shielded_vm = Rule(
     tags=("compute", "shielded-vm", "integrity"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.8"),
         iso27001_annex_a("8.9"),
@@ -2202,7 +2201,7 @@ cis_gcp_4_5_serial_ports_disabled = Rule(
     tags=("compute", "serial-port", "remote-access"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.5"),
         iso27001_annex_a("8.3"),

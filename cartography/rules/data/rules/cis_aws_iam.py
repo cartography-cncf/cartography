@@ -15,7 +15,6 @@ from pydantic import BeforeValidator
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -105,7 +104,7 @@ cis_aws_2_13_access_key_not_rotated = Rule(
     tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("2.13"),
         iso27001_annex_a("5.17"),
@@ -182,7 +181,7 @@ cis_aws_2_11_unused_credentials = Rule(
     tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("2.11"),
         iso27001_annex_a("5.18"),
@@ -249,7 +248,7 @@ cis_aws_2_14_user_direct_policies = Rule(
     tags=("iam", "policies", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("2.14"),
         iso27001_annex_a("5.18"),
@@ -321,7 +320,7 @@ cis_aws_2_12_multiple_access_keys = Rule(
     tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("2.12"),
         iso27001_annex_a("5.17"),
@@ -393,7 +392,7 @@ cis_aws_2_18_expired_certificates = Rule(
     tags=("certificates", "acm", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("2.18"),
         iso27001_annex_a("8.24"),

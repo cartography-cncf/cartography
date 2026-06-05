@@ -1,4 +1,3 @@
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Framework
@@ -133,7 +132,7 @@ def test_framework_matches_with_optional_fields():
     )  # Can't match revision if None
 
 
-def test_rule_catalog_visibility_defaults_to_rules_for_standalone_rule():
+def test_rule_compliance_only_defaults_to_false_for_standalone_rule():
     rule = Rule(
         id="standalone_rule",
         name="Standalone Rule",
@@ -144,10 +143,10 @@ def test_rule_catalog_visibility_defaults_to_rules_for_standalone_rule():
         output_model=Finding,
     )
 
-    assert rule.catalog_visibility == (Catalog.RULES,)
+    assert rule.compliance_only is False
 
 
-def test_rule_catalog_visibility_defaults_to_rules_and_compliance_for_framework_mapped_rule():
+def test_rule_compliance_only_defaults_to_false_for_framework_mapped_rule():
     rule = Rule(
         id="framework_mapped_rule",
         name="Framework-Mapped Rule",
@@ -166,10 +165,10 @@ def test_rule_catalog_visibility_defaults_to_rules_and_compliance_for_framework_
         ),
     )
 
-    assert rule.catalog_visibility == (Catalog.RULES, Catalog.COMPLIANCE)
+    assert rule.compliance_only is False
 
 
-def test_rule_catalog_visibility_accepts_string_values():
+def test_rule_compliance_only_can_be_enabled():
     rule = Rule(
         id="compliance_rule",
         name="Compliance Rule",
@@ -178,25 +177,10 @@ def test_rule_catalog_visibility_accepts_string_values():
         version="0.1.0",
         facts=(_TEST_FACT,),
         output_model=Finding,
-        catalog_visibility="compliance",
+        compliance_only=True,
     )
 
-    assert rule.catalog_visibility == (Catalog.COMPLIANCE,)
-
-
-def test_rule_catalog_visibility_accepts_list_values():
-    rule = Rule(
-        id="multi_catalog_rule",
-        name="Multi-Catalog Rule",
-        tags=("test",),
-        description="Multi-catalog rule",
-        version="0.1.0",
-        facts=(_TEST_FACT,),
-        output_model=Finding,
-        catalog_visibility=["rules", "compliance"],
-    )
-
-    assert rule.catalog_visibility == (Catalog.RULES, Catalog.COMPLIANCE)
+    assert rule.compliance_only is True
 
 
 def test_all_module_keys_in_mapping_except_cross_cloud():

@@ -2,8 +2,6 @@
 Framework and Fact execution logic for Cartography rules.
 """
 
-from typing import cast
-
 from neo4j import Driver
 from neo4j import GraphDatabase
 
@@ -11,7 +9,6 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import _format_and_output_results
 from cartography.rules.formatters import _generate_neo4j_browser_url
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
@@ -224,7 +221,7 @@ def _run_single_rule(
         counter=counter,
         rule_tags=rule.tags,
         rule_frameworks=rule.frameworks,
-        rule_catalog_visibility=cast(tuple[Catalog, ...], rule.catalog_visibility),
+        rule_compliance_only=rule.compliance_only,
     )
 
 

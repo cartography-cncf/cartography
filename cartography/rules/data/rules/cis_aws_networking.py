@@ -10,7 +10,6 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
-from cartography.rules.spec.model import Catalog
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -93,7 +92,7 @@ cis_aws_6_1_1_ebs_encryption = Rule(
     tags=("networking", "ebs", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.1.1"),
         iso27001_annex_a("8.24"),
@@ -196,7 +195,7 @@ cis_aws_6_1_2_cifs_restricted = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.1.2"),
         iso27001_annex_a("8.20"),
@@ -302,7 +301,7 @@ cis_aws_6_3_remote_admin_ipv4 = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.3"),
         iso27001_annex_a("8.20"),
@@ -408,7 +407,7 @@ cis_aws_6_4_remote_admin_ipv6 = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.4"),
         iso27001_annex_a("8.20"),
@@ -499,7 +498,7 @@ cis_aws_6_5_default_sg_traffic = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.5"),
         iso27001_annex_a("8.20"),
@@ -575,7 +574,7 @@ cis_aws_6_7_ec2_imdsv2 = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-    catalog_visibility=(Catalog.COMPLIANCE,),
+    compliance_only=True,
     frameworks=(
         cis_aws("6.7"),
         iso27001_annex_a("8.9"),

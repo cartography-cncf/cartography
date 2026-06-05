@@ -129,16 +129,6 @@ class Maturity(str, Enum):
     """Stable: Well-tested and reliable for production use."""
 
 
-class Catalog(str, Enum):
-    """Where a Rule should appear in rule and compliance catalogs."""
-
-    RULES = "rules"
-    """Visible in the standalone rule catalog."""
-
-    COMPLIANCE = "compliance"
-    """Visible through compliance framework catalogs."""
-
-
 MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.AIBOM: "aibom",
     Module.AIRBYTE: "airbyte",
@@ -344,33 +334,16 @@ class Rule:
     """References or links to external resources related to the Rule."""
     frameworks: tuple[Framework, ...] = ()
     """Compliance frameworks this rule maps to (e.g., CIS benchmarks)."""
-    catalog_visibility: (
-        tuple[Catalog | str, ...] | list[Catalog | str] | Catalog | str | None
-    ) = None
+    compliance_only: bool = False
     """
-    Controls where this rule appears in catalog views. Defaults to
-    ``(Catalog.RULES, Catalog.COMPLIANCE)`` for framework-mapped rules and
-    ``(Catalog.RULES,)`` for standalone rules.
-    """
+    Whether this rule should only appear in compliance framework contexts.
 
-    def __post_init__(self) -> None:
-        visibility = self.catalog_visibility
-        if visibility is None:
-            visibility = (
-                (Catalog.RULES, Catalog.COMPLIANCE)
-                if self.frameworks
-                else (Catalog.RULES,)
-            )
-        elif isinstance(visibility, Catalog):
-            visibility = (visibility,)
-        elif isinstance(visibility, str):
-            visibility = (Catalog(visibility),)
-        else:
-            visibility = tuple(
-                catalog if isinstance(catalog, Catalog) else Catalog(catalog)
-                for catalog in visibility
-            )
-        object.__setattr__(self, "catalog_visibility", visibility)
+    Set this to ``True`` for framework checklist controls that are primarily
+    hygiene or governance checks rather than immediate threat detections.
+    Framework mappings are preserved either way; this only helps catalog
+    consumers decide whether to show the rule in standalone actionable rule
+    lists.
+    """
 
     @property
     def modules(self) -> set[Module]:
