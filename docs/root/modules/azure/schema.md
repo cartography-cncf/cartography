@@ -2345,6 +2345,8 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
 
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, GCPSubnet).
+
 | Field          | Description                                         |
 | -------------- | --------------------------------------------------- |
 | firstseen      | Timestamp of when a sync job discovered this node   |

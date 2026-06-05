@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -146,6 +147,7 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
