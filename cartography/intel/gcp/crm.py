@@ -176,6 +176,7 @@ def load_gcp_projects(
     """
     query = """
     MERGE (w:GCPOrganization{id: $OrganizationId})
+    ON CREATE SET w.firstseen = timestamp()
     SET w.lastupdated = $gcp_update_tag
     WITH w
     MERGE (project:GCPProject{id: $ProjectId})
