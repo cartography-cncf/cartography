@@ -67,6 +67,7 @@ _aws_public_databases = Fact(
     MATCH (db:RDSInstance)
     RETURN COUNT(db) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -85,6 +86,7 @@ _aws_public_databases = Fact(
 | `module`             | Yes      | `Module.AWS`, `Module.AZURE`, `Module.GCP`, ...            |
 | `maturity`           | Yes      | `Maturity.EXPERIMENTAL` or `Maturity.STABLE`               |
 | `asset_id_field`     | No       | finding field that uniquely identifies an asset (dedupe)   |
+| `identity_fields`    | Yes      | tuple of output-model fields forming the finding's stable logical identity across syncs (for downstream lifecycle tracking); required with no default, distinct from `asset_id_field` |
 
 ### Step 3 — Define the Finding output model
 
@@ -100,6 +102,7 @@ class DatabaseExposedOutput(Finding):
 - Field names must match `cypher_query` aliases **exactly**.
 - All fields are `| None` with default `None`.
 - The `source` field is auto-populated with the module name.
+- Set `identity_fields` on the Fact (required) to the subset of these fields that forms the finding's stable logical identity, excluding volatile context (`*_count`, `days_*`, `last_used*`, `*_date`, posture booleans, aggregate lists) so downstream lifecycle tracking does not treat a changed metric as a new finding. See "Finding identity vs. display fields" in `docs/root/usage/rules.md`.
 
 ### Step 4 — Compose the Rule
 

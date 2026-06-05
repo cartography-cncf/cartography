@@ -88,6 +88,7 @@ _aws_access_key_not_rotated = Fact(
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -164,6 +165,7 @@ _aws_unused_credentials = Fact(
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -230,6 +232,7 @@ _aws_user_direct_policies = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="user_arn",
+    identity_fields=("user_arn", "policy_arn"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -301,6 +304,7 @@ _aws_multiple_access_keys = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -372,6 +376,7 @@ _aws_expired_certificates = Fact(
     MATCH (cert:ACMCertificate)
     RETURN COUNT(cert) AS count
     """,
+    identity_fields=("certificate_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

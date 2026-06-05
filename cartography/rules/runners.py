@@ -152,6 +152,7 @@ def _run_fact(
         total_assets=total_assets,
         failing=failing,
         passing=passing,
+        identity_fields=fact.identity_fields,
     )
 
 
