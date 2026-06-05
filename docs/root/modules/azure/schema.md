@@ -2315,6 +2315,8 @@ Representation of a key-value tag applied to an Azure resource. Tags with the sa
 
 Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, GCPVpc).
+
 | Field                | Description                                                       |
 | -------------------- | ----------------------------------------------------------------- |
 | firstseen            | Timestamp of when a sync job discovered this node                 |

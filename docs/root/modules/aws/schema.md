@@ -1267,6 +1267,8 @@ Representation of an [AWS Transit Gateway Attachment](https://docs.aws.amazon.co
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., GCPVpc, AzureVirtualNetwork).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|

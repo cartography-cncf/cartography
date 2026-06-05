@@ -88,6 +88,7 @@ from cartography.models.ontology.mapping.data.useraccounts import (
     USERACCOUNTS_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.users import USERS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.vpcs import VPCS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.models.ontology.package import PackageSchema
@@ -138,6 +139,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "secrets": SECRETS_ONTOLOGY_MAPPING,
     "securityissues": SECURITY_ISSUES_ONTOLOGY_MAPPING,
     "subnets": SUBNETS_ONTOLOGY_MAPPING,
+    "vpcs": VPCS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,
