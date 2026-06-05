@@ -55,7 +55,9 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         UNWIND effective_actions AS action
         WITH a, ec2, role,
             COLLECT(DISTINCT action) AS actions,
-            COLLECT(DISTINCT toString(ip.fromport) + '-' + toString(ip.toport)) AS open_inbound_ports
+            COLLECT(DISTINCT CASE WHEN ip IS NULL THEN NULL
+                ELSE coalesce(toString(ip.fromport), 'all') + '-' + coalesce(toString(ip.toport), 'all')
+            END) AS open_inbound_ports
         RETURN DISTINCT
             ec2.id AS workload_id,
             a.name AS account,

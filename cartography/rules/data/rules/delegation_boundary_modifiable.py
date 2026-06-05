@@ -40,7 +40,11 @@ _aws_trust_relationship_manipulation = Fact(
         WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
         WHERE deny_stmt IS NULL
         UNWIND matched_allow_actions AS action
-        RETURN DISTINCT
+        UNWIND coalesce(stmt.resource, [null]) AS resource
+        WITH a, principal, principal_type, policy,
+             collect(DISTINCT action) AS actions,
+             [r IN collect(DISTINCT resource) WHERE r IS NOT NULL] AS resources
+        RETURN
             a.name AS account,
             a.id AS account_id,
             principal.name AS principal_name,
@@ -48,8 +52,8 @@ _aws_trust_relationship_manipulation = Fact(
             policy.id AS policy_id,
             policy.name AS policy_name,
             principal_type,
-            collect(DISTINCT action) AS actions,
-            stmt.resource AS resources
+            actions,
+            resources
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""

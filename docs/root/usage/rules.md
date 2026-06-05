@@ -96,6 +96,7 @@ _new_attack_surface = Fact(
     cypher_query="...",
     cypher_visual_query="...",
     cypher_count_query="...",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
 )
@@ -120,6 +121,7 @@ _proven_check = Fact(
     cypher_query="...",
     cypher_visual_query="...",
     cypher_count_query="...",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
 )
@@ -591,6 +593,7 @@ Guidelines:
        MATCH (n:SomeNode)
        RETURN COUNT(n) AS count
        """,
+       identity_fields=("id",),
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
    )
@@ -613,6 +616,7 @@ Guidelines:
        MATCH (n:SomeAzureNode)
        RETURN COUNT(n) AS count
        """,
+       identity_fields=("id",),
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,
    )

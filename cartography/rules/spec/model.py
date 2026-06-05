@@ -271,6 +271,12 @@ class Fact:
     can produce multiple finding rows (e.g., one security group with multiple violating rules).
     """
 
+    def __post_init__(self) -> None:
+        if not self.identity_fields:
+            raise ValueError(
+                f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
+
 
 class Finding(BaseModel):
     """Base class for Rule finding models."""

@@ -164,7 +164,14 @@ _aws_cifs_internet_access = Fact(
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
-    identity_fields=("security_group_id", "rule_id", "cidr_range"),
+    identity_fields=(
+        "security_group_id",
+        "rule_id",
+        "cidr_range",
+        "from_port",
+        "to_port",
+        "protocol",
+    ),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -262,7 +269,14 @@ _aws_remote_admin_ipv4 = Fact(
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
-    identity_fields=("security_group_id", "rule_id", "cidr_range"),
+    identity_fields=(
+        "security_group_id",
+        "rule_id",
+        "cidr_range",
+        "from_port",
+        "to_port",
+        "protocol",
+    ),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -360,7 +374,14 @@ _aws_remote_admin_ipv6 = Fact(
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
-    identity_fields=("security_group_id", "rule_id", "cidr_range"),
+    identity_fields=(
+        "security_group_id",
+        "rule_id",
+        "cidr_range",
+        "from_port",
+        "to_port",
+        "protocol",
+    ),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
