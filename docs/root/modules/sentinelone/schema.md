@@ -66,6 +66,8 @@ Represents a SentinelOne agent installed on an endpoint device.
 | **uuid** | The UUID of the agent |
 | **computer_name** | The name of the computer where the agent is installed |
 | **serial_number** | The serial number of the endpoint device |
+| public_ip | The public IP address reported by SentinelOne for the endpoint device |
+| local_ips | Local IPv4 addresses reported by SentinelOne network interfaces for the endpoint device |
 | firewall_enabled | Boolean indicating if the firewall is enabled |
 | os_name | The name of the operating system |
 | os_revision | The operating system revision/version |
