@@ -65,6 +65,7 @@ aws_guardduty_active_threat = Fact(
     WHERE coalesce(f.archived, false) = false
     RETURN COUNT(f) AS count
     """,
+    identity_fields=("finding_arn",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

@@ -79,6 +79,7 @@ _gcp_instance_internet_exposed = Fact(
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group"),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -143,6 +144,7 @@ _azure_vm_internet_exposed = Fact(
         vm.id AS instance_id,
         vm.name AS instance,
         managed_port AS port,
+        nsg.id AS security_group_id,
         nsg.name AS security_group
     """,
     cypher_visual_query="""
@@ -188,6 +190,7 @@ _azure_vm_internet_exposed = Fact(
     RETURN COUNT(vm) AS count
     """,
     asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group_id"),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -242,6 +245,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -254,6 +258,7 @@ class ComputeInstanceExposed(Finding):
     account: str | None = None
     account_id: str | None = None
     port: int | None = None
+    security_group_id: str | None = None
     security_group: str | None = None
 
 

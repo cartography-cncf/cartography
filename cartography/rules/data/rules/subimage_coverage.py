@@ -22,7 +22,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN m.name AS module_name, app.name AS app_name, app.source AS app_source
+    RETURN m.name AS module_name, app._ont_name AS app_name, app._ont_source AS app_source
     ORDER BY m.name
     """,
     cypher_visual_query="""
@@ -39,6 +39,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN count(m) AS count
     """,
+    identity_fields=("module_name", "app_name", "app_source"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -102,6 +103,7 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
     WHERE m.is_configured = true AND f.scope = m.id
     RETURN count(f) AS count
     """,
+    identity_fields=("framework_name", "framework_scope"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -167,6 +169,7 @@ _container_image_not_found_fact = Fact(
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     RETURN count(c) AS count
     """,
+    identity_fields=("container_id",),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -232,6 +235,7 @@ _aws_account_not_synced_fact = Fact(
     WHERE resource_count <= 1
     RETURN count(a) AS count
     """,
+    identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -299,6 +303,7 @@ _repository_without_slsa_provenance_fact = Fact(
     WHERE r.match_method <> 'provenance'
     RETURN count(DISTINCT repo) AS count
     """,
+    identity_fields=("repo_id",),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )

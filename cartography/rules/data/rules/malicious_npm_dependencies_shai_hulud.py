@@ -135,6 +135,7 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -2192,6 +2193,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -3067,6 +3069,7 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     RETURN COUNT(r) AS count
     """,
     asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )

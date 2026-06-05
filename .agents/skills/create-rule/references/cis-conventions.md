@@ -164,6 +164,7 @@ _cis_aws_1_14_fact = Fact(
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
