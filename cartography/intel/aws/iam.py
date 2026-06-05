@@ -2,8 +2,8 @@ import enum
 import json
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from datetime import timezone
 from typing import Any

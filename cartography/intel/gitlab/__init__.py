@@ -111,14 +111,16 @@ def _sync_one_gitlab_group(
                 f'Gitlab sync function "{func_name}" was specified but is not available.',
             )
 
-    logger.info(json.dumps({
-        "event": "gitlab_group_timing_summary",
-        "group": group_name,
-        "total_duration_seconds": round(time.perf_counter() - _group_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "gitlab_group_timing_summary",
+            "group": group_name,
+            "total_duration_seconds": round(time.perf_counter() - _group_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
     return True
 
 

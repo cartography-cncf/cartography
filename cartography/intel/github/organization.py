@@ -123,10 +123,12 @@ def sync(
         load_organization(neo4j_session, org_data, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
-    logger.info(json.dumps({
-        "event": "github_service_timing",
-        "org": github_org,
-        "service": "organization",
-        "duration_seconds": round(time.perf_counter() - tic, 4),
-        "status": "success",
-    }))
+    logger.info(
+        json.dumps({
+            "event": "github_service_timing",
+            "org": github_org,
+            "service": "organization",
+            "duration_seconds": round(time.perf_counter() - tic, 4),
+            "status": "success",
+        }),
+    )

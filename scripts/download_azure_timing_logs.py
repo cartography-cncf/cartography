@@ -43,7 +43,6 @@ Usage:
     # Top 10 slowest services per provider
     python download_azure_timing_logs.py --from-file timing.json --top 10
 """
-
 import argparse
 import ast
 import json
@@ -265,7 +264,7 @@ def parse_raw_event(raw_event: Dict) -> Optional[Dict]:
         return None
     data["_log_stream"] = raw_event.get("logStreamName", "")
     data["_timestamp"] = datetime.fromtimestamp(
-        raw_event["timestamp"] / 1000, tz=timezone.utc
+        raw_event["timestamp"] / 1000, tz=timezone.utc,
     ).isoformat()
     return data
 
@@ -325,12 +324,16 @@ def print_azure_service_stats(events: List[Dict], args: argparse.Namespace) -> N
 
     W = 28
     err("\nAzure — per-service stats (sorted by avg duration):")
-    err("  {:<{w}} {:>5} {:>6} {:>8} {:>8} {:>8} {:>8} {:>8} {:>7}",
-        "service", "runs", "errors", "min(s)", "avg(s)", "max(s)", "reqs", "429s", "retries", w=W)
+    err(
+        "  {:<{w}} {:>5} {:>6} {:>8} {:>8} {:>8} {:>8} {:>8} {:>7}",
+        "service", "runs", "errors", "min(s)", "avg(s)", "max(s)", "reqs", "429s", "retries", w=W,
+    )
     err("  {}", "-" * (W + 2 + 5 + 6 + 8 * 4 + 7 + 6))
     for svc, n, err_cnt, mn, avg, mx, reqs, throttles, retries in rows:
-        err("  {:<{w}} {:>5} {:>6} {} {} {} {:>8} {:>8} {:>7}",
-            svc, n, err_cnt, fmt_sec(mn), fmt_sec(avg), fmt_sec(mx), reqs, throttles, retries, w=W)
+        err(
+            "  {:<{w}} {:>5} {:>6} {} {} {} {:>8} {:>8} {:>7}",
+            svc, n, err_cnt, fmt_sec(mn), fmt_sec(avg), fmt_sec(mx), reqs, throttles, retries, w=W,
+        )
 
     throttled = [(r[0], r[7]) for r in rows if r[7] > 0]
     failed    = [(r[0], r[2]) for r in rows if r[2] > 0]
@@ -349,8 +352,10 @@ def print_azure_subscription_stats(events: List[Dict]) -> None:
         return
 
     err("\nAzure — subscription summaries (sorted by total duration):")
-    err("  {:<{w}} {:>10} {:>10} {:<22} {}",
-        "subscription_id", "total(s)", "run_mode", "slowest_service", "failed_services", w=38)
+    err(
+        "  {:<{w}} {:>10} {:>10} {:<22} {}",
+        "subscription_id", "total(s)", "run_mode", "slowest_service", "failed_services", w=38,
+    )
     err("  {}", "-" * 105)
     for e in sorted(sub_evs, key=lambda x: x.get("total_duration_seconds", 0), reverse=True):
         sub     = e.get("subscription_id", "?")
@@ -398,12 +403,16 @@ def print_provider_stats(events: List[Dict], provider: str, args: argparse.Names
             rows = rows[:args.top]
 
         W = 24
-        err("  {:<{w}} {:>5} {:>6} {:>8} {:>8} {:>8}",
-            "service", "runs", "errors", "min(s)", "avg(s)", "max(s)", w=W)
+        err(
+            "  {:<{w}} {:>5} {:>6} {:>8} {:>8} {:>8}",
+            "service", "runs", "errors", "min(s)", "avg(s)", "max(s)", w=W,
+        )
         err("  {}", "-" * (W + 2 + 5 + 6 + 8 * 3 + 5))
         for svc, n, err_cnt, mn, avg, mx in rows:
-            err("  {:<{w}} {:>5} {:>6} {} {} {}",
-                svc, n, err_cnt, fmt_sec(mn), fmt_sec(avg), fmt_sec(mx), w=W)
+            err(
+                "  {:<{w}} {:>5} {:>6} {} {} {}",
+                svc, n, err_cnt, fmt_sec(mn), fmt_sec(avg), fmt_sec(mx), w=W,
+            )
 
     if sum_evs:
         top_n = args.top or len(sum_evs)
@@ -412,8 +421,10 @@ def print_provider_stats(events: List[Dict], provider: str, args: argparse.Names
         # e.g. "aws_account_timing_summary" → "account"
         scope_label = sum_evs[0].get("event", "").replace(f"{provider}_", "").replace("_timing_summary", "")
         err("\n  {} summaries (sorted by total duration):", scope_label.capitalize() or "scope")
-        err("  {:<{w}} {:>10} {:>22} {}",
-            scope_label or "scope", "total(s)", "slowest_service", "failed", w=38)
+        err(
+            "  {:<{w}} {:>10} {:>22} {}",
+            scope_label or "scope", "total(s)", "slowest_service", "failed", w=38,
+        )
         err("  {}", "-" * 85)
         for e in sum_sorted:
             # oci has both tenancy and compartment keys; fall back gracefully

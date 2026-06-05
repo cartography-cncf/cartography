@@ -335,7 +335,7 @@ async def sync_tenant_users(
     t0 = time.perf_counter()
     tenant_users_list = await list_tenant_users(client, tenant_id)
     logger.info(
-        f"IAM tenant={tenant_id}: user list fetch done — {len(tenant_users_list)} users in {time.perf_counter() - t0:.2f}s"
+        f"IAM tenant={tenant_id}: user list fetch done — {len(tenant_users_list)} users in {time.perf_counter() - t0:.2f}s",
     )
     t0 = time.perf_counter()
     load_tenant_users(neo4j_session, tenant_id, tenant_users_list, update_tag)
@@ -653,7 +653,7 @@ async def sync_tenant_groups(
     t0 = time.perf_counter()
     tenant_groups_list = await get_tenant_groups_list(client, tenant_id)
     logger.info(
-        f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s"
+        f"IAM tenant={tenant_id}: group list fetch done — {len(tenant_groups_list)} groups in {time.perf_counter() - t0:.2f}s",
     )
 
     # Fetch all group members concurrently (bounded) then write sequentially

@@ -130,14 +130,16 @@ def sync_organization(
             f"Unexpected error during organization sync for {org_name}: {e}",
             exc_info=True,
         )
-    logger.info(json.dumps({
-        "event": "azuredevops_org_timing_summary",
-        "org": org_name,
-        "total_duration_seconds": round(time.perf_counter() - _org_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "azuredevops_org_timing_summary",
+            "org": org_name,
+            "total_duration_seconds": round(time.perf_counter() - _org_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def validate_auth_config(auth_details: Dict) -> bool:

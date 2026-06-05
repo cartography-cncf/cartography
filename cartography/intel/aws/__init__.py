@@ -216,8 +216,8 @@ def _sync_one_account(
         )
         parallel_services = [
             f for f in aws_requested_syncs
-            if f in RESOURCE_FUNCTIONS and f not in ["permission_relationships", "resourcegroupstaggingapi"]
-            and not (f == "identitystore" and not config.params["workspace"].get("is_identity_sso_used"))
+            if f in RESOURCE_FUNCTIONS and f not in ["permission_relationships", "resourcegroupstaggingapi"] and
+            not (f == "identitystore" and not config.params["workspace"].get("is_identity_sso_used"))
         ]
         try:
             with ThreadPoolExecutor(max_workers=min(8, len(parallel_services))) as executor:
@@ -417,14 +417,16 @@ def _sync_one_account(
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
-    logger.info(json.dumps({
-        "event": "aws_account_timing_summary",
-        "account_id": current_aws_account_id,
-        "total_duration_seconds": round(time.perf_counter() - _account_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "aws_account_timing_summary",
+            "account_id": current_aws_account_id,
+            "total_duration_seconds": round(time.perf_counter() - _account_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def _autodiscover_account_regions(boto3_session: boto3.session.Session, account_id: str) -> List[str]:

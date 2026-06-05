@@ -135,17 +135,19 @@ def sync_organization(neo4j_session: neo4j.Session, config: Config, auth_data: D
                     for request in requested_syncs:
                         if request in RESOURCE_FUNCTIONS:
                             try:
-                                futures[executor.submit(
-                                    concurrent_execution,
-                                    request,
-                                    RESOURCE_FUNCTIONS[request],
-                                    config,
-                                    auth_data['name'],
-                                    auth_data['url'],
-                                    auth_data['token'],
-                                    common_job_parameters,
-                                    shared_driver,
-                                )] = request
+                                futures[
+                                    executor.submit(
+                                        concurrent_execution,
+                                        request,
+                                        RESOURCE_FUNCTIONS[request],
+                                        config,
+                                        auth_data['name'],
+                                        auth_data['url'],
+                                        auth_data['token'],
+                                        common_job_parameters,
+                                        shared_driver,
+                                    )
+                                ] = request
                             except Exception as e:
                                 logger.warning(f"error to append service {request} in futures - {e}")
                         else:
@@ -165,14 +167,16 @@ def sync_organization(neo4j_session: neo4j.Session, config: Config, auth_data: D
 
     except exceptions.RequestException as e:
         logger.error("Could not complete request to the GitHub API: %s", e)
-    logger.info(json.dumps({
-        "event": "github_org_timing_summary",
-        "org": auth_data.get('name'),
-        "total_duration_seconds": round(time.perf_counter() - _org_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "github_org_timing_summary",
+            "org": auth_data.get('name'),
+            "total_duration_seconds": round(time.perf_counter() - _org_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 @timeit

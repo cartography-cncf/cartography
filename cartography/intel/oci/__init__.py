@@ -129,15 +129,17 @@ def _sync_one_compartment(
             logger.warning(
                 'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
             )
-    logger.info(json.dumps({
-        "event": "oci_compartment_timing_summary",
-        "tenancy": tenancy_id,
-        "compartment": compartment_id,
-        "total_duration_seconds": round(time.perf_counter() - _comp_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "oci_compartment_timing_summary",
+            "tenancy": tenancy_id,
+            "compartment": compartment_id,
+            "total_duration_seconds": round(time.perf_counter() - _comp_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def _sync_multiple_compartments(
@@ -319,11 +321,13 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, credentials, tenancy_ocid, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-        logger.info(json.dumps({
-            "event": "oci_tenancy_timing_summary",
-            "tenancy": tenancy_ocid,
-            "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
-        }))
+        logger.info(
+            json.dumps({
+                "event": "oci_tenancy_timing_summary",
+                "tenancy": tenancy_ocid,
+                "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+            }),
+        )
         return common_job_parameters
     else:
         # Fallback: read from ~/.oci/config file
@@ -387,8 +391,10 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, list(oci_accounts.values())[0], tenancy_id, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
-        logger.info(json.dumps({
-            "event": "oci_tenancy_timing_summary",
-            "tenancy": tenancy_id,
-            "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
-        }))
+        logger.info(
+            json.dumps({
+                "event": "oci_tenancy_timing_summary",
+                "tenancy": tenancy_id,
+                "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+            }),
+        )

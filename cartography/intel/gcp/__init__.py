@@ -731,14 +731,16 @@ def _sync_single_project(
 
         del common_job_parameters["service_label"]
 
-    logger.info(json.dumps({
-        "event": "gcp_project_timing_summary",
-        "project_id": project_id,
-        "total_duration_seconds": round(time.perf_counter() - _project_tic, 4),
-        "service_timings": _service_timings,
-        "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
-        "failed_services": _failed_services,
-    }))
+    logger.info(
+        json.dumps({
+            "event": "gcp_project_timing_summary",
+            "project_id": project_id,
+            "total_duration_seconds": round(time.perf_counter() - _project_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def get_all_regions(compute: Resource, project_id: str):
