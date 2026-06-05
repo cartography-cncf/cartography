@@ -10,6 +10,15 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws.identitycenter.awsaccountassignment import (
+    AWSSSOAccountAssignmentSchema,
+)
+from cartography.models.aws.identitycenter.awsaccountassignment import (
+    AWSSSOAccountAssignmentToSSOGroupMatchLink,
+)
+from cartography.models.aws.identitycenter.awsaccountassignment import (
+    AWSSSOAccountAssignmentToSSOUserMatchLink,
+)
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
 )
@@ -302,6 +311,52 @@ def transform_sso_groups(
     return transformed_groups
 
 
+def transform_account_assignments(
+    assignments: list[dict[str, Any]],
+    principal_type: str,
+    instance_arn: str,
+    identity_store_id: str,
+    region: str,
+) -> list[dict[str, Any]]:
+    """
+    Transform AWS Identity Center account assignment data into first-class graph nodes.
+    """
+    if principal_type not in {"USER", "GROUP"}:
+        raise ValueError(
+            f"Unsupported Identity Center principal type: {principal_type}"
+        )
+    principal_id_key = "UserId" if principal_type == "USER" else "GroupId"
+    transformed_assignments = []
+    for assignment in assignments:
+        principal_id = assignment[principal_id_key]
+        account_id = assignment["AccountId"]
+        permission_set_arn = assignment["PermissionSetArn"]
+        assignment_id = "|".join(
+            [
+                instance_arn,
+                account_id,
+                permission_set_arn,
+                principal_type,
+                principal_id,
+            ],
+        )
+        transformed_assignments.append(
+            {
+                **assignment,
+                "AssignmentId": assignment_id,
+                "AccountId": account_id,
+                "PermissionSetArn": permission_set_arn,
+                "PrincipalId": principal_id,
+                "PrincipalType": principal_type,
+                "IdentityStoreId": identity_store_id,
+                "InstanceArn": instance_arn,
+                "Region": region,
+                "RoleArn": assignment.get("RoleArn"),
+            },
+        )
+    return transformed_assignments
+
+
 @timeit
 def load_sso_users(
     neo4j_session: neo4j.Session,
@@ -577,6 +632,53 @@ def load_group_roles(
 
 
 @timeit
+def load_account_assignments(
+    neo4j_session: neo4j.Session,
+    assignments: list[dict[str, Any]],
+    aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load first-class Identity Center account assignment nodes and principal links.
+    """
+    load(
+        neo4j_session,
+        AWSSSOAccountAssignmentSchema(),
+        assignments,
+        lastupdated=aws_update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    user_assignments = [
+        assignment
+        for assignment in assignments
+        if assignment.get("PrincipalType") == "USER"
+    ]
+    load_matchlinks(
+        neo4j_session,
+        AWSSSOAccountAssignmentToSSOUserMatchLink(),
+        user_assignments,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
+    )
+
+    group_assignments = [
+        assignment
+        for assignment in assignments
+        if assignment.get("PrincipalType") == "GROUP"
+    ]
+    load_matchlinks(
+        neo4j_session,
+        AWSSSOAccountAssignmentToSSOGroupMatchLink(),
+        group_assignments,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -594,10 +696,28 @@ def cleanup(
     GraphJob.from_node_schema(AWSSSOGroupSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(
+        AWSSSOAccountAssignmentSchema(),
+        common_job_parameters,
+    ).run(
+        neo4j_session,
+    )
 
-    # Clean up role assignment MatchLinks
+    # Clean up role assignment and account assignment MatchLinks
     GraphJob.from_matchlink(
         AWSRoleToSSOUserMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        AWSSSOAccountAssignmentToSSOUserMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        AWSSSOAccountAssignmentToSSOGroupMatchLink(),
         "AWSAccount",
         common_job_parameters["AWS_ID"],
         common_job_parameters["UPDATE_TAG"],
@@ -742,7 +862,9 @@ def _sync_role_assignments(
     neo4j_session: neo4j.Session,
     user_permissionsets_raw: list[dict[str, Any]],
     group_permissionsets_raw: list[dict[str, Any]],
+    instance_arn: str,
     identity_store_id: str,
+    region: str,
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
@@ -760,11 +882,33 @@ def _sync_role_assignments(
     user_roles = get_principal_roles(neo4j_session, user_permissionsets_raw)
     for role in user_roles:
         role["IdentityStoreId"] = identity_store_id
-    load_user_roles(neo4j_session, user_roles, current_aws_account_id, update_tag)
 
     group_roles = get_principal_roles(neo4j_session, group_permissionsets_raw)
     for role in group_roles:
         role["IdentityStoreId"] = identity_store_id
+
+    user_account_assignments = transform_account_assignments(
+        user_roles,
+        "USER",
+        instance_arn,
+        identity_store_id,
+        region,
+    )
+    group_account_assignments = transform_account_assignments(
+        group_roles,
+        "GROUP",
+        instance_arn,
+        identity_store_id,
+        region,
+    )
+    load_account_assignments(
+        neo4j_session,
+        user_account_assignments + group_account_assignments,
+        current_aws_account_id,
+        update_tag,
+    )
+
+    load_user_roles(neo4j_session, user_roles, current_aws_account_id, update_tag)
     load_group_roles(neo4j_session, group_roles, current_aws_account_id, update_tag)
 
 
@@ -813,7 +957,9 @@ def _sync_instance(
             neo4j_session,
             user_assignments,
             group_assignments,
+            instance_arn,
             identity_store_id,
+            region,
             current_aws_account_id,
             update_tag,
         )

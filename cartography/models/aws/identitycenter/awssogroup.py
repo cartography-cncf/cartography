@@ -47,6 +47,7 @@ class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: principal HAS_PERMISSION_SET summary edges will be removed in v1.0.0.
 class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
