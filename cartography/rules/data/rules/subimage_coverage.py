@@ -1,4 +1,3 @@
-from cartography.rules.data.frameworks.subimage import subimage_coverage
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -67,7 +66,6 @@ subimage_module_not_configured = Rule(
     ),
     facts=(_subimage_module_not_configured_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.1"),),
 )
 
 # =============================================================================
@@ -120,17 +118,16 @@ subimage_framework_disabled_module_enabled = Rule(
     name="SubImage Framework Disabled While Module Enabled",
     description=(
         "Detects SubImage frameworks that are disabled while their corresponding "
-        "module is configured and active, indicating a compliance framework gap."
+        "module is configured and active, indicating a coverage gap."
     ),
     output_model=SubImageFrameworkDisabledModuleEnabledOutput,
     tags=(
         "subimage",
         "coverage",
-        "compliance",
+        "misconfiguration",
     ),
     facts=(_subimage_framework_disabled_module_enabled_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.2"),),
 )
 
 # =============================================================================
@@ -192,13 +189,13 @@ container_image_not_found = Rule(
     ),
     output_model=ContainerImageNotFoundOutput,
     tags=(
+        "subimage",
         "container",
         "coverage",
         "infrastructure",
     ),
     facts=(_container_image_not_found_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("2.1"),),
 )
 
 # =============================================================================
@@ -257,13 +254,14 @@ aws_account_not_synced = Rule(
     ),
     output_model=AWSAccountNotSyncedOutput,
     tags=(
+        "subimage",
         "aws",
+        "coverage",
         "infrastructure",
         "misconfiguration",
     ),
     facts=(_aws_account_not_synced_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("2.2"),),
 )
 
 # =============================================================================
@@ -332,5 +330,4 @@ repository_without_slsa_provenance = Rule(
     ),
     facts=(_repository_without_slsa_provenance_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("3.1"),),
 )
