@@ -203,6 +203,9 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
     device_security_posture_gaps,
 )
 from cartography.rules.data.rules.eol_software import eol_software
+from cartography.rules.data.rules.github_actions_privileged_pull_request import (
+    github_actions_privileged_pull_request,
+)
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
@@ -210,6 +213,9 @@ from cartography.rules.data.rules.identity_administration_privileges import (
 from cartography.rules.data.rules.identity_mfa_gaps import identity_mfa_gaps
 from cartography.rules.data.rules.inactive_user_active_accounts import (
     inactive_user_active_accounts,
+)
+from cartography.rules.data.rules.internet_exposed_database_without_backups import (
+    internet_exposed_database_without_backups,
 )
 from cartography.rules.data.rules.kubernetes_control_plane_exposed import (
     kubernetes_control_plane_exposed,
@@ -229,6 +235,15 @@ from cartography.rules.data.rules.nist_ai_rmf import (
 from cartography.rules.data.rules.object_storage_public import object_storage_public
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
+)
+from cartography.rules.data.rules.privileged_kubernetes_workload_cloud_identity import (
+    privileged_kubernetes_workload_cloud_identity,
+)
+from cartography.rules.data.rules.public_database_snapshot import (
+    public_database_snapshot,
+)
+from cartography.rules.data.rules.public_object_storage_without_recovery import (
+    public_object_storage_without_recovery,
 )
 from cartography.rules.data.rules.serverless_workload_exposed import (
     serverless_workload_exposed,
@@ -301,10 +316,14 @@ RULES = {
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
+    internet_exposed_database_without_backups.id: internet_exposed_database_without_backups,
     kubernetes_control_plane_exposed.id: kubernetes_control_plane_exposed,
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
+    privileged_kubernetes_workload_cloud_identity.id: privileged_kubernetes_workload_cloud_identity,
+    public_database_snapshot.id: public_database_snapshot,
+    public_object_storage_without_recovery.id: public_object_storage_without_recovery,
     tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,
@@ -313,6 +332,7 @@ RULES = {
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
+    github_actions_privileged_pull_request.id: github_actions_privileged_pull_request,
     guardduty_active_threat.id: guardduty_active_threat,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
     unpinned_github_actions.id: unpinned_github_actions,
