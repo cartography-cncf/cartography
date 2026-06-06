@@ -103,6 +103,7 @@ cis_k8s_5_1_1_cluster_admin_usage = Rule(
     tags=("rbac", "cluster-admin", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.1"),
         iso27001_annex_a("5.18"),
@@ -212,6 +213,7 @@ cis_k8s_5_1_2_secret_access = Rule(
     tags=("rbac", "secrets", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.2"),
         iso27001_annex_a("8.3"),
@@ -329,6 +331,7 @@ cis_k8s_5_1_3_wildcard_roles = Rule(
     tags=("rbac", "wildcard", "least-privilege", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.3"),
         iso27001_annex_a("5.18"),
@@ -435,6 +438,7 @@ cis_k8s_5_1_4_pod_create_access = Rule(
     tags=("rbac", "pods", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.4"),
         iso27001_annex_a("5.18"),
@@ -631,6 +635,7 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
     tags=("rbac", "service-accounts", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.5"),
         iso27001_annex_a("5.16"),
@@ -743,6 +748,7 @@ cis_k8s_5_1_7_system_masters_group = Rule(
     tags=("rbac", "system-masters", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.7"),
         iso27001_annex_a("8.2"),
@@ -845,6 +851,7 @@ cis_k8s_5_1_8_escalation_permissions = Rule(
     tags=("rbac", "escalation", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.8"),
         iso27001_annex_a("5.18"),
@@ -955,6 +962,7 @@ cis_k8s_5_1_9_pv_create_access = Rule(
     tags=("rbac", "persistent-volumes", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.9"),
         iso27001_annex_a("5.18"),
@@ -1027,6 +1035,7 @@ cis_k8s_5_1_10_node_proxy_access = Rule(
     tags=("rbac", "nodes", "kubelet", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.10"),
         iso27001_annex_a("8.2"),
@@ -1100,6 +1109,7 @@ cis_k8s_5_1_11_csr_approval_access = Rule(
     tags=("rbac", "certificates", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.11"),
         iso27001_annex_a("8.5"),
@@ -1187,6 +1197,7 @@ cis_k8s_5_1_12_webhook_config_access = Rule(
     tags=("rbac", "webhooks", "stride:elevation_of_privilege", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.12"),
         iso27001_annex_a("8.9"),
@@ -1260,6 +1271,7 @@ cis_k8s_5_1_13_sa_token_creation = Rule(
     tags=("rbac", "service-accounts", "tokens", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_kubernetes("5.1.13"),
         iso27001_annex_a("5.17"),

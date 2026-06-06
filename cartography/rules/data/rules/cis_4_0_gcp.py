@@ -184,6 +184,7 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.6"),
         iso27001_annex_a("8.20"),
@@ -274,6 +275,7 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("3.7"),
         iso27001_annex_a("8.20"),
@@ -349,6 +351,7 @@ cis_gcp_4_9_public_ip = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.9"),
         iso27001_annex_a("8.20"),
@@ -787,6 +790,7 @@ cis_gcp_6_6_cloudsql_public_ip = Rule(
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.6"),
         iso27001_annex_a("8.20"),
@@ -902,6 +906,7 @@ cis_gcp_7_1_bigquery_dataset_public = Rule(
     tags=("bigquery", "data-warehouse", "iam", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("7.1"),
         iso27001_annex_a("8.3"),
@@ -1135,6 +1140,7 @@ cis_gcp_6_5_cloudsql_authorized_networks = Rule(
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("6.5"),
         iso27001_annex_a("8.20"),
@@ -1208,6 +1214,7 @@ def _make_cloudsql_flag_rule(
         tags=("cloudsql", "database", "configuration"),
         version="1.0.0",
         references=CIS_REFERENCES,
+        compliance_only=True,
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),
@@ -1840,6 +1847,7 @@ cis_gcp_4_2_default_service_account_full_api = Rule(
     tags=("compute", "iam", "service-accounts", "least-privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.2"),
         iso27001_annex_a("5.18"),
@@ -2058,6 +2066,7 @@ cis_gcp_4_6_ip_forwarding = Rule(
     tags=("compute", "networking", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    compliance_only=True,
     frameworks=(
         cis_gcp("4.6"),
         iso27001_annex_a("8.20"),

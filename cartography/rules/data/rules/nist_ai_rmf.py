@@ -163,6 +163,7 @@ nist_ai_third_party_app_inventory = Rule(
     tags=("ai", "identity", "compliance", "governance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("MAP 1"),
         iso27001_annex_a("5.21"),
@@ -267,6 +268,7 @@ nist_ai_third_party_app_sensitive_scopes = Rule(
     tags=("ai", "identity", "oauth", "compliance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
         nist_ai_rmf("MANAGE 2"),
@@ -398,6 +400,7 @@ nist_ai_admin_ai_app_authorizations = Rule(
     tags=("ai", "identity", "privileged_access", "compliance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),
         iso27001_annex_a("5.18"),
@@ -554,6 +557,7 @@ nist_ai_aibom_agent_inventory = Rule(
     tags=("ai", "inventory", "software_supply_chain", "compliance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("MAP 1"),
         nist_ai_rmf("GOVERN 1"),
@@ -653,6 +657,7 @@ nist_ai_aibom_coverage_gaps = Rule(
     tags=("ai", "inventory", "provenance", "compliance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
         nist_ai_rmf("MANAGE 2"),
@@ -868,6 +873,7 @@ nist_ai_provider_api_key_hygiene = Rule(
     tags=("ai", "credentials", "governance", "compliance"),
     version="0.1.0",
     references=NIST_REFERENCES,
+    compliance_only=True,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),
         nist_ai_rmf("MANAGE 2"),

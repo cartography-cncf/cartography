@@ -7,9 +7,6 @@ from cartography.rules.data.rules.cis_aws_networking import (
 from cartography.rules.data.rules.cis_aws_storage import (
     cis_aws_3_1_4_s3_block_public_access,
 )
-from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_8_escalation_permissions,
-)
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_6_2_runtime_default_seccomp,
 )
@@ -44,25 +41,18 @@ def _serialized_compliance_only(rule) -> bool:
     return to_serializable(result)["rule_compliance_only"]
 
 
-def test_compliance_hygiene_rules_are_compliance_only() -> None:
+def test_framework_prefixed_rules_are_compliance_only() -> None:
     for rule in (
         cis_aws_2_11_unused_credentials,
         cis_aws_2_13_access_key_not_rotated,
         cis_k8s_5_6_2_runtime_default_seccomp,
-    ):
-        assert rule.compliance_only is True
-        assert _serialized_compliance_only(rule) is True
-
-
-def test_framework_mapped_operational_cis_rules_are_not_compliance_only() -> None:
-    for rule in (
         cis_aws_6_3_remote_admin_ipv4,
         cis_aws_3_1_4_s3_block_public_access,
-        cis_k8s_5_1_8_escalation_permissions,
+        nist_ai_provider_api_key_hygiene,
     ):
         assert rule.frameworks
-        assert rule.compliance_only is False
-        assert _serialized_compliance_only(rule) is False
+        assert rule.compliance_only is True
+        assert _serialized_compliance_only(rule) is True
 
 
 def test_standalone_operational_rules_are_not_compliance_only() -> None:
@@ -82,7 +72,16 @@ def test_framework_mapped_operational_rules_are_not_compliance_only() -> None:
     assert _serialized_compliance_only(object_storage_public) is False
 
 
-def test_nist_ai_rmf_operational_rules_are_not_compliance_only() -> None:
+def test_all_framework_prefixed_rules_are_compliance_only() -> None:
+    prefixed_rules = [
+        rule for rule in RULES.values() if rule.id.startswith(("cis_", "nist_ai_"))
+    ]
+
+    assert prefixed_rules
+    assert all(rule.compliance_only for rule in prefixed_rules)
+
+
+def test_nist_ai_rmf_prefixed_rules_are_compliance_only() -> None:
     for rule in (
         nist_ai_third_party_app_inventory,
         nist_ai_third_party_app_sensitive_scopes,
@@ -92,8 +91,8 @@ def test_nist_ai_rmf_operational_rules_are_not_compliance_only() -> None:
         nist_ai_provider_api_key_hygiene,
     ):
         assert rule.has_framework("nist-ai-rmf", revision="1.0")
-        assert rule.compliance_only is False
-        assert _serialized_compliance_only(rule) is False
+        assert rule.compliance_only is True
+        assert _serialized_compliance_only(rule) is True
 
 
 def test_compliance_only_does_not_remove_framework_mappings() -> None:
