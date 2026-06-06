@@ -97,6 +97,18 @@ def test_sync_compute_resources(
         check_nodes(neo4j_session, "AzureSnapshot", ["id"]) == expected_snapshot_nodes
     )
 
+    # Assert - Snapshot semantic label + normalized _ont_* fields. Azure exposes
+    # only name + region on the snapshot node; encrypted/public/source_id/
+    # created_at are intentionally unset (see the snapshots ontology mapping).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        ["_ont_name", "_ont_region", "_ont_source"],
+    ) == {
+        ("ss0", "West US", "azure"),
+        ("ss1", "West US", "azure"),
+    }
+
     # Assert - Check VM-to-subscription relationships
     expected_vm_rels = {
         (
