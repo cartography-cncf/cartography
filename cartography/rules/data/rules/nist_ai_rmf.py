@@ -146,6 +146,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -249,6 +250,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -379,6 +381,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -534,6 +537,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN COUNT(DISTINCT agent) AS count
     """,
     asset_id_field="agent_component_id",
+    identity_fields=("agent_component_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -632,6 +636,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     RETURN COUNT(source) AS count
     """,
     asset_id_field="source_id",
+    identity_fields=("source_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -781,6 +786,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.OPENAI,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -840,6 +846,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.ANTHROPIC,
     maturity=Maturity.EXPERIMENTAL,
 )

@@ -28,6 +28,9 @@ class SpaceliftStackNodeProperties(CartographyNodeProperties):
     project_root: PropertyRef = PropertyRef("project_root")  # Directory in repo
     space_id: PropertyRef = PropertyRef("space_id")
     spacelift_account_id: PropertyRef = PropertyRef("spacelift_account_id")
+    aws_role_arn: PropertyRef = PropertyRef(
+        "aws_role_arn"
+    )  # IAM role assumed at runtime
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -82,6 +85,33 @@ class SpaceliftStackToSpaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SpaceliftStackToAWSRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftStackToAWSRoleRel(CartographyRelSchema):
+    """
+    ASSUMES relationship from a Stack to the AWS IAM role it assumes at runtime.
+    (:SpaceliftStack)-[:ASSUMES]->(:AWSRole)
+
+    The role ARN comes from the stack's AWS integration (integrations.aws.assumedRoleArn).
+    Only matches AWSRole nodes already present in the graph; stacks without an assumed
+    role (null ARN) match nothing and get no edge.
+    """
+
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("aws_role_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSUMES"
+    properties: SpaceliftStackToAWSRoleRelProperties = (
+        SpaceliftStackToAWSRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SpaceliftStackSchema(CartographyNodeSchema):
     """
     Schema for a Spacelift Stack node.
@@ -94,5 +124,6 @@ class SpaceliftStackSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SpaceliftStackToSpaceRel(),
+            SpaceliftStackToAWSRoleRel(),
         ],
     )

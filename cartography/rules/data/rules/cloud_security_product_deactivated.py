@@ -32,6 +32,7 @@ aws_guard_duty_detector_disabled = Fact(
     WITH DISTINCT a, r.region AS region
     RETURN COUNT(*) AS count
     """,
+    identity_fields=("account_id", "region"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

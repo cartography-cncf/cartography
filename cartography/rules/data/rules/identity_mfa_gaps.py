@@ -47,6 +47,7 @@ _cloudflare_account_2fa_not_enforced = Fact(
     RETURN COUNT(account) AS count
     """,
     asset_id_field="account_id",
+    identity_fields=("account_id",),
     module=Module.CLOUDFLARE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -91,6 +92,7 @@ _lastpass_user_mfa_missing = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="principal_id",
+    identity_fields=("principal_id",),
     module=Module.LASTPASS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -138,6 +140,7 @@ _jumpcloud_user_mfa_missing = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="principal_id",
+    identity_fields=("principal_id",),
     module=Module.JUMPCLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -181,6 +184,7 @@ _duo_user_not_enrolled = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="principal_id",
+    identity_fields=("principal_id",),
     module=Module.DUO,
     maturity=Maturity.EXPERIMENTAL,
 )

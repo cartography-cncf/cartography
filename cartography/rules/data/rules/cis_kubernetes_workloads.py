@@ -115,6 +115,7 @@ _k8s_secrets_in_env_vars = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -234,6 +235,7 @@ _k8s_service_account_tokens_mounted = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -293,6 +295,7 @@ _k8s_host_pid_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -343,6 +346,7 @@ _k8s_host_ipc_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -393,6 +397,7 @@ _k8s_host_network_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -449,6 +454,7 @@ _k8s_allow_privilege_escalation = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
+    identity_fields=("container_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -510,6 +516,7 @@ _k8s_host_path_volumes = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -561,6 +568,7 @@ _k8s_host_ports = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
+    identity_fields=("container_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -639,6 +647,7 @@ _k8s_missing_runtime_default_seccomp = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -671,6 +680,7 @@ cis_k8s_5_6_2_runtime_default_seccomp = Rule(
 class DefaultNamespaceOutput(Finding):
     """Output model for default namespace usage check."""
 
+    pod_id: str | None = None
     pod_name: str | None = None
     status_phase: str | None = None
     cluster_name: str | None = None
@@ -689,6 +699,7 @@ _k8s_pods_in_default_namespace = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     WHERE pod.namespace = 'default'
     RETURN
+        pod.id AS pod_id,
         pod.name AS pod_name,
         pod.status_phase AS status_phase,
         cluster.name AS cluster_name
@@ -702,6 +713,7 @@ _k8s_pods_in_default_namespace = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
