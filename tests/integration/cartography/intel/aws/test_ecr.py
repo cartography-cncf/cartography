@@ -1,5 +1,4 @@
 import datetime
-import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -25,6 +24,17 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
     )
 
 
+def _mock_get_ecr_repository_images(_boto3_session, _region, repository_name):
+    """Return image data based on repository name, not call order.
+
+    _get_image_data runs repositories concurrently in a threadpool,
+    so call order is non-deterministic. Using a function-based side_effect
+    ensures each repository always receives its own data.
+    """
+    repo_uri = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/{repository_name}"
+    return tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[repo_uri]
+
+
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repositories",
@@ -33,17 +43,7 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repository_images",
-    side_effect=[
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository"
-        ],
-    ],
+    side_effect=_mock_get_ecr_repository_images,
 )
 def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     """
@@ -297,30 +297,10 @@ def test_cleanup_repositories(neo4j_session):
     """
     Ensure that after the cleanup job runs, all ECRRepository nodes
     with a different UPDATE_TAG are removed from the AWSAccount node.
-    We load 100 additional nodes, because the cleanup job is configured
-    to run iteratively, processing 100 nodes at a time. So this test also ensures
-    that iterative cleanups do work.
     """
     # Arrange
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     repo_data = {**tests.data.aws.ecr.DESCRIBE_REPOSITORIES}
-    # add additional repository noes, for a total of 103, since
-    cleanup_jobs = json.load(
-        open("./cartography/data/jobs/cleanup/aws_import_ecr_cleanup.json"),
-    )
-    iter_size = cleanup_jobs["statements"][-1]["iterationsize"]
-    repo_data["repositories"].extend(
-        [
-            {
-                "repositoryArn": f"arn:aws:ecr:us-east-1:000000000000:repository/test-repository{i}",
-                "registryId": "000000000000",
-                "repositoryName": f"test-repository{i}",
-                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
-                "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
-            }
-            for i in range(iter_size)
-        ],
-    )
 
     # Act
     cartography.intel.aws.ecr.load_ecr_repositories(
@@ -340,7 +320,6 @@ def test_cleanup_repositories(neo4j_session):
         RETURN count(repo)
         """,
     )
-    # there should be 103 nodes
     expected_nodes = {
         len(repo_data["repositories"]),
     }

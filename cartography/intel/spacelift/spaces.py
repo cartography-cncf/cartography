@@ -27,12 +27,12 @@ query {
 
 @timeit
 def get_spaces(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift spaces")
+    logger.debug("Fetching Spacelift spaces")
 
     response = call_spacelift_api(session, api_endpoint, GET_SPACES_QUERY)
     spaces_data = response.get("data", {}).get("spaces", [])
 
-    logger.info(f"Retrieved {len(spaces_data)} Spacelift spaces")
+    logger.debug("Retrieved %s Spacelift spaces", len(spaces_data))
     return spaces_data
 
 
@@ -77,8 +77,6 @@ def load_spaces(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(spaces_data)} Spacelift spaces")
-
 
 @timeit
 def cleanup_spaces(
@@ -108,5 +106,4 @@ def sync_spaces(
         account_id,
     )
     cleanup_spaces(neo4j_session, common_job_parameters)
-
-    logger.info(f"Synced {len(transformed_spaces)} Spacelift spaces")
+    logger.info("Synced Spacelift spaces for account %s", account_id)

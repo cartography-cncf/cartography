@@ -37,6 +37,29 @@ aws_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
+            node_label="ESDomain",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # `engine` is derived in the elasticsearch transform from
+                # ElasticsearchVersion so we label OpenSearch-backed domains
+                # as "opensearch" and the legacy Elasticsearch-backed ones as
+                # "elasticsearch".
+                OntologyFieldMapping(ontology_field="type", node_field="engine"),
+                OntologyFieldMapping(
+                    ontology_field="version", node_field="elasticsearch_version"
+                ),
+                OntologyFieldMapping(ontology_field="endpoint", node_field="endpoint"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="encryption_at_rest_options_enabled",
+                ),
+                # _ont_db_port: Not applicable (HTTPS API)
+                # _ont_db_location: Region is not currently stored on the ESDomain node.
+            ],
+        ),
+        OntologyNodeMapping(
             node_label="DynamoDBTable",
             fields=[
                 OntologyFieldMapping(
@@ -165,11 +188,34 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="version", node_field="database_version"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="type", node_field="database_engine"
+                ),
                 OntologyFieldMapping(ontology_field="location", node_field="region"),
-                # db type: database_version contains engine+version (e.g., "POSTGRES_14"), would need parsing
                 # endpoint: connection_name available but format differs from standard endpoints
                 # port: not directly available in GCPCloudSQLInstance
                 # encrypted: not directly available in GCPCloudSQLInstance
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="GCPBigQueryDataset",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="dataset_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "bigquery"},
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # _ont_db_version: Not applicable to managed BigQuery service
+                # _ont_db_endpoint: BigQuery uses project/dataset identifiers, not endpoints
+                # _ont_db_port: Not applicable (REST/gRPC API)
+                # _ont_db_encrypted: BigQuery is encrypted at rest by default, not exposed
             ],
         ),
     ],

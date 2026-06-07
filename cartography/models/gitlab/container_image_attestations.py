@@ -30,6 +30,9 @@ class GitLabContainerImageAttestationNodeProperties(CartographyNodeProperties):
     attestation_type: PropertyRef = PropertyRef("attestation_type", extra_index=True)
     predicate_type: PropertyRef = PropertyRef("predicate_type")
     attests_digest: PropertyRef = PropertyRef("attests_digest", extra_index=True)
+    source_uri: PropertyRef = PropertyRef("source_uri")
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    source_file: PropertyRef = PropertyRef("source_file")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -46,7 +49,10 @@ class GitLabContainerImageAttestationToOrgRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

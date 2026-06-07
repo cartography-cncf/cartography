@@ -132,6 +132,8 @@ Represents a User in Scaleway.
 
 Represents a Group in Scaleway.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
 | id          | ID of the Group                              |
@@ -160,6 +162,8 @@ Represents a Group in Scaleway.
 ### ScalewayApplication
 
 Represents an Application (Service Account) in Scaleway
+
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
 
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
@@ -310,12 +314,15 @@ Represents a Permission Set in Scaleway. Permission sets are predefined collecti
 
 Volumes are storage space used by your Instances. You can attach several volumes to an Instance.
 
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, AzureDisk).
+
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
 | id              | Volume unique ID.                            |
 | name            | Volume name.                                 |
 | export_uri      | Show the volume NBD export URI.              |
 | size            | Volume disk size. (in bytes)                 |
+| size_gb         | Volume disk size derived in gigabytes (rounded from `size`). |
 | volume_type     | Volume type (`l_ssd`, `b_ssd`, `unified`, `scratch`, `sbs_volume`, `sbs_snapshot`) |
 | creation_date   | Volume creation date.                        |
 | modification_date| Volume modification date.                   |

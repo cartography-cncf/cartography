@@ -83,10 +83,10 @@ class GCPIpRuleToProjectRel(CartographyRelSchema):
 class GCPIpRuleAllowedSchema(CartographyNodeSchema):
     """Schema for IP rules that are allowed by a firewall."""
 
-    label: str = "IpRule"
+    label: str = "GCPIpRule"
     properties: GCPIpRuleNodeProperties = GCPIpRuleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "GCPIpRule"]
+        ["IpPermissionInbound", "IpRule"]
     )
     sub_resource_relationship: GCPIpRuleToProjectRel = GCPIpRuleToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -100,10 +100,10 @@ class GCPIpRuleAllowedSchema(CartographyNodeSchema):
 class GCPIpRuleDeniedSchema(CartographyNodeSchema):
     """Schema for IP rules that are denied by a firewall."""
 
-    label: str = "IpRule"
+    label: str = "GCPIpRule"
     properties: GCPIpRuleNodeProperties = GCPIpRuleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "GCPIpRule"]
+        ["IpPermissionInbound", "IpRule"]
     )
     sub_resource_relationship: GCPIpRuleToProjectRel = GCPIpRuleToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -16,11 +16,11 @@ GET_SERVICES_DATA = [
         },
         "integrations": [
             {
-                "id": "PQ12345",
+                "id": "PE1U9CH",
                 "type": "generic_email_inbound_integration_reference",
                 "summary": "Email Integration",
-                "self": "https://api.pagerduty.com/services/PIJ90N7/integrations/PQ12345",
-                "html_url": "https://subdomain.pagerduty.com/services/PIJ90N7/integrations/PQ12345",
+                "self": "https://api.pagerduty.com/services/PIJ90N7/integrations/PE1U9CH",
+                "html_url": "https://subdomain.pagerduty.com/services/PIJ90N7/integrations/PE1U9CH",
             },
         ],
         "escalation_policy": {
@@ -87,7 +87,7 @@ GET_INTEGRATIONS_DATA = [
         "service": {
             "id": "PIJ90N7",
             "type": "service_reference",
-            "summary": "My Application Service",
+            "summary": "My Email-Based Integration",
             "self": "https://api.pagerduty.com/services/PIJ90N7",
             "html_url": "https://subdomain.pagerduty.com/services/PIJ90N7",
         },

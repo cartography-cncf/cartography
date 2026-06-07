@@ -153,6 +153,16 @@ GET_CONTAINER_IMAGES_RESPONSE = [
                 "size": 32654,
                 "digest": "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
             },
+            {
+                "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                "size": 48921,
+                "digest": "sha256:layer2222333444555666777888999000aaabbbcccdddeeefff00011122333",
+            },
+            {
+                "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                "size": 15678,
+                "digest": "sha256:layer3333444555666777888999000aaabbbcccdddeeefff00011122333444",
+            },
         ],
         "_digest": "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
         "_repository_name": "myorg/awesome-project/app",
@@ -162,6 +172,13 @@ GET_CONTAINER_IMAGES_RESPONSE = [
             "architecture": "amd64",
             "os": "linux",
             "variant": None,
+            "rootfs": {
+                "diff_ids": [
+                    "sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",
+                    "sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",
+                    "sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",
+                ],
+            },
         },
     },
     # Multi-arch manifest list

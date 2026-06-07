@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -34,6 +35,12 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     master_authorized_networks: PropertyRef = PropertyRef("master_authorized_networks")
     legacy_abac: PropertyRef = PropertyRef("legacy_abac")
     shielded_nodes: PropertyRef = PropertyRef("shielded_nodes")
+    workload_identity_enabled: PropertyRef = PropertyRef(
+        "workload_identity_enabled", extra_index=True
+    )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by gcp_gke_asset_exposure.json.
     private_nodes: PropertyRef = PropertyRef("private_nodes")
     private_endpoint_enabled: PropertyRef = PropertyRef("private_endpoint_enabled")
     private_endpoint: PropertyRef = PropertyRef("private_endpoint")
@@ -65,5 +72,6 @@ class GCPGKEClusterToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPGKEClusterSchema(CartographyNodeSchema):
     label: str = "GKECluster"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: GCPGKEClusterNodeProperties = GCPGKEClusterNodeProperties()
     sub_resource_relationship: GCPGKEClusterToProjectRel = GCPGKEClusterToProjectRel()

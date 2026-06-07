@@ -18,6 +18,11 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import get_file_content
+from cartography.intel.github.workflow_parser import deduplicate_actions
+from cartography.intel.github.workflow_parser import parse_workflow_yaml
+from cartography.intel.github.workflow_parser import ParsedWorkflow
+from cartography.models.github.action import GitHubActionSchema
 from cartography.models.github.actions_secret import GitHubEnvActionsSecretSchema
 from cartography.models.github.actions_secret import GitHubOrgActionsSecretSchema
 from cartography.models.github.actions_secret import GitHubRepoActionsSecretSchema
@@ -26,6 +31,7 @@ from cartography.models.github.actions_variable import GitHubOrgActionsVariableS
 from cartography.models.github.actions_variable import GitHubRepoActionsVariableSchema
 from cartography.models.github.environment import GitHubEnvironmentSchema
 from cartography.models.github.workflow import GitHubWorkflowSchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -354,6 +360,145 @@ def transform_env_variables(
 
 
 # =============================================================================
+# Workflow Content Fetching and Parsing
+# =============================================================================
+
+
+@timeit
+def get_workflow_content(
+    token: str,
+    api_url: str,
+    organization: str,
+    repo_name: str,
+    workflow_path: str,
+) -> str | None:
+    """
+    Fetch the content of a workflow file from GitHub.
+
+    :param token: The GitHub API token
+    :param api_url: The GitHub API URL
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :param workflow_path: The path to the workflow file (e.g., .github/workflows/ci.yml)
+    :return: The workflow file content, or None if fetching fails
+    """
+    base_url = _get_rest_api_base_url(api_url)
+    return get_file_content(
+        token, organization, repo_name, workflow_path, base_url=base_url
+    )
+
+
+def enrich_workflow_with_parsed_content(
+    workflow: dict[str, Any],
+    parsed: ParsedWorkflow | None,
+    organization: str,
+    repo_name: str,
+) -> dict[str, Any]:
+    """
+    Enrich a workflow dict with parsed content from the YAML file.
+
+    :param workflow: The workflow dict from transform_workflows
+    :param parsed: The parsed workflow content, or None if parsing failed
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :return: Enriched workflow dict with parsed fields
+    """
+    if parsed is None:
+        return {
+            **workflow,
+            "trigger_events": None,
+            "permissions_actions": None,
+            "permissions_contents": None,
+            "permissions_packages": None,
+            "permissions_pull_requests": None,
+            "permissions_issues": None,
+            "permissions_deployments": None,
+            "permissions_statuses": None,
+            "permissions_checks": None,
+            "permissions_id_token": None,
+            "permissions_security_events": None,
+            "env_vars": None,
+            "job_count": None,
+            "has_reusable_workflow_calls": None,
+            "secret_ids": [],
+        }
+
+    # Build secret IDs for both org-level and repo-level secrets
+    # The relationship will only be created if the secret exists
+    secret_ids = []
+    for secret_name in parsed.secret_refs:
+        # Add repo-level secret ID
+        secret_ids.append(
+            f"https://github.com/{organization}/{repo_name}/actions/secrets/{secret_name}"
+        )
+        # Add org-level secret ID
+        secret_ids.append(
+            f"https://github.com/{organization}/actions/secrets/{secret_name}"
+        )
+
+    return {
+        **workflow,
+        "trigger_events": parsed.trigger_events if parsed.trigger_events else None,
+        "permissions_actions": parsed.permissions.get("actions"),
+        "permissions_contents": parsed.permissions.get("contents"),
+        "permissions_packages": parsed.permissions.get("packages"),
+        "permissions_pull_requests": parsed.permissions.get("pull_requests"),
+        "permissions_issues": parsed.permissions.get("issues"),
+        "permissions_deployments": parsed.permissions.get("deployments"),
+        "permissions_statuses": parsed.permissions.get("statuses"),
+        "permissions_checks": parsed.permissions.get("checks"),
+        "permissions_id_token": parsed.permissions.get("id_token"),
+        "permissions_security_events": parsed.permissions.get("security_events"),
+        "env_vars": list(parsed.env_vars) if parsed.env_vars else None,
+        "job_count": parsed.job_count,
+        "has_reusable_workflow_calls": len(parsed.reusable_workflow_calls) > 0,
+        "secret_ids": secret_ids,
+    }
+
+
+def transform_actions(
+    parsed: ParsedWorkflow,
+    workflow_id: int,
+    organization: str,
+    repo_name: str,
+) -> list[dict[str, Any]]:
+    """
+    Transform parsed actions into data dicts for loading.
+
+    :param parsed: The parsed workflow content
+    :param workflow_id: The workflow ID (for relationship)
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :return: List of action data dicts
+    """
+    actions = deduplicate_actions(parsed.actions)
+    result = []
+
+    for action in actions:
+        # Local actions (e.g., ./.github/actions/build) are repo-specific,
+        # so include repo_name to avoid cross-repo ID collisions.
+        if action.is_local:
+            action_id = f"{organization}/{repo_name}:{action.raw_uses}"
+        else:
+            action_id = f"{organization}:{action.raw_uses}"
+
+        result.append(
+            {
+                "id": action_id,
+                "owner": action.owner or None,
+                "name": action.name,
+                "version": action.version or None,
+                "is_pinned": action.is_pinned,
+                "is_local": action.is_local,
+                "full_name": action.full_name,
+                "workflow_id": workflow_id,
+            }
+        )
+
+    return result
+
+
+# =============================================================================
 # Load Functions
 # =============================================================================
 
@@ -365,7 +510,6 @@ def load_org_secrets(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub organization Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubOrgActionsSecretSchema(),
@@ -382,9 +526,6 @@ def load_org_variables(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(
-        f"Loading {len(data)} GitHub organization Actions variables to the graph"
-    )
     load(
         neo4j_session,
         GitHubOrgActionsVariableSchema(),
@@ -401,7 +542,6 @@ def load_workflows(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub workflows to the graph")
     load(
         neo4j_session,
         GitHubWorkflowSchema(),
@@ -418,7 +558,6 @@ def load_environments(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub environments to the graph")
     load(
         neo4j_session,
         GitHubEnvironmentSchema(),
@@ -433,15 +572,14 @@ def load_repo_secrets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub repository Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubRepoActionsSecretSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -450,15 +588,14 @@ def load_repo_variables(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub repository Actions variables to the graph")
     load(
         neo4j_session,
         GitHubRepoActionsVariableSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -469,7 +606,6 @@ def load_env_secrets(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub environment Actions secrets to the graph")
     load(
         neo4j_session,
         GitHubEnvActionsSecretSchema(),
@@ -486,12 +622,25 @@ def load_env_variables(
     update_tag: int,
     org_url: str,
 ) -> None:
-    logger.info(
-        f"Loading {len(data)} GitHub environment Actions variables to the graph"
-    )
     load(
         neo4j_session,
         GitHubEnvActionsVariableSchema(),
+        data,
+        lastupdated=update_tag,
+        org_url=org_url,
+    )
+
+
+@timeit
+def load_actions(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+    org_url: str,
+) -> None:
+    load(
+        neo4j_session,
+        GitHubActionSchema(),
         data,
         lastupdated=update_tag,
         org_url=org_url,
@@ -512,7 +661,7 @@ def cleanup_org_level(
     Clean up stale GitHub Actions nodes scoped to the organization.
     Requires org_url in common_job_parameters.
 
-    All GitHub Actions resources (workflows, environments, secrets, variables)
+    All GitHub Actions resources (workflows, environments, secrets, variables, actions)
     use org as their sub_resource, so they are all cleaned up here. This ensures
     resources are properly cleaned up even when their parent repo/environment is deleted.
     """
@@ -521,6 +670,10 @@ def cleanup_org_level(
         neo4j_session,
     )
     GraphJob.from_node_schema(GitHubEnvironmentSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    # Actions used in workflows
+    GraphJob.from_node_schema(GitHubActionSchema(), common_job_parameters).run(
         neo4j_session,
     )
     # Org-level secrets and variables
@@ -545,22 +698,15 @@ def cleanup_org_level(
     ).run(
         neo4j_session,
     )
-
-
-@timeit
-def cleanup_repo_level(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-    repo_url: str,
-) -> None:
-    """
-    Clean up stale repository-level GitHub Actions secrets and variables.
-    """
-    cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-    GraphJob.from_node_schema(GitHubRepoActionsSecretSchema(), cleanup_params).run(
+    # Repo-level secrets and variables
+    GraphJob.from_node_schema(
+        GitHubRepoActionsSecretSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(GitHubRepoActionsVariableSchema(), cleanup_params).run(
+    GraphJob.from_node_schema(
+        GitHubRepoActionsVariableSchema(), common_job_parameters
+    ).run(
         neo4j_session,
     )
 
@@ -600,7 +746,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GitHub Actions data (workflows, secrets, variables, environments) for an organization.
 
@@ -609,9 +755,12 @@ def sync(
     2. For each repo: workflows, environments, repo secrets/variables
     3. For each environment: env secrets/variables
     4. Cleanup stale nodes
+
+    :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
     org_url = f"https://github.com/{organization}"
     update_tag = common_job_parameters["UPDATE_TAG"]
+    all_workflows: list[dict[str, Any]] = []
 
     # 1. Sync organization-level secrets and variables
     logger.info(f"Syncing GitHub Actions for organization: {organization}")
@@ -633,8 +782,6 @@ def sync(
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
     for repo_name in repo_names:
-        repo_url = f"https://github.com/{organization}/{repo_name}"
-
         # Sync workflows
         workflows = get_repo_workflows(
             github_api_key, github_url, organization, repo_name
@@ -643,7 +790,51 @@ def sync(
             transformed_workflows = transform_workflows(
                 workflows, organization, repo_name
             )
-            load_workflows(neo4j_session, transformed_workflows, update_tag, org_url)
+
+            # Fetch and parse workflow content for each workflow
+            repo_actions: list[dict[str, Any]] = []
+            enriched_workflows = []
+
+            for wf in transformed_workflows:
+                workflow_path = wf.get("path")
+                workflow_id = wf.get("id")
+
+                # Fetch workflow YAML content
+                content = None
+                if workflow_path:
+                    content = get_workflow_content(
+                        github_api_key,
+                        github_url,
+                        organization,
+                        repo_name,
+                        workflow_path,
+                    )
+
+                # Parse the workflow content
+                parsed = None
+                if content:
+                    parsed = parse_workflow_yaml(content)
+
+                # Enrich workflow with parsed data
+                enriched_wf = enrich_workflow_with_parsed_content(
+                    wf, parsed, organization, repo_name
+                )
+                enriched_workflows.append(enriched_wf)
+
+                # Extract actions for loading
+                if parsed and workflow_id is not None:
+                    actions = transform_actions(
+                        parsed, workflow_id, organization, repo_name
+                    )
+                    repo_actions.extend(actions)
+
+            # Load enriched workflows
+            load_workflows(neo4j_session, enriched_workflows, update_tag, org_url)
+            all_workflows.extend(enriched_workflows)
+
+            # Load actions
+            if repo_actions:
+                load_actions(neo4j_session, repo_actions, update_tag, org_url)
 
         # Sync environments (must come before env secrets/variables)
         environments = get_repo_environments(
@@ -666,7 +857,7 @@ def sync(
                 repo_secrets, organization, repo_name
             )
             load_repo_secrets(
-                neo4j_session, transformed_repo_secrets, update_tag, repo_url
+                neo4j_session, transformed_repo_secrets, update_tag, org_url
             )
 
         # Sync repo-level variables
@@ -678,7 +869,7 @@ def sync(
                 repo_variables, organization, repo_name
             )
             load_repo_variables(
-                neo4j_session, transformed_repo_variables, update_tag, repo_url
+                neo4j_session, transformed_repo_variables, update_tag, org_url
             )
 
         # 3. Sync environment-level secrets and variables
@@ -716,9 +907,18 @@ def sync(
                     neo4j_session, transformed_env_variables, update_tag, org_url
                 )
 
-        # Cleanup repo-level resources for this repo
-        cleanup_repo_level(neo4j_session, common_job_parameters, repo_url)
-
-    # 4. Cleanup org-level stale nodes
+    # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
+    # and variables are now scoped to the org as well, so cleanup_org_level
+    # picks them up here.
     org_cleanup_params = {**common_job_parameters, "org_url": org_url}
+    # DEPRECATED: compatibility migration to backfill the RESOURCE edge from
+    # GitHubOrganization to repo-level GitHubActionsSecret and
+    # GitHubActionsVariable. Remove in v1.0.0.
+    run_analysis_job(
+        "github_repo_actions_secret_resource_edge_migration.json",
+        neo4j_session,
+        org_cleanup_params,
+    )
     cleanup_org_level(neo4j_session, org_cleanup_params)
+
+    return all_workflows

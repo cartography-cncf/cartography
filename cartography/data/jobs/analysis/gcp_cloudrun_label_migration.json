@@ -1,0 +1,20 @@
+{
+  "statements": [
+    {
+      "__comment__": "GCPCloudRunRevision no longer carries :Container (revisions are versioning artifacts with no ontology label). Strip stale :Container from pre-migration revisions. Idempotent (REMOVE on a missing label is a no-op).",
+      "query": "MATCH (n:GCPCloudRunRevision:Container) REMOVE n:Container",
+      "iterative": false
+    },
+    {
+      "__comment__": "GCPCloudRunJob no longer carries any ontology label (individual GCPCloudRunJobContainer children carry :Container). Strip stale :Container and :Function from pre-migration jobs. Idempotent.",
+      "query": "MATCH (n:GCPCloudRunJob) REMOVE n:Container, n:Function",
+      "iterative": false
+    },
+    {
+      "__comment__": "GCPCloudRunService no longer carries :Function. It is now treated as an orchestrator (analogous to ECSService); its child GCPCloudRunServiceContainer nodes carry :Container. Idempotent.",
+      "query": "MATCH (n:GCPCloudRunService:Function) REMOVE n:Function",
+      "iterative": false
+    }
+  ],
+  "name": "GCP Cloud Run ontology label migration"
+}

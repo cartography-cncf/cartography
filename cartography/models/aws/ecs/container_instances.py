@@ -69,6 +69,24 @@ class ECSContainerInstanceToECSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSContainerInstanceToEC2InstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ec2InstanceId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: ECSContainerInstanceToEC2InstanceRelProperties = (
+        ECSContainerInstanceToEC2InstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerInstanceSchema(CartographyNodeSchema):
     label: str = "ECSContainerInstance"
     properties: ECSContainerInstanceNodeProperties = (
@@ -80,5 +98,6 @@ class ECSContainerInstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSContainerInstanceToECSClusterRel(),
+            ECSContainerInstanceToEC2InstanceRel(),
         ]
     )

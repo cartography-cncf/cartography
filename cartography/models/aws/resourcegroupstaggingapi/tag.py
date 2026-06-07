@@ -18,7 +18,7 @@ class AWSTagNodeProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key")
+    key: PropertyRef = PropertyRef("key", extra_index=True)
     value: PropertyRef = PropertyRef("value")
     region: PropertyRef = PropertyRef("region", set_in_kwargs=True)
 

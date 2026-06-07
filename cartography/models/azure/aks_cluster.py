@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -22,6 +23,7 @@ class AzureKubernetesClusterProperties(CartographyNodeProperties):
     provisioning_state: PropertyRef = PropertyRef("provisioning_state")
     kubernetes_version: PropertyRef = PropertyRef("kubernetes_version")
     fqdn: PropertyRef = PropertyRef("fqdn")
+    api_server_public_access: PropertyRef = PropertyRef("api_server_public_access")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -48,6 +50,7 @@ class AzureKubernetesClusterToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKubernetesClusterSchema(CartographyNodeSchema):
     label: str = "AzureKubernetesCluster"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: AzureKubernetesClusterProperties = AzureKubernetesClusterProperties()
     sub_resource_relationship: AzureKubernetesClusterToSubscriptionRel = (
         AzureKubernetesClusterToSubscriptionRel()

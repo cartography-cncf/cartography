@@ -6,15 +6,17 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.domain import AWSSageMakerDomainSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_domains(
     boto3_session: boto3.session.Session,
     region: str,
@@ -22,7 +24,7 @@ def get_domains(
     """
     Get all SageMaker Domains in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_domains")
     domains: list[dict[str, Any]] = []
 
@@ -110,30 +112,22 @@ def sync_domains(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker Domains for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker Domains for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get domains from AWS
-        domains = get_domains(boto3_session, region)
-
-        # Transform the data
-        transformed_domains = transform_domains(domains, region)
-
-        # Load into Neo4j
-        load_domains(
-            neo4j_session,
-            transformed_domains,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old domains
-    cleanup_domains(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="domains",
+        get_resources=get_domains,
+        transform_resources=transform_domains,
+        load_resources=load_domains,
+        cleanup_resources=cleanup_domains,
+    )

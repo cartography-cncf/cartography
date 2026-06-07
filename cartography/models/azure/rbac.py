@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -20,7 +21,7 @@ class AzureRoleAssignmentProperties(CartographyNodeProperties):
     principal_id: PropertyRef = PropertyRef("principalId")
     principal_type: PropertyRef = PropertyRef("principalType")
     role_definition_id: PropertyRef = PropertyRef("roleDefinitionId")
-    scope: PropertyRef = PropertyRef("scope")
+    scope: PropertyRef = PropertyRef("scope", extra_index=True)
     scope_type: PropertyRef = PropertyRef("scopeType")
     created_on: PropertyRef = PropertyRef("createdOn")
     updated_on: PropertyRef = PropertyRef("updatedOn")
@@ -249,6 +250,7 @@ class AzureRoleAssignmentSchema(CartographyNodeSchema):
 class AzureRoleDefinitionSchema(CartographyNodeSchema):
     label: str = "AzureRoleDefinition"
     properties: AzureRoleDefinitionProperties = AzureRoleDefinitionProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: AzureRoleDefinitionToSubscriptionRel = (
         AzureRoleDefinitionToSubscriptionRel()
     )

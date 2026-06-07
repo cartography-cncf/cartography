@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -49,7 +50,10 @@ class GitLabContainerRepositoryTagToOrgRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -82,6 +86,28 @@ class GitLabContainerRepositoryTagToImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitLabContainerRepositoryTagToGenericImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerRepositoryTagToGenericImageRel(CartographyRelSchema):
+    """
+    Generic cross-registry edge from ImageTag to Image.
+    """
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IMAGE"
+    properties: GitLabContainerRepositoryTagToGenericImageRelProperties = (
+        GitLabContainerRepositoryTagToGenericImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabContainerRepositoryTagToRepoRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -104,6 +130,28 @@ class GitLabContainerRepositoryTagToRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitLabContainerRepositoryTagToGenericRepoRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerRepositoryTagToGenericRepoRel(CartographyRelSchema):
+    """
+    Generic cross-registry edge from ContainerRegistry to ImageTag.
+    """
+
+    target_node_label: str = "GitLabContainerRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("repository_location")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "REPO_IMAGE"
+    properties: GitLabContainerRepositoryTagToGenericRepoRelProperties = (
+        GitLabContainerRepositoryTagToGenericRepoRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
     """
     Schema for GitLab Container Repository Tag nodes.
@@ -112,6 +160,9 @@ class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - HAS_TAG: Links from GitLabContainerRepository to this tag
     - REFERENCES: Links to GitLabContainerImage via digest
+
+    Extra labels:
+    - ImageTag: Generic ontology label for cross-registry querying
     """
 
     label: str = "GitLabContainerRepositoryTag"
@@ -123,7 +174,13 @@ class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            GitLabContainerRepositoryTagToGenericRepoRel(),
+            GitLabContainerRepositoryTagToGenericImageRel(),
+            # DEPRECATED: For backward compatibility, will be removed in v1.0.0.
             GitLabContainerRepositoryTagToRepoRel(),
+            # DEPRECATED: For backward compatibility, will be removed in v1.0.0.
             GitLabContainerRepositoryTagToImageRel(),
         ],
     )
+    # Add generic ontology label for cross-registry querying
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageTag"])

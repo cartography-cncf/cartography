@@ -1,0 +1,6 @@
+# JumpCloud
+
+```{toctree}
+config
+schema
+```

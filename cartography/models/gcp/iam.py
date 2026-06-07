@@ -49,7 +49,9 @@ class GCPServiceAccountSchema(CartographyNodeSchema):
     properties: GCPServiceAccountNodeProperties = GCPServiceAccountNodeProperties()
     sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()
     # Service accounts are principals; add shared label for cross-module queries
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["GCPPrincipal", "ServiceAccount"]
+    )
 
 
 # =============================================================================
@@ -109,6 +111,7 @@ class GCPOrgRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPOrgRoleNodeProperties = GCPOrgRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: GCPOrgRoleToOrganizationRel = (
         GCPOrgRoleToOrganizationRel()
     )
@@ -167,4 +170,5 @@ class GCPProjectRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPProjectRoleNodeProperties = GCPProjectRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: GCPProjectRoleToProjectRel = GCPProjectRoleToProjectRel()

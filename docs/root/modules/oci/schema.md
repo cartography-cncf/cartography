@@ -28,6 +28,8 @@ Representation of an OCI Tenancy (the root resource).
 
 Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/User).
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, GitHubUser, EntraUser).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -64,6 +66,8 @@ Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/iden
 ### OCIGroup
 
 Representation of an [OCI Group](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Group).
+
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|-------------|
@@ -141,6 +145,8 @@ Representation of an [OCI Compartment](https://docs.cloud.oracle.com/iaas/api/#/
 ### OCIPolicy
 
 Representation of an [OCI Policy](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Policy).
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|

@@ -17,9 +17,9 @@ import pytest
 import cartography.intel.azure.rbac
 import cartography.intel.azure.subscription
 import cartography.intel.azure.tenant
-import cartography.intel.entra.groups
-import cartography.intel.entra.service_principals
-import cartography.intel.entra.users
+import cartography.intel.microsoft.entra.groups
+import cartography.intel.microsoft.entra.service_principals
+import cartography.intel.microsoft.entra.users
 from tests.data.azure.rbac import AZURE_ROLE_ASSIGNMENTS
 from tests.data.azure.rbac import AZURE_ROLE_DEFINITIONS
 from tests.data.azure.rbac import ENTRA_GROUPS
@@ -29,7 +29,9 @@ from tests.data.azure.rbac import MOCK_ENTRA_TENANT
 from tests.integration.cartography.intel.azure.common import (
     create_test_azure_subscription,
 )
-from tests.integration.cartography.intel.entra.common import create_test_entra_tenant
+from tests.integration.cartography.intel.microsoft.entra.common import (
+    create_test_entra_tenant,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -55,32 +57,32 @@ async def async_return_empty_tuple():
 
 
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_group_owners",
     return_value=async_return_empty_list(),
 )
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_group_members",
     return_value=async_return_empty_tuple(),
 )
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_entra_groups",
     return_value=async_generator_from_list(ENTRA_GROUPS),
 )
 @patch.object(
-    cartography.intel.entra.users,
+    cartography.intel.microsoft.entra.users,
     "get_tenant",
     return_value=MOCK_ENTRA_TENANT,
 )
 @patch.object(
-    cartography.intel.entra.users,
+    cartography.intel.microsoft.entra.users,
     "get_users",
     return_value=async_generator_from_list(ENTRA_USERS),
 )
 @patch.object(
-    cartography.intel.entra.service_principals,
+    cartography.intel.microsoft.entra.service_principals,
     "get_entra_service_principals",
     return_value=async_generator_from_list(ENTRA_SERVICE_PRINCIPALS),
 )
@@ -124,7 +126,7 @@ async def test_sync_azure_rbac(
     }
 
     # 1. Sync Entra Users
-    await cartography.intel.entra.users.sync_entra_users(
+    await cartography.intel.microsoft.entra.users.sync_entra_users(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",
@@ -134,7 +136,7 @@ async def test_sync_azure_rbac(
     )
 
     # 2. Sync Entra Groups
-    await cartography.intel.entra.groups.sync_entra_groups(
+    await cartography.intel.microsoft.entra.groups.sync_entra_groups(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",
@@ -144,7 +146,7 @@ async def test_sync_azure_rbac(
     )
 
     # 3. Sync Entra Service Principals
-    await cartography.intel.entra.service_principals.sync_service_principals(
+    await cartography.intel.microsoft.entra.service_principals.sync_service_principals(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",

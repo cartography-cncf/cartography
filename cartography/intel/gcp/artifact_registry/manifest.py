@@ -7,39 +7,39 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
-from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.artifact_registry.platform_image import (
-    GCPArtifactRegistryPlatformImageSchema,
+from cartography.intel.gcp.artifact_registry.util import (
+    ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+)
+from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
+from cartography.intel.gcp.artifact_registry.util import (
+    load_nodes_without_relationships,
+)
+from cartography.intel.gcp.artifact_registry.util import MANIFEST_LIST_MEDIA_TYPES
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageContainsImageMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageManifestChildSchema,
 )
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Media types that indicate a multi-architecture manifest list
-MANIFEST_LIST_MEDIA_TYPES = {
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.index.v1+json",
-}
 
-
-def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
+def parse_docker_image_uri(uri: str) -> tuple[str, str, str] | None:
     """
-    Parses a Docker image URI to extract the registry URL and reference.
+    Parse a Docker image URI into registry, image path, and reference components.
 
     :param uri: Docker image URI (e.g., us-docker.pkg.dev/project/repo/image@sha256:...)
-    :return: Tuple of (registry_base_url, manifest_path) or None if parsing fails.
+    :return: Tuple of (registry, image_path, reference) or None if parsing fails.
     """
-    # URI format: {location}-docker.pkg.dev/{project}/{repo}/{image}@{digest}
-    # or: {location}-docker.pkg.dev/{project}/{repo}/{image}:{tag}
     if not uri:
         return None
 
-    # Split off the digest or tag
     if "@" in uri:
         base, reference = uri.rsplit("@", 1)
     elif ":" in uri and "-docker.pkg.dev" in uri:
-        # Find the last colon that's part of the tag (not the port)
         parts = uri.split("/")
         if ":" in parts[-1]:
             base = uri.rsplit(":", 1)[0]
@@ -49,17 +49,28 @@ def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
     else:
         return None
 
-    # Parse the base to get registry and image path
-    # base = {location}-docker.pkg.dev/{project}/{repo}/{image}
     parts = base.split("/")
     if len(parts) < 4:
         return None
 
     registry = parts[0]
     image_path = "/".join(parts[1:])
+    return registry, image_path, reference
 
-    manifest_url = f"https://{registry}/v2/{image_path}/manifests/{reference}"
-    return manifest_url, reference
+
+def build_manifest_url(registry: str, image_path: str, reference: str) -> str:
+    return f"https://{registry}/v2/{image_path}/manifests/{reference}"
+
+
+def build_blob_url(registry: str, image_path: str, digest: str) -> str:
+    return f"https://{registry}/v2/{image_path}/blobs/{digest}"
+
+
+def extract_digest_from_reference(reference: str | None) -> str | None:
+    if not reference or "@" not in reference:
+        return None
+    digest = reference.rsplit("@", 1)[1]
+    return digest or None
 
 
 async def get_manifest_list_async(
@@ -75,12 +86,13 @@ async def get_manifest_list_async(
     :param image_uri: The Docker image URI.
     :return: List of platform manifest dicts from the manifest list.
     """
-    parsed = _get_registry_url_from_uri(image_uri)
+    parsed = parse_docker_image_uri(image_uri)
     if not parsed:
         logger.debug(f"Could not parse image URI: {image_uri}")
         return []
 
-    manifest_url, _ = parsed
+    registry, image_path, reference = parsed
+    manifest_url = build_manifest_url(registry, image_path, reference)
 
     try:
         headers = {
@@ -142,13 +154,15 @@ async def get_all_manifests_async(
         async with semaphore:
             artifact_name = artifact.get("name", "")
             artifact_uri = artifact.get("uri", "")
-            project_id = artifact_name.split("/")[1] if "/" in artifact_name else ""
+            parent_digest = extract_digest_from_reference(
+                artifact_uri
+            ) or extract_digest_from_reference(artifact_name)
 
             manifest_entries = await get_manifest_list_async(
                 http_client, auth_token, artifact_uri
             )
             if manifest_entries:
-                return transform_manifests(manifest_entries, artifact_name, project_id)
+                return transform_manifests(manifest_entries, parent_digest)
             return []
 
     async with httpx.AsyncClient() as http_client:
@@ -192,15 +206,13 @@ async def get_all_manifests_async(
 
 def transform_manifests(
     manifest_entries: list[dict],
-    parent_artifact_id: str,
-    project_id: str,
+    parent_digest: str | None,
 ) -> list[dict]:
     """
     Transforms manifest list entries into manifest node dicts.
 
     :param manifest_entries: List of manifest entries from the manifest list.
-    :param parent_artifact_id: The ID of the parent multi-arch artifact.
-    :param project_id: The GCP project ID.
+    :param parent_digest: The digest of the parent multi-arch image.
     :return: List of transformed manifest dicts.
     """
     transformed: list[dict] = []
@@ -211,18 +223,17 @@ def transform_manifests(
 
         transformed.append(
             {
-                "id": (
-                    f"{parent_artifact_id}@{digest}" if digest else parent_artifact_id
-                ),
                 "digest": digest,
+                "type": "image",
                 "architecture": platform.get("architecture"),
                 "os": platform.get("os"),
                 "os_version": platform.get("os.version"),
                 "os_features": platform.get("os.features"),
                 "variant": platform.get("variant"),
                 "media_type": entry.get("mediaType"),
-                "parent_artifact_id": parent_artifact_id,
-                "project_id": project_id,
+                "parent_digest": parent_digest,
+                "child_digest": digest,
+                "child_image_digests": [digest] if digest else [],
             }
         )
 
@@ -237,14 +248,36 @@ def load_manifests(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryPlatformImage nodes and their relationships.
+    Loads canonical GCPArtifactRegistryImage child nodes and CONTAINS_IMAGE relationships.
     """
-    load(
+    if not data:
+        return
+
+    schema = GCPArtifactRegistryImageManifestChildSchema()
+    load_nodes_without_relationships(
         neo4j_session,
-        GCPArtifactRegistryPlatformImageSchema(),
+        schema,
         data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry canonical platform image nodes for project {project_id}"
+        ),
         lastupdated=update_tag,
         PROJECT_ID=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageContainsImageMatchLink(),
+        data,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            "Artifact Registry manifest-list CONTAINS_IMAGE relationships "
+            f"for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
     )
 
 
@@ -253,10 +286,13 @@ def cleanup_manifests(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Artifact Registry image manifests.
+    Cleans up stale Artifact Registry image manifest relationships.
     """
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryPlatformImageSchema(), common_job_parameters
+    GraphJob.from_matchlink(
+        GCPArtifactRegistryImageContainsImageMatchLink(),
+        "GCPProject",
+        common_job_parameters["PROJECT_ID"],
+        common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
 
 

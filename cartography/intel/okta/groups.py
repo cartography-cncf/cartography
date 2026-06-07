@@ -1,6 +1,7 @@
 # Okta intel module - Group
 import json
 import logging
+import time
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -10,6 +11,7 @@ from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
 from okta.framework.PagedResults import PagedResults
 from okta.models.usergroup import UserGroup
+from requests import Response
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
@@ -19,6 +21,9 @@ from cartography.intel.okta.utils import is_last_page
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS = 3
+OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS = 1
 
 
 @timeit
@@ -51,7 +56,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
@@ -70,29 +75,61 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
     next_url = None
 
     while True:
-        try:
-            # https://developer.okta.com/docs/reference/api/groups/#list-group-members
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 1000,
-                }
-                paged_response = api_client.get_path(f"/{group_id}/users", params)
-        except OktaError:
-            logger.error(f"OktaError while listing members of group {group_id}")
-            raise
+        paged_response = _get_okta_group_members_page(api_client, group_id, next_url)
 
         member_list.extend(json.loads(paged_response.text))
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
     return member_list
+
+
+def _get_next_url(paged_response: Response) -> str:
+    next_link = paged_response.links.get("next")
+    if not isinstance(next_link, dict) or not next_link.get("url"):
+        raise ValueError("Okta paginated response was missing a next URL.")
+    return str(next_link["url"])
+
+
+def _get_okta_group_members_page(
+    api_client: ApiClient,
+    group_id: str,
+    next_url: str | None,
+) -> Response:
+    for attempt in range(1, OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS + 1):
+        try:
+            # https://developer.okta.com/docs/reference/api/groups/#list-group-members
+            if next_url:
+                return api_client.get(next_url)
+            params = {
+                "limit": 1000,
+            }
+            return api_client.get_path(f"/{group_id}/users", params)
+        except json.JSONDecodeError:
+            if attempt == OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS:
+                logger.exception(
+                    "Okta returned a non-JSON error response while listing members of group %s after %d attempts.",
+                    group_id,
+                    attempt,
+                )
+                raise
+            logger.warning(
+                "Okta returned a non-JSON error response while listing members of group %s. Retrying request (%d/%d).",
+                group_id,
+                attempt + 1,
+                OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS,
+            )
+            time.sleep(OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS)
+        except OktaError:
+            logger.error("OktaError while listing members of group %s", group_id)
+            raise
+
+    raise RuntimeError("Unexpected Okta group member retry state.")
 
 
 @timeit
@@ -198,7 +235,12 @@ def _load_okta_groups(
     new_group.dn = group_data.dn,
     new_group.windows_domain_qualified_name = group_data.windows_domain_qualified_name,
     new_group.external_id = group_data.external_id,
-    new_group.lastupdated = $okta_update_tag
+    new_group.lastupdated = $okta_update_tag,
+    new_group:UserGroup,
+    new_group._module_name = "cartography:okta",
+    new_group._ont_name = group_data.name,
+    new_group._ont_description = group_data.description,
+    new_group._ont_source = "okta"
     WITH new_group, org
     MERGE (org)-[org_r:RESOURCE]->(new_group)
     ON CREATE SET org_r.firstseen = timestamp()
@@ -299,6 +341,7 @@ def sync_okta_groups(
     okta_update_tag: int,
     okta_api_key: str,
     sync_state: OktaSyncState,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Synchronize okta groups
@@ -307,10 +350,13 @@ def sync_okta_groups(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
     :param sync_state: Okta sync state
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Nothing
     """
     logger.info("Syncing Okta groups")
-    api_client = create_api_client(okta_org_id, "/api/v1/groups", okta_api_key)
+    api_client = create_api_client(
+        okta_org_id, "/api/v1/groups", okta_api_key, okta_base_domain
+    )
 
     okta_group_data = _get_okta_groups(api_client)
     group_list_info, group_ids = transform_okta_group_list(okta_group_data)

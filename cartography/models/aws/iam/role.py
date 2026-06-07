@@ -22,7 +22,7 @@ class AWSRoleNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM roles
-    roleid: PropertyRef = PropertyRef("roleid")
+    roleid: PropertyRef = PropertyRef("roleid", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")
@@ -81,4 +81,6 @@ class AWSRoleSchema(CartographyNodeSchema):
             AWSRoleToAWSPrincipalTrustRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["AWSPrincipal", "PermissionRole"]
+    )

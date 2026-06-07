@@ -7,8 +7,12 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.models.gcp.cloudsql.authorized_network import (
+    GCPCloudSQLAuthorizedNetworkSchema,
+)
 from cartography.models.gcp.cloudsql.instance import GCPSqlInstanceSchema
 from cartography.util import timeit
 
@@ -49,6 +53,37 @@ def get_sql_instances(client: Resource, project_id: str) -> list[dict] | None:
         raise
 
 
+def transform_authorized_networks(
+    instances_data: list[dict],
+) -> list[dict]:
+    """
+    Extract authorized networks from raw Cloud SQL instance dicts.
+
+    Each entry becomes a GCPCloudSQLAuthorizedNetwork node so callers can
+    detect public exposure (CIDR 0.0.0.0/0) without parsing JSON.
+    """
+    networks: list[dict] = []
+    for inst in instances_data:
+        instance_id = inst.get("selfLink")
+        if not instance_id:
+            continue
+        ip_config = inst.get("settings", {}).get("ipConfiguration", {})
+        for net in ip_config.get("authorizedNetworks", []) or []:
+            value = net.get("value")
+            if not value:
+                continue
+            networks.append(
+                {
+                    "id": f"{instance_id}/authorizedNetworks/{value}",
+                    "name": net.get("name"),
+                    "value": value,
+                    "expiration_time": net.get("expirationTime"),
+                    "instance_id": instance_id,
+                },
+            )
+    return networks
+
+
 def transform_sql_instances(instances_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of SQL Instance dicts for ingestion.
@@ -68,6 +103,14 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if backup_config:
             backup_config_json = json.dumps(backup_config)
 
+        authorized_networks_json = None
+        if ip_config.get("authorizedNetworks"):
+            authorized_networks_json = json.dumps(ip_config.get("authorizedNetworks"))
+
+        database_flags_json = None
+        if settings.get("databaseFlags"):
+            database_flags_json = json.dumps(settings.get("databaseFlags"))
+
         # Normalize privateNetwork to match GCPVpc ID format
         # Cloud SQL API returns: /projects/.../global/networks/...
         # GCPVpc uses: projects/.../global/networks/... (no leading slash)
@@ -75,11 +118,19 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if network_id and network_id.startswith("/"):
             network_id = network_id.lstrip("/")
 
+        database_version = inst.get("databaseVersion")
+        # `databaseVersion` is shaped as `<ENGINE>_<MAJOR>_<MINOR>` (e.g. POSTGRES_14, MYSQL_8_0,
+        # SQLSERVER_2019_STANDARD). The engine is always the first underscore-delimited segment.
+        database_engine = (
+            database_version.split("_", 1)[0].lower() if database_version else None
+        )
+
         transformed.append(
             {
                 "selfLink": inst.get("selfLink"),
                 "name": inst.get("name"),
-                "databaseVersion": inst.get("databaseVersion"),
+                "databaseVersion": database_version,
+                "database_engine": database_engine,
                 "region": inst.get("region"),
                 "gceZone": inst.get("gceZone"),
                 "state": inst.get("state"),
@@ -92,10 +143,14 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
                 "availability_type": settings.get("availabilityType"),
                 "backup_enabled": backup_config.get("enabled"),
                 "require_ssl": ip_config.get("requireSsl"),
+                "ssl_mode": ip_config.get("sslMode"),
                 "network_id": network_id,
                 "ip_addresses": ip_addresses_json,
+                "authorized_networks": authorized_networks_json,
                 "backup_configuration": backup_config_json,
+                "database_flags": database_flags_json,
                 "project_id": project_id,
+                "userLabels": settings.get("userLabels", {}),
             },
         )
     return transformed
@@ -121,12 +176,39 @@ def load_sql_instances(
 
 
 @timeit
+def load_authorized_networks(
+    neo4j_session: neo4j.Session,
+    networks: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Loads GCPCloudSQLAuthorizedNetwork nodes and their relationships.
+    """
+    if not networks:
+        return
+    load(
+        neo4j_session,
+        GCPCloudSQLAuthorizedNetworkSchema(),
+        networks,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
 def cleanup_sql_instances(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Cloud SQL instances.
+    Cleans up stale Cloud SQL instances and their authorized networks.
+
+    Authorized networks are leaf nodes hanging off instances, so clean them
+    up first to avoid leaving dangling AUTHORIZED_NETWORK relationships.
     """
+    GraphJob.from_node_schema(
+        GCPCloudSQLAuthorizedNetworkSchema(), common_job_parameters
+    ).run(neo4j_session)
     GraphJob.from_node_schema(GCPSqlInstanceSchema(), common_job_parameters).run(
         neo4j_session,
     )
@@ -154,6 +236,18 @@ def sync_sql_instances(
 
         instances = transform_sql_instances(instances_raw, project_id)
         load_sql_instances(neo4j_session, instances, project_id, update_tag)
+        authorized_networks = transform_authorized_networks(instances_raw)
+        load_authorized_networks(
+            neo4j_session, authorized_networks, project_id, update_tag
+        )
+        sync_labels(
+            neo4j_session,
+            instances,
+            "cloud_sql_instance",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id

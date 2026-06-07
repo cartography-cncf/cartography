@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -73,6 +75,15 @@ class SSMParameterSchema(CartographyNodeSchema):
 
     label: str = "SSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
+    # Only SecureString parameters are secrets (String/StringList are plaintext config).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Secret",
+                conditions={"type": "SecureString"},
+            ),
+        ],
+    )
     sub_resource_relationship: SSMParameterToAWSAccountRel = (
         SSMParameterToAWSAccountRel()
     )

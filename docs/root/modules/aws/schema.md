@@ -15,6 +15,28 @@ Representation of an AWS Account.
 |foreign| Indicates if the account is not part of the sync scope (true or false). One such example is an account that is trusted as part of cross-account AWSRole trust not in scope for sync.
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The AWS Account ID number|
+|account\_mfa\_enabled| 1 if the root account has MFA enabled, 0 otherwise. From IAM GetAccountSummary.|
+|mfa\_devices| Number of MFA devices registered in the account. From IAM GetAccountSummary.|
+|mfa\_devices\_in\_use| Number of MFA devices currently in use. From IAM GetAccountSummary.|
+|account\_access\_keys\_present| 1 if root account access keys exist, 0 otherwise. From IAM GetAccountSummary.|
+|account\_signing\_certificates\_present| 1 if root account signing certificates exist, 0 otherwise. From IAM GetAccountSummary.|
+|users| Number of IAM users in the account. From IAM GetAccountSummary.|
+|groups| Number of IAM groups in the account. From IAM GetAccountSummary.|
+|roles| Number of IAM roles in the account. From IAM GetAccountSummary.|
+|policies| Number of IAM policies in the account. From IAM GetAccountSummary.|
+|instance\_profiles| Number of instance profiles in the account. From IAM GetAccountSummary.|
+|providers| Number of identity providers in the account. From IAM GetAccountSummary.|
+|server\_certificates| Number of server certificates in the account. From IAM GetAccountSummary.|
+|policy\_versions\_in\_use| Number of policy versions in use. From IAM GetAccountSummary.|
+|arn| The AWS Organizations ARN for this account, when discovered from AWS Organizations.|
+|email| The email address associated with the account, when discovered from AWS Organizations.|
+|state| The AWS Organizations account lifecycle state.|
+|status| The legacy AWS Organizations account status. AWS recommends using `state` instead.|
+|joined\_method| The method by which the account joined the organization.|
+|joined\_timestamp| The date the account joined the organization.|
+|org\_id| The AWS Organization ID that contains this account, when available.|
+
+Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only through AWS Organizations are not marked `inscope`; use `org_id` and the root/OU placement relationships to query organization membership.
 
 #### Relationships
 - Many node types belong to an `AWSAccount`.
@@ -74,6 +96,114 @@ Representation of an AWS Account.
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
+- `AWSAccount` nodes can belong to an `AWSOrganizationRoot` or `AWSOrganizationalUnit`.
+
+    ```cypher
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
+- `AWSOrganizationRoot` and `AWSOrganizationalUnit` nodes can scope organization account placement.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+Only active AWS Organization accounts receive organization placement relationships and synced AWS account root principals. Suspended or closed organization accounts are still loaded as `AWSAccount` nodes with organization metadata, but they are not attached under the root/OU hierarchy.
+
+### AWSOrganization
+
+Representation of an AWS Organization.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
+| Field | Description |
+|-------|-------------|
+|**id**| The AWS Organization ID.|
+|arn| The AWS Organization ARN.|
+|feature\_set| The feature set of the organization, such as `ALL` or `CONSOLIDATED_BILLING`.|
+|management\_account\_arn| The ARN of the organization's management account.|
+|management\_account\_id| The ID of the organization's management account.|
+|management\_account\_email| The email address of the organization's management account.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
+    ```
+
+Cartography only cleans up AWS Organizations hierarchy data after it successfully enumerates the complete organization hierarchy. If the Organizations API is unavailable, access is denied, or hierarchy enumeration is incomplete, Cartography skips Organizations cleanup to preserve the prior hierarchy. `AWSAccount` nodes and their account-scoped resources are preserved when accounts move, leave the organization, or become inactive; Organizations cleanup only updates stale placement metadata, roots, OUs, and hierarchy relationships.
+
+### AWSOrganizationRoot
+
+Representation of an AWS Organizations root.
+
+| Field | Description |
+|-------|-------------|
+|**id**| Cartography ID for this root, formatted as `{org_id}/{root_id}` because AWS root IDs are unique only within an organization.|
+|root\_id| The raw AWS Organizations root ID.|
+|arn| The AWS Organizations root ARN.|
+|name| The AWS Organizations root name.|
+|org\_id| The AWS Organization ID.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationRoot` nodes are defined in `AWSOrganization` nodes.
+
+    ```cypher
+    (:AWSOrganization)-[:RESOURCE]->(:AWSOrganizationRoot)
+    (:AWSOrganizationRoot)-[:PARENT]->(:AWSOrganization)
+    ```
+
+- `AWSOrganizationRoot` nodes can contain AWS accounts and organizational units.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSAccount)
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    ```
+
+### AWSOrganizationalUnit
+
+Representation of an AWS Organizations organizational unit.
+
+| Field | Description |
+|-------|-------------|
+|**id**| Cartography ID for this organizational unit, formatted as `{org_id}/{ou_id}` because AWS organizational unit IDs are unique only within an organization.|
+|ou\_id| The raw AWS Organizations organizational unit ID.|
+|arn| The AWS Organizations organizational unit ARN.|
+|name| The AWS Organizations organizational unit name.|
+|org\_id| The AWS Organization ID.|
+|root\_id| The Cartography root ID that scopes the organizational unit, formatted as `{org_id}/{root_id}`.|
+|parent\_root\_id| The Cartography parent root ID, when the organizational unit is directly under a root.|
+|parent\_ou\_id| The Cartography parent organizational unit ID, when the organizational unit is nested under another organizational unit.|
+|lastupdated| Timestamp of the last time the node was updated.|
+
+#### Relationships
+
+- `AWSOrganizationalUnit` nodes can be nested under roots or other OUs.
+
+    ```cypher
+    (:AWSOrganizationRoot)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSOrganizationalUnit)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationRoot)
+    (:AWSOrganizationalUnit)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
+- `AWSOrganizationalUnit` nodes can contain AWS accounts.
+
+    ```cypher
+    (:AWSOrganizationalUnit)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:PARENT]->(:AWSOrganizationalUnit)
+    ```
+
 ### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 The `AWSCidrBlock` defines the base label
@@ -119,6 +249,8 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node  |
@@ -158,6 +290,11 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 
     ```cypher
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
+    ```
+
+- AWS Groups can be tagged with AWSTags.
+
+    ```cypher
     ```
 
 ### GuardDutyDetector
@@ -206,9 +343,11 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
     ORDER BY a.name, i.region
     ```
 
-### GuardDutyFinding::Risk
+### GuardDutyFinding::Risk::SecurityIssue
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., SemgrepSASTFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|-------------|
@@ -221,6 +360,8 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | confidence | The confidence level that GuardDuty has in the accuracy of the finding |
 | title | A short description of the finding |
 | description | A more detailed description of the finding |
+| createdat | Timestamp when GuardDuty created the finding |
+| updatedat | Timestamp when GuardDuty last updated the finding |
 | eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
 | eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
 | accountid | The ID of the AWS account in which the finding was generated |
@@ -228,7 +369,29 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
+| principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
+| principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
 | archived | Whether the finding has been archived |
+| sample | Whether the finding is a GuardDuty sample finding (generated for testing/demonstration, not real activity). Parsed from the `sample` flag nested in `service.additionalInfo.value` |
+| service_action_type | The GuardDuty service action type for the finding (for example `AWS_API_CALL` or `NETWORK_CONNECTION`) |
+| service_count | The number of times GuardDuty observed the activity represented by the finding |
+| service_resource_role | The role of the affected resource in the activity (for example `TARGET` or `ACTOR`) |
+| api_call_name | For `AWS_API_CALL` findings, the AWS API operation invoked |
+| api_call_service_name | For `AWS_API_CALL` findings, the AWS service endpoint associated with the API call |
+| api_call_caller_type | For `AWS_API_CALL` findings, the caller type reported by GuardDuty |
+| api_call_error_code | For `AWS_API_CALL` findings, the AWS error code associated with the API call, if present |
+| api_call_remote_ip | For `AWS_API_CALL` findings, the remote IPv4 or IPv6 address associated with the API call |
+| api_call_remote_country | For `AWS_API_CALL` findings, the remote caller country name |
+| api_call_remote_city | For `AWS_API_CALL` findings, the remote caller city name |
+| api_call_remote_org | For `AWS_API_CALL` findings, the remote caller organization name |
+| api_call_remote_asn | For `AWS_API_CALL` findings, the remote caller ASN |
+| api_call_remote_asn_org | For `AWS_API_CALL` findings, the remote caller ASN organization |
+| api_call_remote_isp | For `AWS_API_CALL` findings, the remote caller ISP |
+| api_call_remote_lat | For `AWS_API_CALL` findings, the remote caller latitude |
+| api_call_remote_lon | For `AWS_API_CALL` findings, the remote caller longitude |
+| api_call_remote_account_id | For `AWS_API_CALL` findings, the remote AWS account ID when GuardDuty provides `RemoteAccountDetails` |
+| api_call_remote_account_affiliated | For `AWS_API_CALL` findings, whether the remote AWS account is marked as affiliated when GuardDuty provides `RemoteAccountDetails` |
 
 #### Relationships
 
@@ -242,6 +405,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
     (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
     ```
 
+- GuardDuty API-call findings may link to the remote AWS account that triggered them when GuardDuty provides `RemoteAccountDetails`
+    ```cypher
+    (:GuardDutyFinding)-[:REMOTE_ACCOUNT]->(:AWSAccount)
+    ```
+
 - GuardDuty findings may affect EC2 Instances
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
@@ -252,7 +420,22 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
-### AWSInspectorFinding
+- GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AccountAccessKey)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=IAMUser` affect the AWS IAM user
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSUser)
+    ```
+
+- GuardDuty `AccessKey` findings with `UserType=AssumedRole` affect the assumed IAM role
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:AWSRole)
+    ```
+
+### AWSInspectorFinding::Risk
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
@@ -430,11 +613,14 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | lastupdatestatus | The status of the last update that was performed on the function. |
 | lastupdatestatusreason |  The reason for the last update that was performed on the function.|
 | lastupdatestatusreasoncode | The reason code for the last update that was performed on the function. |
-| packagetype |  The type of deployment package. |
+| packagetype |  The type of deployment package (`Zip` for source code, `Image` for container). |
+| image_uri | Container image reference (e.g., `123.dkr.ecr.us-east-1.amazonaws.com/repo@sha256:...`). Populated when `packagetype=Image`. |
+| image_digest | Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned. |
 | signingprofileversionarn | The ARN of the signing profile version. |
 | signingjobarn | The ARN of the signing job. |
 | codesha256 | The SHA256 hash of the function's deployment package. |
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
+| architecture_normalized | Canonical architecture (`amd64`, `arm64`) derived from `architectures[0]`. Used by `RESOLVED_IMAGE` to pick the right child image when the Lambda runs a multi-architecture manifest list. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
 | anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
@@ -471,6 +657,19 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 - AWSLambda functions has AWS ECR Images.
     ```
     (:AWSLambda)-[:HAS]->(:ECRImage)
+    ```
+
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, `GCPArtifactRegistryImage`, or `GitHubContainerImage`.
+    ```
+    (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    ```
+
+- AWSLambda functions are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
+    ```
+    (:AWSLambda)-[:RESOLVED_IMAGE]->(:Image)
     ```
 
 ### AWSLambdaFunctionAlias
@@ -753,6 +952,12 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
     ```
 
+- AWSPrincipals with `iam:PassRole` can pass an IAM role to an AWS service (e.g. attaching an instance profile to `ec2:RunInstances`, an execution role to `lambda:CreateFunction`, `ecs:RunTask`). Combined with a service-launch permission this is a privilege-escalation primitive. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_PASS_ROLE]->(AWSRole)
+    ```
+
 ### AWSPrincipal::AWSUser
 Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal.
 
@@ -812,10 +1017,18 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
     ```
 
+- AWS Users can be tagged with AWSTags.
+
+    ```cypher
+    (AWSUser)-[TAGGED]->(AWSTag)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
 Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Role.html). An AWS Role is a type of AWS Principal.
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
@@ -870,6 +1083,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
+    ```
+
+- AWS Roles can be tagged with AWSTags.
+
+    ```cypher
+    (AWSRole)-[TAGGED]->(AWSTag)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -947,6 +1166,8 @@ Representation of the root principal for an AWS account.
 ### AWSPrincipal::AWSServicePrincipal
 
 Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
+
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
 
 | Field | Description |
 |-------|-------------|
@@ -1102,14 +1323,16 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | region | The region where this tag was discovered.|
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, and S3 Buckets can be tagged with AWSTags.
+-  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket)-[TAGGED]->(AWSTag)
+    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey
 
 Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html).
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., AnthropicApiKey, OpenAIApiKey, ScalewayApiKey).
 
 | Field | Description |
 |-------|-------------|
@@ -1375,12 +1598,15 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., GitHubWorkflow, GitLabCIConfig, SpaceliftStack).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The ARN of the CodeBuild Project |
 | **arn** | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| name | The CodeBuild Project name |
 | region | The region of the codebuild project |
 | created | The creation time of the CodeBuild Project |
 | environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
@@ -1565,6 +1791,8 @@ Representation of a generic DNS Zone.
 ### DNSZone::AWSDNSZone
 
 Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/latest/APIReference/API_HostedZone.html).
+
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
 
 | Field | Description |
 |-------|-------------|
@@ -1946,7 +2174,16 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| metadatahttptokens | The EC2 metadata service token setting. `required` means IMDSv2 is required and IMDSv1 is disabled; `optional` means either IMDSv1 or IMDSv2 may be used. |
+| metadatahttpputresponsehoplimit | The maximum number of network hops that an IMDSv2 session token response can travel. |
+| metadatahttpendpoint | Indicates whether the instance metadata HTTP endpoint is enabled. |
+| metadatahttpprotocolipv6 | Indicates whether the IPv6 endpoint for the instance metadata service is enabled. |
+| metadatainstancetags | Indicates whether instance tags are exposed through the instance metadata service. |
+| imdsaccessmode | A derived helper field that normalizes the `metadatahttptokens` setting to `v2_only` or `v1_or_v2` for easier security queries. |
+| imdsv1enabled | A derived boolean that is `true` when IMDSv1 remains allowed on the instance. |
+| imdsv2required | A derived boolean that is `true` when the instance requires IMDSv2 and disables IMDSv1. |
 | eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
+| ipv6address | The primary IPv6 address assigned to the instance's primary network interface (DeviceIndex=0), if any. |
 
 
 #### Relationships
@@ -2019,6 +2256,44 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - EC2Instances can be members of EKS Clusters
     ```
     (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
+    ```
+
+- ECS Container Instances can be backed by EC2 Instances
+    ```
+    (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
+    ```
+
+### EC2Ipv6Address
+
+Representation of an IPv6 address assigned to an EC2 network interface. Each `EC2Ipv6Address` node corresponds to one entry in `NetworkInterfaces[].Ipv6Addresses[]` from the AWS [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html) API.
+
+> **Ontology Mapping**: This node also carries the extra label `Ip` so that existing `AWSDNSRecord` AAAA records can reach it via the `DNS_POINTS_TO` relationship (which targets nodes with the `Ip` label matched by `id`).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as `ipv6_address` — the IPv6 address string |
+| **ipv6_address** | The IPv6 address (e.g. `2001:db8::1`) |
+| network_interface_id | The ID of the network interface this address is assigned to |
+| primary | `true` if this is the primary IPv6 address on the interface (`IsPrimaryIpv6`), `false` otherwise |
+| region | The AWS region |
+
+#### Relationships
+
+- AWS Accounts contain EC2Ipv6Address nodes.
+    ```
+    (AWSAccount)-[RESOURCE]->(EC2Ipv6Address)
+    ```
+
+- NetworkInterfaces have IPv6 addresses.
+    ```
+    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
+    ```
+
+- AWSDNSRecord AAAA records can point to IPv6 addresses (via the shared `Ip` label).
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(EC2Ipv6Address)
     ```
 
 ### EC2KeyPair
@@ -2104,6 +2379,8 @@ Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/la
 
 ### EC2SecurityGroup
 Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html).
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |-------|-------------|
@@ -2415,6 +2692,20 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
     ```
 
+- ECRRepositoryImages may be packaged from a source repository (cross-module relationship via VCS modules)
+    ```
+    (:ECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **dockerfile_path**: Path to the Dockerfile in the repository
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+    - **matched_commands**: Number of commands that matched
+    - **total_commands**: Total number of commands compared
+    - **command_similarity**: Average similarity score
+
+    This relationship links all images in an ECR repository to the source VCS repository via `repo_uri` matching.
+
 
 ### ECRImage
 
@@ -2443,6 +2734,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
 | artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
 | child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
+| **source_uri** | Source repository URI extracted from SLSA provenance attestations (e.g., a GitLab project URL or GitHub repo URL). Indexed for cross-module matching. |
+| source_revision | Source commit revision from SLSA provenance attestations. |
+| **invocation_uri** | CI/CD invocation URI from SLSA provenance (e.g., GitHub repository URL). Indexed for cross-module matching. |
+| **invocation_workflow** | CI/CD workflow path from SLSA provenance (e.g., `.github/workflows/build.yml`). Indexed for cross-module matching. |
+| invocation_run_number | CI/CD run number from SLSA provenance (e.g., the GitHub Actions run number). |
+| source_file | Dockerfile path from SLSA provenance (`configSource.entryPoint` prefixed with `vcs localdir:dockerfile` if present). |
 
 #### Relationships
 
@@ -2467,9 +2764,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
     ```
 
-- ECSContainers have images.
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -2497,6 +2797,13 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
     ```
 
+- An ECRImage may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+    ```
+    (:ECRImage:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    ```
+
+    Note: This cross-module relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. See the [GitHub schema](../github/schema.md#githubworkflow) for more details on GitHubWorkflow nodes.
+
 
 ### ECRImageLayer
 
@@ -2510,6 +2817,7 @@ Representation of an individual Docker image layer discovered while processing E
 | diff_id | Digest of the layer |
 | lastupdated | Timestamp of the last time the node was updated |
 | is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+| history | The `created_by` command from the image config that created this layer (e.g., `/bin/sh -c pip install flask`). Used for Dockerfile matching. |
 
 #### Relationships
 
@@ -2671,6 +2979,8 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
 
 Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/APIReference/API_Cluster.html).
 
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., ECSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -2681,13 +2991,23 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | id | same as `arn` |
 | **name** | Name of the EKS Cluster |
 | endpoint | The endpoint for the Kubernetes API server. |
-| endpoint_public_access | Indicates whether the Amazon EKS public API server endpoint is enabled |
-| exposed_internet | Set to True if the EKS Cluster public API server endpoint is enabled |
+| **endpoint_public_access** | Indicates whether the Amazon EKS public API server endpoint is enabled |
+| **exposed_internet** | Set to True if the EKS Cluster public API server endpoint is enabled |
 | rolearn | The ARN of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API |
 | version | Kubernetes version running |
 | platform_version | Version of EKS |
 | status | Status of the cluster. Valid Values: creating, active, deleting, failed, updating |
 | audit_logging | Whether audit logging is enabled |
+| certificate_authority_data_present | Whether the EKS API server certificate authority data was returned by AWS |
+| certificate_authority_parse_status | Parse status of the certificate authority data (`parsed`, `missing`, `invalid_base64`, `invalid_certificate`) |
+| certificate_authority_parse_error | Parse/decode error message when certificate authority data cannot be parsed |
+| certificate_authority_sha256_fingerprint | SHA256 fingerprint of the decoded EKS API server certificate authority certificate |
+| certificate_authority_subject | Subject DN of the EKS API server certificate authority certificate |
+| certificate_authority_issuer | Issuer DN of the EKS API server certificate authority certificate |
+| certificate_authority_not_before | Certificate validity start time (Neo4j datetime) |
+| certificate_authority_not_after | Certificate validity end time (Neo4j datetime) |
+| certificate_authority_subject_key_identifier | Subject Key Identifier (SKI) extension value in hex if present. `null` when the extension is absent (not derived from the public key) |
+| certificate_authority_authority_key_identifier | Authority Key Identifier (AKI) extension key identifier value in hex if present. `null` when the extension or key identifier is absent |
 
 #### Relationships
 
@@ -2696,9 +3016,39 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
     (AWSAccount)-[RESOURCE]->(EKSCluster)
     ```
 
+- An EKS Cluster maps to the `KubernetesCluster` synced from the same control plane.
+    ```
+    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    ```
+
+#### Example queries
+
+- Compare EKS API server certificate authority metadata across clusters:
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    RETURN a.id, c.name, c.region, c.endpoint,
+           c.certificate_authority_sha256_fingerprint,
+           c.certificate_authority_subject,
+           c.certificate_authority_issuer,
+           c.certificate_authority_subject_key_identifier,
+           c.certificate_authority_authority_key_identifier
+    ORDER BY a.id, c.region, c.name;
+    ```
+
+- Identify EKS clusters where certificate authority parsing failed:
+    ```cypher
+    MATCH (:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    WHERE c.certificate_authority_parse_status <> "parsed"
+    RETURN c.name, c.arn, c.status,
+           c.certificate_authority_parse_status,
+           c.certificate_authority_parse_error
+    ORDER BY c.certificate_authority_parse_status, c.name;
+    ```
 ### EMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
+
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
 
 | Field | Description |
 |-------|-------------|
@@ -2734,16 +3084,19 @@ Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/AP
     ```
 
 
-### ESDomain
+### ESDomain::Database
 
 Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | elasticsearch\_cluster\_config\_instancetype | The instancetype |
-| elasticsearch\_version | The version of elasticsearch |
+| elasticsearch\_version | The version reported by the API (e.g. `7.10` or `OpenSearch_2.5`). |
+| engine | Database engine family derived from `elasticsearch_version`: `opensearch` for OpenSearch-backed domains, `elasticsearch` otherwise. |
 | elasticsearch\_cluster\_config\_zoneawarenessenabled | Indicates whether multiple Availability Zones are enabled.  |
 | elasticsearch\_cluster\_config\_dedicatedmasterenabled | Indicates whether dedicated master nodes are enabled for the cluster. True if the cluster will use a dedicated master node. False if the cluster will not.  |
 | elasticsearch\_cluster\_config\_dedicatedmastercount |Number of dedicated master nodes in the cluster.|
@@ -2833,6 +3186,11 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
 | arn | The ARN of the ELBV2Listener |
+| mutual\_authentication\_mode | Mutual TLS authentication mode on the listener. One of `off`, `verify`, `passthrough`. Null when mTLS is not configured. |
+| trust\_store\_arn | The ARN of the trust store used for mutual TLS, when `mutual_authentication_mode` is `verify`. |
+| ignore\_client\_certificate\_expiry | Whether expired client certificates are accepted (boolean). Only meaningful when `mutual_authentication_mode` is `verify`. |
+| trust\_store\_association\_status | State of the trust store association on the listener. One of `active`, `removed`. |
+| advertise\_trust\_store\_ca\_names | Whether the listener advertises trust store CA names during the TLS handshake. One of `on`, `off`. |
 
 #### Relationships
 
@@ -2913,9 +3271,11 @@ Represents a generic IP address.
     ```
 
 
-### IpRule
+### AWSIpRule::IpRule
 
 Represents a generic IP rule.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+
+> **Ontology Mapping**: This node has the extra label `IpRule` to preserve cross-platform semantics for generic IP rules.
 
 | Field | Description |
 |-------|-------------|
@@ -2931,15 +3291,17 @@ Represents a generic IP rule.  The creation of this node is currently derived fr
 
 #### Relationships
 
-- IpRules are defined from EC2SecurityGroups.
+- AWSIpRules are defined from EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
-### IpRule::IpPermissionInbound
+### AWSIpPermissionInbound::IpPermissionInbound::IpRule::AWSIpRule
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+An AWSIpPermissionInbound node is a specific type of AWSIpRule. It represents inbound IP-based rules derived from AWS [EC2 Security Group](#ec2securitygroup) rules.
+
+> **Ontology Mapping**: This node has the extra labels `IpPermissionInbound`, `IpRule`, and `AWSIpRule` for backward compatibility and cross-platform semantics.
 
 | Field | Description |
 |-------|-------------|
@@ -2953,15 +3315,17 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 #### Relationships
 
-- IpPermissionInbound rules are defined from EC2SecurityGroups.
+- AWSIpPermissionInbound rules are defined from EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
-### IpRange
+### AWSIpRange::IpRange
 
 Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to.
+
+> **Ontology Mapping**: This node has the extra label `IpRange` to preserve cross-platform semantics for generic IP ranges.
 
 | Field | Description |
 |-------|-------------|
@@ -2972,14 +3336,14 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
 
 #### Relationships
 
-- IpRanges belong to AWS Accounts.
+- AWSIpRanges belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(IpRange)
+    (AWSAccount)-[RESOURCE]->(AWSIpRange)
     ```
 
-- IpRanges are members of IpRules.
+- AWSIpRanges are members of AWSIpRules.
     ```
-    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule)
+    (AWSIpRange)-[MEMBER_OF_IP_RULE]->(AWSIpRule)
     ```
 
 
@@ -3076,7 +3440,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | scheme|  The type of load balancer.  If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address. |
 | name| The name of the load balancer|
 | **dnsname** | The DNS name of the load balancer. |
-| exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
+| exposed_internet | The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port. |
 | exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
@@ -3129,6 +3493,22 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 - AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    ```
+
+- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE]->(ECSContainer)
+    ```
+
+- Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesPod)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesContainer)
+    ```
+
+- EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
+    ```
+    (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
 ### Nameserver
@@ -3224,6 +3604,11 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 - EC2PrivateIps are connected to a NetworkInterface.
     ```
     (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
+    ```
+
+- NetworkInterfaces can have IPv6 addresses.
+    ```
+    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
     ```
 
 -  EC2 Network Interfaces can be tagged with AWSTags.
@@ -3644,6 +4029,8 @@ Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/Am
 
 Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., GCPBucket, AzureStorageBlobContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -3728,6 +4115,8 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 ### KMSKey
 
 Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIReference/API_KeyListEntry.html).
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |-------|-------------|
@@ -3843,8 +4232,10 @@ Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apig
 | minimumcompressionsize | A nullable integer that is used to enable or disable the compression of the REST API |
 | disableexecuteapiendpoint | Specifies whether clients can invoke your API by using the default `execute-api` endpoint |
 | region | The region where the REST API is created |
-| anonymous\_actions |  List of anonymous internet accessible actions that may be run on the API. |
-| anonymous\_access | True if this API has a policy applied to it that allows anonymous access or if it is open to the internet. |
+| anonymous\_actions |  List of anonymous internet accessible actions that may be run on the API (policy-level). |
+| anonymous\_access | True if this API has a resource policy that allows anonymous/public access (policy-level analysis via PolicyUniverse). |
+| **endpoint\_type** | The endpoint configuration type: `EDGE` (CloudFront), `REGIONAL` (direct), or `PRIVATE` (VPC-only). |
+| **exposed\_internet** | True if the API is network-reachable from the internet (`EDGE` or `REGIONAL`), false for `PRIVATE` endpoints. |
 
 #### Relationships
 
@@ -3940,6 +4331,8 @@ Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/ap
 
 Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
 
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., AWSServerCertificate, AzureKeyVaultCertificate).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node |
@@ -3967,6 +4360,31 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
     (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
   Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
+
+### AWSServerCertificate
+
+Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServerCertificateMetadata.html).
+
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AzureKeyVaultCertificate).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The server certificate ID |
+| arn | The ARN of the server certificate |
+| server\_certificate\_id | The stable and unique ID for the server certificate |
+| server\_certificate\_name | The name of the server certificate |
+| path | The path to the server certificate |
+| expiration | The date on which the certificate is set to expire |
+| upload\_date | The date the server certificate was uploaded |
+
+#### Relationships
+
+- AWS Server Certificates are resources under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AWSServerCertificate)
+    ```
 
 ### APIGatewayResource
 
@@ -4206,6 +4624,8 @@ Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWS
 
 Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretListEntry.html)
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4239,6 +4659,8 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
 ### EBSVolume
 
 Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html).
+
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., AzureDisk, ScalewayVolume).
 
 | Field | Description |
 |-------|-------------|
@@ -4610,6 +5032,8 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 
 Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Cluster.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4672,9 +5096,16 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
+- ECSContainerInstances are backed by EC2 Instances
+    ```
+    (:ECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
+    ```
+
 ### ECSService
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., GCPCloudRunService, GCPCloudRunJob).
 
 | Field | Description |
 |-------|-------------|
@@ -4707,14 +5138,19 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService
+- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
-- An ECSService has ECSTasks
+- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSService)-[:HAS_TASK]->(:ECSTask)
+    ```
+
+- An ECSService points at its parent cluster via the unified workload chain.
+    ```
+    (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
     ```
 
 ### ECSTaskDefinition
@@ -4814,6 +5250,8 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)
 
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., KubernetesPod, AzureGroupContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4859,7 +5297,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks
+- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
@@ -4879,6 +5317,12 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
+- ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the ECSService; standalone tasks point directly at the ECSCluster.
+    ```
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSService)
+    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSCluster)
+    ```
+
 ### ECSContainer
 
 Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Container.html)
@@ -4896,6 +5340,9 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | name | The name of the container. |
 | image | The image used for the container. |
 | image\_digest | The container image manifest digest. |
+| architecture | Raw container architecture value captured from ECS runtime/task definition (for example, `x86_64`, `ARM64`). |
+| architecture\_normalized | Canonicalized architecture value (for example, `amd64`, `arm64`, `arm`, `386`, `unknown`). |
+| architecture\_source | Source for architecture inference (`runtime_api_exact` or `task_definition_hint`). |
 | runtime\_id | The ID of the Docker container. |
 | last\_status | The last known status of the container. |
 | exit\_code | The exit code returned from the container. |
@@ -4909,14 +5356,22 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 #### Relationships
 
-- ECSTasks have ECSContainers
+- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
     ```
     (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
 
-- ECSContainers have images.
+- ECSContainers point at their parent ECSTask via the unified workload chain.
+    ```
+    (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
+    ```
+
+- ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 ### EfsFileSystem
@@ -5051,6 +5506,31 @@ Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sn
 - SNS Topic Subscriptions are associated with SNS Topics.
     ```
     (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    ```
+
+### SESEmailIdentity
+
+Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SES email identity |
+| arn | The ARN of the SES email identity |
+| identity | The name of the email identity (domain or email address) |
+| identity\_type | The type of the identity, either `EMAIL_ADDRESS` or `DOMAIN` |
+| sending\_enabled | Whether email sending is enabled for this identity |
+| verification\_status | The verification status of the identity (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| dkim\_signing\_enabled | Whether DKIM signing is enabled for this identity |
+| dkim\_status | The DKIM authentication status (e.g., `SUCCESS`, `PENDING`, `FAILED`) |
+| region | The AWS region where the SES email identity exists |
+
+#### Relationships
+
+- SES Email Identities are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SESEmailIdentity)
     ```
 
 ### S3AccountPublicAccessBlock
@@ -5290,6 +5770,8 @@ Representation of an AWS SSO User.
 
 Representation of an AWS SSO Group.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Unique identifier for the SSO group |
@@ -5328,6 +5810,8 @@ Representation of an AWS SSO Group.
 ### AWSPermissionSet
 
 Representation of an AWS Identity Center Permission Set.
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
@@ -5520,6 +6004,8 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockCustomModel, AWSSageMakerModel, GCPVertexAIModel).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -5572,6 +6058,8 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
 ### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSSageMakerModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|
@@ -5940,6 +6428,8 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 ### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+> **Ontology Mapping**: This node has the extra label `AIModel` to enable cross-platform queries for AI/ML models across different systems (e.g., AWSBedrockFoundationModel, AWSBedrockCustomModel, GCPVertexAIModel).
 
 | Field | Description |
 |-------|-------------|

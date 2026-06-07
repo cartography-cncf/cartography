@@ -10,7 +10,8 @@ from botocore.exceptions import ClientError
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.images import EC2ImageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -40,8 +41,8 @@ def get_images_in_use(
     }
     RETURN DISTINCT image;
     """
-    result = read_list_of_values_tx(
-        neo4j_session,
+    result = neo4j_session.execute_read(
+        read_list_of_values_tx,
         get_images_query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,
@@ -57,7 +58,8 @@ def get_images(
     region: str,
     image_ids: List[str],
 ) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),

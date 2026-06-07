@@ -14,7 +14,8 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.apigateway.apigateway import APIGatewayRestAPISchema
 from cartography.models.aws.apigateway.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
@@ -42,7 +43,7 @@ def get_apigateway_rest_apis(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client("apigateway", region_name=region)
+    client = create_boto3_client(boto3_session, "apigateway", region_name=region)
     paginator = client.get_paginator("get_rest_apis")
     apis: List[Any] = []
     for page in paginator.paginate():
@@ -69,8 +70,8 @@ def get_rest_api_deployments(
     """
     Retrieves the deployments for each REST API in the provided list.
     """
-    client = boto3_session.client(
-        "apigateway", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "apigateway", region_name=region, config=get_botocore_config()
     )
     deployments: List[Dict[str, Any]] = []
     for api_id in rest_api_ids:
@@ -92,7 +93,7 @@ def get_rest_api_details(
     """
     Iterates over all API Gateway REST APIs.
     """
-    client = boto3_session.client("apigateway", region_name=region)
+    client = create_boto3_client(boto3_session, "apigateway", region_name=region)
     apis = []
     for api in rest_apis:
         stages = get_rest_api_stages(api, client)
@@ -223,6 +224,16 @@ def transform_apigateway_rest_apis(
 ) -> List[Dict]:
     """
     Transform API Gateway REST API data for ingestion, including policy analysis
+    and endpoint configuration for internet exposure detection.
+
+    Two distinct security concepts are tracked:
+    - anonymous_access: Policy-level access (from PolicyUniverse analysis)
+    - exposed_internet: Network-level exposure (from endpoint configuration)
+
+    Endpoint types and their exposure:
+    - EDGE: Internet exposed (default, via CloudFront)
+    - REGIONAL: Internet exposed (direct regional access)
+    - PRIVATE: NOT internet exposed (VPC-only via VPC Endpoints)
     """
     # Create a mapping of api_id to policy data for easier lookup
     policy_map = {policy["api_id"]: policy for policy in resource_policies}
@@ -230,16 +241,30 @@ def transform_apigateway_rest_apis(
     transformed_apis = []
     for api in rest_apis:
         policy_data = policy_map.get(api["id"], {})
+
+        # Extract endpoint type from configuration
+        # The types field is a list for historical reasons but contains one element
+        endpoint_config = api.get("endpointConfiguration", {})
+        endpoint_types = endpoint_config.get("types", [])
+        endpoint_type = endpoint_types[0] if endpoint_types else None
+
+        # Network-level exposure: PRIVATE endpoints are VPC-only
+        exposed_internet = (
+            endpoint_type in ("EDGE", "REGIONAL") if endpoint_type else None
+        )
+
         transformed_api = {
             "id": api["id"],
             "createdDate": str(api["createdDate"]) if "createdDate" in api else None,
             "version": api.get("version"),
             "minimumCompressionSize": api.get("minimumCompressionSize"),
             "disableExecuteApiEndpoint": api.get("disableExecuteApiEndpoint"),
-            # Set defaults in the transform function
+            # Policy-level access: True if resource policy allows anonymous/public access
             "anonymous_access": policy_data.get("internet_accessible", False),
             "anonymous_actions": policy_data.get("accessible_actions", []),
-            # TODO Issue #1452: clarify internet exposure vs anonymous access
+            # Network-level exposure based on endpoint configuration
+            "endpoint_type": endpoint_type,
+            "exposed_internet": exposed_internet,
         }
         transformed_apis.append(transformed_api)
 

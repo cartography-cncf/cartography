@@ -20,6 +20,8 @@ class AzureSQLServerProperties(CartographyNodeProperties):
     kind: PropertyRef = PropertyRef("kind")
     state: PropertyRef = PropertyRef("state")
     version: PropertyRef = PropertyRef("version")
+    public_network_access: PropertyRef = PropertyRef("public_network_access")
+    minimal_tls_version: PropertyRef = PropertyRef("minimal_tls_version")
 
 
 @dataclass(frozen=True)

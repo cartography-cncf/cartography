@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 
 
 @dataclass
@@ -56,6 +57,12 @@ class FactResult:
             None if no count query was provided.
         passing (int | None): Number of assets that don't match (total_assets - failing).
             None if no count query was provided.
+        identity_fields (tuple[str, ...]): The output-model field(s) forming the stable
+            logical identity of each finding, mirrored from the executed Fact. Surfaced so
+            downstream consumers of the serialized output can build a stable finding identity
+            from rule_id + fact_id + these field values without importing the Python rule
+            registry. Defaults to empty only for directly-constructed results; the runner
+            always populates it from the Fact, which requires a non-empty value.
     """
 
     fact_id: str
@@ -66,6 +73,7 @@ class FactResult:
     total_assets: int | None = None
     failing: int | None = None
     passing: int | None = None
+    identity_fields: tuple[str, ...] = ()
 
 
 @dataclass
@@ -82,6 +90,8 @@ class RuleResult:
         rule_description (str): A description of the security issue or misconfiguration.
         counter (CounterResult): Execution counters and aggregate metrics.
         facts (list[FactResult]): Results from each Fact executed within this Rule.
+        rule_tags (tuple[str, ...]): Tags associated with the Rule.
+        rule_frameworks (tuple[Framework, ...]): Compliance frameworks this rule maps to.
     """
 
     rule_id: str
@@ -89,3 +99,5 @@ class RuleResult:
     rule_description: str
     counter: CounterResult
     facts: list[FactResult] = field(default_factory=list)
+    rule_tags: tuple[str, ...] = ()
+    rule_frameworks: tuple[Framework, ...] = ()

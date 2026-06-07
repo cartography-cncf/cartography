@@ -324,8 +324,7 @@ def _build_cleanup_node_and_rel_queries(
             f"""
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        CALL {{
-            WITH n
+        CALL (n) {{
             OPTIONAL MATCH (n){cascade_rel_clause}(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child

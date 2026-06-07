@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 class Module(str, Enum):
     """Services that can be monitored"""
 
+    AIBOM = "AIBOM"
+    """AI BOM inventory mapped onto container images"""
+
     AIRBYTE = "Airbyte"
     """Airbyte data integration"""
 
@@ -52,11 +55,17 @@ class Module(str, Enum):
     GITHUB = "GitHub"
     """GitHub source code management"""
 
+    GITLAB = "GitLab"
+    """GitLab source code management"""
+
     GOOGLEWORKSPACE = "GoogleWorkspace"
     """Google Workspace identity and access management"""
 
     JAMF = "Jamf"
     """Jamf endpoint security"""
+
+    JUMPCLOUD = "JumpCloud"
+    """JumpCloud identity and device management"""
 
     KANDJI = "Kandji"
     """Kandji endpoint security"""
@@ -103,6 +112,9 @@ class Module(str, Enum):
     TRIVY = "Trivy"
     """Trivy vulnerability scanner"""
 
+    SUBIMAGE = "SubImage"
+    """SubImage platform"""
+
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -118,6 +130,7 @@ class Maturity(str, Enum):
 
 
 MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AIBOM: "aibom",
     Module.AIRBYTE: "airbyte",
     Module.ANTHROPIC: "anthropic",
     Module.AWS: "aws",
@@ -127,11 +140,13 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.CROWDSTRIKE: "crowdstrike",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
-    Module.ENTRA: "entra",
+    Module.ENTRA: "microsoft",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
+    Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
+    Module.JUMPCLOUD: "jumpcloud",
     Module.KANDJI: "kandji",
     Module.KEYCLOAK: "keycloak",
     Module.KUBERNETES: "kubernetes",
@@ -147,7 +162,67 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.SPACELIFT: "spacelift",
     Module.TAILSCALE: "tailscale",
     Module.TRIVY: "trivy",
+    Module.SUBIMAGE: "subimage",
 }
+
+
+@dataclass(frozen=True)
+class Framework:
+    """
+    A reference to a compliance framework requirement.
+
+    All fields are case-insensitive and normalized to lowercase on creation.
+
+    Attributes:
+        name: Full name of the framework (e.g., "cis aws foundations benchmark").
+        short_name: Abbreviated name for filtering (e.g., "cis").
+        requirement: The specific requirement identifier (e.g., "1.14").
+        scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
+        revision: Optional version/revision of the framework (e.g., "5.0").
+    """
+
+    name: str
+    short_name: str
+    requirement: str
+    scope: str | None = None
+    revision: str | None = None
+
+    def __post_init__(self) -> None:
+        # Normalize all fields to lowercase for case-insensitive comparison
+        object.__setattr__(self, "name", self.name.lower())
+        object.__setattr__(self, "short_name", self.short_name.lower())
+        object.__setattr__(self, "requirement", self.requirement.lower())
+        if self.scope is not None:
+            object.__setattr__(self, "scope", self.scope.lower())
+        if self.revision is not None:
+            object.__setattr__(self, "revision", self.revision.lower())
+
+    def matches(
+        self,
+        short_name: str | None = None,
+        scope: str | None = None,
+        revision: str | None = None,
+    ) -> bool:
+        """
+        Check if this framework matches the given filter criteria.
+
+        Args:
+            short_name: Filter by short name (case-insensitive).
+            scope: Filter by scope (case-insensitive).
+            revision: Filter by revision (case-insensitive).
+
+        Returns:
+            True if all provided criteria match, False otherwise.
+        """
+        if short_name and self.short_name != short_name.lower():
+            return False
+        if scope:
+            if self.scope is None or self.scope != scope.lower():
+                return False
+        if revision:
+            if self.revision is None or self.revision != revision.lower():
+                return False
+        return True
 
 
 @dataclass(frozen=True)
@@ -186,6 +261,8 @@ class Fact:
     This count includes all assets regardless of whether they match the Fact criteria.
     Should return a single value with `RETURN COUNT(...) AS count`.
     """
+    identity_fields: tuple[str, ...]
+    """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
     asset_id_field: str | None = None
     """
     The field name in the output model that uniquely identifies an asset.
@@ -193,6 +270,12 @@ class Fact:
     rather than the total number of finding rows. This is needed when a single asset
     can produce multiple finding rows (e.g., one security group with multiple violating rules).
     """
+
+    def __post_init__(self) -> None:
+        if not self.identity_fields:
+            raise ValueError(
+                f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
 
 
 class Finding(BaseModel):
@@ -249,11 +332,32 @@ class Rule:
     """The output model class for the Rule."""
     references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
+    frameworks: tuple[Framework, ...] = ()
+    """Compliance frameworks this rule maps to (e.g., CIS benchmarks)."""
 
     @property
     def modules(self) -> set[Module]:
         """Returns the set of modules associated with this rule."""
         return {fact.module for fact in self.facts}
+
+    def has_framework(
+        self,
+        short_name: str | None = None,
+        scope: str | None = None,
+        revision: str | None = None,
+    ) -> bool:
+        """
+        Check if this rule has a framework matching the given criteria.
+
+        Args:
+            short_name: Filter by framework short name (case-insensitive).
+            scope: Filter by framework scope (case-insensitive).
+            revision: Filter by framework revision (case-insensitive).
+
+        Returns:
+            True if any framework matches all provided criteria.
+        """
+        return any(fw.matches(short_name, scope, revision) for fw in self.frameworks)
 
     def get_fact_by_id(self, fact_id: str) -> Fact | None:
         """

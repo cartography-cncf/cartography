@@ -1,55 +1,16 @@
-import argparse
+import importlib
 import logging
 import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
+from typing import Any
 from typing import Callable
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
-import cartography.intel.airbyte
-import cartography.intel.analysis
-import cartography.intel.anthropic
-import cartography.intel.aws
-import cartography.intel.azure
-import cartography.intel.bigfix
-import cartography.intel.cloudflare
-import cartography.intel.create_indexes
-import cartography.intel.crowdstrike
-import cartography.intel.cve
-import cartography.intel.digitalocean
-import cartography.intel.duo
-import cartography.intel.entra
-import cartography.intel.gcp
-import cartography.intel.github
-import cartography.intel.gitlab
-import cartography.intel.googleworkspace
-import cartography.intel.gsuite
-import cartography.intel.jamf
-import cartography.intel.kandji
-import cartography.intel.keycloak
-import cartography.intel.kubernetes
-import cartography.intel.lastpass
-import cartography.intel.oci
-import cartography.intel.okta
-import cartography.intel.ontology
-import cartography.intel.openai
-import cartography.intel.pagerduty
-import cartography.intel.scaleway
-import cartography.intel.semgrep
-import cartography.intel.sentinelone
-import cartography.intel.slack
-import cartography.intel.snipeit
-import cartography.intel.spacelift
-import cartography.intel.tailscale
-import cartography.intel.trivy
-import cartography.intel.workday
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -58,46 +19,116 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
+class _LazyStage:
+    """Callable that defers `from cartography.intel.X import func` until first invocation.
+
+    Keeps `import cartography.sync` cheap: provider SDKs (boto3, azure-mgmt-*,
+    google-cloud-*, etc.) only load when the stage is actually run.
+    """
+
+    __slots__ = ("_module", "_attr", "_resolved")
+
+    def __init__(self, module: str, attr: str) -> None:
+        self._module = module
+        self._attr = attr
+        self._resolved: Callable[..., None] | None = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        if self._resolved is None:
+            self._resolved = getattr(importlib.import_module(self._module), self._attr)
+        self._resolved(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return f"_LazyStage({self._module}.{self._attr})"
+
+
 TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
-        "create-indexes": cartography.intel.create_indexes.run,
-        "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
-        "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
-        "aws": cartography.intel.aws.start_aws_ingestion,
-        "azure": cartography.intel.azure.start_azure_ingestion,
-        "entra": cartography.intel.entra.start_entra_ingestion,
-        "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
-        "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
-        "gcp": cartography.intel.gcp.start_gcp_ingestion,
-        "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
-        "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
-        "cve": cartography.intel.cve.start_cve_ingestion,
-        "oci": cartography.intel.oci.start_oci_ingestion,
-        "okta": cartography.intel.okta.start_okta_ingestion,
-        "openai": cartography.intel.openai.start_openai_ingestion,
-        "github": cartography.intel.github.start_github_ingestion,
-        "gitlab": cartography.intel.gitlab.start_gitlab_ingestion,
-        "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
-        "kandji": cartography.intel.kandji.start_kandji_ingestion,
-        "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
-        "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
-        "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
-        "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
-        "duo": cartography.intel.duo.start_duo_ingestion,
-        "workday": cartography.intel.workday.start_workday_ingestion,
-        "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
-        "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
-        "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
-        "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
-        "jamf": cartography.intel.jamf.start_jamf_ingestion,
-        "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
-        "trivy": cartography.intel.trivy.start_trivy_ingestion,
-        "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
-        "slack": cartography.intel.slack.start_slack_ingestion,
-        "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
-        "ontology": cartography.intel.ontology.run,
+        "create-indexes": _LazyStage("cartography.intel.create_indexes", "run"),
+        "airbyte": _LazyStage("cartography.intel.airbyte", "start_airbyte_ingestion"),
+        "anthropic": _LazyStage(
+            "cartography.intel.anthropic", "start_anthropic_ingestion"
+        ),
+        "aws": _LazyStage("cartography.intel.aws", "start_aws_ingestion"),
+        "azure": _LazyStage("cartography.intel.azure", "start_azure_ingestion"),
+        "microsoft": _LazyStage(
+            "cartography.intel.microsoft", "start_microsoft_ingestion"
+        ),
+        "cloudflare": _LazyStage(
+            "cartography.intel.cloudflare", "start_cloudflare_ingestion"
+        ),
+        "crowdstrike": _LazyStage(
+            "cartography.intel.crowdstrike", "start_crowdstrike_ingestion"
+        ),
+        "gcp": _LazyStage("cartography.intel.gcp", "start_gcp_ingestion"),
+        "googleworkspace": _LazyStage(
+            "cartography.intel.googleworkspace", "start_googleworkspace_ingestion"
+        ),
+        "gsuite": _LazyStage("cartography.intel.gsuite", "start_gsuite_ingestion"),
+        "cve": _LazyStage("cartography.intel.cve", "start_cve_ingestion"),
+        "oci": _LazyStage("cartography.intel.oci", "start_oci_ingestion"),
+        "okta": _LazyStage("cartography.intel.okta", "start_okta_ingestion"),
+        "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
+        "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
+        "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
+        "digitalocean": _LazyStage(
+            "cartography.intel.digitalocean", "start_digitalocean_ingestion"
+        ),
+        "kandji": _LazyStage("cartography.intel.kandji", "start_kandji_ingestion"),
+        "keycloak": _LazyStage(
+            "cartography.intel.keycloak", "start_keycloak_ingestion"
+        ),
+        "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
+        "jumpcloud": _LazyStage(
+            "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"
+        ),
+        "lastpass": _LazyStage(
+            "cartography.intel.lastpass", "start_lastpass_ingestion"
+        ),
+        "bigfix": _LazyStage("cartography.intel.bigfix", "start_bigfix_ingestion"),
+        "duo": _LazyStage("cartography.intel.duo", "start_duo_ingestion"),
+        "workday": _LazyStage("cartography.intel.workday", "start_workday_ingestion"),
+        "scaleway": _LazyStage(
+            "cartography.intel.scaleway", "start_scaleway_ingestion"
+        ),
+        "semgrep": _LazyStage("cartography.intel.semgrep", "start_semgrep_ingestion"),
+        "sentry": _LazyStage("cartography.intel.sentry", "start_sentry_ingestion"),
+        "snipeit": _LazyStage("cartography.intel.snipeit", "start_snipeit_ingestion"),
+        "socketdev": _LazyStage(
+            "cartography.intel.socketdev", "start_socketdev_ingestion"
+        ),
+        "tailscale": _LazyStage(
+            "cartography.intel.tailscale", "start_tailscale_ingestion"
+        ),
+        "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
+        "pagerduty": _LazyStage(
+            "cartography.intel.pagerduty", "start_pagerduty_ingestion"
+        ),
+        "docker_scout": _LazyStage(
+            "cartography.intel.docker_scout", "start_docker_scout_ingestion"
+        ),
+        "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
+        "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
+        "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
+        "sentinelone": _LazyStage(
+            "cartography.intel.sentinelone", "start_sentinelone_ingestion"
+        ),
+        "cve_metadata": _LazyStage(
+            "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
+        ),
+        "slack": _LazyStage("cartography.intel.slack", "start_slack_ingestion"),
+        "spacelift": _LazyStage(
+            "cartography.intel.spacelift", "start_spacelift_ingestion"
+        ),
+        "workos": _LazyStage("cartography.intel.workos", "start_workos_ingestion"),
+        "subimage": _LazyStage(
+            "cartography.intel.subimage", "start_subimage_ingestion"
+        ),
+        "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
+        "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
-        "analysis": cartography.intel.analysis.run,
+        "analysis": _LazyStage("cartography.intel.analysis", "run"),
     }
 )
 
@@ -169,7 +200,7 @@ class Sync:
         """
         self._stages[name] = func
 
-    def add_stages(self, stages: List[Tuple[str, Callable]]) -> None:
+    def add_stages(self, stages: list[tuple[str, Callable]]) -> None:
         """
         Add multiple stages to the sync task in batch.
 
@@ -193,7 +224,7 @@ class Sync:
     def run(
         self,
         neo4j_driver: neo4j.Driver,
-        config: Union[Config, argparse.Namespace],
+        config: Config,
     ) -> int:
         """
         Execute all configured stages in the sync task sequentially.
@@ -286,12 +317,15 @@ class Sync:
             The 'create-indexes' and 'analysis' modules are handled specially
             to ensure consistent ordering regardless of discovery order.
         """
+        intel_pkg = importlib.import_module("cartography.intel")
         available_modules = OrderedDict({})
-        available_modules["create-indexes"] = cartography.intel.create_indexes.run
+        available_modules["create-indexes"] = importlib.import_module(
+            "cartography.intel.create_indexes"
+        ).run
         callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
-        for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ("analysis", "create_indexes"):
+        for intel_module_info in iter_modules(intel_pkg.__path__):
+            if intel_module_info.name in ("analysis", "create_indexes", "entra"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)
@@ -327,12 +361,16 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
-        available_modules["ontology"] = cartography.intel.ontology.run
-        available_modules["analysis"] = cartography.intel.analysis.run
+        available_modules["ontology"] = importlib.import_module(
+            "cartography.intel.ontology"
+        ).run
+        available_modules["analysis"] = importlib.import_module(
+            "cartography.intel.analysis"
+        ).run
         return available_modules
 
 
-def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
+def run_with_config(sync: Sync, config: Config) -> int:
     """
     Execute a sync task with comprehensive configuration and error handling.
 
@@ -386,11 +424,24 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    driver_kwargs = {}
+    optional_driver_kwargs = {
+        "max_connection_lifetime": config.neo4j_max_connection_lifetime,
+        "liveness_check_timeout": config.neo4j_liveness_check_timeout,
+        "connection_timeout": config.neo4j_connection_timeout,
+        "keep_alive": config.neo4j_keep_alive,
+        "max_transaction_retry_time": config.neo4j_max_transaction_retry_time,
+        "max_connection_pool_size": config.neo4j_max_connection_pool_size,
+        "connection_acquisition_timeout": config.neo4j_connection_acquisition_timeout,
+    }
+    for key, value in optional_driver_kwargs.items():
+        if value is not None:
+            driver_kwargs[key] = value
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
@@ -472,7 +523,7 @@ def build_default_sync() -> Sync:
     return sync
 
 
-def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
+def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
     """
     Parse and validate user-selected modules from comma-separated string.
 
@@ -496,12 +547,17 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
-    validated_modules: List[str] = []
+    # DEPRECATED: compatibility alias for legacy module selection. Remove in v1.0.0.
+    _MODULE_ALIASES: dict[str, str] = {"entra": "microsoft"}
+
+    validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
+        module = _MODULE_ALIASES.get(module, module)
 
         if module in TOP_LEVEL_MODULES.keys():
-            validated_modules.append(module)
+            if module not in validated_modules:
+                validated_modules.append(module)
         else:
             valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(

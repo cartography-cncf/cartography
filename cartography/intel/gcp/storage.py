@@ -9,8 +9,11 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import compute
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_permission_denied_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
@@ -33,29 +36,42 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
     :return: Storage response object
     """
     try:
-        req = storage.buckets().list(project=project_id)
-        res = gcp_api_execute_with_retry(req)
-        return res
+        # `projection=full` is required to get the `acl` / `defaultObjectAcl`
+        # arrays back; the default `noAcl` projection strips them, which would
+        # leave legacy-ACL public buckets undetectable. With `full`, the API
+        # caps each response at 200 buckets, so we must follow `nextPageToken`
+        # before downstream cleanup runs — otherwise projects with more than
+        # 200 buckets would lose every bucket beyond the first page.
+        items: List[Dict] = []
+        first_response: Dict = {}
+        req = storage.buckets().list(project=project_id, projection="full")
+        while req is not None:
+            res = gcp_api_execute_with_retry(req)
+            if not first_response:
+                first_response = res
+            items.extend(res.get("items", []))
+            req = storage.buckets().list_next(
+                previous_request=req, previous_response=res
+            )
+        # Preserve the first response's shape (kind, selfLink, ...) and replace
+        # items with the fully paginated list so callers see one logical page.
+        first_response["items"] = items
+        first_response.pop("nextPageToken", None)
+        return first_response
     except HttpError as e:
-        reason = compute._get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
-                (
-                    "The project %s is invalid - returned a 400 invalid error."
-                    "Full details: %s"
-                ),
+                "The project %s is invalid - returned a 400 invalid error. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
             )
             return {}
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
-                (
-                    "You do not have storage.bucket.list access to the project %s. "
-                    "Full details: %s"
-                ),
+                "You do not have storage.bucket.list access to the project %s. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
             )
             return {}
         else:
@@ -73,10 +89,23 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
 
     buckets: List[Dict] = []
     labels: List[Dict] = []
+    public_entities = {"allUsers", "allAuthenticatedUsers"}
     for b in bucket_res.get("items", []):
+        # Legacy bucket / default-object ACLs can expose a bucket publicly without any
+        # IAM binding. Detect either form so the ontology `_ont_public` projection
+        # covers buckets that still rely on ACLs (uniformBucketLevelAccess=false).
+        acl_public = any(
+            entry.get("entity") in public_entities for entry in (b.get("acl") or [])
+        ) or any(
+            entry.get("entity") in public_entities
+            for entry in (b.get("defaultObjectAcl") or [])
+        )
         bucket = {
             "iam_config_bucket_policy_only": (
                 b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
+            ),
+            "iam_config_public_access_prevention": (
+                b.get("iamConfiguration", {}).get("publicAccessPrevention")
             ),
             "id": b["id"],
             # Preserve legacy bucket_id field for compatibility
@@ -96,6 +125,7 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
             "default_kms_key_name": b.get("encryption", {}).get("defaultKmsKeyName"),
             "log_bucket": b.get("logging", {}).get("logBucket"),
             "requester_pays": b.get("billing", {}).get("requesterPays"),
+            "acl_public": acl_public,
         }
         buckets.append(bucket)
         for key, val in b.get("labels", {}).items():
@@ -191,7 +221,16 @@ def sync_gcp_buckets(
     """
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
+    raw_buckets = storage_res.get("items", [])  # for labels
     buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
     load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
+    sync_labels(
+        neo4j_session,
+        raw_buckets,
+        "gcp_bucket",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

@@ -62,7 +62,7 @@ class GSuiteGroupToTenantRel(CartographyRelSchema):
             "id": PropertyRef("CUSTOMER_ID", set_in_kwargs=True),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: GSuiteGroupToTenantRelProperties = GSuiteGroupToTenantRelProperties()
 
@@ -128,7 +128,7 @@ class GSuiteGroupSchema(CartographyNodeSchema):
     label: str = "GSuiteGroup"
     properties: GSuiteGroupNodeProperties = GSuiteGroupNodeProperties()
     sub_resource_relationship: GSuiteGroupToTenantRel = GSuiteGroupToTenantRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal", "UserGroup"])
     other_relationships = OtherRelationships(
         [
             GSuiteGroupToMemberRel(),

@@ -34,21 +34,17 @@ TAILSCALE_ACL_FILE = """
 
     // Define device posture rules requiring devices to meet
     // certain criteria to access parts of your system.
-    // "postures": {
-    //      // Require devices running macOS, a stable Tailscale
-    //      // version and auto update enabled for Tailscale.
-    //     "posture:autoUpdateMac": [
-    //         "node:os == 'macos'",
-    //         "node:tsReleaseTrack == 'stable'",
-    //         "node:tsAutoUpdate",
-    //     ],
-    //      // Require devices running macOS and a stable
-    //      // Tailscale version.
-    //     "posture:anyMac": [
-    //         "node:os == 'macos'",
-    //         "node:tsReleaseTrack == 'stable'",
-    //     ],
-    // },
+    "postures": {
+         // Require a healthy SentinelOne state on macOS devices.
+        "posture:healthySentinelOneMac": [
+            "node:os == 'macos'",
+            "sentinelOne:infected == false",
+        ],
+         // Require a healthy SentinelOne state on any device.
+        "posture:healthySentinelOne": [
+            "sentinelOne:infected == false",
+        ],
+    },
 
     // Define users and devices that can use Tailscale SSH.
     "ssh": [

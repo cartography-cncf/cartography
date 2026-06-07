@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -11,8 +10,6 @@ from cartography.intel.airbyte.util import AirbyteClient
 from cartography.intel.airbyte.util import normalize_airbyte_config
 from cartography.models.airbyte.source import AirbyteSourceSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -59,7 +56,6 @@ def load_sources(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Airbyte Sources into Neo4j.", len(data))
     load(
         neo4j_session,
         AirbyteSourceSchema(),

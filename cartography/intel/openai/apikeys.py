@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,7 +11,6 @@ from cartography.intel.openai.util import paginated_get
 from cartography.models.openai.apikey import OpenAIApiKeySchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -23,7 +21,7 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
     project_id: str,
-) -> None:
+) -> set[str]:
     apikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
@@ -37,6 +35,7 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
+    return {key["id"] for key in transformed_apikeys}
 
 
 @timeit
@@ -77,7 +76,6 @@ def load_apikeys(
     project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI APIKey into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIApiKeySchema(),

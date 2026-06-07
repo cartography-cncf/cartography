@@ -56,7 +56,6 @@ def load_googleworkspace_tenant(
     """
     Load Google Workspace tenant
     """
-    logger.info("Ingesting %s Google Workspace tenant", tenant_data["id"])
     load(
         neo4j_session,
         GoogleWorkspaceTenantSchema(),

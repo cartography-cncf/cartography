@@ -147,6 +147,8 @@ Represents an individual project.
 
 Represents an individual service account in a project.
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, ScalewayApplication).
+
 | Field | Description |
 |-------|-------------|
 | id | The identifier, which can be referenced in API endpoints |

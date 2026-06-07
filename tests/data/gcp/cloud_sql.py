@@ -14,6 +14,10 @@ MOCK_INSTANCES = {
                 {"type": "PRIVATE", "ipAddress": "10.0.0.5"},
             ],
             "settings": {
+                "userLabels": {
+                    "env": "staging",
+                    "team": "backend",
+                },
                 "tier": "db-custom-2-7680",
                 "dataDiskSizeGb": "100",
                 "dataDiskType": "PD_SSD",
@@ -30,6 +34,17 @@ MOCK_INSTANCES = {
                 "ipConfiguration": {
                     "privateNetwork": "/projects/test-project/global/networks/carto-sql-vpc",
                     "requireSsl": True,
+                    "authorizedNetworks": [
+                        {
+                            "name": "office",
+                            "value": "203.0.113.0/24",
+                            "expirationTime": "2030-01-01T00:00:00Z",
+                        },
+                        {
+                            "name": "open-internet",
+                            "value": "0.0.0.0/0",
+                        },
+                    ],
                 },
             },
             "serviceAccountEmailAddress": "test-sa@test-project.iam.gserviceaccount.com",

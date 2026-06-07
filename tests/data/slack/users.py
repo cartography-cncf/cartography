@@ -1,4 +1,4 @@
-SLACK_USERS = {
+SLACK_MEMBERS = {
     "members": [
         {
             "id": "SLACKUSER1",
@@ -104,5 +104,52 @@ SLACK_USERS = {
             "is_email_confirmed": True,
             "who_can_share_contact_card": "EVERYONE",
         },
+        {
+            "id": "SLACKBOT1",
+            "team_id": "TTPQ4FBPT",
+            "name": "securitybot",
+            "deleted": False,
+            "color": "e7392d",
+            "real_name": "Security Bot",
+            "tz": "America/Los_Angeles",
+            "tz_label": "Pacific Standard Time",
+            "tz_offset": -28800,
+            "profile": {
+                "title": "",
+                "phone": "",
+                "skype": "",
+                "real_name": "Security Bot",
+                "real_name_normalized": "Security Bot",
+                "display_name": "SecurityBot",
+                "display_name_normalized": "SecurityBot",
+                "fields": None,
+                "status_text": "",
+                "status_emoji": "",
+                "status_emoji_display_info": [],
+                "status_expiration": 0,
+                "avatar_hash": "abc123def456",
+                "is_custom_image": False,
+                "email": "",
+                "huddle_state": "default_unset",
+                "huddle_state_expiration_ts": 0,
+                "first_name": "Security",
+                "last_name": "Bot",
+                "status_text_canonical": "",
+                "team": "TTPQ4FBPT",
+            },
+            "is_admin": False,
+            "is_owner": False,
+            "is_primary_owner": False,
+            "is_restricted": False,
+            "is_ultra_restricted": False,
+            "is_bot": True,
+            "is_app_user": False,
+            "updated": 1682685000,
+            "is_email_confirmed": False,
+            "who_can_share_contact_card": "EVERYONE",
+        },
     ],
 }
+
+# Backward compatibility alias
+SLACK_USERS = SLACK_MEMBERS

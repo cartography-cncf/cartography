@@ -7,6 +7,7 @@ from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
 TEST_GITLAB_URL = "https://gitlab.example.com"
+TEST_ORG_ID = 100
 
 
 def test_load_gitlab_organization_nodes(neo4j_session):
@@ -20,7 +21,7 @@ def test_load_gitlab_organization_nodes(neo4j_session):
 
     # Assert - Check that organization node exists
     expected_nodes = {
-        ("https://gitlab.example.com/myorg", "MyOrg"),
+        (TEST_ORG_ID, "MyOrg"),
     }
     assert (
         check_nodes(neo4j_session, "GitLabOrganization", ["id", "name"])
@@ -40,7 +41,7 @@ def test_load_gitlab_organization_properties(neo4j_session):
     # Assert - Check all properties
     expected_nodes = {
         (
-            "https://gitlab.example.com/myorg",
+            TEST_ORG_ID,
             "MyOrg",
             "myorg",
             "myorg",
@@ -75,7 +76,7 @@ def test_cleanup_gitlab_organizations(neo4j_session):
 
     # Verify organization exists
     assert check_nodes(neo4j_session, "GitLabOrganization", ["id"]) == {
-        ("https://gitlab.example.com/myorg",),
+        (TEST_ORG_ID,),
     }
 
     # Act - Run cleanup with a different UPDATE_TAG (simulating stale data)
@@ -86,5 +87,5 @@ def test_cleanup_gitlab_organizations(neo4j_session):
     # This documents current behavior: orgs are not auto-cleaned as they have
     # no sub_resource_relationship to scope cleanup
     assert check_nodes(neo4j_session, "GitLabOrganization", ["id"]) == {
-        ("https://gitlab.example.com/myorg",),
+        (TEST_ORG_ID,),
     }

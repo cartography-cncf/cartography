@@ -152,3 +152,33 @@ def test_sync_secretsmanager(mock_get_secrets, mock_get_secret_versions, neo4j_s
             "projects/test-project-123/secrets/db-password",
         ),
     }
+
+    # Assert - Check GCPLabel nodes from secret labels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "production"),
+        ("team", "platform"),
+    }
+
+    # Assert - Check LABELED relationships (both secrets have env=production, my-api-key also has team=platform)
+    assert check_rels(
+        neo4j_session,
+        "GCPSecretManagerSecret",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/test-project-123/secrets/my-api-key",
+            "projects/test-project-123/secrets/my-api-key:env:production",
+        ),
+        (
+            "projects/test-project-123/secrets/my-api-key",
+            "projects/test-project-123/secrets/my-api-key:team:platform",
+        ),
+        (
+            "projects/test-project-123/secrets/db-password",
+            "projects/test-project-123/secrets/db-password:env:production",
+        ),
+    }

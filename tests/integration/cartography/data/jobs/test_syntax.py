@@ -17,6 +17,12 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "UPDATE_TAG": "my_update_tag",
         "OKTA_ORG_ID": "my_okta_org_id",
         "DEPLOYMENT_ID": "my_deployment_id",
+        "CLUSTER_ID": "my_cluster_id",
+        "AZURE_SUBSCRIPTION_ID": "my_azure_subscription_id",
+        "PROJECT_ID": "my_gcp_project_id",
+        "TENANT_ID": "my_tenant_id",
+        "owner_org_id": "my_owner_org_id",
+        "org_url": "my_org_url",
     }
 
     for job_name in contents("cartography.data.jobs.analysis"):

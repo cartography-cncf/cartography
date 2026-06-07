@@ -1,128 +1,124 @@
+import json
 import logging
-from typing import Dict
-from typing import List
-from typing import Optional
+import re
 from urllib.parse import urlparse
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.clients import build_vertex_ai_model_client
+from cartography.intel.gcp.util import classify_gcp_http_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
+from cartography.intel.gcp.vertex.utils import fetch_vertex_ai_resources_for_locations
+from cartography.intel.gcp.vertex.utils import get_vertex_credentials
+from cartography.intel.gcp.vertex.utils import list_vertex_ai_resources_for_location
 from cartography.models.gcp.vertex.model import GCPVertexAIModelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+_VERTEX_AI_REGIONAL_LOCATION_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)+[0-9]$")
+
+
+def _is_vertex_ai_regional_location(location_id: str) -> bool:
+    return bool(_VERTEX_AI_REGIONAL_LOCATION_RE.match(location_id))
 
 
 @timeit
-def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
+def get_vertex_ai_locations(
+    aiplatform: Resource,
+    project_id: str,
+) -> list[str] | None:
     """
     Gets all available Vertex AI locations for a project.
-    Filters to only regions that commonly support Vertex AI to improve sync performance.
+
+    We trust the service's reported location list instead of maintaining a
+    client-side allowlist, which can drift behind newly launched regions.
     """
     try:
         req = aiplatform.projects().locations().list(name=f"projects/{project_id}")
         res = req.execute()
 
-        # Filter to only regions that commonly support Vertex AI
-        # Reference: https://cloud.google.com/vertex-ai/docs/general/locations
-        supported_regions = {
-            "us-central1",
-            "us-east1",
-            "us-east4",
-            "us-west1",
-            "us-west2",
-            "us-west3",
-            "us-west4",
-            "europe-west1",
-            "europe-west2",
-            "europe-west3",
-            "europe-west4",
-            "asia-east1",
-            "asia-northeast1",
-            "asia-northeast3",
-            "asia-southeast1",
-            "australia-southeast1",
-            "northamerica-northeast1",
-            "southamerica-east1",
-        }
-
-        locations = []
+        locations = set()
+        skipped_locations = set()
         all_locations = res.get("locations", [])
         for location in all_locations:
-            # Extract location ID from the full path
-            # Format: "projects/PROJECT_ID/locations/LOCATION_ID"
-            location_id = location["locationId"]
-            if location_id in supported_regions:
-                locations.append(location_id)
+            location_id = location.get("locationId")
+            if not location_id:
+                continue
+            if _is_vertex_ai_regional_location(location_id):
+                locations.add(location_id)
+            else:
+                skipped_locations.add(location_id)
 
+        sorted_locations = sorted(locations)
         logger.info(
-            f"Found {len(locations)} supported Vertex AI locations "
-            f"(filtered from {len(all_locations)} total) for project {project_id}"
+            "Found %s regional Vertex AI locations from the service for project %s.",
+            len(sorted_locations),
+            project_id,
         )
-        return locations
+        if skipped_locations:
+            logger.debug(
+                "Skipping non-regional Vertex AI locations for project %s: %s",
+                project_id,
+                sorted(skipped_locations),
+            )
+        logger.debug(
+            "Vertex AI locations for project %s: %s",
+            project_id,
+            sorted_locations,
+        )
+        return sorted_locations
 
     except HttpError as e:
-        error_reason = e.resp.get("reason", "unknown")
-        if e.resp.status == 403:
+        category = classify_gcp_http_error(e)
+        if category in ("api_disabled", "forbidden"):
             logger.warning(
-                f"Access forbidden when trying to get Vertex AI locations for project {project_id}. "
+                "Access forbidden when trying to get Vertex AI locations for project %s. "
                 "Ensure the Vertex AI API is enabled and you have the necessary permissions.",
+                project_id,
             )
-        elif e.resp.status == 404:
+        elif category == "not_found":
             logger.warning(
-                f"Vertex AI locations not found for project {project_id}. "
+                "Vertex AI locations not found for project %s. "
                 "The Vertex AI API may not be enabled.",
+                project_id,
             )
         else:
             logger.error(
-                f"Error getting Vertex AI locations for project {project_id}: {error_reason}",
+                "Error getting Vertex AI locations for project %s: %s",
+                project_id,
+                summarize_gcp_http_error(e),
                 exc_info=True,
             )
-        return []
+        return None
 
 
 @timeit
 def get_vertex_ai_models_for_location(
-    aiplatform: Resource,
+    credentials: GoogleCredentials,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI models for a specific location.
     """
-    from google.auth.transport.requests import Request as AuthRequest
-
-    from cartography.intel.gcp.vertex.utils import paginate_vertex_api
-
-    # Get credentials and refresh token if needed
-    creds = aiplatform._http.credentials
-    if not creds.valid:
-        creds.refresh(AuthRequest())
-
-    # Prepare request parameters
-    regional_endpoint = f"https://{location}-aiplatform.googleapis.com"
     parent = f"projects/{project_id}/locations/{location}"
-    headers = {
-        "Authorization": f"Bearer {creds.token}",
-        "Content-Type": "application/json",
-    }
-    url = f"{regional_endpoint}/v1/{parent}/models"
-
-    # Use helper function to handle pagination and error handling
-    return paginate_vertex_api(
-        url=url,
-        headers=headers,
+    return list_vertex_ai_resources_for_location(
+        fetcher=lambda: build_vertex_ai_model_client(
+            location,
+            credentials=credentials,
+        ).list_models(parent=parent),
         resource_type="models",
-        response_key="models",
         location=location,
         project_id=project_id,
     )
 
 
-def _extract_bucket_name_from_gcs_uri(gcs_uri: Optional[str]) -> Optional[str]:
+def _extract_bucket_name_from_gcs_uri(gcs_uri: str | None) -> str | None:
     """
     Extracts the bucket name from a GCS URI.
 
@@ -143,13 +139,28 @@ def _extract_bucket_name_from_gcs_uri(gcs_uri: Optional[str]) -> Optional[str]:
 
 
 @timeit
-def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
+def transform_vertex_ai_models(models: list[dict]) -> list[dict]:
     transformed_models = []
 
     for model in models:
         # Extract GCS bucket name from artifact URI for the STORED_IN relationship
         artifact_uri = model.get("artifactUri")
         gcs_bucket_id = _extract_bucket_name_from_gcs_uri(artifact_uri)
+
+        # Neo4j properties cannot store maps; serialize map-like fields to JSON.
+        labels = model.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
+        training_pipeline = model.get("trainingPipeline")
+        training_pipeline_value: str | None
+        if isinstance(training_pipeline, (dict, list)):
+            training_pipeline_value = json.dumps(training_pipeline)
+        elif isinstance(training_pipeline, str):
+            training_pipeline_value = training_pipeline
+        elif training_pipeline is None:
+            training_pipeline_value = None
+        else:
+            training_pipeline_value = str(training_pipeline)
 
         transformed_model = {
             "id": model.get("name"),  # Full resource name
@@ -163,8 +174,8 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
             "update_time": model.get("updateTime"),
             "artifact_uri": artifact_uri,
             "etag": model.get("etag"),
-            "labels": model.get("labels"),
-            "training_pipeline": model.get("trainingPipeline"),
+            "labels": labels_json,
+            "training_pipeline": training_pipeline_value,
             "gcs_bucket_id": gcs_bucket_id,  # For STORED_IN relationship
         }
 
@@ -177,7 +188,7 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
 @timeit
 def load_vertex_ai_models(
     neo4j_session: neo4j.Session,
-    models: List[Dict],
+    models: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -194,7 +205,7 @@ def load_vertex_ai_models(
 @timeit
 def cleanup_vertex_ai_models(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(GCPVertexAIModelSchema(), common_job_parameters).run(
@@ -208,19 +219,39 @@ def sync_vertex_ai_models(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
+    locations: list[str] | None = None,
 ) -> None:
 
     logger.info("Syncing Vertex AI models for project %s.", project_id)
 
-    # Get all available locations for Vertex AI
-    locations = get_vertex_ai_locations(aiplatform, project_id)
+    if locations is None:
+        locations = get_vertex_ai_locations(aiplatform, project_id)
+        if locations is None:
+            logger.warning(
+                "Skipping Vertex AI models sync for project %s to preserve existing data "
+                "because Vertex AI location discovery failed.",
+                project_id,
+            )
+            return
+    else:
+        logger.debug(
+            "Using %s cached Vertex AI locations for models in project %s.",
+            len(locations),
+            project_id,
+        )
 
-    # Collect models from all locations
-    all_models = []
-    for location in locations:
-        models = get_vertex_ai_models_for_location(aiplatform, project_id, location)
-        all_models.extend(models)
+    credentials = get_vertex_credentials(aiplatform)
+    all_models = fetch_vertex_ai_resources_for_locations(
+        locations=locations,
+        project_id=project_id,
+        resource_type="models",
+        fetch_for_location=lambda location: get_vertex_ai_models_for_location(
+            credentials,
+            project_id,
+            location,
+        ),
+    )
 
     # Transform and load models
     transformed_models = transform_vertex_ai_models(all_models)

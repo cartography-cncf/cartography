@@ -151,6 +151,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
@@ -170,6 +171,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
 - `GoogleWorkspaceGroup`
 - `GCPPrincipal`
+- `UserGroup`
 
 #### Relationships
 - GoogleTenant has groups:

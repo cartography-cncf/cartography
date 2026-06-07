@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -67,6 +68,7 @@ class AzureKeyVaultCertificateToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKeyVaultCertificateSchema(CartographyNodeSchema):
     label: str = "AzureKeyVaultCertificate"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Certificate"])
     properties: AzureKeyVaultCertificateProperties = (
         AzureKeyVaultCertificateProperties()
     )

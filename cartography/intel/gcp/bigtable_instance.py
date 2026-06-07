@@ -6,6 +6,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigtable.instance import GCPBigtableInstanceSchema
@@ -104,6 +105,14 @@ def sync_bigtable_instances(
 
         instances = transform_instances(instances_raw, project_id)
         load_bigtable_instances(neo4j_session, instances, project_id, update_tag)
+        sync_labels(
+            neo4j_session,
+            instances,
+            "bigtable_instance",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id

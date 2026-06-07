@@ -1,7 +1,5 @@
 import logging
 from dataclasses import asdict
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version
 from string import Template
 
 from cartography.models.core.common import PropertyRef
@@ -11,6 +9,7 @@ from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
@@ -18,6 +17,7 @@ from cartography.models.ontology.mapping import (
     get_semantic_label_mapping_from_node_schema,
 )
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
 
@@ -166,8 +166,9 @@ def _build_ontology_field_statement_or_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -215,8 +216,9 @@ def _build_ontology_field_statement_nor_boolean(
     for extra_field in mapping_field.extra.get("fields", []):
         extra_property_ref = node_property_map.get(extra_field)
         if not extra_property_ref:
-            # should not occure due to unit test but failing gracefully
-            logger.warning(
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
                 "Extra field '%s' not found in node properties for nor_boolean special handling of field %s",
                 extra_field,
                 mapping_field.ontology_field,
@@ -232,6 +234,39 @@ def _build_ontology_field_statement_nor_boolean(
         node_property=f"_ont_{mapping_field.ontology_field}",
         property_condition=full_property_condition,
     )
+
+
+def _build_ontology_field_statement_mapping(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str | None:
+    """Maps provider-specific values to normalized ontology values using a Cypher CASE expression.
+
+    The mapping dict is provided in extra['map'] as {source_value: normalized_value}.
+    Unmapped values result in NULL (property not set).
+    """
+    value_map = mapping_field.extra.get("map")
+    if value_map is None:
+        logger.warning(
+            "mapping special handling requires 'map' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(value_map, dict):
+        logger.warning(
+            "mapping special handling 'map' in extra for field %s must be a dict",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    when_clauses = []
+    for source_val, normalized_val in value_map.items():
+        escaped_source = _escape_cypher_string(str(source_val))
+        escaped_normalized = _escape_cypher_string(str(normalized_val))
+        when_clauses.append(f'WHEN "{escaped_source}" THEN "{escaped_normalized}"')
+
+    case_expr = f"CASE {property_ref} " + " ".join(when_clauses) + " END"
+    return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
 
 
 def _build_ontology_node_properties_statement(
@@ -261,8 +296,12 @@ def _build_ontology_node_properties_statement(
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
-            # This should not occure due to unit test but failing gracefully
-            logger.warning(
+            # This is expected for schemas using the Composite Node Pattern,
+            # where multiple schema classes share the same node label but each
+            # only defines a subset of properties. The ontology mapping is
+            # looked up by label, so fields belonging to other schemas for the
+            # same label will not be present here.
+            logger.debug(
                 "Field '%s' not found in node properties for node schema %s",
                 mapping_field.node_field,
                 node_schema.__class__.__name__,
@@ -301,6 +340,12 @@ def _build_ontology_node_properties_statement(
             )
             if nor_boolean_statement:
                 set_clauses.append(nor_boolean_statement)
+        elif mapping_field.special_handling == "mapping":
+            mapping_statement = _build_ontology_field_statement_mapping(
+                mapping_field, node_propertyref
+            )
+            if mapping_statement:
+                set_clauses.append(mapping_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -671,7 +716,6 @@ def _build_attach_sub_resource_statement(
 
     sub_resource_attach_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH (j:$SubResourceLabel{$MatchClause})
         WITH i, item, j WHERE j IS NOT NULL
         $RelMergeClause
@@ -701,7 +745,7 @@ def _build_attach_sub_resource_statement(
         MatchClause=_build_match_clause(sub_resource_link.target_node_matcher),
         RelMergeClause=rel_merge_clause,
         module_name=_get_module_from_schema(sub_resource_link),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         SubResourceRelLabel=sub_resource_link.rel_label,
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
@@ -766,7 +810,6 @@ def _build_attach_additional_links_statement(
 
     additional_links_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH ($node_var:$AddlLabel)
         WHERE
             $WhereClause
@@ -811,7 +854,7 @@ def _build_attach_additional_links_statement(
             rel_var=rel_var,
             RelMerge=rel_merge,
             module_name=_get_module_from_schema(link),
-            module_version=_get_cartography_version(),
+            module_version=get_cartography_version(),
             set_rel_properties_statement=_build_rel_properties_statement(
                 rel_var,
                 rel_props_as_dict,
@@ -893,7 +936,7 @@ def _build_attach_relationships_statement(
     query_template = Template(
         """
         WITH i, item
-        CALL {
+        CALL (i, item) {
             $attach_relationships_statement
         }
         """,
@@ -1105,7 +1148,7 @@ def build_ingestion_query(
         node_label=node_schema.label,
         dict_id_field=node_props.id,
         module_name=_get_module_from_schema(node_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_node_properties_statement=_build_node_properties_statement(
             node_props_as_dict,
             node_schema.extra_node_labels,
@@ -1334,19 +1377,31 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     if node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
             if isinstance(label, str):
-                # Simple string label - create index on id
+                # Simple string label - create index on id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label,
                         TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
                     ),
                 )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="lastupdated",
+                    ),
+                )
             elif isinstance(label, ConditionalNodeLabel):
-                # Conditional label - create index on the conditional label's id
+                # Conditional label - create index on the conditional label's id and lastupdated
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label.label,
                         TargetAttribute="id",
+                    ),
+                )
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="lastupdated",
                     ),
                 )
                 # Also create indexes on the condition fields for the primary node label
@@ -1387,6 +1442,30 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
             if prop_ref.extra_index
         ],
     )
+
+    # Create indexes on _ont_ fields for semantic labels (extra node labels).
+    # When a node has a semantic label mapping, index all _ont_ fields on the extra label
+    # so that cross-provider queries on the semantic label are fast.
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
+    if ontology_mapping and node_schema.extra_node_labels:
+        for label in node_schema.extra_node_labels.labels:
+            label_name = label if isinstance(label, str) else label.label
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label_name,
+                    TargetAttribute="_ont_source",
+                ),
+            )
+            for mapping_field in ontology_mapping.fields:
+                if not mapping_field.indexed:
+                    continue
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label_name,
+                        TargetAttribute=f"_ont_{mapping_field.ontology_field}",
+                    ),
+                )
+
     return result
 
 
@@ -1420,7 +1499,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1432,9 +1511,9 @@ def build_create_index_queries_for_matchlink(
         existing nodes in the graph. It requires source_node_matcher to be defined
         and creates composite indexes for relationship performance.
     """
-    if not rel_schema.source_node_matcher:
+    if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
         logger.warning(
-            "No source node matcher found for %s; returning empty list. "
+            "No source node matcher or source node label found for %s; returning empty list. "
             "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
             "and connect existing nodes in the graph.",
             rel_schema.rel_label,
@@ -1446,26 +1525,42 @@ def build_create_index_queries_for_matchlink(
     )
 
     result = []
-    for source_key in asdict(rel_schema.source_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.source_node_label,
-                NodeAttribute=source_key,
-            ),
-        )
-    for target_key in asdict(rel_schema.target_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.target_node_label,
-                NodeAttribute=target_key,
-            ),
-        )
 
-    # Create a composite index for the relationship between the source and target nodes.
-    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    def append_index_query(node_label: str, node_attribute: str) -> None:
+        query = index_template.safe_substitute(
+            NodeLabel=node_label,
+            NodeAttribute=node_attribute,
+        )
+        if query not in result:
+            result.append(query)
+
+    for source_key in asdict(rel_schema.source_node_matcher).keys():
+        append_index_query(rel_schema.source_node_label, source_key)
+    for target_key in asdict(rel_schema.target_node_matcher).keys():
+        append_index_query(rel_schema.target_node_label, target_key)
+    if rel_schema.source_node_sub_resource:
+        for source_sub_resource_key in asdict(
+            rel_schema.source_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.source_node_sub_resource.target_node_label,
+                source_sub_resource_key,
+            )
+    if rel_schema.target_node_sub_resource:
+        for target_sub_resource_key in asdict(
+            rel_schema.target_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.target_node_sub_resource.target_node_label,
+                target_sub_resource_key,
+            )
+
+    # Create a composite relationship index that matches the cleanup predicate shape.
+    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
+    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(
@@ -1484,6 +1579,195 @@ def build_create_index_queries_for_matchlink(
             )
         )
     return result
+
+
+def _build_matchlink_sub_resource_match(
+    sub_resource_var: str,
+    sub_resource: MatchLinkSubResource,
+) -> str:
+    return Template(
+        "MATCH ($sub_resource_var:$sub_resource_label{$match_clause})"
+    ).safe_substitute(
+        sub_resource_var=sub_resource_var,
+        sub_resource_label=sub_resource.target_node_label,
+        match_clause=_build_match_clause(sub_resource.target_node_matcher),
+    )
+
+
+def _matcher_signature(
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+) -> dict[str, dict]:
+    # PropertyRef has no __eq__, so compare via its __dict__. asdict() can't help
+    # because PropertyRef is not a dataclass and is passed through by reference.
+    return {key: vars(prop_ref) for key, prop_ref in vars(matcher).items()}
+
+
+def _matchlink_sub_resources_equal(
+    a: MatchLinkSubResource,
+    b: MatchLinkSubResource,
+) -> bool:
+    return (
+        a.target_node_label == b.target_node_label
+        and a.direction == b.direction
+        and a.rel_label == b.rel_label
+        and _matcher_signature(a.target_node_matcher)
+        == _matcher_signature(b.target_node_matcher)
+    )
+
+
+def _build_matchlink_endpoint_match(
+    endpoint_var: str,
+    endpoint_label: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+    sub_resource_var: str | None,
+    sub_resource: MatchLinkSubResource | None,
+) -> str:
+    rel_pattern = ""
+    if sub_resource and sub_resource_var:
+        if sub_resource.direction == LinkDirection.INWARD:
+            rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
+        else:
+            rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+    return Template(
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+    ).safe_substitute(
+        endpoint_var=endpoint_var,
+        endpoint_label=endpoint_label,
+        match_clause=_build_match_clause(matcher),
+        rel_pattern=rel_pattern,
+    )
+
+
+def _validate_matchlink_cartesian_product_matcher(
+    matcher_name: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher | None,
+) -> tuple[str, PropertyRef]:
+    if matcher is None:
+        raise ValueError(
+            f"build_matchlink_cartesian_product_query() requires a {matcher_name} matcher."
+        )
+
+    matcher_fields = asdict(matcher)
+    if len(matcher_fields) != 1:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() supports exactly one source matcher key "
+            "and one target matcher key."
+        )
+
+    node_property, property_ref = next(iter(matcher_fields.items()))
+    if property_ref.ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support ignore_case matchers."
+        )
+    if property_ref.fuzzy_and_ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support fuzzy_and_ignore_case matchers."
+        )
+    if property_ref.one_to_many:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support one_to_many matchers."
+        )
+    return node_property, property_ref
+
+
+def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generate a query that links every matched source node to every matched target.
+
+    This is the querybuilder companion to ``load_matchlinks_cartesian_product()``.
+    It intentionally supports only the simple MatchLink shape where each
+    endpoint is matched by one exact property and relationship properties are
+    supplied from query kwargs. Row-specific relationship properties belong on
+    the regular ``build_matchlink_query()`` path instead.
+
+    Args:
+        rel_schema: A MatchLink relationship schema.
+
+    Returns:
+        A Cypher query that accepts ``SourceValues`` and ``TargetValues`` lists
+        and returns ``rel_count``.
+
+    Raises:
+        ValueError: If the schema uses unsupported matcher, sub-resource, or
+            relationship property shapes.
+    """
+    if not rel_schema.source_node_label:
+        raise ValueError(
+            f"No source node label found for {rel_schema.rel_label}. "
+            "MatchLink Cartesian product relationships require a source_node_label."
+        )
+
+    if rel_schema.source_node_sub_resource or rel_schema.target_node_sub_resource:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support endpoint sub-resource matchers."
+        )
+
+    source_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "source node",
+        rel_schema.source_node_matcher,
+    )
+    target_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "target node",
+        rel_schema.target_node_matcher,
+    )
+
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+    for rel_property, property_ref in rel_props_as_dict.items():
+        if not property_ref.set_in_kwargs:
+            raise ValueError(
+                "build_matchlink_cartesian_product_query() only supports relationship properties "
+                f"set from kwargs. Unsupported property: {rel_property}."
+            )
+
+    # The generated query has no row object, so every relationship property must
+    # be set from kwargs and shared by the full source x target expansion.
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
+    else:
+        rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
+
+    matchlink_cartesian_product_query_template = Template(
+        """
+        UNWIND $SourceValues AS source_value
+            MATCH (from:$source_node_label{$source_node_property: source_value})
+        WITH collect(from) AS sources
+        UNWIND $TargetValues AS target_value
+            MATCH (to:$target_node_label{$target_node_property: target_value})
+        WITH sources, to
+        UNWIND sources AS from
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                r._module_name = "$module_name",
+                r._module_version = "$module_version",
+                $set_rel_properties_statement
+        RETURN count(r) AS rel_count;
+        """,
+    )
+
+    return matchlink_cartesian_product_query_template.safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        source_node_property=source_node_property,
+        target_node_label=rel_schema.target_node_label,
+        target_node_property=target_node_property,
+        rel=rel,
+        module_name=_get_module_from_schema(rel_schema),
+        module_version=get_cartography_version(),
+        set_rel_properties_statement=_build_rel_properties_statement(
+            "r",
+            rel_props_as_dict,
+        ),
+    )
 
 
 def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
@@ -1553,8 +1837,17 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
         )
 
-    matchlink_query_template = Template(
-        """
+    source_sub_resource = rel_schema.source_node_sub_resource
+    target_sub_resource = rel_schema.target_node_sub_resource
+
+    source_sub_resource_var: str | None = None
+    target_sub_resource_var: str | None = None
+    sub_resource_match_statements: list[str] = []
+
+    if source_sub_resource or target_sub_resource:
+        matchlink_query_template = Template(
+            """
+        $sub_resource_match
         UNWIND $DictList as item
             $source_match
             $target_match
@@ -1565,20 +1858,66 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
                 r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """
+        )
+        if (
+            source_sub_resource
+            and target_sub_resource
+            and _matchlink_sub_resources_equal(source_sub_resource, target_sub_resource)
+        ):
+            # Same sub-resource on both sides — match it once and reuse the
+            # variable to avoid a redundant index lookup per query.
+            source_sub_resource_var = "sub_resource"
+            target_sub_resource_var = "sub_resource"
+            sub_resource_match_statements.append(
+                _build_matchlink_sub_resource_match(
+                    source_sub_resource_var, source_sub_resource
+                ),
+            )
+        else:
+            if source_sub_resource:
+                source_sub_resource_var = "source_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        source_sub_resource_var, source_sub_resource
+                    ),
+                )
+            if target_sub_resource:
+                target_sub_resource_var = "target_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        target_sub_resource_var, target_sub_resource
+                    ),
+                )
+    else:
+        matchlink_query_template = Template(
+            """
+        UNWIND $DictList as item
+            $source_match
+            $target_match
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                r._module_name = "$module_name",
+                r._module_version = "$module_version",
+                $set_rel_properties_statement;
+        """
+        )
+    sub_resource_match = "\n        ".join(sub_resource_match_statements)
+
+    source_match = _build_matchlink_endpoint_match(
+        "from",
+        rel_schema.source_node_label,
+        rel_schema.source_node_matcher,
+        source_sub_resource_var,
+        source_sub_resource,
     )
 
-    source_match = Template(
-        "MATCH (from:$source_node_label{$match_clause})"
-    ).safe_substitute(
-        source_node_label=rel_schema.source_node_label,
-        match_clause=_build_match_clause(rel_schema.source_node_matcher),
-    )
-
-    target_match = Template(
-        "MATCH (to:$target_node_label{$match_clause})"
-    ).safe_substitute(
-        target_node_label=rel_schema.target_node_label,
-        match_clause=_build_match_clause(rel_schema.target_node_matcher),
+    target_match = _build_matchlink_endpoint_match(
+        "to",
+        rel_schema.target_node_label,
+        rel_schema.target_node_matcher,
+        target_sub_resource_var,
+        target_sub_resource,
     )
 
     if rel_schema.direction == LinkDirection.INWARD:
@@ -1587,36 +1926,17 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
     return matchlink_query_template.safe_substitute(
+        sub_resource_match=sub_resource_match,
         source_match=source_match,
         target_match=target_match,
         rel=rel,
         module_name=_get_module_from_schema(rel_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
             rel_props_as_dict,
         ),
     )
-
-
-def _get_cartography_version() -> str:
-    """
-    Get the current version of the cartography package.
-
-    This function attempts to retrieve the version of the installed cartography package
-    using importlib.metadata. If the package is not found (typically in development
-    or testing environments), it returns 'dev' as a fallback.
-
-    Returns:
-        The version string of the cartography package, or 'dev' if not found
-    """
-    try:
-        return version("cartography")
-    except PackageNotFoundError:
-        # This can occured if the cartography package is not installed in the environment, typically in development or testing environments.
-        logger.warning("cartography package not found. Returning 'dev' version.")
-        # Fallback to reading the VERSION file if the package is not found
-        return "dev"
 
 
 def _get_module_from_schema(

@@ -129,6 +129,13 @@ def test_sync_vpc(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # Pre-create nodes that Redshift will connect to via other_relationships (OPTIONAL MATCH)
+    neo4j_session.run(
+        "MERGE (:EC2SecurityGroup {id: 'my-vpc-sg'}) "
+        "MERGE (:AWSPrincipal {arn: 'arn:aws:iam::1111:role/my-redshift-iam-role'}) "
+        "MERGE (:AWSVpc {id: 'my_vpc'})",
+    )
+
     sync_redshift(
         neo4j_session,
         boto3_session,

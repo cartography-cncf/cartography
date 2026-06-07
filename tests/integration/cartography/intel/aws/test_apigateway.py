@@ -316,14 +316,17 @@ def test_sync_apigateway(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert REST APIs exist and anonymous access is set correctly
+    # Assert REST APIs exist with correct policy-level access (anonymous_access)
+    # and network-level exposure (exposed_internet) based on endpoint type
     assert check_nodes(
         neo4j_session,
         "APIGatewayRestAPI",
-        ["id", "anonymous_access"],
+        ["id", "anonymous_access", "endpoint_type", "exposed_internet"],
     ) == {
-        ("test-001", True),
-        ("test-002", False),
+        # test-001: REGIONAL endpoint (internet exposed) + open policy (anonymous access)
+        ("test-001", True, "REGIONAL", True),
+        # test-002: PRIVATE endpoint (VPC only) + restricted policy (no anonymous access)
+        ("test-002", False, "PRIVATE", False),
     }
 
     # Assert Stages exist

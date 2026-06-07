@@ -1,7 +1,11 @@
 from cartography.intel.sentinelone.account import sync_accounts
+from cartography.intel.sentinelone.account import sync_site_scoped_accounts
 from tests.data.sentinelone.account import ACCOUNT_ID
 from tests.data.sentinelone.account import ACCOUNT_ID_2
 from tests.data.sentinelone.account import ACCOUNTS_DATA
+from tests.data.sentinelone.account import SITE_ID
+from tests.data.sentinelone.account import SITE_ID_2
+from tests.data.sentinelone.account import SITES_DATA
 from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
@@ -76,3 +80,61 @@ def test_sync_account(neo4j_session, mocker):
     )
 
     assert actual_nodes == expected_nodes
+
+
+def test_sync_site_scoped_accounts(neo4j_session, mocker):
+    neo4j_session.run("MATCH (n:S1Account) DETACH DELETE n")
+
+    mocker.patch(
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
+        return_value={
+            "data": {
+                "sites": SITES_DATA,
+            },
+        },
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "API_URL": "https://test-api.sentinelone.net",
+        "API_TOKEN": "test-api-token",
+    }
+
+    scopes = sync_site_scoped_accounts(
+        neo4j_session,
+        common_job_parameters,
+        site_ids=[SITE_ID, SITE_ID_2],
+    )
+
+    assert [(scope.account_id, scope.site_id) for scope in scopes] == [
+        (ACCOUNT_ID, SITE_ID),
+        (ACCOUNT_ID, SITE_ID_2),
+    ]
+
+    actual_nodes = check_nodes(
+        neo4j_session,
+        "S1Account",
+        [
+            "id",
+            "name",
+            "account_type",
+            "active_agents",
+            "created_at",
+            "expiration",
+            "number_of_sites",
+            "state",
+        ],
+    )
+
+    assert actual_nodes == {
+        (
+            ACCOUNT_ID,
+            "Test Account",
+            None,
+            5,
+            "2023-01-01T00:00:00Z",
+            "2025-01-01T00:00:00Z",
+            2,
+            "active",
+        ),
+    }

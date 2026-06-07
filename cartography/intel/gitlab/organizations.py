@@ -20,7 +20,7 @@ def get_organization(gitlab_url: str, token: str, org_id: int) -> dict[str, Any]
     """
     Fetch a specific top-level group (organization) from GitLab by ID.
     """
-    logger.info(f"Fetching organization ID {org_id} from {gitlab_url}")
+    logger.debug("Fetching organization ID %s from %s", org_id, gitlab_url)
     return get_single(gitlab_url, token, f"/api/v4/groups/{org_id}")
 
 
@@ -34,6 +34,7 @@ def transform_organizations(
 
     for org in raw_orgs:
         transformed_org = {
+            "id": org.get("id"),
             "web_url": org.get("web_url"),
             "name": org.get("name"),
             "path": org.get("path"),
@@ -58,7 +59,6 @@ def load_organizations(
     """
     Load GitLab organizations into the graph.
     """
-    logger.info(f"Loading {len(organizations)} organizations")
     load(
         neo4j_session,
         GitLabOrganizationSchema(),

@@ -1,6 +1,8 @@
 """Integration tests for GitLab branches module."""
 
 from cartography.intel.gitlab.branches import load_branches
+from tests.data.gitlab.branches import TEST_GITLAB_URL
+from tests.data.gitlab.branches import TEST_PROJECT_ID
 from tests.data.gitlab.branches import TEST_PROJECT_URL
 from tests.data.gitlab.branches import TRANSFORMED_BRANCHES
 from tests.integration.util import check_nodes
@@ -13,12 +15,16 @@ def _create_test_project(neo4j_session):
     """Create test GitLabProject node."""
     neo4j_session.run(
         """
-        MERGE (p:GitLabProject{id: $project_url})
+        MERGE (p:GitLabProject{id: $project_id})
         ON CREATE SET p.firstseen = timestamp()
         SET p.lastupdated = $update_tag,
-            p.name = 'awesome-project'
+            p.name = 'awesome-project',
+            p.web_url = $project_url,
+            p.gitlab_url = $gitlab_url
         """,
+        project_id=TEST_PROJECT_ID,
         project_url=TEST_PROJECT_URL,
+        gitlab_url=TEST_GITLAB_URL,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -32,7 +38,8 @@ def test_load_gitlab_branches_nodes(neo4j_session):
     load_branches(
         neo4j_session,
         TRANSFORMED_BRANCHES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
@@ -57,22 +64,23 @@ def test_load_gitlab_branches_resource_relationships(neo4j_session):
     load_branches(
         neo4j_session,
         TRANSFORMED_BRANCHES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check RESOURCE relationships from Project to Branch
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/main",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/develop",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/feature/new-api",
         ),
     }
@@ -98,22 +106,23 @@ def test_load_gitlab_branches_has_branch_relationships(neo4j_session):
     load_branches(
         neo4j_session,
         TRANSFORMED_BRANCHES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check HAS_BRANCH relationships
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/main",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/develop",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/tree/feature/new-api",
         ),
     }
@@ -139,7 +148,8 @@ def test_load_gitlab_branches_properties(neo4j_session):
     load_branches(
         neo4j_session,
         TRANSFORMED_BRANCHES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 

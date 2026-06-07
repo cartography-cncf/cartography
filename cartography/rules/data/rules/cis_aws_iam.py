@@ -1,8 +1,8 @@
 """
 CIS AWS IAM Security Checks
 
-Implements CIS AWS Foundations Benchmark Section 1: Identity and Access Management
-Based on CIS AWS Foundations Benchmark v5.0
+Implements CIS AWS Foundations Benchmark Section 2: Identity and Access Management
+Based on CIS AWS Foundations Benchmark v6.0.0
 
 Each Rule represents a distinct security concept with a consistent main node type.
 Facts within a Rule are provider-specific implementations of the same concept.
@@ -13,6 +13,8 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
+from cartography.rules.data.frameworks.cis import cis_aws
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -26,7 +28,7 @@ Neo4jDateTime = Annotated[datetime | None, BeforeValidator(to_datetime)]
 
 CIS_REFERENCES = [
     RuleReference(
-        text="CIS AWS Foundations Benchmark v5.0",
+        text="CIS AWS Foundations Benchmark v6.0.0",
         url="https://www.cisecurity.org/benchmark/amazon_web_services",
     ),
     RuleReference(
@@ -37,14 +39,14 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 1.14: Access keys not rotated in 90 days
+# CIS AWS 2.13: Access keys not rotated in 90 days
 # Main node: AccountAccessKey
 # =============================================================================
 class AccessKeyNotRotatedOutput(Finding):
     """Output model for access key rotation check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     key_create_date: Neo4jDateTime = None
     days_since_rotation: int | None = None
@@ -64,13 +66,13 @@ _aws_access_key_not_rotated = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
-      AND date(key.createdate_dt) < date() - duration('P90D')
+      AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
         key.createdate_dt AS key_create_date,
-        duration.inDays(date(key.createdate_dt), date()).days AS days_since_rotation,
+        duration.inDays(date(datetime(key.createdate_dt)), date()).days AS days_since_rotation,
         a.id AS account_id,
         a.name AS account
     """,
@@ -78,41 +80,46 @@ _aws_access_key_not_rotated = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
-      AND date(key.createdate_dt) < date() - duration('P90D')
+      AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN *
     """,
     cypher_count_query="""
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_1_14_access_key_not_rotated = Rule(
-    id="cis_1_14_access_key_not_rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+cis_aws_2_13_access_key_not_rotated = Rule(
+    id="cis_aws_2_13_access_key_not_rotated",
+    name="CIS AWS 2.13: Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
         "of opportunity for compromised keys to be used maliciously."
     ),
     output_model=AccessKeyNotRotatedOutput,
     facts=(_aws_access_key_not_rotated,),
-    tags=("cis:1.14", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.13"),
+        iso27001_annex_a("5.17"),
+    ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.12: Unused credentials (45+ days)
+# CIS AWS 2.11: Credentials unused for 45 days or more
 # Main node: AccountAccessKey
 # =============================================================================
 class UnusedCredentialsOutput(Finding):
     """Output model for unused credentials check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     last_used_date: Neo4jDateTime = None
     key_create_date: Neo4jDateTime = None
@@ -131,9 +138,9 @@ _aws_unused_credentials = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, key
-    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
        OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
-           AND date(key.createdate_dt) < date() - duration('P45D'))
+           AND date(datetime(key.createdate_dt)) < date() - duration('P45D'))
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
@@ -147,36 +154,41 @@ _aws_unused_credentials = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
     WITH p, a, user, key
-    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
        OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
-           AND date(key.createdate_dt) < date() - duration('P45D'))
+           AND date(datetime(key.createdate_dt)) < date() - duration('P45D'))
     RETURN *
     """,
     cypher_count_query="""
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_1_12_unused_credentials = Rule(
-    id="cis_1_12_unused_credentials",
-    name="CIS AWS 1.12: Unused Credentials",
+cis_aws_2_11_unused_credentials = Rule(
+    id="cis_aws_2_11_unused_credentials",
+    name="CIS AWS 2.11: Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
         "the attack surface and prevent unauthorized access."
     ),
     output_model=UnusedCredentialsOutput,
     facts=(_aws_unused_credentials,),
-    tags=("cis:1.12", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.11"),
+        iso27001_annex_a("5.18"),
+    ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.15: Users with directly attached policies
+# CIS AWS 2.14: Users with directly attached policies
 # Main node: AWSUser
 # =============================================================================
 class UserDirectPoliciesOutput(Finding):
@@ -217,33 +229,32 @@ _aws_user_direct_policies = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="user_arn",
+    identity_fields=("user_arn", "policy_arn"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_1_15_user_direct_policies = Rule(
-    id="cis_1_15_user_direct_policies",
-    name="CIS AWS 1.15: Users With Direct Policy Attachments",
+cis_aws_2_14_user_direct_policies = Rule(
+    id="cis_aws_2_14_user_direct_policies",
+    name="CIS AWS 2.14: Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
         "attachments make permission management complex and error-prone."
     ),
     output_model=UserDirectPoliciesOutput,
     facts=(_aws_user_direct_policies,),
-    tags=(
-        "cis:1.15",
-        "cis:aws-5.0",
-        "iam",
-        "policies",
-        "stride:elevation_of_privilege",
-    ),
+    tags=("iam", "policies", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.14"),
+        iso27001_annex_a("5.18"),
+    ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.13: Users with multiple active access keys
+# CIS AWS 2.12: Users with multiple active access keys
 # Main node: AWSUser
 # =============================================================================
 class MultipleAccessKeysOutput(Finding):
@@ -289,27 +300,32 @@ _aws_multiple_access_keys = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_1_13_multiple_access_keys = Rule(
-    id="cis_1_13_multiple_access_keys",
-    name="CIS AWS 1.13: Users With Multiple Active Access Keys",
+cis_aws_2_12_multiple_access_keys = Rule(
+    id="cis_aws_2_12_multiple_access_keys",
+    name="CIS AWS 2.12: Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
         "increase the attack surface and complicate key rotation."
     ),
     output_model=MultipleAccessKeysOutput,
     facts=(_aws_multiple_access_keys,),
-    tags=("cis:1.13", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.12"),
+        iso27001_annex_a("5.17"),
+    ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.18: Expired SSL/TLS certificates
+# CIS AWS 2.18: Expired SSL/TLS certificates
 # Main node: ACMCertificate
 # =============================================================================
 class ExpiredCertificatesOutput(Finding):
@@ -355,20 +371,76 @@ _aws_expired_certificates = Fact(
     MATCH (cert:ACMCertificate)
     RETURN COUNT(cert) AS count
     """,
+    identity_fields=("certificate_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_1_18_expired_certificates = Rule(
-    id="cis_1_18_expired_certificates",
-    name="CIS AWS 1.18: Expired SSL/TLS Certificates",
+cis_aws_2_18_expired_certificates = Rule(
+    id="cis_aws_2_18_expired_certificates",
+    name="CIS AWS 2.18: Expired SSL/TLS Certificates",
     description=(
         "Expired SSL/TLS certificates should be removed from ACM to maintain "
         "security hygiene and avoid confusion with valid certificates."
     ),
     output_model=ExpiredCertificatesOutput,
     facts=(_aws_expired_certificates,),
-    tags=("cis:1.18", "cis:aws-5.0", "certificates", "acm", "stride:spoofing"),
+    tags=("certificates", "acm", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.18"),
+        iso27001_annex_a("8.24"),
+    ),
 )
+
+# =============================================================================
+# TODO: CIS AWS 2.3: No root user account access key exists
+# Missing datamodel or evidence: root account summary or credential report fields such as AccountAccessKeysPresent
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.4: MFA is enabled for the root user account
+# Missing datamodel or evidence: root account summary fields such as AccountMFAEnabled and AccountPasswordPresent
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.7: IAM password policy requires minimum length of 14 or greater
+# Missing datamodel or evidence: IAM account password policy fields such as MinimumPasswordLength
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.8: IAM password policy prevents password reuse
+# Missing datamodel or evidence: IAM account password policy field PasswordReusePrevention
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.9: MFA is enabled for all IAM users that have a console password
+# Missing datamodel or evidence: credential report fields for password_enabled and mfa_active on IAM users
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.15: IAM policies that allow full *:* administrative privileges are not attached
+# Missing datamodel or evidence: parsed policy documents for managed and inline IAM policies, plus attachments to users, groups, and roles
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.16: A support role has been created to manage incidents with AWS Support
+# Missing datamodel or evidence: AWSSupportAccess managed policy attachments or equivalent support role relationships
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.17: IAM instance roles are used for AWS resource access from instances
+# Missing datamodel or evidence: EC2 instance profile or IAM role attachment state, plus secret-scanning evidence for embedded AWS credentials
+# =============================================================================
+
+# =============================================================================
+# TODO: CIS AWS 2.19: IAM External Access Analyzer is enabled for all regions
+# Missing datamodel or evidence: IAM Access Analyzer inventory and regional analyzer status
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 8.5: Secure authentication
+# Missing datamodel or evidence: IAM user console password state, MFA state,
+# root account MFA state, and password policy details.
+# =============================================================================

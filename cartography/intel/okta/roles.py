@@ -105,9 +105,14 @@ def _load_user_role(
     MATCH (user:OktaUser{id: $USER_ID})<-[:RESOURCE]-(org:OktaOrganization)
     WITH user,org
     UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
+    MERGE (role_node:OktaAdministrationRole:PermissionRole{id: role_data.type})
     ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
+    SET role_node.label = role_data.label,
+        role_node.lastupdated = $okta_update_tag,
+        role_node._ont_name = role_data.label,
+        role_node._ont_type = 'builtin',
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH user, role_node, org
     MERGE (user)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()
@@ -138,9 +143,14 @@ def _load_group_role(
     MATCH (group:OktaGroup{id: $GROUP_ID})<-[:RESOURCE]-(org:OktaOrganization)
     WITH group,org
     UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
+    MERGE (role_node:OktaAdministrationRole:PermissionRole{id: role_data.type})
     ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
+    SET role_node.label = role_data.label,
+        role_node.lastupdated = $okta_update_tag,
+        role_node._ont_name = role_data.label,
+        role_node._ont_type = 'builtin',
+        role_node._ont_scope = 'org',
+        role_node._ont_source = 'okta'
     WITH group, role_node, org
     MERGE (group)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
     ON CREATE SET r.firstseen = timestamp()
@@ -167,6 +177,7 @@ def sync_roles(
     okta_update_tag: int,
     okta_api_key: str,
     sync_state: OktaSyncState,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Sync okta roles
@@ -175,13 +186,16 @@ def sync_roles(
     :param okta_update_tag: Update tag
     :param okta_api_key: Okta API key
     :param sync_state: Okta sync state
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: None
     """
 
     logger.info("Syncing Okta Roles")
 
     # get API client
-    api_client = create_api_client(okta_org_id, "/api/v1/users", okta_api_key)
+    api_client = create_api_client(
+        okta_org_id, "/api/v1/users", okta_api_key, okta_base_domain
+    )
 
     if sync_state.users:
         for user_id in sync_state.users:

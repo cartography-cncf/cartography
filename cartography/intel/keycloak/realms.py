@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -9,7 +8,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.keycloak.realm import KeycloakRealmSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -43,7 +41,6 @@ def load_realms(
     data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Keycloak Realms into Neo4j.", len(data))
     load(
         neo4j_session,
         KeycloakRealmSchema(),

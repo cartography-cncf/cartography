@@ -1,25 +1,59 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.config
-import tests.data.aws.config
+from tests.data.aws.config import LIST_CONFIG_RULES
+from tests.data.aws.config import LIST_CONFIGURATION_RECORDERS
+from tests.data.aws.config import LIST_DELIVERY_CHANNELS
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_configuration_recorders(neo4j_session, *args):
+@patch.object(
+    cartography.intel.aws.config, "get_config_rules", return_value=LIST_CONFIG_RULES
+)
+@patch.object(
+    cartography.intel.aws.config,
+    "get_delivery_channels",
+    return_value=LIST_DELIVERY_CHANNELS,
+)
+@patch.object(
+    cartography.intel.aws.config,
+    "get_configuration_recorders",
+    return_value=LIST_CONFIGURATION_RECORDERS,
+)
+def test_sync_config(mock_recorders, mock_channels, mock_rules, neo4j_session):
     """
-    Ensure that expected configuration recorders get loaded with their key fields.
+    Ensure that sync() creates AWSConfigurationRecorder, AWSConfigDeliveryChannel, and AWSConfigRule nodes.
     """
-    data = tests.data.aws.config.LIST_CONFIGURATION_RECORDERS
-    cartography.intel.aws.config.load_configuration_recorders(
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    cartography.intel.aws.config.sync(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    expected_nodes = {
+    # Verify AWSConfigurationRecorder nodes
+    assert check_nodes(
+        neo4j_session,
+        "AWSConfigurationRecorder",
+        [
+            "id",
+            "name",
+            "recording_group_all_supported",
+            "recording_group_include_global_resource_types",
+            "region",
+        ],
+    ) == {
         (
             "default:000000000000:us-east-1",
             "default",
@@ -29,40 +63,12 @@ def test_load_configuration_recorders(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:AWSConfigurationRecorder)
-        RETURN n.id, n.name, n.recording_group_all_supported,
-        n.recording_group_include_global_resource_types, n.region
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.name"],
-            n["n.recording_group_all_supported"],
-            n["n.recording_group_include_global_resource_types"],
-            n["n.region"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
-
-
-def test_load_delivery_channels(neo4j_session, *args):
-    """
-    Ensure that expected delivery channels get loaded with their key fields.
-    """
-    data = tests.data.aws.config.LIST_DELIVERY_CHANNELS
-    cartography.intel.aws.config.load_delivery_channels(
+    # Verify AWSConfigDeliveryChannel nodes
+    assert check_nodes(
         neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
+        "AWSConfigDeliveryChannel",
+        ["id", "name", "s3_bucket_name", "region"],
+    ) == {
         (
             "default:000000000000:us-east-1",
             "default",
@@ -71,74 +77,35 @@ def test_load_delivery_channels(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:AWSConfigDeliveryChannel)
-        RETURN n.id, n.name, n.s3_bucket_name, n.region
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.name"],
-            n["n.s3_bucket_name"],
-            n["n.region"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
-
-
-def test_load_config_rules(neo4j_session, *args):
-    """
-    Ensure that expected delivery channels get loaded with their key fields.
-    """
-    data = tests.data.aws.config.LIST_CONFIG_RULES
-    cartography.intel.aws.config.load_config_rules(
+    # Verify AWSConfigRule nodes
+    assert check_nodes(
         neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
+        "AWSConfigRule",
+        [
+            "id",
+            "name",
+            "description",
+            "source_owner",
+            "source_identifier",
+            "created_by",
+            "region",
+        ],
+    ) == {
         (
-            "arn:aws:config:us-east-1:000000000000:config-rule/aws-service-rule/securityhub.amazonaws.com/config-rule-magmce",  # noqa:E501
-            "arn:aws:config:us-east-1:000000000000:config-rule/aws-service-rule/securityhub.amazonaws.com/config-rule-magmce",  # noqa:E501
+            "arn:aws:config:us-east-1:000000000000:config-rule/aws-service-rule/securityhub.amazonaws.com/config-rule-magmce",  # noqa: E501
             "securityhub-alb-http-drop-invalid-header-enabled-9d3e1985",
             "Test description",
             "AWS",
             "ALB_HTTP_DROP_INVALID_HEADER_ENABLED",
-            tuple(
-                [
-                    "{'EventSource': 'aws.config', 'MessageType': 'ConfigurationItemChangeNotification'}",
-                ],
-            ),
             "securityhub.amazonaws.com",
             "us-east-1",
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:AWSConfigRule)
-        RETURN n.id, n.arn, n.name, n.description, n.source_owner, n.source_identifier,
-        n.source_details, n.created_by, n.region
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.arn"],
-            n["n.name"],
-            n["n.description"],
-            n["n.source_owner"],
-            n["n.source_identifier"],
-            tuple(n["n.source_details"]),
-            n["n.created_by"],
-            n["n.region"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
+    # Verify source_details separately — it's a list property which is unhashable inside check_nodes()
+    result = neo4j_session.run("MATCH (n:AWSConfigRule) RETURN n.source_details")
+    records = list(result)
+    assert len(records) == 1
+    assert records[0]["n.source_details"] == [
+        "{'EventSource': 'aws.config', 'MessageType': 'ConfigurationItemChangeNotification'}",
+    ]

@@ -69,7 +69,12 @@ def test_load_services(neo4j_session, _create_test_cluster):
     )
 
     # Assert: Expect that the services were loaded
-    expected_nodes = {("my-service",)}
+    expected_nodes = {
+        ("my-service",),
+        ("api-service",),
+        ("app-service",),
+        ("simple-service",),
+    }
     assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == expected_nodes
 
 
@@ -86,6 +91,9 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
     # Assert: Expect services to be in the correct namespace
     expected_rels = {
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-service"),
+        (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "api-service"),
+        (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "app-service"),
+        (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "simple-service"),
     }
     assert (
         check_rels(
@@ -102,6 +110,9 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
     # Assert: Expect services to be in the correct cluster
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-service"),
+        (KUBERNETES_CLUSTER_NAMES[0], "api-service"),
+        (KUBERNETES_CLUSTER_NAMES[0], "app-service"),
+        (KUBERNETES_CLUSTER_NAMES[0], "simple-service"),
     }
     assert (
         check_rels(
@@ -364,7 +375,10 @@ def test_clusterip_service_does_not_create_loadbalancer_relationship(
 
     # Assert: Service was loaded
     assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == {
-        ("my-service",)
+        ("my-service",),
+        ("api-service",),
+        ("app-service",),
+        ("simple-service",),
     }
 
     # Assert: No USES_LOAD_BALANCER relationship (ClusterIP services don't have load_balancer_dns_names)

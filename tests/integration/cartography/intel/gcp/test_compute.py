@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp.compute
+import cartography.intel.gcp.iam
 import tests.data.gcp.compute
 from cartography.graph.job import GraphJob
 from tests.integration.util import check_nodes
@@ -9,6 +10,24 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "project-abc"
+
+# A service account whose email matches the one attached to the instances in
+# tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE, so that running iam.sync()
+# before compute.sync() lets the RUNS_AS edge match on email.
+INSTANCE_SERVICE_ACCOUNTS = [
+    {
+        "name": (
+            "projects/project-abc/serviceAccounts/"
+            "my-svc-account@developer.gserviceaccount.com"
+        ),
+        "projectId": "project-abc",
+        "uniqueId": "111111111111111111111",
+        "email": "my-svc-account@developer.gserviceaccount.com",
+        "displayName": "Instance Service Account",
+        "oauth2ClientId": "111111111111111111111",
+        "disabled": False,
+    },
+]
 
 
 def _create_test_project(neo4j_session, project_id: str, update_tag: int):
@@ -20,6 +39,22 @@ def _create_test_project(neo4j_session, project_id: str, update_tag: int):
         SET p.lastupdated = $gcp_update_tag
         """,
         ProjectId=project_id,
+        gcp_update_tag=update_tag,
+    )
+
+
+def _create_test_service_account(
+    neo4j_session, sa_id: str, email: str, update_tag: int
+):
+    """Helper to create a GCPServiceAccount node for testing."""
+    neo4j_session.run(
+        """
+        MERGE (sa:GCPServiceAccount{id:$SaId})
+        ON CREATE SET sa.firstseen = timestamp()
+        SET sa.email = $Email, sa.lastupdated = $gcp_update_tag
+        """,
+        SaId=sa_id,
+        Email=email,
         gcp_update_tag=update_tag,
     )
 
@@ -199,6 +234,26 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
         ),
     }
 
+    # Assert - Ontology projection fields populated from raw API payload
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "creation_timestamp", "private_ip", "public_ip"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "2018-02-16T10:42:04.362-08:00",
+            "10.0.0.2",
+            "1.2.3.4",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "2018-04-19T05:24:54.903-07:00",
+            "10.0.0.3",
+            "1.3.4.5",
+        ),
+    }
+
     # Assert - Project to Instance relationship created
     assert check_rels(
         neo4j_session,
@@ -312,6 +367,200 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
             "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0/accessconfigs/ONE_TO_ONE_NAT",
         ),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
+)
+def test_sync_gcp_instances_service_account(mock_get_instances, neo4j_session):
+    """Test that instances expose service_account_email and link to their GCPServiceAccount."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    # Pre-load the service account the instances run as, so the RUNS_AS edge can match on email
+    _create_test_service_account(
+        neo4j_session,
+        "my-svc-account",
+        "my-svc-account@developer.gserviceaccount.com",
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - service_account_email property is populated on the instances
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "service_account_email"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+    }
+
+    # Assert - Instance to ServiceAccount RUNS_AS relationship created
+    assert check_rels(
+        neo4j_session,
+        "GCPInstance",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "RUNS_AS",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_project_custom_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_service_accounts",
+    return_value=INSTANCE_SERVICE_ACCOUNTS,
+)
+def test_iam_then_compute_creates_runs_as(
+    mock_get_sa, mock_get_roles, mock_get_instances, neo4j_session
+):
+    """Run iam.sync() then compute.sync() in the orchestration order and confirm
+    compute matches the GCPServiceAccount that iam just created (RUNS_AS edge)."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+        "ORG_RESOURCE_NAME": "organizations/123456789012",
+    }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    # Act - IAM first (creates GCPServiceAccount), then Compute (creates RUNS_AS)
+    cartography.intel.gcp.iam.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - instances are linked to the service account ingested by iam.sync
+    assert check_rels(
+        neo4j_session,
+        "GCPInstance",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "RUNS_AS",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
+)
+def test_compute_alone_creates_no_runs_as(mock_get_instances, neo4j_session):
+    """Selective-sync caveat: with `--gcp-requested-syncs compute`, IAM does not
+    run, so no GCPServiceAccount exists and no RUNS_AS edge is created. The
+    service_account_email property is still populated on the instance."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    # Act - compute only, no IAM sync beforehand
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - property populated even though IAM did not run
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "service_account_email"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+    }
+
+    # Assert - no RUNS_AS edge, since the service account node does not exist
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPInstance",
+            "id",
+            "GCPServiceAccount",
+            "email",
+            "RUNS_AS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 @patch.object(
@@ -541,6 +790,39 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
             "project-abc",
             "europe-west2",
         ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "10.0.0.30",
+            "project-abc",
+            "europe-west2",
+        ),
+    }
+
+    # Assert - lb_type derived from the target proxy / pool collection
+    assert check_nodes(
+        neo4j_session,
+        "GCPForwardingRule",
+        ["id", "lb_type"],
+    ) == {
+        ("projects/project-abc/global/forwardingRules/global-rule-1", "https"),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+            "network",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
+            "vpn",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+            "network",
+        ),
+        # Backend-service-only forwarding rule (no `target`): lb_type falls back
+        # to the backendService collection => "network" (L4 Network LB family).
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
+            "network",
+        ),
     }
 
 
@@ -620,6 +902,10 @@ def test_sync_gcp_forwarding_rules_with_relationships(
         (
             "projects/project-abc/regions/europe-west2/subnetworks/default",
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-tcp-no-target-3333",
         ),
     }
 
@@ -909,8 +1195,8 @@ def test_sync_gcp_firewall_rules_with_target_tags(
         tests.data.gcp.compute.VPC_RESPONSE_2,
     ],
 )
-def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
-    """Test that cleanup removes VPCs from other projects because it is not scoped."""
+def test_vpc_cleanup_scoped_to_project(mock_get_vpcs, neo4j_session):
+    """Test that VPC cleanup is scoped to the current project and preserves other projects' VPCs."""
     # Arrange
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
     neo4j_session.run("MATCH (n) DETACH DELETE n")

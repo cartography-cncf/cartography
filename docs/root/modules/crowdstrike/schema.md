@@ -1,10 +1,34 @@
 ## Crowdstrike Schema
 
+### CrowdstrikeTenant
+
+Representation of a CrowdStrike customer tenant. The `id` field is the
+customer's CID (Customer ID); CrowdstrikeHost and SpotlightVulnerability
+nodes belonging to that tenant are linked via `RESOURCE` and cleaned up
+together when stale. The node also carries the shared `:Tenant` label so
+cross-module queries that match `(:Tenant)` discover this organizational
+boundary, mirroring the convention used by other tenant roots such as
+`KandjiTenant` and `GoogleWorkspaceTenant`.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The CrowdStrike CID for this tenant |
+
+#### Relationships
+
+- CrowdstrikeTenant owns CrowdstrikeHost and SpotlightVulnerability for cleanup scoping.
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
+    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
+    ```
+
 ### CrowdstrikeHost
 
 Representation of a Crowdstrike Host
 
-> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, KandjiDevice, TailscaleDevice).
+> **Ontology Mapping**: This node participates in the canonical `Device` ontology, enabling cross-platform device correlation via `(:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost)` relationships.
 
 | Field | Description |
 |-------|-------------|
@@ -12,6 +36,7 @@ Representation of a Crowdstrike Host
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The device ID for this host |
 | cid | The customer ID |
+| email | Email address associated with the host record in CrowdStrike. |
 | instance\_id | The AWS instance ID associated with this host |
 | status | Containment Status of the machine. "Normal" denotes good operations; other values might mean reduced functionality or support. |
 | hostname | The name of the machine. |
@@ -50,6 +75,11 @@ Representation of a Crowdstrike Host
     (CrowdstrikeHost)-[HAS_VULNERABILITY]->(SpotlightVulnerability)
     ```
 
+- CrowdstrikeHost belongs to a CrowdstrikeTenant
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
+    ```
+
 ### SpotlightVulnerability
 
 Representation of a Crowdstrike Vulnerability
@@ -82,7 +112,12 @@ Representation of a Crowdstrike Vulnerability
     (SpotlightVulnerability)-[HAS_CVE]->(CVE)
     ```
 
-### CVE::CrowdstrikeFinding
+- SpotlightVulnerability belongs to a CrowdstrikeTenant
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
+    ```
+
+### CrowdstrikeFinding::CVE
 
 Representation of a CVE
 

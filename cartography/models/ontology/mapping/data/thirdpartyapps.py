@@ -72,7 +72,7 @@ keycloak_mapping = OntologyMapping(
 )
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraApplication",
@@ -87,7 +87,12 @@ entra_mapping = OntologyMapping(
                     node_field="display_name",
                     required=True,
                 ),
-                # enabled: Not available - Entra applications don't have an enabled field in current schema
+                # enabled: Microsoft Graph exposes `accountEnabled` on the
+                # service principal (the tenant-local instance), not on the
+                # application registration. `_ont_enabled` is projected onto
+                # EntraApplication by the `ontology_entra_application_projection`
+                # analysis job, which copies it from the linked
+                # EntraServicePrincipal.
                 # native_app: Not available - Application type not currently ingested
                 OntologyFieldMapping(
                     ontology_field="protocol",
@@ -132,9 +137,58 @@ okta_mapping = OntologyMapping(
     ],
 )
 
+slack_mapping = OntologyMapping(
+    module_name="slack",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SlackBot",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",  # Note: This is the bot's Slack user ID, not an OAuth client_id
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="enabled",
+                    node_field="deleted",
+                    special_handling="invert_boolean",
+                ),
+                # native_app: Not applicable to Slack bots
+                # protocol: Not applicable to Slack bots
+            ],
+        ),
+    ],
+)
+
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudSaaSApplication",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                ),
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "okta": okta_mapping,
+    "slack": slack_mapping,
+    "jumpcloud": jumpcloud_mapping,
 }

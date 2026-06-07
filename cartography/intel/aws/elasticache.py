@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.elasticache.cluster import ElasticacheClusterSchema
 from cartography.models.aws.elasticache.topic import ElasticacheTopicSchema
 from cartography.stats import get_stats_client
@@ -23,7 +24,7 @@ def get_elasticache_clusters(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client("elasticache", region_name=region)
+    client = create_boto3_client(boto3_session, "elasticache", region_name=region)
     paginator = client.get_paginator("describe_cache_clusters")
     clusters: list[dict[str, Any]] = []
     for page in paginator.paginate():
@@ -107,7 +108,6 @@ def load_elasticache_topics(
 ) -> None:
     if not topics:
         return
-    logger.info(f"Loading {len(topics)} ElastiCache topics into graph.")
     load(
         neo4j_session,
         ElasticacheTopicSchema(),

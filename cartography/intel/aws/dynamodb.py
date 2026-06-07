@@ -6,7 +6,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.dynamodb.archival import DynamoDBArchivalSummarySchema
 from cartography.models.aws.dynamodb.backups import DynamoDBBackupSchema
 from cartography.models.aws.dynamodb.billing import DynamoDBBillingModeSummarySchema
@@ -30,7 +31,8 @@ def get_dynamodb_tables(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "dynamodb",
         region_name=region,
         config=get_botocore_config(),
@@ -206,9 +208,6 @@ def load_dynamodb_tables(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB tables ({len(tables_data)}) for region '{region}' into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBTableSchema(),
@@ -227,9 +226,6 @@ def load_dynamodb_gsi(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB GSIs ({len(gsi_data)}) for region '{region}' into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBGSISchema(),
@@ -247,9 +243,6 @@ def load_dynamodb_billing(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB billing summaries ({len(billing_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBBillingModeSummarySchema(),
@@ -266,9 +259,6 @@ def load_dynamodb_streams(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB streams ({len(stream_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBStreamSchema(),
@@ -285,9 +275,6 @@ def load_dynamodb_sse(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB SSE descriptions ({len(sse_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBSSEDescriptionSchema(),
@@ -304,9 +291,6 @@ def load_dynamodb_archival(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB archival summaries ({len(archival_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBArchivalSummarySchema(),
@@ -323,9 +307,6 @@ def load_dynamodb_restore(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB restore summaries ({len(restore_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBRestoreSummarySchema(),
@@ -342,9 +323,6 @@ def load_dynamodb_backups(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading DynamoDB backup stubs ({len(backup_data)}) into graph.",
-    )
     load(
         neo4j_session,
         DynamoDBBackupSchema(),

@@ -16,15 +16,13 @@ class AzureDatabaseThreatDetectionPolicyProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    kind: PropertyRef = PropertyRef("kind")
     emailadmins: PropertyRef = PropertyRef("email_account_admins")
     emailaddresses: PropertyRef = PropertyRef("email_addresses")
     retentiondays: PropertyRef = PropertyRef("retention_days")
     state: PropertyRef = PropertyRef("state")
     storageendpoint: PropertyRef = PropertyRef("storage_endpoint")
-    useserverdefault: PropertyRef = PropertyRef("use_server_default")
     disabledalerts: PropertyRef = PropertyRef("disabled_alerts")
+    creationtime: PropertyRef = PropertyRef("creation_time")
 
 
 @dataclass(frozen=True)

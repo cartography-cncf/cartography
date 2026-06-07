@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from cartography.rules.runners import _run_single_rule
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.result import FactResult
@@ -42,6 +43,8 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
     mock_rule.name = "Test Rule"
     mock_rule.description = "Test Description"
     mock_rule.facts = (mock_fact1, mock_fact2, mock_fact3)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -90,6 +93,10 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
     assert rule_result.rule_id == "rule-1"
     assert rule_result.rule_name == "Test Rule"
 
+    # Verify tags and frameworks are propagated to RuleResult
+    assert rule_result.rule_tags == ("test",)
+    assert rule_result.rule_frameworks == ()
+
     assert (
         len(rule_result.facts) == 3
     ), f"Expected 3 fact results, got {len(rule_result.facts)}"
@@ -114,6 +121,8 @@ def test_run_single_rule_with_zero_findings(mock_run_fact):
     mock_rule.name = "Empty Rule"
     mock_rule.description = "No results"
     mock_rule.facts = (mock_fact,)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -143,6 +152,10 @@ def test_run_single_rule_with_zero_findings(mock_run_fact):
     assert len(rule_result.facts) == 1
     assert len(rule_result.facts[0].findings) == 0
 
+    # Verify tags and frameworks are propagated to RuleResult
+    assert rule_result.rule_tags == ("test",)
+    assert rule_result.rule_frameworks == ()
+
 
 @patch("cartography.rules.runners._run_fact")
 @patch.dict("cartography.rules.runners.RULES")
@@ -162,6 +175,8 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     mock_rule.name = "Rule 1"
     mock_rule.description = "Desc"
     mock_rule.facts = (mock_fact1, mock_fact2)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -194,3 +209,60 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     assert len(rule_result.facts) == 1
     assert rule_result.facts[0].fact_id == "KEEP-FACT"
     assert rule_result.counter.total_findings == 7
+
+
+@patch("cartography.rules.runners._run_fact")
+@patch.dict("cartography.rules.runners.RULES")
+def test_run_single_rule_propagates_frameworks(mock_run_fact):
+    """Test that tags and frameworks are correctly propagated to RuleResult."""
+    # Arrange
+    mock_fact = MagicMock(spec=Fact)
+    mock_fact.id = "fact-fw"
+    mock_fact.maturity = Maturity.STABLE
+
+    cis_framework = Framework(
+        name="CIS AWS Foundations Benchmark",
+        short_name="CIS",
+        scope="aws",
+        revision="5.0",
+        requirement="1.14",
+    )
+
+    mock_rule = MagicMock(spec=Rule)
+    mock_rule.id = "rule-fw"
+    mock_rule.name = "Framework Rule"
+    mock_rule.description = "Rule with frameworks"
+    mock_rule.facts = (mock_fact,)
+    mock_rule.tags = ("iam", "credentials", "stride:spoofing")
+    mock_rule.frameworks = (cis_framework,)
+
+    # Add to RULES dict
+    from cartography.rules.runners import RULES
+
+    RULES["rule-fw"] = mock_rule
+
+    mock_run_fact.return_value = FactResult(
+        fact_id="fact-fw",
+        fact_name="Framework Fact",
+        fact_description="Fact description",
+        fact_provider="aws",
+        findings=[],
+    )
+
+    # Act
+    rule_result = _run_single_rule(
+        rule_name="rule-fw",
+        driver=MagicMock(),
+        database="neo4j",
+        output_format="json",
+        neo4j_uri="bolt://localhost:7687",
+        fact_filter=None,
+    )
+
+    # Assert - verify tags and frameworks are propagated
+    assert rule_result.rule_tags == ("iam", "credentials", "stride:spoofing")
+    assert len(rule_result.rule_frameworks) == 1
+    assert rule_result.rule_frameworks[0].short_name == "cis"  # Normalized to lowercase
+    assert rule_result.rule_frameworks[0].scope == "aws"
+    assert rule_result.rule_frameworks[0].revision == "5.0"
+    assert rule_result.rule_frameworks[0].requirement == "1.14"
