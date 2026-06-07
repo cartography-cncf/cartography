@@ -27,6 +27,7 @@ _inactive_user_active_accounts_ontology = Fact(
     MATCH (a:UserAccount)
     RETURN COUNT(a) AS count
     """,
+    identity_fields=("source", "account_id", "user_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )

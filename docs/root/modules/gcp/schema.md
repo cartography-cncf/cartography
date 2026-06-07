@@ -354,6 +354,12 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     (GCPBackendService)-[:EXPOSE]->(GCPInstance)
     ```
 
+- GCP Instances run as the GCP Service Account attached to them, matched on the service account email.
+
+    ```
+    (GCPInstance)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
+
 ### GCPNetworkTag
 
 Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are defined on GCP instances for use in [network firewall routing](https://cloud.google.com/blog/products/gcp/labelling-and-grouping-your-google-cloud-platform-resources).

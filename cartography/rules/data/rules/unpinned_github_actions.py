@@ -46,6 +46,7 @@ _unpinned_github_actions_fact = Fact(
     RETURN COUNT(DISTINCT a) AS count
     """,
     asset_id_field="action_id",
+    identity_fields=("repo", "workflow_path", "action_id"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )

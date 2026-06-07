@@ -49,6 +49,7 @@ def test_sync_agents(neo4j_session, mocker):
             AGENT_ID,
             "uuid-123-456-789",
             "test-computer-01",
+            "203.0.113.10",
             True,
             "Windows 10",
             "1909",
@@ -62,6 +63,7 @@ def test_sync_agents(neo4j_session, mocker):
             AGENT_ID_2,
             "uuid-456-789-123",
             "test-computer-02",
+            "203.0.113.11",
             False,
             "Ubuntu 20.04",
             "5.4.0-89-generic",
@@ -75,6 +77,7 @@ def test_sync_agents(neo4j_session, mocker):
             AGENT_ID_3,
             "uuid-789-123-456",
             "test-computer-03",
+            None,
             True,
             "macOS",
             "12.6.1",
@@ -93,6 +96,7 @@ def test_sync_agents(neo4j_session, mocker):
             "id",
             "uuid",
             "computer_name",
+            "public_ip",
             "firewall_enabled",
             "os_name",
             "os_revision",
@@ -105,6 +109,18 @@ def test_sync_agents(neo4j_session, mocker):
     )
 
     assert actual_nodes == expected_nodes
+
+    local_ips = {
+        (record["id"], tuple(record["local_ips"]))
+        for record in neo4j_session.run(
+            "MATCH (a:S1Agent) RETURN a.id AS id, a.local_ips AS local_ips",
+        )
+    }
+    assert local_ips == {
+        (AGENT_ID, ("192.168.1.10",)),
+        (AGENT_ID_2, ("10.0.0.20",)),
+        (AGENT_ID_3, ()),
+    }
 
     # Verify that relationships to the account were created
     expected_rels = {

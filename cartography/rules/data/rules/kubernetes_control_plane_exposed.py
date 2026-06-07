@@ -41,6 +41,7 @@ _aws_eks_control_plane_exposed = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -79,6 +80,7 @@ _gcp_gke_control_plane_exposed = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -118,6 +120,7 @@ _azure_aks_control_plane_exposed = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
