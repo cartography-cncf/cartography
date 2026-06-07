@@ -285,6 +285,10 @@ def assert_trivy_finding_extended_fields(neo4j_session: Session) -> None:
         MATCH (f:TrivyImageFinding)
         WHERE f.cwe_ids IS NOT NULL
         RETURN f.id AS id, f.cwe_ids AS cwe_ids, f.status AS status,
+               f._ont_problem_types AS problem_types,
+               f._ont_vuln_status AS vuln_status,
+               f.severity AS severity, f._ont_base_severity AS base_severity,
+               f._ont_source AS source,
                f.data_source_id AS data_source_id, f.data_source_name AS data_source_name,
                f.layer_digest AS layer_digest, f.references AS refs
         LIMIT 5
@@ -295,6 +299,16 @@ def assert_trivy_finding_extended_fields(neo4j_session: Session) -> None:
     for row in result:
         assert row["cwe_ids"] is not None, f"cwe_ids should be set for {row['id']}"
         assert row["status"] is not None, f"status should be set for {row['id']}"
+        assert (
+            row["problem_types"] == row["cwe_ids"]
+        ), f"problem_types should mirror cwe_ids for {row['id']}"
+        assert (
+            row["vuln_status"] == row["status"]
+        ), f"vuln_status should mirror status for {row['id']}"
+        assert (
+            row["base_severity"] == row["severity"]
+        ), f"base_severity should mirror severity for {row['id']}"
+        assert row["source"] == "trivy", f"_ont_source should be trivy for {row['id']}"
         assert (
             row["data_source_id"] is not None
         ), f"data_source_id should be set for {row['id']}"

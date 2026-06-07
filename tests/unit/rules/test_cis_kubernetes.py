@@ -41,6 +41,7 @@ from cartography.rules.data.rules.cis_kubernetes_rbac import (
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_13_sa_token_creation,
 )
+from cartography.rules.data.rules.cis_kubernetes_workloads import _cypher_string_list
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_1_6_sa_token_mounts,
 )
@@ -197,6 +198,94 @@ class TestCisKubernetesFactMetadata:
         for fact in rule.facts:
             assert "COUNT" in fact.cypher_count_query
             assert "AS count" in fact.cypher_count_query
+
+
+class TestCisKubernetesServiceAccountTokenMounts:
+    """Test CIS Kubernetes 5.1.6 service account token mount query behavior."""
+
+    def test_service_account_token_mounts_excludes_infrastructure_namespaces(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_namespace IN" in fact.cypher_query
+        assert '"kube-system"' in fact.cypher_query
+        assert '"istio-system"' in fact.cypher_query
+        assert '"cert-manager"' in fact.cypher_query
+        assert '"calico-system"' in fact.cypher_query
+        assert '"ingress-nginx"' in fact.cypher_query
+        assert '"gatekeeper-system"' in fact.cypher_query
+        assert '"kyverno"' in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_infrastructure_service_accounts(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name IN" in fact.cypher_query
+        assert '"aws-load-balancer-controller"' in fact.cypher_query
+        assert '"cluster-autoscaler"' in fact.cypher_query
+        assert '"karpenter"' in fact.cypher_query
+        assert '"metrics-server"' in fact.cypher_query
+        assert '"vertical-pod-autoscaler-recommender"' in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_irsa_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "sa.aws_role_arn IS NOT NULL" in fact.cypher_query
+        assert "EXISTS { (sa)-[:ASSUMES_ROLE]->(:AWSRole) }" in fact.cypher_query
+        assert "service_account_assumes_aws_role" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_gke_workload_identity_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "sa.gcp_service_account IS NOT NULL" in fact.cypher_query
+        assert (
+            "EXISTS { (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }"
+            in fact.cypher_query
+        )
+        assert "service_account_assumes_gcp_identity" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_default_sa_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_query
+
+    def test_service_account_token_mounts_uses_ontology_service_account_name(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert (
+            "coalesce(sa._ont_name, sa.name, pod.service_account_name)"
+            in fact.cypher_query
+        )
+        assert "service_account_name AS service_account_name" in fact.cypher_query
+
+    def test_service_account_token_mounts_visual_query_matches_filter(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_visual_query
+        assert "service_account_namespace IN" in fact.cypher_visual_query
+        assert "service_account_name IN" in fact.cypher_visual_query
+        assert "service_account_assumes_aws_role" in fact.cypher_visual_query
+        assert "service_account_assumes_gcp_identity" in fact.cypher_visual_query
+
+    def test_service_account_token_mounts_count_query_matches_candidate_filter(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_count_query
+        assert "service_account_namespace IN" in fact.cypher_count_query
+        assert "service_account_name IN" in fact.cypher_count_query
+        assert "service_account_assumes_aws_role" in fact.cypher_count_query
+        assert "service_account_assumes_gcp_identity" in fact.cypher_count_query
+        assert "effective_automount = true" not in fact.cypher_count_query
+
+    def test_cypher_string_list_escapes_values_for_double_quoted_literals(self):
+        assert (
+            _cypher_string_list(
+                ("kube-system", "team's-controller", 'quote"controller')
+            )
+            == '["kube-system", "team\'s-controller", "quote\\"controller"]'
+        )
 
 
 class TestCisKubernetesRuleRegistration:

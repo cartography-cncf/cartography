@@ -261,6 +261,8 @@ class Fact:
     This count includes all assets regardless of whether they match the Fact criteria.
     Should return a single value with `RETURN COUNT(...) AS count`.
     """
+    identity_fields: tuple[str, ...]
+    """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
     asset_id_field: str | None = None
     """
     The field name in the output model that uniquely identifies an asset.
@@ -268,6 +270,12 @@ class Fact:
     rather than the total number of finding rows. This is needed when a single asset
     can produce multiple finding rows (e.g., one security group with multiple violating rules).
     """
+
+    def __post_init__(self) -> None:
+        if not self.identity_fields:
+            raise ValueError(
+                f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
 
 
 class Finding(BaseModel):

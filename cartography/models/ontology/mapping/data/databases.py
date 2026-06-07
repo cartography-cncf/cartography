@@ -188,8 +188,10 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="version", node_field="database_version"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="type", node_field="database_engine"
+                ),
                 OntologyFieldMapping(ontology_field="location", node_field="region"),
-                # db type: database_version contains engine+version (e.g., "POSTGRES_14"), would need parsing
                 # endpoint: connection_name available but format differs from standard endpoints
                 # port: not directly available in GCPCloudSQLInstance
                 # encrypted: not directly available in GCPCloudSQLInstance

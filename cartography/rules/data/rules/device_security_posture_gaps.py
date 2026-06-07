@@ -83,6 +83,7 @@ _duo_endpoint_posture_gaps = Fact(
     RETURN COUNT(endpoint) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.DUO,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -130,6 +131,7 @@ _duo_phone_posture_gaps = Fact(
     RETURN COUNT(phone) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.DUO,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -197,6 +199,7 @@ _jamf_computer_posture_gaps = Fact(
     RETURN COUNT(computer) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.JAMF,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -250,6 +253,7 @@ _jamf_mobile_device_posture_gaps = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.JAMF,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -334,6 +338,7 @@ _tailscale_device_posture_gaps = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )

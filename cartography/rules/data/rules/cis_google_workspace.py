@@ -36,8 +36,8 @@ CIS_REFERENCES = [
 class UserWithout2SVOutput(Finding):
     """Output model for users without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     is_admin: bool | None = None
     org_unit_path: str | None = None
     is_enrolled_in_2sv: bool | None = None
@@ -74,6 +74,7 @@ _gw_user_2sv_not_enforced = Fact(
     MATCH (u:GoogleWorkspaceUser)
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -109,8 +110,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
 class AdminWithout2SVOutput(Finding):
     """Output model for admin accounts without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     is_admin: bool | None = None
     is_delegated_admin: bool | None = None
@@ -154,6 +155,7 @@ _gw_admin_2sv_not_enforced = Fact(
     WHERE coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -239,6 +241,7 @@ _gw_super_admin_count_too_low = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -297,6 +300,7 @@ _gw_super_admin_count_too_high = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -328,8 +332,8 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
 class SuperAdminDualRoleOutput(Finding):
     """Output model for Super Admins that also hold delegated admin roles."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     tenant_id: str | None = None
 
@@ -360,6 +364,7 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     WHERE coalesce(u.is_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )

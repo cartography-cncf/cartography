@@ -289,6 +289,8 @@ def _search_asset_types_from_full_name_mappings() -> list[str]:
 
 class PolicyBindingsSyncStatus(str, Enum):
     SUCCESS = "success"
+    # Retained for compatibility with callers that may handle older results. The
+    # current sync path attempts CAI directly and reports concrete API errors.
     SKIPPED_API_DISABLED = "skipped_api_disabled"
     SKIPPED_PERMISSION_DENIED = "skipped_permission_denied"
     SKIPPED_RATE_LIMIT = "skipped_rate_limit"
@@ -938,8 +940,11 @@ def sync(
     except PermissionDenied as e:
         logger.warning(
             "Permission denied when fetching policy bindings for project %s. "
-            "Skipping policy bindings sync. To enable this feature, grant "
-            "roles/cloudasset.viewer at the organization level. Error: %s",
+            "Skipping policy bindings sync. To enable this feature, enable "
+            "the Cloud Asset API on the credential/quota project, grant "
+            "roles/cloudasset.viewer at the organization level, and grant "
+            "serviceusage.services.use or roles/serviceusage.serviceUsageConsumer "
+            "as needed. Error: %s",
             project_id,
             e,
         )

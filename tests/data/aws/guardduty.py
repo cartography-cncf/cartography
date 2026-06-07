@@ -33,6 +33,7 @@ LIST_FINDINGS = {
         "74b1234567890abcdef1234567890abcdef",
         "85c2345678901bcdef2345678901bcdef0",
         "96d3456789012cdef3456789012cdef01",
+        "a7e4567890123def4567890123def45670",
     ]
 }
 
@@ -257,6 +258,64 @@ GET_FINDINGS = {
                 "ServiceName": "guardduty",
             },
         },
+        {
+            "Id": "a7e4567890123def4567890123def45670",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/a7e4567890123def4567890123def45670",
+            "Type": "CredentialAccess:IAMUser/AnomalousBehavior",
+            "Title": "Assumed role is exhibiting anomalous credential-access behavior",
+            "Description": "Assumed role session is making anomalous API calls.",
+            "Severity": 7.8,
+            "Confidence": 6.5,
+            "CreatedAt": datetime(2023, 1, 18, 11, 0, 0),
+            "UpdatedAt": datetime(2023, 1, 18, 11, 15, 0),
+            "EventFirstSeen": datetime(2023, 1, 18, 11, 0, 0),
+            "EventLastSeen": datetime(2023, 1, 18, 11, 15, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "AccessKey",
+                "AccessKeyDetails": {
+                    "AccessKeyId": "ASIAEXAMPLEASSUMEDKEY",
+                    "PrincipalId": "AROAEXAMPLEROLEID:session-foo",
+                    "UserName": "GeneratedFindingRoleSession",
+                    "UserType": "AssumedRole",
+                },
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "AWS_API_CALL",
+                    "AwsApiCallAction": {
+                        "Api": "GetSecretValue",
+                        "CallerType": "Remote IP",
+                        "RemoteIpDetails": {
+                            "IpAddressV4": "203.0.113.42",
+                            "Country": {
+                                "CountryCode": "US",
+                                "CountryName": "United States",
+                            },
+                            "City": {"CityName": "Portland"},
+                            "GeoLocation": {"Lat": 45.5152, "Lon": -122.6784},
+                            "Organization": {
+                                "Asn": "16509",
+                                "AsnOrg": "AMAZON-02",
+                                "Isp": "Amazon.com Inc.",
+                                "Org": "Amazon.com Inc.",
+                            },
+                        },
+                        "ServiceName": "secretsmanager.amazonaws.com",
+                    },
+                },
+                "Archived": False,
+                "Count": 4,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 18, 11, 0, 0),
+                "EventLastSeen": datetime(2023, 1, 18, 11, 15, 0),
+                "ResourceRole": "ACTOR",
+                "ServiceName": "guardduty",
+            },
+        },
     ]
 }
 
@@ -468,6 +527,92 @@ GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE = {
     ]
 }
 
+# Two HIGH-severity, active-threat findings that the guardduty_active_threat rule
+# would otherwise flag. One is a GuardDuty *sample* finding (marked by `"sample":
+# true` nested inside the JSON-encoded service.additionalInfo.value string, with
+# the placeholder instance i-99999999); the other is a real finding. Used to prove
+# the sample is ingested but excluded from the rule.
+GET_SAMPLE_FINDINGS = {
+    "Findings": [
+        {
+            "Id": "5a1samplefinding0000000000000000",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/5a1samplefinding0000000000000000",
+            "Type": "Trojan:EC2/PhishingDomainRequest!DNS",
+            "Title": "The EC2 instance i-99999999 queried a phishing domain name.",
+            "Description": "Sample finding generated for testing.",
+            "Severity": 8.0,
+            "Confidence": 8.0,
+            "CreatedAt": datetime(2023, 1, 19, 12, 0, 0),
+            "UpdatedAt": datetime(2023, 1, 19, 12, 15, 0),
+            "EventFirstSeen": datetime(2023, 1, 19, 12, 0, 0),
+            "EventLastSeen": datetime(2023, 1, 19, 12, 15, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "Instance",
+                "InstanceDetails": {"InstanceId": "i-99999999"},
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "DNS_REQUEST",
+                    "DnsRequestAction": {"Domain": "GeneratedFindingDomainName"},
+                },
+                "Archived": False,
+                "Count": 1,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 19, 12, 0, 0),
+                "EventLastSeen": datetime(2023, 1, 19, 12, 15, 0),
+                "ResourceRole": "TARGET",
+                "ServiceName": "guardduty",
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName","sample":true}',
+                    "Type": "default",
+                },
+            },
+        },
+        {
+            "Id": "6b2realfinding00000000000000000",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/6b2realfinding00000000000000000",
+            "Type": "UnauthorizedAccess:EC2/MaliciousIPCaller.Custom",
+            "Title": "EC2 instance is communicating with a malicious IP address",
+            "Description": "Real finding (no sample marker).",
+            "Severity": 8.0,
+            "Confidence": 7.5,
+            "CreatedAt": datetime(2023, 1, 19, 13, 0, 0),
+            "UpdatedAt": datetime(2023, 1, 19, 13, 15, 0),
+            "EventFirstSeen": datetime(2023, 1, 19, 13, 0, 0),
+            "EventLastSeen": datetime(2023, 1, 19, 13, 15, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "Instance",
+                "InstanceDetails": {"InstanceId": "i-realinstance0001"},
+            },
+            "Service": {
+                "Action": {
+                    "ActionType": "NETWORK_CONNECTION",
+                    "NetworkConnectionAction": {"ConnectionDirection": "OUTBOUND"},
+                },
+                "Archived": False,
+                "Count": 1,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 19, 13, 0, 0),
+                "EventLastSeen": datetime(2023, 1, 19, 13, 15, 0),
+                "ResourceRole": "TARGET",
+                "ServiceName": "guardduty",
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName"}',
+                    "Type": "default",
+                },
+            },
+        },
+    ]
+}
+
 # Mock findings data for testing transformations
 SAMPLE_FINDINGS = [
     {
@@ -532,8 +677,12 @@ EXPECTED_TRANSFORM_RESULTS = [
         "region": "us-east-1",
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
+        "sample": None,
         "resource_type": "Instance",
         "resource_id": "i-99999999",
+        "access_key_id": None,
+        "principal_user_id": None,
+        "principal_role_id": None,
         "service_action_type": "NETWORK_CONNECTION",
         "service_count": 5,
         "service_resource_role": "TARGET",
@@ -570,8 +719,12 @@ EXPECTED_TRANSFORM_RESULTS = [
         "region": "us-east-1",
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
+        "sample": None,
         "resource_type": "S3Bucket",
         "resource_id": "test-bucket",
+        "access_key_id": None,
+        "principal_user_id": None,
+        "principal_role_id": None,
         "service_action_type": "AWS_API_CALL",
         "service_count": 12,
         "service_resource_role": "TARGET",
@@ -608,8 +761,12 @@ EXPECTED_TRANSFORM_RESULTS = [
         "region": "us-east-1",
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
+        "sample": None,
         "resource_type": "AccessKey",
         "resource_id": None,  # AccessKey doesn't have resource_id
+        "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+        "principal_user_id": "AIDACKCEVSQ6C2EXAMPLE",
+        "principal_role_id": None,
         "service_action_type": "AWS_API_CALL",
         "service_count": 3,
         "service_resource_role": "ACTOR",
@@ -626,6 +783,48 @@ EXPECTED_TRANSFORM_RESULTS = [
         "api_call_remote_isp": "Amazon.com Inc.",
         "api_call_remote_lat": 47.6062,
         "api_call_remote_lon": -122.3321,
+        "api_call_remote_account_id": None,
+        "api_call_remote_account_affiliated": None,
+    },
+    # Expected IAM AccessKey finding for an AssumedRole
+    {
+        "id": "a7e4567890123def4567890123def45670",
+        "arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/a7e4567890123def4567890123def45670",
+        "type": "CredentialAccess:IAMUser/AnomalousBehavior",
+        "severity": 7.8,
+        "confidence": 6.5,
+        "title": "Assumed role is exhibiting anomalous credential-access behavior",
+        "description": "Assumed role session is making anomalous API calls.",
+        "createdat": datetime(2023, 1, 18, 11, 0, 0),
+        "updatedat": datetime(2023, 1, 18, 11, 15, 0),
+        "eventfirstseen": datetime(2023, 1, 18, 11, 0, 0),
+        "eventlastseen": datetime(2023, 1, 18, 11, 15, 0),
+        "accountid": "123456789012",
+        "region": "us-east-1",
+        "detectorid": "12abc34d56e78f901234567890abcdef",
+        "archived": False,
+        "sample": None,
+        "resource_type": "AccessKey",
+        "resource_id": None,
+        "access_key_id": "ASIAEXAMPLEASSUMEDKEY",
+        "principal_user_id": None,
+        "principal_role_id": "AROAEXAMPLEROLEID",
+        "service_action_type": "AWS_API_CALL",
+        "service_count": 4,
+        "service_resource_role": "ACTOR",
+        "api_call_name": "GetSecretValue",
+        "api_call_service_name": "secretsmanager.amazonaws.com",
+        "api_call_caller_type": "Remote IP",
+        "api_call_error_code": None,
+        "api_call_remote_ip": "203.0.113.42",
+        "api_call_remote_country": "United States",
+        "api_call_remote_city": "Portland",
+        "api_call_remote_org": "Amazon.com Inc.",
+        "api_call_remote_asn": "16509",
+        "api_call_remote_asn_org": "AMAZON-02",
+        "api_call_remote_isp": "Amazon.com Inc.",
+        "api_call_remote_lat": 45.5152,
+        "api_call_remote_lon": -122.6784,
         "api_call_remote_account_id": None,
         "api_call_remote_account_affiliated": None,
     },

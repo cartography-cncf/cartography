@@ -118,11 +118,19 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if network_id and network_id.startswith("/"):
             network_id = network_id.lstrip("/")
 
+        database_version = inst.get("databaseVersion")
+        # `databaseVersion` is shaped as `<ENGINE>_<MAJOR>_<MINOR>` (e.g. POSTGRES_14, MYSQL_8_0,
+        # SQLSERVER_2019_STANDARD). The engine is always the first underscore-delimited segment.
+        database_engine = (
+            database_version.split("_", 1)[0].lower() if database_version else None
+        )
+
         transformed.append(
             {
                 "selfLink": inst.get("selfLink"),
                 "name": inst.get("name"),
-                "databaseVersion": inst.get("databaseVersion"),
+                "databaseVersion": database_version,
+                "database_engine": database_engine,
                 "region": inst.get("region"),
                 "gceZone": inst.get("gceZone"),
                 "state": inst.get("state"),

@@ -3,6 +3,7 @@ import logging
 
 import neo4j
 from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
@@ -10,6 +11,7 @@ from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
 from cartography.intel.microsoft.entra.applications import sync_entra_applications
+from cartography.intel.microsoft.entra.directory_roles import sync_entra_directory_roles
 from cartography.intel.microsoft.entra.federation.aws_identity_center import (
     sync_entra_federation,
 )
@@ -155,6 +157,32 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+
+        # Run directory role sync (definitions + assignments).
+        # This requires the RoleManagement.Read.Directory Graph permission, which
+        # existing app registrations may not have granted. Treat it as an optional
+        # dataset: only an authorization/permission denial is swallowed so the rest
+        # of the Entra ingestion (already-loaded users/groups/etc.) is not aborted.
+        # Other Graph API errors are re-raised so real failures stay visible.
+        try:
+            await sync_entra_directory_roles(
+                neo4j_session,
+                config.entra_tenant_id,
+                config.entra_client_id,
+                config.entra_client_secret,
+                config.update_tag,
+                common_job_parameters,
+            )
+        except APIError as e:
+            if e.response_status_code in (401, 403):
+                logger.warning(
+                    "Skipping Entra directory role sync due to insufficient "
+                    "Microsoft Graph permissions (RoleManagement.Read.Directory "
+                    "is required): %s",
+                    e,
+                )
+            else:
+                raise
 
         # Run federation sync (after all resources are synced)
         await sync_entra_federation(

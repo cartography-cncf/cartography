@@ -45,8 +45,8 @@ CIS_REFERENCES = [
 class AccessKeyNotRotatedOutput(Finding):
     """Output model for access key rotation check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     key_create_date: Neo4jDateTime = None
     days_since_rotation: int | None = None
@@ -66,13 +66,13 @@ _aws_access_key_not_rotated = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
-      AND date(key.createdate_dt) < date() - duration('P90D')
+      AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
         key.createdate_dt AS key_create_date,
-        duration.inDays(date(key.createdate_dt), date()).days AS days_since_rotation,
+        duration.inDays(date(datetime(key.createdate_dt)), date()).days AS days_since_rotation,
         a.id AS account_id,
         a.name AS account
     """,
@@ -80,13 +80,14 @@ _aws_access_key_not_rotated = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
-      AND date(key.createdate_dt) < date() - duration('P90D')
+      AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN *
     """,
     cypher_count_query="""
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -117,8 +118,8 @@ cis_aws_2_13_access_key_not_rotated = Rule(
 class UnusedCredentialsOutput(Finding):
     """Output model for unused credentials check."""
 
-    access_key_id: str | None = None
     user_name: str | None = None
+    access_key_id: str | None = None
     user_arn: str | None = None
     last_used_date: Neo4jDateTime = None
     key_create_date: Neo4jDateTime = None
@@ -137,9 +138,9 @@ _aws_unused_credentials = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, key
-    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
        OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
-           AND date(key.createdate_dt) < date() - duration('P45D'))
+           AND date(datetime(key.createdate_dt)) < date() - duration('P45D'))
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
@@ -153,15 +154,16 @@ _aws_unused_credentials = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
     WITH p, a, user, key
-    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
        OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
-           AND date(key.createdate_dt) < date() - duration('P45D'))
+           AND date(datetime(key.createdate_dt)) < date() - duration('P45D'))
     RETURN *
     """,
     cypher_count_query="""
     MATCH (key:AccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -227,6 +229,7 @@ _aws_user_direct_policies = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="user_arn",
+    identity_fields=("user_arn", "policy_arn"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -297,6 +300,7 @@ _aws_multiple_access_keys = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -367,6 +371,7 @@ _aws_expired_certificates = Fact(
     MATCH (cert:ACMCertificate)
     RETURN COUNT(cert) AS count
     """,
+    identity_fields=("certificate_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

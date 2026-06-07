@@ -61,8 +61,8 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="ip_address"
                 ),
-                # lb_type: not directly available, depends on backend service type
-                # dns_name: GCP uses IP addresses, not DNS names for forwarding rules
+                OntologyFieldMapping(ontology_field="lb_type", node_field="lb_type"),
+                # dns_name: GCP forwarding rules are addressed by IP only — no DNS name field exists
             ],
         ),
     ],

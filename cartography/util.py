@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+import warnings
 from datetime import datetime
 from datetime import timezone
 from functools import partial
@@ -570,6 +571,7 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnauthorizedOperation",
     "UnrecognizedClientException",
     "InternalServerErrorException",
+    "SubscriptionRequiredException",
 ]
 
 AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS = (
@@ -1079,7 +1081,19 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
         awaitables complete. For web applications or other async contexts,
         prefer using await directly with asyncio.gather().
     """
-    return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="There is no current event loop",
+                category=DeprecationWarning,
+            )
+            event_loop = asyncio.get_event_loop()
+    except RuntimeError:
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+
+    return event_loop.run_until_complete(asyncio.gather(*awaitables))
 
 
 def to_datetime(value: Any) -> Union[datetime, None]:
