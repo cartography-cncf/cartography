@@ -40,6 +40,7 @@ _tailscale_device_approval_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -70,6 +71,7 @@ _tailscale_user_approval_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -100,6 +102,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -130,6 +133,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -160,6 +164,7 @@ _tailscale_device_key_expiry_disabled = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
