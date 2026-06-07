@@ -9,6 +9,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.workload_identity import GCPWorkloadIdentityPoolSchema
 from cartography.models.gcp.workload_identity import GCPWorkloadIdentityProviderSchema
@@ -282,9 +283,14 @@ def sync(
     try:
         raw_pools = get_workload_identity_pools(iam_client, project_id)
     except HttpError as e:
-        if e.resp.status == 403:
+        if classify_gcp_http_error(e) in (
+            "api_disabled",
+            "billing_disabled",
+            "forbidden",
+        ):
             logger.warning(
-                "Permission denied listing Workload Identity pools in project %s. "
+                "Could not list Workload Identity pools in project %s due to permissions "
+                "issues or API not enabled. "
                 "Skipping WIF sync.",
                 project_id,
             )
