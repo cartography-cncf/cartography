@@ -35,6 +35,8 @@ GET_GITLAB_BRANCHES_RESPONSE = [
 ]
 
 TEST_PROJECT_URL = "https://gitlab.example.com/myorg/awesome-project"
+TEST_PROJECT_ID = 123
+TEST_GITLAB_URL = "https://gitlab.example.com"
 
 # Expected transformed branches output
 TRANSFORMED_BRANCHES = [
@@ -44,7 +46,9 @@ TRANSFORMED_BRANCHES = [
         "protected": True,
         "default": True,
         "web_url": "https://gitlab.example.com/myorg/awesome-project/-/tree/main",
+        "project_id": TEST_PROJECT_ID,
         "project_url": TEST_PROJECT_URL,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
         "id": "https://gitlab.example.com/myorg/awesome-project/tree/develop",
@@ -52,7 +56,9 @@ TRANSFORMED_BRANCHES = [
         "protected": True,
         "default": False,
         "web_url": "https://gitlab.example.com/myorg/awesome-project/-/tree/develop",
+        "project_id": TEST_PROJECT_ID,
         "project_url": TEST_PROJECT_URL,
+        "gitlab_url": TEST_GITLAB_URL,
     },
     {
         "id": "https://gitlab.example.com/myorg/awesome-project/tree/feature/new-api",
@@ -60,6 +66,8 @@ TRANSFORMED_BRANCHES = [
         "protected": False,
         "default": False,
         "web_url": "https://gitlab.example.com/myorg/awesome-project/-/tree/feature/new-api",
+        "project_id": TEST_PROJECT_ID,
         "project_url": TEST_PROJECT_URL,
+        "gitlab_url": TEST_GITLAB_URL,
     },
 ]

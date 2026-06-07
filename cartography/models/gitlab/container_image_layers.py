@@ -32,6 +32,8 @@ class GitLabContainerImageLayerNodeProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     media_type: PropertyRef = PropertyRef("media_type")
     size: PropertyRef = PropertyRef("size")
+    is_empty: PropertyRef = PropertyRef("is_empty")
+    history: PropertyRef = PropertyRef("history")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -49,7 +51,10 @@ class GitLabContainerImageLayerToOrgRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

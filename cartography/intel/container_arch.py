@@ -5,6 +5,7 @@ import re
 # Canonical architecture source values for runtime containers.
 ARCH_SOURCE_RUNTIME_API_EXACT = "runtime_api_exact"
 ARCH_SOURCE_TASK_DEFINITION_HINT = "task_definition_hint"
+ARCH_SOURCE_PLATFORM_REQUIREMENT = "platform_requirement"
 
 
 _CANONICAL_BY_ALIAS = {

@@ -1,6 +1,8 @@
 """Integration tests for GitLab dependency files module."""
 
 from cartography.intel.gitlab.dependency_files import load_dependency_files
+from tests.data.gitlab.dependency_files import TEST_GITLAB_URL
+from tests.data.gitlab.dependency_files import TEST_PROJECT_ID
 from tests.data.gitlab.dependency_files import TEST_PROJECT_URL
 from tests.data.gitlab.dependency_files import TRANSFORMED_DEPENDENCY_FILES
 from tests.integration.util import check_nodes
@@ -13,12 +15,16 @@ def _create_test_project(neo4j_session):
     """Create test GitLabProject node."""
     neo4j_session.run(
         """
-        MERGE (p:GitLabProject{id: $project_url})
+        MERGE (p:GitLabProject{id: $project_id})
         ON CREATE SET p.firstseen = timestamp()
         SET p.lastupdated = $update_tag,
-            p.name = 'awesome-project'
+            p.name = 'awesome-project',
+            p.web_url = $project_url,
+            p.gitlab_url = $gitlab_url
         """,
+        project_id=TEST_PROJECT_ID,
         project_url=TEST_PROJECT_URL,
+        gitlab_url=TEST_GITLAB_URL,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -32,7 +38,8 @@ def test_load_gitlab_dependency_files_nodes(neo4j_session):
     load_dependency_files(
         neo4j_session,
         TRANSFORMED_DEPENDENCY_FILES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
@@ -66,22 +73,23 @@ def test_load_gitlab_dependency_files_resource_relationships(neo4j_session):
     load_dependency_files(
         neo4j_session,
         TRANSFORMED_DEPENDENCY_FILES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check RESOURCE relationships from Project to DependencyFile
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/backend/requirements.txt",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/services/api/go.mod",
         ),
     }
@@ -107,22 +115,23 @@ def test_load_gitlab_dependency_files_has_dependency_file_relationships(neo4j_se
     load_dependency_files(
         neo4j_session,
         TRANSFORMED_DEPENDENCY_FILES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 
     # Assert - Check HAS_DEPENDENCY_FILE relationships
     expected = {
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/backend/requirements.txt",
         ),
         (
-            TEST_PROJECT_URL,
+            TEST_PROJECT_ID,
             "https://gitlab.example.com/myorg/awesome-project/blob/services/api/go.mod",
         ),
     }
@@ -148,7 +157,8 @@ def test_load_gitlab_dependency_files_properties(neo4j_session):
     load_dependency_files(
         neo4j_session,
         TRANSFORMED_DEPENDENCY_FILES,
-        TEST_PROJECT_URL,
+        TEST_PROJECT_ID,
+        TEST_GITLAB_URL,
         TEST_UPDATE_TAG,
     )
 

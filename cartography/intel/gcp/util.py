@@ -8,10 +8,14 @@ including both network-level errors and HTTP 5xx server errors.
 import json
 import logging
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
 import backoff
+from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
+from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,23 @@ GCP_QUOTA_EXCEEDED_REASONS = frozenset(
 GCP_API_NUM_RETRIES = 5
 
 
+def proto_message_to_dict(
+    message: object,
+    *,
+    preserving_proto_field_name: bool = False,
+) -> dict[str, Any]:
+    proto = getattr(message, "_pb", None)
+    if proto is None:
+        raise TypeError(f"Expected protobuf-backed message, got {type(message)!r}")
+    return cast(
+        dict[str, Any],
+        MessageToDict(
+            proto,
+            preserving_proto_field_name=preserving_proto_field_name,
+        ),
+    )
+
+
 def is_retryable_gcp_http_error(exc: Exception) -> bool:
     """
     Check if the exception is a retryable GCP API error.
@@ -52,6 +73,8 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
+    if isinstance(exc, (ServerError, TooManyRequests)):
+        return True
     if not isinstance(exc, HttpError):
         return False
     if exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES:
@@ -83,6 +106,8 @@ def gcp_api_backoff_handler(details: Dict) -> None:
     exc_info = ""
     if exc and isinstance(exc, HttpError):
         exc_info = f" HTTP {exc.resp.status}"
+    elif exc and isinstance(exc, ServerError):
+        exc_info = f" HTTP {exc.code}"
 
     logger.warning(
         "GCP API retry: backing off %s seconds after %s tries.%s Calling: %s",
@@ -150,6 +175,15 @@ def gcp_api_giveup_handler(details: Dict) -> None:
             target,
         )
         return
+    if exc and isinstance(exc, ServerError):
+        logger.warning(
+            "GCP API retries exhausted after %s tries. HTTP %s: %s Calling: %s",
+            tries_display,
+            exc.code,
+            exc,
+            target,
+        )
+        return
 
     logger.warning(
         "GCP API retries exhausted after %s tries. Calling: %s",
@@ -160,7 +194,7 @@ def gcp_api_giveup_handler(details: Dict) -> None:
 
 @backoff.on_exception(  # type: ignore[misc]
     backoff.expo,
-    HttpError,
+    (HttpError, ServerError),
     max_tries=GCP_API_MAX_RETRIES,
     giveup=lambda e: not is_retryable_gcp_http_error(e),
     on_backoff=gcp_api_backoff_handler,
@@ -230,6 +264,17 @@ def get_error_reason(http_error: HttpError) -> str:
                         if isinstance(reason, str):
                             return reason
 
+                for detail in details:
+                    if not isinstance(detail, dict):
+                        continue
+                    violations = detail.get("violations", [])
+                    if isinstance(violations, list):
+                        for violation in violations:
+                            if isinstance(violation, dict):
+                                violation_type = violation.get("type")
+                                if isinstance(violation_type, str):
+                                    return violation_type
+
             return ""
 
         if isinstance(data, list) and data:
@@ -258,6 +303,8 @@ def is_billing_disabled_error(e: HttpError) -> bool:
     reason = get_error_reason(e)
     if reason == "BILLING_DISABLED":
         return True
+    if reason:
+        return False
 
     try:
         error_json = json.loads(e.content.decode("utf-8"))
@@ -265,7 +312,10 @@ def is_billing_disabled_error(e: HttpError) -> bool:
         message = err.get("message", "")
         if isinstance(message, str):
             lowered = message.lower()
-            return "requires billing to be enabled" in lowered
+            return (
+                "requires billing to be enabled" in lowered
+                or "billing is disabled for project" in lowered
+            )
         return False
     except (ValueError, UnicodeDecodeError, AttributeError):
         return False

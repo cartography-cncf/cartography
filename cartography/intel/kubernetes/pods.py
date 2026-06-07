@@ -18,7 +18,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
+def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[str, Any]:
     pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
@@ -28,8 +28,47 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
             "image": container.image,
             "namespace": pod.metadata.namespace,
             "pod_id": pod.metadata.uid,
-            "imagePullPolicy": container.image_pull_policy,
+            "image_pull_policy": container.image_pull_policy,
+            "architecture_normalized": node_arch,
+            "allow_privilege_escalation": None,
+            "run_as_non_root": None,
+            "run_as_user": None,
+            "seccomp_profile_type": None,
+            "added_capabilities": [],
+            "dropped_capabilities": [],
+            "host_ports": [],
         }
+
+        security_context = getattr(container, "security_context", None)
+        if security_context:
+            containers[container.name]["allow_privilege_escalation"] = getattr(
+                security_context, "allow_privilege_escalation", None
+            )
+            containers[container.name]["run_as_non_root"] = getattr(
+                security_context, "run_as_non_root", None
+            )
+            containers[container.name]["run_as_user"] = getattr(
+                security_context, "run_as_user", None
+            )
+
+            if getattr(security_context, "seccomp_profile", None):
+                containers[container.name]["seccomp_profile_type"] = getattr(
+                    security_context.seccomp_profile, "type", None
+                )
+
+            if getattr(security_context, "capabilities", None):
+                containers[container.name]["added_capabilities"] = sorted(
+                    security_context.capabilities.add or []
+                )
+                containers[container.name]["dropped_capabilities"] = sorted(
+                    security_context.capabilities.drop or []
+                )
+
+        ports = getattr(container, "ports", None)
+        if ports:
+            containers[container.name]["host_ports"] = sorted(
+                [port.host_port for port in ports if port.host_port is not None]
+            )
 
         # Extract resource requests and limits
         if container.resources:
@@ -143,12 +182,19 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
-def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]:
+def transform_pods(
+    pods: list[V1Pod],
+    cluster_name: str,
+    node_arch_map: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     transformed_pods = []
+    arch_map = node_arch_map or {}
 
     for pod in pods:
-        containers = _extract_pod_containers(pod)
+        node_arch = arch_map.get(pod.spec.node_name or "")
+        containers = _extract_pod_containers(pod, node_arch=node_arch)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
+        service_account_name = pod.spec.service_account_name or "default"
         transformed_pods.append(
             {
                 "uid": pod.metadata.uid,
@@ -157,7 +203,37 @@ def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]
                 "creation_timestamp": get_epoch(pod.metadata.creation_timestamp),
                 "deletion_timestamp": get_epoch(pod.metadata.deletion_timestamp),
                 "namespace": pod.metadata.namespace,
+                "service_account_name": service_account_name,
+                "automount_service_account_token": getattr(
+                    pod.spec, "automount_service_account_token", None
+                ),
+                "host_pid": getattr(pod.spec, "host_pid", None),
+                "host_ipc": getattr(pod.spec, "host_ipc", None),
+                "host_network": getattr(pod.spec, "host_network", None),
+                "seccomp_profile_type": (
+                    getattr(pod.spec.security_context.seccomp_profile, "type", None)
+                    if getattr(pod.spec, "security_context", None)
+                    and getattr(pod.spec.security_context, "seccomp_profile", None)
+                    else None
+                ),
+                "host_path_volume_paths": sorted(
+                    [
+                        volume.host_path.path
+                        for volume in (pod.spec.volumes or [])
+                        if getattr(volume, "host_path", None)
+                        and getattr(volume.host_path, "path", None)
+                    ]
+                ),
+                "service_account_id": (
+                    f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
+                ),
                 "node": pod.spec.node_name,
+                "node_id": (
+                    f"{cluster_name}/{pod.spec.node_name}"
+                    if pod.spec.node_name
+                    else None
+                ),
+                "architecture_normalized": node_arch,
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
                 "secret_volume_ids": volume_secrets,
@@ -175,11 +251,22 @@ def load_pods(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(pods)} kubernetes pods.")
+    normalized_pods = []
+    for pod in pods:
+        service_account_name = pod.get("service_account_name") or "default"
+        normalized_pods.append(
+            {
+                **pod,
+                "service_account_name": service_account_name,
+                "service_account_id": pod.get("service_account_id")
+                or f"{cluster_name}/{pod['namespace']}/{service_account_name}",
+            },
+        )
+
     load(
         session,
         KubernetesPodSchema(),
-        pods,
+        normalized_pods,
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
@@ -202,7 +289,6 @@ def load_containers(
     cluster_name: str,
     region: str | None = None,
 ) -> None:
-    logger.info(f"Loading {len(containers)} kubernetes containers.")
     load(
         session,
         KubernetesContainerSchema(),
@@ -236,10 +322,11 @@ def sync_pods(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     region: str | None = None,
+    node_arch_map: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
-    transformed_pods = transform_pods(pods, client.name)
+    transformed_pods = transform_pods(pods, client.name, node_arch_map=node_arch_map)
     load_pods(
         session=session,
         pods=transformed_pods,

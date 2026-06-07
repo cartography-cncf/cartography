@@ -3,7 +3,7 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraUser",
@@ -484,6 +484,75 @@ pagerduty_mapping = OntologyMapping(
         ),
     ],
 )
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="firstname"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="mfa_configured",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="lastlogin"
+                ),
+            ],
+        ),
+    ],
+)
+
+workos_useraccounts_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_sign_in_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="WorkOSDirectoryUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="state",
+                    extra={"values": ["active"]},
+                    special_handling="equal_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 
 # UserAccount fields:
 # has_mfa
@@ -522,8 +591,25 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(ontology_field="active", node_field="confirmed"),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
@@ -544,7 +630,10 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "workos": workos_useraccounts_mapping,
     "sentry": sentry_mapping,
     "subimage": subimage_mapping,
     "kubernetes": kubernetes_mapping,
+    "jumpcloud": jumpcloud_mapping,
+    "vercel": vercel_mapping,
 }

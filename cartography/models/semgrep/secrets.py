@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -73,8 +74,28 @@ class SemgrepSecretsFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSecretsFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSecretsFinding)-[:FOUND_IN]->(:GitLabProject)
+class SemgrepSecretsFindingToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: SemgrepSecretsFindingToGitLabProjectRelProperties = (
+        SemgrepSecretsFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSecretsFinding"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
     properties: SemgrepSecretsFindingNodeProperties = (
         SemgrepSecretsFindingNodeProperties()
     )
@@ -84,5 +105,6 @@ class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepSecretsFindingToGithubRepoRel(),
+            SemgrepSecretsFindingToGitLabProjectRel(),
         ],
     )

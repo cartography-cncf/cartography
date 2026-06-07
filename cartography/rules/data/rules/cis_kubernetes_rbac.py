@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_kubernetes
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -38,6 +39,7 @@ class ClusterAdminUsageOutput(Finding):
     binding_name: str | None = None
     binding_id: str | None = None
     subject_type: str | None = None
+    subject_id: str | None = None
     subject_name: str | None = None
     cluster_name: str | None = None
 
@@ -60,14 +62,15 @@ _k8s_cluster_admin_usage = Fact(
     OPTIONAL MATCH (crb)-[:SUBJECT]->(g:KubernetesGroup)
     WITH cluster, crb, sas, users, collect(g) AS groups
     UNWIND (
-        [sa IN sas | {subject_type: 'ServiceAccount', subject_name: sa.name}] +
-        [u IN users | {subject_type: 'User', subject_name: u.name}] +
-        [g IN groups | {subject_type: 'Group', subject_name: g.name}]
+        [sa IN sas | {subject_type: 'ServiceAccount', subject_id: sa.id, subject_name: sa.name}] +
+        [u IN users | {subject_type: 'User', subject_id: u.id, subject_name: u.name}] +
+        [g IN groups | {subject_type: 'Group', subject_id: g.id, subject_name: g.name}]
     ) AS subject
     RETURN
         crb.id AS binding_id,
         crb.name AS binding_name,
         subject.subject_type AS subject_type,
+        subject.subject_id AS subject_id,
         subject.subject_name AS subject_name,
         cluster.name AS cluster_name
     """,
@@ -82,6 +85,7 @@ _k8s_cluster_admin_usage = Fact(
     RETURN COUNT(crb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id", "subject_id"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -100,13 +104,9 @@ cis_k8s_5_1_1_cluster_admin_usage = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.1",
-        ),
+        cis_kubernetes("5.1.1"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -118,9 +118,10 @@ cis_k8s_5_1_1_cluster_admin_usage = Rule(
 class SecretAccessOutput(Finding):
     """Output model for secret access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
-    verbs: str | None = None
+    verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -138,6 +139,7 @@ _k8s_secret_access_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['get', 'list', 'watch', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cr.verbs AS verbs,
@@ -155,6 +157,7 @@ _k8s_secret_access_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -173,6 +176,7 @@ _k8s_secret_access_roles = Fact(
       AND any(v IN r.verbs WHERE v IN ['get', 'list', 'watch', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         r.verbs AS verbs,
@@ -190,6 +194,7 @@ _k8s_secret_access_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -208,15 +213,15 @@ cis_k8s_5_1_2_secret_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.2",
-        ),
+        cis_kubernetes("5.1.2"),
+        iso27001_annex_a("8.3"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.2: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for secrets access; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
 
 
 # =============================================================================
@@ -226,6 +231,7 @@ cis_k8s_5_1_2_secret_access = Rule(
 class WildcardRoleOutput(Finding):
     """Output model for wildcard role check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     wildcard_in: str | None = None
@@ -245,6 +251,7 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE ('*' IN cr.resources OR '*' IN cr.verbs)
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         CASE
@@ -265,6 +272,7 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -282,6 +290,7 @@ _k8s_wildcard_roles = Fact(
     WHERE ('*' IN r.resources OR '*' IN r.verbs)
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         CASE
@@ -302,6 +311,7 @@ _k8s_wildcard_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -320,13 +330,9 @@ cis_k8s_5_1_3_wildcard_roles = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.3",
-        ),
+        cis_kubernetes("5.1.3"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -338,6 +344,7 @@ cis_k8s_5_1_3_wildcard_roles = Rule(
 class PodCreateAccessOutput(Finding):
     """Output model for pod creation access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
@@ -357,6 +364,7 @@ _k8s_pod_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -373,6 +381,7 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -391,6 +400,7 @@ _k8s_pod_create_roles = Fact(
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         cluster.name AS cluster_name
@@ -407,6 +417,7 @@ _k8s_pod_create_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -425,15 +436,15 @@ cis_k8s_5_1_4_pod_create_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.4",
-        ),
+        cis_kubernetes("5.1.4"),
+        iso27001_annex_a("5.18"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.4: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for pod creation; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
 
 
 # =============================================================================
@@ -449,6 +460,8 @@ class DefaultSaBindingsOutput(Finding):
     service_account_name: str | None = None
     namespace: str | None = None
     role_name: str | None = None
+    pod_name: str | None = None
+    automount_service_account_token: bool | None = None
     cluster_name: str | None = None
 
 
@@ -485,6 +498,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -522,6 +536,78 @@ _k8s_default_sa_role_bindings = Fact(
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
+    module=Module.KUBERNETES,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+_k8s_default_sa_used_by_pods = Fact(
+    id="k8s_default_sa_used_by_pods",
+    name="Kubernetes pods using the default service account",
+    description=(
+        "Detects pods that are still configured to run under the default service account. "
+        "The benchmark recommends creating explicit service accounts instead."
+    ),
+    cypher_query="""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN
+        pod.id AS binding_id,
+        'PodUsesDefaultServiceAccount' AS binding_type,
+        sa.name AS service_account_name,
+        sa.namespace AS namespace,
+        pod.name AS pod_name,
+        cluster.name AS cluster_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+    RETURN COUNT(sa) AS count
+    """,
+    asset_id_field="binding_id",
+    identity_fields=("binding_id",),
+    module=Module.KUBERNETES,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+_k8s_default_sa_automount_enabled = Fact(
+    id="k8s_default_sa_automount_enabled",
+    name="Kubernetes default service accounts with token automount enabled",
+    description=(
+        "Detects default service accounts that do not explicitly disable automatic "
+        "token mounting with automountServiceAccountToken=false."
+    ),
+    cypher_query="""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN
+        sa.id AS binding_id,
+        'ServiceAccountAutomount' AS binding_type,
+        sa.name AS service_account_name,
+        sa.namespace AS namespace,
+        sa.automount_service_account_token AS automount_service_account_token,
+        cluster.name AS cluster_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (sa:KubernetesServiceAccount)
+    WHERE sa.name = 'default'
+      AND coalesce(sa.automount_service_account_token, true) = true
+    RETURN COUNT(sa) AS count
+    """,
+    asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -532,26 +618,30 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
     description=(
         "The default service account should not be used to ensure that rights "
         "granted to applications can be more easily audited and reviewed. "
-        "This rule detects role bindings to the default service account, which "
-        "indicate it has been granted extra privileges beyond its defaults. "
-        "Note: this rule cannot verify automountServiceAccountToken settings "
-        "or active pod usage of the default SA (not ingested)."
+        "This rule detects privilege bindings, active pod usage of the default service "
+        "account, and default service accounts that do not explicitly disable token automount."
     ),
     output_model=DefaultSaBindingsOutput,
-    facts=(_k8s_default_sa_cluster_role_bindings, _k8s_default_sa_role_bindings),
+    facts=(
+        _k8s_default_sa_cluster_role_bindings,
+        _k8s_default_sa_role_bindings,
+        _k8s_default_sa_used_by_pods,
+        _k8s_default_sa_automount_enabled,
+    ),
     tags=("rbac", "service-accounts", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.5",
-        ),
+        cis_kubernetes("5.1.5"),
+        iso27001_annex_a("5.16"),
+        iso27001_annex_a("5.18"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.5: Partial control coverage
+# Missing datamodel or evidence: defaults-only role binding baseline and workload necessity; current rule cannot distinguish system-required usage from benign default usage
+# =============================================================================
 
 
 # =============================================================================
@@ -598,6 +688,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     RETURN COUNT(crb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -631,6 +722,7 @@ _k8s_system_masters_role_bindings = Fact(
     RETURN COUNT(rb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -652,13 +744,8 @@ cis_k8s_5_1_7_system_masters_group = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.7",
-        ),
+        cis_kubernetes("5.1.7"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -670,9 +757,10 @@ cis_k8s_5_1_7_system_masters_group = Rule(
 class EscalationPermissionsOutput(Finding):
     """Output model for escalation permissions check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
-    dangerous_verbs: str | None = None
+    dangerous_verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -688,6 +776,7 @@ _k8s_escalation_clusterroles = Fact(
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         [v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
@@ -704,6 +793,7 @@ _k8s_escalation_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -720,6 +810,7 @@ _k8s_escalation_roles = Fact(
     WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         [v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
@@ -736,6 +827,7 @@ _k8s_escalation_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -754,15 +846,16 @@ cis_k8s_5_1_8_escalation_permissions = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.8",
-        ),
+        cis_kubernetes("5.1.8"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.8: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for bind, impersonate, and escalate verbs; current rule detects role definitions, not the principals that actually receive these permissions
+# =============================================================================
 
 
 # =============================================================================
@@ -772,6 +865,7 @@ cis_k8s_5_1_8_escalation_permissions = Rule(
 class PvCreateAccessOutput(Finding):
     """Output model for PV creation access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
@@ -791,6 +885,7 @@ _k8s_pv_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -807,6 +902,7 @@ _k8s_pv_create_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -825,6 +921,7 @@ _k8s_pv_create_roles = Fact(
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         cluster.name AS cluster_name
@@ -841,6 +938,7 @@ _k8s_pv_create_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -858,15 +956,15 @@ cis_k8s_5_1_9_pv_create_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.9",
-        ),
+        cis_kubernetes("5.1.9"),
+        iso27001_annex_a("5.18"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.9: Partial control coverage
+# Missing datamodel: effective subject-to-role resolution for persistentvolume creation; current rule detects role definitions, not the bound users, groups, or service accounts that actually receive access
+# =============================================================================
 
 
 # =============================================================================
@@ -876,6 +974,7 @@ cis_k8s_5_1_9_pv_create_access = Rule(
 class NodeProxyAccessOutput(Finding):
     """Output model for node proxy access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
@@ -894,6 +993,7 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['nodes/proxy', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -909,6 +1009,7 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -927,15 +1028,15 @@ cis_k8s_5_1_10_node_proxy_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.10",
-        ),
+        cis_kubernetes("5.1.10"),
+        iso27001_annex_a("8.2"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.10: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive node proxy access
+# =============================================================================
 
 
 # =============================================================================
@@ -945,6 +1046,7 @@ cis_k8s_5_1_10_node_proxy_access = Rule(
 class CsrApprovalAccessOutput(Finding):
     """Output model for CSR approval access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
@@ -964,6 +1066,7 @@ _k8s_csr_approval_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['update', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -980,6 +1083,7 @@ _k8s_csr_approval_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -997,15 +1101,15 @@ cis_k8s_5_1_11_csr_approval_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.11",
-        ),
+        cis_kubernetes("5.1.11"),
+        iso27001_annex_a("8.5"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.11: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive CSR approval access
+# =============================================================================
 
 
 # =============================================================================
@@ -1015,6 +1119,7 @@ cis_k8s_5_1_11_csr_approval_access = Rule(
 class WebhookConfigAccessOutput(Finding):
     """Output model for webhook configuration access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     webhook_resources: str | None = None
@@ -1039,6 +1144,7 @@ _k8s_webhook_config_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', 'update', 'patch', 'delete', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         [r IN cr.resources WHERE r IN [
@@ -1063,6 +1169,7 @@ _k8s_webhook_config_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -1081,15 +1188,15 @@ cis_k8s_5_1_12_webhook_config_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.12",
-        ),
+        cis_kubernetes("5.1.12"),
+        iso27001_annex_a("8.9"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.12: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage; current rule only checks ClusterRoles even though the benchmark calls for reviewing both roles and cluster roles
+# =============================================================================
 
 
 # =============================================================================
@@ -1099,6 +1206,7 @@ cis_k8s_5_1_12_webhook_config_access = Rule(
 class SaTokenCreationAccessOutput(Finding):
     """Output model for SA token creation access check."""
 
+    role_id: str | None = None
     role_name: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
@@ -1118,6 +1226,7 @@ _k8s_sa_token_creation_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -1134,6 +1243,7 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -1151,12 +1261,12 @@ cis_k8s_5_1_13_sa_token_creation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.13",
-        ),
+        cis_kubernetes("5.1.13"),
+        iso27001_annex_a("5.17"),
     ),
 )
+
+# =============================================================================
+# TODO: CIS K8s 5.1.13: Partial control coverage
+# Missing datamodel: namespace-scoped KubernetesRole coverage and effective subject-to-role resolution; current rule only checks ClusterRoles and does not identify the principals that receive service account token creation access
+# =============================================================================

@@ -9,6 +9,7 @@ from typing import Union
 
 import neo4j
 
+from cartography.client.core.tx import execute_write_with_retry
 from cartography.stats import get_stats_client
 
 logger = logging.getLogger(__name__)
@@ -205,7 +206,7 @@ class GraphStatement:
         if self.iterative:
             self._run_iterative(session)
         else:
-            session.execute_write(self._run_noniterative)
+            execute_write_with_retry(session, self._run_noniterative)
 
         logger.info(
             "Completed %s statement #%s",
@@ -318,7 +319,10 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            summary: neo4j.ResultSummary = session.execute_write(self._run_noniterative)
+            summary: neo4j.ResultSummary = execute_write_with_retry(
+                session,
+                self._run_noniterative,
+            )
 
             if not summary.counters.contains_updates:
                 break

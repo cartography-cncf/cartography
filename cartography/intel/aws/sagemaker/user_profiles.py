@@ -6,15 +6,17 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.sagemaker.util import sagemaker_handle_regions
+from cartography.intel.aws.sagemaker.util import sync_sagemaker_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.user_profile import AWSSageMakerUserProfileSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-@aws_handle_regions
+@sagemaker_handle_regions
 def get_user_profiles(
     boto3_session: boto3.session.Session,
     region: str,
@@ -22,7 +24,7 @@ def get_user_profiles(
     """
     Get all SageMaker User Profiles in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_user_profiles")
     user_profiles: list[dict[str, Any]] = []
 
@@ -121,30 +123,22 @@ def sync_user_profiles(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+    skip_regions: set[str],
+) -> set[str]:
     """
     Sync SageMaker User Profiles for all specified regions.
     """
-    for region in regions:
-        logger.info(
-            "Syncing SageMaker User Profiles for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        # Get user profiles from AWS
-        user_profiles = get_user_profiles(boto3_session, region)
-
-        # Transform the data
-        transformed_profiles = transform_user_profiles(user_profiles, region)
-
-        # Load into Neo4j
-        load_user_profiles(
-            neo4j_session,
-            transformed_profiles,
-            region,
-            current_aws_account_id,
-            aws_update_tag,
-        )
-
-    # Cleanup old user profiles
-    cleanup_user_profiles(neo4j_session, common_job_parameters)
+    return sync_sagemaker_resource(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+        common_job_parameters=common_job_parameters,
+        skip_regions=skip_regions,
+        submodule_name="user_profiles",
+        get_resources=get_user_profiles,
+        transform_resources=transform_user_profiles,
+        load_resources=load_user_profiles,
+        cleanup_resources=cleanup_user_profiles,
+    )

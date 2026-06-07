@@ -45,8 +45,7 @@ def test_build_ingestion_query_unscoped():
                 i.name = item.name
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (n0:SimpleNode)
                 WHERE
                     n0.id = item.simple_node_id

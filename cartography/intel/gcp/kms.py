@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.kms.cryptokey import GCPCryptoKeySchema
 from cartography.models.gcp.kms.keyring import GCPKeyRingSchema
@@ -59,37 +60,57 @@ def get_key_rings(
     client: Resource,
     project_id: str,
     locations: list[dict],
-) -> list[dict]:
+) -> list[dict] | None:
     """
     Retrieve KMS Key Rings for a given project across all locations.
 
     :param client: The KMS resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve key rings from.
     :param locations: A list of location dictionaries.
-    :return: A list of dictionaries representing KMS Key Rings.
+    :return: A list of dictionaries representing KMS Key Rings, or None if sync
+             should be skipped to preserve existing data.
     """
     rings = []
-    for loc in locations:
-        location_id = loc.get("locationId")
-        if not location_id:
-            continue
+    try:
+        for loc in locations:
+            location_id = loc.get("locationId")
+            if not location_id:
+                continue
 
-        parent = f"projects/{project_id}/locations/{location_id}"
-        request = client.projects().locations().keyRings().list(parent=parent)
+            parent = f"projects/{project_id}/locations/{location_id}"
+            request = client.projects().locations().keyRings().list(parent=parent)
 
-        while request is not None:
-            response = gcp_api_execute_with_retry(request)
-            rings.extend(response.get("keyRings", []))
-            request = (
-                client.projects()
-                .locations()
-                .keyRings()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
+            while request is not None:
+                response = gcp_api_execute_with_retry(request)
+                rings.extend(response.get("keyRings", []))
+                request = (
+                    client.projects()
+                    .locations()
+                    .keyRings()
+                    .list_next(
+                        previous_request=request,
+                        previous_response=response,
+                    )
                 )
+        return rings
+    except HttpError as e:
+        if is_billing_disabled_error(e):
+            logger.warning(
+                "Billing is disabled for project %s while listing KMS key rings. "
+                "Skipping KMS sync to preserve existing data. %s",
+                project_id,
+                summarize_gcp_http_error(e),
             )
-    return rings
+            return None
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve KMS key rings on project %s due to permissions "
+                "issues or API not enabled. Skipping sync to preserve existing data. %s",
+                project_id,
+                summarize_gcp_http_error(e),
+            )
+            return None
+        raise
 
 
 @timeit
@@ -224,6 +245,8 @@ def sync(
         logger.info("No KMS locations found for project %s.", project_id)
 
     key_rings_raw = get_key_rings(kms_client, project_id, locations)
+    if key_rings_raw is None:
+        return
     if not key_rings_raw:
         logger.info("No KMS KeyRings found for project %s.", project_id)
     else:

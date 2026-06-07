@@ -15,14 +15,36 @@ P -- RESOURCE --> DF(GitLabDependencyFile)
 P -- REQUIRES --> D(GitLabDependency)
 DF -- HAS_DEP --> D
 
+%% CI/CD Runners
+O -- RESOURCE --> R_I(GitLabRunner: instance)
+G -- RESOURCE --> R_G(GitLabRunner: group)
+P -- RESOURCE --> R_P(GitLabRunner: project)
+
+%% CI/CD Variables
+G -- HAS_CI_VARIABLE --> CV_G(GitLabCIVariable: group)
+P -- HAS_CI_VARIABLE --> CV_P(GitLabCIVariable: project)
+
+%% Environments
+P -- HAS_ENVIRONMENT --> E(GitLabEnvironment)
+P -- RESOURCE --> E
+E -- HAS_CI_VARIABLE --> CV_P
+
+%% CI/CD Config (.gitlab-ci.yml)
+P -- RESOURCE --> CC(GitLabCIConfig)
+CC -- USES_INCLUDE --> CI_INC(GitLabCIInclude)
+P -- RESOURCE --> CI_INC
+CC -- REFERENCES_VARIABLE --> CV_P
+
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
 O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
-CR -- HAS_TAG --> CT
-CT -- REFERENCES --> CI
+CR -- REPO_IMAGE --> CT
+CR -. HAS_TAG .-> CT
+CT -- IMAGE --> CI
+CT -. REFERENCES .-> CI
 CI -- CONTAINS_IMAGE --> CI
 CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
@@ -40,14 +62,16 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab organization/group |
+| **id** | The numeric GitLab organization ID |
 | **name** | Name of the organization |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| **web_url** | Web URL of the organization |
 | description | Description of the organization |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID (null for top-level organizations) |
 | created_at | GitLab timestamp from when the organization was created |
+| **gitlab_url** | GitLab instance URL |
 
 #### Relationships
 
@@ -79,10 +103,12 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab group |
+| **id** | The numeric GitLab group ID |
 | **name** | Name of the group |
 | **path** | URL path slug |
 | **full_path** | Full path including all parent groups |
+| **web_url** | Web URL of the group |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the group |
 | visibility | Visibility level (private, internal, public) |
 | parent_id | Parent group ID |
@@ -124,10 +150,12 @@ Representation of a GitLab project (repository). Projects are GitLab's equivalen
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab project |
+| **id** | The numeric GitLab project ID |
 | **name** | Name of the project |
 | **path** | URL path slug |
 | **path_with_namespace** | Full path including namespace |
+| **web_url** | Web URL of the project |
+| **gitlab_url** | GitLab instance URL |
 | description | Description of the project |
 | visibility | Visibility level (private, internal, public) |
 | default_branch | Default branch name (e.g., main, master) |
@@ -196,7 +224,7 @@ ORDER BY project_count DESC
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
 
-    Commit authors are matched to GitLab users by display name. Only commits from current members are tracked.
+    Commit authors are matched to GitLab users by email address when available, with a display-name fallback for current members. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 
@@ -228,8 +256,10 @@ Representation of a GitLab user. Users belong to an organization and can be memb
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The web URL of the GitLab user |
+| **id** | The numeric GitLab user ID |
 | **username** | Username of the user |
+| **web_url** | Web URL of the user |
+| **gitlab_url** | GitLab instance URL |
 | name | Full name of the user |
 | state | State of the user (active, blocked, etc.) |
 | email | Email address of the user (if public) |
@@ -258,7 +288,7 @@ Representation of a GitLab user. Users belong to an organization and can be memb
     (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
 
-    This relationship is created by analyzing git commits and matching commit authors (by name) to current GitLab members.
+    This relationship is created by analyzing git commits and matching commit authors to current GitLab members by email address when available, with a display-name fallback.
 
 ### GitLabBranch
 
@@ -320,6 +350,9 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 | **name** | Name of the dependency |
 | **version** | Version of the dependency |
 | **package_manager** | Package manager (npm, pip, maven, etc.) |
+| type | Package type derived from the PURL (e.g., `npm`, `pypi`, `maven`) |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`) |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
 
@@ -333,6 +366,12 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
     ```
     (GitLabDependencyFile)-[HAS_DEP]->(GitLabDependency)
+    ```
+
+- A canonical Package (ontology) is detected as a GitLabDependency.
+
+    ```
+    (Package)-[DETECTED_AS]->(GitLabDependency)
     ```
 
 ### GitLabContainerRepository
@@ -365,6 +404,12 @@ Representation of a GitLab container registry repository. Each project can have 
     ```
 
 - GitLabContainerRepositories have GitLabContainerRepositoryTags.
+
+    ```
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
+    ```
+
+    Legacy compatibility edge still emitted by the current implementation:
 
     ```
     (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
@@ -401,10 +446,16 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 - GitLabContainerRepositoryTags belong to GitLabContainerRepositories.
 
     ```
-    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    (GitLabContainerRepository)-[REPO_IMAGE]->(GitLabContainerRepositoryTag)
     ```
 
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
+
+    ```
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
+    ```
+
+    Legacy compatibility edge still emitted by the current implementation:
 
     ```
     (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
@@ -414,18 +465,18 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 
 Representation of a container image identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
 
-> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GCPArtifactRegistryContainerImage).
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GCPArtifactRegistryImage).
 
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The image digest (e.g., `sha256:abc123...`) |
-| digest | Same as id, the image digest |
-| uri | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
+| **digest** | Same as id, the image digest |
+| **uri** | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
 | media_type | OCI/Docker media type of the manifest |
 | schema_version | Manifest schema version |
-| type | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| **type** | Either `image` (single platform) or `manifest_list` (multi-arch) |
 | architecture | CPU architecture (e.g., `amd64`, `arm64`) - null for manifest lists |
 | os | Operating system (e.g., `linux`) - null for manifest lists |
 | variant | Architecture variant (e.g., `v8`) - null for manifest lists |
@@ -433,6 +484,9 @@ Representation of a container image identified by its digest. Images are content
 | layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
 | head_layer_diff_id | Diff_id of the first (base) layer in this image |
 | tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
+| **source_uri** | Normalized VCS URL extracted from image provenance |
+| source_revision | Commit SHA extracted from image provenance |
+| source_file | Source definition file extracted from image provenance (for example `Dockerfile`) |
 
 #### Relationships
 
@@ -451,7 +505,7 @@ Representation of a container image identified by its digest. Images are content
 - GitLabContainerRepositoryTags reference GitLabContainerImages.
 
     ```
-    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    (GitLabContainerRepositoryTag)-[IMAGE]->(GitLabContainerImage)
     ```
 
 - GitLabContainerImageAttestations attest to GitLabContainerImages.
@@ -570,7 +624,7 @@ Representation of a container image attestation (signature or provenance). Attes
 Get all container images with their tags:
 
 ```cypher
-MATCH (repo:GitLabContainerRepository)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)-[:REFERENCES]->(img:GitLabContainerImage)
+MATCH (repo:GitLabContainerRepository)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN repo.name, tag.name, img.digest, img.architecture, img.os
 ```
 
@@ -592,8 +646,8 @@ Get the full container registry hierarchy:
 
 ```cypher
 MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
-OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
-OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
+OPTIONAL MATCH (repo)-[:REPO_IMAGE]->(tag:GitLabContainerRepositoryTag)
+OPTIONAL MATCH (tag)-[:IMAGE]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
 ```
 
@@ -667,4 +721,301 @@ MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabCon
 MATCH (vuln)-[:AFFECTS]->(pkg:Package)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+```
+
+### GitLabRunner
+
+Representation of a GitLab CI/CD runner. Runners exist at three scopes:
+
+- **instance_type**: shared across the whole GitLab instance (`RESOURCE` of `GitLabOrganization`)
+- **group_type**: scoped to a group and its descendants (`RESOURCE` of `GitLabGroup`)
+- **project_type**: scoped to a single project (`RESOURCE` of `GitLabProject`)
+
+All three are stored under the same Neo4j label (`GitLabRunner`); the `runner_type` property and the parent of the `RESOURCE` relationship distinguish them.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The numeric GitLab runner ID |
+| description | Human-readable description set on the runner |
+| **runner_type** | One of `instance_type`, `group_type`, `project_type` |
+| is_shared | True if this is a shared/instance runner |
+| active | Whether the runner is enabled |
+| paused | Whether new jobs are paused on this runner |
+| online | Whether the runner has contacted GitLab recently |
+| **status** | Current status (`online`, `offline`, `stale`, `never_contacted`, ...) |
+| ip_address | Last known IP address of the runner |
+| architecture | Architecture (`amd64`, `arm64`, ...) |
+| platform | Platform (`linux`, `darwin`, `windows`, ...) |
+| contacted_at | Last time the runner contacted GitLab |
+| tag_list | Array of tags used to route jobs to this runner |
+| **run_untagged** | If true, the runner accepts jobs without matching tags. Security-sensitive |
+| **locked** | If true, the runner cannot be assigned to additional projects |
+| **access_level** | `not_protected` allows jobs from any branch; `ref_protected` restricts to protected refs |
+| maximum_timeout | Per-runner job timeout cap (seconds) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabRunner` of type `instance_type` is a `RESOURCE` of a `GitLabOrganization`.
+
+    ```cypher
+    (:GitLabOrganization)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+- A `GitLabRunner` of type `group_type` is a `RESOURCE` of a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabGroup)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+- A `GitLabRunner` of type `project_type` is a `RESOURCE` of a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabRunner)
+    ```
+
+#### Example queries
+
+Find unprotected, untagged runners — these will execute jobs from any branch and any project that can reach them:
+
+```cypher
+MATCH (r:GitLabRunner)
+WHERE r.run_untagged = true AND r.access_level = 'not_protected'
+RETURN r.id, r.description, r.runner_type
+```
+
+Count runners per scope:
+
+```cypher
+MATCH (r:GitLabRunner)
+RETURN r.runner_type, count(*) AS count
+ORDER BY count DESC
+```
+
+### GitLabCIVariable
+
+Representation of a GitLab CI/CD variable. Variables exist at two scopes:
+
+- **group**: shared across all projects in the group (and descendants)
+- **project**: scoped to a single project
+
+GitLab does not differentiate "secrets" from "variables" at the API level — the
+`masked`, `masked_and_hidden`, and `protected` flags carry the security
+metadata. **The variable's value is intentionally not stored.** Only the
+metadata is ingested.
+
+Both scopes share the same Neo4j label (`GitLabCIVariable`); the parent of the
+`HAS_CI_VARIABLE` relationship and the `scope_type` property distinguish them.
+
+The composite `id` is `{scope_type}:{scope_id}:{key}:{environment_scope}` so
+that a variable with the same key but a different `environment_scope` (a
+common pattern for `DATABASE_URL` etc.) does not collide.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{scope_type}:{scope_id}:{key}:{environment_scope}` |
+| **key** | Variable key as exposed to CI/CD jobs |
+| variable_type | `env_var` or `file` |
+| **protected** | If true, the variable is exposed only on protected refs (security-sensitive) |
+| masked | If true, GitLab attempts to mask the value in job logs |
+| masked_and_hidden | If true, the value cannot be retrieved through the API after creation |
+| raw | If true, GitLab does not perform variable expansion on the value |
+| **environment_scope** | Glob (default `*`) selecting which environments receive this variable |
+| description | Human-readable description |
+| scope_type | `group` or `project` |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A group-level `GitLabCIVariable` is owned by a `GitLabGroup`.
+
+    ```cypher
+    (:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+- A project-level `GitLabCIVariable` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find unmasked, unprotected variables — these may leak through job logs and
+non-protected branches:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+WHERE v.protected = false AND v.masked = false
+RETURN v.scope_type, v.key, v.environment_scope
+```
+
+Count variables per scope:
+
+```cypher
+MATCH (v:GitLabCIVariable)
+RETURN v.scope_type, count(*) AS count
+```
+
+### GitLabEnvironment
+
+Representation of a GitLab deployment environment (e.g. `production`,
+`staging`, ephemeral review apps). Each project has its own set of
+environments. The composite `id` includes the project_id because GitLab's
+environment IDs are unique per-project, not globally.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{gitlab_env_id}` |
+| gitlab_id | The numeric GitLab environment ID (per-project) |
+| **name** | Environment name (e.g. `production`, `review/feature-x`) |
+| slug | URL-safe slug |
+| external_url | URL where this environment is reachable |
+| state | `available` or `stopped` |
+| tier | `production`, `staging`, `testing`, `development`, or `other` |
+| created_at | GitLab timestamp |
+| updated_at | GitLab timestamp |
+| auto_stop_at | Timestamp at which the environment auto-stops (or null) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabEnvironment` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)
+    (:GitLabProject)-[:RESOURCE]->(:GitLabEnvironment)
+    ```
+
+- A `GitLabEnvironment` is linked to the project-level `GitLabCIVariable`s
+  whose `environment_scope` matches the environment's name exactly OR is
+  the wildcard `*`. (Glob patterns like `production/*` are recognised by
+  GitLab at runtime but are not matched here.)
+
+    ```cypher
+    (:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+#### Example queries
+
+Find environments that use unprotected variables:
+
+```cypher
+MATCH (e:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(v:GitLabCIVariable)
+WHERE v.protected = false
+RETURN e.name, v.key, v.environment_scope
+```
+
+### GitLabCIConfig
+
+Representation of a project's parsed `.gitlab-ci.yml`. When the GitLab
+`/ci/lint` endpoint is available, the config is built from the **merged**
+YAML (all `include:` references expanded by GitLab); otherwise the raw
+`.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
+the two cases.
+
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, SpaceliftStack).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{file_path}` |
+| **project_id** | The numeric GitLab project ID |
+| file_path | Path of the config file in the repo (defaults to `.gitlab-ci.yml`) |
+| is_valid | `true` / `false` if /ci/lint validated; `null` if parsed from raw |
+| is_merged | `true` if the YAML came from /ci/lint with includes expanded |
+| job_count | Number of CI jobs detected |
+| stages | Pipeline stages array |
+| trigger_rules | Detected trigger categories (`merge_requests`, `schedules`, `pushes`, `tag`, `manual`, `web`, `api`) |
+| referenced_variable_keys | All `$VAR` / `${VAR}` references found in the YAML, minus GitLab predefineds |
+| referenced_protected_variables | Subset of `referenced_variable_keys` that match a project variable with `protected = true` |
+| default_image | Top-level `image` (or `default.image`) |
+| has_includes | True if the pipeline has any `include:` entries |
+| include_count | Number of resolved include entries |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIConfig` belongs to a `GitLabProject` (1-to-1, encoded by the
+  cleanup-scoping `RESOURCE` edge — no separate `HAS_CI_CONFIG` edge to
+  avoid redundancy).
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIConfig)
+    ```
+
+- A `GitLabCIConfig` references each `include:` entry as a `GitLabCIInclude`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIConfig` references a `GitLabCIVariable` when one of its parsed
+  variable keys matches the variable's `key` (across any environment scope).
+
+    ```cypher
+    (:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)
+    ```
+
+### GitLabCIInclude
+
+Representation of a single `include:` entry in a project's `.gitlab-ci.yml`.
+
+The `is_pinned` flag is the primary security signal: a `project:` include
+without a 40-character SHA `ref` will pull whatever is on the referenced
+branch / tag at pipeline runtime, so anyone with push access to the included
+repo can inject code into the consumer's pipeline.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `{project_id}:{include_type}:{location}:{ref or 'none'}` |
+| **include_type** | `local`, `project`, `remote`, `template`, or `component` |
+| **location** | Path / project path / URL / template name / component identifier |
+| ref | SHA, tag, or branch (for `project:` includes); `null` otherwise |
+| **is_pinned** | True iff the include resolves to an immutable target |
+| is_local | True for `local:` includes (within the same repo) |
+| **gitlab_url** | GitLab instance URL |
+
+#### Relationships
+
+- A `GitLabCIInclude` is owned by a `GitLabProject`.
+
+    ```cypher
+    (:GitLabProject)-[:RESOURCE]->(:GitLabCIInclude)
+    ```
+
+- A `GitLabCIInclude` is used by exactly one `GitLabCIConfig`.
+
+    ```cypher
+    (:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)
+    ```
+
+#### Example queries
+
+Find pipelines that pull external CI templates without pinning to a SHA — these
+are vulnerable to upstream tampering:
+
+```cypher
+MATCH (c:GitLabCIConfig)-[:USES_INCLUDE]->(i:GitLabCIInclude)
+WHERE i.include_type = 'project' AND i.is_pinned = false
+RETURN c.project_id, i.location, i.ref
+```
+
+Find pipelines that reference a `protected` variable AND can be triggered
+manually — a possible secret-leak vector:
+
+```cypher
+MATCH (c:GitLabCIConfig)
+WHERE 'manual' IN c.trigger_rules
+  AND size(c.referenced_protected_variables) > 0
+RETURN c.project_id, c.referenced_protected_variables, c.trigger_rules
 ```

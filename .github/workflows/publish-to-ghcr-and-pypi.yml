@@ -9,6 +9,35 @@ on:
 permissions: {}
 
 jobs:
+  coverage-artifact:
+    name: Build coverage artifact
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
+      - name: Run combined coverage
+        run: make test_coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report-release
+          path: coverage.xml
+          if-no-files-found: warn
+
   # 1. Publish to PyPI
   build-and-publish-to-pypi:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
@@ -19,9 +48,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - name: Install uv
-        uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7.5.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -50,7 +79,7 @@ jobs:
     steps:
       # See: https://docs.docker.com/build/ci/github-actions/multi-platform/#build-and-load-multi-platform-images
       - name: Set up Docker
-        uses: docker/setup-docker-action@1a6edb0ba9ac496f6850236981f15d8f9a82254d # v5.0.0
+        uses: docker/setup-docker-action@0234bb73ccb40f0c430b795634f9247e2b5c2d23 # v5.2.0
         with:
           daemon-config: |
             {
@@ -64,7 +93,7 @@ jobs:
           persist-credentials: false
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: ghcr.io/${{ github.repository }}
           # Only tag as 'latest' for stable releases (not prereleases)
@@ -78,13 +107,13 @@ jobs:
 
       # Install QEMU for multi-architecture builds
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
           # This is the user that triggered the Workflow. In this case, it will
@@ -98,33 +127,41 @@ jobs:
           # for more detailed information.
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Get the cartography version from the GitHub release event metadata and verify it's available on PyPI
+      # Get the cartography version from the GitHub release event metadata and
+      # poll PyPI until the wheel is actually fetchable by pip. We don't poll
+      # the JSON metadata API because it can report a version as available
+      # before the wheel has propagated to the Fastly edges that pip/uv hit;
+      # exercising `pip download` against the simple index matches what
+      # `uv tool install` will do in the Docker build below.
       - name: Extract version and verify PyPI availability
         id: version
         env:
           VERSION: ${{ github.event.release.tag_name }}
         run: |
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Waiting for cartography==$VERSION to be available on PyPI..."
+          echo "Waiting for cartography==$VERSION to be installable from PyPI..."
 
-          # Poll PyPI for up to 5 minutes
-          MAX_ATTEMPTS=30
+          MAX_ATTEMPTS=60
           ATTEMPT=0
+          TMPDIR=$(mktemp -d)
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if curl --fail --silent --show-error "https://pypi.org/pypi/cartography/$VERSION/json" > /dev/null; then
-              echo "✅ cartography==$VERSION is now available on PyPI"
+            if python3 -m pip download --no-deps --no-cache-dir \
+                 --index-url https://pypi.org/simple/ \
+                 --dest "$TMPDIR" \
+                 "cartography==$VERSION" > /dev/null 2>&1; then
+              echo "cartography==$VERSION is installable from PyPI"
               exit 0
             fi
             ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Package not yet available, waiting 10 seconds..."
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: not yet installable, retrying in 10s..."
             sleep 10
           done
 
-          echo "❌ Failed to verify cartography==$VERSION on PyPI after $MAX_ATTEMPTS attempts"
+          echo "Timed out waiting for cartography==$VERSION on PyPI after $MAX_ATTEMPTS attempts"
           exit 1
 
       - name: Build and push
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           file: Dockerfile
           context: .

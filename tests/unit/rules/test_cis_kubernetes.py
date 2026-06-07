@@ -41,8 +41,29 @@ from cartography.rules.data.rules.cis_kubernetes_rbac import (
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_13_sa_token_creation,
 )
+from cartography.rules.data.rules.cis_kubernetes_workloads import _cypher_string_list
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_1_6_sa_token_mounts,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_3_host_pid
+from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_4_host_ipc
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_5_host_network,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_6_allow_privilege_escalation,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_11_host_path_volumes,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_2_12_host_ports,
+)
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_4_1_secrets_in_env_vars,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_6_2_runtime_default_seccomp,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
     cis_k8s_5_6_4_default_namespace,
@@ -63,7 +84,15 @@ ALL_CIS_K8S_RULES = [
     cis_k8s_5_1_11_csr_approval_access,
     cis_k8s_5_1_12_webhook_config_access,
     cis_k8s_5_1_13_sa_token_creation,
+    cis_k8s_5_1_6_sa_token_mounts,
+    cis_k8s_5_2_3_host_pid,
+    cis_k8s_5_2_4_host_ipc,
+    cis_k8s_5_2_5_host_network,
+    cis_k8s_5_2_6_allow_privilege_escalation,
+    cis_k8s_5_2_11_host_path_volumes,
+    cis_k8s_5_2_12_host_ports,
     cis_k8s_5_4_1_secrets_in_env_vars,
+    cis_k8s_5_6_2_runtime_default_seccomp,
     cis_k8s_5_6_4_default_namespace,
 ]
 
@@ -106,15 +135,22 @@ class TestCisKubernetesFrameworkMetadata:
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_has_cis_framework(self, rule):
-        assert len(rule.frameworks) == 1
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.short_name == "cis"
         assert fw.scope == "kubernetes"
         assert fw.revision == "1.12"
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_has_valid_requirement(self, rule):
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.requirement is not None
         assert fw.requirement.startswith("5.")
 
@@ -164,6 +200,94 @@ class TestCisKubernetesFactMetadata:
             assert "AS count" in fact.cypher_count_query
 
 
+class TestCisKubernetesServiceAccountTokenMounts:
+    """Test CIS Kubernetes 5.1.6 service account token mount query behavior."""
+
+    def test_service_account_token_mounts_excludes_infrastructure_namespaces(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_namespace IN" in fact.cypher_query
+        assert '"kube-system"' in fact.cypher_query
+        assert '"istio-system"' in fact.cypher_query
+        assert '"cert-manager"' in fact.cypher_query
+        assert '"calico-system"' in fact.cypher_query
+        assert '"ingress-nginx"' in fact.cypher_query
+        assert '"gatekeeper-system"' in fact.cypher_query
+        assert '"kyverno"' in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_infrastructure_service_accounts(
+        self,
+    ):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name IN" in fact.cypher_query
+        assert '"aws-load-balancer-controller"' in fact.cypher_query
+        assert '"cluster-autoscaler"' in fact.cypher_query
+        assert '"karpenter"' in fact.cypher_query
+        assert '"metrics-server"' in fact.cypher_query
+        assert '"vertical-pod-autoscaler-recommender"' in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_irsa_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "sa.aws_role_arn IS NOT NULL" in fact.cypher_query
+        assert "EXISTS { (sa)-[:ASSUMES_ROLE]->(:AWSRole) }" in fact.cypher_query
+        assert "service_account_assumes_aws_role" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_gke_workload_identity_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "sa.gcp_service_account IS NOT NULL" in fact.cypher_query
+        assert (
+            "EXISTS { (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }"
+            in fact.cypher_query
+        )
+        assert "service_account_assumes_gcp_identity" in fact.cypher_query
+
+    def test_service_account_token_mounts_excludes_default_sa_mounts(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_query
+
+    def test_service_account_token_mounts_uses_ontology_service_account_name(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert (
+            "coalesce(sa._ont_name, sa.name, pod.service_account_name)"
+            in fact.cypher_query
+        )
+        assert "service_account_name AS service_account_name" in fact.cypher_query
+
+    def test_service_account_token_mounts_visual_query_matches_filter(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_visual_query
+        assert "service_account_namespace IN" in fact.cypher_visual_query
+        assert "service_account_name IN" in fact.cypher_visual_query
+        assert "service_account_assumes_aws_role" in fact.cypher_visual_query
+        assert "service_account_assumes_gcp_identity" in fact.cypher_visual_query
+
+    def test_service_account_token_mounts_count_query_matches_candidate_filter(self):
+        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+
+        assert "service_account_name = 'default'" in fact.cypher_count_query
+        assert "service_account_namespace IN" in fact.cypher_count_query
+        assert "service_account_name IN" in fact.cypher_count_query
+        assert "service_account_assumes_aws_role" in fact.cypher_count_query
+        assert "service_account_assumes_gcp_identity" in fact.cypher_count_query
+        assert "effective_automount = true" not in fact.cypher_count_query
+
+    def test_cypher_string_list_escapes_values_for_double_quoted_literals(self):
+        assert (
+            _cypher_string_list(
+                ("kube-system", "team's-controller", 'quote"controller')
+            )
+            == '["kube-system", "team\'s-controller", "quote\\"controller"]'
+        )
+
+
 class TestCisKubernetesRuleRegistration:
     """Test that all rules are registered in the RULES dict."""
 
@@ -178,7 +302,7 @@ class TestCisKubernetesRuleRegistration:
         from cartography.rules.data.rules import RULES
 
         k8s_rules = {k: v for k, v in RULES.items() if k.startswith("cis_k8s_")}
-        assert len(k8s_rules) == 14
+        assert len(k8s_rules) == 22
 
 
 class TestCisKubernetesRuleIds:
@@ -197,7 +321,15 @@ class TestCisKubernetesRuleIds:
         "cis_k8s_5_1_11_csr_approval_access": "5.1.11",
         "cis_k8s_5_1_12_webhook_config_access": "5.1.12",
         "cis_k8s_5_1_13_sa_token_creation": "5.1.13",
+        "cis_k8s_5_1_6_sa_token_mounts": "5.1.6",
+        "cis_k8s_5_2_3_host_pid": "5.2.3",
+        "cis_k8s_5_2_4_host_ipc": "5.2.4",
+        "cis_k8s_5_2_5_host_network": "5.2.5",
+        "cis_k8s_5_2_6_allow_privilege_escalation": "5.2.6",
+        "cis_k8s_5_2_11_host_path_volumes": "5.2.11",
+        "cis_k8s_5_2_12_host_ports": "5.2.12",
         "cis_k8s_5_4_1_secrets_in_env_vars": "5.4.1",
+        "cis_k8s_5_6_2_runtime_default_seccomp": "5.6.2",
         "cis_k8s_5_6_4_default_namespace": "5.6.4",
     }
 
@@ -210,5 +342,9 @@ class TestCisKubernetesRuleIds:
     def test_rule_id_matches_framework_requirement(self, rule):
         expected_requirement = self.EXPECTED_RULES.get(rule.id)
         assert expected_requirement is not None, f"Unknown rule {rule.id}"
-        fw = rule.frameworks[0]
+        fw = next(
+            fw
+            for fw in rule.frameworks
+            if fw.short_name == "cis" and fw.scope == "kubernetes"
+        )
         assert fw.requirement == expected_requirement

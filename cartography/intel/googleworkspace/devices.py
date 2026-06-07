@@ -202,7 +202,6 @@ def load_devices(
     """
     Load device data into Neo4j.
     """
-    logger.info("Loading %d Google Workspace devices", len(devices))
     load(
         neo4j_session,
         GoogleWorkspaceDeviceSchema(),

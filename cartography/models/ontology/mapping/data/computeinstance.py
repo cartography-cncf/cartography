@@ -9,9 +9,6 @@ aws_mapping = OntologyMapping(
             node_label="EC2Instance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="instanceid", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -38,9 +35,6 @@ scaleway_mapping = OntologyMapping(
             node_label="ScalewayInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="zone"),
@@ -65,9 +59,6 @@ digitalocean_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="DODroplet",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
@@ -94,17 +85,20 @@ gcp_mapping = OntologyMapping(
             node_label="GCPInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
-                OntologyFieldMapping(
                     ontology_field="name", node_field="instancename", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="zone_name"),
                 OntologyFieldMapping(ontology_field="state", node_field="status"),
-                # public_ip_address: not available in GCPInstance
-                # private_ip_address: not available in GCPInstance
-                # instance type: not available in GCPInstance
-                # created_at: not available in GCPInstance
+                OntologyFieldMapping(ontology_field="type", node_field="machine_type"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="creation_timestamp"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="private_ip_address", node_field="private_ip"
+                ),
             ],
         ),
     ],
@@ -115,9 +109,6 @@ azure_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureVirtualMachine",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True
-                ),
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),

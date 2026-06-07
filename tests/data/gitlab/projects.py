@@ -76,9 +76,13 @@ LANGUAGES_BY_PROJECT = {
     789: {"TypeScript": 70.0, "CSS": 25.0, "HTML": 5.0},
 }
 
+TEST_ORG_ID = 10
+TEST_GITLAB_URL = "https://gitlab.example.com"
+
 # Expected transformed projects output (with languages as JSON strings)
 TRANSFORMED_PROJECTS = [
     {
+        "id": 123,
         "web_url": "https://gitlab.example.com/myorg/awesome-project",
         "name": "awesome-project",
         "path": "awesome-project",
@@ -89,11 +93,13 @@ TRANSFORMED_PROJECTS = [
         "archived": False,
         "created_at": "2024-01-15T10:30:00Z",
         "last_activity_at": "2024-12-15T14:45:00Z",
-        "org_url": "https://gitlab.example.com/myorg",
-        "group_url": None,  # Org-level project
+        "org_id": TEST_ORG_ID,
+        "group_id": 10,
+        "gitlab_url": TEST_GITLAB_URL,
         "languages": json.dumps({"Python": 65.5, "JavaScript": 34.5}),
     },
     {
+        "id": 456,
         "web_url": "https://gitlab.example.com/myorg/platform/backend-service",
         "name": "backend-service",
         "path": "backend-service",
@@ -104,11 +110,13 @@ TRANSFORMED_PROJECTS = [
         "archived": False,
         "created_at": "2024-03-20T08:15:00Z",
         "last_activity_at": "2024-12-18T16:20:00Z",
-        "org_url": "https://gitlab.example.com/myorg",
-        "group_url": "https://gitlab.example.com/myorg/platform",  # Nested group
+        "org_id": TEST_ORG_ID,
+        "group_id": 20,
+        "gitlab_url": TEST_GITLAB_URL,
         "languages": json.dumps({"Go": 85.0, "Shell": 15.0}),
     },
     {
+        "id": 789,
         "web_url": "https://gitlab.example.com/myorg/apps/frontend-app",
         "name": "frontend-app",
         "path": "frontend-app",
@@ -119,8 +127,9 @@ TRANSFORMED_PROJECTS = [
         "archived": False,
         "created_at": "2024-05-10T12:00:00Z",
         "last_activity_at": "2024-12-19T09:30:00Z",
-        "org_url": "https://gitlab.example.com/myorg",
-        "group_url": "https://gitlab.example.com/myorg/apps",  # Nested group
+        "org_id": TEST_ORG_ID,
+        "group_id": 30,
+        "gitlab_url": TEST_GITLAB_URL,
         "languages": json.dumps({"TypeScript": 70.0, "CSS": 25.0, "HTML": 5.0}),
     },
 ]

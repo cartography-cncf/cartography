@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -7,8 +6,6 @@ from slack_sdk import WebClient
 from cartography.client.core.tx import load
 from cartography.models.slack.team import SlackTeamSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -56,7 +53,6 @@ def load_team(
     data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %s Slack teams into Neo4j", len(data))
     load(
         neo4j_session,
         SlackTeamSchema(),

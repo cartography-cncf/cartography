@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -24,7 +25,7 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     rgta,
     "get_tags",
-    return_value=GET_RESOURCES_RESPONSE,
+    return_value=copy.deepcopy(GET_RESOURCES_RESPONSE),
 )
 def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
     """

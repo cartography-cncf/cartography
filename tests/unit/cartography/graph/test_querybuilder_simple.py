@@ -59,8 +59,7 @@ def test_build_ingestion_query_with_sub_resource():
                 i.property2 = item.property2
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (j:SubResource{{id: $sub_resource_id}})
                 WITH i, item, j WHERE j IS NOT NULL
                 MERGE (i)<-[r:RELATIONSHIP_LABEL]-(j)
@@ -96,8 +95,7 @@ def test_build_ingestion_query_case_insensitive_match():
                 i.github_username = item.github_username
 
             WITH i, item
-            CALL {{
-                WITH i, item
+            CALL (i, item) {{
                 OPTIONAL MATCH (n0:GitHubUser)
                 WHERE
                     toLower(n0.username) = toLower(item.github_username)
@@ -135,8 +133,7 @@ def test_build_ingestion_query_fuzzy_case_insensitive():
                 i.github_username = item.github_username
 
         WITH i, item
-        CALL {{
-            WITH i, item
+        CALL (i, item) {{
             OPTIONAL MATCH (n0:GitHubUser)
             WHERE
                 toLower(n0.username) CONTAINS toLower(item.github_username)

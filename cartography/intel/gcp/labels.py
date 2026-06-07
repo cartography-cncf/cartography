@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.models.gcp.labels.label import GCPBigtableInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPCloudRunJobGCPLabelSchema
@@ -174,6 +175,7 @@ def load_labels(
     resource_type: str,
     project_id: str,
     update_tag: int,
+    batch_size: int = 10000,
 ) -> None:
     """
     Load GCPLabel nodes and LABELED relationships into Neo4j.
@@ -191,6 +193,7 @@ def load_labels(
         neo4j_session,
         mapping["schema"],
         label_data,
+        batch_size=batch_size,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -212,7 +215,8 @@ def cleanup(
         return
     schema = mapping["schema"]
     resource_node_label = schema.other_relationships.rels[0].target_node_label
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         """
         MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(l:GCPLabel)
         WHERE l.resource_type = $RESOURCE_NODE_LABEL
@@ -222,7 +226,7 @@ def cleanup(
         PROJECT_ID=common_job_parameters["PROJECT_ID"],
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
         RESOURCE_NODE_LABEL=resource_node_label,
-    ).consume()
+    )
 
 
 @timeit
@@ -233,6 +237,7 @@ def sync_labels(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    batch_size: int = 10000,
 ) -> None:
     """
     End-to-end sync of GCPLabel nodes for a single resource type.
@@ -245,8 +250,30 @@ def sync_labels(
     :param project_id: The GCP project ID.
     :param update_tag: Timestamp for marking data freshness.
     :param common_job_parameters: Dict with UPDATE_TAG and PROJECT_ID for cleanup.
+    :param batch_size: Optional batch size override for GCPLabel ingestion.
     """
     label_data = get_labels(resource_list, resource_type)
     transform_labels(label_data, resource_type)
-    load_labels(neo4j_session, label_data, resource_type, project_id, update_tag)
+    if label_data:
+        logger.info(
+            "Syncing %d %s labels for project %s with batch_size=%d.",
+            len(label_data),
+            resource_type,
+            project_id,
+            batch_size,
+        )
+    else:
+        logger.debug(
+            "No %s labels found for project %s.",
+            resource_type,
+            project_id,
+        )
+    load_labels(
+        neo4j_session,
+        label_data,
+        resource_type,
+        project_id,
+        update_tag,
+        batch_size=batch_size,
+    )
     cleanup(neo4j_session, resource_type, common_job_parameters)

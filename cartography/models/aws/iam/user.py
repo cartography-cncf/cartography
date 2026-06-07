@@ -21,7 +21,7 @@ class AWSUserNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM users
-    userid: PropertyRef = PropertyRef("userid")
+    userid: PropertyRef = PropertyRef("userid", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")

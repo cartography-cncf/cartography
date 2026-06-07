@@ -26,12 +26,14 @@ class GitLabProjectNodeProperties(CartographyNodeProperties):
     Projects are GitLab's equivalent of repositories.
     """
 
-    id: PropertyRef = PropertyRef("web_url")  # Unique identifier
+    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab project ID
     name: PropertyRef = PropertyRef("name", extra_index=True)  # Project name
     path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
     path_with_namespace: PropertyRef = PropertyRef(
         "path_with_namespace", extra_index=True
     )  # Full path
+    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
+    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
     default_branch: PropertyRef = PropertyRef("default_branch")  # Default branch name
@@ -64,7 +66,10 @@ class GitLabGroupCanAccessProjectRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("group_url")},
+        {
+            "id": PropertyRef("group_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_ACCESS"
@@ -92,7 +97,10 @@ class GitLabProjectToGroupRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("group_url")},
+        {
+            "id": PropertyRef("group_id"),
+            "gitlab_url": PropertyRef("gitlab_url"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
@@ -119,7 +127,10 @@ class GitLabProjectToOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+        {
+            "id": PropertyRef("org_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -149,5 +160,7 @@ class GitLabProjectSchema(CartographyNodeSchema):
     sub_resource_relationship: GitLabProjectToOrganizationRel = (
         GitLabProjectToOrganizationRel()
     )
-    # Add GitLabRepository label for backwards compatibility
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GitLabRepository"])
+    # Add GitLabRepository for compatibility and CodeRepository for ontology queries.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["GitLabRepository", "CodeRepository"]
+    )

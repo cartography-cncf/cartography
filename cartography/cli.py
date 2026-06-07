@@ -39,6 +39,7 @@ PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
+PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
@@ -64,6 +65,10 @@ PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
+PANEL_WORKOS = "WorkOS Options"
+PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_SOCKETDEV = "Socket.dev Options"
+PANEL_VERCEL = "Vercel Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -72,6 +77,7 @@ MODULE_PANELS = {
     "aws": PANEL_AWS,
     "azure": PANEL_AZURE,
     "entra": PANEL_ENTRA,
+    "microsoft": PANEL_ENTRA,
     "gcp": PANEL_GCP,
     "oci": PANEL_OCI,
     "okta": PANEL_OKTA,
@@ -85,7 +91,10 @@ MODULE_PANELS = {
     "kandji": PANEL_KANDJI,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
+    "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "jumpcloud": PANEL_JUMPCLOUD,
+    "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -110,6 +119,8 @@ MODULE_PANELS = {
     "slack": PANEL_SLACK,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
+    "workos": PANEL_WORKOS,
+    "vercel": PANEL_VERCEL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -167,6 +178,31 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
             visible_panels.add(MODULE_PANELS[module])
 
     return visible_panels
+
+
+def _resolve_report_source_option(
+    *,
+    module: str,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
+    try:
+        return resolve_report_source_with_legacy_fields(
+            source=source,
+            local_path=local_path,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+            names=LegacyReportSourceNames.for_cli(module),
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 class CLI:
@@ -434,6 +470,19 @@ class CLI:
                         "[EXPERIMENTAL] Comma-separated list of AWS regions to sync. "
                         'Example: "us-east-1,us-east-2". '
                         "CAUTION: Previously synced regions not in this list will have their assets deleted."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
+            aws_organization_account_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-organization-account-ids",
+                    help=(
+                        "Comma-separated AWS account IDs to use for AWS Organizations hierarchy sync. "
+                        "Use this to provide the management or delegated administrator account and skip "
+                        "Organizations candidate discovery."
                     ),
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
@@ -786,7 +835,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--jamf-base-uri",
-                    help="Jamf base URI, e.g. https://hostname.com/JSSResource.",
+                    help="Jamf base URI, e.g. https://hostname.jamfcloud.com.",
                     rich_help_panel=PANEL_JAMF,
                     hidden=PANEL_JAMF not in visible_panels,
                 ),
@@ -891,6 +940,31 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # CVE Metadata Options
+            # =================================================================
+            cve_metadata_src: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--cve-metadata-src",
+                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            cve_metadata_nist_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--cve-metadata-nist-api-key-env-var",
+                    help=(
+                        "Environment variable name containing the NIST NVD API v2.0 key. "
+                        "When set, the module queries the API per-CVE; otherwise it falls back "
+                        "to yearly JSON feed downloads."
+                    ),
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # PagerDuty Options
             # =================================================================
             pagerduty_api_key_env_var: Annotated[
@@ -972,6 +1046,39 @@ class CLI:
                     help="Environment variable name containing LastPass provhash.",
                     rich_help_panel=PANEL_LASTPASS,
                     hidden=PANEL_LASTPASS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # JumpCloud Options
+            # =================================================================
+            jumpcloud_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--jumpcloud-api-key-env-var",
+                    help="Environment variable name containing JumpCloud API key.",
+                    rich_help_panel=PANEL_JUMPCLOUD,
+                    hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            jumpcloud_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jumpcloud-org-id",
+                    help="JumpCloud organization ID used as the tenant identifier.",
+                    rich_help_panel=PANEL_JUMPCLOUD,
+                    hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Socket.dev Options
+            # =================================================================
+            socketdev_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--socketdev-token-env-var",
+                    help="Environment variable name containing Socket.dev API token.",
+                    rich_help_panel=PANEL_SOCKETDEV,
+                    hidden=PANEL_SOCKETDEV not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1085,6 +1192,15 @@ class CLI:
                     hidden=PANEL_SEMGREP not in visible_panels,
                 ),
             ] = None,
+            semgrep_oss_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--semgrep-oss-source",
+                    help="Semgrep OSS repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_SEMGREP,
+                    hidden=PANEL_SEMGREP not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # SnipeIT Options
             # =================================================================
@@ -1157,6 +1273,32 @@ class CLI:
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
             ] = "https://api.tailscale.com/api/v2",
+            tailscale_oauth_client_id_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-id-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client ID. Used together with "
+                        "--tailscale-oauth-client-secret-env-var to mint a "
+                        "short-lived bearer token at sync time."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
+            tailscale_oauth_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-secret-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client secret."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # OpenAI Options
             # =================================================================
@@ -1292,120 +1434,169 @@ class CLI:
             # =================================================================
             # Docker Scout Options
             # =================================================================
+            docker_scout_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-source",
+                    help="Docker Scout report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--docker-scout-results-dir` will be removed in Cartography v1.0.0.
             docker_scout_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-results-dir",
-                    help="Local directory containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v1.0.0.
             docker_scout_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-bucket",
-                    help="S3 bucket name containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v1.0.0.
             docker_scout_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-prefix",
-                    help="S3 prefix path for Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
             # Trivy Options
             # =================================================================
+            trivy_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--trivy-source",
+                    help="Trivy report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_TRIVY,
+                    hidden=PANEL_TRIVY not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--trivy-s3-bucket` will be removed in Cartography v1.0.0.
             trivy_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-bucket",
-                    help="S3 bucket name containing Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v1.0.0.
             trivy_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-prefix",
-                    help="S3 prefix path for Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v1.0.0.
             trivy_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-results-dir",
-                    help="Local directory containing Trivy JSON results.",
+                    help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
             # Syft Options
             # =================================================================
+            syft_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-source",
+                    help="Syft report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--syft-s3-bucket` will be removed in Cartography v1.0.0.
             syft_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-bucket",
-                    help="S3 bucket name containing Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v1.0.0.
             syft_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-prefix",
-                    help="S3 prefix path for Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-results-dir` will be removed in Cartography v1.0.0.
             syft_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-results-dir",
-                    help="Local directory containing Syft JSON results.",
+                    help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # =================================================================
             # AIBOM Options
             # =================================================================
+            aibom_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-source",
+                    help="AIBOM report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--aibom-s3-bucket` will be removed in Cartography v1.0.0.
             aibom_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-bucket",
-                    help="S3 bucket name containing AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v1.0.0.
             aibom_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-prefix",
-                    help="S3 prefix path for AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v1.0.0.
             aibom_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-results-dir",
-                    help="Local directory containing AIBOM JSON results.",
+                    help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -1655,6 +1846,57 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # WorkOS Options
+            # =================================================================
+            workos_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--workos-apikey-env-var",
+                    help="Environment variable name containing WorkOS API key.",
+                    rich_help_panel=PANEL_WORKOS,
+                    hidden=PANEL_WORKOS not in visible_panels,
+                ),
+            ] = None,
+            workos_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--workos-client-id",
+                    help="WorkOS client ID.",
+                    rich_help_panel=PANEL_WORKOS,
+                    hidden=PANEL_WORKOS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Vercel Options
+            # =================================================================
+            vercel_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-token-env-var",
+                    help="Environment variable name containing Vercel API token.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_team_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-team-id",
+                    help="Vercel team ID to sync.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--vercel-base-url",
+                    help="Vercel API base URL.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = "https://api.vercel.com",
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -1761,6 +2003,12 @@ class CLI:
                 )
 
                 parse_and_validate_aws_regions(aws_regions)
+            if aws_organization_account_ids:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_account_ids,
+                )
+
+                parse_and_validate_aws_account_ids(aws_organization_account_ids)
 
             # Validate GCP options
             if gcp_requested_syncs:
@@ -1902,6 +2150,24 @@ class CLI:
                 )
                 googleworkspace_config = os.environ.get(googleworkspace_tokens_env_var)
 
+            # Read JumpCloud API key
+            jumpcloud_api_key = None
+            if jumpcloud_api_key_env_var:
+                logger.debug(
+                    "Reading API key for JumpCloud from environment variable %s",
+                    jumpcloud_api_key_env_var,
+                )
+                jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read Socket.dev token
+            socketdev_token = None
+            if socketdev_token_env_var:
+                logger.debug(
+                    "Reading Socket.dev API token from environment variable %s",
+                    socketdev_token_env_var,
+                )
+                socketdev_token = os.environ.get(socketdev_token_env_var)
+
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -1983,6 +2249,17 @@ class CLI:
                 )
                 cve_api_key = os.environ.get(cve_api_key_env_var)
 
+            # Read CVE Metadata NIST API key
+            cve_metadata_nist_api_key = None
+            if cve_metadata_nist_api_key_env_var:
+                logger.debug(
+                    "Reading CVE Metadata NIST API key from environment variable %s",
+                    cve_metadata_nist_api_key_env_var,
+                )
+                cve_metadata_nist_api_key = os.environ.get(
+                    cve_metadata_nist_api_key_env_var,
+                )
+
             # Read SnipeIT token
             snipeit_token = None
             if snipeit_base_uri:
@@ -2010,6 +2287,27 @@ class CLI:
                     tailscale_token_env_var,
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
+
+            # Read Tailscale OAuth client credentials
+            tailscale_oauth_client_id = None
+            if tailscale_oauth_client_id_env_var:
+                tailscale_oauth_client_id = os.environ.get(
+                    tailscale_oauth_client_id_env_var,
+                )
+            tailscale_oauth_client_secret = None
+            if tailscale_oauth_client_secret_env_var:
+                tailscale_oauth_client_secret = os.environ.get(
+                    tailscale_oauth_client_secret_env_var,
+                )
+
+            # Read Vercel token
+            vercel_token = None
+            if vercel_token_env_var:
+                logger.debug(
+                    "Reading Vercel API token from environment variable %s",
+                    vercel_token_env_var,
+                )
+                vercel_token = os.environ.get(vercel_token_env_var)
 
             # Read Cloudflare token
             cloudflare_token = None
@@ -2073,37 +2371,43 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
-            # Log Docker Scout config
-            if docker_scout_results_dir:
-                logger.debug("Docker Scout results dir: %s", docker_scout_results_dir)
-            if docker_scout_s3_bucket:
-                logger.debug("Docker Scout S3 bucket: %s", docker_scout_s3_bucket)
-            if docker_scout_s3_prefix:
-                logger.debug("Docker Scout S3 prefix: %s", docker_scout_s3_prefix)
+            resolved_docker_scout_source = _resolve_report_source_option(
+                module="docker_scout",
+                source=docker_scout_source,
+                local_path=docker_scout_results_dir,
+                s3_bucket=docker_scout_s3_bucket,
+                s3_prefix=docker_scout_s3_prefix,
+            )
+            resolved_trivy_source = _resolve_report_source_option(
+                module="trivy",
+                source=trivy_source,
+                local_path=trivy_results_dir,
+                s3_bucket=trivy_s3_bucket,
+                s3_prefix=trivy_s3_prefix,
+            )
+            resolved_syft_source = _resolve_report_source_option(
+                module="syft",
+                source=syft_source,
+                local_path=syft_results_dir,
+                s3_bucket=syft_s3_bucket,
+                s3_prefix=syft_s3_prefix,
+            )
+            resolved_aibom_source = _resolve_report_source_option(
+                module="aibom",
+                source=aibom_source,
+                local_path=aibom_results_dir,
+                s3_bucket=aibom_s3_bucket,
+                s3_prefix=aibom_s3_prefix,
+            )
 
-            # Log Trivy config
-            if trivy_s3_bucket:
-                logger.debug("Trivy S3 bucket: %s", trivy_s3_bucket)
-            if trivy_s3_prefix:
-                logger.debug("Trivy S3 prefix: %s", trivy_s3_prefix)
-            if trivy_results_dir:
-                logger.debug("Trivy results dir: %s", trivy_results_dir)
-
-            # Log Syft config
-            if syft_s3_bucket:
-                logger.debug("Syft S3 bucket: %s", syft_s3_bucket)
-            if syft_s3_prefix:
-                logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
-            if syft_results_dir:
-                logger.debug("Syft results dir: %s", syft_results_dir)
-
-            # Log AIBOM config
-            if aibom_s3_bucket:
-                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
-            if aibom_s3_prefix:
-                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
-            if aibom_results_dir:
-                logger.debug("AIBOM results dir: %s", aibom_results_dir)
+            if resolved_docker_scout_source:
+                logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
+            if resolved_trivy_source:
+                logger.debug("Trivy source: %s", resolved_trivy_source)
+            if resolved_syft_source:
+                logger.debug("Syft source: %s", resolved_syft_source)
+            if resolved_aibom_source:
+                logger.debug("AIBOM source: %s", resolved_aibom_source)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -2197,6 +2501,15 @@ class CLI:
                         spacelift_api_key_secret_env_var
                     )
 
+            # Read WorkOS API key
+            workos_api_key = None
+            if workos_apikey_env_var:
+                logger.debug(
+                    "Reading WorkOS API key from environment variable %s",
+                    workos_apikey_env_var,
+                )
+                workos_api_key = os.environ.get(workos_apikey_env_var)
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,
@@ -2209,6 +2522,7 @@ class CLI:
                 update_tag=update_tag,
                 aws_sync_all_profiles=aws_sync_all_profiles,
                 aws_regions=aws_regions,
+                aws_organization_account_ids=aws_organization_account_ids,
                 aws_best_effort_mode=aws_best_effort_mode,
                 aws_cloudtrail_management_events_lookback_hours=aws_cloudtrail_management_events_lookback_hours,
                 experimental_aws_inspector_batch=experimental_aws_inspector_batch,
@@ -2254,6 +2568,8 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
+                cve_metadata_src=cve_metadata_src,
+                cve_metadata_nist_api_key=cve_metadata_nist_api_key,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,
@@ -2261,6 +2577,9 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                jumpcloud_api_key=jumpcloud_api_key,
+                jumpcloud_org_id=jumpcloud_org_id,
+                socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -2278,12 +2597,18 @@ class CLI:
                 gitlab_commits_since_days=gitlab_commits_since_days,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
+                semgrep_oss_source=semgrep_oss_source,
                 snipeit_base_uri=snipeit_base_uri,
                 snipeit_token=snipeit_token,
                 snipeit_tenant_id=snipeit_tenant_id,
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                tailscale_oauth_client_id=tailscale_oauth_client_id,
+                tailscale_oauth_client_secret=tailscale_oauth_client_secret,
+                vercel_token=vercel_token,
+                vercel_team_id=vercel_team_id,
+                vercel_base_url=vercel_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
@@ -2298,20 +2623,29 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                # Forward the user-provided values (not resolved). Config calls
+                # resolve_report_source_with_legacy_fields() internally; the CLI's
+                # _resolve_report_source_option above runs the same logic for early
+                # validation/deprecation warning, then we suppress the duplicate
+                # config-time warning via _warn_on_legacy_report_source=False below.
+                docker_scout_source=docker_scout_source,
                 docker_scout_results_dir=docker_scout_results_dir,
                 docker_scout_s3_bucket=docker_scout_s3_bucket,
                 docker_scout_s3_prefix=docker_scout_s3_prefix,
+                trivy_source=trivy_source,
+                trivy_results_dir=trivy_results_dir,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                syft_source=syft_source,
+                syft_results_dir=syft_results_dir,
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
-                syft_results_dir=syft_results_dir,
+                aibom_source=aibom_source,
+                aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
-                aibom_results_dir=aibom_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
-                trivy_results_dir=trivy_results_dir,
                 scaleway_access_key=scaleway_access_key,
                 scaleway_secret_key=scaleway_secret_key,
                 scaleway_org=scaleway_org,
@@ -2333,8 +2667,11 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                workos_api_key=workos_api_key,
+                workos_client_id=workos_client_id,
                 ubuntu_security_enabled=ubuntu_security_enabled,
                 ubuntu_security_api_url=ubuntu_security_api_url,
+                _warn_on_legacy_report_source=False,
             )
 
             # Run the sync
@@ -2369,6 +2706,20 @@ def main(argv=None):
     logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
         logging.WARNING
     )
+
+    # Show Python version deprecation warning visibly to CLI users.
+    # The library-level DeprecationWarning in __init__.py is hidden by default.
+    from cartography import _MIN_PYTHON
+    from cartography import _MIN_PYTHON_STR
+
+    if sys.version_info < _MIN_PYTHON:
+        logger.warning(
+            "Cartography is tested on Python %s+ only. "
+            "Backward compatibility with Python 3.10-3.12 is not guaranteed. "
+            "Python 3.10 support will be removed in October 2026. "
+            "See: https://github.com/cartography-cncf/cartography/issues/2205",
+            _MIN_PYTHON_STR,
+        )
 
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog="cartography").main(argv))

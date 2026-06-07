@@ -8,16 +8,15 @@ aws_eks_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EKSCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="arn",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(ontology_field="version", node_field="version"),
                 OntologyFieldMapping(ontology_field="endpoint", node_field="endpoint"),
                 OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="control_plane_public_access",
+                    node_field="endpoint_public_access",
+                ),
             ],
         ),
     ],
@@ -29,11 +28,6 @@ aws_ecs_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ECSCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="arn",
-                    required=True,
-                ),
                 OntologyFieldMapping(
                     ontology_field="name",
                     node_field="name",
@@ -53,11 +47,6 @@ aws_emr_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EMRCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(
@@ -77,11 +66,6 @@ azure_aks_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AzureKubernetesCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="region",
@@ -96,6 +80,10 @@ azure_aks_mapping = OntologyMapping(
                     ontology_field="status",
                     node_field="provisioning_state",
                 ),
+                OntologyFieldMapping(
+                    ontology_field="control_plane_public_access",
+                    node_field="api_server_public_access",
+                ),
             ],
         ),
     ],
@@ -107,11 +95,6 @@ gcp_gke_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GKECluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="region",
@@ -126,6 +109,13 @@ gcp_gke_mapping = OntologyMapping(
                     node_field="endpoint",
                 ),
                 OntologyFieldMapping(ontology_field="status", node_field="status"),
+                # privateClusterConfig.enablePrivateEndpoint=true means the master is only
+                # reachable from its internal IP, so its inverse encodes "public endpoint reachable".
+                OntologyFieldMapping(
+                    ontology_field="control_plane_public_access",
+                    node_field="private_endpoint_enabled",
+                    special_handling="invert_boolean",
+                ),
             ],
         ),
     ],
@@ -137,11 +127,6 @@ kubernetes_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KubernetesCluster",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="id",
-                    node_field="id",
-                    required=True,
-                ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 # region: Not available in KubernetesCluster node
                 OntologyFieldMapping(
@@ -150,6 +135,7 @@ kubernetes_mapping = OntologyMapping(
                 ),
                 # endpoint: Not available in KubernetesCluster node
                 # status: Not available in KubernetesCluster node
+                # control_plane_public_access: Not available for self-managed clusters
             ],
         ),
     ],

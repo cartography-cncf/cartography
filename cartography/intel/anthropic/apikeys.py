@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Tuple
 
@@ -11,7 +10,6 @@ from cartography.intel.anthropic.util import paginated_get
 from cartography.models.anthropic.apikey import AnthropicApiKeySchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -53,7 +51,6 @@ def load_apikeys(
     ORG_ID: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Anthropic ApiKey into Neo4j.", len(data))
     load(
         neo4j_session,
         AnthropicApiKeySchema(),

@@ -87,6 +87,15 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
     """Transform raw DNS zone responses into Neo4j-ready dicts."""
     zones: List[Dict] = []
     for z in dns_zones:
+        dnssec_specs = z.get("dnssecConfig", {}).get("defaultKeySpecs", [])
+        key_signing_spec: Dict = next(
+            (spec for spec in dnssec_specs if spec.get("keyType") == "keySigning"),
+            {},
+        )
+        zone_signing_spec: Dict = next(
+            (spec for spec in dnssec_specs if spec.get("keyType") == "zoneSigning"),
+            {},
+        )
         zones.append(
             {
                 "id": z["id"],
@@ -94,6 +103,9 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
                 "dns_name": z.get("dnsName"),
                 "description": z.get("description"),
                 "visibility": z.get("visibility"),
+                "dnssec_state": z.get("dnssecConfig", {}).get("state"),
+                "dnssec_key_signing_algorithm": key_signing_spec.get("algorithm"),
+                "dnssec_zone_signing_algorithm": zone_signing_spec.get("algorithm"),
                 "kind": z.get("kind"),
                 "nameservers": z.get("nameServers"),
                 "created_at": z.get("creationTime"),

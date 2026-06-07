@@ -30,6 +30,11 @@ class GitLabDependencyNodeProperties(CartographyNodeProperties):
     package_manager: PropertyRef = PropertyRef(
         "package_manager"
     )  # npm, pip, bundler, maven, etc.
+    project_id: PropertyRef = PropertyRef("project_id")
+    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
+    type: PropertyRef = PropertyRef("type")
+    purl: PropertyRef = PropertyRef("purl")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -50,7 +55,10 @@ class GitLabDependencyToProjectRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url", set_in_kwargs=True)}
+        {
+            "id": PropertyRef("project_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -76,7 +84,10 @@ class GitLabProjectRequiresDependencyRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_url", set_in_kwargs=True)}
+        {
+            "id": PropertyRef("project_id", set_in_kwargs=True),
+            "gitlab_url": PropertyRef("gitlab_url", set_in_kwargs=True),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"

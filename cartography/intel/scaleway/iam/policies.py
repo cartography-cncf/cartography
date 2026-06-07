@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -13,8 +12,6 @@ from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.iam.policy import ScalewayPolicySchema
 from cartography.models.scaleway.iam.rule import ScalewayRuleSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -82,7 +79,6 @@ def load_policies(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Scaleway Policies into Neo4j.", len(data))
     load(
         neo4j_session,
         ScalewayPolicySchema(),
@@ -101,10 +97,6 @@ def load_rules(
 ) -> None:
     if not data:
         return
-    logger.info(
-        "Loading %d Scaleway Rules into Neo4j.",
-        len(data),
-    )
     load(
         neo4j_session,
         ScalewayRuleSchema(),

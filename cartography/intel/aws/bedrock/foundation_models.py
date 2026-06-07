@@ -15,13 +15,13 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.foundation_model import (
     AWSBedrockFoundationModelSchema,
 )
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,9 @@ def get_foundation_models(
     """
     Retrieve all foundation models available in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock foundation models in region %s", region)
-    client = boto3_session.client(
+    logger.debug("Fetching Bedrock foundation models in region %s", region)
+    client = create_boto3_client(
+        boto3_session,
         "bedrock",
         region_name=region,
         config=get_botocore_config(),
@@ -45,7 +46,7 @@ def get_foundation_models(
     response = client.list_foundation_models()
     models = response.get("modelSummaries", [])
 
-    logger.info("Retrieved %d foundation models in region %s", len(models), region)
+    logger.debug("Retrieved %d foundation models in region %s", len(models), region)
 
     return models
 
@@ -73,8 +74,6 @@ def load_foundation_models(
     """
     Load foundation models into the graph database.
     """
-    logger.info("Loading %d Bedrock foundation models for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockFoundationModelSchema(),

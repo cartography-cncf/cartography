@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -7,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.guardduty.detectors import GuardDutyDetectorSchema
 from cartography.models.aws.guardduty.findings import GuardDutyFindingSchema
 from cartography.stats import get_stats_client
@@ -60,7 +62,7 @@ def get_detectors(
     """
     Get GuardDuty detector IDs for all detectors in a region.
     """
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
 
     # Get all detector IDs in this region
     detectors_response = client.list_detectors()
@@ -80,7 +82,7 @@ def get_detector_details(
     if not detector_ids:
         return []
 
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
     detectors: list[dict[str, Any]] = []
 
     for detector_id in detector_ids:
@@ -115,7 +117,7 @@ def get_findings(
     Only fetches unarchived findings to avoid including closed/resolved findings.
     Optionally filters by severity threshold.
     """
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
 
     # Build FindingCriteria - always exclude archived findings
     criteria = {"service.archived": {"Equals": ["false"]}}
@@ -164,11 +166,44 @@ def get_findings(
     return findings_data
 
 
+def _extract_sample(service: dict[str, Any]) -> bool | None:
+    # GuardDuty flags sample findings (CreateSampleFindings / the console
+    # "Generate sample findings" button) with `"sample": true` *inside* the
+    # JSON-encoded `service.additionalInfo.value` string, not as a top-level
+    # field. boto3 returns that string verbatim, so parse it to recover the flag.
+    additional_info = service.get("AdditionalInfo") or {}
+    raw_value = additional_info.get("Value")
+    if not raw_value:
+        return None
+    try:
+        parsed = json.loads(raw_value)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed.get("sample")
+
+
 def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform GuardDuty findings from API response to schema format."""
     transformed: list[dict[str, Any]] = []
     for f in findings:
-        service = f.get("Service", {})
+        service = f.get("Service") or {}
+        action = service.get("Action") or {}
+        action_type = action.get("ActionType")
+
+        # Extract AwsApiCallAction fields when applicable
+        api_call: dict[str, Any] = {}
+        if action_type == "AWS_API_CALL":
+            api_call = action.get("AwsApiCallAction") or {}
+
+        remote_ip_details = api_call.get("RemoteIpDetails") or {}
+        remote_account_details = api_call.get("RemoteAccountDetails") or {}
+        remote_country = remote_ip_details.get("Country") or {}
+        remote_city = remote_ip_details.get("City") or {}
+        remote_geo = remote_ip_details.get("GeoLocation") or {}
+        remote_org = remote_ip_details.get("Organization") or {}
+
         item: dict[str, Any] = {
             "id": f["Id"],
             "arn": f.get("Arn"),
@@ -190,12 +225,44 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "accountid": f.get("AccountId"),
             "region": f.get("Region"),
             "detectorid": f.get("DetectorId"),
-            "archived": f.get("Archived"),
+            # `Archived` lives under the `Service` object per the AWS Finding
+            # schema; fall back to a top-level `Archived` for safety.
+            "archived": service.get("Archived", f.get("Archived")),
+            "sample": _extract_sample(service),
+            # Service-level fields
+            "service_action_type": action_type,
+            "service_count": service.get("Count"),
+            "service_resource_role": service.get("ResourceRole"),
+            # AwsApiCallAction fields
+            "api_call_name": api_call.get("Api"),
+            "api_call_service_name": api_call.get("ServiceName"),
+            "api_call_caller_type": api_call.get("CallerType"),
+            "api_call_error_code": api_call.get("ErrorCode"),
+            "api_call_remote_ip": remote_ip_details.get(
+                "IpAddressV4",
+                remote_ip_details.get("IpAddressV6"),
+            ),
+            "api_call_remote_country": remote_country.get("CountryName"),
+            "api_call_remote_city": remote_city.get("CityName"),
+            "api_call_remote_org": remote_org.get("Org"),
+            "api_call_remote_asn": remote_org.get("Asn"),
+            "api_call_remote_asn_org": remote_org.get("AsnOrg"),
+            "api_call_remote_isp": remote_org.get("Isp"),
+            "api_call_remote_lat": remote_geo.get("Lat"),
+            "api_call_remote_lon": remote_geo.get("Lon"),
+            "api_call_remote_account_id": remote_account_details.get("AccountId"),
+            "api_call_remote_account_affiliated": remote_account_details.get(
+                "Affiliated",
+            ),
         }
 
         # Handle nested resource information
         resource = f.get("Resource", {})
         item["resource_type"] = resource.get("ResourceType")
+        item["resource_id"] = None
+        item["access_key_id"] = None
+        item["principal_user_id"] = None
+        item["principal_role_id"] = None
 
         # Extract resource ID based on resource type
         if item["resource_type"] == "Instance":
@@ -205,8 +272,18 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             buckets = resource.get("S3BucketDetails") or []
             if buckets:
                 item["resource_id"] = buckets[0].get("Name")
-        else:
-            item["resource_id"] = None
+        elif item["resource_type"] == "AccessKey":
+            details = resource.get("AccessKeyDetails", {})
+            item["access_key_id"] = details.get("AccessKeyId")
+            user_type = details.get("UserType")
+            principal_id = details.get("PrincipalId")
+            if principal_id:
+                if user_type == "IAMUser":
+                    item["principal_user_id"] = principal_id
+                elif user_type == "AssumedRole":
+                    # AssumedRole PrincipalId format: "AROAEXAMPLE:session-name".
+                    # Take the unique-id prefix to match AWSRole.roleid.
+                    item["principal_role_id"] = principal_id.split(":", 1)[0]
 
         transformed.append(item)
 

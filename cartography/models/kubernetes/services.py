@@ -15,11 +15,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid")
     name: PropertyRef = PropertyRef("name", extra_index=True)
+    qualified_name: PropertyRef = PropertyRef("qualified_name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
     namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
     selector: PropertyRef = PropertyRef("selector")
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef("type", extra_index=True)
     cluster_ip: PropertyRef = PropertyRef("cluster_ip")
     load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
     load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")

@@ -72,7 +72,7 @@ keycloak_mapping = OntologyMapping(
 )
 
 entra_mapping = OntologyMapping(
-    module_name="entra",
+    module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraApplication",
@@ -87,7 +87,12 @@ entra_mapping = OntologyMapping(
                     node_field="display_name",
                     required=True,
                 ),
-                # enabled: Not available - Entra applications don't have an enabled field in current schema
+                # enabled: Microsoft Graph exposes `accountEnabled` on the
+                # service principal (the tenant-local instance), not on the
+                # application registration. `_ont_enabled` is projected onto
+                # EntraApplication by the `ontology_entra_application_projection`
+                # analysis job, which copies it from the linked
+                # EntraServicePrincipal.
                 # native_app: Not available - Application type not currently ingested
                 OntologyFieldMapping(
                     ontology_field="protocol",
@@ -160,10 +165,30 @@ slack_mapping = OntologyMapping(
     ],
 )
 
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudSaaSApplication",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                ),
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
-    "entra": entra_mapping,
+    "microsoft": entra_mapping,
     "okta": okta_mapping,
     "slack": slack_mapping,
+    "jumpcloud": jumpcloud_mapping,
 }

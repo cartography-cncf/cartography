@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,8 +12,6 @@ from cartography.intel.airbyte.util import list_to_string
 from cartography.models.airbyte.connection import AirbyteConnectionSchema
 from cartography.models.airbyte.stream import AirbyteStreamSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -81,7 +78,6 @@ def load_connections(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Airbyte Connections into Neo4j.", len(data))
     load(
         neo4j_session,
         AirbyteConnectionSchema(),
@@ -98,7 +94,6 @@ def load_streams(
     org_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d Airbyte Streams into Neo4j.", len(data))
     load(
         neo4j_session,
         AirbyteStreamSchema(),

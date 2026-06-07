@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 class Module(str, Enum):
     """Services that can be monitored"""
 
+    AIBOM = "AIBOM"
+    """AI BOM inventory mapped onto container images"""
+
     AIRBYTE = "Airbyte"
     """Airbyte data integration"""
 
@@ -60,6 +63,9 @@ class Module(str, Enum):
 
     JAMF = "Jamf"
     """Jamf endpoint security"""
+
+    JUMPCLOUD = "JumpCloud"
+    """JumpCloud identity and device management"""
 
     KANDJI = "Kandji"
     """Kandji endpoint security"""
@@ -124,6 +130,7 @@ class Maturity(str, Enum):
 
 
 MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AIBOM: "aibom",
     Module.AIRBYTE: "airbyte",
     Module.ANTHROPIC: "anthropic",
     Module.AWS: "aws",
@@ -133,12 +140,13 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.CROWDSTRIKE: "crowdstrike",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
-    Module.ENTRA: "entra",
+    Module.ENTRA: "microsoft",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
     Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
+    Module.JUMPCLOUD: "jumpcloud",
     Module.KANDJI: "kandji",
     Module.KEYCLOAK: "keycloak",
     Module.KUBERNETES: "kubernetes",
@@ -253,6 +261,8 @@ class Fact:
     This count includes all assets regardless of whether they match the Fact criteria.
     Should return a single value with `RETURN COUNT(...) AS count`.
     """
+    identity_fields: tuple[str, ...]
+    """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
     asset_id_field: str | None = None
     """
     The field name in the output model that uniquely identifies an asset.
@@ -260,6 +270,12 @@ class Fact:
     rather than the total number of finding rows. This is needed when a single asset
     can produce multiple finding rows (e.g., one security group with multiple violating rules).
     """
+
+    def __post_init__(self) -> None:
+        if not self.identity_fields:
+            raise ValueError(
+                f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
 
 
 class Finding(BaseModel):

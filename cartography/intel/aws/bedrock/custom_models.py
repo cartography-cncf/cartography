@@ -14,11 +14,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.custom_model import AWSBedrockCustomModelSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +45,9 @@ def get_custom_models(
         )
         return []
 
-    logger.info("Fetching Bedrock custom models in region %s", region)
-    client = boto3_session.client(
+    logger.debug("Fetching Bedrock custom models in region %s", region)
+    client = create_boto3_client(
+        boto3_session,
         "bedrock",
         region_name=region,
         config=get_botocore_config(),
@@ -65,7 +66,7 @@ def get_custom_models(
         response = client.get_custom_model(modelIdentifier=model_arn)
         models.append(response)
 
-    logger.info("Retrieved %d custom models in region %s", len(models), region)
+    logger.debug("Retrieved %d custom models in region %s", len(models), region)
 
     return models
 
@@ -100,8 +101,6 @@ def load_custom_models(
     """
     Load custom models into the graph database.
     """
-    logger.info("Loading %d Bedrock custom models for region %s", len(data), region)
-
     load(
         neo4j_session,
         AWSBedrockCustomModelSchema(),

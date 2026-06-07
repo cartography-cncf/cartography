@@ -6,26 +6,24 @@ This guide teaches you how to write intel modules for Cartography using the mode
 
 ## Table of Contents
 
-1. [Procedure Documentation](#procedure-documentation) - Links to detailed guides
+1. [Procedure Skills](#procedure-skills) - Auto-loaded skills under `.agents/skills/`
 2. [AI Assistant Quick Reference](#ai-assistant-quick-reference) - Key concepts and imports
 3. [Git and Pull Request Guidelines](#git-and-pull-request-guidelines) - Commit signing and PR templates
 4. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
 5. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
 
-## Procedure Documentation
+## Procedure Skills
 
-Detailed procedures are available in separate documents:
+Procedures for building and extending Cartography intel modules ship as Claude skills under `.agents/skills/`. Skill-aware agents auto-load each skill from its YAML frontmatter when a relevant task starts; you do not need to open the files manually. The available skills are:
 
-| Procedure | Description |
-|-----------|-------------|
-| [Creating a New Module](docs/agents/create-module.md) | Complete guide to creating a new Cartography intel module |
-| [Enriching the Ontology](docs/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
-| [Adding a New Node Type](docs/agents/add-node-type.md) | Advanced node schema properties and configurations |
-| [Adding a New Relationship](docs/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
-| [Adding Analysis Jobs](docs/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
-| [Creating Security Rules](docs/agents/create-rule.md) | Security rules, facts, and compliance conventions |
-| [Refactoring Legacy Code](docs/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
-| [Troubleshooting](docs/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
+- `create-module`
+- `add-node-type`
+- `add-relationship`
+- `analysis-jobs`
+- `create-rule`
+- `enrich-ontology`
+- `refactor-legacy`
+- `troubleshooting`
 
 ## AI Assistant Quick Reference
 
@@ -34,7 +32,7 @@ Detailed procedures are available in separate documents:
 - **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()` -> `analysis` (optional)
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
-- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance)
+- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance). When a job manages relationships, put `MERGE` statements before the stale-edge `DELETE`; iterative deletion exposes a window where concurrent readers see those edges missing. See the `analysis-jobs` skill.
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
@@ -54,7 +52,7 @@ from cartography.models.core.relationships import (
     make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
     make_source_node_matcher, SourceNodeMatcher,
 )
-from cartography.client.core.tx import load, load_matchlinks
+from cartography.client.core.tx import load, load_matchlinks, run_write_query
 from cartography.graph.job import GraphJob
 from cartography.util import timeit
 
@@ -78,6 +76,16 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Look at `tests/integration/cartography/intel/` for similar test patterns
 - Review `cartography/models/` for existing relationship patterns
 
+**Manual Write Queries:**
+- Prefer `load()` / `load_matchlinks()` for normal ingestion and `GraphJob` for cleanup.
+- If you must execute a handwritten write query, use `run_write_query()` instead of `neo4j_session.run()` so the write runs in a managed transaction with Cartography's retry handling.
+- Reserve direct `neo4j_session.run()` for read queries or intentional low-level paths that cannot use the managed write helpers.
+
+**Deprecation Conventions:**
+- For temporary compatibility shims, legacy aliases, and migration-only edges, add a code comment in the form `# DEPRECATED: ... will be removed in v1.0.0`.
+- Prefer comment-only deprecation markers for internal compatibility code that should stay quiet during normal runs.
+- Use runtime warnings or log warnings only when users are actively invoking a deprecated public module or API surface.
+
 ## Git and Pull Request Guidelines
 
 **Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
@@ -97,7 +105,7 @@ The fastest way to get started is to copy the structure from an existing module:
 - **Complex module**: `cartography/intel/aws/ec2/instances.py` - Multiple relationships and data types
 - **Reference documentation**: `docs/root/dev/writing-intel-modules.md`
 
-For detailed step-by-step instructions, see [Creating a New Module](docs/agents/create-module.md).
+For detailed step-by-step instructions, use the `create-module` skill.
 
 ---
 
@@ -143,6 +151,22 @@ def load_entities(neo4j_session: neo4j.Session, data: list[dict],
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup job for MyResource")
     GraphJob.from_node_schema(YourSchema(), common_job_parameters).run(neo4j_session)
+```
+
+```python
+def cleanup_custom_relationships(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (n:YourNode)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+    )
 ```
 
 ### Required Node Properties
@@ -226,25 +250,10 @@ tests/integration/cartography/intel/your_service/
 └── test_entities.py     # Integration tests
 ```
 
-### Test Utilities
+### Tests
 
-```python
-from tests.integration.util import check_nodes, check_rels
-
-# Check nodes
-expected_nodes = {("user-123", "alice@example.com")}
-assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
-
-# Check relationships
-expected_rels = {("user-123", "tenant-123")}
-assert check_rels(
-    neo4j_session,
-    "YourServiceUser", "id",
-    "YourServiceTenant", "id",
-    "RESOURCE",
-    rel_direction_right=True,
-) == expected_rels
-```
+For test-specific guidance, including integration test boundaries, Cypher usage,
+fixtures, and `check_nodes()` / `check_rels()` helpers, see `tests/AGENTS.md`.
 
 ---
 

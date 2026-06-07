@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,8 +11,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.pagerduty.integration import PagerDutyIntegrationSchema
 from cartography.models.pagerduty.service import PagerDutyServiceSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -119,7 +116,6 @@ def load_service_data(
     """
     Transform and load service information
     """
-    logger.info(f"Loading {len(data)} pagerduty services.")
     load(
         neo4j_session,
         PagerDutyServiceSchema(),
@@ -140,7 +136,6 @@ def load_integration_data(
         created_at = dateutil.parser.parse(integration["created_at"])
         integration["created_at"] = int(created_at.timestamp())
 
-    logger.info(f"Loading {len(data)} pagerduty integrations.")
     load(
         neo4j_session,
         PagerDutyIntegrationSchema(),

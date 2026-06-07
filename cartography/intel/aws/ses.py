@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Optional
 
@@ -10,12 +11,38 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ses import SESEmailIdentitySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _iter_list_email_identities_pages(
+    client: Any,
+) -> Iterator[Dict[str, Any]]:
+    """
+    Yield pages from SESv2 list_email_identities.
+
+    Some botocore versions do not expose a paginator model for this operation,
+    so we fall back to manual NextToken pagination.
+    """
+    try:
+        paginator = client.get_paginator("list_email_identities")
+        yield from paginator.paginate()
+    except botocore.exceptions.OperationNotPageableError:
+        next_token = None
+        while True:
+            params: Dict[str, str] = {}
+            if next_token:
+                params["NextToken"] = next_token
+            page = client.list_email_identities(**params)
+            yield page
+            next_token = page.get("NextToken")
+            if not next_token:
+                break
 
 
 @timeit
@@ -25,14 +52,14 @@ def get_ses_email_identities(
     region: str,
     current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "sesv2",
         region_name=region,
         config=get_botocore_config(),
     )
     identities: List[Dict[str, Any]] = []
-    paginator = client.get_paginator("list_email_identities")
-    for page in paginator.paginate():
+    for page in _iter_list_email_identities_pages(client):
         for identity_info in page.get("EmailIdentities", []):
             identity_name = identity_info["IdentityName"]
             identity_type = identity_info["IdentityType"]

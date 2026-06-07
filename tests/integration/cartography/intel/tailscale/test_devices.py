@@ -1,8 +1,10 @@
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests
 
 import cartography.intel.tailscale.devices
+import tests.data.tailscale.devicepostureattributes
 import tests.data.tailscale.devices
 from tests.integration.cartography.intel.tailscale.test_tailnets import (
     _ensure_local_neo4j_has_test_tailnets,
@@ -36,7 +38,12 @@ def _ensure_local_neo4j_has_test_devices(neo4j_session):
     "get",
     return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
 )
-def test_load_tailscale_devices(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.tailscale.devices,
+    "get_device_posture_attributes",
+    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+)
+def test_load_tailscale_devices(mock_attrs, mock_api, neo4j_session):
     """
     Ensure that devices actually get loaded
     """
@@ -86,6 +93,37 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
     }
     assert actual == expected
 
+    result = neo4j_session.run(
+        """
+        MATCH (n:TailscaleDevice)
+        RETURN
+            n.id AS id,
+            n.posture_node_os AS posture_node_os,
+            n.posture_sentinelone_infected AS posture_sentinelone_infected,
+            n.posture_falcon_zta_score AS posture_falcon_zta_score,
+            n.posture_intune_compliance_state AS posture_intune_compliance_state,
+            n.posture_intune_managed_device_owner_type AS posture_intune_managed_device_owner_type
+        """,
+    )
+    expected = {
+        ("abcskgfgCN789", "android", True, None, None, None),
+        ("p892kg92CNTRL", "windows", True, 85, None, None),
+        ("n2fskgfgCNT89", "macos", False, None, "compliant", "company"),
+        ("n292kg92CNTRL", "linux", False, None, None, None),
+    }
+    actual = {
+        (
+            r["id"],
+            r["posture_node_os"],
+            r["posture_sentinelone_infected"],
+            r["posture_falcon_zta_score"],
+            r["posture_intune_compliance_state"],
+            r["posture_intune_managed_device_owner_type"],
+        )
+        for r in result
+    }
+    assert actual == expected
+
     # Assert Devices are connected with Tailnet
     expected_rels = {
         ("n292kg92CNTRL", TEST_ORG),
@@ -125,3 +163,43 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+
+def test_get_device_posture_attributes_handles_scalar_and_object_values():
+    api_session = Mock()
+    response = Mock()
+    response.json.return_value = {
+        "attributes": {
+            "sentinelOne:infected": "true",
+            "falcon:ztaScore": {"value": "85"},
+            "intune:complianceState": {"value": "compliant"},
+            "fleet:present": True,
+        },
+    }
+    response.raise_for_status.return_value = None
+    api_session.get.return_value = response
+
+    devices = [
+        {
+            "nodeId": "device-1",
+            "os": "linux",
+            "clientVersion": "v1.80.0",
+        },
+    ]
+
+    results = cartography.intel.tailscale.devices.get_device_posture_attributes(
+        api_session,
+        "https://fake.tailscale.com",
+        devices,
+    )
+
+    assert results == {
+        "device-1": {
+            "node:os": "linux",
+            "node:tsVersion": "1.80.0",
+            "sentinelOne:infected": True,
+            "falcon:ztaScore": 85,
+            "intune:complianceState": "compliant",
+            "fleet:present": True,
+        },
+    }

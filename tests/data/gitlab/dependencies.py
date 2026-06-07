@@ -7,6 +7,8 @@ GET_GITLAB_DEPENDENCIES_RESPONSE = [
         "version": "4.18.2",
         "package_manager": "npm",
         "manifest_path": "package.json",
+        "purl": "pkg:npm/express@4.18.2",
+        "type": "npm",
         "manifest_id": "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
     },
     {
@@ -14,6 +16,8 @@ GET_GITLAB_DEPENDENCIES_RESPONSE = [
         "version": "4.17.21",
         "package_manager": "npm",
         "manifest_path": "package.json",
+        "purl": "pkg:npm/lodash@4.17.21",
+        "type": "npm",
         "manifest_id": "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
     },
     {
@@ -21,16 +25,22 @@ GET_GITLAB_DEPENDENCIES_RESPONSE = [
         "version": "2.31.0",
         "package_manager": "pypi",
         "manifest_path": "backend/requirements.txt",
+        "purl": "pkg:pypi/requests@2.31.0",
+        "type": "pypi",
     },
     {
         "name": "gin",
         "version": "1.9.1",
         "package_manager": "golang",
         "manifest_path": "services/api/go.mod",
+        "purl": "pkg:golang/gin@1.9.1",
+        "type": "golang",
     },
 ]
 
 TEST_PROJECT_URL = "https://gitlab.example.com/myorg/awesome-project"
+TEST_PROJECT_ID = 123
+TEST_GITLAB_URL = "https://gitlab.example.com"
 
 # Expected transformed dependencies output
 TRANSFORMED_DEPENDENCIES = [
@@ -39,7 +49,11 @@ TRANSFORMED_DEPENDENCIES = [
         "name": "express",
         "version": "4.18.2",
         "package_manager": "npm",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+        "purl": "pkg:npm/express@4.18.2",
+        "type": "npm",
+        "normalized_id": "npm|express|4.18.2",
         "manifest_id": "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
     },
     {
@@ -47,7 +61,11 @@ TRANSFORMED_DEPENDENCIES = [
         "name": "lodash",
         "version": "4.17.21",
         "package_manager": "npm",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+        "purl": "pkg:npm/lodash@4.17.21",
+        "type": "npm",
+        "normalized_id": "npm|lodash|4.17.21",
         "manifest_id": "https://gitlab.example.com/myorg/awesome-project/blob/package.json",
     },
     {
@@ -55,13 +73,21 @@ TRANSFORMED_DEPENDENCIES = [
         "name": "requests",
         "version": "2.31.0",
         "package_manager": "pypi",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+        "purl": "pkg:pypi/requests@2.31.0",
+        "type": "pypi",
+        "normalized_id": "pypi|requests|2.31.0",
     },
     {
         "id": "https://gitlab.example.com/myorg/awesome-project:golang:gin@1.9.1",
         "name": "gin",
         "version": "1.9.1",
         "package_manager": "golang",
-        "project_url": TEST_PROJECT_URL,
+        "project_id": TEST_PROJECT_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+        "purl": "pkg:golang/gin@1.9.1",
+        "type": "golang",
+        "normalized_id": "golang|gin|1.9.1",
     },
 ]

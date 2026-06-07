@@ -19,6 +19,13 @@ class GCPDNSZoneNodeProperties(CartographyNodeProperties):
     dns_name: PropertyRef = PropertyRef("dns_name")
     description: PropertyRef = PropertyRef("description")
     visibility: PropertyRef = PropertyRef("visibility")
+    dnssec_state: PropertyRef = PropertyRef("dnssec_state")
+    dnssec_key_signing_algorithm: PropertyRef = PropertyRef(
+        "dnssec_key_signing_algorithm"
+    )
+    dnssec_zone_signing_algorithm: PropertyRef = PropertyRef(
+        "dnssec_zone_signing_algorithm"
+    )
     kind: PropertyRef = PropertyRef("kind")
     nameservers: PropertyRef = PropertyRef("nameservers")
     created_at: PropertyRef = PropertyRef("created_at")

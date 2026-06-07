@@ -12,12 +12,12 @@ Grant the following roles to the identity at the **organization level**. This en
 
 | Role | Purpose | Required |
 |------|---------|----------|
-| `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
+| `roles/iam.securityReviewer` | List/get IAM roles, service accounts, and Workload Identity Federation pools and providers | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
 | `roles/bigquery.dataViewer` | List/get BigQuery datasets, tables, and routines | Optional |
 | `roles/bigquery.connectionUser` | List BigQuery connections | Optional |
-| `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
+| `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) and enable permission relationship syncs that depend on those bindings | Optional |
 | `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
 | `roles/run.viewer` | List/get Cloud Run services, jobs, and executions | Optional |
 | `roles/notebooks.viewer` | List/get Vertex AI Workbench (Notebooks API) resources | Optional |
@@ -33,6 +33,8 @@ You can find your organization ID with:
 ```bash
 gcloud organizations list
 ```
+
+If you grant a custom role instead of `roles/iam.securityReviewer`, ensure the role includes `iam.workloadIdentityPools.list` and `iam.workloadIdentityPoolProviders.list` (or grant `roles/iam.workloadIdentityPoolViewer` alongside it). Without these permissions Cartography logs a 403 warning and skips Workload Identity Federation sync silently, leaving `GCPWorkloadIdentityPool` and `GCPWorkloadIdentityProvider` nodes empty even when IAM sync otherwise succeeds.
 
 ### 3. Configure Authentication
 
@@ -91,6 +93,8 @@ Cartography uses the [Cloud Asset Inventory API](https://cloud.google.com/asset-
 1. **IAM Fallback**: When the IAM API is disabled on a target project, Cartography falls back to CAI to retrieve service accounts and custom roles.
 2. **Policy Bindings**: Sync effective IAM policies (including inherited policies from parent orgs/folders) for all resources.
 
+GCP permission relationship syncs depend on the current run's policy binding context. In practice, that means permission relationship syncs require the CAI-backed policy bindings sync to succeed in the same run.
+
 #### Setup
 
 When using a service account, CAI API calls are automatically billed against the service account's **host project**. No additional configuration is required.
@@ -112,3 +116,4 @@ When using a service account, CAI API calls are automatically billed against the
 
 - **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Note: The CAI fallback only syncs service accounts and project-level custom roles. Predefined roles and organization-level custom roles are synced separately at the organization level via the IAM API.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
+- **Permission Relationships**: Depend on policy bindings being refreshed in the same sync run. If CAI is unavailable or `roles/cloudasset.viewer` is missing, permission relationships will not have the policy binding data they need and will be skipped for that project.

@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 
+from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
+from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
 from kubernetes.client import VersionApi
@@ -35,6 +37,21 @@ class K8CoreApiClient(CoreV1Api):
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8CustomObjectsApiClient(CustomObjectsApi):
     def __init__(
         self,
         name: str,
@@ -93,6 +110,7 @@ class K8sClient:
         self.networking = K8NetworkingApiClient(self.name, self.config_file)
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -111,6 +129,10 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
             ),
         )
     return clients
+
+
+def get_qualified_resource_name(namespace: str, name: str) -> str:
+    return f"{namespace}/{name}"
 
 
 def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
@@ -199,14 +221,30 @@ def get_epoch(date: datetime | None) -> int | None:
     return None
 
 
+def parse_rfc3339(value: str | None) -> datetime | None:
+    """
+    Parse an RFC3339 timestamp string (e.g. ``2024-01-02T03:04:05Z``) into a
+    datetime. The Kubernetes ``CustomObjectsApi`` returns metadata timestamps
+    as raw strings rather than as datetimes (unlike the typed apis), so callers
+    that need an epoch int should do ``get_epoch(parse_rfc3339(value))``.
+    """
+    if not value:
+        return None
+    return isoparse(value)
+
+
 def k8s_paginate(
     list_func: Callable,
+    raise_on_forbidden: bool = False,
     **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
     Handles pagination for a Kubernetes API call.
 
     :param list_func: The list function to call (e.g. client.core.list_pod_for_all_namespaces)
+    :param raise_on_forbidden: When True, re-raise ApiException with status 401/403 so the caller
+        can handle missing permissions (used for optional RBAC verbs). Other ApiExceptions are still
+        logged and swallowed.
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
     :return: A list of all resources returned by the list function
     """
@@ -249,6 +287,8 @@ def k8s_paginate(
                 break
 
         except ApiException as e:
+            if raise_on_forbidden and e.status in (401, 403):
+                raise
             logger.error(
                 f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
             )

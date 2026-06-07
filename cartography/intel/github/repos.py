@@ -1,14 +1,16 @@
 import configparser
+import hashlib
+import json
 import logging
 import time
 from collections import defaultdict
 from collections import namedtuple
-from string import Template
 from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
+from urllib.parse import quote
 
 import neo4j
 import requests
@@ -16,13 +18,16 @@ from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
-from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
+from cartography.helpers import backoff_handler
+from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.intel.github.util import rest_api_base_url
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import parse_purl
 from cartography.models.github.branch_protection_rules import (
@@ -30,9 +35,17 @@ from cartography.models.github.branch_protection_rules import (
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
-from cartography.util import backoff_handler
+from cartography.models.github.repos import GitHubBranchSchema
+from cartography.models.github.repos import GitHubOwnerOrganizationSchema
+from cartography.models.github.repos import GitHubOwnerUserSchema
+from cartography.models.github.repos import GitHubPythonLibrarySchema
+from cartography.models.github.repos import GitHubRepositorySchema
+from cartography.models.github.repos import make_github_collaborator_schema
+from cartography.models.github.repos import ProgrammingLanguageSchema
+from cartography.models.github.ruleset_rules import GitHubRulesetRuleSchema
+from cartography.models.github.rulesets import GitHubRulesetSchema
 from cartography.util import retries_with_backoff
-from cartography.util import run_cleanup_job
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -123,6 +136,7 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                     hasNextPage
                 }
                 nodes{
+                    name
                     url
                     directCollaborators: collaborators(first: 100, affiliation: DIRECT) {
                         totalCount
@@ -470,7 +484,7 @@ def _get_dep_manifests_for_repos(
                 exc_info=True,
             )
 
-    logger.info("Fetched dependency manifests for %d repos.", len(result))
+    logger.debug("Fetched dependency manifests for %d repos.", len(result))
     return result
 
 
@@ -606,6 +620,175 @@ def _get_repo_collaborators(
     return collaborators
 
 
+def _to_github_graphql_enum(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.upper()
+    return value
+
+
+def _camelize_rest_key(value: str) -> str:
+    parts = value.split("_")
+    return parts[0] + "".join(part.capitalize() for part in parts[1:])
+
+
+def _camelize_rest_dict_keys(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_camelize_rest_dict_keys(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            _camelize_rest_key(key): _camelize_rest_dict_keys(item)
+            for key, item in value.items()
+        }
+    return value
+
+
+def _normalize_rest_property_conditions(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_camelize_rest_dict_keys(item) for item in value]
+    return value
+
+
+def _normalize_rest_ruleset_rule_id(
+    ruleset_id: str,
+    rule_index: int,
+    rule: dict[str, Any],
+) -> str:
+    payload = json.dumps(rule, sort_keys=True, separators=(",", ":"), default=str)
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+    return f"{ruleset_id}:rule:{rule_index}:{digest}"
+
+
+def _normalize_rest_ruleset(rest_ruleset: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalize GitHub REST repository ruleset data to the existing transform shape.
+    """
+    ruleset_id = rest_ruleset["node_id"]
+    conditions = rest_ruleset.get("conditions") or {}
+    repository_id = conditions.get("repository_id") or {}
+    repository_property = conditions.get("repository_property") or {}
+    organization_property = conditions.get("organization_property") or {}
+    rules: list[dict[str, Any] | None] = []
+
+    for index, rule in enumerate(rest_ruleset.get("rules") or []):
+        if rule is None:
+            rules.append(None)
+            continue
+        normalized_rule = {
+            "type": _to_github_graphql_enum(rule.get("type")),
+            "parameters": _camelize_rest_dict_keys(rule.get("parameters")),
+        }
+        normalized_rule["id"] = _normalize_rest_ruleset_rule_id(
+            ruleset_id,
+            index,
+            normalized_rule,
+        )
+        rules.append(normalized_rule)
+
+    # Do not map bypass_actors. GitHub only returns it to callers with write
+    # access to the ruleset, and Cartography is expected to run read-only.
+    # See https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset
+    return {
+        "id": ruleset_id,
+        "databaseId": rest_ruleset["id"],
+        "name": rest_ruleset.get("name"),
+        "target": _to_github_graphql_enum(rest_ruleset.get("target")),
+        "enforcement": _to_github_graphql_enum(rest_ruleset.get("enforcement")),
+        "createdAt": rest_ruleset.get("created_at"),
+        "updatedAt": rest_ruleset.get("updated_at"),
+        "conditions": {
+            "refName": conditions.get("ref_name") or {},
+            "repositoryName": conditions.get("repository_name") or {},
+            "repositoryId": {
+                "repositoryIds": repository_id.get("repository_ids", []),
+            },
+            "repositoryProperty": {
+                "include": _normalize_rest_property_conditions(
+                    repository_property.get("include")
+                ),
+                "exclude": _normalize_rest_property_conditions(
+                    repository_property.get("exclude")
+                ),
+            },
+            "organizationProperty": {
+                "include": _normalize_rest_property_conditions(
+                    organization_property.get("include")
+                ),
+                "exclude": _normalize_rest_property_conditions(
+                    organization_property.get("exclude")
+                ),
+            },
+        },
+        "rules": {
+            "nodes": rules,
+            "totalCount": len(rules),
+        },
+    }
+
+
+def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
+    node_id = ruleset.get("node_id")
+    if node_id:
+        return ("node_id", node_id)
+    return (
+        "source",
+        ruleset.get("source_type"),
+        ruleset.get("source"),
+        ruleset["id"],
+    )
+
+
+def _get_repo_rulesets_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+    repo_raw_data: list[dict[str, Any] | None],
+) -> dict[str, dict[str, Any]]:
+    """
+    Retrieve full GitHub repository rulesets through REST for every repo.
+    """
+    base_url = rest_api_base_url(api_url)
+    owner = quote(organization, safe="")
+    rulesets_by_url: dict[str, dict[str, Any]] = {}
+    ruleset_detail_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
+
+    for repo in repo_raw_data:
+        if repo is None:
+            continue
+        repo_name = repo.get("name")
+        repo_url = repo.get("url")
+        if not repo_name or not repo_url:
+            continue
+        encoded_repo_name = quote(repo_name, safe="")
+        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+        ruleset_summaries = fetch_all_rest_api_pages(
+            token,
+            base_url,
+            endpoint,
+            result_key="rulesets",
+            raise_on_status=(403, 404),
+            params={"per_page": 100, "includes_parents": "true"},
+        )
+        normalized_rulesets = []
+        for ruleset_summary in ruleset_summaries:
+            cache_key = _rest_ruleset_cache_key(ruleset_summary)
+            ruleset_detail = ruleset_detail_cache.get(cache_key)
+            if ruleset_detail is None:
+                ruleset_detail = call_github_rest_api(
+                    f"{endpoint}/{ruleset_summary['id']}",
+                    token,
+                    base_url,
+                    params={"includes_parents": "true"},
+                )
+                ruleset_detail_cache[cache_key] = ruleset_detail
+            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+        rulesets_by_url[repo_url] = {
+            "nodes": normalized_rulesets,
+            "totalCount": len(normalized_rulesets),
+        }
+
+    return rulesets_by_url
+
+
 @timeit
 def get(token: str, api_url: str, organization: str) -> List[Optional[Dict]]:
     """
@@ -636,7 +819,7 @@ def get(token: str, api_url: str, organization: str) -> List[Optional[Dict]]:
 
 def _repos_need_privileged_details(repos_json: List[Optional[Dict]]) -> bool:
     """
-    Return True when repo objects are missing collaborator counts and/or branch protection fields.
+    Return True when repo objects are missing collaborator counts, branch protection fields, or ruleset fields.
     """
     non_null_repos = [repo for repo in repos_json if repo is not None]
     if not non_null_repos:
@@ -650,7 +833,14 @@ def _repos_need_privileged_details(repos_json: List[Optional[Dict]]) -> bool:
     branch_rules_missing_everywhere = all(
         repo.get("branchProtectionRules") is None for repo in non_null_repos
     )
-    return collaborator_counts_missing or branch_rules_missing_everywhere
+    rulesets_missing_everywhere = all(
+        repo.get("rulesets") is None for repo in non_null_repos
+    )
+    return (
+        collaborator_counts_missing
+        or branch_rules_missing_everywhere
+        or rulesets_missing_everywhere
+    )
 
 
 def get_repo_privileged_details_by_url(
@@ -659,7 +849,7 @@ def get_repo_privileged_details_by_url(
     organization: str,
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Retrieve collaborator counts + branch protection fields for repositories in an organization.
+    Retrieve collaborator counts, branch protection, and ruleset fields for repositories in an organization.
     """
     repos, _ = fetch_all(
         token,
@@ -671,6 +861,12 @@ def get_repo_privileged_details_by_url(
     )
     privileged_repo_data = {}
     privileged_nodes = cast(List[Optional[Dict]], repos.nodes)
+    rulesets_by_url = _get_repo_rulesets_by_url(
+        token,
+        api_url,
+        organization,
+        privileged_nodes,
+    )
     for repo in privileged_nodes:
         # GitHub can return null repository entries.
         if repo is None:
@@ -682,6 +878,7 @@ def get_repo_privileged_details_by_url(
             "directCollaborators": repo.get("directCollaborators"),
             "outsideCollaborators": repo.get("outsideCollaborators"),
             "branchProtectionRules": repo.get("branchProtectionRules"),
+            "rulesets": rulesets_by_url.get(repo_url),
         }
     return privileged_repo_data
 
@@ -715,6 +912,7 @@ def _merge_repos_with_privileged_details(
             "directCollaborators",
             "outsideCollaborators",
             "branchProtectionRules",
+            "rulesets",
         ):
             if merged_repo.get(field_name) is None and field_name in privileged_data:
                 merged_repo[field_name] = privileged_data.get(field_name)
@@ -727,6 +925,7 @@ def _merge_repos_with_privileged_details(
             merged_repo.get("directCollaborators") is None
             or merged_repo.get("outsideCollaborators") is None
             or merged_repo.get("branchProtectionRules") is None
+            or merged_repo.get("rulesets") is None
         ):
             repos_missing_privileged_details += 1
 
@@ -775,6 +974,8 @@ def transform(
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
     transformed_branch_protection_rules: List[Dict] = []
+    transformed_rulesets: List[Dict] = []
+    transformed_ruleset_rules: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -835,9 +1036,17 @@ def transform(
             transformed_dependencies,
         )
         _transform_branch_protection_rules(
-            repo_object.get("branchProtectionRules", {}).get("nodes", []),
+            (repo_object.get("branchProtectionRules") or {}).get("nodes", []),
             repo_url,
             transformed_branch_protection_rules,
+        )
+        rulesets = repo_object.get("rulesets") or {}
+        _warn_if_github_connection_truncated(rulesets, "rulesets", repo_url)
+        _transform_rulesets(
+            rulesets.get("nodes", []),
+            repo_url,
+            transformed_rulesets,
+            transformed_ruleset_rules,
         )
     results = {
         "repos": transformed_repo_list,
@@ -849,6 +1058,8 @@ def transform(
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
         "branch_protection_rules": transformed_branch_protection_rules,
+        "rulesets": transformed_rulesets,
+        "ruleset_rules": transformed_ruleset_rules,
     }
 
     return results
@@ -894,6 +1105,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     # Create a git:// URL from the given SSH URL, if it exists.
     ssh_url = input_repo_object.get("sshUrl")
     git_url = _create_git_url_from_ssh_url(ssh_url) if ssh_url else None
+    owner = input_repo_object["owner"]
+    owner_type = owner["__typename"]
 
     out_repo_list.append(
         {
@@ -902,7 +1115,11 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "name": input_repo_object["name"],
             "fullname": input_repo_object["nameWithOwner"],
             "description": input_repo_object["description"],
-            "primarylanguage": input_repo_object["primaryLanguage"],
+            "primarylanguage": (
+                input_repo_object["primaryLanguage"]["name"]
+                if input_repo_object.get("primaryLanguage")
+                else None
+            ),
             "homepage": input_repo_object["homepageUrl"],
             "defaultbranch": default_branch_name,
             "defaultbranchid": default_branch_id,
@@ -914,6 +1131,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
             "updatedat": input_repo_object["updatedAt"],
+            "owner_org_id": owner["url"] if owner_type == "Organization" else None,
+            "owner_user_id": owner["url"] if owner_type == "User" else None,
         },
     )
 
@@ -1312,6 +1531,120 @@ def _transform_branch_protection_rules(
         )
 
 
+def _transform_rulesets(
+    rulesets_data: List[Optional[Dict[str, Any]]],
+    repo_url: str,
+    out_rulesets: List[Dict],
+    out_rules: List[Dict],
+) -> None:
+    """
+    Transforms GitHub repository ruleset data from API format to Cartography format.
+    """
+    for ruleset in rulesets_data:
+        if ruleset is None:
+            continue
+        ruleset_id = ruleset["id"]
+
+        conditions = ruleset.get("conditions", {}) or {}
+        ref_name = conditions.get("refName", {}) or {}
+        repository_name = conditions.get("repositoryName", {}) or {}
+        repository_id = conditions.get("repositoryId", {}) or {}
+        repository_property = conditions.get("repositoryProperty", {}) or {}
+        organization_property = conditions.get("organizationProperty", {}) or {}
+
+        out_rulesets.append(
+            {
+                "id": ruleset_id,
+                "database_id": ruleset.get("databaseId"),
+                "name": ruleset.get("name"),
+                "target": ruleset.get("target"),
+                "enforcement": ruleset.get("enforcement"),
+                "created_at": ruleset.get("createdAt"),
+                "updated_at": ruleset.get("updatedAt"),
+                "conditions_ref_name_include": ref_name.get("include", []),
+                "conditions_ref_name_exclude": ref_name.get("exclude", []),
+                "conditions_repository_name_include": repository_name.get(
+                    "include", []
+                ),
+                "conditions_repository_name_exclude": repository_name.get(
+                    "exclude", []
+                ),
+                "conditions_repository_name_protected": repository_name.get(
+                    "protected"
+                ),
+                "conditions_repository_ids": repository_id.get("repositoryIds", []),
+                "conditions_repository_property_include": _json_dumps_or_none(
+                    repository_property.get("include")
+                ),
+                "conditions_repository_property_exclude": _json_dumps_or_none(
+                    repository_property.get("exclude")
+                ),
+                "conditions_organization_property_include": _json_dumps_or_none(
+                    organization_property.get("include")
+                ),
+                "conditions_organization_property_exclude": _json_dumps_or_none(
+                    organization_property.get("exclude")
+                ),
+                "repo_url": repo_url,
+            }
+        )
+
+        rules = ruleset.get("rules") or {}
+        _warn_if_github_connection_truncated(rules, "ruleset rules", ruleset_id)
+        for rule in rules.get("nodes") or []:
+            if rule is None:
+                continue
+            rule_id = rule["id"]
+            parameters = rule.get("parameters")
+            parameters_json = json.dumps(parameters) if parameters is not None else None
+            parameters_dict = parameters if isinstance(parameters, dict) else {}
+            out_rules.append(
+                {
+                    "id": rule_id,
+                    "type": rule.get("type"),
+                    "parameters": parameters_json,
+                    "parameters_required_approving_review_count": parameters_dict.get(
+                        "requiredApprovingReviewCount"
+                    ),
+                    "parameters_dismiss_stale_reviews_on_push": parameters_dict.get(
+                        "dismissStaleReviewsOnPush"
+                    ),
+                    "parameters_require_code_owner_review": parameters_dict.get(
+                        "requireCodeOwnerReview"
+                    ),
+                    "parameters_required_status_checks": [
+                        check.get("context")
+                        for check in parameters_dict.get("requiredStatusChecks", [])
+                        if isinstance(check, dict) and check.get("context")
+                    ],
+                    "ruleset_id": ruleset_id,
+                }
+            )
+
+
+def _warn_if_github_connection_truncated(
+    connection: Dict[str, Any],
+    connection_name: str,
+    parent_id: str,
+) -> None:
+    total_count = connection.get("totalCount")
+    nodes = connection.get("nodes") or []
+    if isinstance(total_count, int) and total_count > len(nodes):
+        logger.warning(
+            "GitHub %s response for %s was truncated: received %d of %d.",
+            connection_name,
+            parent_id,
+            len(nodes),
+            total_count,
+        )
+
+
+def _json_dumps_or_none(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    return json.dumps(value)
+
+
 def parse_setup_cfg(config: configparser.ConfigParser) -> List[str]:
     reqs: List[str] = []
     reqs.extend(
@@ -1354,50 +1687,54 @@ def load_github_repos(
     :param repo_data: repository data objects
     :return: None
     """
-    ingest_repo = """
-    UNWIND $RepoData as repository
+    load_data(
+        neo4j_session,
+        GitHubRepositorySchema(),
+        repo_data,
+        lastupdated=update_tag,
+    )
 
-    MERGE (repo:GitHubRepository{id: repository.id})
-    ON CREATE SET repo.firstseen = timestamp(),
-    repo.createdat = repository.createdat
 
-    SET repo.name = repository.name,
-    repo.fullname = repository.fullname,
-    repo.description = repository.description,
-    repo.primarylanguage = repository.primarylanguage.name,
-    repo.homepage = repository.homepage,
-    repo.defaultbranch = repository.defaultbranch,
-    repo.defaultbranchid = repository.defaultbranchid,
-    repo.private = repository.private,
-    repo.disabled = repository.disabled,
-    repo.archived = repository.archived,
-    repo.locked = repository.locked,
-    repo.giturl = repository.giturl,
-    repo.url = repository.url,
-    repo.sshurl = repository.sshurl,
-    repo.updatedat = repository.updatedat,
-    repo.lastupdated = $UpdateTag
+def _build_branch_data(repo_data: List[Dict]) -> List[Dict]:
+    branch_data = []
+    for repo in repo_data:
+        if (
+            repo.get("defaultbranch")
+            and repo.get("defaultbranchid")
+            and repo.get("owner_org_id")
+        ):
+            branch_data.append(
+                {
+                    "id": repo["defaultbranchid"],
+                    "name": repo["defaultbranch"],
+                    "repo_id": repo["id"],
+                    "owner_org_id": repo["owner_org_id"],
+                }
+            )
+    return branch_data
 
-    WITH repo
-    WHERE repo.defaultbranch IS NOT NULL AND repo.defaultbranchid IS NOT NULL
-    MERGE (branch:GitHubBranch{id: repo.defaultbranchid})
-    ON CREATE SET branch.firstseen = timestamp()
-    SET branch.name = repo.defaultbranch,
-    branch.lastupdated = $UpdateTag
 
-    MERGE (repo)-[r:BRANCH]->(branch)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = r.UpdateTag
-    """
+@timeit
+def load_github_branches(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    repo_data: List[Dict],
+) -> None:
+    branches_by_org = defaultdict(list)
+    for branch in _build_branch_data(repo_data):
+        owner_org_id = branch["owner_org_id"]
+        branches_by_org[owner_org_id].append(
+            {k: v for k, v in branch.items() if k != "owner_org_id"}
+        )
 
-    def _ingest_repos_tx(tx: neo4j.Transaction) -> None:
-        tx.run(
-            ingest_repo,
-            RepoData=repo_data,
-            UpdateTag=update_tag,
-        ).consume()
-
-    execute_write_with_retry(neo4j_session, _ingest_repos_tx)
+    for owner_org_id, branch_data in branches_by_org.items():
+        load_data(
+            neo4j_session,
+            GitHubBranchSchema(),
+            branch_data,
+            lastupdated=update_tag,
+            owner_org_id=owner_org_id,
+        )
 
 
 @timeit
@@ -1413,28 +1750,12 @@ def load_github_languages(
     :param repo_languages: list of language to repo mappings
     :return: Nothing
     """
-    ingest_languages = """
-        UNWIND $Languages as lang
-
-        MERGE (pl:ProgrammingLanguage{id: lang.language_name})
-        ON CREATE SET pl.firstseen = timestamp(),
-        pl.name = lang.language_name
-        SET pl.lastupdated = $UpdateTag
-        WITH pl, lang
-
-        MATCH (repo:GitHubRepository{id: lang.repo_id})
-        MERGE (pl)<-[r:LANGUAGE]-(repo)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag"""
-
-    def _ingest_languages_tx(tx: neo4j.Transaction) -> None:
-        tx.run(
-            ingest_languages,
-            Languages=repo_languages,
-            UpdateTag=update_tag,
-        ).consume()
-
-    execute_write_with_retry(neo4j_session, _ingest_languages_tx)
+    load_data(
+        neo4j_session,
+        ProgrammingLanguageSchema(),
+        repo_languages,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -1450,44 +1771,23 @@ def load_github_owners(
     :param repo_owners: list of owner to repo mappings
     :return: Nothing
     """
-    ingest_owner_template = Template(
-        """
-        MERGE (user:$account_type{id: $Id})
-        ON CREATE SET user.firstseen = timestamp()
-        SET user.username = $UserName,
-        user.lastupdated = $UpdateTag
-        WITH user
+    organization_owners = [
+        owner for owner in repo_owners if owner["type"] == "Organization"
+    ]
+    user_owners = [owner for owner in repo_owners if owner["type"] == "User"]
 
-        MATCH (repo:GitHubRepository{id: $RepoId})
-        MERGE (user)<-[r:OWNER]-(repo)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag""",
+    load_data(
+        neo4j_session,
+        GitHubOwnerOrganizationSchema(),
+        organization_owners,
+        lastupdated=update_tag,
     )
-
-    account_type = {"User": "GitHubUser", "Organization": "GitHubOrganization"}
-
-    def _ingest_owner_tx(
-        tx: neo4j.Transaction,
-        owner_record: Dict,
-        owner_label: str,
-    ) -> None:
-        tx.run(
-            ingest_owner_template.safe_substitute(
-                account_type=owner_label,
-            ),
-            Id=owner_record["owner_id"],
-            UserName=owner_record["owner"],
-            RepoId=owner_record["repo_id"],
-            UpdateTag=update_tag,
-        ).consume()
-
-    for owner in repo_owners:
-        execute_write_with_retry(
-            neo4j_session,
-            _ingest_owner_tx,
-            owner,
-            account_type[owner["type"]],
-        )
+    load_data(
+        neo4j_session,
+        GitHubOwnerUserSchema(),
+        user_owners,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -1497,45 +1797,13 @@ def load_collaborators(
     collaborators: Dict,
     affiliation: str,
 ) -> None:
-    query = Template(
-        """
-    UNWIND $UserData as user
-
-    MERGE (u:GitHubUser{id: user.url})
-    ON CREATE SET u.firstseen = timestamp()
-    SET u.fullname = user.name,
-    u.username = user.login,
-    u.permission = user.permission,
-    u.email = user.email,
-    u.company = user.company,
-    u.lastupdated = $UpdateTag
-
-    WITH u, user
-    MATCH (repo:GitHubRepository{id: user.repo_url})
-    MERGE (repo)<-[o:$rel_label]-(u)
-    ON CREATE SET o.firstseen = timestamp()
-    SET o.lastupdated = $UpdateTag
-    """,
-    )
-
-    def _ingest_collaborators_tx(
-        tx: neo4j.Transaction,
-        relationship_label: str,
-        collaborator_data: List[Dict],
-    ) -> None:
-        tx.run(
-            query.safe_substitute(rel_label=relationship_label),
-            UserData=collaborator_data,
-            UpdateTag=update_tag,
-        ).consume()
-
     for collab_type, collab_data in collaborators.items():
         relationship_label = f"{affiliation}_COLLAB_{collab_type}"
-        execute_write_with_retry(
+        load_data(
             neo4j_session,
-            _ingest_collaborators_tx,
-            relationship_label,
+            make_github_collaborator_schema(relationship_label),
             collab_data,
+            lastupdated=update_tag,
         )
 
 
@@ -1545,30 +1813,12 @@ def load_python_requirements(
     update_tag: int,
     requirements_objects: List[Dict],
 ) -> None:
-    query = """
-    UNWIND $Requirements AS req
-        MERGE (lib:PythonLibrary:Dependency{id: req.id})
-        ON CREATE SET lib.firstseen = timestamp(),
-        lib.name = req.name
-        SET lib.lastupdated = $UpdateTag,
-        lib.version = req.version
-
-        WITH lib, req
-        MATCH (repo:GitHubRepository{id: req.repo_url})
-        MERGE (repo)-[r:REQUIRES]->(lib)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag,
-        r.specifier = req.specifier
-    """
-
-    def _ingest_requirements_tx(tx: neo4j.Transaction) -> None:
-        tx.run(
-            query,
-            Requirements=requirements_objects,
-            UpdateTag=update_tag,
-        ).consume()
-
-    execute_write_with_retry(neo4j_session, _ingest_requirements_tx)
+    load_data(
+        neo4j_session,
+        GitHubPythonLibrarySchema(),
+        requirements_objects,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -1578,39 +1828,20 @@ def load_github_dependencies(
     dependencies: List[Dict],
 ) -> None:
     """
-    Ingest GitHub dependency data into Neo4j using the new data model
+    Ingest GitHub dependency data into Neo4j using the new data model.
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
-    # Group dependencies by both repo_url and manifest_id for schema-based loading
-    dependencies_by_repo_and_manifest = defaultdict(list)
-
-    for dep in dependencies:
-        repo_url = dep["repo_url"]
-        manifest_id = dep["manifest_id"]
-        # Create a key combining both repo_url and manifest_id
-        group_key = (repo_url, manifest_id)
-        # Remove repo_url and manifest_id from the dependency object since we'll pass them as kwargs
-        dep_without_kwargs = {
-            k: v for k, v in dep.items() if k not in ["repo_url", "manifest_id"]
-        }
-        dependencies_by_repo_and_manifest[group_key].append(dep_without_kwargs)
-
-    # Load dependencies for each repository/manifest combination separately
-    for (
-        repo_url,
-        manifest_id,
-    ), group_dependencies in dependencies_by_repo_and_manifest.items():
-        load_data(
-            neo4j_session,
-            GitHubDependencySchema(),
-            group_dependencies,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-            manifest_id=manifest_id,
-        )
+    if not dependencies:
+        return
+    load_data(
+        neo4j_session,
+        GitHubDependencySchema(),
+        dependencies,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -1618,59 +1849,53 @@ def load_github_dependency_manifests(
     neo4j_session: neo4j.Session,
     update_tag: int,
     manifests: List[Dict],
+    owner_org_id: str,
 ) -> None:
     """
-    Ingest GitHub dependency manifests into Neo4j
+    Ingest GitHub dependency manifests into Neo4j.
     """
-    manifests_by_repo = defaultdict(list)
-
-    for manifest in manifests:
-        repo_url = manifest["repo_url"]
-        manifests_by_repo[repo_url].append(manifest)
-
-    # Load manifests for each repository separately
-    for repo_url, repo_manifests in manifests_by_repo.items():
-        load_data(
-            neo4j_session,
-            DependencyGraphManifestSchema(),
-            repo_manifests,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-        )
+    if not manifests:
+        return
+    load_data(
+        neo4j_session,
+        DependencyGraphManifestSchema(),
+        manifests,
+        lastupdated=update_tag,
+        owner_org_id=owner_org_id,
+    )
 
 
 @timeit
 def cleanup_github_dependencies(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
 ) -> None:
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
-            neo4j_session
-        )
+    """
+    Delete stale Dependency nodes and their relationships. Dependency uses
+    unscoped cleanup (see GitHubDependencySchema docstring) so this runs once
+    per sync cycle alongside the other global resources, not per organization.
+    """
+    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
 def cleanup_github_manifests(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    owner_org_id: str,
 ) -> None:
     """
     Delete GitHub dependency manifests and their relationships from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up manifests for
+    :param owner_org_id: URL of the owning GitHub organization
     """
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
-            neo4j_session
-        )
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -1678,52 +1903,196 @@ def load_branch_protection_rules(
     neo4j_session: neo4j.Session,
     update_tag: int,
     branch_protection_rules: List[Dict],
+    owner_org_id: str,
 ) -> None:
     """
     Ingest GitHub branch protection rules into Neo4j
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param branch_protection_rules: List of branch protection rule objects from GitHub's branchProtectionRules API
+    :param owner_org_id: URL of the owning GitHub organization, used as the sub_resource scope
     :return: Nothing
     """
-    # Group branch protection rules by repo_url for schema-based loading
-    rules_by_repo = defaultdict(list)
-
-    for rule in branch_protection_rules:
-        repo_url = rule["repo_url"]
-        # Remove repo_url from the rule object since we'll pass it as kwargs
-        rule_without_kwargs = {k: v for k, v in rule.items() if k != "repo_url"}
-        rules_by_repo[repo_url].append(rule_without_kwargs)
-
-    # Load branch protection rules for each repository separately
-    for repo_url, repo_rules in rules_by_repo.items():
-        load_data(
-            neo4j_session,
-            GitHubBranchProtectionRuleSchema(),
-            repo_rules,
-            lastupdated=update_tag,
-            repo_url=repo_url,
-        )
+    if not branch_protection_rules:
+        return
+    load_data(
+        neo4j_session,
+        GitHubBranchProtectionRuleSchema(),
+        branch_protection_rules,
+        lastupdated=update_tag,
+        owner_org_id=owner_org_id,
+    )
 
 
 @timeit
 def cleanup_branch_protection_rules(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    owner_org_id: str,
 ) -> None:
     """
     Delete GitHub branch protection rules from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up branch protection rules for
+    :param owner_org_id: URL of the owning GitHub organization
     """
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(
-            GitHubBranchProtectionRuleSchema(), cleanup_params
-        ).run(neo4j_session)
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubBranchProtectionRuleSchema(), cleanup_params).run(
+        neo4j_session
+    )
+
+
+@timeit
+def load_rulesets(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    rulesets: List[Dict],
+    ruleset_rules: List[Dict],
+    owner_org_id: str,
+) -> None:
+    """
+    Ingest GitHub repository rulesets and their associated rules into Neo4j.
+    """
+    if rulesets:
+        load_data(
+            neo4j_session,
+            GitHubRulesetSchema(),
+            rulesets,
+            lastupdated=update_tag,
+            owner_org_id=owner_org_id,
+        )
+    if ruleset_rules:
+        load_data(
+            neo4j_session,
+            GitHubRulesetRuleSchema(),
+            ruleset_rules,
+            lastupdated=update_tag,
+            owner_org_id=owner_org_id,
+        )
+
+
+@timeit
+def cleanup_rulesets(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    owner_org_id: str,
+) -> None:
+    """
+    Delete GitHub rulesets and their child rules from the graph if they were not updated in the last sync.
+    """
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubRulesetRuleSchema(), cleanup_params).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(GitHubRulesetSchema(), cleanup_params).run(neo4j_session)
+
+
+@timeit
+def cleanup_github_repos(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(GitHubRepositorySchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_github_branches(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    owner_org_id: str,
+) -> None:
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
+
+
+# DEPRECATED: Remove this migration function when releasing v1
+def cleanup_orphaned_github_branches(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """One-time migration: clean up orphaned GitHubBranch nodes without RESOURCE rel.
+
+    Before branch cleanup was scoped to orgs, branches from removed orgs were never cleaned up.
+    This must be called once per sync cycle (not per org) to avoid repeated full-graph scans.
+    """
+    neo4j_session.run(
+        """
+        MATCH (n:GitHubBranch)
+        WHERE n.lastupdated <> $UPDATE_TAG
+          AND NOT (n)<-[:RESOURCE]-(:GitHubOrganization)
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        LIMIT_SIZE=100,
+    )
+
+
+@timeit
+def cleanup_github_languages(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(ProgrammingLanguageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_github_owners(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(
+        GitHubOwnerOrganizationSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(GitHubOwnerUserSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_github_collaborators(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    for affiliation in ("DIRECT", "OUTSIDE"):
+        for permission in ("ADMIN", "MAINTAIN", "READ", "TRIAGE", "WRITE"):
+            GraphJob.from_node_schema(
+                make_github_collaborator_schema(f"{affiliation}_COLLAB_{permission}"),
+                common_job_parameters,
+            ).run(neo4j_session)
+
+
+@timeit
+def cleanup_python_requirements(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(GitHubPythonLibrarySchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_global_resources(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Clean up stale GitHub resources that are not scoped to a single organization.
+
+    These schemas use global cleanup semantics, so running them after each org sync can
+    delete data for orgs that have not been processed yet in the current sync cycle.
+    """
+    cleanup_github_repos(neo4j_session, common_job_parameters)
+    cleanup_github_languages(neo4j_session, common_job_parameters)
+    cleanup_github_owners(neo4j_session, common_job_parameters)
+    cleanup_github_collaborators(neo4j_session, common_job_parameters)
+    cleanup_python_requirements(neo4j_session, common_job_parameters)
+    cleanup_github_dependencies(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1733,6 +2102,11 @@ def load(
     repo_data: Dict,
 ) -> None:
     load_github_repos(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["repos"],
+    )
+    load_github_branches(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["repos"],
@@ -1764,21 +2138,39 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
-    load_github_dependency_manifests(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["manifests"],
+    owner_org_id = next(
+        (
+            repo["owner_org_id"]
+            for repo in repo_data["repos"]
+            if repo.get("owner_org_id")
+        ),
+        None,
     )
     load_github_dependencies(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["dependencies"],
     )
-    load_branch_protection_rules(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["branch_protection_rules"],
-    )
+    if owner_org_id is not None:
+        load_github_dependency_manifests(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["manifests"],
+            owner_org_id,
+        )
+        load_branch_protection_rules(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["branch_protection_rules"],
+            owner_org_id,
+        )
+        load_rulesets(
+            neo4j_session,
+            common_job_parameters["UPDATE_TAG"],
+            repo_data["rulesets"],
+            repo_data["ruleset_rules"],
+            owner_org_id,
+        )
 
 
 def sync(
@@ -1802,6 +2194,7 @@ def sync(
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    rulesets_cleanup_safe = True
     if _repos_need_privileged_details(repos_json):
         try:
             privileged_repo_data_by_url = get_repo_privileged_details_by_url(
@@ -1810,9 +2203,12 @@ def sync(
                 organization,
             )
         except (requests.exceptions.RequestException, ValueError):
+            rulesets_cleanup_safe = False
             logger.warning(
                 "Failed to fetch privileged GitHub repo details for org %s; "
-                "continuing without collaborator-count and branch-protection enrichment.",
+                "continuing without collaborator-count, branch-protection, and "
+                "ruleset enrichment. GitHub ruleset cleanup will be skipped to "
+                "preserve previously synced rulesets.",
                 organization,
                 exc_info=True,
             )
@@ -1866,29 +2262,38 @@ def sync(
 
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
+    owner_org_id = next(
+        (
+            repo["owner_org_id"]
+            for repo in repo_data["repos"]
+            if repo.get("owner_org_id")
+        ),
+        f"https://github.com/{organization}",
+    )
+    cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
-    # Collect repository URLs that have dependencies for cleanup
-    repo_urls_with_dependencies = list(
-        {dep["repo_url"] for dep in repo_data["dependencies"]}
+    # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
+    # GitHubOrganization to GitHubBranchProtectionRule and
+    # DependencyGraphManifest. Scoped to the current org so a multi-org sync
+    # doesn't replay the same global Cypher per organization. Remove in
+    # v1.0.0.
+    migration_params = {**common_job_parameters, "owner_org_id": owner_org_id}
+    run_analysis_job(
+        "github_branch_protection_rule_resource_edge_migration.json",
+        neo4j_session,
+        migration_params,
     )
-    cleanup_github_dependencies(
-        neo4j_session, common_job_parameters, repo_urls_with_dependencies
+    run_analysis_job(
+        "github_dependency_manifest_resource_edge_migration.json",
+        neo4j_session,
+        migration_params,
     )
-
-    # Collect repository URLs that have manifests for cleanup
-    repo_urls_with_manifests = list(
-        {manifest["repo_url"] for manifest in repo_data["manifests"]}
-    )
-    cleanup_github_manifests(
-        neo4j_session, common_job_parameters, repo_urls_with_manifests
-    )
-
-    # Collect repository URLs that have branch protection rules for cleanup
-    repo_urls_with_branch_protection_rules = list(
-        {rule["repo_url"] for rule in repo_data["branch_protection_rules"]}
-    )
-    cleanup_branch_protection_rules(
-        neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
-    )
-
-    run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
+    cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
+    cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
+    if rulesets_cleanup_safe:
+        cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
+    else:
+        logger.warning(
+            "Skipping GitHub ruleset cleanup for org %s because ruleset fetch failed.",
+            organization,
+        )

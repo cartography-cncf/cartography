@@ -19,7 +19,7 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     title: PropertyRef = PropertyRef("title")
     description: PropertyRef = PropertyRef("description")
     type: PropertyRef = PropertyRef("type")
-    severity: PropertyRef = PropertyRef("severity")
+    severity: PropertyRef = PropertyRef("severity", extra_index=True)
     confidence: PropertyRef = PropertyRef("confidence")
     createdat: PropertyRef = PropertyRef("createdat")
     updatedat: PropertyRef = PropertyRef("updatedat")
@@ -30,7 +30,36 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     detectorid: PropertyRef = PropertyRef("detectorid")
     resource_type: PropertyRef = PropertyRef("resource_type")
     resource_id: PropertyRef = PropertyRef("resource_id")
+    access_key_id: PropertyRef = PropertyRef("access_key_id", extra_index=True)
+    principal_user_id: PropertyRef = PropertyRef("principal_user_id", extra_index=True)
+    principal_role_id: PropertyRef = PropertyRef("principal_role_id", extra_index=True)
     archived: PropertyRef = PropertyRef("archived")
+    sample: PropertyRef = PropertyRef("sample")
+    # Service-level fields (apply to all action types)
+    service_action_type: PropertyRef = PropertyRef("service_action_type")
+    service_count: PropertyRef = PropertyRef("service_count")
+    service_resource_role: PropertyRef = PropertyRef("service_resource_role")
+    # AwsApiCallAction fields (None for non-AWS_API_CALL findings)
+    api_call_name: PropertyRef = PropertyRef("api_call_name")
+    api_call_service_name: PropertyRef = PropertyRef("api_call_service_name")
+    api_call_caller_type: PropertyRef = PropertyRef("api_call_caller_type")
+    api_call_error_code: PropertyRef = PropertyRef("api_call_error_code")
+    api_call_remote_ip: PropertyRef = PropertyRef("api_call_remote_ip")
+    api_call_remote_country: PropertyRef = PropertyRef("api_call_remote_country")
+    api_call_remote_city: PropertyRef = PropertyRef("api_call_remote_city")
+    api_call_remote_org: PropertyRef = PropertyRef("api_call_remote_org")
+    api_call_remote_asn: PropertyRef = PropertyRef("api_call_remote_asn")
+    api_call_remote_asn_org: PropertyRef = PropertyRef("api_call_remote_asn_org")
+    api_call_remote_isp: PropertyRef = PropertyRef("api_call_remote_isp")
+    api_call_remote_lat: PropertyRef = PropertyRef("api_call_remote_lat")
+    api_call_remote_lon: PropertyRef = PropertyRef("api_call_remote_lon")
+    api_call_remote_account_id: PropertyRef = PropertyRef(
+        "api_call_remote_account_id",
+        extra_index=True,
+    )
+    api_call_remote_account_affiliated: PropertyRef = PropertyRef(
+        "api_call_remote_account_affiliated",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -89,6 +118,24 @@ class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingTriggeredByAWSAccountRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingTriggeredByAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("api_call_remote_account_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REMOTE_ACCOUNT"
+    properties: GuardDutyFindingTriggeredByAWSAccountRelRelProperties = (
+        GuardDutyFindingTriggeredByAWSAccountRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -107,17 +154,75 @@ class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToAccountAccessKeyRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAccountAccessKeyRel(CartographyRelSchema):
+    target_node_label: str = "AccountAccessKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("access_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAccountAccessKeyRelRelProperties = (
+        GuardDutyFindingToAccountAccessKeyRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSUserRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSUserRel(CartographyRelSchema):
+    target_node_label: str = "AWSUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"userid": PropertyRef("principal_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAWSUserRelRelProperties = (
+        GuardDutyFindingToAWSUserRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSRoleRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"roleid": PropertyRef("principal_role_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToAWSRoleRelRelProperties = (
+        GuardDutyFindingToAWSRoleRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
     label: str = "GuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GuardDutyFindingToGuardDutyDetectorRel(),
+            GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToS3BucketRel(),
+            GuardDutyFindingToAccountAccessKeyRel(),
+            GuardDutyFindingToAWSUserRel(),
+            GuardDutyFindingToAWSRoleRel(),
         ],
     )

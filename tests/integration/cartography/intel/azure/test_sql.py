@@ -6,6 +6,7 @@ from tests.data.azure.sql import DESCRIBE_DATABASES
 from tests.data.azure.sql import DESCRIBE_DNS_ALIASES
 from tests.data.azure.sql import DESCRIBE_ELASTIC_POOLS
 from tests.data.azure.sql import DESCRIBE_FAILOVER_GROUPS
+from tests.data.azure.sql import DESCRIBE_FIREWALL_RULES
 from tests.data.azure.sql import DESCRIBE_RECOVERABLE_DATABASES
 from tests.data.azure.sql import DESCRIBE_REPLICATION_LINKS
 from tests.data.azure.sql import DESCRIBE_RESTORABLE_DROPPED_DATABASES
@@ -114,11 +115,19 @@ server2 = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.
 )
 @patch.object(
     cartography.intel.azure.sql,
+    "get_firewall_rules",
+    side_effect=lambda creds, sub_id, server: (
+        DESCRIBE_FIREWALL_RULES if server["id"] == server1 else []
+    ),
+)
+@patch.object(
+    cartography.intel.azure.sql,
     "get_server_list",
     return_value=DESCRIBE_SERVERS,
 )
 def test_sync_sql_servers_and_databases(
     mock_get_servers,
+    mock_get_firewall_rules,
     mock_get_dns_aliases,
     mock_get_ad_admins,
     mock_get_recoverable_dbs,
@@ -549,3 +558,75 @@ def test_sync_sql_servers_and_databases(
     )
     actual_tag_rels = {(r["s.id"], r["t.id"]) for r in result}
     assert actual_tag_rels == expected_tag_rels
+
+    # Assert SQL Server public_network_access and minimal_tls_version are persisted.
+    assert check_nodes(
+        neo4j_session,
+        "AzureSQLServer",
+        ["id", "public_network_access", "minimal_tls_version"],
+    ) == {
+        (server1, "Enabled", "1.2"),
+        (server2, "Disabled", "1.2"),
+    }
+
+    # Assert SQL Server firewall rules were ingested for testSQL1 only.
+    expected_firewall_rule_nodes = {
+        (
+            fr["id"],
+            fr.get("start_ip_address")
+            or fr.get("properties", {}).get("start_ip_address"),
+            fr.get("end_ip_address") or fr.get("properties", {}).get("end_ip_address"),
+        )
+        for fr in DESCRIBE_FIREWALL_RULES
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "AzureSQLServerFirewallRule",
+            ["id", "start_ip_address", "end_ip_address"],
+        )
+        == expected_firewall_rule_nodes
+    )
+
+    # Assert rule -[:MEMBER_OF_AZURE_SQL_SERVER]-> AzureSQLServer (rule -> server).
+    expected_firewall_rule_rels = {
+        (fr["id"], server1) for fr in DESCRIBE_FIREWALL_RULES
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSQLServerFirewallRule",
+            "id",
+            "AzureSQLServer",
+            "id",
+            "MEMBER_OF_AZURE_SQL_SERVER",
+            rel_direction_right=True,
+        )
+        == expected_firewall_rule_rels
+    )
+
+    # Assert ontology labels: every firewall rule carries IpPermissionInbound + IpRule.
+    iprule_count = neo4j_session.run(
+        """
+        MATCH (r:AzureSQLServerFirewallRule:IpPermissionInbound:IpRule)
+        RETURN count(r) AS c
+        """
+    ).single()
+    assert iprule_count["c"] == len(DESCRIBE_FIREWALL_RULES)
+
+    # Assert subscription -[:RESOURCE]-> AzureSQLServerFirewallRule for cleanup scoping.
+    expected_firewall_rule_sub_rels = {
+        (TEST_SUBSCRIPTION_ID, fr["id"]) for fr in DESCRIBE_FIREWALL_RULES
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureSQLServerFirewallRule",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_firewall_rule_sub_rels
+    )

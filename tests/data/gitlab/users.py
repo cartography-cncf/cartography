@@ -3,7 +3,7 @@
 TEST_ORG_URL = "https://gitlab.example.com/myorg"
 
 # Organization members: Alice and Bob are org-level members
-# Alice has email available (will match by email), Bob doesn't (will match by name)
+# Alice and Bob both have email available so commit attribution uses stable identity.
 GET_GITLAB_ORG_MEMBERS = [
     {
         "id": 1,
@@ -20,7 +20,7 @@ GET_GITLAB_ORG_MEMBERS = [
         "username": "bob",
         "name": "Bob Jones",
         "state": "active",
-        "email": None,  # Email not available - will match by name fallback
+        "email": "bob@example.com",
         "web_url": "https://gitlab.example.com/bob",
         "is_admin": False,
         "access_level": 10,  # Guest at org level

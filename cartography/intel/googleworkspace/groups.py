@@ -244,6 +244,11 @@ def transform_groups(
     transformed_groups: list[dict] = []
     group_member_relationships: list[dict] = []
     group_owner_relationships: list[dict] = []
+    group_emails = {
+        group.get("groupKey", {}).get("id")
+        for group in groups
+        if group.get("groupKey", {}).get("id")
+    }
 
     for group in groups:
         transformed_group = group.copy()
@@ -272,12 +277,22 @@ def transform_groups(
             if member_key_id is None:
                 continue
 
+            member_type = member.get("type")
+            if member_type is None:
+                member_type = "GROUP" if member_key_id in group_emails else "USER"
+                logger.warning(
+                    "Google Workspace membership %s is missing type; inferred %s "
+                    "from known group keys",
+                    member.get("name", "<unknown>"),
+                    member_type,
+                )
+
             for role_obj in member.get("roles", []):
                 if role_obj.get("name") == "OWNER":
                     is_owner = True
                     break
 
-            if member["type"] == "GROUP":
+            if member_type == "GROUP":
                 # Create group-to-group relationships
                 relationship_data = {
                     "parent_group_id": group["name"],

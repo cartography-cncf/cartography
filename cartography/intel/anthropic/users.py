@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Tuple
 
@@ -12,7 +11,6 @@ from cartography.models.anthropic.organization import AnthropicOrganizationSchem
 from cartography.models.anthropic.user import AnthropicUserSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -56,7 +54,6 @@ def load_users(
         [{"id": ORG_ID}],
         lastupdated=update_tag,
     )
-    logger.info("Loading %d Anthropic User into Neo4j.", len(data))
     load(
         neo4j_session,
         AnthropicUserSchema(),

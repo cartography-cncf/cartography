@@ -16,7 +16,6 @@ class GCPCloudRunRevisionProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     service: PropertyRef = PropertyRef("service")
-    container_image: PropertyRef = PropertyRef("container_image")
     service_account_email: PropertyRef = PropertyRef("service_account_email")
     log_uri: PropertyRef = PropertyRef("log_uri")
     project_id: PropertyRef = PropertyRef("project_id")

@@ -18,6 +18,8 @@ class GCPCloudFunctionProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")
     runtime: PropertyRef = PropertyRef("runtime")
+    available_memory_mb: PropertyRef = PropertyRef("available_memory_mb")
+    timeout: PropertyRef = PropertyRef("timeout")
     entry_point: PropertyRef = PropertyRef("entryPoint")
     status: PropertyRef = PropertyRef("status")
     update_time: PropertyRef = PropertyRef("updateTime")

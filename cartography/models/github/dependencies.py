@@ -38,7 +38,7 @@ class GitHubDependencyToRepositoryRelProperties(CartographyRelProperties):
 class GitHubDependencyToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
+        {"id": PropertyRef("repo_url")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
@@ -56,7 +56,7 @@ class DependencyGraphManifestToDependencyRelProperties(CartographyRelProperties)
 class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
     target_node_label: str = "DependencyGraphManifest"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("manifest_id", set_in_kwargs=True)}
+        {"id": PropertyRef("manifest_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DEP"
@@ -67,11 +67,25 @@ class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubDependencySchema(CartographyNodeSchema):
+    """
+    Dependency is a globally shared package node: the same canonical
+    `name|requirements` is referenced by many repositories across many orgs, so
+    we cannot scope its node-level cleanup to a single tenant without risking
+    cross-tenant deletes (see PythonLibrary for the same pattern). Cleanup is
+    therefore unscoped and runs once per sync cycle from
+    `cleanup_global_resources`. The links to repositories (REQUIRES) and to
+    manifests (HAS_DEP) are modeled as `other_relationships`.
+    """
+
     label: str = "Dependency"
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
-    sub_resource_relationship: GitHubDependencyToRepositoryRel = (
-        GitHubDependencyToRepositoryRel()
-    )
     other_relationships: OtherRelationships = OtherRelationships(
-        [DependencyGraphManifestToDependencyRel()]
+        [
+            GitHubDependencyToRepositoryRel(),
+            DependencyGraphManifestToDependencyRel(),
+        ]
     )
+
+    @property
+    def scoped_cleanup(self) -> bool:
+        return False

@@ -13,6 +13,9 @@ class OntologyFieldMapping:
         required: Whether this field is required to create an ontology node or not.
         special_handling: Any special handling required for this field (e.g., "invert_boolean").
         extra: Additional info that may be relevant for this mapping (only used for specific special_handling).
+        indexed: Whether to create a RANGE index on the resulting `_ont_<field>` for each semantic label.
+          Set to False for unbounded text/list fields (e.g. references, description) whose values can
+          exceed Neo4j's index value limit (~8 KB).
 
     Available special_handling options:
         - "invert_boolean": Inverts the boolean value of the field (e.g., True becomes False and vice versa).
@@ -35,6 +38,7 @@ class OntologyFieldMapping:
     required: bool = False
     special_handling: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    indexed: bool = True
 
 
 @dataclass(frozen=True)
@@ -58,30 +62,13 @@ class OntologyNodeMapping:
 
 
 @dataclass(frozen=True)
-class OntologyRelMapping:
-    """Mapping for a relationship in the ontology.
-
-    Attributes:
-        query: The query used to retrieve this relationship.
-        iterative: Whether this relationship requires batch processing (iterative) or can be created in a single query.
-        __comment__: An optional comment about this relationship.
-    """
-
-    query: str
-    iterative: bool = False
-    __comment__: str | None = None
-
-
-@dataclass(frozen=True)
 class OntologyMapping:
     """Ontology mapping for a specific module.
 
     Attributes:
         module_name: The name of the module.
         nodes: A list of OntologyNodeMapping defining the nodes for this module.
-        rels: A list of OntologyRelMapping defining the relationships for this module.
     """
 
     module_name: str
     nodes: list[OntologyNodeMapping]
-    rels: list[OntologyRelMapping] = field(default_factory=list)

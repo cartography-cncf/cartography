@@ -4,28 +4,21 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.config
+import botocore
 import neo4j
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.dns import ingest_dns_record_by_fqdn
 from cartography.models.aws.elasticsearch.domain import ESDomainSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-# TODO memoize this
-def _get_botocore_config() -> botocore.config.Config:
-    return botocore.config.Config(
-        retries={
-            "max_attempts": 8,
-        },
-    )
 
 
 @timeit
@@ -74,14 +67,32 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         log_options = domain.get("LogPublishingOptions", {})
         vpc_options = domain.get("VPCOptions") or {}
 
+        # AWS rebranded Elasticsearch Service to OpenSearch Service. The same
+        # ESDomain node can therefore represent either engine; AWS encodes the
+        # distinction in `ElasticsearchVersion` (e.g. "OpenSearch_2.5" vs
+        # "7.10"). Derive the engine here so downstream consumers (notably the
+        # databases ontology mapping) can label the node correctly without
+        # parsing the version string themselves. Leave engine unset when the
+        # version is missing rather than guessing — a missing version is rare
+        # but a wrong label downstream is harder to debug.
+        es_version = domain.get("ElasticsearchVersion")
+        if not es_version:
+            engine = None
+        elif es_version.startswith("OpenSearch"):
+            engine = "opensearch"
+        else:
+            engine = "elasticsearch"
+
         # Flattened data with VPC lists for one-to-many relationships
         transformed = {
             "DomainId": domain_id,
+            "DomainName": domain.get("DomainName"),
             "ARN": domain.get("ARN"),
             "Deleted": domain.get("Deleted"),
             "Created": domain.get("Created"),
             "Endpoint": domain.get("Endpoint"),
             "ElasticsearchVersion": domain.get("ElasticsearchVersion"),
+            "Engine": engine,
             # Cluster config
             "ElasticsearchClusterConfigInstanceType": cluster_config.get(
                 "InstanceType"
@@ -279,10 +290,11 @@ def sync(
             region,
             current_aws_account_id,
         )
-        client = boto3_session.client(
+        client = create_boto3_client(
+            boto3_session,
             "es",
             region_name=region,
-            config=_get_botocore_config(),
+            config=get_botocore_config(),
         )
         data = _get_es_domains(client)
         domains_data = _transform_es_domains(data)

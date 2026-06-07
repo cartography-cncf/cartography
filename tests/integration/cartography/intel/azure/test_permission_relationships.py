@@ -13,9 +13,9 @@ import cartography.intel.azure.sql
 import cartography.intel.azure.storage
 import cartography.intel.azure.subscription
 import cartography.intel.azure.tenant
-import cartography.intel.entra.groups
-import cartography.intel.entra.service_principals
-import cartography.intel.entra.users
+import cartography.intel.microsoft.entra.groups
+import cartography.intel.microsoft.entra.service_principals
+import cartography.intel.microsoft.entra.users
 from cartography.intel.azure import permission_relationships
 from tests.data.azure.permission_relationships import AZURE_COSMOSDB_ACCOUNTS
 from tests.data.azure.permission_relationships import AZURE_SQL_SERVERS
@@ -31,7 +31,9 @@ from tests.data.azure.rbac import MOCK_ENTRA_TENANT
 from tests.integration.cartography.intel.azure.common import (
     create_test_azure_subscription,
 )
-from tests.integration.cartography.intel.entra.common import create_test_entra_tenant
+from tests.integration.cartography.intel.microsoft.entra.common import (
+    create_test_entra_tenant,
+)
 from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "12345678-1234-1234-1234-123456789012"
@@ -56,32 +58,32 @@ async def async_return_empty_tuple():
 
 
 @patch.object(
-    cartography.intel.entra.service_principals,
+    cartography.intel.microsoft.entra.service_principals,
     "get_entra_service_principals",
     return_value=async_generator_from_list(ENTRA_SERVICE_PRINCIPALS),
 )
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_group_owners",
     return_value=async_return_empty_list(),
 )
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_group_members",
     return_value=async_return_empty_tuple(),
 )
 @patch.object(
-    cartography.intel.entra.groups,
+    cartography.intel.microsoft.entra.groups,
     "get_entra_groups",
     return_value=async_generator_from_list(ENTRA_GROUPS),
 )
 @patch.object(
-    cartography.intel.entra.users,
+    cartography.intel.microsoft.entra.users,
     "get_tenant",
     return_value=MOCK_ENTRA_TENANT,
 )
 @patch.object(
-    cartography.intel.entra.users,
+    cartography.intel.microsoft.entra.users,
     "get_users",
     return_value=async_generator_from_list(ENTRA_USERS),
 )
@@ -357,7 +359,7 @@ async def test_sync_azure_permission_relationships(
     mock_credentials = MagicMock()
 
     # Act
-    await cartography.intel.entra.users.sync_entra_users(
+    await cartography.intel.microsoft.entra.users.sync_entra_users(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",
@@ -366,7 +368,7 @@ async def test_sync_azure_permission_relationships(
         common_job_parameters,
     )
 
-    await cartography.intel.entra.groups.sync_entra_groups(
+    await cartography.intel.microsoft.entra.groups.sync_entra_groups(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",
@@ -375,7 +377,7 @@ async def test_sync_azure_permission_relationships(
         common_job_parameters,
     )
 
-    await cartography.intel.entra.service_principals.sync_service_principals(
+    await cartography.intel.microsoft.entra.service_principals.sync_service_principals(
         neo4j_session,
         TEST_TENANT_ID,
         "client-id",

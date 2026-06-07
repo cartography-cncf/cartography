@@ -7,10 +7,15 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.container_arch import ARCH_SOURCE_RUNTIME_API_EXACT
 from cartography.intel.container_arch import ARCH_SOURCE_TASK_DEFINITION_HINT
 from cartography.intel.container_arch import normalize_architecture
+from cartography.models.aws.ec2.loadbalancerv2 import (
+    ELBV2TargetGroupToECSServiceMatchLink,
+)
 from cartography.models.aws.ecs.clusters import ECSClusterSchema
 from cartography.models.aws.ecs.container_definitions import (
     ECSContainerDefinitionSchema,
@@ -32,7 +37,7 @@ def get_ecs_cluster_arns(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[str]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_clusters")
     cluster_arns: List[str] = []
     for page in paginator.paginate():
@@ -47,7 +52,7 @@ def get_ecs_clusters(
     region: str,
     cluster_arns: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     # TODO: also include attachment info, and make relationships between the attachements
     # and the cluster.
     includes = ["SETTINGS", "CONFIGURATIONS"]
@@ -69,7 +74,7 @@ def get_ecs_container_instances(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_container_instances")
     container_instances: List[Dict[str, Any]] = []
     container_instance_arns: List[str] = []
@@ -96,7 +101,7 @@ def get_ecs_services(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_services")
     services: List[Dict[str, Any]] = []
     service_arns: List[str] = []
@@ -119,7 +124,7 @@ def get_ecs_task_definitions(
     region: str,
     tasks: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     task_definitions: List[Dict[str, Any]] = []
     for task in tasks:
         task_definition = client.describe_task_definition(
@@ -149,7 +154,7 @@ def get_ecs_tasks(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("ecs", region_name=region)
+    client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_tasks")
     tasks: List[Dict[str, Any]] = []
     task_arns: List[str] = []
@@ -225,6 +230,12 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         group = task.get("group")
         if group and group.startswith("service:"):
             task["serviceName"] = group.split("service:", 1)[1]
+
+        # Standalone tasks (no service) attach WORKLOAD_PARENT directly to the
+        # cluster; service-attached tasks chain through the service instead so
+        # the matcher stays null and only one parent edge fires.
+        if not task.get("serviceName"):
+            task["_workload_parent_cluster_arn"] = task.get("clusterArn")
 
         # Extract network interface ID from task attachments
         for attachment in task.get("attachments", []):
@@ -304,6 +315,44 @@ def load_ecs_services(
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
+    _load_ecs_service_target_group_registrations(
+        neo4j_session,
+        data,
+        current_aws_account_id,
+        aws_update_tag,
+    )
+
+
+def _load_ecs_service_target_group_registrations(
+    neo4j_session: neo4j.Session,
+    services: List[Dict[str, Any]],
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    rows = []
+    for svc in services:
+        svc_arn = svc.get("serviceArn")
+        for lb_entry in svc.get("loadBalancers", []):
+            tg_arn = lb_entry.get("targetGroupArn")
+            if not tg_arn:
+                continue
+            rows.append(
+                {
+                    "TargetGroupArn": tg_arn,
+                    "ServiceArn": svc_arn,
+                    "ContainerName": lb_entry.get("containerName"),
+                    "ContainerPort": lb_entry.get("containerPort"),
+                }
+            )
+    if rows:
+        load_matchlinks(
+            neo4j_session,
+            ELBV2TargetGroupToECSServiceMatchLink(),
+            rows,
+            lastupdated=update_tag,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id=current_aws_account_id,
+        )
 
 
 @timeit
@@ -389,6 +438,12 @@ def cleanup_ecs(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(ECSContainerInstanceSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_matchlink(
+        ELBV2TargetGroupToECSServiceMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
     GraphJob.from_node_schema(ECSServiceSchema(), common_job_parameters).run(
         neo4j_session
     )

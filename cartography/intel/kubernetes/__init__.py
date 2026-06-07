@@ -6,8 +6,10 @@ from neo4j import Session
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
+from cartography.intel.kubernetes.gateway_api import sync_gateway_api
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
+from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
@@ -57,6 +59,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             )
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
+            node_arch_map = sync_nodes(
+                session, client, config.update_tag, common_job_parameters
+            )
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
@@ -87,6 +92,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
                 region=region,
+                node_arch_map=node_arch_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(
@@ -96,6 +102,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
+            sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
 
             run_scoped_analysis_job(

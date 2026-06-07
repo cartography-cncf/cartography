@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,7 +12,6 @@ from cartography.models.openai.organization import OpenAIOrganizationSchema
 from cartography.models.openai.user import OpenAIUserSchema
 from cartography.util import timeit
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -56,7 +54,6 @@ def load_users(
         [{"id": ORG_ID}],
         lastupdated=update_tag,
     )
-    logger.info("Loading %d OpenAI User into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIUserSchema(),

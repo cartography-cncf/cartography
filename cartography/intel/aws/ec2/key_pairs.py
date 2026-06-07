@@ -7,7 +7,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.keypair import EC2KeyPairSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -21,7 +22,8 @@ def get_ec2_key_pairs(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -56,7 +58,6 @@ def load_ec2_key_pairs(
     update_tag: int,
 ) -> None:
     # Load EC2 keypairs as known by describe-key-pairs
-    logger.info(f"Loading {len(data)} EC2 keypairs for region '{region}' into graph.")
     load(
         neo4j_session,
         EC2KeyPairSchema(),

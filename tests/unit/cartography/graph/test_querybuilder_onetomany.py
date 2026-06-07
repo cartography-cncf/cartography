@@ -28,8 +28,7 @@ def test_build_ingestion_query_onetomany():
             i.instance_profile_name = item.InstanceProfileName,
             i.path = item.Path
         WITH i, item
-        CALL {{
-            WITH i, item
+        CALL (i, item) {{
             OPTIONAL MATCH (j:AWSAccount{{id: $AWS_ID}})
             WITH i, item, j WHERE j IS NOT NULL
             MERGE (i)<-[r:RESOURCE]-(j)
@@ -40,7 +39,6 @@ def test_build_ingestion_query_onetomany():
                 r.lastupdated = $lastupdated
 
             UNION
-            WITH i, item
             OPTIONAL MATCH (n0:AWSRole)
             WHERE
                 n0.arn IN item.Roles
