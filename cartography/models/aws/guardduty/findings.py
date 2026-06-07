@@ -34,6 +34,7 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     principal_user_id: PropertyRef = PropertyRef("principal_user_id", extra_index=True)
     principal_role_id: PropertyRef = PropertyRef("principal_role_id", extra_index=True)
     archived: PropertyRef = PropertyRef("archived")
+    sample: PropertyRef = PropertyRef("sample")
     # Service-level fields (apply to all action types)
     service_action_type: PropertyRef = PropertyRef("service_action_type")
     service_count: PropertyRef = PropertyRef("service_count")

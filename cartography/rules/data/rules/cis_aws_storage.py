@@ -78,6 +78,7 @@ _aws_s3_mfa_delete_disabled = Fact(
     MATCH (bucket:S3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -155,6 +156,7 @@ _aws_s3_block_public_access_disabled = Fact(
     MATCH (bucket:S3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -227,6 +229,7 @@ _aws_rds_encryption_disabled = Fact(
     MATCH (rds:RDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    identity_fields=("db_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

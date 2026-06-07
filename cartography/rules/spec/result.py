@@ -57,6 +57,12 @@ class FactResult:
             None if no count query was provided.
         passing (int | None): Number of assets that don't match (total_assets - failing).
             None if no count query was provided.
+        identity_fields (tuple[str, ...]): The output-model field(s) forming the stable
+            logical identity of each finding, mirrored from the executed Fact. Surfaced so
+            downstream consumers of the serialized output can build a stable finding identity
+            from rule_id + fact_id + these field values without importing the Python rule
+            registry. Defaults to empty only for directly-constructed results; the runner
+            always populates it from the Fact, which requires a non-empty value.
     """
 
     fact_id: str
@@ -67,6 +73,7 @@ class FactResult:
     total_assets: int | None = None
     failing: int | None = None
     passing: int | None = None
+    identity_fields: tuple[str, ...] = ()
 
 
 @dataclass

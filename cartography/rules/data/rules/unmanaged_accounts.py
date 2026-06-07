@@ -39,6 +39,7 @@ _unmanaged_accounts_ontology = Fact(
     AND NOT (a:SlackUser AND a.id = 'USLACKBOT')
     RETURN COUNT(a) AS count
     """,
+    identity_fields=("source", "id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
