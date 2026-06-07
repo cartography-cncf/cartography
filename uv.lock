@@ -1281,7 +1281,7 @@ wheels = [
 
 [[package]]
 name = "cloudflare"
-version = "4.3.1"
+version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1291,9 +1291,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/48/e481c0a9b9010a5c41b5ca78ff9fbe00dc8a9a4d39da5af610a4ec49c7f7/cloudflare-4.3.1.tar.gz", hash = "sha256:b1e1c6beeb8d98f63bfe0a1cba874fc4e22e000bcc490544f956c689b3b5b258", size = 1933187, upload-time = "2025-06-16T21:43:18.716Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/72/186cbd9bd94938336101b32432427ee7bfc770117989faa82496de2c766c/cloudflare-5.1.0.tar.gz", hash = "sha256:ed06f7544e3bb2dac43e2029f91170d2e7c427ac33bb3eb3e464965f46a852a6", size = 2806389, upload-time = "2026-05-06T17:24:46.758Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/8f/c6c543565efd3144da4304efa5917aac06b6416a8663a6defe0e9b2b7569/cloudflare-4.3.1-py3-none-any.whl", hash = "sha256:6927135a5ee5633d6e2e1952ca0484745e933727aeeb189996d2ad9d292071c6", size = 4406465, upload-time = "2025-06-16T21:43:17.3Z" },
+    { url = "https://files.pythonhosted.org/packages/11/b9/1def3be61a08ae27c62b86d9636ff7262cee7318506fcd593b89333c09e0/cloudflare-5.1.0-py3-none-any.whl", hash = "sha256:c9ad846ef889aa5476ce15cd509eacc294ffac3ac834cdf924d4582d5638c759", size = 5955742, upload-time = "2026-05-06T17:24:44.709Z" },
 ]
 
 [[package]]
