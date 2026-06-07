@@ -460,16 +460,16 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-compute"
-version = "37.2.0"
+version = "38.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-mgmt-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/e3/c887e27260754014dc63fc33bf612f1c7f1751f74e80d1aaa32491af3ffa/azure_mgmt_compute-37.2.0.tar.gz", hash = "sha256:23499d4d5ad2b2bf40a4c59df2684cc4c9cef0f9672a4e842bb9a1cf6b62f628", size = 534068, upload-time = "2026-01-27T06:39:05.39Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/ee/a143c8395267aea8d735c5336519ef94eeaa45f235c89c06f417d1d2ce60/azure_mgmt_compute-38.0.0.tar.gz", hash = "sha256:46cb0864f943b88463ed50ad006738023120cf7e53f50f7e4a740ccd5337abaf", size = 468888, upload-time = "2026-04-28T19:44:20.051Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/78/8dcdb92dd9f716d08a3ac6b31c31a12cfcf8c430b2c312cbf9cc6e4695e8/azure_mgmt_compute-37.2.0-py3-none-any.whl", hash = "sha256:70741c26ac94c30408a3b20f4fdfe93e6481e308b3c14a6dbefdfd4794028616", size = 686212, upload-time = "2026-01-27T06:39:07.016Z" },
+    { url = "https://files.pythonhosted.org/packages/21/fc/b048242e79b14dd58a1dbede501ea2bfd3a43cac4aad4c0d76a81416a6e8/azure_mgmt_compute-38.0.0-py3-none-any.whl", hash = "sha256:6307edc4d1dabb540dadf11204be7663565d3108e16bcd253494457300cb3609", size = 438192, upload-time = "2026-04-28T19:44:22.124Z" },
 ]
 
 [[package]]
