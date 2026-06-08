@@ -224,13 +224,13 @@ class TestIso27001AwsMappings:
     """Test that batch 1 AWS rules have expected ISO 27001 Annex A mappings."""
 
     EXPECTED_REQUIREMENTS = {
-        "cis_aws_2_3_root_access_key": {"8.2"},
-        "cis_aws_2_4_root_mfa": {"8.5"},
+        "cis_aws_2_3_root_access_key": {"8.2", "5.17"},
+        "cis_aws_2_4_root_mfa": {"8.5", "8.2"},
         "cis_aws_2_11_unused_credentials": {"5.18"},
         "cis_aws_2_12_multiple_access_keys": {"5.17"},
         "cis_aws_2_13_access_key_not_rotated": {"5.17"},
         "cis_aws_2_14_user_direct_policies": {"5.18"},
-        "cis_aws_2_15_admin_policy": {"8.2"},
+        "cis_aws_2_15_admin_policy": {"8.2", "5.18"},
         "cis_aws_2_18_expired_certificates": {"8.24"},
         "cis_aws_3_1_2_s3_mfa_delete": {"8.10"},
         "cis_aws_3_1_4_s3_block_public_access": {"8.3"},

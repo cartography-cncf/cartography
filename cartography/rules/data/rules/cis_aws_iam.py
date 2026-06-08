@@ -454,6 +454,7 @@ cis_aws_2_3_root_access_key = Rule(
     frameworks=(
         cis_aws("2.3"),
         iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.17"),
     ),
 )
 
@@ -517,6 +518,7 @@ cis_aws_2_4_root_mfa = Rule(
     frameworks=(
         cis_aws("2.4"),
         iso27001_annex_a("8.5"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -607,6 +609,7 @@ cis_aws_2_15_admin_policy = Rule(
     frameworks=(
         cis_aws("2.15"),
         iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.18"),
     ),
 )
 
