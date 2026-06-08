@@ -84,14 +84,19 @@ _aws_ami_public = Fact(
     id="aws_ami_public",
     name="Publicly Shared AMIs",
     description=(
-        "AWS AMIs (machine images) shared publicly. A public AMI can be "
-        "launched by any AWS account, exposing the full contents of every "
-        "disk baked into the image (including any secrets or data left on "
-        "the root volume)."
+        "AWS AMIs (machine images) owned by the account and shared publicly. "
+        "A public AMI can be launched by any AWS account, exposing the full "
+        "contents of every disk baked into the image (including any secrets "
+        "or data left on the root volume). The ownership filter (i.owner = "
+        "a.id) is required because EC2 image ingestion also attaches "
+        "third-party public AMIs referenced by instances/launch templates to "
+        "the syncing account; those are in use, not owned, and must not be "
+        "flagged."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Image)
     WHERE i.ispublic = true
+      AND i.owner = a.id
     RETURN
         i.id AS id,
         i.imageid AS arn,
@@ -105,10 +110,12 @@ _aws_ami_public = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(i:EC2Image)
     WHERE i.ispublic = true
+      AND i.owner = a.id
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (i:EC2Image)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Image)
+    WHERE i.owner = a.id
     RETURN COUNT(i) AS count
     """,
     asset_id_field="id",
