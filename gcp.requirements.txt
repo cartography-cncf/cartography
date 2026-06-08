@@ -28,3 +28,6 @@ google-cloud-compute~=1.11.0
 azure-identity>=1.5.0
 
 setuptools>=75.0.0,<81  # Required for pkg_resources (used by opentelemetry deps in semgrep). Pin <81 to avoid deprecation warnings.
+
+# OCI
+oci>=2.71.0

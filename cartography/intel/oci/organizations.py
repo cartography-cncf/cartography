@@ -117,9 +117,9 @@ def load_oci_accounts(
     MERGE (w:CloudanixWorkspace{id: $WORKSPACE_ID})
     SET w.lastupdated = $oci_update_tag
     WITH w
-    MERGE (aa:OCITenancy{ocid: $TENANCY_ID})
+    MERGE (aa:OCITenancy{id: $TENANCY_ID})
     ON CREATE SET aa.firstseen = timestamp()
-    SET aa.lastupdated = $oci_update_tag, aa.name = $ACCOUNT_NAME
+    SET aa.ocid = $TENANCY_ID, aa.lastupdated = $oci_update_tag, aa.name = $ACCOUNT_NAME
     WITH w, aa
     MERGE (w)-[r:OWNER]->(aa)
     ON CREATE SET r.firstseen = timestamp()

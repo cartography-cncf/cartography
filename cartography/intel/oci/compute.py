@@ -48,10 +48,11 @@ def load_instances(
     Ingest OCI Compute Instance data into Neo4j.
     """
     ingest_instance = """
-    MERGE (inode:OCIInstance{ocid: $OCID})
+    MERGE (inode:OCIInstance{id: $OCID})
     ON CREATE SET inode.firstseen = timestamp(),
     inode.createdate = $TIME_CREATED
-    SET inode.display_name = $DISPLAY_NAME,
+    SET inode.ocid = $OCID,
+    inode.display_name = $DISPLAY_NAME,
     inode.compartment_id = $COMPARTMENT_ID,
     inode.availability_domain = $AVAILABILITY_DOMAIN,
     inode.fault_domain = $FAULT_DOMAIN,
@@ -61,7 +62,7 @@ def load_instances(
     inode.image_id = $IMAGE_ID,
     inode.lastupdated = $oci_update_tag
     WITH inode
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(inode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -114,10 +115,11 @@ def load_vnic_attachments(
     Ingest OCI VNIC Attachment data into Neo4j and link to instances.
     """
     ingest_vnic_attachment = """
-    MERGE (vnic:OCIVnicAttachment{ocid: $OCID})
+    MERGE (vnic:OCIVnicAttachment{id: $OCID})
     ON CREATE SET vnic.firstseen = timestamp(),
     vnic.createdate = $TIME_CREATED
-    SET vnic.display_name = $DISPLAY_NAME,
+    SET vnic.ocid = $OCID,
+    vnic.display_name = $DISPLAY_NAME,
     vnic.compartment_id = $COMPARTMENT_ID,
     vnic.availability_domain = $AVAILABILITY_DOMAIN,
     vnic.lifecycle_state = $LIFECYCLE_STATE,
@@ -126,7 +128,7 @@ def load_vnic_attachments(
     vnic.nic_index = $NIC_INDEX,
     vnic.lastupdated = $oci_update_tag
     WITH vnic
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_VNIC_ATTACHMENT]->(vnic)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -180,10 +182,11 @@ def load_images(
     Ingest OCI Image data into Neo4j.
     """
     ingest_image = """
-    MERGE (img:OCIImage{ocid: $OCID})
+    MERGE (img:OCIImage{id: $OCID})
     ON CREATE SET img.firstseen = timestamp(),
     img.createdate = $TIME_CREATED
-    SET img.display_name = $DISPLAY_NAME,
+    SET img.ocid = $OCID,
+    img.display_name = $DISPLAY_NAME,
     img.compartment_id = $COMPARTMENT_ID,
     img.operating_system = $OPERATING_SYSTEM,
     img.operating_system_version = $OPERATING_SYSTEM_VERSION,
@@ -191,7 +194,7 @@ def load_images(
     img.size_in_mbs = $SIZE_IN_MBS,
     img.lastupdated = $oci_update_tag
     WITH img
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(img)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -246,17 +249,18 @@ def load_boot_volume_attachments(
     Ingest OCI Boot Volume Attachment data into Neo4j and link to instances.
     """
     ingest_boot_volume_attachment = """
-    MERGE (bva:OCIBootVolumeAttachment{ocid: $OCID})
+    MERGE (bva:OCIBootVolumeAttachment{id: $OCID})
     ON CREATE SET bva.firstseen = timestamp(),
     bva.createdate = $TIME_CREATED
-    SET bva.display_name = $DISPLAY_NAME,
+    SET bva.ocid = $OCID,
+    bva.display_name = $DISPLAY_NAME,
     bva.compartment_id = $COMPARTMENT_ID,
     bva.availability_domain = $AVAILABILITY_DOMAIN,
     bva.lifecycle_state = $LIFECYCLE_STATE,
     bva.boot_volume_id = $BOOT_VOLUME_ID,
     bva.lastupdated = $oci_update_tag
     WITH bva
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_BOOT_VOLUME_ATTACHMENT]->(bva)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -307,10 +311,11 @@ def load_volume_attachments(
     Ingest OCI Volume Attachment data into Neo4j and link to instances.
     """
     ingest_volume_attachment = """
-    MERGE (va:OCIVolumeAttachment{ocid: $OCID})
+    MERGE (va:OCIVolumeAttachment{id: $OCID})
     ON CREATE SET va.firstseen = timestamp(),
     va.createdate = $TIME_CREATED
-    SET va.display_name = $DISPLAY_NAME,
+    SET va.ocid = $OCID,
+    va.display_name = $DISPLAY_NAME,
     va.compartment_id = $COMPARTMENT_ID,
     va.availability_domain = $AVAILABILITY_DOMAIN,
     va.lifecycle_state = $LIFECYCLE_STATE,
@@ -319,7 +324,7 @@ def load_volume_attachments(
     va.is_read_only = $IS_READ_ONLY,
     va.lastupdated = $oci_update_tag
     WITH va
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_VOLUME_ATTACHMENT]->(va)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
