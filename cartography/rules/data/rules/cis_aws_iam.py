@@ -588,8 +588,8 @@ _aws_admin_policy_attached = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (policy:AWSPolicy)
-    RETURN COUNT(policy) AS count
+    MATCH (:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    RETURN COUNT(DISTINCT policy.id) AS count
     """,
     asset_id_field="policy_id",
     identity_fields=("policy_id", "principal_arn"),

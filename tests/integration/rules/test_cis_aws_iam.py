@@ -172,6 +172,20 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
             arn: null,
             name: 'AdminInline'
         })
+        // Managed policy nodes are global and survive cleanup even when no longer
+        // attached. An unattached admin policy must not be counted as evaluated.
+        CREATE (orphan_policy:AWSManagedPolicy:AWSPolicy {
+            id: 'arn:aws:iam::aws:policy/OrphanAdmin',
+            arn: 'arn:aws:iam::aws:policy/OrphanAdmin',
+            name: 'OrphanAdmin'
+        })
+        CREATE (orphan_stmt:AWSPolicyStatement {
+            id: 'arn:aws:iam::aws:policy/OrphanAdmin/statement/1',
+            effect: 'Allow',
+            action: ['*'],
+            resource: ['*'],
+            sid: 'OrphanAll'
+        })
         CREATE (admin_stmt:AWSPolicyStatement {
             id: 'arn:aws:iam::aws:policy/AdministratorAccess/statement/1',
             effect: 'Allow',
@@ -201,6 +215,7 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
         MERGE (admin_policy)-[:STATEMENT]->(admin_stmt)
         MERGE (scoped_policy)-[:STATEMENT]->(scoped_stmt)
         MERGE (inline_policy)-[:STATEMENT]->(inline_stmt)
+        MERGE (orphan_policy)-[:STATEMENT]->(orphan_stmt)
         """
     )
     fact = _get_fact(cis_aws_2_15_admin_policy)
@@ -208,6 +223,7 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
     visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
+    count_rows = list(neo4j_session.run(fact.cypher_count_query))
 
     # Assert: both the managed and the inline admin policy are flagged, each with
     # a stable, non-null policy_id (the inline policy has no arn).
@@ -221,3 +237,6 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
     )
     assert inline_finding["policy_arn"] is None
     assert len(visual_rows) == 2
+    # Only attached policies are evaluated assets: admin + scoped + inline = 3.
+    # The unattached OrphanAdmin managed policy must be excluded.
+    assert count_rows[0]["count"] == 3
