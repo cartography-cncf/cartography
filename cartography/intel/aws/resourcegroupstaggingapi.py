@@ -21,9 +21,9 @@ stat_handler = get_stats_client(__name__)
 
 DEFAULT_CLEANUP_BATCH_SIZE = 1000
 
-# IAM is a global service, so its tags are not regional. We use a "global"
-# marker on the AWSTag.region property and fetch IAM tags once per sync rather
-# than once per region.
+# IAM is a global service, so its tags are not regional. We fetch IAM tags once
+# per sync rather than once per region, passing this marker as the region so the
+# IAM path skips the regional resource matching used for regional services.
 GLOBAL_REGION = "global"
 IAM_TAG_RESOURCE_TYPES = frozenset({"iam:role", "iam:user"})
 
@@ -241,8 +241,7 @@ def _load_tags_tx(
 
             SET aws_tag.lastupdated = $UpdateTag,
             aws_tag.key = input_tag.Key,
-            aws_tag.value =  input_tag.Value,
-            aws_tag.region = $Region
+            aws_tag.value =  input_tag.Value
 
             MERGE (resource)-[r:TAGGED]->(aws_tag)
             SET r.lastupdated = $UpdateTag,

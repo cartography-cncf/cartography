@@ -77,3 +77,10 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
     ) == {
         ("i-01", "TestKey:TestValue"),
     }
+
+    # Assert - AWSTag nodes no longer carry a region property (#1094). The
+    # property is meaningless on a shared Key:Value node and has been dropped.
+    region_props = neo4j_session.run(
+        "MATCH (n:AWSTag) RETURN keys(n) AS props",
+    ).single()["props"]
+    assert "region" not in region_props
