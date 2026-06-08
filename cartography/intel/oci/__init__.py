@@ -261,14 +261,14 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             return
 
         try:
-            tenancy_ocid = config.oci_tenancy_id or oci_config_json.get("tenancy_ocid", "")
-            compartment_ocid = config.oci_compartment_id or oci_config_json.get("compartment_ocid", tenancy_ocid)
+            tenancy_ocid = config.oci_tenancy_id
+            compartment_ocid = config.oci_compartment_id
             credentials = {
                 "user": oci_config_json["user_ocid"],
                 "fingerprint": oci_config_json["fingerprint"],
                 "key_content": oci_config_json["private_key_content"],
                 "tenancy": tenancy_ocid,
-                "region": config.params.get("defaultRegion", "us-phoenix-1"),
+                "region": _resolve_region(config.params.get("defaultRegion", "PHX")),
             }
             oci.config.validate_config(credentials)
         except (KeyError, InvalidConfig) as e:
@@ -398,3 +398,44 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
             }),
         )
+
+
+def _resolve_region(region_key: str) -> str:
+    """Convert OCI region short key (e.g. PHX) to full region name (e.g. us-phoenix-1)."""
+    region_map = {
+        "AMS": "eu-amsterdam-1",
+        "IAD": "us-ashburn-1",
+        "DXB": "me-dubai-1",
+        "FRA": "eu-frankfurt-1",
+        "JED": "me-jeddah-1",
+        "JNB": "af-johannesburg-1",
+        "LHR": "uk-london-1",
+        "YUL": "ca-montreal-1",
+        "BOM": "ap-mumbai-1",
+        "KIX": "ap-osaka-1",
+        "PHX": "us-phoenix-1",
+        "SJC": "us-sanjose-1",
+        "GRU": "sa-saopaulo-1",
+        "SYD": "ap-sydney-1",
+        "NRT": "ap-tokyo-1",
+        "YYZ": "ca-toronto-1",
+        "ICN": "ap-seoul-1",
+        "HYD": "ap-hyderabad-1",
+        "MEL": "ap-melbourne-1",
+        "SIN": "ap-singapore-1",
+        "CDG": "eu-paris-1",
+        "ARN": "eu-stockholm-1",
+        "ZRH": "eu-zurich-1",
+        "MTZ": "il-jerusalem-1",
+        "LIN": "eu-milan-1",
+        "MRS": "eu-marseille-1",
+        "MAD": "eu-madrid-1",
+        "ORD": "us-chicago-1",
+        "SCL": "sa-santiago-1",
+        "VCP": "sa-vinhedo-1",
+        "QRO": "mx-queretaro-1",
+        "MTY": "mx-monterrey-1",
+        "BOG": "sa-bogota-1",
+        "VAP": "sa-valparaiso-1",
+    }
+    return region_map.get(region_key.upper(), region_key)

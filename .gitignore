@@ -36,6 +36,7 @@ scripts
 dev.py
 Dockerfile.aws.worker
 Dockerfile.azure.worker
+Dockerfile.git.worker
 config
 aws.build.log
 
