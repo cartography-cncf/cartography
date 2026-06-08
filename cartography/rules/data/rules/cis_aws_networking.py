@@ -93,7 +93,9 @@ aws_ebs_volume_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.1.1", title="EBS Volume Encryption"),
+        cis_aws(
+            "6.1.1", title="Ensure EBS volume encryption is enabled in all regions"
+        ),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -195,7 +197,10 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.1.2", title="CIFS Access Is Restricted to Trusted Networks"),
+        cis_aws(
+            "6.1.2",
+            title="Ensure CIFS access is restricted to trusted networks to prevent unauthorized access",
+        ),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -300,7 +305,10 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.3", title="IPv4 Remote Administration Ports Open to the Internet"),
+        cis_aws(
+            "6.3",
+            title="Ensure no security groups allow ingress from 0.0.0.0/0 to remote server administration ports",
+        ),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -405,7 +413,10 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.4", title="IPv6 Remote Administration Ports Open to the Internet"),
+        cis_aws(
+            "6.4",
+            title="Ensure no security groups allow ingress from ::/0 to remote server administration ports",
+        ),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -495,7 +506,10 @@ aws_default_security_group_restricts_traffic = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.5", title="Default Security Group Restricts Traffic"),
+        cis_aws(
+            "6.5",
+            title="Ensure the default security group of every VPC restricts all traffic",
+        ),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
     ),
@@ -570,7 +584,10 @@ aws_ec2_instances_use_imdsv2 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.7", title="EC2 Instances Should Use IMDSv2"),
+        cis_aws(
+            "6.7",
+            title="Ensure that the EC2 Metadata Service only allows IMDSv2",
+        ),
         iso27001_annex_a("8.9"),
     ),
 )

@@ -42,7 +42,7 @@ def test_list_command_includes_framework_title_when_present():
 
     assert result.exit_code == 0
     assert (
-        "- cis:kubernetes:1.12 (5.1.8) Limit use of bind, impersonate, and escalate permissions"
+        "- cis:kubernetes:1.12 (5.1.8) Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
         in result.stdout
     )
     assert "  Name:         Bind/Impersonate/Escalate Permissions" in result.stdout
@@ -53,7 +53,7 @@ def test_frameworks_command_includes_control_titles_when_present():
 
     assert result.exit_code == 0
     assert (
-        "- cis:kubernetes:1.12 (5.1.8) Limit use of bind, impersonate, and escalate permissions"
+        "- cis:kubernetes:1.12 (5.1.8) Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
         in result.stdout
     )
 

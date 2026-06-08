@@ -104,7 +104,10 @@ kubernetes_cluster_admin_role_usage = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.1", title="Use cluster-admin only where required"),
+        cis_kubernetes(
+            "5.1.1",
+            title="Ensure that the cluster-admin role is only used where required",
+        ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -634,7 +637,10 @@ kubernetes_default_service_account_bindings = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.5", title="Default service accounts are not actively used"),
+        cis_kubernetes(
+            "5.1.5",
+            title="Ensure that default service accounts are not actively used.",
+        ),
         iso27001_annex_a("5.16"),
         iso27001_annex_a("5.18"),
     ),
@@ -849,7 +855,8 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes(
-            "5.1.8", title="Limit use of bind, impersonate, and escalate permissions"
+            "5.1.8",
+            title="Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster",
         ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
@@ -1109,7 +1116,7 @@ kubernetes_csr_approval_subresource_access = Rule(
     frameworks=(
         cis_kubernetes(
             "5.1.11",
-            title="Minimize access to the approval sub-resource of certificate signing requests",
+            title="Minimize access to the approval sub-resource of certificatesigningrequests objects",
         ),
         iso27001_annex_a("8.5"),
     ),
@@ -1273,7 +1280,8 @@ kubernetes_service_account_token_creation_access = Rule(
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes(
-            "5.1.13", title="Minimize access to service account token creation"
+            "5.1.13",
+            title="Minimize access to the service account token creation",
         ),
         iso27001_annex_a("5.17"),
     ),

@@ -28,35 +28,35 @@ def test_framework_mappings_remain_on_renamed_rules():
             "aws",
             "6.0.0",
             "4.1",
-            "CloudTrail is enabled in all regions",
+            "Ensure CloudTrail is enabled in all regions",
         ),
         "aws_default_security_group_restricts_traffic": (
             "cis",
             "aws",
             "6.0.0",
             "6.5",
-            "Default Security Group Restricts Traffic",
+            "Ensure the default security group of every VPC restricts all traffic",
         ),
         "gcp_projects_without_effective_os_login": (
             "cis",
             "gcp",
             "4.0",
             "4.4",
-            "Projects Without Effective OS Login",
+            "Ensure Oslogin Is Enabled for a Project",
         ),
         "kubernetes_pods_sharing_host_pid_namespace": (
             "cis",
             "kubernetes",
             "1.12",
             "5.2.3",
-            "Minimize containers that share the host process ID namespace",
+            "Minimize the admission of containers wishing to share the host process ID namespace",
         ),
         "kubernetes_bind_impersonate_escalate_permissions": (
             "cis",
             "kubernetes",
             "1.12",
             "5.1.8",
-            "Limit use of bind, impersonate, and escalate permissions",
+            "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster",
         ),
         "ai_provider_api_key_hygiene": (
             "nist-ai-rmf",
@@ -88,7 +88,10 @@ def test_rule_name_and_framework_title_can_differ():
     )
 
     assert rule.name == "Bind/Impersonate/Escalate Permissions"
-    assert fw.title == "Limit use of bind, impersonate, and escalate permissions"
+    assert (
+        fw.title
+        == "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
+    )
     assert rule.name != fw.title
 
 
@@ -131,5 +134,5 @@ def test_framework_title_is_serialized_in_rule_results():
 
     assert (
         cis_framework["title"]
-        == "Limit use of bind, impersonate, and escalate permissions"
+        == "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
     )
