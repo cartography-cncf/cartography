@@ -40,7 +40,7 @@ ROLE_POLICY_DATA = {
             {
                 "Effect": "Allow",
                 "Action": ["s3:GetObject"],
-                "Resource": ["arn:aws:s3:::test-bucket*"],
+                "Resource": ["arn:aws:s3:::test-bucket/*"],
             }
         ]
     }
@@ -73,7 +73,7 @@ PASSROLE_POLICY_DATA = {
 
 def test_permission_relationships_with_iam_integration(neo4j_session):
     """
-    Integration test that reproduces issue #1918.
+    Integration test that reproduces issue #1639.
     """
     # Arrange
     # Step 1: Create AWS account
@@ -114,16 +114,11 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
             common_job_parameters,
         )
 
-    # Act:
-    # Call get_policies_for_principal which should trigger the bug
-    # This function calls parse_statement_node and should crash with AttributeError
-    # if the bug exists, or work correctly if the bug is fixed
     policies = cartography.intel.aws.iam.get_policies_for_principal(
         neo4j_session, "arn:aws:iam::000000000000:role/TestReadRole"
     )
     assert policies
 
-    # If we reach here, the bug is fixed - now test the full permission relationships flow
     cartography.intel.aws.permission_relationships.sync(
         neo4j_session,
         None,  # boto3_session not needed for this test
