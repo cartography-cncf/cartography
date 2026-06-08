@@ -1362,6 +1362,17 @@ def _transform_dependency_graph(
             dep_type = parsed["type"] if parsed else None
             dep_normalized_id = make_normalized_package_id(purl=dep_purl)
 
+            # Provenance: where the version came from and how confident we are
+            # in it. The lockfile fallback flips `source` to "lockfile" when it
+            # upgrades a range-only dep to an exact version.
+            dep_source = "dependency_graph"
+            if dep_version is not None:
+                dep_version_confidence = "exact"
+            elif normalized_requirements:
+                dep_version_confidence = "range"
+            else:
+                dep_version_confidence = "unknown"
+
             out_dependencies_list.append(
                 {
                     "id": dependency_id,
@@ -1380,6 +1391,8 @@ def _transform_dependency_graph(
                     "type": dep_type,
                     "purl": dep_purl,
                     "normalized_id": dep_normalized_id,
+                    "source": dep_source,
+                    "version_confidence": dep_version_confidence,
                 }
             )
             dependencies_added += 1

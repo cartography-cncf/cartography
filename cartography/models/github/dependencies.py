@@ -25,6 +25,8 @@ class GitHubDependencyNodeProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     purl: PropertyRef = PropertyRef("purl")
     normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
+    source: PropertyRef = PropertyRef("source")
+    version_confidence: PropertyRef = PropertyRef("version_confidence")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

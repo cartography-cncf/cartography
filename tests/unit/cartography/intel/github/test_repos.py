@@ -193,13 +193,53 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["type"] == "npm"
     assert react_dep["purl"] == "pkg:npm/react@18.2.0"
     assert react_dep["normalized_id"] == "npm|react|18.2.0"
+    assert react_dep["source"] == "dependency_graph"
+    assert react_dep["version_confidence"] == "exact"
 
-    # Assert: A range-only dep (no PURL) intentionally leaves ontology fields null
+    # Assert: A range-only dep (no PURL) intentionally leaves ontology fields null.
+    # lodash has neither an exact version nor a requirements string -> "unknown".
     lodash_dep = next(dep for dep in output_list if dep["original_name"] == "lodash")
     assert lodash_dep["version"] is None
     assert lodash_dep["type"] is None
     assert lodash_dep["purl"] is None
     assert lodash_dep["normalized_id"] is None
+    assert lodash_dep["source"] == "dependency_graph"
+    assert lodash_dep["version_confidence"] == "unknown"
+
+
+def test_transform_dependency_version_confidence_range():
+    """
+    A dependency with a requirements range but no exact-version PURL is tagged
+    with version_confidence="range" and leaves the ontology fields null.
+    """
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+    dependency_manifests = {
+        "nodes": [
+            {
+                "blobPath": "/package.json",
+                "dependencies": {
+                    "nodes": [
+                        {
+                            "packageName": "lodash",
+                            "packageUrl": "",
+                            "requirements": "^4.17.21",
+                            "packageManager": "NPM",
+                        },
+                    ],
+                },
+            },
+        ],
+    }
+
+    _transform_dependency_graph(dependency_manifests, repo_url, output_list)
+
+    assert len(output_list) == 1
+    lodash_dep = output_list[0]
+    assert lodash_dep["version"] is None
+    assert lodash_dep["normalized_id"] is None
+    assert lodash_dep["source"] == "dependency_graph"
+    assert lodash_dep["version_confidence"] == "range"
 
 
 def test_transform_python_requirements_skips_flags_and_continuations():

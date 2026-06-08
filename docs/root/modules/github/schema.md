@@ -595,6 +595,8 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
 | purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
+| source | Provenance of the version: `dependency_graph` from GitHub's dependency graph, or `lockfile` when an exact version was recovered from a lockfile fallback. |
+| version_confidence | Confidence in the version: `exact` (an exact version is known), `range` (only a requirement range is known), or `unknown` (no version or requirement). |
 
 > **Ontology Mapping**: This node also carries the extra label `GitHubDependency`. When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
 
