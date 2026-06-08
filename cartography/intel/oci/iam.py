@@ -62,13 +62,13 @@ def load_compartments(
     oci_update_tag: int,
 ) -> None:
     ingest_compartment = """
-    MERGE (cnode:OCICompartment{ocid: $OCID})
+    MERGE (cnode:OCICompartment{id: $OCID})
     ON CREATE SET cnode:OCICompartment, cnode.firstseen = timestamp(),
     cnode.createdate = $CREATE_DATE
-    SET cnode.name = $NAME, cnode.compartmentid = $COMPARTMENT_ID,
+    SET cnode.ocid = $OCID, cnode.name = $NAME, cnode.compartmentid = $COMPARTMENT_ID,
     cnode.lastupdated = $oci_update_tag
     WITH cnode
-    MATCH (tenancy:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MATCH (tenancy:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (tenancy)-[r:OWNER]->(cnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -94,10 +94,10 @@ def load_users(
     oci_update_tag: int,
 ) -> None:
     ingest_user = """
-    MERGE (unode:OCIUser{ocid: $OCID})
+    MERGE (unode:OCIUser{id: $OCID})
     ON CREATE SET unode:OCIUser, unode.firstseen = timestamp(),
     unode.createdate = $CREATE_DATE
-    SET unode.name = $USERNAME, unode.compartmentid = $COMPARTMENT_ID, unode.description = $DESCRIPTION,
+    SET unode.ocid = $OCID, unode.name = $USERNAME, unode.compartmentid = $COMPARTMENT_ID, unode.description = $DESCRIPTION,
     unode.email = $EMAIL, unode.lifecycle_state = $LIFECYCLE_STATE, unode.is_mfa_activated = $IS_MFA_ACTIVATED,
     unode.can_use_api_keys = $CAN_USE_API_KEYS, unode.can_use_auth_tokens = $CAN_USE_AUTH_TOKENS,
     unode.can_use_console_password = $CAN_USE_CONSOLE_PASSWORD,
@@ -105,7 +105,7 @@ def load_users(
     unode.can_use_smtp_credentials = $CAN_USE_SMTP_CREDENTIALS,
     unode.lastupdated = $oci_update_tag
     WITH unode
-    MATCH (aa:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (aa)-[r:RESOURCE]->(unode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -170,12 +170,12 @@ def load_groups(
     oci_update_tag: int,
 ) -> None:
     ingest_group = """
-    MERGE (gnode:OCIGroup{ocid: $OCID})
+    MERGE (gnode:OCIGroup{id: $OCID})
     ON CREATE SET gnode.firstseen = timestamp(), gnode.createdate = $CREATE_DATE
-    SET gnode.name = $GROUP_NAME, gnode.compartmentid = $COMPARTMENT_ID, gnode.lastupdated = $oci_update_tag,
+    SET gnode.ocid = $OCID, gnode.name = $GROUP_NAME, gnode.compartmentid = $COMPARTMENT_ID, gnode.lastupdated = $oci_update_tag,
     gnode.description = $DESCRIPTION
     WITH gnode
-    MATCH (aa:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (aa)-[r:RESOURCE]->(gnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -228,7 +228,7 @@ def sync_group_memberships(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     logger.debug("Syncing IAM group membership for account '%s'.", current_tenancy_id)
-    query = "MATCH (group:OCIGroup)<-[:RESOURCE]-(OCITenancy{ocid: $OCI_TENANCY_ID}) " \
+    query = "MATCH (group:OCIGroup)<-[:RESOURCE]-(OCITenancy{id: $OCI_TENANCY_ID}) " \
             "return group.name as name, group.ocid as ocid;"
     groups = neo4j_session.run(query, OCI_TENANCY_ID=current_tenancy_id)
     groups_membership = {
@@ -248,9 +248,9 @@ def load_group_memberships(
     oci_update_tag: int,
 ) -> None:
     ingest_membership = """
-    MATCH (group:OCIGroup{ocid: $GROUP_OCID})
+    MATCH (group:OCIGroup{id: $GROUP_OCID})
     WITH group
-    MATCH (user:OCIUser{ocid: $USER_OCID})
+    MATCH (user:OCIUser{id: $USER_OCID})
     MERGE (user)-[r:MEMBER_OCID_GROUP]->(group)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -273,13 +273,13 @@ def load_policies(
     oci_update_tag: int,
 ) -> None:
     ingest_policy = """
-    MERGE (pnode:OCIPolicy{ocid: $OCID})
+    MERGE (pnode:OCIPolicy{id: $OCID})
     ON CREATE SET pnode.firstseen = timestamp(), pnode.createdate = $CREATE_DATE
-    SET pnode.name = $POLICY_NAME, pnode.compartmentid = $COMPARTMENT_ID, pnode.description = $DESCRIPTION,
+    SET pnode.ocid = $OCID, pnode.name = $POLICY_NAME, pnode.compartmentid = $COMPARTMENT_ID, pnode.description = $DESCRIPTION,
     pnode.statements = $STATEMENTS,
     pnode.updatedate = $POLICY_UPDATE, pnode.lastupdated = $oci_update_tag
-    WITH pnode
-    MATCH (aa:OCITenancy{ocid: $OCI_TENANCY_ID})
+    With pnode
+    MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (aa)-[r:RESOURCE]->(pnode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -335,8 +335,8 @@ def load_oci_policy_group_reference(
     oci_update_tag: int,
 ) -> None:
     ingest_policy_group_reference = """
-    MATCH (aa:OCIPolicy{ocid: $POLICY_ID})
-    MATCH (bb:OCIGroup{ocid: $GROUP_ID})
+    MATCH (aa:OCIPolicy{id: $POLICY_ID})
+    MATCH (bb:OCIGroup{id: $GROUP_ID})
     MERGE (aa)-[r:OCI_POLICY_REFERENCE]->(bb)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -357,8 +357,8 @@ def load_oci_policy_compartment_reference(
     oci_update_tag: int,
 ) -> None:
     ingest_policy_compartment_reference = """
-    MATCH (aa:OCIPolicy{ocid: $POLICY_ID})
-    MATCH (bb:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (aa:OCIPolicy{id: $POLICY_ID})
+    MATCH (bb:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (aa)-[r:OCI_POLICY_REFERENCE]->(bb)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -418,11 +418,11 @@ def load_region_subscriptions(
     oci_update_tag: int,
 ) -> None:
     query = """
-    MERGE (aa:OCIRegion{key: $REGION_KEY})
+    MERGE (aa:OCIRegion{id: $REGION_KEY})
     ON CREATE SET aa.firstseen = timestamp()
-    SET aa.lastupdated = $oci_update_tag, aa.name = $REGION_NAME
+    SET aa.key = $REGION_KEY, aa.ocid = $REGION_KEY, aa.lastupdated = $oci_update_tag, aa.name = $REGION_NAME
     WITH aa
-    MATCH (bb:OCITenancy{ocid: $OCI_TENANCY_ID})
+    MATCH (bb:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (bb)-[r:OCI_REGION_SUBSCRIPTION]->(aa)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag

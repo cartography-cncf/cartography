@@ -1,12 +1,12 @@
 {
   "statements": [
     {
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(n:OCITenancy{ocid: $OCI_TENANCY_ID}) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(n:OCITenancy{id: $OCI_TENANCY_ID}) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[r:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID}) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[r:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID}) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
       "iterative": true,
       "iterationsize": 100
     }

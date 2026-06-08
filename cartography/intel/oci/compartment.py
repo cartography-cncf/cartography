@@ -84,14 +84,15 @@ def load_oci_compartments(
     Ingest OCI compartments into Neo4j and link to tenancy via OWNER relationship.
     """
     query = """
-    MERGE (t:OCITenancy{ocid: $TENANCY_ID})
+    MERGE (t:OCITenancy{id: $TENANCY_ID})
     ON CREATE SET t.firstseen = timestamp()
-    SET t.lastupdated = $update_tag
+    SET t.ocid = $TENANCY_ID, t.lastupdated = $update_tag
     WITH t
-    MERGE (c:OCICompartment{ocid: $COMPARTMENT_ID})
+    MERGE (c:OCICompartment{id: $COMPARTMENT_ID})
     ON CREATE SET c.firstseen = timestamp(),
     c.createdate = $TIME_CREATED
-    SET c.lastupdated = $update_tag,
+    SET c.ocid = $COMPARTMENT_ID,
+    c.lastupdated = $update_tag,
     c.name = $COMPARTMENT_NAME,
     c.description = $DESCRIPTION,
     c.lifecycle_state = $LIFECYCLE_STATE,
