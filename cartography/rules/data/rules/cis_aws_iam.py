@@ -431,6 +431,7 @@ _aws_root_access_key_present = Fact(
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)
+    WHERE a.account_access_keys_present IS NOT NULL
     RETURN COUNT(a) AS count
     """,
     identity_fields=("account_id",),
@@ -495,6 +496,7 @@ _aws_root_mfa_disabled = Fact(
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)
+    WHERE a.account_mfa_enabled IS NOT NULL
     RETURN COUNT(a) AS count
     """,
     identity_fields=("account_id",),

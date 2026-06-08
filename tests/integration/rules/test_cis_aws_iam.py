@@ -103,10 +103,14 @@ def test_root_access_key_flags_accounts_with_root_keys(neo4j_session) -> None:
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
     visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
+    count_rows = list(neo4j_session.run(fact.cypher_count_query))
 
     # Assert
     assert {row["account_id"] for row in findings} == {"111111111111"}
     assert len(visual_rows) == 1
+    # The 'unknown' account has no IAM summary data, so it must not be counted
+    # as an evaluated asset (otherwise it would be reported as passing).
+    assert count_rows[0]["count"] == 2
 
 
 def test_root_mfa_flags_accounts_without_root_mfa(neo4j_session) -> None:
@@ -124,10 +128,14 @@ def test_root_mfa_flags_accounts_without_root_mfa(neo4j_session) -> None:
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
     visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
+    count_rows = list(neo4j_session.run(fact.cypher_count_query))
 
     # Assert
     assert {row["account_id"] for row in findings} == {"111111111111"}
     assert len(visual_rows) == 1
+    # The 'unknown' account has no IAM summary data, so it must not be counted
+    # as an evaluated asset (otherwise it would be reported as passing).
+    assert count_rows[0]["count"] == 2
 
 
 def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
