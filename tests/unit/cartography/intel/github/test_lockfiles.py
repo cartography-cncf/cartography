@@ -70,6 +70,17 @@ def test_parse_uv_lock_invalid_content_returns_empty():
     assert parse_uv_lock("this is not = valid = toml [[[") == {}
 
 
+def test_parse_uv_lock_skips_malformed_entries():
+    # A package whose name/version is not a string (e.g. an array) must be
+    # skipped rather than crashing on use as a dict key / set member.
+    content = (
+        '[[package]]\nname = [1, 2]\nversion = "9.9.9"\n'
+        '[[package]]\nname = "good"\nversion = ["not", "a", "string"]\n'
+        '[[package]]\nname = "django"\nversion = "4.2.0"\n'
+    )
+    assert parse_uv_lock(content) == {"django": "4.2.0"}
+
+
 def test_parse_npm_lock_v3_returns_only_top_level():
     # The root package ("" key) and nested transitive installs are skipped;
     # only top-level node_modules/<name> installs (incl. scoped) are returned.

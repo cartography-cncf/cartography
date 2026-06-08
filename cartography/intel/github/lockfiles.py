@@ -43,12 +43,14 @@ def parse_uv_lock(content: str) -> dict[str, str]:
         return {}
 
     versions_by_name: dict[str, set[str]] = {}
-    for package in data.get("package", []):
+    for package in data.get("package") or []:
         if not isinstance(package, dict):
             continue
         name = package.get("name")
         version = package.get("version")
-        if name and version:
+        # Skip malformed entries rather than crashing: name/version must be
+        # non-empty strings before being used as a dict key / set member.
+        if isinstance(name, str) and name and isinstance(version, str) and version:
             versions_by_name.setdefault(name, set()).add(version)
 
     return {
@@ -101,7 +103,7 @@ def parse_npm_lock(content: str) -> dict[str, str]:
                 continue
             name = path[len("node_modules/") :]
             version = info.get("version")
-            if name and version:
+            if name and isinstance(version, str) and version:
                 versions[name] = version
 
     # Legacy v1: only the top-level `dependencies` entries are direct deps.
@@ -112,7 +114,7 @@ def parse_npm_lock(content: str) -> dict[str, str]:
                 if not isinstance(info, dict):
                     continue
                 version = info.get("version")
-                if name and version:
+                if name and isinstance(version, str) and version:
                     versions[name] = version
 
     return versions
