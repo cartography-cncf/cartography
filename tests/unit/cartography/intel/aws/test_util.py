@@ -1,6 +1,7 @@
 import pytest
 
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
+from cartography.intel.aws.util.common import parse_and_validate_aws_excluded_syncs
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 
@@ -28,6 +29,33 @@ def test_parse_and_validate_requested_syncs():
     absolute_garbage = "#@$@#RDFFHKjsdfkjsd,KDFJHW#@,"
     with pytest.raises(ValueError):
         parse_and_validate_aws_requested_syncs(absolute_garbage)
+
+
+def test_parse_and_validate_excluded_syncs():
+    single = "secretsmanager"
+    assert parse_and_validate_aws_excluded_syncs(single) == ["secretsmanager"]
+
+    multiple = "secretsmanager, sagemaker,inspector"
+    assert parse_and_validate_aws_excluded_syncs(multiple) == [
+        "secretsmanager",
+        "sagemaker",
+        "inspector",
+    ]
+
+    # Empty input and trailing commas are tolerated (unlike requested_syncs,
+    # an empty excluded list is meaningful: "exclude nothing").
+    assert parse_and_validate_aws_excluded_syncs("") == []
+    assert parse_and_validate_aws_excluded_syncs("secretsmanager,,") == [
+        "secretsmanager",
+    ]
+
+    sync_that_does_not_exist = "secretsmanager, thisfuncdoesnotexist"
+    with pytest.raises(ValueError):
+        parse_and_validate_aws_excluded_syncs(sync_that_does_not_exist)
+
+    absolute_garbage = "#@$@#RDFFHKjsdfkjsd,KDFJHW#@,"
+    with pytest.raises(ValueError):
+        parse_and_validate_aws_excluded_syncs(absolute_garbage)
 
 
 def test_parse_and_validate_aws_regions():

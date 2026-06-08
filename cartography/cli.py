@@ -518,6 +518,20 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = None,
+            aws_excluded_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-excluded-syncs",
+                    help=(
+                        "Comma-separated list of AWS resources to skip. Subtracted from the "
+                        "effective sync set (either --aws-requested-syncs or, if unset, all "
+                        'modules). Example: "secretsmanager". See cartography.intel.aws.resources '
+                        "for the full list of valid names."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
             aws_guardduty_severity_threshold: Annotated[
                 str | None,
                 typer.Option(
@@ -1997,6 +2011,12 @@ class CLI:
                 )
 
                 parse_and_validate_aws_requested_syncs(aws_requested_syncs)
+            if aws_excluded_syncs:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_excluded_syncs,
+                )
+
+                parse_and_validate_aws_excluded_syncs(aws_excluded_syncs)
             if aws_regions:
                 from cartography.intel.aws.util.common import (
                     parse_and_validate_aws_regions,
@@ -2537,6 +2557,7 @@ class CLI:
                 entra_client_id=entra_client_id,
                 entra_client_secret=entra_client_secret,
                 aws_requested_syncs=aws_requested_syncs,
+                aws_excluded_syncs=aws_excluded_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
                 oci_sync_all_profiles=oci_sync_all_profiles,

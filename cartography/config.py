@@ -100,6 +100,10 @@ class Config:
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
+    :type aws_excluded_syncs: str
+    :param aws_excluded_syncs: Comma-separated list of AWS resources to skip. Subtracted from the
+        effective sync set (``aws_requested_syncs`` if provided, otherwise the default of all
+        modules). Optional.
     :type aws_guardduty_severity_threshold: str
     :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
         severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
@@ -369,6 +373,7 @@ class Config:
         entra_client_id=None,
         entra_client_secret=None,
         aws_requested_syncs=None,
+        aws_excluded_syncs=None,
         aws_guardduty_severity_threshold=None,
         analysis_job_directory=None,
         oci_sync_all_profiles=None,
@@ -538,6 +543,7 @@ class Config:
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
         self.aws_requested_syncs = aws_requested_syncs
+        self.aws_excluded_syncs = aws_excluded_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
         self.oci_sync_all_profiles = oci_sync_all_profiles
