@@ -7,10 +7,10 @@ import pytest
 from okta.framework.OktaError import OktaError
 
 from cartography.intel.okta.groups import get_okta_group_members
-from cartography.intel.okta.groups import OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 from cartography.intel.okta.groups import sync_okta_group_membership
 from cartography.intel.okta.groups import transform_okta_group
 from cartography.intel.okta.groups import transform_okta_group_member_list
+from cartography.intel.okta.utils import OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 from tests.data.okta.groups import create_test_group
 from tests.data.okta.groups import GROUP_MEMBERS_SAMPLE_DATA
 

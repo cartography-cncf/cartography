@@ -19,17 +19,12 @@ from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
 from cartography.intel.okta.utils import is_resource_not_found_error
-from cartography.intel.okta.utils import OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS = 3
 OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS = 1
-
-# Re-exported for backwards compatibility; the canonical definition lives in
-# cartography.intel.okta.utils.
-__all__ = ["OKTA_RESOURCE_NOT_FOUND_ERROR_CODE"]
 
 
 @timeit
