@@ -105,7 +105,7 @@ aws_access_keys_not_rotated = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.13"),
+        cis_aws("2.13", title="Access keys not rotated in 90 days"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -181,7 +181,7 @@ aws_unused_credentials = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.11"),
+        cis_aws("2.11", title="Credentials unused for 45 days or more"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -247,7 +247,7 @@ aws_users_with_direct_policy_attachments = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.14"),
+        cis_aws("2.14", title="Users with directly attached policies"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -318,7 +318,7 @@ aws_users_with_multiple_active_access_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.12"),
+        cis_aws("2.12", title="Users with multiple active access keys"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -389,7 +389,7 @@ aws_expired_ssl_tls_certificates = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.18"),
+        cis_aws("2.18", title="Expired SSL/TLS certificates"),
         iso27001_annex_a("8.24"),
     ),
 )

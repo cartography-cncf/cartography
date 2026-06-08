@@ -7,10 +7,11 @@ NIST_AI_RMF_SHORT_NAME = "NIST-AI-RMF"
 NIST_AI_RMF_REVISION = "1.0"
 
 
-def nist_ai_rmf(requirement: str) -> Framework:
+def nist_ai_rmf(requirement: str, title: str | None = None) -> Framework:
     return Framework(
         name=NIST_AI_RMF_FRAMEWORK_NAME,
         short_name=NIST_AI_RMF_SHORT_NAME,
         requirement=requirement,
         revision=NIST_AI_RMF_REVISION,
+        title=title,
     )

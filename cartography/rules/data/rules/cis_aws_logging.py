@@ -91,7 +91,7 @@ aws_cloudtrail_multi_region = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("4.1"),
+        cis_aws("4.1", title="CloudTrail is enabled in all regions"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
     ),
@@ -160,7 +160,7 @@ aws_cloudtrail_log_file_validation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("4.2"),
+        cis_aws("4.2", title="CloudTrail Log File Validation"),
         iso27001_annex_a("8.15"),
     ),
 )
@@ -232,7 +232,7 @@ aws_cloudtrail_s3_bucket_access_logging = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("4.4"),
+        cis_aws("4.4", title="Server access logging on the CloudTrail S3 bucket"),
         iso27001_annex_a("8.15"),
     ),
 )
@@ -300,7 +300,7 @@ aws_cloudtrail_kms_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("4.5"),
+        cis_aws("4.5", title="CloudTrail KMS Encryption"),
         iso27001_annex_a("8.24"),
     ),
 )

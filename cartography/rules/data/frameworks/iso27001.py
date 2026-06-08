@@ -13,10 +13,11 @@ ISO27001_SHORT_NAME = "27001"
 ISO27001_REVISION = "2022"
 
 
-def iso27001_annex_a(requirement: str) -> Framework:
+def iso27001_annex_a(requirement: str, title: str | None = None) -> Framework:
     return Framework(
         name=ISO27001_FRAMEWORK_NAME,
         short_name=ISO27001_SHORT_NAME,
         revision=ISO27001_REVISION,
         requirement=requirement,
+        title=title,
     )

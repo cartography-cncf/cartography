@@ -96,7 +96,7 @@ aws_s3_bucket_mfa_delete = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("3.1.2"),
+        cis_aws("3.1.2", title="MFA Delete is enabled on S3 buckets"),
         iso27001_annex_a("8.10"),
     ),
 )
@@ -174,7 +174,7 @@ aws_s3_block_public_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("3.1.4"),
+        cis_aws("3.1.4", title="S3 Block Public Access"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -247,7 +247,7 @@ aws_rds_encryption_at_rest = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("3.2.1"),
+        cis_aws("3.2.1", title="RDS Encryption at Rest"),
         iso27001_annex_a("8.24"),
     ),
 )

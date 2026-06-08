@@ -93,7 +93,7 @@ aws_ebs_volume_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.1.1"),
+        cis_aws("6.1.1", title="EBS Volume Encryption"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -195,7 +195,7 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.1.2"),
+        cis_aws("6.1.2", title="CIFS Access Is Restricted to Trusted Networks"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -300,7 +300,7 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.3"),
+        cis_aws("6.3", title="IPv4 Remote Administration Ports Open to the Internet"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -405,7 +405,7 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.4"),
+        cis_aws("6.4", title="IPv6 Remote Administration Ports Open to the Internet"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -495,7 +495,7 @@ aws_default_security_group_restricts_traffic = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.5"),
+        cis_aws("6.5", title="Default Security Group Restricts Traffic"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
     ),
@@ -570,7 +570,7 @@ aws_ec2_instances_use_imdsv2 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("6.7"),
+        cis_aws("6.7", title="EC2 Instances Should Use IMDSv2"),
         iso27001_annex_a("8.9"),
     ),
 )

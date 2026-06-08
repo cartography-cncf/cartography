@@ -171,7 +171,8 @@ class Framework:
     """
     A reference to a compliance framework requirement.
 
-    All fields are case-insensitive and normalized to lowercase on creation.
+    Matching fields are case-insensitive and normalized to lowercase on creation.
+    The optional title preserves display casing because it is user-facing copy.
 
     Attributes:
         name: Full name of the framework (e.g., "cis aws foundations benchmark").
@@ -179,6 +180,7 @@ class Framework:
         requirement: The specific requirement identifier (e.g., "1.14").
         scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
         revision: Optional version/revision of the framework (e.g., "5.0").
+        title: Optional control or requirement title for this framework mapping.
     """
 
     name: str
@@ -186,9 +188,11 @@ class Framework:
     requirement: str
     scope: str | None = None
     revision: str | None = None
+    title: str | None = None
 
     def __post_init__(self) -> None:
-        # Normalize all fields to lowercase for case-insensitive comparison
+        # Normalize matching fields to lowercase for case-insensitive comparison.
+        # Keep title casing intact because it is display copy, not a filter key.
         object.__setattr__(self, "name", self.name.lower())
         object.__setattr__(self, "short_name", self.short_name.lower())
         object.__setattr__(self, "requirement", self.requirement.lower())

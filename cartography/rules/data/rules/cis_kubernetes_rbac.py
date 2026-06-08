@@ -104,7 +104,7 @@ kubernetes_cluster_admin_role_usage = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.1"),
+        cis_kubernetes("5.1.1", title="Use cluster-admin only where required"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -213,7 +213,7 @@ kubernetes_roles_grant_secret_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.2"),
+        cis_kubernetes("5.1.2", title="Minimize access to secrets"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -330,7 +330,9 @@ kubernetes_wildcard_roles = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.3"),
+        cis_kubernetes(
+            "5.1.3", title="Minimize wildcard use in Roles and ClusterRoles"
+        ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -436,7 +438,7 @@ kubernetes_roles_grant_pod_creation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.4"),
+        cis_kubernetes("5.1.4", title="Minimize access to create pods"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -632,7 +634,7 @@ kubernetes_default_service_account_bindings = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.5"),
+        cis_kubernetes("5.1.5", title="Default service accounts are not actively used"),
         iso27001_annex_a("5.16"),
         iso27001_annex_a("5.18"),
     ),
@@ -744,7 +746,7 @@ kubernetes_system_masters_group_usage = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.7"),
+        cis_kubernetes("5.1.7", title="Avoid use of system:masters group"),
         iso27001_annex_a("8.2"),
     ),
 )
@@ -846,7 +848,9 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.8"),
+        cis_kubernetes(
+            "5.1.8", title="Limit use of bind, impersonate, and escalate permissions"
+        ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -956,7 +960,7 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.9"),
+        cis_kubernetes("5.1.9", title="Minimize access to create persistent volumes"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -1028,7 +1032,9 @@ kubernetes_node_proxy_subresource_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.10"),
+        cis_kubernetes(
+            "5.1.10", title="Minimize access to the proxy sub-resource of nodes"
+        ),
         iso27001_annex_a("8.2"),
     ),
 )
@@ -1101,7 +1107,10 @@ kubernetes_csr_approval_subresource_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.11"),
+        cis_kubernetes(
+            "5.1.11",
+            title="Minimize access to the approval sub-resource of certificate signing requests",
+        ),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -1188,7 +1197,9 @@ kubernetes_webhook_configuration_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.12"),
+        cis_kubernetes(
+            "5.1.12", title="Minimize access to webhook configuration objects"
+        ),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -1261,7 +1272,9 @@ kubernetes_service_account_token_creation_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes("5.1.13"),
+        cis_kubernetes(
+            "5.1.13", title="Minimize access to service account token creation"
+        ),
         iso27001_annex_a("5.17"),
     ),
 )

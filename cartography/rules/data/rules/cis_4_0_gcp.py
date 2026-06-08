@@ -93,7 +93,7 @@ gcp_default_network_exists = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.1"),
+        cis_gcp("3.1", title="Default Network Exists"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
     ),
@@ -184,7 +184,7 @@ gcp_unrestricted_ssh_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.6"),
+        cis_gcp("3.6", title="Unrestricted SSH Access"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -274,7 +274,7 @@ gcp_unrestricted_rdp_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.7"),
+        cis_gcp("3.7", title="Unrestricted RDP Access"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -349,7 +349,7 @@ gcp_compute_instance_public_ips = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.9"),
+        cis_gcp("4.9", title="Compute Instance Public IPs"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -436,7 +436,7 @@ gcp_instances_without_confidential_computing_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.11"),
+        cis_gcp("4.11", title="Instances Without Confidential Computing Enabled"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -496,7 +496,7 @@ gcp_cloud_dns_dnssec_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.3"),
+        cis_gcp("3.3", title="Cloud DNS DNSSEC Disabled"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -567,7 +567,7 @@ gcp_cloud_dns_dnssec_key_signing_uses_rsasha1 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.4"),
+        cis_gcp("3.4", title="Cloud DNS DNSSEC Key-Signing Uses RSASHA1"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -632,7 +632,7 @@ gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.5"),
+        cis_gcp("3.5", title="Cloud DNS DNSSEC Zone-Signing Uses RSASHA1"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -724,7 +724,7 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.8"),
+        cis_gcp("3.8", title="Subnets Without Compliant VPC Flow Logs"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
     ),
@@ -782,7 +782,7 @@ gcp_cloudsql_public_ips = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("6.6"),
+        cis_gcp("6.6", title="Cloud SQL Instances With Public IPs"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -839,7 +839,7 @@ gcp_cloudsql_automated_backups_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("6.7"),
+        cis_gcp("6.7", title="Cloud SQL Automated Backups Disabled"),
         iso27001_annex_a("8.13"),
     ),
 )
@@ -896,7 +896,7 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("7.1"),
+        cis_gcp("7.1", title="BigQuery Datasets Publicly Accessible"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -953,7 +953,7 @@ gcp_bigquery_tables_without_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("7.2"),
+        cis_gcp("7.2", title="BigQuery Tables Without CMEK"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1008,7 +1008,7 @@ gcp_bigquery_datasets_without_default_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("7.3"),
+        cis_gcp("7.3", title="BigQuery Datasets Without Default CMEK"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1069,7 +1069,7 @@ gcp_cloudsql_ssl_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("6.4"),
+        cis_gcp("6.4", title="Cloud SQL SSL Not Enforced"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1126,7 +1126,7 @@ gcp_cloudsql_authorized_networks_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("6.5"),
+        cis_gcp("6.5", title="Cloud SQL Authorized Networks Open to the Internet"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -1188,6 +1188,7 @@ def _make_cloudsql_flag_rule(
     description: str,
     requirement: str,
     fact: Fact,
+    title: str | None = None,
 ) -> Rule:
     return Rule(
         id=rule_id,
@@ -1199,7 +1200,7 @@ def _make_cloudsql_flag_rule(
         version="1.0.0",
         references=CIS_REFERENCES,
         frameworks=(
-            cis_gcp(requirement),
+            cis_gcp(requirement, title=title or name),
             iso27001_annex_a("8.9"),
         ),
     )
@@ -1521,7 +1522,7 @@ gcp_bucket_uniform_access_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("5.2"),
+        cis_gcp("5.2", title="Bucket Uniform Access"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -1764,7 +1765,7 @@ gcp_instances_using_default_service_account = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.1"),
+        cis_gcp("4.1", title="Instances Using Default Service Account"),
         iso27001_annex_a("5.16"),
     ),
 )
@@ -1831,7 +1832,7 @@ gcp_default_service_account_full_cloud_api_scope = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.2"),
+        cis_gcp("4.2", title="Default Service Account With Full Cloud API Scope"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -1913,7 +1914,7 @@ gcp_instances_not_blocking_project_wide_ssh_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.3"),
+        cis_gcp("4.3", title="Instances Not Blocking Project-Wide SSH Keys"),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -1981,7 +1982,7 @@ gcp_projects_without_effective_os_login = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.4"),
+        cis_gcp("4.4", title="Projects Without Effective OS Login"),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -2047,7 +2048,7 @@ gcp_instances_with_ip_forwarding = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.6"),
+        cis_gcp("4.6", title="Instances With IP Forwarding Enabled"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -2123,7 +2124,7 @@ gcp_instances_without_shielded_vm_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.8"),
+        cis_gcp("4.8", title="Instances Without Shielded VM Enabled"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -2180,7 +2181,7 @@ gcp_instances_with_serial_port_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.5"),
+        cis_gcp("4.5", title="Instances With Serial Port Access Enabled"),
         iso27001_annex_a("8.3"),
     ),
 )

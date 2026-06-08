@@ -16,6 +16,7 @@ from typing_extensions import Annotated
 from cartography.rules.data.rules import RULES
 from cartography.rules.runners import get_all_frameworks
 from cartography.rules.runners import run_rules
+from cartography.rules.spec.model import Framework
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -134,6 +135,18 @@ def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
 # ----------------------------
 
 
+def _format_framework_mapping(fw: Framework) -> str:
+    fw_parts = [fw.short_name]
+    if fw.scope:
+        fw_parts.append(fw.scope)
+    if fw.revision:
+        fw_parts.append(fw.revision)
+    fw_str = f"{':'.join(fw_parts)} ({fw.requirement})"
+    if fw.title:
+        fw_str = f"{fw_str} {fw.title}"
+    return fw_str
+
+
 @app.command(name="frameworks")  # type: ignore[misc]
 def frameworks_cmd() -> None:
     """
@@ -177,6 +190,19 @@ def frameworks_cmd() -> None:
         # Count rules using this framework
         rule_count = sum(1 for rule in RULES.values() if rule.has_framework(short_name))
         typer.echo(f"  Rules: {rule_count}")
+        titled_controls = sorted(
+            {fw for fw in fws if fw.title},
+            key=lambda fw: (
+                fw.scope or "",
+                fw.revision or "",
+                fw.requirement,
+                fw.title or "",
+            ),
+        )
+        if titled_controls:
+            typer.echo("  Controls:")
+            for fw in titled_controls:
+                typer.echo(f"    - {_format_framework_mapping(fw)}")
         typer.echo()
 
 
@@ -242,14 +268,7 @@ def list_cmd(
             if rule_obj.frameworks:
                 typer.echo("  Frameworks:")
                 for fw in rule_obj.frameworks:
-                    # Build framework string with optional parts
-                    fw_parts = [fw.short_name]
-                    if fw.scope:
-                        fw_parts.append(fw.scope)
-                    if fw.revision:
-                        fw_parts.append(fw.revision)
-                    fw_str = ":".join(fw_parts)
-                    typer.echo(f"    - {fw_str} ({fw.requirement})")
+                    typer.echo(f"    - {_format_framework_mapping(fw)}")
             if rule_obj.references:
                 typer.echo("  References:")
                 for ref in rule_obj.references:

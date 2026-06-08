@@ -164,7 +164,7 @@ ai_third_party_app_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("MAP 1"),
+        nist_ai_rmf("MAP 1", title="Context is established and understood"),
         iso27001_annex_a("5.21"),
         iso27001_annex_a("5.23"),
     ),
@@ -268,8 +268,14 @@ ai_third_party_app_sensitive_scopes = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("MEASURE 2"),
-        nist_ai_rmf("MANAGE 2"),
+        nist_ai_rmf(
+            "MEASURE 2",
+            title="AI system performance and trustworthiness characteristics are measured",
+        ),
+        nist_ai_rmf(
+            "MANAGE 2",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+        ),
         iso27001_annex_a("5.15"),
         iso27001_annex_a("8.3"),
     ),
@@ -399,7 +405,10 @@ ai_admin_app_authorizations = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("GOVERN 5"),
+        nist_ai_rmf(
+            "GOVERN 5",
+            title="Organizational teams are committed to a culture that considers and communicates AI risk",
+        ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -555,8 +564,11 @@ aibom_agent_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("MAP 1"),
-        nist_ai_rmf("GOVERN 1"),
+        nist_ai_rmf("MAP 1", title="Context is established and understood"),
+        nist_ai_rmf(
+            "GOVERN 1",
+            title="Policies, processes, procedures, and practices are in place to map, measure, and manage AI risks",
+        ),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
     ),
@@ -654,8 +666,14 @@ aibom_coverage_gaps = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("MEASURE 2"),
-        nist_ai_rmf("MANAGE 2"),
+        nist_ai_rmf(
+            "MEASURE 2",
+            title="AI system performance and trustworthiness characteristics are measured",
+        ),
+        nist_ai_rmf(
+            "MANAGE 2",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+        ),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
     ),
@@ -869,8 +887,14 @@ ai_provider_api_key_hygiene = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        nist_ai_rmf("GOVERN 5"),
-        nist_ai_rmf("MANAGE 2"),
+        nist_ai_rmf(
+            "GOVERN 5",
+            title="Organizational teams are committed to a culture that considers and communicates AI risk",
+        ),
+        nist_ai_rmf(
+            "MANAGE 2",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+        ),
         iso27001_annex_a("5.17"),
         iso27001_annex_a("5.18"),
     ),

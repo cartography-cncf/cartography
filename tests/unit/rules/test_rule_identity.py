@@ -1,7 +1,10 @@
 import re
 
 from cartography.rules.data.rules import RULES
+from cartography.rules.formatters import to_serializable
 from cartography.rules.runners import filter_rules_by_framework
+from cartography.rules.spec.result import CounterResult
+from cartography.rules.spec.result import RuleResult
 
 COMPLIANCE_NAME_PREFIX = re.compile(
     r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|NIST AI RMF)\b"
@@ -20,32 +23,73 @@ def test_rule_names_do_not_use_compliance_control_prefixes():
 
 def test_framework_mappings_remain_on_renamed_rules():
     expected = {
-        "aws_cloudtrail_multi_region": ("cis", "aws", "6.0.0", "4.1"),
+        "aws_cloudtrail_multi_region": (
+            "cis",
+            "aws",
+            "6.0.0",
+            "4.1",
+            "CloudTrail is enabled in all regions",
+        ),
         "aws_default_security_group_restricts_traffic": (
             "cis",
             "aws",
             "6.0.0",
             "6.5",
+            "Default Security Group Restricts Traffic",
         ),
-        "gcp_projects_without_effective_os_login": ("cis", "gcp", "4.0", "4.4"),
+        "gcp_projects_without_effective_os_login": (
+            "cis",
+            "gcp",
+            "4.0",
+            "4.4",
+            "Projects Without Effective OS Login",
+        ),
         "kubernetes_pods_sharing_host_pid_namespace": (
             "cis",
             "kubernetes",
             "1.12",
             "5.2.3",
+            "Minimize containers that share the host process ID namespace",
         ),
-        "ai_provider_api_key_hygiene": ("nist-ai-rmf", None, "1.0", "govern 5"),
+        "kubernetes_bind_impersonate_escalate_permissions": (
+            "cis",
+            "kubernetes",
+            "1.12",
+            "5.1.8",
+            "Limit use of bind, impersonate, and escalate permissions",
+        ),
+        "ai_provider_api_key_hygiene": (
+            "nist-ai-rmf",
+            None,
+            "1.0",
+            "govern 5",
+            "Organizational teams are committed to a culture that considers and communicates AI risk",
+        ),
     }
 
-    for rule_id, (short_name, scope, revision, requirement) in expected.items():
+    for rule_id, (short_name, scope, revision, requirement, title) in expected.items():
         rule = RULES[rule_id]
         assert any(
             fw.short_name == short_name
             and fw.scope == scope
             and fw.revision == revision
             and fw.requirement == requirement
+            and fw.title == title
             for fw in rule.frameworks
         )
+
+
+def test_rule_name_and_framework_title_can_differ():
+    rule = RULES["kubernetes_bind_impersonate_escalate_permissions"]
+    fw = next(
+        fw
+        for fw in rule.frameworks
+        if fw.short_name == "cis" and fw.requirement == "5.1.8"
+    )
+
+    assert rule.name == "Bind/Impersonate/Escalate Permissions"
+    assert fw.title == "Limit use of bind, impersonate, and escalate permissions"
+    assert rule.name != fw.title
 
 
 def test_framework_filtering_returns_renamed_rule_ids():
@@ -65,4 +109,27 @@ def test_framework_filtering_returns_renamed_rule_ids():
     assert "ai_provider_api_key_hygiene" in filter_rules_by_framework(
         rule_ids,
         "NIST-AI-RMF",
+    )
+
+
+def test_framework_title_is_serialized_in_rule_results():
+    rule = RULES["kubernetes_bind_impersonate_escalate_permissions"]
+    result = RuleResult(
+        rule_id=rule.id,
+        rule_name=rule.name,
+        rule_description=rule.description,
+        counter=CounterResult(),
+        rule_frameworks=rule.frameworks,
+    )
+
+    serialized = to_serializable(result)
+    cis_framework = next(
+        fw
+        for fw in serialized["rule_frameworks"]
+        if fw["short_name"] == "cis" and fw["requirement"] == "5.1.8"
+    )
+
+    assert (
+        cis_framework["title"]
+        == "Limit use of bind, impersonate, and escalate permissions"
     )

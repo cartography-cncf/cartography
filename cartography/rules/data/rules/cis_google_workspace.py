@@ -92,7 +92,9 @@ googleworkspace_users_without_enforced_2sv = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_google_workspace("4.1.1.3"),
+        cis_google_workspace(
+            "4.1.1.3", title="Users Without Enforced 2-Step Verification"
+        ),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -173,7 +175,9 @@ googleworkspace_admins_without_enforced_2sv = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_google_workspace("4.1.1.1"),
+        cis_google_workspace(
+            "4.1.1.1", title="Admins Without Enforced 2-Step Verification"
+        ),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
     ),
@@ -259,7 +263,7 @@ googleworkspace_too_few_super_admin_accounts = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_google_workspace("1.1.1"),
+        cis_google_workspace("1.1.1", title="More Than One Super Admin Account Exists"),
         iso27001_annex_a("8.2"),
     ),
 )
@@ -318,7 +322,9 @@ googleworkspace_too_many_super_admin_accounts = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_google_workspace("1.1.2"),
+        cis_google_workspace(
+            "1.1.2", title="No More Than 4 Super Admin Accounts Exist"
+        ),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
     ),
@@ -382,7 +388,9 @@ googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_google_workspace("1.1.3"),
+        cis_google_workspace(
+            "1.1.3", title="Super Admin Accounts Used Only for Super Admin Activities"
+        ),
         iso27001_annex_a("8.2"),
     ),
 )
