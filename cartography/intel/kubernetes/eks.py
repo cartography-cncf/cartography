@@ -21,6 +21,21 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class _StringScalarLoader(yaml.SafeLoader):
+    """
+    YAML loader that resolves every plain scalar as a string.
+
+    AWS account IDs in ``mapAccounts`` are 12-digit values. The default loader would
+    parse unquoted IDs as ints, which both drops leading zeros and misreads all-octal
+    digit IDs (e.g. ``012345670123``) as base-8. Disabling implicit type resolution
+    keeps account IDs as the literal strings written in the ConfigMap.
+    """
+
+
+# Empty implicit resolvers => every unquoted scalar falls back to the string tag.
+_StringScalarLoader.yaml_implicit_resolvers = {}
+
+
 AWS_AUTH_TEMPLATE_PATTERN = re.compile(r"{{[^}]+}}")
 ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE = (
     "authentication mode must be set to one of [API, API_AND_CONFIG_MAP]"
@@ -69,14 +84,11 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[Any]]:
 
     if "mapAccounts" in configmap.data:
         map_accounts_yaml = configmap.data["mapAccounts"]
-        # mapAccounts is a YAML list of AWS account IDs. Account IDs are 12-digit
-        # values that YAML may parse as ints; zero-pad those back to 12 digits so we
-        # don't drop leading zeros (which would break principal resolution).
-        parsed_accounts = yaml.safe_load(map_accounts_yaml) or []
-        result["accounts"] = [
-            f"{account_id:012d}" if isinstance(account_id, int) else str(account_id)
-            for account_id in parsed_accounts
-        ]
+        # mapAccounts is a YAML list of AWS account IDs. Parse with a string-only
+        # loader so unquoted IDs keep their leading zeros and are never misread as
+        # octal/decimal integers (which would break principal resolution).
+        parsed_accounts = yaml.load(map_accounts_yaml, Loader=_StringScalarLoader) or []
+        result["accounts"] = [str(account_id) for account_id in parsed_accounts]
         logger.info(
             f"Parsed {len(result['accounts'])} account mappings from aws-auth ConfigMap"
         )
