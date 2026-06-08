@@ -230,6 +230,7 @@ from cartography.rules.data.rules.object_storage_public import object_storage_pu
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
+from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.serverless_workload_exposed import (
     serverless_workload_exposed,
 )
@@ -305,6 +306,7 @@ RULES = {
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
+    public_snapshots.id: public_snapshots,
     tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,

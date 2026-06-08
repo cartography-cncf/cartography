@@ -1,0 +1,116 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Maturity
+from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+
+# AWS Facts
+_aws_ebs_snapshot_public = Fact(
+    id="aws_ebs_snapshot_public",
+    name="Publicly Shared EBS Snapshots",
+    description=(
+        "AWS EBS snapshots shared publicly. A public snapshot can be copied "
+        "or restored into a volume by any AWS account, exposing the full "
+        "contents of the source volume to anyone."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(s:EBSSnapshot)
+    WHERE s.ispublic = true
+    RETURN
+        s.id AS id,
+        s.id AS arn,
+        s.volumeid AS source_identifier,
+        s.encrypted AS encrypted,
+        s.region AS region,
+        a.id AS account_id,
+        a.name AS account,
+        'EBSSnapshot' AS resource_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(s:EBSSnapshot)
+    WHERE s.ispublic = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (s:EBSSnapshot)
+    RETURN COUNT(s) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_aws_rds_snapshot_public = Fact(
+    id="aws_rds_snapshot_public",
+    name="Publicly Shared RDS Snapshots",
+    description=(
+        "AWS RDS snapshots shared publicly. A public snapshot can be copied "
+        "or restored into a database by any AWS account, exposing the full "
+        "contents of the source database to anyone."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(s:RDSSnapshot)
+    WHERE s.ispublic = true
+    RETURN
+        s.db_snapshot_identifier AS id,
+        s.arn AS arn,
+        s.db_instance_identifier AS source_identifier,
+        s.encrypted AS encrypted,
+        s.region AS region,
+        a.id AS account_id,
+        a.name AS account,
+        'RDSSnapshot' AS resource_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(s:RDSSnapshot)
+    WHERE s.ispublic = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (s:RDSSnapshot)
+    RETURN COUNT(s) AS count
+    """,
+    asset_id_field="arn",
+    identity_fields=("arn",),
+    module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Rule
+class PublicSnapshots(Finding):
+    id: str | None = None
+    arn: str | None = None
+    source_identifier: str | None = None
+    encrypted: bool | None = None
+    region: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+    resource_type: str | None = None
+
+
+public_snapshots = Rule(
+    id="public_snapshots",
+    name="Publicly Accessible Snapshots",
+    description=(
+        "EBS and RDS snapshots shared publicly, allowing any AWS account to "
+        "copy or restore an entire volume or database. This is a classic "
+        "data-exfiltration path that bypasses bucket and network controls."
+    ),
+    output_model=PublicSnapshots,
+    facts=(
+        _aws_ebs_snapshot_public,
+        _aws_rds_snapshot_public,
+    ),
+    tags=(
+        "infrastructure",
+        "data",
+        "attack_surface",
+        "stride:information_disclosure",
+    ),
+    version="0.1.0",
+    frameworks=(iso27001_annex_a("8.3"),),
+)
