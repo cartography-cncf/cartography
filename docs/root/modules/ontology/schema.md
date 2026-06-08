@@ -40,6 +40,7 @@ SC{{Secret}}
 EK{{EncryptionKey}}
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
+SA -- HAS_ROLE --> PR
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -576,9 +577,10 @@ Common role concepts across platforms include:
 | _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
 | _ont_source | Source of the data. |
 
-A `UserAccount` that is granted a permission role is linked via the canonical `HAS_ROLE` edge:
+A `UserAccount` or `ServiceAccount` that is granted a permission role is linked via the canonical `HAS_ROLE` edge:
 ```
 (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
+(:ServiceAccount)-[:HAS_ROLE]->(:PermissionRole)
 ```
 
 

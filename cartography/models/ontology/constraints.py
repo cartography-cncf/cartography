@@ -29,6 +29,9 @@ from cartography.models.kubernetes.namespaces import (
 )
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterRel
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
+from cartography.models.kubernetes.serviceaccounts import (
+    KubernetesServiceAccountToAWSRoleRel,
+)
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 
 
@@ -64,6 +67,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     ),
     # A user account is granted a role.
     RelConstraint(src="UserAccount", dst="PermissionRole", label="HAS_ROLE"),
+    # A service account (workload identity) is granted a role. No provider
+    # currently wires a direct edge (all go through binding nodes), so this is
+    # forward-looking governance for future modules.
+    RelConstraint(src="ServiceAccount", dst="PermissionRole", label="HAS_ROLE"),
 )
 
 
@@ -100,5 +107,9 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # ASSUMED_ROLE_WITH_SAML records a CloudTrail-observed runtime assumption
         # event, not a static role assignment. Distinct from HAS_ROLE.
         AssumedRoleWithSAMLMatchLink,
+        # ASSUMES_ROLE is workload-identity federation (a Kubernetes service
+        # account assumes an AWS IAM role, IRSA-style). This is the canonical
+        # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
+        KubernetesServiceAccountToAWSRoleRel,
     }
 )
