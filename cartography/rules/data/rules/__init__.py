@@ -207,6 +207,9 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
+from cartography.rules.data.rules.iam_role_external_account_trust import (
+    iam_role_external_account_trust,
+)
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -233,6 +236,7 @@ from cartography.rules.data.rules.object_storage_public import object_storage_pu
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
+from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.serverless_workload_exposed import (
     serverless_workload_exposed,
 )
@@ -304,6 +308,7 @@ RULES = {
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
     device_security_posture_gaps.id: device_security_posture_gaps,
     eol_software.id: eol_software,
+    iam_role_external_account_trust.id: iam_role_external_account_trust,
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
@@ -311,6 +316,7 @@ RULES = {
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
+    public_snapshots.id: public_snapshots,
     tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,
