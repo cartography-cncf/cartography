@@ -85,6 +85,28 @@ class AIBOMSourceToImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AIBOMSourceToGitHubRepoRel(CartographyRelSchema):
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"url": PropertyRef("github_repo_urls", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SCANNED_REPOSITORY"
+    properties: AIBOMSourceToImageRelProperties = AIBOMSourceToImageRelProperties()
+
+
+@dataclass(frozen=True)
+class AIBOMSourceToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("gitlab_project_urls", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SCANNED_REPOSITORY"
+    properties: AIBOMSourceToImageRelProperties = AIBOMSourceToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class AIBOMSourceToComponentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -111,6 +133,8 @@ class AIBOMSourceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AIBOMSourceToImageRel(),
+            AIBOMSourceToGitHubRepoRel(),
+            AIBOMSourceToGitLabProjectRel(),
             AIBOMSourceToComponentRel(),
         ],
     )
