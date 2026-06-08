@@ -3868,6 +3868,11 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
     (RDSInstance)-[TAGGED]->(AWSTag)
     ```
 
+- RDS Instances encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (RDSInstance)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### RDSSnapshot
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
@@ -4114,6 +4119,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 -  S3 Buckets can be tagged with AWSTags.
     ```
     (S3Bucket)-[TAGGED]->(AWSTag)
+    ```
+
+- S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
+    ```
+    (S3Bucket)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
@@ -5485,6 +5495,11 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
 - EFS Access Points are entry points into EFS File Systems.
     ```
     (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    ```
+
+- EFS File Systems encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### SNSTopic

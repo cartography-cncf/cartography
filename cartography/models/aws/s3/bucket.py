@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # ============================================================================
@@ -101,12 +102,36 @@ class S3BucketEncryptionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey).
+# Only created when default encryption uses a customer-managed KMS key
+# (encryption_key_id holds the KMS key ARN).
+class S3BucketToKMSKeyRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("encryption_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: S3BucketToKMSKeyRelProperties = S3BucketToKMSKeyRelProperties()
+
+
+@dataclass(frozen=True)
 class S3BucketEncryptionSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket encryption properties."""
 
     label: str = "S3Bucket"
     properties: S3BucketEncryptionProperties = S3BucketEncryptionProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            S3BucketToKMSKeyRel(),
+        ]
+    )
 
 
 @dataclass(frozen=True)

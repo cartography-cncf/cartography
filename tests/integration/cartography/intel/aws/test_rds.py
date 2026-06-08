@@ -301,6 +301,17 @@ def test_sync_rds_comprehensive(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _create_test_security_groups(neo4j_session)
     _create_test_subnets(neo4j_session)
+    # Seed the KMS key referenced by the instance so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="some-guid",
+        key_arn="arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -365,6 +376,22 @@ def test_sync_rds_comprehensive(
     ) == {
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "000000000000"),
     }, "RDS instances are not connected to AWS account"
+
+    # Canonical ontology edge: (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "RDSInstance",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        ),
+    }, "RDS instance is not connected to its KMS key"
 
     assert check_rels(
         neo4j_session,

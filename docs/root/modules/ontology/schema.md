@@ -38,6 +38,10 @@ FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
 EK{{EncryptionKey}}
+SC -- ENCRYPTED_BY --> EK
+DB -- ENCRYPTED_BY --> EK
+OS -- ENCRYPTED_BY --> EK
+FS -- ENCRYPTED_BY --> EK
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
@@ -308,6 +312,16 @@ Encryption keys are used for data encryption, signing, and other cryptographic o
 | _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
 | _ont_enabled | Whether the encryption key is currently enabled. |
 | _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+#### Relationships
+
+- A `Secret`, `Database`, `ObjectStorage`, or `FileStorage` encrypted with a customer-managed key is linked to it via the canonical `ENCRYPTED_BY` edge:
+    ```
+    (:Secret)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    ```
 
 
 ### ComputeInstance

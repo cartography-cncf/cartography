@@ -122,6 +122,11 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="UserGroup", dst="PermissionRole", label="HAS_ROLE"),
     # A composite/hierarchical role includes other roles.
     RelConstraint(src="PermissionRole", dst="PermissionRole", label="INCLUDES"),
+    # A secret or data store is encrypted by an encryption key.
+    RelConstraint(src="Secret", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="Database", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="ObjectStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="FileStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
     # An identity is a member of a group; groups nest into other groups.
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),

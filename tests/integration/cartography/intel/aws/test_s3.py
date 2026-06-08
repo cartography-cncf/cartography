@@ -161,6 +161,17 @@ def test_load_s3_encryption(neo4j_session, *args):
     """
     Ensure that expected bucket gets loaded with their encryption fields.
     """
+    # Seed the KMS key referenced by bucket-1 so the ENCRYPTED_BY edge can match
+    # it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        key_arn="arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        update_tag=TEST_UPDATE_TAG,
+    )
     data = tests.data.aws.s3.GET_ENCRYPTION
     cartography.intel.aws.s3._load_s3_encryption(neo4j_session, data, TEST_UPDATE_TAG)
 
@@ -192,6 +203,22 @@ def test_load_s3_encryption(neo4j_session, *args):
         for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+    # Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "S3Bucket",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "bucket-1",
+            "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        ),
+    }
 
 
 def test_load_s3_policies(neo4j_session, *args):
