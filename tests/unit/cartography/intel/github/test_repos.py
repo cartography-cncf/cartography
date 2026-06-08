@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from unittest.mock import patch
 
@@ -240,6 +241,26 @@ def test_transform_dependency_version_confidence_range():
     assert lodash_dep["normalized_id"] is None
     assert lodash_dep["source"] == "dependency_graph"
     assert lodash_dep["version_confidence"] == "range"
+
+
+def test_transform_dependency_graph_logs_coverage_summary(caplog):
+    """
+    The dependency transform logs a structured coverage summary. The mixed batch
+    has 4 deps, 3 with an exact version / normalized_id / purl (react, django,
+    spring-core) and 1 without (lodash), i.e. 75% coverage.
+    """
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+
+    with caplog.at_level(logging.INFO, logger="cartography.intel.github.repos"):
+        _transform_dependency_graph(
+            DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, repo_url, output_list
+        )
+
+    assert "Found 4 dependencies" in caplog.text
+    assert "3 exact (75%)" in caplog.text
+    assert "3 normalized_id (75%)" in caplog.text
+    assert "3 with purl" in caplog.text
 
 
 def test_transform_python_requirements_skips_flags_and_continuations():

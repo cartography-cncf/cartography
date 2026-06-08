@@ -459,6 +459,7 @@ def _get_dep_manifests_for_repos(
         org,
     )
     result: dict[str, dict[str, Any]] = {}
+    failed_count = 0
 
     for repo in repo_raw_data:
         if repo is None:
@@ -478,12 +479,20 @@ def _get_dep_manifests_for_repos(
                     repo_name,
                 )
         except requests.exceptions.RequestException:
+            failed_count += 1
             logger.warning(
                 "Failed to fetch dependency manifests for repo %s; skipping.",
                 repo_name,
                 exc_info=True,
             )
 
+    if failed_count > 0:
+        logger.warning(
+            "Skipped dependency manifests for %d of %d repos in org %s due to fetch errors.",
+            failed_count,
+            len(repo_raw_data),
+            org,
+        )
     logger.debug("Fetched dependency manifests for %d repos.", len(result))
     return result
 
@@ -1316,6 +1325,9 @@ def _transform_dependency_graph(
         return
 
     dependencies_added = 0
+    exact_version_count = 0
+    normalized_id_count = 0
+    purl_count = 0
 
     for manifest in dependency_manifests["nodes"]:
         dependencies = manifest.get("dependencies", {})
@@ -1396,10 +1408,28 @@ def _transform_dependency_graph(
                 }
             )
             dependencies_added += 1
+            if dep_version is not None:
+                exact_version_count += 1
+            if dep_normalized_id is not None:
+                normalized_id_count += 1
+            if dep_purl is not None:
+                purl_count += 1
 
     if dependencies_added > 0:
         repo_name = repo_url.split("/")[-1] if repo_url else "repository"
-        logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
+        # Integer-percentage coverage so normalization quality is observable per repo.
+        exact_pct = (exact_version_count * 100) // dependencies_added
+        normalized_pct = (normalized_id_count * 100) // dependencies_added
+        logger.info(
+            "Found %d dependencies in %s: %d exact (%d%%), %d normalized_id (%d%%), %d with purl.",
+            dependencies_added,
+            repo_name,
+            exact_version_count,
+            exact_pct,
+            normalized_id_count,
+            normalized_pct,
+            purl_count,
+        )
 
 
 def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> str:
