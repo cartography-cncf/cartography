@@ -97,6 +97,17 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
         ),
     }
 
+    # Assert - VirtualNetwork semantic label + normalized _ont_* fields.
+    # GCP VPCs are global and keep CIDRs on subnets, so _ont_cidr/_ont_region
+    # are intentionally unset.
+    assert check_nodes(
+        neo4j_session,
+        "VirtualNetwork",
+        ["_ont_name", "_ont_source"],
+    ) == {
+        ("default", "gcp"),
+    }
+
     # Assert - Project to VPC relationship created
     assert check_rels(
         neo4j_session,
@@ -171,6 +182,15 @@ def test_sync_gcp_subnets(mock_get_vpcs, mock_get_subnets, neo4j_session):
         ),
     }
 
+    # Assert - Subnet semantic label + normalized _ont_* fields
+    assert check_nodes(
+        neo4j_session,
+        "Subnet",
+        ["_ont_name", "_ont_cidr_block", "_ont_region", "_ont_source"],
+    ) == {
+        ("default", "10.0.0.0/20", "europe-west2", "gcp"),
+    }
+
     # Assert - VPC to Subnet relationship created
     assert check_rels(
         neo4j_session,
@@ -186,6 +206,40 @@ def test_sync_gcp_subnets(mock_get_vpcs, mock_get_subnets, neo4j_session):
             "projects/project-abc/regions/europe-west2/subnetworks/default",
         ),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
+)
+def test_gcp_subnet_stub_not_labeled_subnet(mock_get_instances, neo4j_session):
+    """Regression: GCP subnet stubs created by the instance path only know
+    partial_uri, so they must NOT carry the Subnet semantic label. Otherwise
+    cross-cloud (:Subnet) queries would return nameless GCP subnet nodes (no
+    _ont_name/_ont_cidr_block/_ont_region) until a full subnet sync runs."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    # Act - sync instances only; this creates GCPSubnet stub nodes without full
+    # subnet data.
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - stub subnet nodes exist, but none carry the Subnet label.
+    assert check_nodes(neo4j_session, "GCPSubnet", ["id"]) != set()
+    assert check_nodes(neo4j_session, "Subnet", ["id"]) == set()
 
 
 @patch.object(

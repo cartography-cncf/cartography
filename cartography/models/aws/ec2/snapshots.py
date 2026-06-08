@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -56,5 +57,6 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 class EBSSnapshotSchema(CartographyNodeSchema):
     label: str = "EBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Snapshot"])
     sub_resource_relationship: EBSSnapshotToAWSAccountRel = EBSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

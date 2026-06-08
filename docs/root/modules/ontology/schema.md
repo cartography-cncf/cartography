@@ -630,6 +630,24 @@ as opposed to object storage (S3-like) or network file storage (EFS-like).
 | _ont_state | The lifecycle state of the volume (e.g., `available`, `in-use`). |
 
 
+### Snapshot
+
+```{note}
+Snapshot is a semantic label.
+```
+
+A snapshot represents a point-in-time copy of a volume or database. It generalizes AWS EBS/RDS snapshots, Azure snapshots, and Scaleway volume snapshots. Publicly shared snapshots are a known data-exfiltration vector.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the snapshot (REQUIRED). For AWS EBS this is the SnapshotId. |
+| _ont_encrypted | Whether the snapshot is encrypted at rest. Populated for AWS EBS/RDS snapshots only. **Absence is not `false`**: it means "unknown / not modeled" for that provider, not "unencrypted". Azure exposes only the legacy Azure Disk Encryption flag (snapshots are encrypted at rest by default via SSE), and Scaleway does not expose encryption posture, so the field is left unset for both. Do not write `coalesce(s._ont_encrypted, false) = false` to find unencrypted snapshots; filter on `s._ont_encrypted = false` instead. |
+| _ont_public | Whether the snapshot is publicly shared. Populated for AWS EBS/RDS snapshots only. **Absence is not `false`**: Azure and Scaleway do not expose a public-sharing flag on the snapshot node, so the field is left unset (state unknown, not "private"). |
+| _ont_source_id | The source volume (AWS EBS), database instance (AWS RDS) the snapshot was taken from. Not populated for Azure (no source on the node) or Scaleway (the source volume is only linked via the `HAS` relationship). |
+| _ont_created_at | When the snapshot was created. Not populated for Azure (no creation timestamp captured). |
+| _ont_region | The region/zone where the snapshot lives. |
+
+
 ### IdentityProvider
 
 ```{note}
@@ -864,6 +882,43 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
     ```
     (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
     ```
+
+
+### Subnet
+
+```{note}
+Subnet is a semantic label.
+```
+
+A subnet represents an IP subnetwork within a virtual network. It generalizes AWS EC2 subnets, GCP subnetworks, and Azure subnets.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the subnet (REQUIRED). For AWS this is the SubnetId (EC2 subnets have no display name). |
+| _ont_cidr_block | The IP range (CIDR) of the subnet. |
+| _ont_availability_zone | The availability zone of the subnet. AWS only: GCP subnets are regional and Azure subnets are not zone-scoped, so the field is left unset for those providers. |
+| _ont_region | The region/zone where the subnet lives. Not populated for Azure subnets: the region lives on the parent `AzureVirtualNetwork`. A region-scoped cross-cloud query like `MATCH (s:Subnet) WHERE s._ont_region = $region` will silently drop Azure subnets; traverse through `AzureVirtualNetwork` to filter those by region. |
+
+`_ont_is_public` is intentionally not modeled: no provider exposes a faithful public/private flag on the subnet node (it depends on route-table/internet-gateway analysis on AWS, and route/NSG configuration on Azure).
+
+```{note}
+Several AWS sync paths (instances, network interfaces, VPC endpoints, auto scaling groups) create partial `EC2Subnet` nodes that know only the subnet id and sometimes the region. These nodes carry the `Subnet` label with `_ont_name` and `_ont_source` set, but may have a null `_ont_cidr_block` / `_ont_availability_zone` until a full subnet sync enriches them. `(:Subnet)` queries that rely on CIDR/AZ should treat absence as "not yet known", not as a real value. GCP subnet stub nodes are deliberately left unlabeled because they lack even a name.
+```
+
+
+### VirtualNetwork
+
+```{note}
+VirtualNetwork is a semantic label.
+```
+
+A virtual network represents an isolated virtual network environment that defines the network boundary for cloud resources. It generalizes AWS VPCs, GCP VPCs, and Azure virtual networks.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the virtual network (REQUIRED). For AWS this is the VpcId (VPCs have no display name). |
+| _ont_cidr | The IP range (CIDR) of the virtual network. AWS only: GCP VPCs keep CIDRs on their subnets, and Azure stores the address space on subnets rather than the virtual network, so the field is left unset for those providers. |
+| _ont_region | The region where the virtual network lives. Not populated for GCP (VPCs are global). |
 
 
 ### Package
