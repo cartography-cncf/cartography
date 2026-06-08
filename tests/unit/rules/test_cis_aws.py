@@ -134,6 +134,26 @@ class TestCisAwsFactMetadata:
             assert "COUNT" in fact.cypher_count_query
             assert "AS count" in fact.cypher_count_query
 
+    def test_access_key_date_filters_parse_iso_datetime_strings(self):
+        access_key_rules = (
+            cis_aws_2_11_unused_credentials,
+            cis_aws_2_13_access_key_not_rotated,
+        )
+
+        for rule in access_key_rules:
+            fact = rule.facts[0]
+            query_text = f"{fact.cypher_query}\n{fact.cypher_visual_query}"
+            assert "date(key.createdate_dt)" not in query_text
+            assert "date(key.lastuseddate_dt)" not in query_text
+            assert "date(datetime(key.createdate_dt))" in query_text
+
+        unused_credentials_fact = cis_aws_2_11_unused_credentials.facts[0]
+        unused_credentials_query_text = (
+            f"{unused_credentials_fact.cypher_query}\n"
+            f"{unused_credentials_fact.cypher_visual_query}"
+        )
+        assert "date(datetime(key.lastuseddate_dt))" in unused_credentials_query_text
+
 
 class TestCisAwsRuleRegistration:
     """Test that all CIS AWS rules are registered."""

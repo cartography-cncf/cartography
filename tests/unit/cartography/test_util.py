@@ -125,6 +125,22 @@ def test_aws_handle_regions(mocker):
 
     assert raises_authorization_error(1, 2) == []
 
+    # SubscriptionRequiredException should also return the default
+    @aws_handle_regions
+    def raises_subscription_required_error(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "SubscriptionRequiredException",
+                    "Message": "The AWS Access Key Id needs a subscription for the service",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    assert raises_subscription_required_error(1, 2) == []
+
     # UnknownOperationException should return the default when a region does not support the operation
     @aws_handle_regions
     def raises_unknown_operation_error(a, b):
