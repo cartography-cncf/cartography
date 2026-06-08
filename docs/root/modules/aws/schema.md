@@ -5146,16 +5146,6 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
-    ```
-
-- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSService)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - An ECSService points at its parent cluster via the unified workload chain.
     ```
     (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
@@ -5305,11 +5295,6 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - ECSContainerInstances have ECSTasks
     ```
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
@@ -5363,11 +5348,6 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `aws_ecs_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ecs_asset_exposure.json). |
 
 #### Relationships
-
-- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
-    ```
 
 - ECSContainers point at their parent ECSTask via the unified workload chain.
     ```
