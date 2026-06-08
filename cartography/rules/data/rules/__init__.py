@@ -76,10 +76,13 @@ from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_6_7_cloudsql_backup
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_1_bigquery_dataset_public
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_2_bigquery_table_cmek
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_7_3_bigquery_dataset_cmek
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_3_root_access_key
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_4_root_mfa
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_12_multiple_access_keys
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_14_user_direct_policies
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_15_admin_policy
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_18_expired_certificates
 from cartography.rules.data.rules.cis_aws_logging import (
     cis_aws_4_1_cloudtrail_multi_region,
@@ -265,10 +268,13 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 # Rule registry - all available rules
 RULES = {
     # CIS AWS IAM Rules (Section 2)
+    cis_aws_2_3_root_access_key.id: cis_aws_2_3_root_access_key,
+    cis_aws_2_4_root_mfa.id: cis_aws_2_4_root_mfa,
     cis_aws_2_11_unused_credentials.id: cis_aws_2_11_unused_credentials,
     cis_aws_2_12_multiple_access_keys.id: cis_aws_2_12_multiple_access_keys,
     cis_aws_2_13_access_key_not_rotated.id: cis_aws_2_13_access_key_not_rotated,
     cis_aws_2_14_user_direct_policies.id: cis_aws_2_14_user_direct_policies,
+    cis_aws_2_15_admin_policy.id: cis_aws_2_15_admin_policy,
     cis_aws_2_18_expired_certificates.id: cis_aws_2_18_expired_certificates,
     # CIS AWS Storage Rules (Section 3)
     cis_aws_3_1_2_s3_mfa_delete.id: cis_aws_3_1_2_s3_mfa_delete,
