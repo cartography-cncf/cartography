@@ -300,6 +300,7 @@ def test_sync_gcp_permission_relationships(
         rel_direction_right=True,
     ) == {
         ("alice@example.com", "test-bucket"),
+        (None, "test-bucket"),
     }
 
     assert check_rels(

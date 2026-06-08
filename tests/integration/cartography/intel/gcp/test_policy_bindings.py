@@ -452,6 +452,10 @@ def test_sync_gcp_policy_bindings(
             "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
         ),
         (
+            None,
+            "//storage.googleapis.com/buckets/test-bucket_roles/storage.objectViewer",
+        ),
+        (
             "bob@example.com",
             "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
         ),
@@ -500,6 +504,17 @@ def test_sync_gcp_policy_bindings(
             "projects/123456789012/locations/global/workloadIdentityPools/test-pool",
         ),
     }
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (principal:GCPExternalPrincipal:GCPPrincipal {id: $principal_id})
+            RETURN count(principal) AS count
+            """,
+            principal_id=tests.data.gcp.policy_bindings.MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+        ).single()["count"]
+        == 1
+    )
 
     assert check_rels(
         neo4j_session,
